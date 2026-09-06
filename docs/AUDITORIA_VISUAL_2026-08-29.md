@@ -905,4 +905,86 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 1. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
 2. ~~Confirmar en ejecución las correcciones de §12b~~ — **hecho el 2026-09-05**: el usuario da por arreglados el suelo del rellano, el techo del rellano y los pasillos. **X-8 cerrada**; la causa era superposición de superficies, no iluminación. La bisección de [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md) no llegó a hacer falta y queda como registro de método.
 
-Con FP-3 y X-8 cerradas, **no queda ningún hallazgo de la auditoría pendiente**, ni de §1-§8 ni de la serie X. Lo único que sigue en pie es H-6 (autoexposición entre plantas), que es funcionalidad nueva declarada fuera del cierre, y dos cabos sueltos sin ficha: la sala casi negra de la grabación de las 00:38 y la pasada de arte de los muebles.
+3. 🔴 **MOB-1** — el mobiliario sigue sin ser creíble. **ABIERTO**, ver §14.
+
+Con FP-3 y X-8 cerradas no queda ningún hallazgo de §1-§8 ni de la serie X. Sigue en pie H-6 (autoexposición entre plantas), que es funcionalidad nueva declarada fuera del cierre, **MOB-1**, y un cabo suelto sin ficha: la sala casi negra de la grabación de las 00:38.
+
+---
+
+## 14. 🔴 MOB-1. El mobiliario sigue sin ser creíble — **[ABIERTO]**
+
+**Estado: NO corregido.** Se trabajó sobre ello el 2026-09-06 (commits `5f4fe75`,
+`2fadc1f`, `4046c6d`) y el usuario, al ejecutarlo, lo rechaza:
+
+> *"siguen muebles sin sentido. cosas que no parecen muebles en medio del
+> pasillo y muebles en sitios que no corresponden"*
+
+Se paró ahí por decisión suya, para seguir con otra cosa. Esto queda abierto.
+
+### 14.1 Lo que sí quedó arreglado, y está medido
+
+No hay que rehacerlo, pero tampoco basta:
+
+- El **tamaño**. Los modelos de `assets/fp/furniture` no vienen a escala real
+  (una cama mide 0,96 × 1,13 × 0,38 m en el fichero) y se escalaban para que su
+  superficie coincidiera con `size_m`, que es la huella del modelo de **fuego**.
+  Daba una encimera de 3,15 m convertida en un cubo de 1,46 y camas de 1,52 m de
+  largo. Las medidas reales están en `view/furniture/FurnitureDimensions.gd`.
+- **Solapes y salidas de sala**: 11 pares de piezas superpuestas → 0; 2 piezas
+  fuera de su sala → 0; 1 atravesando el techo → 0.
+- Dos errores de identidad por coincidencia de letras: la **mesilla** salía
+  dibujada como una **silla** ("mesilla" contiene "silla") y las **cortinas**
+  como una **bañera** ("cortinas" contiene "tina").
+- Las cuatro vistas reparten igual (FP, maqueta 3D, plano 2D y minimapa).
+
+### 14.2 Por qué los guardarraíles pasan y aun así se ve mal
+
+Es la lección que importa para quien lo retome. `tools/validate_furniture_layout.gd`
+mide **geometría**: que nada se salga de la sala, que nada se pise, que las
+piezas de paramento estén contra un paramento, que las alturas sean las del
+mueble real. Las 319 piezas del catálogo pasan todo eso.
+
+**Nada de eso comprueba que una pieza tenga sentido donde está.** Un montón de
+cajas perfectamente colocado contra la pared del pasillo cumple las seis reglas
+y sigue siendo un objeto que no pinta nada ahí. El guardarraíl no sabe distinguir
+"colocado sin solaparse" de "colocado con criterio", y esa distinción es justo
+la que pedía el usuario.
+
+### 14.3 Sospechosos, sin verificar
+
+Ninguno está comprobado contra lo que el usuario ve; son los puntos por donde
+empezar a mirar.
+
+1. **"Cosas que no parecen muebles"** apunta a los arquetipos genéricos:
+   `clutter`, `containers` y `textile_pile` son montones y bultos, no muebles, y
+   `clutter` es además el **fallback** del clasificador — todo lo que no
+   reconoce acaba siendo un montón de bultos. En el pasillo del piso patrón hay
+   un `pasillo_caja` que viene del escenario, y el atrezo de pasillo pone
+   alfombra, consola y planta. Conviene mirar en ejecución cuál de esos es el
+   que se ve mal.
+2. **"Muebles en sitios que no corresponden"** apunta a la regla de elección de
+   paramento de `FurnitureRoomLayout._place_against_wall`: elige el muro **más
+   cercano** a donde el escenario puso la pieza. Cuando la ficha del escenario
+   trae una posición pensada para el modelo de fuego y no para la vista, "el más
+   cercano" puede ser cualquiera. Y en el atrezo, las pistas de posición de
+   `FurnitureRoomFurnisher` son fracciones del rectángulo de la sala, sin
+   ninguna noción de qué pared es la buena (la que no tiene la puerta, la que da
+   a la ventana, la que enfrenta al sofá).
+3. **Falta la relación entre piezas.** Una mesilla va **junto a la cama**, la
+   mesa de centro **delante del sofá**, la silla **contra el escritorio**, el
+   televisor **enfrente** del sofá. Hoy cada pieza se coloca por su cuenta y
+   solo se comprueba que no se toquen; nada las relaciona.
+4. **Falta el criterio de "esta sala no lleva esto".** El atrezo se decide por
+   tipo de sala y área, y el reparto del escenario no filtra nada.
+
+### 14.4 Cómo retomarlo
+
+Con síntomas visuales, la nota de método que ya se ganó dos veces en esta
+auditoría: **pedir al usuario que señale sobre su propio fotograma** resuelve en
+un mensaje lo que tres rondas de deducción no resuelven. Antes de tocar código,
+conviene una captura del pasillo señalando qué objeto es el que no parece un
+mueble y qué pieza está donde no toca.
+
+Instrumental disponible: `tools/validate_furniture_layout.gd` con `VERBOSE = true`
+vuelca las 319 piezas medidas con su arquetipo y sus dimensiones, y
+`tools/probe_furniture_assets.gd` mide el tamaño nativo de cada modelo.
