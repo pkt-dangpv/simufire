@@ -3198,6 +3198,10 @@ func _create_exterior_context() -> void:
 	else:
 		_create_residential_street_network(root)
 
+	# Que lados de la manzana llevan decorado. El relleno del fondo solo va en
+	# los que no lo llevan: puesto en un lado decorado se plantaba DELANTE de
+	# las casas y las tapaba.
+	var decorated_sides: Dictionary = {}
 	var facade_index: int = 0
 	for key in facades.keys():
 		var facade: Dictionary = facades[key]
@@ -3213,6 +3217,7 @@ func _create_exterior_context() -> void:
 			# aceras, coches, arbolado y skyline detras de la caja del rellano
 			# es geometria que nadie vera jamas (E-5).
 			continue
+		decorated_sides[_side_name_for_outward(Vector2(-facade_normal.x, -facade_normal.z))] = true
 		if _is_apartment_building():
 			_create_exterior_scenery_city(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
 		else:
@@ -3221,6 +3226,8 @@ func _create_exterior_context() -> void:
 			# el barrio se acaba en el jardin de enfrente y detras hay cielo.
 			_create_skyline_backdrop(root, facade_index, facade_center, facade_normal, facade_tangent, _exterior_ground_level_m(), 0.55)
 		facade_index += 1
+
+	_create_block_perimeter(root, decorated_sides)
 
 	# La valla va la ultima: necesita saber por donde sale el camino de la
 	# puerta para dejarle el hueco de la cancela, y eso lo fija el porche.
@@ -3416,12 +3423,6 @@ func _create_city_street_network(parent: Node3D) -> void:
 	for i in range(marks.size()):
 		_add_ground_slab(parent, "RoadMark_%02d" % i, _mark_rect(marks[i]), street_y + 0.045, 0.018, mark_mat)
 
-	_create_block_perimeter(
-		parent,
-		street_y,
-		maxf(7.5, opposite_facade_height_m),
-		(opposite_facade_night_color if _exterior_is_night() else opposite_facade_day_color).darkened(0.05)
-	)
 
 	if city_crossing_enabled:
 		var stripes: Array[Dictionary] = FPStreetGrid.crossings(_street_grid, 0.52, 0.34, 7)
@@ -3522,52 +3523,102 @@ func _create_residential_street_network(parent: Node3D) -> void:
 	for i in range(marks.size()):
 		_add_ground_slab(parent, "ResidentialRoadMark_%02d" % i, _mark_rect(marks[i]), surface_y + 0.008, 0.015, mark_mat)
 
-	_create_block_perimeter(
-		parent,
-		surface_y,
-		maxf(3.5, residential_house_height_m + residential_roof_height_m * 0.5),
-		residential_house_color.darkened(0.10)
-	)
 
 
-## Fondo edificado por los CUATRO lados de la manzana.
+## Nombre del lado de la manzana al que mira una direccion.
+func _side_name_for_outward(outward: Vector2) -> String:
+	if absf(outward.x) >= absf(outward.y):
+		return "right" if outward.x > 0.0 else "left"
+	return "bottom" if outward.y > 0.0 else "top"
+
+
+## Relleno del fondo en los lados de la manzana que NO llevan decorado.
 ##
 ## El anillo pavimenta calle a los cuatro lados -una manzana la tiene-, pero el
-## decorado detallado solo se genera para las fachadas que tienen huecos a la
-## calle. En los lados sin ventanas quedaba asfalto con nada detras, que es el
-## mismo "la calle termina en nada" de antes por otro camino.
+## decorado detallado solo se genera para las fachadas con huecos a la calle. En
+## los lados sin ventanas quedaba asfalto con nada detras.
 ##
-## Se pone un volumen liso por lado, ligeramente MAS ATRAS que el plano de las
-## fachadas detalladas: donde hay fachada queda escondido detras de ella, y
-## donde no la hay es lo unico que se ve, que es justo lo que hace falta.
-func _create_block_perimeter(parent: Node3D, ground_y: float, height_m: float, color: Color) -> void:
+## La primera version de esto lo puso en los CUATRO lados y a la distancia de la
+## acera de enfrente. En un piso eso queda detras de las fachadas y no se ve; en
+## una casa las viviendas de enfrente estan mas lejos -hay un jardin delantero
+## por medio-, asi que el relleno se plantaba DELANTE de ellas y las tapaba: un
+## muro corrido alrededor de todo el vecindario. Ahora solo va donde no hay nada
+## que tapar, y en una casa va troceado en cuerpos con hueco entre ellos, que a
+## esa distancia es lo que se lee como casas y no como tapia.
+func _create_block_perimeter(parent: Node3D, decorated_sides: Dictionary) -> void:
 	if _street_grid.is_empty():
 		return
-	var outer: Rect2 = Rect2(_street_grid["road_outer"]).grow(float(_street_grid["sidewalk_w_m"]) + 0.35)
+	var night: bool = _exterior_is_night()
+	var ground_y: float = _exterior_ground_level_m()
+	var apartment: bool = _is_apartment_building()
+	var height: float = (
+		maxf(7.5, opposite_facade_height_m)
+		if apartment
+		else maxf(3.2, residential_house_height_m)
+	)
+	var color: Color = (
+		(opposite_facade_night_color if night else opposite_facade_day_color).darkened(0.04)
+		if apartment
+		else (residential_house_color.darkened(0.16) if night else residential_house_color.darkened(0.02))
+	)
+	# Detras de lo que ya haya en ese lado: en un piso la fachada de enfrente,
+	# en una casa el jardin delantero del vecino y su vivienda.
+	var beyond: float = (
+		float(_street_grid["sidewalk_w_m"]) + 0.35
+		if apartment
+		else float(_street_grid["sidewalk_w_m"]) + residential_opposite_yard_depth_m + residential_house_depth_m + 0.6
+	)
+	var outer: Rect2 = Rect2(_street_grid["road_outer"]).grow(beyond)
 	var depth: float = 9.0
 	var material: StandardMaterial3D = _mat(color, false)
 	var sides: Array = [
-		Rect2(outer.position.x - depth, outer.position.y - depth, outer.size.x + depth * 2.0, depth),
-		Rect2(outer.position.x - depth, outer.position.y + outer.size.y, outer.size.x + depth * 2.0, depth),
-		Rect2(outer.position.x - depth, outer.position.y, depth, outer.size.y),
-		Rect2(outer.position.x + outer.size.x, outer.position.y, depth, outer.size.y),
+		{"name": "top", "rect": Rect2(outer.position.x - depth, outer.position.y - depth, outer.size.x + depth * 2.0, depth)},
+		{"name": "bottom", "rect": Rect2(outer.position.x - depth, outer.position.y + outer.size.y, outer.size.x + depth * 2.0, depth)},
+		{"name": "left", "rect": Rect2(outer.position.x - depth, outer.position.y, depth, outer.size.y)},
+		{"name": "right", "rect": Rect2(outer.position.x + outer.size.x, outer.position.y, depth, outer.size.y)},
 	]
 	for i in range(sides.size()):
-		var rect: Rect2 = sides[i]
+		var side: Dictionary = sides[i]
+		if decorated_sides.has(String(side["name"])):
+			continue
+		var rect: Rect2 = Rect2(side["rect"])
 		if rect.size.x <= 0.05 or rect.size.y <= 0.05:
 			continue
-		_add_box(
-			parent,
-			"PerimeterBlock_%02d" % i,
-			Vector3(rect.size.x, height_m, rect.size.y),
-			Vector3(
-				rect.position.x + rect.size.x * 0.5,
-				ground_y + height_m * 0.5,
-				rect.position.y + rect.size.y * 0.5
-			),
-			material,
-			false
-		)
+		if apartment:
+			_add_perimeter_body(parent, "PerimeterBlock_%02d" % i, rect, ground_y, height, material)
+			continue
+		# Troceado: cuerpos del tamano de una casa con hueco entre ellos.
+		var along_x: bool = rect.size.x >= rect.size.y
+		var run: float = rect.size.x if along_x else rect.size.y
+		var count: int = maxi(1, int(round(run / (residential_house_width_m + 4.0))))
+		for j in range(count):
+			var t0: float = run * float(j) / float(count)
+			var piece_run: float = run / float(count) - 3.2
+			if piece_run <= 1.5:
+				continue
+			var seed: float = float(i * 13 + j * 29)
+			var piece_h: float = height * (0.86 + fposmod(seed * 0.211, 0.34))
+			var piece: Rect2 = (
+				Rect2(rect.position.x + t0 + 1.6, rect.position.y + depth * 0.35, piece_run, residential_house_depth_m)
+				if along_x
+				else Rect2(rect.position.x + depth * 0.35, rect.position.y + t0 + 1.6, residential_house_depth_m, piece_run)
+			)
+			_add_perimeter_body(parent, "PerimeterBlock_%02d_%02d" % [i, j], piece, ground_y, piece_h, material)
+
+
+func _add_perimeter_body(parent: Node3D, node_name: String, rect: Rect2, ground_y: float, height_m: float, material: Material) -> void:
+	_add_box(
+		parent,
+		node_name,
+		Vector3(rect.size.x, height_m, rect.size.y),
+		Vector3(
+			rect.position.x + rect.size.x * 0.5,
+			ground_y + height_m * 0.5,
+			rect.position.y + rect.size.y * 0.5
+		),
+		material,
+		false
+	)
 
 
 ## Valla de la parcela, por el borde del jardin. Es lo que convierte un cesped
@@ -3918,7 +3969,11 @@ func _add_gable_roof(parent: Node3D, node_name: String, base_center: Vector3, ta
 ## fachada: jardin, acceso, aceras, calzada y viviendas de enfrente.
 func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, _floor_level_m: float) -> void:
 	var night: bool = _exterior_is_night()
-	var span_w: float = residential_view_width_m
+	# El largo de la calle de ESTE lado, no un ancho de vista fijo: de aqui sale
+	# cuantas casas de enfrente hacen falta para que la calle no se quede a
+	# medio edificar.
+	var side: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z)) if not _street_grid.is_empty() else {}
+	var span_w: float = float(side.get("span_m", residential_view_width_m))
 	var surface_y: float = _exterior_ground_level_m()
 	var lawn_depth: float = residential_lawn_depth_m
 	var sidewalk_depth: float = residential_sidewalk_depth_m
@@ -3934,8 +3989,11 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 
 	if exterior_window_obstacles_enabled:
 		var house_face_distance: float = lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
-		for slot in range(residential_house_count):
-			var slot_t: float = (float(slot) - float(residential_house_count - 1) * 0.5) * residential_house_spacing_m
+		# Tantas casas como pida el largo de la calle. Con un numero fijo, la
+		# fila medida 15 m frente a una calle de 33 y el resto era cesped.
+		var slot_count: int = maxi(residential_house_count, int(ceil(span_w / maxf(3.0, residential_house_spacing_m))) + 1)
+		for slot in range(slot_count):
+			var slot_t: float = (float(slot) - float(slot_count - 1) * 0.5) * residential_house_spacing_m
 			var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
 			var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
 			var body_d: float = residential_house_depth_m

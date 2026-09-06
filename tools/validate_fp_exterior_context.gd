@@ -85,10 +85,15 @@ func _validate_residential(ctx: Dictionary) -> void:
 		return
 	var houses := _find_meshes(exterior, "ResidentialHouseBody_")
 	var roofs := _find_meshes(exterior, "ResidentialRoof_")
-	_expect(houses.size() == 3, "Residential exterior must create three full-size houses")
-	_expect(roofs.size() == 3, "Residential houses need pitched roofs")
-	_expect(_find_meshes(exterior, "ResidentialWindowGlass_").size() == 12, "Residential facade windows missing")
-	_expect(_find_meshes(exterior, "ResidentialDoor_").size() == 3, "Residential front doors missing")
+	# El numero de casas de enfrente ya no es fijo: sale del largo de la calle
+	# de ese lado. Con tres fijas, una calle de 33 m tenia 15 m de casas y el
+	# resto cesped, que es la version de barrio de "la calle termina en nada".
+	# Lo que se comprueba es que haya fila y que este completa: cada casa con su
+	# cubierta, su puerta y sus cuatro ventanas.
+	_expect(houses.size() >= 3, "Residential exterior must create a row of houses")
+	_expect(roofs.size() == houses.size(), "Cada casa de enfrente necesita su cubierta")
+	_expect(_find_meshes(exterior, "ResidentialWindowGlass_").size() == houses.size() * 4, "Faltan ventanas en las casas de enfrente")
+	_expect(_find_meshes(exterior, "ResidentialDoor_").size() == houses.size(), "Cada casa de enfrente necesita su puerta")
 	_expect(_find_meshes(exterior, "ResidentialTree_").size() == 10, "Residential vegetation missing")
 	# El barrio dejo de construirse por fachadas y pasa a ser anillos alrededor
 	# de la parcela: jardin, acera, calle, acera y jardin de enfrente. Antes lo

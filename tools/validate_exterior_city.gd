@@ -46,8 +46,11 @@ const ROAD_ALLOWED: Array[String] = [
 const ROAD_CLEAR_HEIGHT_M: float = 0.35
 
 ## Cuanto puede quedarse corto lo edificado respecto de la calzada antes de que
-## se vea el final de la calle.
+## se vea el final de la calle. En un barrio se admite mas: la casa de la
+## esquina va retranqueada del cruce, y exigirle a la fila que llegue al ultimo
+## centimetro de asfalto seria pedir algo que en un barrio no pasa.
 const STREET_SHORTFALL_M: float = 1.0
+const STREET_SHORTFALL_RESIDENTIAL_M: float = 2.5
 
 ## Minimos de mobiliario urbano, en numero de piezas por escenario.
 ## Minimos de un piso: la calle de ciudad tiene que estar poblada.
@@ -170,8 +173,13 @@ func _check(template_name: String, night: bool, residential: bool) -> void:
 	for road in roads:
 		var road_long: float = maxf(road.size.x, road.size.z)
 		var along_x: bool = road.size.x >= road.size.z
-		var built: float = _built_extent_along(blocks, road, along_x)
-		if built + STREET_SHORTFALL_M < road_long:
+		# En una calle de ciudad las fachadas son continuas y se mide lo CUBIERTO;
+		# en un barrio las casas van separadas y lo que importa es que la fila
+		# llegue de un extremo al otro, no que no haya huecos entre ellas. Medir
+		# ciudad con la vara del barrio dejaria pasar una calle a medio edificar.
+		var built: float = _built_extent_along(blocks, road, along_x, residential)
+		var shortfall: float = STREET_SHORTFALL_RESIDENTIAL_M if residential else STREET_SHORTFALL_M
+		if built + shortfall < road_long:
 			_fail("%s: la calzada mide %.1f m y lo edificado a su lado solo %.1f m: se ve el final de la calle" % [
 				_case, road_long, built])
 
@@ -240,7 +248,7 @@ func _check(template_name: String, night: bool, residential: bool) -> void:
 ## Cuanto frente edificado hay a lo largo de la calzada, midiendo la union de
 ## los intervalos que ocupan los bloques -no la suma, que contaria dos veces lo
 ## que se solapa-.
-func _built_extent_along(blocks: Array[AABB], road: AABB, along_x: bool) -> float:
+func _built_extent_along(blocks: Array[AABB], road: AABB, along_x: bool, span_only: bool = false) -> float:
 	var road_start: float = road.position.x if along_x else road.position.z
 	var road_end: float = road_start + (road.size.x if along_x else road.size.z)
 	var cross_start: float = road.position.z if along_x else road.position.x
@@ -261,6 +269,12 @@ func _built_extent_along(blocks: Array[AABB], road: AABB, along_x: bool) -> floa
 	if intervals.is_empty():
 		return 0.0
 	intervals.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	if span_only:
+		var lowest: float = float(intervals[0][0])
+		var highest: float = lowest
+		for interval in intervals:
+			highest = maxf(highest, float(interval[1]))
+		return highest - lowest
 	var total: float = 0.0
 	var current_start: float = float(intervals[0][0])
 	var current_end: float = float(intervals[0][1])
