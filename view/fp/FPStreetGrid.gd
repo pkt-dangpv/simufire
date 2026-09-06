@@ -38,6 +38,24 @@ static func ring(inner: Rect2, width_m: float) -> Array[Rect2]:
 	]
 
 
+## Anillos concentricos alrededor de una parcela, de dentro a fuera.
+##
+## Lo que la ciudad resuelve con tres anillos -acera, calzada, acera- una casa
+## unifamiliar lo resuelve con cinco: jardin, acera, calle, acera y jardin de
+## enfrente. La regla es la misma y el motivo por el que hay que respetarla
+## tambien: construir cada uno por fachadas los superpone en las esquinas.
+##
+## Devuelve una lista por cada anchura pedida, en el mismo orden.
+static func concentric(inner_rect: Rect2, widths: Array) -> Array:
+	var out: Array = []
+	var inner: Rect2 = inner_rect
+	for raw_width in widths:
+		var width: float = float(raw_width)
+		out.append(ring(inner, width))
+		inner = inner.grow(width)
+	return out
+
+
 ## Reparto completo de la calle alrededor de una manzana.
 ##
 ## `building_rect` es la huella del edificio en planta. Devuelve los tres
@@ -159,7 +177,10 @@ static func side_for(grid: Dictionary, outward: Vector2) -> Dictionary:
 	var sidewalk: float = float(grid["sidewalk_w_m"])
 	# `outward` es planta: su y es la Z del mundo.
 	var along_x: bool = absf(outward.x) < absf(outward.y)
-	var span: float = (block.size.x if along_x else block.size.y) + (road + sidewalk) * 2.0
+	# El brazo horizontal se lleva las cuatro esquinas del anillo; el vertical
+	# corre justo entre ellas. Son largos distintos y hay que decir la verdad,
+	# porque de este numero sale hasta donde tiene que llegar lo edificado.
+	var span: float = (block.size.x + road * 2.0) if along_x else block.size.y
 	var far_line: float = road + sidewalk
 	return {
 		"along_x": along_x,

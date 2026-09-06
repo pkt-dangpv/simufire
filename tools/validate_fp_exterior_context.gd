@@ -90,10 +90,21 @@ func _validate_residential(ctx: Dictionary) -> void:
 	_expect(_find_meshes(exterior, "ResidentialWindowGlass_").size() == 12, "Residential facade windows missing")
 	_expect(_find_meshes(exterior, "ResidentialDoor_").size() == 3, "Residential front doors missing")
 	_expect(_find_meshes(exterior, "ResidentialTree_").size() == 10, "Residential vegetation missing")
-	_expect(_find_meshes(exterior, "ResidentialEntryPath_").size() == 1, "Residential entry path missing or duplicated")
-	_expect(_find_meshes(exterior, "ResidentialStreet_").size() == 1, "Residential road missing or duplicated")
-	_expect(_find_meshes(exterior, "ResidentialSidewalkNear_").size() == 1, "Near residential sidewalk missing")
-	_expect(_find_meshes(exterior, "ResidentialSidewalkFar_").size() == 1, "Far residential sidewalk missing")
+	# El barrio dejo de construirse por fachadas y pasa a ser anillos alrededor
+	# de la parcela: jardin, acera, calle, acera y jardin de enfrente. Antes lo
+	# montaba cada fachada por su cuenta, asi que una casa con ventanas a tres
+	# lados tenia tres calles enteras cruzandose y tres caminos de entrada.
+	# Ahora la calle es UNA -cuatro tramos que forman el anillo- y el camino de
+	# entrada va con la puerta, que es una.
+	_expect(_find_meshes(exterior, "ResidentialStreet_").size() == 4, "La calle del barrio debe ser un anillo de cuatro tramos")
+	_expect(_find_meshes(exterior, "ResidentialSidewalkNear_").size() == 4, "Falta la acera junto a la parcela")
+	_expect(_find_meshes(exterior, "ResidentialSidewalkFar_").size() == 4, "Falta la acera de enfrente")
+	_expect(_find_meshes(exterior, "ResidentialLawn_").size() == 4, "Falta el jardin alrededor de la casa")
+	var world_paths := _world_root(ctx)
+	_expect(_find_meshes(world_paths, "GardenPath_").size() == 1, "El camino de entrada va con la puerta: uno y solo uno")
+	_expect(_find_meshes(world_paths, "ResidentialDriveway_").size() == 1, "El acceso de coche va con la puerta: uno y solo uno")
+	_expect(_find_meshes(world_paths, "Fence_").size() >= 8, "Falta la valla de la parcela")
+	_expect(_find_meshes(world_paths, "Mailbox_").size() == 2, "Falta el buzon junto a la cancela")
 	_expect(_find_lights(exterior, "ResidentialFacadeFill_").size() == 1, "Residential facade fill missing")
 	_expect(_find_meshes(exterior, "CityFacadeBody_").is_empty(), "House exterior contains city facade modules")
 	var world := _world_root(ctx)

@@ -28,6 +28,12 @@ const FAMILIES: Array[String] = [
 	"StreetLamp", "TrafficSign", "Bench", "Bin", "Bollard", "Crossing",
 	"BusStop", "Planter", "Balcony", "Awning", "Shopfront", "SideStreet",
 	"BackBlock", "CornerReturn", "NearNeighbour",
+	"ResidentialLawn", "ResidentialEntryPath", "ResidentialDriveway",
+	"ResidentialSidewalkNear", "ResidentialSidewalkFar", "ResidentialStreet",
+	"ResidentialRoadMark", "ResidentialOppositeLawn", "ResidentialHouseBody",
+	"ResidentialRoof", "ResidentialDoor", "ResidentialHedge", "ResidentialTree",
+	"HousePorch", "HouseStep", "HouseDoormat", "Fence", "Mailbox",
+	"GardenPath", "Gate", "Shed", "Bush", "Flowerbed",
 ]
 
 
@@ -65,7 +71,7 @@ func _probe(template_name: String, night: bool) -> void:
 	fp.set_state({})
 	await get_tree().process_frame
 
-	var root := fp.get_node_or_null("FirstPersonWorld/ExteriorContext") as Node3D
+	var root := fp.get_node_or_null("FirstPersonWorld") as Node3D
 	print("")
 	print("=== %s (%s) ===" % [template_name, "noche" if night else "dia"])
 	if root == null:
@@ -79,7 +85,11 @@ func _probe(template_name: String, night: bool) -> void:
 	var extents: Dictionary = {}
 	var total: int = 0
 	var meshes: int = 0
-	for child in root.get_children():
+	# El decorado no cuelga todo del mismo sitio: la calle y las manzanas van en
+	# ExteriorContext y el porche en la raiz del mundo. Se recorre entero.
+	var nodes: Array = []
+	_collect(root, nodes)
+	for child in nodes:
 		total += 1
 		var name: String = String(child.name)
 		for family in FAMILIES:
@@ -110,6 +120,13 @@ func _probe(template_name: String, night: bool) -> void:
 	remove_child(fp)
 	fp.free()
 	building.free()
+
+
+func _collect(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		out.append(child)
+		if child.get_child_count() > 0 and not (child is MeshInstance3D):
+			_collect(child, out)
 
 
 func _count_meshes(node: Node) -> int:

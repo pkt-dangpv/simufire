@@ -188,6 +188,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
 @export var landing_recess_depth_m: float = 1.25
+## Cuanto se aparta la calle del portal, por fuera de su fondo. El portal se
+## planta fuera de la huella de la vivienda, asi que la manzana tiene que
+## contarlo o la calzada le pasa por encima.
+@export_range(0.0, 6.0, 0.1) var landing_bay_clearance_m: float = 2.60
 
 @export_group("Materiales propios FP")
 ## Ranuras para tus propios materiales y texturas. Si dejas una vacia se usa
@@ -436,6 +440,31 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var opposite_window_lit_color: Color = Color(1.0, 0.82, 0.48, 1.0)
 @export_range(0, 12, 1) var opposite_facade_floors: int = 4
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
+
+@export_subgroup("Unifamiliar: porche y parcela")
+## De noche el aplique del porche solo se pintaba de color: no alumbraba nada,
+## asi que la entrada de una casa quedaba a oscuras.
+@export_range(0.0, 4.0, 0.05) var house_porch_light_energy: float = 1.35
+@export_range(1.0, 12.0, 0.5) var house_porch_light_range_m: float = 5.5
+## Barandilla entre los pilares del porche.
+@export var house_porch_railing_enabled: bool = true:
+	set(value):
+		house_porch_railing_enabled = value
+		_rebuild_if_live()
+## Camino de la puerta a la acera, acceso de coche y buzon. Van SOLO en la
+## fachada de la entrada; antes el camino y el acceso se construian en las tres.
+@export var house_front_path_enabled: bool = true:
+	set(value):
+		house_front_path_enabled = value
+		_rebuild_if_live()
+## Valla de la parcela y buzon: es lo que convierte un cesped en una parcela.
+@export var house_fence_enabled: bool = true:
+	set(value):
+		house_fence_enabled = value
+		_rebuild_if_live()
+@export_range(0.4, 2.2, 0.05) var house_fence_height_m: float = 1.05
+@export var house_fence_color: Color = Color(0.60, 0.58, 0.54, 1.0)
+@export var house_mailbox_color: Color = Color(0.26, 0.32, 0.36, 1.0)
 
 @export_subgroup("Ciudad: manzanas y mobiliario")
 ## Manzanas que cubren el resto del largo de la calle, partidas por bocacalles.
@@ -795,6 +824,10 @@ var _roadway_rects: Array[Rect2] = []
 ## Reparto de la calle alrededor de la manzana, o vacio si este escenario no
 ## lleva calle (unifamiliar).
 var _street_grid: Dictionary = {}
+## Hueco de la valla por donde sale el camino de la puerta. Lo fija el porche,
+## que es quien sabe por donde va el camino, y lo lee la valla, que se levanta
+## despues.
+var _gate_corridor: Rect2 = Rect2()
 var _fire_nodes_by_room: Dictionary = {}
 ## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
 ## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
@@ -2692,11 +2725,79 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 		var lamp_color: Color = house_porch_lamp_color
 		_add_oriented_box(_world_root, "HousePorchLamp_%02d" % index, lamp, tangent,
 			0.16, 0.24, 0.10, _mat(lamp_color.darkened(0.38), false, lamp_color, 0.72), false)
+		# El aplique estaba pintado de color pero no alumbraba: de noche la
+		# entrada de la casa quedaba a oscuras con una pegatina encendida.
+		if _exterior_is_night() and house_porch_light_energy > 0.0:
+			var porch_light := OmniLight3D.new()
+			porch_light.name = "HousePorchLight_%02d" % index
+			porch_light.position = lamp - normal * 0.22
+			porch_light.light_color = lamp_color
+			porch_light.light_energy = house_porch_light_energy
+			porch_light.omni_range = house_porch_light_range_m
+			porch_light.shadow_enabled = false
+			_world_root.add_child(porch_light)
+
+		# Barandilla entre los pilares, a los dos lados del paso.
+		if house_porch_railing_enabled:
+			for rail_side in [-1.0, 1.0]:
+				var rail_center: Vector3 = center - normal * (porch_d - 0.22) + tangent * (rail_side * porch_w * 0.40)
+				rail_center.y = floor_level_m + 0.52
+				_add_oriented_box(_world_root, "HousePorchRail_%02d_%s" % [index, "L" if rail_side < 0.0 else "R"],
+					rail_center, tangent, 0.10, 0.90, porch_d - 0.44,
+					_mat(house_porch_column_color.darkened(0.06), false), false)
 
 	_create_porch_ground_transition(index, center, normal, tangent, floor_level_m, porch_w, porch_d)
+	_create_front_path(index, center, normal, tangent, floor_level_m, porch_d)
 
 	# Jardin, camino, calle y vecindario pertenecen al generador residencial
 	# por fachada. Mantenerlos fuera evita duplicados cuando hay varias puertas.
+
+
+## Camino de la puerta a la acera, acceso de coche al lado y buzon en la
+## cancela.
+##
+## Antes esto lo ponia el decorado residencial de CADA fachada, asi que una casa
+## con ventanas a tres lados tenia tres caminos de entrada y tres accesos de
+## coche, uno por cada lado, incluido el del jardin de atras. Va con la puerta,
+## que es la unica que sabe por donde se entra.
+func _create_front_path(
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	porch_d: float
+) -> void:
+	if not house_front_path_enabled:
+		return
+	var surface_y: float = _exterior_ground_level_m()
+	var walk_out: float = maxf(0.6, residential_lawn_depth_m) + 0.4
+	var path_w: float = maxf(0.8, residential_path_width_m)
+	var path_center: Vector3 = center - normal * (porch_d + walk_out * 0.5)
+	path_center.y = surface_y + 0.035
+	_add_oriented_box(_world_root, "GardenPath_%02d" % index, path_center, tangent,
+		path_w, 0.04, walk_out, _mat(house_path_color, false), false)
+
+	var drive_center: Vector3 = path_center + tangent * residential_driveway_offset_m
+	_add_oriented_box(_world_root, "ResidentialDriveway_%02d" % index, drive_center, tangent,
+		residential_driveway_width_m, 0.035, walk_out, _mat(house_path_color.darkened(0.08), false), false)
+
+	var mailbox_center: Vector3 = path_center - normal * (walk_out * 0.5 - 0.35) + tangent * (path_w * 0.5 + 0.35)
+	mailbox_center.y = surface_y + 0.60
+	_add_oriented_box(_world_root, "Mailbox_%02d_Post" % index, mailbox_center, tangent,
+		0.08, 1.20, 0.08, _mat(house_fence_color.darkened(0.18), false), false)
+	var box_center: Vector3 = mailbox_center
+	box_center.y = surface_y + 1.16
+	_add_oriented_box(_world_root, "Mailbox_%02d_Box" % index, box_center, tangent,
+		0.28, 0.22, 0.38, _mat(house_mailbox_color, false), false)
+
+	# Por aqui pasa el camino: la valla tiene que dejar el hueco de la cancela.
+	var gate_center: Vector3 = path_center - normal * (walk_out * 0.5)
+	var gate_half: float = path_w * 0.5 + 0.7
+	_gate_corridor = Rect2(
+		Vector2(gate_center.x - gate_half, gate_center.z - gate_half),
+		Vector2(gate_half * 2.0, gate_half * 2.0)
+	)
 
 
 ## Acuerdo entre el porche y el cesped. Sin el, la losa del porche apoyaba
@@ -3091,8 +3192,11 @@ func _create_exterior_context() -> void:
 	# antes que nada porque el resto del decorado se apoya en ella.
 	_street_grid = {}
 	_roadway_rects.clear()
+	_gate_corridor = Rect2()
 	if _is_apartment_building():
 		_create_city_street_network(root)
+	else:
+		_create_residential_street_network(root)
 
 	var facade_index: int = 0
 	for key in facades.keys():
@@ -3113,7 +3217,19 @@ func _create_exterior_context() -> void:
 			_create_exterior_scenery_city(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
 		else:
 			_create_exterior_scenery_residential(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
+			# Al fondo, el mismo recorte de silueta que lleva la ciudad. Sin el,
+			# el barrio se acaba en el jardin de enfrente y detras hay cielo.
+			_create_skyline_backdrop(root, facade_index, facade_center, facade_normal, facade_tangent, _exterior_ground_level_m(), 0.55)
 		facade_index += 1
+
+	# La valla va la ultima: necesita saber por donde sale el camino de la
+	# puerta para dejarle el hueco de la cancela, y eso lo fija el porche.
+	if not _is_apartment_building() and house_fence_enabled:
+		_create_plot_fence(
+			root,
+			_building_rect_world().grow(maxf(0.5, residential_lawn_depth_m)),
+			_exterior_ground_level_m()
+		)
 
 
 ## Entrada por la puerta: rellano/porche + escalon a ras de suelo. El
@@ -3236,11 +3352,19 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 
 
 ## Huella del edificio en planta, en coordenadas de mundo.
+##
+## En un piso incluye el PORTAL. El nucleo comun se planta fuera de la huella de
+## la vivienda -a veces apartado, para librar el lavadero o el bano-, y trazar
+## la manzana sobre la vivienda a secas dejaba la calzada pasando por encima del
+## rellano: asfalto cruzando el portal por el que se sale a la escalera.
 func _building_rect_world() -> Rect2:
-	return Rect2(
+	var rect := Rect2(
 		Vector2(_bounds_m.position.x + _origin_offset_m.x, _bounds_m.position.y + _origin_offset_m.y),
 		_bounds_m.size
 	)
+	if _is_apartment_building() and show_landing_recess:
+		rect = rect.grow(maxf(0.0, landing_recess_depth_m) + landing_bay_clearance_m)
+	return rect
 
 
 ## Punto del PARAMENTO de una fachada al que se ancla su decorado.
@@ -3292,6 +3416,13 @@ func _create_city_street_network(parent: Node3D) -> void:
 	for i in range(marks.size()):
 		_add_ground_slab(parent, "RoadMark_%02d" % i, _mark_rect(marks[i]), street_y + 0.045, 0.018, mark_mat)
 
+	_create_block_perimeter(
+		parent,
+		street_y,
+		maxf(7.5, opposite_facade_height_m),
+		(opposite_facade_night_color if _exterior_is_night() else opposite_facade_day_color).darkened(0.05)
+	)
+
 	if city_crossing_enabled:
 		var stripes: Array[Dictionary] = FPStreetGrid.crossings(_street_grid, 0.52, 0.34, 7)
 		var crossing_mat: StandardMaterial3D = _mat(city_crossing_color, false)
@@ -3342,6 +3473,158 @@ func _crosses_roadway(center: Vector3, tangent: Vector3, along_m: float, depth_m
 		if overlap.size.x > 0.0 and overlap.size.y > 0.0 and overlap.size.x * overlap.size.y > 0.60:
 			return true
 	return false
+
+
+## El barrio: jardin, acera, calle, acera y jardin de enfrente, en anillos
+## alrededor de la parcela. Uno solo para toda la casa.
+##
+## Antes lo montaba cada fachada por su cuenta, girado segun ella, asi que una
+## casa con ventanas a tres lados tenia tres calles enteras cruzandose, tres
+## jardines, tres caminos de entrada y tres accesos de coche. Es el mismo fallo
+## que tenia la ciudad y se arregla igual: por parcela, no por fachada.
+func _create_residential_street_network(parent: Node3D) -> void:
+	var lawn: float = maxf(0.5, residential_lawn_depth_m)
+	var walk: float = maxf(0.4, residential_sidewalk_depth_m)
+	var road: float = maxf(2.0, residential_road_depth_m)
+	var far_yard: float = maxf(0.5, residential_opposite_yard_depth_m)
+	var plot: Rect2 = _building_rect_world()
+	var rings: Array = FPStreetGrid.concentric(plot, [lawn, walk, road, walk, far_yard])
+	var surface_y: float = _exterior_ground_level_m()
+
+	_street_grid = {
+		"block": plot.grow(lawn + walk),
+		"road_outer": plot.grow(lawn + walk + road),
+		"road_w_m": road,
+		"sidewalk_w_m": walk,
+	}
+
+	var lawn_mat: StandardMaterial3D = _mat(residential_lawn_color, false)
+	var walk_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.06), false)
+	var road_mat: StandardMaterial3D = _mat(residential_street_color, false)
+	var far_lawn_mat: StandardMaterial3D = _mat(residential_lawn_color.darkened(0.04), false)
+
+	for i in range(Array(rings[0]).size()):
+		_add_ground_slab(parent, "ResidentialLawn_%02d" % i, Rect2(rings[0][i]), surface_y - 0.05, 0.10, lawn_mat)
+	for i in range(Array(rings[1]).size()):
+		_add_ground_slab(parent, "ResidentialSidewalkNear_%02d" % i, Rect2(rings[1][i]), surface_y + 0.045, 0.09, walk_mat)
+	_roadway_rects.clear()
+	for i in range(Array(rings[2]).size()):
+		var road_rect := Rect2(rings[2][i])
+		_roadway_rects.append(road_rect)
+		_add_ground_slab(parent, "ResidentialStreet_%02d" % i, road_rect, surface_y - 0.035, 0.07, road_mat)
+	for i in range(Array(rings[3]).size()):
+		_add_ground_slab(parent, "ResidentialSidewalkFar_%02d" % i, Rect2(rings[3][i]), surface_y + 0.045, 0.09, walk_mat)
+	for i in range(Array(rings[4]).size()):
+		_add_ground_slab(parent, "ResidentialOppositeLawn_%02d" % i, Rect2(rings[4][i]), surface_y - 0.05, 0.10, far_lawn_mat)
+
+	var marks: Array[Dictionary] = FPStreetGrid.lane_marks(_street_grid, 1.20, 2.40)
+	var mark_mat: StandardMaterial3D = _mat(Color(0.72, 0.69, 0.55, 1.0), false)
+	for i in range(marks.size()):
+		_add_ground_slab(parent, "ResidentialRoadMark_%02d" % i, _mark_rect(marks[i]), surface_y + 0.008, 0.015, mark_mat)
+
+	_create_block_perimeter(
+		parent,
+		surface_y,
+		maxf(3.5, residential_house_height_m + residential_roof_height_m * 0.5),
+		residential_house_color.darkened(0.10)
+	)
+
+
+## Fondo edificado por los CUATRO lados de la manzana.
+##
+## El anillo pavimenta calle a los cuatro lados -una manzana la tiene-, pero el
+## decorado detallado solo se genera para las fachadas que tienen huecos a la
+## calle. En los lados sin ventanas quedaba asfalto con nada detras, que es el
+## mismo "la calle termina en nada" de antes por otro camino.
+##
+## Se pone un volumen liso por lado, ligeramente MAS ATRAS que el plano de las
+## fachadas detalladas: donde hay fachada queda escondido detras de ella, y
+## donde no la hay es lo unico que se ve, que es justo lo que hace falta.
+func _create_block_perimeter(parent: Node3D, ground_y: float, height_m: float, color: Color) -> void:
+	if _street_grid.is_empty():
+		return
+	var outer: Rect2 = Rect2(_street_grid["road_outer"]).grow(float(_street_grid["sidewalk_w_m"]) + 0.35)
+	var depth: float = 9.0
+	var material: StandardMaterial3D = _mat(color, false)
+	var sides: Array = [
+		Rect2(outer.position.x - depth, outer.position.y - depth, outer.size.x + depth * 2.0, depth),
+		Rect2(outer.position.x - depth, outer.position.y + outer.size.y, outer.size.x + depth * 2.0, depth),
+		Rect2(outer.position.x - depth, outer.position.y, depth, outer.size.y),
+		Rect2(outer.position.x + outer.size.x, outer.position.y, depth, outer.size.y),
+	]
+	for i in range(sides.size()):
+		var rect: Rect2 = sides[i]
+		if rect.size.x <= 0.05 or rect.size.y <= 0.05:
+			continue
+		_add_box(
+			parent,
+			"PerimeterBlock_%02d" % i,
+			Vector3(rect.size.x, height_m, rect.size.y),
+			Vector3(
+				rect.position.x + rect.size.x * 0.5,
+				ground_y + height_m * 0.5,
+				rect.position.y + rect.size.y * 0.5
+			),
+			material,
+			false
+		)
+
+
+## Valla de la parcela, por el borde del jardin. Es lo que convierte un cesped
+## en una parcela: sin ella la casa esta en mitad de un prado.
+##
+## Se deja pasar por donde va el camino de entrada, que es lo que hace la
+## cancela; el camino lo pone el porche, y aqui basta con no tapar su corredor.
+func _create_plot_fence(parent: Node3D, plot_edge: Rect2, surface_y: float) -> void:
+	var height: float = maxf(0.3, house_fence_height_m)
+	var post_mat: StandardMaterial3D = _mat(house_fence_color, false)
+	var rail_mat: StandardMaterial3D = _mat(house_fence_color.darkened(0.10), false)
+	var pitch: float = 1.60
+	var sides: Array = [
+		{"along_x": true, "fixed": plot_edge.position.y, "from": plot_edge.position.x, "to": plot_edge.position.x + plot_edge.size.x},
+		{"along_x": true, "fixed": plot_edge.position.y + plot_edge.size.y, "from": plot_edge.position.x, "to": plot_edge.position.x + plot_edge.size.x},
+		{"along_x": false, "fixed": plot_edge.position.x, "from": plot_edge.position.y, "to": plot_edge.position.y + plot_edge.size.y},
+		{"along_x": false, "fixed": plot_edge.position.x + plot_edge.size.x, "from": plot_edge.position.y, "to": plot_edge.position.y + plot_edge.size.y},
+	]
+	var index: int = 0
+	for side in sides:
+		var from: float = float(side["from"])
+		var to: float = float(side["to"])
+		var length: float = to - from
+		if length <= pitch:
+			continue
+		var count: int = maxi(2, int(round(length / pitch)))
+		for i in range(count + 1):
+			var t: float = from + length * float(i) / float(count)
+			var post_center: Vector3 = (
+				Vector3(t, surface_y + height * 0.5, float(side["fixed"]))
+				if bool(side["along_x"])
+				else Vector3(float(side["fixed"]), surface_y + height * 0.5, t)
+			)
+			if _crosses_gate(post_center):
+				continue
+			_add_box(parent, "Fence_%02d_%02d" % [index, i], Vector3(0.09, height, 0.09), post_center, post_mat, false)
+		for rail in range(2):
+			var y: float = surface_y + height * (0.42 + 0.42 * float(rail))
+			var rail_center: Vector3 = (
+				Vector3(from + length * 0.5, y, float(side["fixed"]))
+				if bool(side["along_x"])
+				else Vector3(float(side["fixed"]), y, from + length * 0.5)
+			)
+			var rail_size: Vector3 = (
+				Vector3(length, 0.06, 0.05)
+				if bool(side["along_x"])
+				else Vector3(0.05, 0.06, length)
+			)
+			_add_box(parent, "Fence_%02d_Rail_%d" % [index, rail], rail_size, rail_center, rail_mat, false)
+		index += 1
+
+
+## El hueco de la cancela: por donde sale el camino de la puerta.
+func _crosses_gate(point: Vector3) -> bool:
+	if _gate_corridor.size.x <= 0.0:
+		return false
+	return _gate_corridor.has_point(Vector2(point.x, point.z))
 
 
 ## Planta las piezas que describe FPCityBlocks.
@@ -3641,44 +3924,13 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 	var sidewalk_depth: float = residential_sidewalk_depth_m
 	var road_depth: float = residential_road_depth_m
 
-	var lawn_center: Vector3 = center - normal * (lawn_depth * 0.5)
-	lawn_center.y = surface_y - 0.05
-	_add_oriented_box(parent, "ResidentialLawn_%02d" % index, lawn_center, tangent,
-		span_w, 0.10, lawn_depth, _mat(residential_lawn_color, false), false)
-	var path_center: Vector3 = center - normal * ((lawn_depth + sidewalk_depth) * 0.5)
-	path_center.y = surface_y + 0.035
-	_add_oriented_box(parent, "ResidentialEntryPath_%02d" % index, path_center, tangent,
-		residential_path_width_m, 0.04, lawn_depth + sidewalk_depth, _mat(house_path_color, false), false)
-	var driveway_center: Vector3 = path_center + tangent * residential_driveway_offset_m
-	_add_oriented_box(parent, "ResidentialDriveway_%02d" % index, driveway_center, tangent,
-		residential_driveway_width_m, 0.035, lawn_depth + sidewalk_depth, _mat(house_path_color.darkened(0.08), false), false)
-
-	var near_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 0.5)
-	near_sidewalk.y = surface_y + 0.045
-	_add_oriented_box(parent, "ResidentialSidewalkNear_%02d" % index, near_sidewalk, tangent,
-		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
-	var road_center: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth * 0.5)
-	road_center.y = surface_y - 0.035
-	_add_oriented_box(parent, "ResidentialStreet_%02d" % index, road_center, tangent,
-		span_w, 0.07, road_depth, _mat(residential_street_color, false), false)
+	# El jardin, la acera, la calle y el jardin de enfrente ya estan puestos: son
+	# anillos alrededor de la parcela, comunes a todas las fachadas, y los pone
+	# _create_residential_street_network. Antes los ponia cada fachada por su
+	# cuenta y con tres fachadas habia tres calles cruzandose.
+	var opposite_yard_depth: float = residential_opposite_yard_depth_m
 	var far_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth + sidewalk_depth * 0.5)
 	far_sidewalk.y = surface_y + 0.045
-	_add_oriented_box(parent, "ResidentialSidewalkFar_%02d" % index, far_sidewalk, tangent,
-		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
-
-	var road_mark_count: int = maxi(4, int(floor(span_w / 4.0)))
-	for mark_i in range(road_mark_count):
-		var mark_t: float = (float(mark_i) + 0.5) / float(road_mark_count) - 0.5
-		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
-		mark.y = surface_y + 0.008
-		_add_oriented_box(parent, "ResidentialRoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
-			1.20, 0.015, 0.085, _mat(Color(0.72, 0.69, 0.55, 1.0), false), false)
-
-	var opposite_yard_depth: float = residential_opposite_yard_depth_m
-	var opposite_yard: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth * 0.5)
-	opposite_yard.y = surface_y - 0.05
-	_add_oriented_box(parent, "ResidentialOppositeLawn_%02d" % index, opposite_yard, tangent,
-		span_w, 0.10, opposite_yard_depth, _mat(residential_lawn_color.darkened(0.04), false), false)
 
 	if exterior_window_obstacles_enabled:
 		var house_face_distance: float = lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
@@ -3690,6 +3942,8 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 			var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
 			var house_center: Vector3 = face_center - normal * (body_d * 0.5)
 			house_center.y = surface_y + body_h * 0.5
+			if _crosses_roadway(house_center, tangent, body_w, body_d):
+				continue
 			var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
 			_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
 				body_w, body_h, body_d, _mat(house_color, false), false)
@@ -3731,6 +3985,8 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 			tree_t += 2.1
 		var tree_base: Vector3 = far_sidewalk - normal * 1.7 + tangent * tree_t
 		tree_base.y = surface_y
+		if _crosses_roadway(tree_base, tangent, residential_tree_crown_radius_m * 2.4, residential_tree_crown_radius_m * 2.4):
+			continue
 		_create_low_poly_tree(parent, "ResidentialTree_%02d_%02d" % [index, tree_i], tree_base,
 			residential_tree_trunk_height_m + float(tree_i % 2) * 0.35, residential_tree_crown_radius_m, tree_i)
 

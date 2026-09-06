@@ -906,6 +906,7 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 2. ~~Confirmar en ejecución las correcciones de §12b~~ — **hecho el 2026-09-05**: el usuario da por arreglados el suelo del rellano, el techo del rellano y los pasillos. **X-8 cerrada**; la causa era superposición de superficies, no iluminación. La bisección de [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md) no llegó a hacer falta y queda como registro de método.
 
 3. 🔴 **MOB-1** — el mobiliario sigue sin ser creíble. **ABIERTO**, ver §14.
+4. 🟠 **EXT-1** — el exterior que se ve por la ventana. **MEJORADO, no cerrado**, ver §15.
 
 Con FP-3 y X-8 cerradas no queda ningún hallazgo de §1-§8 ni de la serie X. Sigue en pie H-6 (autoexposición entre plantas), que es funcionalidad nueva declarada fuera del cierre, **MOB-1**, y un cabo suelto sin ficha: la sala casi negra de la grabación de las 00:38.
 
@@ -988,3 +989,82 @@ mueble y qué pieza está donde no toca.
 Instrumental disponible: `tools/validate_furniture_layout.gd` con `VERBOSE = true`
 vuelca las 319 piezas medidas con su arquetipo y sus dimensiones, y
 `tools/probe_furniture_assets.gd` mide el tamaño nativo de cada modelo.
+
+---
+
+## 15. 🟠 EXT-1. El exterior por la ventana — **[MEJORADO, no cerrado]**
+
+El usuario lo abrió así: *"por la ventana se ven calles que terminan en nada y
+pocos edificios y mobiliario urbano"* y *"falta un cielo realista"*. Después,
+sobre la primera pasada: *"las carreteras del exterior se cruzan sin ningún
+sentido, no tienen continuidad"*. Y sobre la segunda: **"no está bien del todo
+pero lo vamos a dejar. está mejorado"**.
+
+Queda ahí: mejorado y sin cerrar, por decisión suya.
+
+### 15.1 El defecto de fondo, y por qué costó dos pasadas
+
+**Cada fachada montaba su propio exterior completo.** Una calzada de 46 m, dos
+aceras y dos bordillos, orientados según esa fachada. Con dos o tres fachadas
+eso son dos o tres calles enteras superpuestas: las aceras de una cruzaban la
+calzada de otra, los bordillos partían los cruces por la mitad y las marcas de
+carril seguían de largo por dentro de la intersección. En unifamiliar, lo mismo
+con tres jardines, tres caminos de entrada y tres accesos de coche, uno de ellos
+al jardín de atrás.
+
+Y encima, cada decorado se anclaba en el **centro de las ventanas** de su
+fachada, no en el muro: como cada fachada tiene las suyas donde le toca, cada
+calle quedaba a una distancia distinta del edificio, así que no podían cerrar
+por las esquinas ni aunque no se cruzaran.
+
+La primera pasada no lo vio: se dedicó a poblar la calle -manzanas hasta los
+extremos, retornos de esquina, mobiliario urbano- sobre una estructura que
+estaba mal. Añadir cosas a un decorado que se cruza consigo mismo lo empeora.
+
+**La regla que salió de aquí**: una calle no se construye por fachadas, se
+construye por manzana. `view/fp/FPStreetGrid.gd` la calcula una vez, en anillos
+concéntricos que no se solapan: acera, calzada y acera de enfrente en un piso;
+jardín, acera, calle, acera y jardín de enfrente en una casa. Donde dos brazos
+se encuentran no hay que hacer nada especial: la esquina ya es parte del anillo,
+y eso es exactamente lo que es un cruce.
+
+### 15.2 Lo que quedó hecho y medido
+
+- **La calle es una.** De tres losas de calzada de 46 m cruzándose a un anillo
+  de cuatro brazos. Marcas de carril cortadas antes del cruce, bordillos solo
+  en los tramos rectos, pasos de cebra por fuera del cruce.
+- **La calle no termina en nada.** Antes: calzada de 46 m con 34 m de fachadas
+  al lado. Ahora lo edificado cubre el largo de cada brazo, con manzanas hasta
+  los extremos, bocacalles, retornos de esquina y una fila de volúmenes detrás.
+- **Mobiliario urbano**, que era cero: farolas, señales, papeleras, bancos,
+  bolardos, alcorques, paso de cebra, marquesina, bajos comerciales con toldo y
+  balcones.
+- **El cielo**: bruma de horizonte, nubes procedurales en dos capas que derivan,
+  sol con disco, halo y resplandor, y estrellas de noche.
+- **Unifamiliar**: un jardín, un camino de entrada, un acceso de coche y un
+  buzón —los tres últimos van con la puerta, que es una—, valla de parcela con
+  hueco de cancela, y el porche que ya existía gana luz de verdad (el aplique
+  estaba pintado de color pero no alumbraba) y barandilla.
+
+### 15.3 Guardarraíles
+
+`tools/validate_exterior_city.gd`, en la suite, sobre cinco escenarios -tres
+pisos y dos casas-: dos tramos de calzada no pueden pisarse, una acera no puede
+estar sobre el asfalto, lo edificado tiene que llegar hasta donde llega el
+asfalto, nada puede cruzar la calzada, y tiene que haber mobiliario. Usa el
+mismo umbral que el filtro de construcción a propósito: con otra manga cazaría
+justo lo que el filtro deja pasar.
+
+Dos guardarraíles viejos hubo que corregirlos porque **codificaban el diseño
+equivocado**: `validate_fp_exterior_context` exigía "dos bordillos por
+orientación de fachada" y "una calle y un camino de entrada", que es justo lo
+que fallaba. Un test puede fijar un error tan bien como fija un acierto.
+
+### 15.4 Lo que queda
+
+El usuario no lo da por bueno y no dijo qué falla. Sin eso, lo único honesto es
+no adivinar. Cuando se retome, la nota de método de esta auditoría: **pedir una
+captura señalando qué es lo que canta**.
+
+Sonda: `tools/probe_exterior_city.gd` vuelca el recuento por familia y la
+extensión de cada cosa, para dia y noche.

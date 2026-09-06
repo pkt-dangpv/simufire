@@ -23,18 +23,22 @@ const BuildingTemplateScript := preload("res://sim/templates/BuildingTemplate.gd
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 
-## Solo los pisos generan calle; en unifamiliar el decorado es residencial.
+## Un piso genera calle de ciudad y una casa genera calle de barrio, pero las
+## dos tienen que cumplir lo mismo: una sola calle, continua, sin cruzarse.
 const CASES: Array[Dictionary] = [
-	{"template": "compact_apartment", "night": false},
-	{"template": "two_bed_apartment", "night": true},
-	{"template": "piso_mediterraneo", "night": false},
+	{"template": "compact_apartment", "night": false, "residential": false},
+	{"template": "two_bed_apartment", "night": true, "residential": false},
+	{"template": "piso_mediterraneo", "night": false, "residential": false},
+	{"template": "simple_house", "night": false, "residential": true},
+	{"template": "two_storey_house", "night": true, "residential": true},
 ]
 
-## Familias que SI pueden estar sobre la calzada.
 ## Familias que SI pueden estar sobre la calzada. El domo del cielo envuelve
 ## la escena entera por definicion; los coches estan aparcados en ella.
 const ROAD_ALLOWED: Array[String] = [
 	"Road", "RoadMark", "Crossing", "CityCar", "Sidewalk", "CityCurb", "FPSkyDome",
+	"ResidentialStreet", "ResidentialRoadMark", "SidewalkNear", "SidewalkFar",
+	"ResidentialSidewalkNear", "ResidentialSidewalkFar",
 ]
 
 ## Altura desde la que una pieza sobre la calzada estorba de verdad. Por debajo
@@ -46,7 +50,8 @@ const ROAD_CLEAR_HEIGHT_M: float = 0.35
 const STREET_SHORTFALL_M: float = 1.0
 
 ## Minimos de mobiliario urbano, en numero de piezas por escenario.
-const MIN_FURNITURE: Dictionary = {
+## Minimos de un piso: la calle de ciudad tiene que estar poblada.
+const MIN_CITY: Dictionary = {
 	"StreetLamp": 6,
 	"TrafficSign": 2,
 	"Crossing": 12,
@@ -56,6 +61,32 @@ const MIN_FURNITURE: Dictionary = {
 	"SidewalkNear": 4,
 	"SidewalkFar": 4,
 	"Road": 4,
+}
+
+## Minimos de una casa. Los tres primeros valen 1 a proposito y son el arreglo
+## que pidio el usuario: el camino de entrada, el acceso de coche y el buzon los
+## ponia el decorado de CADA fachada, asi que una casa con ventanas a tres lados
+## tenia tres caminos y tres accesos, uno de ellos al jardin de atras. Van con
+## la puerta, y la puerta es una.
+const MIN_RESIDENTIAL: Dictionary = {
+	"ResidentialLawn": 4,
+	"ResidentialSidewalkNear": 4,
+	"ResidentialSidewalkFar": 4,
+	"ResidentialStreet": 4,
+	"ResidentialOppositeLawn": 4,
+	"HousePorch": 1,
+	"HousePorchColumn": 2,
+	"HousePorchRoof": 1,
+	"HouseStep": 1,
+	"GardenPath": 1,
+	"Mailbox": 2,
+	"Fence": 8,
+}
+
+## Familias que no pueden repetirse: una casa tiene una entrada.
+const MAX_RESIDENTIAL: Dictionary = {
+	"GardenPath": 1,
+	"ResidentialDriveway": 1,
 }
 
 const VERBOSE: bool = false
@@ -72,11 +103,11 @@ func _run() -> void:
 	await get_tree().process_frame
 	for case_data in CASES:
 		_case = String(case_data["template"])
-		await _check(_case, bool(case_data["night"]))
+		await _check(_case, bool(case_data["night"]), bool(case_data["residential"]))
 	_finish()
 
 
-func _check(template_name: String, night: bool) -> void:
+func _check(template_name: String, night: bool, residential: bool) -> void:
 	var builder = BuildingTemplateScript.new()
 	var editor_data: Dictionary = Serializer.normalize_editor_data(builder.create_by_name(template_name))
 	var runtime_json: Dictionary = Serializer.to_runtime_json_data(editor_data)
@@ -99,20 +130,26 @@ func _check(template_name: String, night: bool) -> void:
 	fp.set_state({})
 	await get_tree().process_frame
 
-	var root := fp.get_node_or_null("FirstPersonWorld/ExteriorContext") as Node3D
-	if root == null:
+	if fp.get_node_or_null("FirstPersonWorld/ExteriorContext") == null:
 		_fail("no se genero ExteriorContext")
 		_drop(fp, building)
 		return
+	# La calle y las manzanas cuelgan de ExteriorContext; el porche, el camino y
+	# la valla cuelgan de la raiz del mundo. Se recorre entero.
+	var root := fp.get_node_or_null("FirstPersonWorld") as Node3D
 
 	var counts: Dictionary = {}
 	var roads: Array[AABB] = []
 	var walks: Array[Dictionary] = []
 	var blocks: Array[AABB] = []
 	var obstacles: Array[Dictionary] = []
-	for child in root.get_children():
-		var node := child as Node3D
-		if node == null:
+	var nodes: Array = []
+	_collect(root, nodes)
+	for child in nodes:
+		# Solo mallas: un contenedor tiene la AABB de TODO lo que lleva dentro,
+		# asi que "ExteriorContext" cruzaba la calzada por definicion.
+		var node := child as MeshInstance3D
+		if node == null or node.mesh == null:
 			continue
 		var node_name: String = String(node.name)
 		var family: String = _family_of(node_name)
@@ -120,9 +157,9 @@ func _check(template_name: String, night: bool) -> void:
 		var aabb: AABB = _world_aabb(node)
 		if aabb.size == Vector3.ZERO:
 			continue
-		if family == "Road":
+		if family == "Road" or family == "ResidentialStreet":
 			roads.append(aabb)
-		if family.begins_with("Sidewalk"):
+		if family.begins_with("Sidewalk") or family.begins_with("ResidentialSidewalk"):
 			walks.append({"name": node_name, "aabb": aabb})
 		if _is_building_mass(family):
 			blocks.append(aabb)
@@ -177,12 +214,19 @@ func _check(template_name: String, night: bool) -> void:
 				_fail("%s: %s esta sobre la calzada, %.1f x %.1f m" % [
 					_case, walk["name"], overlap.size.x, overlap.size.z])
 
-	# 5. Hay ciudad, no un descampado con bloques.
-	for family in MIN_FURNITURE.keys():
+	# 5. Hay ciudad o hay barrio, no un descampado con bloques.
+	var minimums: Dictionary = MIN_RESIDENTIAL if residential else MIN_CITY
+	for family in minimums.keys():
 		var found: int = int(counts.get(family, 0))
-		if found < int(MIN_FURNITURE[family]):
+		if found < int(minimums[family]):
 			_fail("%s: solo %d piezas de %s, hacen falta %d" % [
-				_case, found, family, int(MIN_FURNITURE[family])])
+				_case, found, family, int(minimums[family])])
+	if residential:
+		for family in MAX_RESIDENTIAL.keys():
+			var found: int = int(counts.get(family, 0))
+			if found > int(MAX_RESIDENTIAL[family]):
+				_fail("%s: %d piezas de %s y una casa tiene UNA entrada" % [
+					_case, found, family])
 
 	if VERBOSE:
 		var keys: Array = counts.keys()
@@ -236,7 +280,15 @@ func _built_extent_along(blocks: Array[AABB], road: AABB, along_x: bool) -> floa
 func _is_building_mass(family: String) -> bool:
 	return family in [
 		"CityFacadeBody", "SideStreetBlock", "CornerReturn", "NearNeighbour", "BackBlock",
+		"ResidentialHouseBody", "PerimeterBlock",
 	]
+
+
+func _collect(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		out.append(child)
+		if child.get_child_count() > 0 and not (child is MeshInstance3D):
+			_collect(child, out)
 
 
 func _family_of(node_name: String) -> String:
