@@ -906,7 +906,7 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 2. ~~Confirmar en ejecución las correcciones de §12b~~ — **hecho el 2026-09-05**: el usuario da por arreglados el suelo del rellano, el techo del rellano y los pasillos. **X-8 cerrada**; la causa era superposición de superficies, no iluminación. La bisección de [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md) no llegó a hacer falta y queda como registro de método.
 
 3. 🔴 **MOB-1** — el mobiliario sigue sin ser creíble. **ABIERTO**, ver §14.
-4. 🟠 **EXT-1** — el exterior que se ve por la ventana. **MEJORADO, no cerrado**, ver §15.
+4. 🟠 **EXT-1** — el exterior que se ve por la ventana. **ENTREGADO sin pulir**, ver §15.
 
 Con FP-3 y X-8 cerradas no queda ningún hallazgo de §1-§8 ni de la serie X. Sigue en pie H-6 (autoexposición entre plantas), que es funcionalidad nueva declarada fuera del cierre, **MOB-1**, y un cabo suelto sin ficha: la sala casi negra de la grabación de las 00:38.
 
@@ -992,7 +992,7 @@ vuelca las 319 piezas medidas con su arquetipo y sus dimensiones, y
 
 ---
 
-## 15. 🟠 EXT-1. El exterior por la ventana — **[MEJORADO, no cerrado]**
+## 15. 🟠 EXT-1. El exterior por la ventana — **[ENTREGADO sin pulir]**
 
 El usuario lo abrió así: *"por la ventana se ven calles que terminan en nada y
 pocos edificios y mobiliario urbano"* y *"falta un cielo realista"*. Después,
@@ -1060,11 +1060,34 @@ equivocado**: `validate_fp_exterior_context` exigía "dos bordillos por
 orientación de fachada" y "una calle y un camino de entrada", que es justo lo
 que fallaba. Un test puede fijar un error tan bien como fija un acierto.
 
-### 15.4 Lo que queda
+### 15.4 Dos intentos fallidos de lo mismo, y por qué
 
-El usuario no lo da por bueno y no dijo qué falla. Sin eso, lo único honesto es
-no adivinar. Cuando se retome, la nota de método de esta auditoría: **pedir una
-captura señalando qué es lo que canta**.
+Merecen quedar escritos porque el error fue de planteamiento, no de código, y se
+repitió.
+
+Al cerrar los lados de la manzana sin fachada hice primero una **tapia corrida
+alrededor de todo el vecindario**: la puse en los cuatro lados y a la distancia
+de la acera de enfrente. En un piso eso queda detrás de las fachadas y no se ve
+—que es el caso con el que lo comprobé—, pero en una casa las viviendas del
+vecino están más lejos, porque hay un jardín delantero por medio: el relleno
+caía delante de ellas y las tapaba.
+
+Al corregirlo, lo **troceé en cuerpos del tamaño de una vivienda** dando por
+hecho que a esa distancia bastaría con la silueta. No basta: sin cubierta, sin
+puerta y sin ventanas, una caja del tamaño de una casa se lee como un cubo.
+
+Las dos veces el error fue el mismo: tratarlo como *tapar un hueco* en vez de
+por lo que es —**ahí también hay vecinos**—. Lo que funcionó fue extraer la fila
+de casas a una función y pedirla desde los dos sitios que la necesitan: la
+fachada que da a esa calle, y el lado que no tiene fachada.
+
+### 15.5 Estado final
+
+El usuario lo cierra así: **"no es perfecto pero vale"**. Queda entregado y sin
+pulir, por decisión suya.
+
+Si se retoma, la nota de método de esta auditoría, que ya se ganó tres veces:
+**pedir una captura señalando qué es lo que canta** antes de tocar código.
 
 Sonda: `tools/probe_exterior_city.gd` vuelca el recuento por familia y la
-extensión de cada cosa, para dia y noche.
+extensión de cada cosa, para día y noche.
