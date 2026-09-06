@@ -3525,6 +3525,79 @@ func _create_residential_street_network(parent: Node3D) -> void:
 
 
 
+## Fila de casas de enfrente a lo largo de una calle.
+##
+## La piden dos sitios: la fachada que da a esa calle, y los lados de la
+## parcela que no tienen ninguna fachada -que tambien tienen calle, porque el
+## anillo la pavimenta, y necesitan casas enfrente igual-. Antes ese segundo
+## caso se rellenaba con prismas lisos y se veia lo que se veia: una fila de
+## cubos negros. Una casa es una casa aunque nadie la mire de frente.
+func _create_neighbour_house_row(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	span_w: float,
+	surface_y: float,
+	house_face_distance: float,
+	with_fill: bool = true
+) -> void:
+	if not exterior_window_obstacles_enabled:
+		return
+	var night: bool = _exterior_is_night()
+	# Tantas casas como pida el largo de la calle. Con un numero fijo, la
+	# fila medida 15 m frente a una calle de 33 y el resto era cesped.
+	var slot_count: int = maxi(residential_house_count, int(ceil(span_w / maxf(3.0, residential_house_spacing_m))) + 1)
+	for slot in range(slot_count):
+		var slot_t: float = (float(slot) - float(slot_count - 1) * 0.5) * residential_house_spacing_m
+		var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
+		var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
+		var body_d: float = residential_house_depth_m
+		var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
+		var house_center: Vector3 = face_center - normal * (body_d * 0.5)
+		house_center.y = surface_y + body_h * 0.5
+		if _crosses_roadway(house_center, tangent, body_w, body_d):
+			continue
+		var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
+		_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
+			body_w, body_h, body_d, _mat(house_color, false), false)
+		var roof_base: Vector3 = house_center
+		roof_base.y = surface_y + body_h
+		_add_gable_roof(parent, "ResidentialRoof_%02d_%02d" % [index, slot], roof_base, tangent, normal,
+			body_w + 0.34, body_d + 0.36, residential_roof_height_m, residential_roof_color.darkened(0.12) if night else residential_roof_color)
+
+		var door_center: Vector3 = face_center + normal * 0.055
+		door_center.y = surface_y + 1.05
+		_add_oriented_box(parent, "ResidentialDoor_%02d_%02d" % [index, slot], door_center, tangent,
+			0.92, 2.10, 0.08, _mat(landing_door_color.darkened(0.08), false), false)
+		for window_side in [-1.0, 1.0]:
+			for window_floor in range(2):
+				var window_center: Vector3 = face_center + tangent * (window_side * body_w * 0.29) + normal * 0.065
+				window_center.y = surface_y + 1.25 + float(window_floor) * 1.82
+				_add_oriented_box(parent, "ResidentialWindowFrame_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+					1.06, 1.18, 0.08, _mat(residential_window_frame_color, false), false)
+				window_center += normal * 0.065
+				var glass_color: Color = city_night_window_lit_color if (night and (slot + window_floor) % 2 == 0) else city_window_color.darkened(0.12)
+				_add_oriented_box(parent, "ResidentialWindowGlass_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+					0.88, 1.00, 0.035, _mat(glass_color, false, glass_color if night else Color(0.0, 0.0, 0.0, 0.0), 0.35 if night else 0.0), false)
+
+		for hedge_side in [-1.0, 1.0]:
+			var hedge_center: Vector3 = face_center + normal * 1.75 + tangent * hedge_side * (body_w * 0.31)
+			hedge_center.y = surface_y + 0.38
+			_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
+				body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
+	# El relleno de luz es para la fachada que se MIRA. Un lado sin ventanas no
+	# se mira nunca, y una omni mas es una omni que se paga en toda la escena.
+	if with_fill:
+		_create_exterior_facade_fill(
+			parent,
+			"ResidentialFacadeFill_%02d" % index,
+			center - normal * (house_face_distance * 0.72),
+			surface_y + residential_house_height_m * 0.52
+		)
+
+
 ## Nombre del lado de la manzana al que mira una direccion.
 func _side_name_for_outward(outward: Vector2) -> String:
 	if absf(outward.x) >= absf(outward.y):
@@ -3532,91 +3605,91 @@ func _side_name_for_outward(outward: Vector2) -> String:
 	return "bottom" if outward.y > 0.0 else "top"
 
 
-## Relleno del fondo en los lados de la manzana que NO llevan decorado.
+## Lo que va en los lados de la manzana que NO llevan decorado.
 ##
-## El anillo pavimenta calle a los cuatro lados -una manzana la tiene-, pero el
+## El anillo pavimenta calle a los cuatro lados -una manzana la tiene- pero el
 ## decorado detallado solo se genera para las fachadas con huecos a la calle. En
 ## los lados sin ventanas quedaba asfalto con nada detras.
 ##
-## La primera version de esto lo puso en los CUATRO lados y a la distancia de la
-## acera de enfrente. En un piso eso queda detras de las fachadas y no se ve; en
-## una casa las viviendas de enfrente estan mas lejos -hay un jardin delantero
-## por medio-, asi que el relleno se plantaba DELANTE de ellas y las tapaba: un
-## muro corrido alrededor de todo el vecindario. Ahora solo va donde no hay nada
-## que tapar, y en una casa va troceado en cuerpos con hueco entre ellos, que a
-## esa distancia es lo que se lee como casas y no como tapia.
+## Este relleno ha ido mal dos veces y las dos por lo mismo, por tratarlo como
+## un problema de tapar un hueco en vez de como lo que es -que ahi tambien hay
+## vecinos-:
+##
+##  1. Puesto en los cuatro lados y a la distancia de la acera de enfrente. En
+##     un piso queda detras de las fachadas y no se ve; en una casa las
+##     viviendas de enfrente estan mas lejos, asi que se planto DELANTE de ellas
+##     y las tapo: una tapia corrida alrededor del vecindario.
+##  2. Troceado en prismas lisos. Sin cubierta, sin puerta y sin ventanas, una
+##     caja del tamano de una casa no se lee como una casa: se lee como un cubo.
+##
+## En una casa, lo que va en un lado sin fachada es exactamente la misma fila de
+## viviendas que en los demas. En un piso sigue siendo un volumen liso, que a la
+## distancia de una manzana de ciudad es lo que hay: un lateral ciego.
 func _create_block_perimeter(parent: Node3D, decorated_sides: Dictionary) -> void:
 	if _street_grid.is_empty():
 		return
-	var night: bool = _exterior_is_night()
 	var ground_y: float = _exterior_ground_level_m()
 	var apartment: bool = _is_apartment_building()
-	var height: float = (
-		maxf(7.5, opposite_facade_height_m)
-		if apartment
-		else maxf(3.2, residential_house_height_m)
-	)
-	var color: Color = (
-		(opposite_facade_night_color if night else opposite_facade_day_color).darkened(0.04)
-		if apartment
-		else (residential_house_color.darkened(0.16) if night else residential_house_color.darkened(0.02))
-	)
-	# Detras de lo que ya haya en ese lado: en un piso la fachada de enfrente,
-	# en una casa el jardin delantero del vecino y su vivienda.
-	var beyond: float = (
-		float(_street_grid["sidewalk_w_m"]) + 0.35
-		if apartment
-		else float(_street_grid["sidewalk_w_m"]) + residential_opposite_yard_depth_m + residential_house_depth_m + 0.6
-	)
-	var outer: Rect2 = Rect2(_street_grid["road_outer"]).grow(beyond)
-	var depth: float = 9.0
-	var material: StandardMaterial3D = _mat(color, false)
 	var sides: Array = [
-		{"name": "top", "rect": Rect2(outer.position.x - depth, outer.position.y - depth, outer.size.x + depth * 2.0, depth)},
-		{"name": "bottom", "rect": Rect2(outer.position.x - depth, outer.position.y + outer.size.y, outer.size.x + depth * 2.0, depth)},
-		{"name": "left", "rect": Rect2(outer.position.x - depth, outer.position.y, depth, outer.size.y)},
-		{"name": "right", "rect": Rect2(outer.position.x + outer.size.x, outer.position.y, depth, outer.size.y)},
+		{"name": "top", "normal": Vector3(0.0, 0.0, 1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"name": "bottom", "normal": Vector3(0.0, 0.0, -1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"name": "left", "normal": Vector3(1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"name": "right", "normal": Vector3(-1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
 	]
-	for i in range(sides.size()):
-		var side: Dictionary = sides[i]
+	var index: int = 900
+	for side in sides:
 		if decorated_sides.has(String(side["name"])):
 			continue
-		var rect: Rect2 = Rect2(side["rect"])
-		if rect.size.x <= 0.05 or rect.size.y <= 0.05:
-			continue
+		var normal: Vector3 = Vector3(side["normal"])
+		var tangent: Vector3 = Vector3(side["tangent"])
+		var anchor: Vector3 = _facade_wall_anchor(normal, ground_y)
+		var side_data: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z))
+		var span_w: float = float(side_data.get("span_m", 24.0))
 		if apartment:
-			_add_perimeter_body(parent, "PerimeterBlock_%02d" % i, rect, ground_y, height, material)
-			continue
-		# Troceado: cuerpos del tamano de una casa con hueco entre ellos.
-		var along_x: bool = rect.size.x >= rect.size.y
-		var run: float = rect.size.x if along_x else rect.size.y
-		var count: int = maxi(1, int(round(run / (residential_house_width_m + 4.0))))
-		for j in range(count):
-			var t0: float = run * float(j) / float(count)
-			var piece_run: float = run / float(count) - 3.2
-			if piece_run <= 1.5:
-				continue
-			var seed: float = float(i * 13 + j * 29)
-			var piece_h: float = height * (0.86 + fposmod(seed * 0.211, 0.34))
-			var piece: Rect2 = (
-				Rect2(rect.position.x + t0 + 1.6, rect.position.y + depth * 0.35, piece_run, residential_house_depth_m)
-				if along_x
-				else Rect2(rect.position.x + depth * 0.35, rect.position.y + t0 + 1.6, residential_house_depth_m, piece_run)
+			_add_perimeter_block(parent, index, anchor, normal, tangent, span_w, ground_y)
+		else:
+			_create_neighbour_house_row(
+				parent,
+				index,
+				anchor,
+				normal,
+				tangent,
+				span_w,
+				ground_y,
+				maxf(0.5, residential_lawn_depth_m)
+					+ maxf(0.4, residential_sidewalk_depth_m) * 2.0
+					+ maxf(2.0, residential_road_depth_m)
+					+ maxf(0.5, residential_opposite_yard_depth_m),
+				false
 			)
-			_add_perimeter_body(parent, "PerimeterBlock_%02d_%02d" % [i, j], piece, ground_y, piece_h, material)
+		index += 1
 
 
-func _add_perimeter_body(parent: Node3D, node_name: String, rect: Rect2, ground_y: float, height_m: float, material: Material) -> void:
-	_add_box(
+## Lateral ciego de manzana: un volumen liso al otro lado de la calle.
+func _add_perimeter_block(
+	parent: Node3D,
+	index: int,
+	anchor: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	span_w: float,
+	ground_y: float
+) -> void:
+	var night: bool = _exterior_is_night()
+	var height: float = maxf(7.5, opposite_facade_height_m)
+	var depth: float = 9.0
+	var distance: float = maxf(0.5, street_sidewalk_width_m) * 2.0 + maxf(2.0, street_road_width_m)
+	var center: Vector3 = anchor - normal * (distance + depth * 0.5)
+	center.y = ground_y + height * 0.5
+	_add_oriented_box(
 		parent,
-		node_name,
-		Vector3(rect.size.x, height_m, rect.size.y),
-		Vector3(
-			rect.position.x + rect.size.x * 0.5,
-			ground_y + height_m * 0.5,
-			rect.position.y + rect.size.y * 0.5
-		),
-		material,
+		"PerimeterBlock_%02d" % index,
+		center,
+		tangent,
+		span_w + depth,
+		height,
+		depth,
+		_mat((opposite_facade_night_color if night else opposite_facade_day_color).darkened(0.04), false),
 		false
 	)
 
@@ -3987,55 +4060,16 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 	var far_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth + sidewalk_depth * 0.5)
 	far_sidewalk.y = surface_y + 0.045
 
-	if exterior_window_obstacles_enabled:
-		var house_face_distance: float = lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
-		# Tantas casas como pida el largo de la calle. Con un numero fijo, la
-		# fila medida 15 m frente a una calle de 33 y el resto era cesped.
-		var slot_count: int = maxi(residential_house_count, int(ceil(span_w / maxf(3.0, residential_house_spacing_m))) + 1)
-		for slot in range(slot_count):
-			var slot_t: float = (float(slot) - float(slot_count - 1) * 0.5) * residential_house_spacing_m
-			var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
-			var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
-			var body_d: float = residential_house_depth_m
-			var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
-			var house_center: Vector3 = face_center - normal * (body_d * 0.5)
-			house_center.y = surface_y + body_h * 0.5
-			if _crosses_roadway(house_center, tangent, body_w, body_d):
-				continue
-			var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
-			_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
-				body_w, body_h, body_d, _mat(house_color, false), false)
-			var roof_base: Vector3 = house_center
-			roof_base.y = surface_y + body_h
-			_add_gable_roof(parent, "ResidentialRoof_%02d_%02d" % [index, slot], roof_base, tangent, normal,
-				body_w + 0.34, body_d + 0.36, residential_roof_height_m, residential_roof_color.darkened(0.12) if night else residential_roof_color)
-
-			var door_center: Vector3 = face_center + normal * 0.055
-			door_center.y = surface_y + 1.05
-			_add_oriented_box(parent, "ResidentialDoor_%02d_%02d" % [index, slot], door_center, tangent,
-				0.92, 2.10, 0.08, _mat(landing_door_color.darkened(0.08), false), false)
-			for window_side in [-1.0, 1.0]:
-				for window_floor in range(2):
-					var window_center: Vector3 = face_center + tangent * (window_side * body_w * 0.29) + normal * 0.065
-					window_center.y = surface_y + 1.25 + float(window_floor) * 1.82
-					_add_oriented_box(parent, "ResidentialWindowFrame_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
-						1.06, 1.18, 0.08, _mat(residential_window_frame_color, false), false)
-					window_center += normal * 0.065
-					var glass_color: Color = city_night_window_lit_color if (night and (slot + window_floor) % 2 == 0) else city_window_color.darkened(0.12)
-					_add_oriented_box(parent, "ResidentialWindowGlass_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
-						0.88, 1.00, 0.035, _mat(glass_color, false, glass_color if night else Color(0.0, 0.0, 0.0, 0.0), 0.35 if night else 0.0), false)
-
-			for hedge_side in [-1.0, 1.0]:
-				var hedge_center: Vector3 = face_center + normal * 1.75 + tangent * hedge_side * (body_w * 0.31)
-				hedge_center.y = surface_y + 0.38
-				_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
-					body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
-		_create_exterior_facade_fill(
-			parent,
-			"ResidentialFacadeFill_%02d" % index,
-			center - normal * (house_face_distance * 0.72),
-			surface_y + residential_house_height_m * 0.52
-		)
+	_create_neighbour_house_row(
+		parent,
+		index,
+		center,
+		normal,
+		tangent,
+		span_w,
+		surface_y,
+		lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
+	)
 
 	for tree_i in range(residential_tree_count):
 		var tree_t: float = (float(tree_i) - float(residential_tree_count - 1) * 0.5) * residential_tree_spacing_m
