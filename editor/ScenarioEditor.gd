@@ -162,6 +162,12 @@ var room_drag_start_center_m: Vector2 = Vector2.ZERO
 var room_drag_start_rect_m: Rect2 = Rect2()
 var room_drag_start_rotation_deg: float = 0.0
 var _undo_stack: Array[Dictionary] = []
+## Pila de rehacer. Con instantaneas completas sale casi gratis: al deshacer, el
+## estado actual pasa a esta pila, y rehacer es la misma operacion al reves.
+var _redo_stack: Array[Dictionary] = []
+## Si el escenario tiene cambios que no estan en disco. No confundir con
+## `_editor_runtime_dirty`, que solo dice si hay que refrescar las vistas 3D.
+var _unsaved_changes: bool = false
 
 var _ui_root: Control
 var _status_label: Label
@@ -446,7 +452,6 @@ func _normalize_editor_panel_readability() -> void:
 		left_panel.offset_right = left_width_px
 		left_panel.offset_bottom = -editor_side_panel_bottom_px
 		left_panel.custom_minimum_size.x = left_width_px
-		_restore_panel_vbox_from_scroll(left_panel)
 		var left_vbox := _find_left_vbox()
 		if left_vbox != null:
 			left_vbox.add_theme_constant_override("separation", 5)
@@ -467,22 +472,6 @@ func _normalize_editor_panel_readability() -> void:
 	if top_bar != null:
 		top_bar.offset_bottom = editor_top_bar_height_px
 		top_bar.custom_minimum_size.y = editor_top_bar_height_px - 8.0
-
-
-func _restore_panel_vbox_from_scroll(panel: Control) -> void:
-	if panel == null:
-		return
-	var scroll := panel.get_node_or_null("Scroll") as ScrollContainer
-	if scroll == null:
-		return
-	var existing_vbox := scroll.get_node_or_null("VBox") as VBoxContainer
-	if existing_vbox != null:
-		scroll.remove_child(existing_vbox)
-		panel.add_child(existing_vbox)
-		existing_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		existing_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	panel.remove_child(scroll)
-	scroll.queue_free()
 
 
 func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
@@ -1297,6 +1286,7 @@ func _sync_detector_property_fields(det: Dictionary) -> void:
 		_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
 	if _detector_threshold_spin != null:
 		_detector_threshold_spin.value = float(det.get("threshold", 0.025))
+	_sync_detector_threshold_units()
 	if _detector_x_spin != null:
 		_detector_x_spin.value = float(det.get("x_m", 0.0))
 	if _detector_y_spin != null:
@@ -1358,13 +1348,12 @@ func _victim_id_for_index(index: int) -> String:
 
 
 func _find_left_vbox() -> VBoxContainer:
+	# La ruta buena lleva el ScrollContainer que se anadio para que el panel no
+	# se coma sus propios botones; las de debajo son escenas antiguas.
 	var left_vbox := _ui_root.get_node_or_null("LeftPanel/Scroll/VBox") as VBoxContainer
 	if left_vbox != null:
 		return left_vbox
 	left_vbox = _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
-	if left_vbox != null:
-		return left_vbox
-	left_vbox = _ui_root.get_node_or_null("ToolsPanel/Scroll/VBox") as VBoxContainer
 	if left_vbox != null:
 		return left_vbox
 	left_vbox = _ui_root.get_node_or_null("ToolsPanel/VBox") as VBoxContainer
@@ -1391,8 +1380,8 @@ func _get_ui_node(path: String) -> Node:
 	var node := _ui_root.get_node_or_null(path)
 	if node != null:
 		return node
-	var left_prefix := "LeftPanel/VBox/"
-	if path == "LeftPanel/VBox":
+	var left_prefix := "LeftPanel/Scroll/VBox/"
+	if path == "LeftPanel/Scroll/VBox":
 		return _find_left_vbox()
 	if path.begins_with(left_prefix):
 		return _get_left_node(path.substr(left_prefix.length()))
@@ -1487,6 +1476,7 @@ func _create_empty_scenario() -> void:
 	}
 	current_floor_index = 0
 	_undo_stack.clear()
+	_redo_stack.clear()
 
 
 func _push_undo_snapshot(_label: String = "") -> void:
@@ -1495,6 +1485,9 @@ func _push_undo_snapshot(_label: String = "") -> void:
 	_undo_stack.append(editor_data.duplicate(true))
 	while _undo_stack.size() > max_undo_steps:
 		_undo_stack.remove_at(0)
+	# Una accion nueva invalida el rehacer: a partir de aqui la historia es otra.
+	_redo_stack.clear()
+	_unsaved_changes = true
 	_mark_editor_runtime_dirty()
 
 
@@ -1503,6 +1496,32 @@ func _undo_last_action() -> void:
 		_set_status("No hay acciones para deshacer.")
 		return
 	var snapshot: Dictionary = _undo_stack.pop_back()
+	_redo_stack.append(editor_data.duplicate(true))
+	while _redo_stack.size() > max_undo_steps:
+		_redo_stack.remove_at(0)
+	_apply_history_snapshot(snapshot, "Última acción deshecha.")
+
+
+## Rehacer: la misma operacion que deshacer, en la direccion contraria.
+##
+## Con instantaneas completas sale casi gratis, y su ausencia se notaba: habia
+## 48 pasos de deshacer y ninguno de rehacer, asi que un Ctrl+Z de mas perdia el
+## trabajo sin remedio.
+func _redo_last_action() -> void:
+	if _redo_stack.is_empty():
+		_set_status("No hay acciones para rehacer.")
+		return
+	var snapshot: Dictionary = _redo_stack.pop_back()
+	_undo_stack.append(editor_data.duplicate(true))
+	while _undo_stack.size() > max_undo_steps:
+		_undo_stack.remove_at(0)
+	_apply_history_snapshot(snapshot, "Acción rehecha.")
+
+
+## Deja el editor en el estado de una instantanea. Lo comparten deshacer y
+## rehacer para que no se separen al tocar uno de los dos.
+func _apply_history_snapshot(snapshot: Dictionary, message: String) -> void:
+	_unsaved_changes = true
 	editor_data = Serializer.normalize_editor_data(snapshot.duplicate(true))
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
@@ -1517,7 +1536,7 @@ func _undo_last_action() -> void:
 	_sync_building_type_option_from_data()
 	_clear_selection()
 	_mark_editor_runtime_dirty()
-	_set_status("Ultima accion deshecha.")
+	_set_status(message)
 	queue_redraw()
 
 
@@ -2353,6 +2372,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_Z and event.ctrl_pressed and event.shift_pressed:
+			_redo_last_action()
+			get_viewport().set_input_as_handled()
+			return
+		if event.keycode == KEY_Y and event.ctrl_pressed:
+			_redo_last_action()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_Z and event.ctrl_pressed:
 			_undo_last_action()
 			get_viewport().set_input_as_handled()
@@ -2405,6 +2432,13 @@ func _handle_3d_editor_input(event: InputEvent) -> void:
 		return
 	var key_event := event as InputEventKey
 	if not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode == KEY_Y and key_event.ctrl_pressed or (
+		key_event.keycode == KEY_Z and key_event.ctrl_pressed and key_event.shift_pressed
+	):
+		_redo_last_action()
+		_sync_editor_runtime_views()
+		get_viewport().set_input_as_handled()
 		return
 	if key_event.keycode == KEY_Z and key_event.ctrl_pressed:
 		_undo_last_action()
@@ -4147,28 +4181,28 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 	if right_panel != null:
 		right_panel.visible = has_any
 	var room_paths: Array[String] = [
-		"RightPanel/VBox/RoomTitle",
-		"RightPanel/VBox/RoomNameEdit",
-		"RightPanel/VBox/RoomKindEdit",
-		"RightPanel/VBox/RoomXLabel",
-		"RightPanel/VBox/RoomXSpin",
-		"RightPanel/VBox/RoomYLabel",
-		"RightPanel/VBox/RoomYSpin",
-		"RightPanel/VBox/RoomWidthLabel",
-		"RightPanel/VBox/RoomWidthSpin",
-		"RightPanel/VBox/RoomDepthLabel",
-		"RightPanel/VBox/RoomDepthSpin",
-		"RightPanel/VBox/RoomRotationLabel",
-		"RightPanel/VBox/RoomRotationSpin",
-		"RightPanel/VBox/RoomHeightLabel",
-		"RightPanel/VBox/RoomHeightSpin",
-		"RightPanel/VBox/FuelEnergyLabel",
-		"RightPanel/VBox/FuelEnergySpin",
-		"RightPanel/VBox/MaxHrrLabel",
-		"RightPanel/VBox/MaxHrrSpin",
-		"RightPanel/VBox/BtnApplyRoom",
-		"RightPanel/VBox/BtnDeleteRoom",
-		"RightPanel/VBox/SeparatorB"
+		"RightPanel/Scroll/VBox/RoomTitle",
+		"RightPanel/Scroll/VBox/RoomNameEdit",
+		"RightPanel/Scroll/VBox/RoomKindEdit",
+		"RightPanel/Scroll/VBox/RoomXLabel",
+		"RightPanel/Scroll/VBox/RoomXSpin",
+		"RightPanel/Scroll/VBox/RoomYLabel",
+		"RightPanel/Scroll/VBox/RoomYSpin",
+		"RightPanel/Scroll/VBox/RoomWidthLabel",
+		"RightPanel/Scroll/VBox/RoomWidthSpin",
+		"RightPanel/Scroll/VBox/RoomDepthLabel",
+		"RightPanel/Scroll/VBox/RoomDepthSpin",
+		"RightPanel/Scroll/VBox/RoomRotationLabel",
+		"RightPanel/Scroll/VBox/RoomRotationSpin",
+		"RightPanel/Scroll/VBox/RoomHeightLabel",
+		"RightPanel/Scroll/VBox/RoomHeightSpin",
+		"RightPanel/Scroll/VBox/FuelEnergyLabel",
+		"RightPanel/Scroll/VBox/FuelEnergySpin",
+		"RightPanel/Scroll/VBox/MaxHrrLabel",
+		"RightPanel/Scroll/VBox/MaxHrrSpin",
+		"RightPanel/Scroll/VBox/BtnApplyRoom",
+		"RightPanel/Scroll/VBox/BtnDeleteRoom",
+		"RightPanel/Scroll/VBox/SeparatorB"
 	]
 	for path in room_paths:
 		_set_node_visible(path, has_room)
@@ -4193,21 +4227,21 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 	var before_detector: bool = has_room or has_obj or has_opening
 	var before_victim: bool = before_detector or has_detector
 	var before_wall: bool = before_victim or has_victim
-	_set_node_visible("RightPanel/VBox/ObjectTitle", has_obj)
-	_set_node_visible("RightPanel/VBox/SeparatorC", has_opening and (has_room or has_obj))
-	_set_node_visible("RightPanel/VBox/OpeningTitle", has_opening)
-	_set_node_visible("RightPanel/VBox/SeparatorD", has_detector and before_detector)
-	_set_node_visible("RightPanel/VBox/DetectorTitle", has_detector)
-	_set_node_visible("RightPanel/VBox/SeparatorE", has_victim and before_victim)
-	_set_node_visible("RightPanel/VBox/VictimTitle", has_victim)
-	_set_node_visible("RightPanel/VBox/SeparatorExteriorWall", has_wall and before_wall)
-	_set_node_visible("RightPanel/VBox/ExteriorWallTitle", has_wall)
+	_set_node_visible("RightPanel/Scroll/VBox/ObjectTitle", has_obj)
+	_set_node_visible("RightPanel/Scroll/VBox/SeparatorC", has_opening and (has_room or has_obj))
+	_set_node_visible("RightPanel/Scroll/VBox/OpeningTitle", has_opening)
+	_set_node_visible("RightPanel/Scroll/VBox/SeparatorD", has_detector and before_detector)
+	_set_node_visible("RightPanel/Scroll/VBox/DetectorTitle", has_detector)
+	_set_node_visible("RightPanel/Scroll/VBox/SeparatorE", has_victim and before_victim)
+	_set_node_visible("RightPanel/Scroll/VBox/VictimTitle", has_victim)
+	_set_node_visible("RightPanel/Scroll/VBox/SeparatorExteriorWall", has_wall and before_wall)
+	_set_node_visible("RightPanel/Scroll/VBox/ExteriorWallTitle", has_wall)
 	if _obj_props_container != null:
 		_obj_props_container.visible = has_obj
-	_set_node_visible("RightPanel/VBox/ObjProps/ObjWidthLabel", has_obj)
-	_set_node_visible("RightPanel/VBox/ObjProps/ObjWidthSpin", has_obj)
-	_set_node_visible("RightPanel/VBox/ObjProps/ObjHeightLabel", has_obj)
-	_set_node_visible("RightPanel/VBox/ObjProps/ObjHeightSpin", has_obj)
+	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjWidthLabel", has_obj)
+	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjWidthSpin", has_obj)
+	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjHeightLabel", has_obj)
+	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjHeightSpin", has_obj)
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening
 	if _detector_props_container != null:
@@ -5482,6 +5516,7 @@ func _save_to_path(path: String) -> void:
 	if _path_edit != null:
 		_path_edit.text = clean_path
 	if Serializer.save_scenario(clean_path, editor_data):
+		_unsaved_changes = false
 		_set_status("Plantilla guardada en %s." % clean_path)
 	else:
 		_set_status("No se pudo guardar la plantilla.")
@@ -5529,6 +5564,7 @@ func _load_from_path(path: String) -> void:
 	_mark_editor_runtime_dirty()
 	if _path_edit != null:
 		_path_edit.text = clean_path
+	_unsaved_changes = false
 	_set_status("Plantilla cargada desde %s." % clean_path)
 	queue_redraw()
 
@@ -5898,6 +5934,33 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 		var room: Dictionary = _get_room(room_id)
 		return "%s: %s (R%d)" % [_element_type_label_for_room(room), _room_display_name(room, room_id), room_id]
 	return ""
+
+
+func _on_detector_type_changed(_index: int) -> void:
+	_sync_detector_threshold_units()
+
+
+## Unidad y explicacion del umbral del detector.
+##
+## Es el unico campo del editor cuya unidad depende de otro control: un umbral
+## de 0,025 son kilogramos de humo por metro cubico, pero de 57 son grados y de
+## 300 partes por millon. Con la casilla muda -que es como estaba- no hay forma
+## de saber cual de las tres se esta tecleando. Las unidades son las que declara
+## SimulationEngine para cada tipo.
+func _sync_detector_threshold_units() -> void:
+	if _detector_threshold_spin == null:
+		return
+	var selected: int = _detector_type_option.selected if _detector_type_option != null else 0
+	var unit: String = " kg/m³"
+	var help: String = "Densidad de humo en la sala a partir de la cual salta el detector, en kilogramos por metro cúbico. Un detector domestico salta en torno a 0,025."
+	if selected == 1:
+		unit = " °C"
+		help = "Temperatura de la capa superior a partir de la cual salta el detector, en grados. Un rociador domestico salta en torno a 57."
+	elif selected == 2:
+		unit = " ppm"
+		help = "Concentración de CO en la sala a partir de la cual salta el detector, en partes por millón. Un detector domestico salta en torno a 50."
+	_detector_threshold_spin.suffix = unit
+	_set_control_tooltip(_detector_threshold_spin, help)
 
 
 func _detector_type_label(type_name: String) -> String:
@@ -6456,6 +6519,32 @@ func _run_simulation_pressed() -> void:
 
 
 func _cancel_pressed() -> void:
+	# Salir del editor tiraba el plano sin preguntar. Media hora de trabajo se
+	# perdia por pulsar un boton, y no habia forma de recuperarla.
+	if not _unsaved_changes:
+		get_tree().change_scene_to_file(MAIN_MENU_PATH)
+		return
+	_confirm_discard_changes()
+
+
+## Pregunta antes de tirar cambios sin guardar.
+func _confirm_discard_changes() -> void:
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer") as CanvasLayer
+	var parent: Node = canvas if canvas != null else self
+	var dialog := parent.get_node_or_null("DiscardChangesDialog") as ConfirmationDialog
+	if dialog == null:
+		dialog = ConfirmationDialog.new()
+		dialog.name = "DiscardChangesDialog"
+		dialog.title = "Cambios sin guardar"
+		dialog.dialog_text = "El escenario tiene cambios que no están guardados.\n\nSi sales ahora se pierden."
+		dialog.ok_button_text = "Salir sin guardar"
+		dialog.cancel_button_text = "Seguir editando"
+		parent.add_child(dialog)
+		dialog.confirmed.connect(_discard_and_leave)
+	dialog.popup_centered()
+
+
+func _discard_and_leave() -> void:
 	get_tree().change_scene_to_file(MAIN_MENU_PATH)
 
 
@@ -6548,75 +6637,78 @@ func _bind_existing_ui() -> bool:
 	_status_label = _get_left_node("StatusLabel") as Label
 	_building_type_option = _get_left_node("BuildingTypeRow/BuildingTypeOption") as OptionButton
 
-	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
-	_kind_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomKindEdit") as LineEdit
-	_room_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomXSpin") as SpinBox
-	_room_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomYSpin") as SpinBox
-	_room_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomWidthSpin") as SpinBox
-	_room_depth_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomDepthSpin") as SpinBox
-	_room_rotation_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomRotationSpin") as SpinBox
-	_stair_turn_option = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/StairTurnRow/StairTurnOption") as OptionButton
-	_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomHeightSpin") as SpinBox
-	_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/FuelEnergySpin") as SpinBox
-	_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/MaxHrrSpin") as SpinBox
+	_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomNameEdit") as LineEdit
+	_kind_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomKindEdit") as LineEdit
+	_room_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomXSpin") as SpinBox
+	_room_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomYSpin") as SpinBox
+	_room_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomWidthSpin") as SpinBox
+	_room_depth_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomDepthSpin") as SpinBox
+	_room_rotation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomRotationSpin") as SpinBox
+	_stair_turn_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/StairTurnRow/StairTurnOption") as OptionButton
+	_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomHeightSpin") as SpinBox
+	_fuel_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/FuelEnergySpin") as SpinBox
+	_hrr_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/MaxHrrSpin") as SpinBox
 
-	_obj_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps") as Control
-	_obj_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjNameEdit") as LineEdit
-	_obj_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjXSpin") as SpinBox
-	_obj_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjYSpin") as SpinBox
-	_obj_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjWidthSpin") as SpinBox
-	_obj_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHeightSpin") as SpinBox
-	_obj_rotation_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjRotationSpin") as SpinBox
-	_obj_elevation_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjElevationSpin") as SpinBox
-	_obj_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjFuelSpin") as SpinBox
-	_obj_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHrrSpin") as SpinBox
+	_obj_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps") as Control
+	_obj_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjNameEdit") as LineEdit
+	_obj_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjXSpin") as SpinBox
+	_obj_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjYSpin") as SpinBox
+	_obj_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjWidthSpin") as SpinBox
+	_obj_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjHeightSpin") as SpinBox
+	_obj_rotation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjRotationSpin") as SpinBox
+	_obj_elevation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjElevationSpin") as SpinBox
+	_obj_fuel_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjFuelSpin") as SpinBox
+	_obj_hrr_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjHrrSpin") as SpinBox
 
-	_opening_props_container = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps") as Control
-	_opening_type_label = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningTypeLabel") as Label
-	_opening_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningWidthSpin") as SpinBox
-	_opening_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningHeightSpin") as SpinBox
-	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSillSpin") as SpinBox
-	_opening_offset_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOffsetSpin") as SpinBox
-	_opening_open_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOpenOption") as OptionButton
-	_opening_swing_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSwingRow/OpeningSwingOption") as OptionButton
-	_opening_hinge_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningHingeRow/OpeningHingeOption") as OptionButton
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
+	_opening_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps") as Control
+	_opening_type_label = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningTypeLabel") as Label
+	_opening_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningWidthSpin") as SpinBox
+	_opening_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningHeightSpin") as SpinBox
+	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningSillSpin") as SpinBox
+	_opening_offset_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningOffsetSpin") as SpinBox
+	_opening_open_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningOpenOption") as OptionButton
+	_opening_swing_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningSwingRow/OpeningSwingOption") as OptionButton
+	_opening_hinge_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningHingeRow/OpeningHingeOption") as OptionButton
+	_connect_button(_ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
 
-	_detector_props_container = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps") as Control
-	_detector_id_edit = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorIdEdit") as LineEdit
-	_detector_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorXSpin") as SpinBox
-	_detector_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorYSpin") as SpinBox
-	_detector_type_option = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorTypeOption") as OptionButton
+	_detector_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps") as Control
+	_detector_id_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorIdEdit") as LineEdit
+	_detector_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorXSpin") as SpinBox
+	_detector_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorYSpin") as SpinBox
+	_detector_type_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorTypeOption") as OptionButton
 	if _detector_type_option != null and _detector_type_option.get_item_count() == 0:
 		_detector_type_option.add_item("Humo", 0)
 		_detector_type_option.add_item("Calor", 1)
 		_detector_type_option.add_item("CO", 2)
-	_detector_threshold_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorThresholdSpin") as SpinBox
-	var apply_detector_button := _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnApplyDetector") as Button
-	var delete_detector_button := _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnDeleteDetector") as Button
+	_detector_threshold_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorThresholdSpin") as SpinBox
+	if _detector_type_option != null and not _detector_type_option.item_selected.is_connected(_on_detector_type_changed):
+		_detector_type_option.item_selected.connect(_on_detector_type_changed)
+	_sync_detector_threshold_units()
+	var apply_detector_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/BtnApplyDetector") as Button
+	var delete_detector_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/BtnDeleteDetector") as Button
 	_set_control_tooltip(apply_detector_button, "Aplica tipo, umbral y posición del detector seleccionado.")
 	_set_control_tooltip(delete_detector_button, "Borra el detector seleccionado.")
 	_connect_button(apply_detector_button, _apply_detector_properties)
 	_connect_button(delete_detector_button, _delete_selected)
 
-	_victim_props_container = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps") as Control
-	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimNameEdit") as LineEdit
-	_victim_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimXSpin") as SpinBox
-	_victim_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimYSpin") as SpinBox
-	_victim_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimHeightSpin") as SpinBox
-	var apply_victim_button := _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnApplyVictim") as Button
-	var delete_victim_button := _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnDeleteVictim") as Button
+	_victim_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps") as Control
+	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimNameEdit") as LineEdit
+	_victim_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimXSpin") as SpinBox
+	_victim_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimYSpin") as SpinBox
+	_victim_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimHeightSpin") as SpinBox
+	var apply_victim_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/BtnApplyVictim") as Button
+	var delete_victim_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/BtnDeleteVictim") as Button
 	_set_control_tooltip(apply_victim_button, "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada.")
 	_set_control_tooltip(delete_victim_button, "Borra la víctima seleccionada.")
 	_connect_button(apply_victim_button, _apply_victim_properties)
 	_connect_button(delete_victim_button, _delete_selected)
 
-	_wall_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps") as Control
-	_wall_start_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallStartXSpin") as SpinBox
-	_wall_start_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallStartYSpin") as SpinBox
-	_wall_end_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallEndXSpin") as SpinBox
-	_wall_end_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallEndYSpin") as SpinBox
-	_wall_thickness_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallThicknessSpin") as SpinBox
+	_wall_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps") as Control
+	_wall_start_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallStartXSpin") as SpinBox
+	_wall_start_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallStartYSpin") as SpinBox
+	_wall_end_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallEndXSpin") as SpinBox
+	_wall_end_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallEndYSpin") as SpinBox
+	_wall_thickness_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallThicknessSpin") as SpinBox
 
 	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false
@@ -6663,16 +6755,16 @@ func _bind_existing_ui() -> bool:
 	var load_scenario_button := _get_left_node("BtnLoadScenario") as Button
 	_set_control_tooltip(load_scenario_button, "Carga la plantilla seleccionada en el editor.")
 	_connect_button(load_scenario_button, _load_scenario_pressed)
-	_room_apply_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button
-	_room_delete_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button
+	_room_apply_button = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/BtnApplyRoom") as Button
+	_room_delete_button = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/BtnDeleteRoom") as Button
 	_set_control_tooltip(_room_apply_button, "Aplica los cambios numéricos de la habitación seleccionada.")
 	_set_control_tooltip(_room_delete_button, "Borra la habitación seleccionada.")
 	_connect_button(_room_apply_button, _apply_room_properties)
 	_connect_button(_room_delete_button, _delete_selected_room)
 	_set_control_tooltip(_room_mark_exterior_button, "Marca la habitación seleccionada como parte del contorno exterior.")
 	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
-	var apply_object_button := _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button
-	var delete_object_button := _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button
+	var apply_object_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/BtnApplyObject") as Button
+	var delete_object_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/BtnDeleteObject") as Button
 	_set_control_tooltip(apply_object_button, "Aplica posición, tamaño, rotación y combustible del objeto seleccionado.")
 	_set_control_tooltip(delete_object_button, "Borra el objeto seleccionado.")
 	_connect_button(apply_object_button, _apply_object_properties)
@@ -6873,7 +6965,7 @@ func _ensure_element_list_in_existing_ui() -> void:
 
 
 func _ensure_room_geometry_controls_in_existing_ui() -> void:
-	var vbox := _ui_root.get_node_or_null("RightPanel/VBox") as VBoxContainer
+	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
 	if vbox == null:
 		return
 	var geometry := vbox.get_node_or_null("RoomGeometry") as VBoxContainer
@@ -6971,7 +7063,7 @@ func _ensure_victim_position_controls_in_existing_ui() -> void:
 
 
 func _ensure_exterior_wall_controls_in_existing_ui() -> void:
-	var vbox := _ui_root.get_node_or_null("RightPanel/VBox") as VBoxContainer
+	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
 	if vbox == null:
 		return
 	var title := vbox.get_node_or_null("ExteriorWallTitle") as Label
@@ -7148,16 +7240,16 @@ func _sync_tool_option_visibility() -> void:
 	var corridor_visible: bool = tools_tab_visible and current_tool == Tool.CORRIDOR_L
 	var stair_visible: bool = tools_tab_visible and current_tool == Tool.STAIRS
 	var opening_visible: bool = tools_tab_visible and current_tool == Tool.HOLE
-	_set_node_visible("LeftPanel/VBox/ObjectLabel", object_visible)
-	_set_node_visible("LeftPanel/VBox/ObjectToolLabel", object_visible)
-	_set_node_visible("LeftPanel/VBox/ObjectTypeOption", object_visible)
+	_set_node_visible("LeftPanel/Scroll/VBox/ObjectLabel", object_visible)
+	_set_node_visible("LeftPanel/Scroll/VBox/ObjectToolLabel", object_visible)
+	_set_node_visible("LeftPanel/Scroll/VBox/ObjectTypeOption", object_visible)
 	if _object_kind_option != null:
 		_set_control_row_visible(_object_kind_option, object_visible)
 	var object_section := _get_left_node("ObjectToolSection") as Control
 	if object_section != null:
 		object_section.visible = object_visible
-	_set_node_visible("LeftPanel/VBox/CorridorSectionLabel", corridor_visible)
-	_set_node_visible("LeftPanel/VBox/CorridorWidthSpin", corridor_visible)
+	_set_node_visible("LeftPanel/Scroll/VBox/CorridorSectionLabel", corridor_visible)
+	_set_node_visible("LeftPanel/Scroll/VBox/CorridorWidthSpin", corridor_visible)
 	if _corridor_width_spin != null:
 		_set_control_row_visible(_corridor_width_spin, corridor_visible)
 	var corridor_row := _get_left_node("CorridorWidthRow") as Control

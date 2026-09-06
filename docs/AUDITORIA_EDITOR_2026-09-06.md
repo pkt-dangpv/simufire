@@ -20,20 +20,20 @@ cuatro módulos de apoyo de `editor/`.
 
 ## 1. Resumen
 
-| # | Hallazgo | Sev. | La cifra |
-|---|---|---|---|
-| E-1 | Controles sin ninguna explicación | 🔴 | **62 de 99** |
-| E-2 | Campos numéricos sin unidad | 🔴 | **36 de 36** |
-| E-3 | Ningún panel tiene barra de desplazamiento | 🔴 | **31 secciones** apiladas en altura fija |
-| E-4 | No hay rehacer | 🔴 | 48 pasos de deshacer, 0 de rehacer |
-| E-5 | El interruptor de la ayuda contextual está oculto | 🟠 | `visible = false` |
-| E-6 | Ningún atajo de teclado para las herramientas | 🟠 | **0** `shortcut`, 14 herramientas |
-| E-7 | No hay navegación por teclado | 🟠 | **57** controles con `focus_mode = 0` |
-| E-8 | Se sale del editor sin avisar de cambios sin guardar | 🟠 | `_cancel_pressed()` cambia de escena y ya |
-| E-9 | No hay copiar, pegar ni duplicar | 🟠 | — |
-| E-10 | Texto de ayuda sin tildes junto a etiquetas con tildes | 🟡 | 1 bloque, ~12 palabras |
-| E-11 | Herramientas con abreviaturas y sin icono | 🟡 | **0** iconos; "SEL", "DETECT.", "VICT." |
-| E-12 | El script del editor es un monolito | 🟠 | 7435 líneas, 377 funciones, 1 `@onready` |
+| # | Hallazgo | Sev. | La cifra | Estado |
+|---|---|---|---|---|
+| E-1 | Controles sin ninguna explicación | 🔴 | **62 de 99** | ✅ **corregido** |
+| E-2 | Campos numéricos sin unidad | 🔴 | **36 de 36** | ✅ **corregido** |
+| E-3 | Ningún panel tiene barra de desplazamiento | 🟠 | 31 secciones, repartidas en 3 pestañas | ✅ **corregido** (severidad rebajada, ver §7) |
+| E-4 | No hay rehacer | 🔴 | 48 pasos de deshacer, 0 de rehacer | ✅ **corregido** |
+| E-5 | El interruptor de la ayuda contextual está oculto | 🟠 | `visible = false` | pendiente |
+| E-6 | Ningún atajo de teclado para las herramientas | 🟠 | **0** `shortcut`, 14 herramientas | pendiente |
+| E-7 | No hay navegación por teclado | 🟠 | **57** controles con `focus_mode = 0` | pendiente |
+| E-8 | Se sale del editor sin avisar de cambios sin guardar | 🟠 | `_cancel_pressed()` cambia de escena y ya | ✅ **corregido** |
+| E-9 | No hay copiar, pegar ni duplicar | 🟠 | — | pendiente |
+| E-10 | Texto de ayuda sin tildes junto a etiquetas con tildes | 🟡 | 1 bloque, ~12 palabras | pendiente |
+| E-11 | Herramientas con abreviaturas y sin icono | 🟡 | **0** iconos; "SEL", "DETECT.", "VICT." | pendiente |
+| E-12 | El script del editor es un monolito | 🟠 | 7435 líneas, 377 funciones, 1 `@onready` | pendiente |
 
 ### Lo que sí está bien, y conviene no romper
 
@@ -268,3 +268,66 @@ encadenar dos herramientas o al cargar un escenario grande **no están aquí**, 
 la lección de esta línea visual dice que esos son justo los que más duelen. Si al
 usarlo hay algo que canta y no está en esta lista, una captura señalándolo vale
 más que otra pasada de lectura.
+
+---
+
+## 7. Lo corregido el 2026-09-07
+
+### Corrección a la propia auditoría: E-3 estaba sobredimensionado
+
+Escribí que el panel izquierdo apila **31 secciones en altura fija**. Es cierto
+que son 31 y que no había scroll, pero **omití que el panel está dividido en tres
+pestañas** —Dibujo, Lista y Archivo—, así que nunca se muestran las 31 a la vez.
+El scroll se había quitado a propósito en `33c59a3f`, el commit que introdujo esas
+pestañas, con una función explícita que lo deshacía en tiempo de ejecución:
+`_restore_panel_vbox_from_scroll()`.
+
+O sea: la severidad era 🟠, no 🔴, y había una decisión detrás que no leí antes de
+juzgarla. Aun así el scroll vuelve, porque **pestañas y scroll no son
+alternativas**: las pestañas reparten y el scroll es la red por si la ventana es
+baja. Con las dos cosas, nada queda inalcanzable. `_restore_panel_vbox_from_scroll`
+se retira, que era quien lo impedía.
+
+### Lo que se ha hecho
+
+| Hallazgo | Antes | Ahora |
+|---|---|---|
+| E-1 | 37 de 99 controles con explicación | **99 de 99** |
+| E-2 | 0 de 36 campos con unidad | **34 con sufijo fijo + 1 dinámico**; 1 sin unidad a propósito |
+| E-3 | 0 `ScrollContainer` | los dos paneles se desplazan |
+| E-4 | 0 pasos de rehacer | `Ctrl+Y` y `Ctrl+Mayús+Z`, 48 pasos |
+| E-8 | se salía sin preguntar | diálogo «Salir sin guardar» / «Seguir editando» |
+
+Detalles que merecen quedar escritos:
+
+- **El umbral del detector es el único campo cuya unidad depende de otro
+  control**: 0,025 son kg/m³ de humo, 57 son grados y 300 son ppm de CO. Con la
+  casilla muda no había forma de saber cuál se estaba tecleando. Ahora la unidad
+  y la explicación cambian con el tipo, y las tres salen de lo que declara
+  `SimulationEngine`, no de lo que me pareciera.
+- **`ApartmentFloorSpin` no lleva unidad y es correcto**: es un número de planta,
+  no una medida. El guardarraíl lo exime por nombre, con el motivo escrito al
+  lado, para que la excepción no se convierta en un agujero.
+- **Rehacer sale casi gratis** porque el deshacer era por instantáneas completas:
+  el estado actual pasa a la otra pila y ya. Deshacer y rehacer comparten cuerpo
+  (`_apply_history_snapshot`) para que no se separen al tocar uno.
+- **`_editor_runtime_dirty` no valía** para saber si hay cambios sin guardar
+  —solo dice si hay que refrescar las vistas 3D—, así que hay una marca nueva,
+  `_unsaved_changes`, que se levanta con cada acción y se baja al guardar o
+  cargar.
+
+### El guardarraíl
+
+`tools/validate_editor_ui_affordances.gd`, en la suite. Tres reglas, y las tres
+son de las que se rompen solas al añadir un control:
+
+1. Todo control interactivo dice qué hace.
+2. Todo campo numérico dice en qué unidad está.
+3. Los dos paneles se pueden desplazar.
+
+Sin él, esta lista se vuelve a llenar con el siguiente control que se añada.
+
+### Lo que sigue pendiente
+
+E-5 (interruptor de ayuda oculto), E-6 (atajos), E-7 (foco de teclado), E-9
+(copiar/pegar), E-10 (tildes), E-11 (iconos) y E-12 (el monolito).

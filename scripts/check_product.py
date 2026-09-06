@@ -349,6 +349,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor scene complete: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_editor_ui_affordances.gd",
+        "[validate_editor_ui] PASS",
+    )
+    rows.append(("Mandos del editor explicados Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor UI affordances: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_fire_visuals.tscn",
         "FP FIRE VISUALS VALIDATION PASS",
