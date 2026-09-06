@@ -49,10 +49,13 @@ const STREET_SHORTFALL_M: float = 1.0
 const MIN_FURNITURE: Dictionary = {
 	"StreetLamp": 6,
 	"TrafficSign": 2,
-	"Crossing": 5,
+	"Crossing": 12,
 	"Bollard": 4,
 	"Shopfront": 3,
 	"Balcony": 6,
+	"SidewalkNear": 4,
+	"SidewalkFar": 4,
+	"Road": 4,
 }
 
 const VERBOSE: bool = false
@@ -104,6 +107,7 @@ func _check(template_name: String, night: bool) -> void:
 
 	var counts: Dictionary = {}
 	var roads: Array[AABB] = []
+	var walks: Array[Dictionary] = []
 	var blocks: Array[AABB] = []
 	var obstacles: Array[Dictionary] = []
 	for child in root.get_children():
@@ -118,6 +122,8 @@ func _check(template_name: String, night: bool) -> void:
 			continue
 		if family == "Road":
 			roads.append(aabb)
+		if family.begins_with("Sidewalk"):
+			walks.append({"name": node_name, "aabb": aabb})
 		if _is_building_mass(family):
 			blocks.append(aabb)
 		if not ROAD_ALLOWED.has(family):
@@ -149,7 +155,29 @@ func _check(template_name: String, night: bool) -> void:
 			_fail("%s: %s (%s) cruza la calzada, %.1f x %.1f m de solape" % [
 				_case, obstacle["name"], obstacle["family"], overlap.size.x, overlap.size.z])
 
-	# 3. Hay ciudad, no un descampado con bloques.
+	# 3. Las calzadas no se cruzan entre si.
+	#
+	# Es lo que reporto el usuario: "las carreteras del exterior se cruzan sin
+	# ningun sentido, no tienen continuidad". Venia de que cada fachada montaba
+	# su calle entera -calzada, dos aceras y bordillos- girada segun ella, asi
+	# que con tres fachadas habia tres calles superpuestas. Ahora la calle es un
+	# anillo alrededor de la manzana y sus cuatro brazos NO pueden solaparse.
+	for i in range(roads.size()):
+		for j in range(i + 1, roads.size()):
+			var overlap: AABB = _intersection(roads[i], roads[j])
+			if overlap.size.x * overlap.size.z > 0.60:
+				_fail("%s: dos tramos de calzada se pisan en %.1f x %.1f m: la calle se cruza consigo misma" % [
+					_case, overlap.size.x, overlap.size.z])
+
+	# 4. Una acera no puede estar encima del asfalto.
+	for walk in walks:
+		for road in roads:
+			var overlap: AABB = _intersection(walk["aabb"], road)
+			if overlap.size.x * overlap.size.z > 0.60:
+				_fail("%s: %s esta sobre la calzada, %.1f x %.1f m" % [
+					_case, walk["name"], overlap.size.x, overlap.size.z])
+
+	# 5. Hay ciudad, no un descampado con bloques.
 	for family in MIN_FURNITURE.keys():
 		var found: int = int(counts.get(family, 0))
 		if found < int(MIN_FURNITURE[family]):

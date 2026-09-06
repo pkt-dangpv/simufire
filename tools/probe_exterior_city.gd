@@ -20,7 +20,7 @@ const CASES: Array[Dictionary] = [
 
 ## Familias que interesan, por prefijo del nombre del nodo.
 const FAMILIES: Array[String] = [
-	"Sidewalk", "Road", "RoadMark", "CityCurb",
+	"SidewalkNear", "SidewalkFar", "RoadMark", "Road", "CityCurb",
 	"CityFacadeBody", "CityFacadePlinth", "CityFacadeCornice",
 	"CityWindow", "CityEntrance",
 	"CityCar", "CityTree",

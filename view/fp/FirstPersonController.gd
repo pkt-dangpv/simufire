@@ -21,6 +21,7 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
 const FPCityBlocks := preload("res://view/fp/FPCityBlocks.gd")
+const FPStreetGrid := preload("res://view/fp/FPStreetGrid.gd")
 ## Shader de las superficies construidas por codigo: ruido en metros y
 ## oclusion de contacto en las aristas (M-2).
 const FPSurfaceShader: Shader = preload("res://view/fp/fp_surface.gdshader")
@@ -787,12 +788,13 @@ var _landing_footprints: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
-## Calzada de cada fachada, en planta y en mundo. Cada fachada genera su propio
-## decorado urbano, y con dos o tres fachadas los bloques de una caian en mitad
-## de la calle de otra: un edificio cruzado delante de la ventana. Se calculan
-## todas ANTES de construir nada para poder descartar lo que invada una calle
-## ajena.
-var _street_bands: Array[Dictionary] = []
+## La calzada, en planta y en mundo: los cuatro brazos del anillo que rodea la
+## manzana. Se calcula ANTES de construir el decorado para poder descartar lo
+## que caiga encima del asfalto.
+var _roadway_rects: Array[Rect2] = []
+## Reparto de la calle alrededor de la manzana, o vacio si este escenario no
+## lleva calle (unifamiliar).
+var _street_grid: Dictionary = {}
 var _fire_nodes_by_room: Dictionary = {}
 ## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
 ## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
@@ -3085,27 +3087,21 @@ func _create_exterior_context() -> void:
 			facade["has_street_opening"] = true
 		facades[key] = facade
 
-	_street_bands.clear()
+	# La calle es UNA alrededor de la manzana, no una por fachada. Se construye
+	# antes que nada porque el resto del decorado se apoya en ella.
+	_street_grid = {}
+	_roadway_rects.clear()
+	if _is_apartment_building():
+		_create_city_street_network(root)
+
 	var facade_index: int = 0
 	for key in facades.keys():
 		var facade: Dictionary = facades[key]
-		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
-			continue
-		var band_count: int = maxi(1, int(facade["count"]))
-		_street_bands.append(_street_band_for(
-			Vector3(facade["sum"]) / float(band_count),
-			Vector3(facade["normal"]),
-			Vector3(facade["tangent"]),
-			facade_index
-		))
-		facade_index += 1
-
-	facade_index = 0
-	for key in facades.keys():
-		var facade: Dictionary = facades[key]
-		var count: int = maxi(1, int(facade["count"]))
-		var facade_center: Vector3 = Vector3(facade["sum"]) / float(count)
 		var facade_normal: Vector3 = Vector3(facade["normal"])
+		# El decorado se ancla en el PARAMENTO, no en el centro de las ventanas.
+		# Anclado en las ventanas, cada fachada ponia su acera a una distancia
+		# distinta del edificio y la calle no cerraba por las esquinas.
+		var facade_center: Vector3 = _facade_wall_anchor(facade_normal, float(facade["floor_level_m"]))
 		var facade_tangent: Vector3 = Vector3(facade["tangent"])
 		var facade_floor: float = float(facade["floor_level_m"])
 		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
@@ -3164,41 +3160,13 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	var night: bool = _exterior_is_night()
 	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
 	var road_w: float = maxf(2.0, street_road_width_m)
-	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
-	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
-	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
-
-	# Calle completa a escala: dos aceras, bordillos levantados y calzada.
-	var near_walk: Vector3 = center - normal * (sidewalk_w * 0.5)
-	near_walk.y = street_y + street_curb_height_m * 0.5
-	_add_oriented_box(parent, "Sidewalk_near_%02d" % index, near_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
-
-	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
-	road_center.y = street_y
-	_add_oriented_box(parent, "Road_%02d" % index, road_center, tangent,
-		span_w, 0.06, road_w, _mat(_effective_city_street_color(), false), false)
-
+	# La calzada, las aceras, los bordillos y las marcas ya estan puestos: son
+	# un anillo alrededor de la manzana, comun a todas las fachadas, y los pone
+	# _create_city_street_network. Aqui va solo lo que se apoya en ellos.
+	var side: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z)) if not _street_grid.is_empty() else {}
+	var span_w: float = float(side.get("span_m", maxf(city_view_width_m * 1.6, opposite_facade_length_m)))
 	var far_walk: Vector3 = center - normal * (sidewalk_w + road_w + sidewalk_w * 0.5)
 	far_walk.y = street_y + street_curb_height_m * 0.5
-	_add_oriented_box(parent, "Sidewalk_far_%02d" % index, far_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
-	for curb_data in [
-		["Near", sidewalk_w + 0.07],
-		["Far", sidewalk_w + road_w - 0.07],
-	]:
-		var curb_center: Vector3 = center - normal * float(curb_data[1])
-		curb_center.y = street_y + 0.10
-		_add_oriented_box(parent, "CityCurb%s_%02d" % [String(curb_data[0]), index], curb_center, tangent,
-			span_w, 0.14, 0.14, curb_mat, false)
-
-	var mark_count: int = maxi(5, int(floor(span_w / 3.6)))
-	for mark_i in range(mark_count):
-		var mark_t: float = (float(mark_i) + 0.5) / float(mark_count) - 0.5
-		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
-		mark.y = street_y + 0.045
-		_add_oriented_box(parent, "RoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
-			1.55, 0.018, 0.11, _mat(road_marking_color, false), false)
 
 	# Edificios de enfrente divididos en portales con anchura, profundidad y
 	# altura propias. Las juntas reales sustituyen a la antigua pared monolitica.
@@ -3221,7 +3189,7 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * facade_span_m)
 			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
 			body_center.y = street_y + module_h * 0.5
-			if _crosses_foreign_street(body_center, tangent, module_w, module_depth, index):
+			if _crosses_roadway(body_center, tangent, module_w, module_depth):
 				# El modulo entero, no solo su caja: si se queda sin cuerpo, sus
 				# ventanas y su portal flotarian en el aire.
 				continue
@@ -3250,14 +3218,12 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		var car_offset: float = (float(car_i) - float(city_parked_car_count - 1) * 0.5) * city_parked_car_spacing_m
 		var car_center: Vector3 = center - normal * (sidewalk_w + road_w - 0.78) + tangent * car_offset
 		car_center.y = street_y + 0.30
-		if _crosses_foreign_street(car_center, tangent, 3.8, 1.8, index):
-			continue
 		_create_exterior_car(parent, "CityCar_%02d_%02d" % [index, car_i], car_center, tangent, normal, car_i)
 	for tree_i in range(city_tree_count):
 		var tree_t: float = (float(tree_i) - float(city_tree_count - 1) * 0.5) * city_tree_spacing_m
 		var tree_base: Vector3 = far_walk + tangent * tree_t
 		tree_base.y = street_y + street_curb_height_m
-		if _crosses_foreign_street(tree_base, tangent, city_tree_crown_radius_m * 2.4, city_tree_crown_radius_m * 2.4, index):
+		if _crosses_roadway(tree_base, tangent, city_tree_crown_radius_m * 2.4, city_tree_crown_radius_m * 2.4):
 			continue
 		_create_low_poly_tree(parent, "CityTree_%02d_%02d" % [index, tree_i], tree_base, city_tree_trunk_height_m, city_tree_crown_radius_m, tree_i)
 
@@ -3269,31 +3235,98 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
 
 
-## Huella en planta de la calzada de una fachada, con su indice.
-func _street_band_for(center: Vector3, normal: Vector3, tangent: Vector3, index: int) -> Dictionary:
+## Huella del edificio en planta, en coordenadas de mundo.
+func _building_rect_world() -> Rect2:
+	return Rect2(
+		Vector2(_bounds_m.position.x + _origin_offset_m.x, _bounds_m.position.y + _origin_offset_m.y),
+		_bounds_m.size
+	)
+
+
+## Punto del PARAMENTO de una fachada al que se ancla su decorado.
+##
+## Antes se anclaba al centro de las ventanas de esa fachada. Como cada fachada
+## tiene las suyas donde le toca, cada una ponia su acera a una distancia
+## distinta del edificio y la calle no cerraba por las esquinas.
+func _facade_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
+	var rect: Rect2 = _building_rect_world()
+	var outward := Vector2(-normal.x, -normal.z)
+	var center := Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.5)
+	# `outward` es planta: su y es la Z del mundo.
+	if absf(outward.x) >= absf(outward.y):
+		center.x = rect.position.x + (rect.size.x if outward.x > 0.0 else 0.0)
+	else:
+		center.y = rect.position.y + (rect.size.y if outward.y > 0.0 else 0.0)
+	return Vector3(center.x, floor_level_m, center.y)
+
+
+## La calle: un anillo de acera, uno de calzada y otro de acera de enfrente,
+## alrededor de la manzana. Se construye una sola vez.
+func _create_city_street_network(parent: Node3D) -> void:
 	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
 	var road_w: float = maxf(2.0, street_road_width_m)
-	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
-	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
-	var half_along: Vector3 = tangent.abs() * (span_w * 0.5)
-	var half_across: Vector3 = normal.abs() * (road_w * 0.5)
-	var half: Vector3 = half_along + half_across
-	return {
-		"index": index,
-		"rect": Rect2(
-			Vector2(road_center.x - half.x, road_center.z - half.z),
-			Vector2(half.x * 2.0, half.z * 2.0)
-		),
-	}
+	_street_grid = FPStreetGrid.layout(_building_rect_world(), sidewalk_w, road_w)
+	var street_y: float = _exterior_ground_level_m() - 0.03
+	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
+	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
+	var road_mat: StandardMaterial3D = _mat(_effective_city_street_color(), false)
+	var mark_mat: StandardMaterial3D = _mat(road_marking_color, false)
+
+	for i in range(Array(_street_grid["near_walk"]).size()):
+		_add_ground_slab(parent, "SidewalkNear_%02d" % i, Rect2(_street_grid["near_walk"][i]),
+			street_y + street_curb_height_m * 0.5, street_curb_height_m, pavement_mat)
+	for i in range(Array(_street_grid["far_walk"]).size()):
+		_add_ground_slab(parent, "SidewalkFar_%02d" % i, Rect2(_street_grid["far_walk"][i]),
+			street_y + street_curb_height_m * 0.5, street_curb_height_m, pavement_mat)
+	_roadway_rects.clear()
+	for i in range(Array(_street_grid["road"]).size()):
+		var road_rect := Rect2(_street_grid["road"][i])
+		_roadway_rects.append(road_rect)
+		_add_ground_slab(parent, "Road_%02d" % i, road_rect, street_y, 0.06, road_mat)
+
+	var curbs: Array[Rect2] = FPStreetGrid.curbs(_street_grid, 0.14)
+	for i in range(curbs.size()):
+		_add_ground_slab(parent, "CityCurb_%02d" % i, curbs[i], street_y + 0.10, 0.14, curb_mat)
+
+	var marks: Array[Dictionary] = FPStreetGrid.lane_marks(_street_grid, 1.55, 2.05)
+	for i in range(marks.size()):
+		_add_ground_slab(parent, "RoadMark_%02d" % i, _mark_rect(marks[i]), street_y + 0.045, 0.018, mark_mat)
+
+	if city_crossing_enabled:
+		var stripes: Array[Dictionary] = FPStreetGrid.crossings(_street_grid, 0.52, 0.34, 7)
+		var crossing_mat: StandardMaterial3D = _mat(city_crossing_color, false)
+		for i in range(stripes.size()):
+			_add_ground_slab(parent, "Crossing_%02d" % i, _mark_rect(stripes[i]), street_y + 0.055, 0.02, crossing_mat)
 
 
-## ¿Esta pieza cae en la calzada de OTRA fachada?
+func _mark_rect(mark: Dictionary) -> Rect2:
+	var long_m: float = float(mark.get("long", 1.0))
+	var across_m: float = float(mark.get("across", 0.1))
+	var size := Vector2(long_m, across_m) if bool(mark.get("along_x", true)) else Vector2(across_m, long_m)
+	return Rect2(Vector2(float(mark["x"]), float(mark["z"])) - size * 0.5, size)
+
+
+## Losa horizontal a partir de un rectangulo en planta.
+func _add_ground_slab(parent: Node3D, node_name: String, rect: Rect2, center_y: float, height_m: float, material: Material) -> void:
+	if rect.size.x <= 0.001 or rect.size.y <= 0.001:
+		return
+	_add_box(
+		parent,
+		node_name,
+		Vector3(rect.size.x, maxf(0.005, height_m), rect.size.y),
+		Vector3(rect.position.x + rect.size.x * 0.5, center_y, rect.position.y + rect.size.y * 0.5),
+		material,
+		false
+	)
+
+
+## ¿Esta pieza cae encima del asfalto?
 ##
-## Un bloque en mitad de la calle es de lo mas visible que hay desde una
-## ventana, y era el precio de que cada fachada montase su decorado sin saber
-## que hay alrededor. Lo que invade calle ajena no se construye.
-func _crosses_foreign_street(center: Vector3, tangent: Vector3, along_m: float, depth_m: float, own_index: int) -> bool:
-	if _street_bands.is_empty():
+## Un bloque en mitad de la calzada es de lo mas visible que hay desde una
+## ventana. Con una calle por fachada era ademas inevitable; ahora la calzada es
+## una sola y basta con no construir encima de ella.
+func _crosses_roadway(center: Vector3, tangent: Vector3, along_m: float, depth_m: float) -> bool:
+	if _roadway_rects.is_empty():
 		return false
 	var half_x: float = (absf(tangent.x) * along_m + absf(tangent.z) * depth_m) * 0.5
 	var half_z: float = (absf(tangent.z) * along_m + absf(tangent.x) * depth_m) * 0.5
@@ -3304,10 +3337,8 @@ func _crosses_foreign_street(center: Vector3, tangent: Vector3, along_m: float, 
 		Vector2(center.x - half_x, center.z - half_z),
 		Vector2(half_x * 2.0, half_z * 2.0)
 	)
-	for band in _street_bands:
-		if int(band.get("index", -1)) == own_index:
-			continue
-		var overlap: Rect2 = piece.intersection(Rect2(band["rect"]))
+	for road_rect in _roadway_rects:
+		var overlap: Rect2 = piece.intersection(road_rect)
 		if overlap.size.x > 0.0 and overlap.size.y > 0.0 and overlap.size.x * overlap.size.y > 0.60:
 			return true
 	return false
@@ -3380,7 +3411,7 @@ func _spawn_city_pieces(
 		var piece: Dictionary = raw
 		var piece_center: Vector3 = center - normal * float(piece.get("n", 0.0)) + tangent * float(piece.get("t", 0.0))
 		piece_center.y = street_y + float(piece.get("y", 0.0))
-		if _crosses_foreign_street(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0)), index):
+		if _crosses_roadway(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0))):
 			continue
 		var color: Color = piece.get("color", Color(0.5, 0.5, 0.5, 1.0))
 		var energy: float = float(piece.get("energy", 0.0))

@@ -26,8 +26,9 @@ extends RefCounted
 ##  - **Vecinos a nuestro lado de la calle**, flanqueando nuestro edificio. Sin
 ##    ellos el nuestro es un bloque suelto en medio de la nada.
 ##  - **Mobiliario urbano**: farolas, senales, papeleras, bancos, bolardos,
-##    alcorques, paso de cebra y marquesina. Es lo que da escala: sin una
-##    farola de 4 m al lado, un edificio de 15 puede ser de 40.
+##    alcorques y marquesina. Es lo que da escala: sin una farola de 4 m al
+##    lado, un edificio de 15 puede ser de 40. El paso de cebra no esta aqui:
+##    va con la calle, porque su sitio depende de donde caen los cruces.
 ##  - **Planta baja comercial** con escaparate y toldo, y **balcones** en las
 ##    plantas altas. Es lo que distingue una calle de una maqueta de bloques.
 ##
@@ -113,7 +114,10 @@ static func _far_blocks(o: Dictionary) -> Array:
 			var remaining: float = wing - (cursor - covered * 0.5)
 			if remaining <= 1.5:
 				break
-			var gap: float = SIDE_STREET_W_M if block_i == 0 else 0.0
+			# La bocacalle no puede comerse el ala entera. En una manzana
+			# pequena el ala mide siete metros y una bocacalle de siete dejaba
+			# cero de edificio: el remate de la calle volvia a quedarse vacio.
+			var gap: float = minf(SIDE_STREET_W_M, wing * 0.35) if block_i == 0 else 0.0
 			cursor += gap
 			var block_w: float = minf(remaining - gap, wing / float(per_side))
 			if block_w <= 2.0:
@@ -356,24 +360,6 @@ static func _street_furniture(o: Dictionary) -> Array:
 			"w": 0.07, "h": 2.30, "d": 0.07, "color": metal})
 		out.append({"name": "TrafficSign_%02d_Plate" % i, "t": t, "n": n, "y": curb + 2.30,
 			"w": 0.62, "h": 0.62, "d": 0.04, "color": o.get("sign_color", Color(0.86, 0.88, 0.90, 1.0))})
-
-	# Paso de cebra: bandas sobre la calzada. Es de las cosas que mas dicen
-	# "esto es una calle" y no "esto es un descampado con bloques".
-	if bool(o.get("crossing_enabled", true)):
-		var crossing_t: float = float(o.get("crossing_offset_m", -6.0))
-		var stripes: int = 7
-		for i in range(stripes):
-			var offset: float = (float(i) - float(stripes - 1) * 0.5) * 0.86
-			out.append({
-				"name": "Crossing_%02d" % i,
-				"t": crossing_t + offset,
-				"n": sidewalk + road * 0.5,
-				"y": 0.055,
-				"w": 0.52,
-				"h": 0.02,
-				"d": road - 0.4,
-				"color": o.get("crossing_color", Color(0.86, 0.86, 0.82, 1.0)),
-			})
 
 	# Marquesina de autobus en la acera de enfrente.
 	if bool(o.get("bus_stop_enabled", true)):

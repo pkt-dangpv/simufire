@@ -61,8 +61,16 @@ func _validate_city(ctx: Dictionary) -> void:
 	_expect(_find_meshes(exterior, "CityEntrance_").size() == facades.size(), "Each city module needs an entrance")
 	_expect(_find_meshes(exterior, "CityCar_").size() >= 9, "City street scale objects missing")
 	_expect(_find_meshes(exterior, "CityTree_").size() >= 8, "City tree trunks/crowns missing")
-	_expect(_find_meshes(exterior, "CityCurbNear_").size() == 2, "Each city orientation needs a near curb")
-	_expect(_find_meshes(exterior, "CityCurbFar_").size() == 2, "Each city orientation needs a far curb")
+	# La calle dejo de construirse por fachadas y pasa a ser un anillo alrededor
+	# de la manzana: cada fachada montaba antes su calzada, sus dos aceras y sus
+	# dos bordillos girados segun ella, y con tres fachadas eso eran tres calles
+	# superpuestas cruzandose. Lo que se comprueba ya no es "dos bordillos por
+	# orientacion" sino que la calle es UNA y esta completa: cuatro brazos de
+	# calzada, acera a los dos lados y bordillos por los tramos rectos.
+	_expect(_find_meshes(exterior, "Road_").size() == 4, "La calzada debe ser un anillo de cuatro brazos")
+	_expect(_find_meshes(exterior, "SidewalkNear_").size() == 4, "Falta la acera del propio edificio")
+	_expect(_find_meshes(exterior, "SidewalkFar_").size() == 4, "Falta la acera de enfrente")
+	_expect(_find_meshes(exterior, "CityCurb_").size() >= 4, "Faltan bordillos en los tramos rectos")
 	_expect(facade_fills.size() == 2, "Each city orientation needs a local facade fill")
 	_validate_facade_fill_coverage(facades, facade_fills)
 	_expect(_find_meshes(exterior, "OppositeFacade_").is_empty(), "Legacy monolithic facade must be retired")
