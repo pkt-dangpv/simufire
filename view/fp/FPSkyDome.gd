@@ -62,3 +62,18 @@ static func apply_colors(
 	material.set_shader_parameter("sun_direction", sun_direction)
 	material.set_shader_parameter("sun_cos_size", cos(deg_to_rad(maxf(0.15, sun_size_deg))))
 	material.set_shader_parameter("sun_halo_strength", sun_halo_strength)
+
+
+## Atmosfera: bruma del horizonte, nubes y noche.
+##
+## Va aparte de los colores porque son mandos de otra naturaleza -no dicen de
+## que color es el cielo sino que hay en el- y porque asi el domo se puede
+## dejar liso pasando un diccionario vacio.
+static func apply_atmosphere(node: MeshInstance3D, settings: Dictionary) -> void:
+	if node == null:
+		return
+	var material := node.material_override as ShaderMaterial
+	if material == null:
+		return
+	for key in settings.keys():
+		material.set_shader_parameter(String(key), settings[key])

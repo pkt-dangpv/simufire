@@ -278,6 +278,14 @@ def main() -> int:
         diagnostics.append("Godot furniture runtime: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_exterior_city.tscn",
+        "EXTERIOR CITY VALIDATION PASS",
+    )
+    rows.append(("Exterior city Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot exterior city: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_furniture_layout.tscn",
         "FURNITURE LAYOUT VALIDATION PASS",
     )

@@ -20,6 +20,7 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 ## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
+const FPCityBlocks := preload("res://view/fp/FPCityBlocks.gd")
 ## Shader de las superficies construidas por codigo: ruido en metros y
 ## oclusion de contacto en las aristas (M-2).
 const FPSurfaceShader: Shader = preload("res://view/fp/fp_surface.gdshader")
@@ -303,6 +304,38 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 1.5, 0.05) var sky_sun_halo_night: float = 0.25
 @export var exterior_floor_drop_m: float = 5.8
 
+@export_subgroup("Cielo: bruma, nubes y noche")
+## Banda de aire pegada al horizonte. Sin ella el degradado se corta en seco y
+## el cielo se lee como un fondo pintado, no como aire.
+@export var sky_haze_day_color: Color = Color(0.88, 0.91, 0.94, 1.0)
+@export var sky_haze_night_color: Color = Color(0.13, 0.16, 0.24, 1.0)
+@export_range(0.0, 1.0, 0.01) var sky_haze_day_strength: float = 0.55
+@export_range(0.0, 1.0, 0.01) var sky_haze_night_strength: float = 0.40
+@export_range(1.0, 24.0, 0.5) var sky_haze_falloff: float = 9.0
+## Nubes procedurales. La cobertura es lo que cambia el tiempo que hace: 0
+## despejado, 1 cubierto.
+@export_range(0.0, 1.0, 0.01) var sky_cloud_day_coverage: float = 0.42
+@export_range(0.0, 1.0, 0.01) var sky_cloud_night_coverage: float = 0.30
+@export_range(0.5, 8.0, 0.1) var sky_cloud_sharpness: float = 2.6
+@export_range(0.4, 8.0, 0.1) var sky_cloud_scale: float = 2.4
+@export_range(0.0, 0.05, 0.001) var sky_cloud_speed: float = 0.004
+@export var sky_cloud_day_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+@export var sky_cloud_day_shadow_color: Color = Color(0.62, 0.66, 0.72, 1.0)
+@export var sky_cloud_night_color: Color = Color(0.20, 0.23, 0.31, 1.0)
+@export var sky_cloud_night_shadow_color: Color = Color(0.09, 0.11, 0.16, 1.0)
+## Velo alto (cirros), por encima de los cumulos.
+@export_range(0.0, 1.0, 0.01) var sky_cloud_veil_strength: float = 0.22
+@export_range(1.0, 16.0, 0.1) var sky_cloud_veil_scale: float = 6.5
+## Estrellas: solo de noche. La luna es el propio disco del cielo, con su
+## color y su tamano: de noche no hay dos cosas en el cielo, hay una.
+@export_range(0.0, 1.0, 0.01) var sky_star_amount: float = 0.55
+@export_range(0.90, 0.999, 0.001) var sky_star_size: float = 0.985
+## Tamano del disco de noche: la luna se ve mas pequena que el sol.
+@export_range(0.3, 4.0, 0.05) var sky_moon_size_deg: float = 1.1
+## Resplandor ancho alrededor del sol.
+@export_range(0.0, 1.5, 0.01) var sky_sun_glow_strength: float = 0.30
+@export_range(1.0, 40.0, 0.5) var sky_sun_glow_power: float = 6.0
+
 @export_subgroup("Fachada del propio edificio")
 ## Lienzo de fachada del edificio del jugador, con los huecos recortados en
 ## las aberturas reales. Sin el, al asomarse a una ventana solo se ve el canto
@@ -402,6 +435,65 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var opposite_window_lit_color: Color = Color(1.0, 0.82, 0.48, 1.0)
 @export_range(0, 12, 1) var opposite_facade_floors: int = 4
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
+
+@export_subgroup("Ciudad: manzanas y mobiliario")
+## Manzanas que cubren el resto del largo de la calle, partidas por bocacalles.
+## Sin ellas la calzada mide mas que las fachadas que la flanquean y por la
+## ventana se ve donde termina el mundo.
+@export var city_far_blocks_enabled: bool = true:
+	set(value):
+		city_far_blocks_enabled = value
+		_rebuild_if_live()
+## Retornos perpendiculares en los extremos de la calle. Son los que cierran la
+## vista de reojo; sin ellos se ve el canto de la ultima fachada y detras cielo.
+@export var city_corner_returns_enabled: bool = true:
+	set(value):
+		city_corner_returns_enabled = value
+		_rebuild_if_live()
+## Medianeras: nuestro edificio no esta solo en un solar.
+@export var city_near_neighbours_enabled: bool = true:
+	set(value):
+		city_near_neighbours_enabled = value
+		_rebuild_if_live()
+## Fila de volumenes por detras de la fachada de enfrente, antes del skyline.
+@export_range(0, 10, 1) var city_back_block_count: int = 5:
+	set(value):
+		city_back_block_count = value
+		_rebuild_if_live()
+## Planta baja comercial y balcones: es lo que distingue una calle de una
+## maqueta de bloques.
+@export var city_shopfronts_enabled: bool = true:
+	set(value):
+		city_shopfronts_enabled = value
+		_rebuild_if_live()
+@export var city_balconies_enabled: bool = true:
+	set(value):
+		city_balconies_enabled = value
+		_rebuild_if_live()
+## Mobiliario urbano. Da escala: sin una farola de 4 m al lado, un edificio de
+## 15 puede ser de 40.
+@export_range(0, 14, 1) var city_lamp_count: int = 6
+@export_range(0, 10, 1) var city_bin_count: int = 3
+@export_range(0, 8, 1) var city_bench_count: int = 2
+@export_range(0, 20, 1) var city_bollard_count: int = 8
+@export_range(0, 8, 1) var city_sign_count: int = 2
+@export_range(0, 10, 1) var city_planter_count: int = 4
+@export var city_crossing_enabled: bool = true
+@export var city_bus_stop_enabled: bool = true
+@export var city_back_block_day_color: Color = Color(0.45, 0.47, 0.52, 1.0)
+@export var city_back_block_night_color: Color = Color(0.10, 0.11, 0.15, 1.0)
+@export var city_shopfront_color: Color = Color(0.18, 0.21, 0.24, 1.0)
+@export var city_shop_lit_color: Color = Color(1.0, 0.86, 0.58, 1.0)
+@export var city_awning_color: Color = Color(0.52, 0.20, 0.18, 1.0)
+@export var city_balcony_color: Color = Color(0.28, 0.29, 0.30, 1.0)
+@export var city_street_metal_color: Color = Color(0.22, 0.24, 0.25, 1.0)
+@export var city_lamp_light_color: Color = Color(1.0, 0.86, 0.56, 1.0)
+@export var city_bin_color: Color = Color(0.20, 0.30, 0.24, 1.0)
+@export var city_bench_color: Color = Color(0.42, 0.30, 0.20, 1.0)
+@export var city_sign_color: Color = Color(0.86, 0.88, 0.90, 1.0)
+@export var city_crossing_color: Color = Color(0.86, 0.86, 0.82, 1.0)
+@export var city_planter_color: Color = Color(0.30, 0.28, 0.24, 1.0)
+@export var city_bus_stop_glass_color: Color = Color(0.62, 0.72, 0.78, 0.42)
 
 @export_subgroup("Detalle urbano procedural")
 @export_range(3, 8, 1) var city_facade_module_count: int = 5
@@ -695,6 +787,12 @@ var _landing_footprints: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
+## Calzada de cada fachada, en planta y en mundo. Cada fachada genera su propio
+## decorado urbano, y con dos o tres fachadas los bloques de una caian en mitad
+## de la calle de otra: un edificio cruzado delante de la ventana. Se calculan
+## todas ANTES de construir nada para poder descartar lo que invada una calle
+## ajena.
+var _street_bands: Array[Dictionary] = []
 var _fire_nodes_by_room: Dictionary = {}
 ## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
 ## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
@@ -2987,7 +3085,22 @@ func _create_exterior_context() -> void:
 			facade["has_street_opening"] = true
 		facades[key] = facade
 
+	_street_bands.clear()
 	var facade_index: int = 0
+	for key in facades.keys():
+		var facade: Dictionary = facades[key]
+		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
+			continue
+		var band_count: int = maxi(1, int(facade["count"]))
+		_street_bands.append(_street_band_for(
+			Vector3(facade["sum"]) / float(band_count),
+			Vector3(facade["normal"]),
+			Vector3(facade["tangent"]),
+			facade_index
+		))
+		facade_index += 1
+
+	facade_index = 0
 	for key in facades.keys():
 		var facade: Dictionary = facades[key]
 		var count: int = maxi(1, int(facade["count"]))
@@ -3090,6 +3203,9 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	# Edificios de enfrente divididos en portales con anchura, profundidad y
 	# altura propias. Las juntas reales sustituyen a la antigua pared monolitica.
 	var facade_dist: float = sidewalk_w * 2.0 + road_w
+	# Donde cae cada modulo del frente, para que los bajos y los balcones se
+	# planten sobre ellos y no en el aire.
+	var front_modules: Array = []
 	if opposite_facade_enabled:
 		var facade_h: float = maxf(7.5, opposite_facade_height_m)
 		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
@@ -3105,6 +3221,10 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * facade_span_m)
 			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
 			body_center.y = street_y + module_h * 0.5
+			if _crosses_foreign_street(body_center, tangent, module_w, module_depth, index):
+				# El modulo entero, no solo su caja: si se queda sin cuerpo, sus
+				# ventanas y su portal flotarian en el aire.
+				continue
 			var module_color: Color = base_color.lightened(0.035) if module_i % 3 == 0 else (base_color.darkened(0.055) if module_i % 3 == 1 else base_color)
 			_add_oriented_box(parent, "CityFacadeBody_%02d_%02d" % [index, module_i], body_center, tangent,
 				module_w, module_h, module_depth, _mat(module_color, false), false)
@@ -3117,6 +3237,7 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 			_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i], cornice, tangent,
 				module_w + 0.10, 0.22, 0.18, _mat(module_color.lightened(0.10), false), false)
 			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h)
+			front_modules.append({"t": module_t * facade_span_m, "w": module_w, "h": module_h})
 		_create_exterior_facade_fill(
 			parent,
 			"CityFacadeFill_%02d" % index,
@@ -3129,15 +3250,164 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		var car_offset: float = (float(car_i) - float(city_parked_car_count - 1) * 0.5) * city_parked_car_spacing_m
 		var car_center: Vector3 = center - normal * (sidewalk_w + road_w - 0.78) + tangent * car_offset
 		car_center.y = street_y + 0.30
+		if _crosses_foreign_street(car_center, tangent, 3.8, 1.8, index):
+			continue
 		_create_exterior_car(parent, "CityCar_%02d_%02d" % [index, car_i], car_center, tangent, normal, car_i)
 	for tree_i in range(city_tree_count):
 		var tree_t: float = (float(tree_i) - float(city_tree_count - 1) * 0.5) * city_tree_spacing_m
 		var tree_base: Vector3 = far_walk + tangent * tree_t
 		tree_base.y = street_y + street_curb_height_m
+		if _crosses_foreign_street(tree_base, tangent, city_tree_crown_radius_m * 2.4, city_tree_crown_radius_m * 2.4, index):
+			continue
 		_create_low_poly_tree(parent, "CityTree_%02d_%02d" % [index, tree_i], tree_base, city_tree_trunk_height_m, city_tree_crown_radius_m, tree_i)
+
+	# Todo lo que cierra la calle y la puebla: manzanas hasta los dos extremos,
+	# retornos de esquina, medianeras, fila de atras y mobiliario urbano.
+	_spawn_city_pieces(parent, index, center, normal, tangent, street_y, span_w, facade_dist, front_modules)
 
 	# Skyline lejano por detras del edificio de enfrente (profundidad).
 	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
+
+
+## Huella en planta de la calzada de una fachada, con su indice.
+func _street_band_for(center: Vector3, normal: Vector3, tangent: Vector3, index: int) -> Dictionary:
+	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
+	var road_w: float = maxf(2.0, street_road_width_m)
+	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
+	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
+	var half_along: Vector3 = tangent.abs() * (span_w * 0.5)
+	var half_across: Vector3 = normal.abs() * (road_w * 0.5)
+	var half: Vector3 = half_along + half_across
+	return {
+		"index": index,
+		"rect": Rect2(
+			Vector2(road_center.x - half.x, road_center.z - half.z),
+			Vector2(half.x * 2.0, half.z * 2.0)
+		),
+	}
+
+
+## ¿Esta pieza cae en la calzada de OTRA fachada?
+##
+## Un bloque en mitad de la calle es de lo mas visible que hay desde una
+## ventana, y era el precio de que cada fachada montase su decorado sin saber
+## que hay alrededor. Lo que invade calle ajena no se construye.
+func _crosses_foreign_street(center: Vector3, tangent: Vector3, along_m: float, depth_m: float, own_index: int) -> bool:
+	if _street_bands.is_empty():
+		return false
+	var half_x: float = (absf(tangent.x) * along_m + absf(tangent.z) * depth_m) * 0.5
+	var half_z: float = (absf(tangent.z) * along_m + absf(tangent.x) * depth_m) * 0.5
+	# El umbral es el mismo que usa tools/validate_exterior_city.gd: si aqui se
+	# midiera con mas manga ancha, el guardarrail cazaria justo lo que este
+	# filtro deja pasar.
+	var piece := Rect2(
+		Vector2(center.x - half_x, center.z - half_z),
+		Vector2(half_x * 2.0, half_z * 2.0)
+	)
+	for band in _street_bands:
+		if int(band.get("index", -1)) == own_index:
+			continue
+		var overlap: Rect2 = piece.intersection(Rect2(band["rect"]))
+		if overlap.size.x > 0.0 and overlap.size.y > 0.0 and overlap.size.x * overlap.size.y > 0.60:
+			return true
+	return false
+
+
+## Planta las piezas que describe FPCityBlocks.
+##
+## El modulo dice QUE hay en la calle, en coordenadas de calle -a lo largo,
+## hacia fuera, altura-; aqui se convierten al mundo y se les da material. La
+## separacion es a proposito: la aritmetica del decorado no depende de como
+## dibuja cajas esta vista.
+func _spawn_city_pieces(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	street_y: float,
+	span_w: float,
+	facade_dist: float,
+	front_modules: Array
+) -> void:
+	var night: bool = _exterior_is_night()
+	var pieces: Array = FPCityBlocks.pieces({
+		"night": night,
+		"street_span_m": span_w,
+		"front_span_m": minf(opposite_facade_length_m, city_facade_max_span_m),
+		"front_modules": front_modules,
+		"facade_dist_m": facade_dist,
+		"facade_height_m": maxf(7.5, opposite_facade_height_m),
+		"block_depth_m": city_facade_depth_m * 2.2,
+		"own_facade_half_m": _own_facade_half_extent_m(tangent),
+		"sidewalk_w_m": maxf(0.5, street_sidewalk_width_m),
+		"road_w_m": maxf(2.0, street_road_width_m),
+		"curb_h_m": street_curb_height_m,
+		"far_blocks_enabled": city_far_blocks_enabled,
+		"corner_returns_enabled": city_corner_returns_enabled,
+		"near_neighbours_enabled": city_near_neighbours_enabled,
+		"back_block_count": city_back_block_count,
+		"shopfronts_enabled": city_shopfronts_enabled,
+		"balconies_enabled": city_balconies_enabled,
+		"lamp_count": city_lamp_count,
+		"bin_count": city_bin_count,
+		"bench_count": city_bench_count,
+		"bollard_count": city_bollard_count,
+		"sign_count": city_sign_count,
+		"planter_count": city_planter_count,
+		"crossing_enabled": city_crossing_enabled,
+		"bus_stop_enabled": city_bus_stop_enabled,
+		"crossing_offset_m": -span_w * 0.18,
+		"bus_stop_offset_m": span_w * 0.20,
+		"block_color": opposite_facade_night_color if night else opposite_facade_day_color,
+		"back_block_color": city_back_block_night_color if night else city_back_block_day_color,
+		"shopfront_color": city_shopfront_color,
+		"shop_lit_color": city_shop_lit_color,
+		"awning_color": city_awning_color,
+		"balcony_color": city_balcony_color,
+		"street_metal_color": city_street_metal_color,
+		"lamp_light_color": city_lamp_light_color,
+		"bin_color": city_bin_color,
+		"bench_color": city_bench_color,
+		"sign_color": city_sign_color,
+		"crossing_color": city_crossing_color,
+		"planter_color": city_planter_color,
+		"bus_stop_glass_color": city_bus_stop_glass_color,
+	})
+	for raw in pieces:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var piece: Dictionary = raw
+		var piece_center: Vector3 = center - normal * float(piece.get("n", 0.0)) + tangent * float(piece.get("t", 0.0))
+		piece_center.y = street_y + float(piece.get("y", 0.0))
+		if _crosses_foreign_street(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0)), index):
+			continue
+		var color: Color = piece.get("color", Color(0.5, 0.5, 0.5, 1.0))
+		var energy: float = float(piece.get("energy", 0.0))
+		var material: StandardMaterial3D = _mat(
+			color,
+			color.a < 1.0,
+			piece.get("emission", Color(0.0, 0.0, 0.0, 0.0)),
+			energy
+		)
+		_add_oriented_box(
+			parent,
+			"%s_%02d" % [String(piece.get("name", "CityPiece")), index],
+			piece_center,
+			tangent,
+			maxf(0.02, float(piece.get("w", 1.0))),
+			maxf(0.02, float(piece.get("h", 1.0))),
+			maxf(0.02, float(piece.get("d", 1.0))),
+			material,
+			false
+		)
+
+
+## Medio frente de nuestro propio edificio a lo largo de la calle. Es lo que
+## necesitan las medianeras para no plantarse encima.
+func _own_facade_half_extent_m(tangent: Vector3) -> float:
+	var extent: float = _bounds_m.size.x if absf(tangent.x) >= absf(tangent.z) else _bounds_m.size.y
+	return maxf(3.0, extent * 0.5 + own_facade_side_margin_m)
 
 
 ## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
@@ -3704,9 +3974,27 @@ func _create_sky_dome(parent: Node3D) -> void:
 		sky_night_ground_color if night else sky_day_ground_color,
 		sky_sun_night_color if night else sky_sun_day_color,
 		FPSkyDome.sun_direction_from_angles(exterior_sky_light_pitch_deg, exterior_sky_light_yaw_deg),
-		sky_sun_size_deg,
+		sky_moon_size_deg if night else sky_sun_size_deg,
 		sky_sun_halo_night if night else sky_sun_halo_day
 	)
+	FPSkyDome.apply_atmosphere(dome, {
+		"haze_color": sky_haze_night_color if night else sky_haze_day_color,
+		"haze_strength": sky_haze_night_strength if night else sky_haze_day_strength,
+		"haze_falloff": sky_haze_falloff,
+		"cloud_coverage": sky_cloud_night_coverage if night else sky_cloud_day_coverage,
+		"cloud_sharpness": sky_cloud_sharpness,
+		"cloud_scale": sky_cloud_scale,
+		"cloud_speed": sky_cloud_speed,
+		"cloud_color": sky_cloud_night_color if night else sky_cloud_day_color,
+		"cloud_shadow_color": sky_cloud_night_shadow_color if night else sky_cloud_day_shadow_color,
+		"cloud_veil_strength": sky_cloud_veil_strength,
+		"cloud_veil_scale": sky_cloud_veil_scale,
+		"sun_glow_strength": sky_sun_glow_strength,
+		"sun_glow_power": sky_sun_glow_power,
+		# De dia no hay estrellas ni luna, y no es un ajuste fino: son cero.
+		"star_amount": sky_star_amount if night else 0.0,
+		"star_size": sky_star_size,
+	})
 	dome.position = _to_world(Vector3(
 		_bounds_m.position.x + _bounds_m.size.x * 0.5,
 		0.0,
