@@ -53,6 +53,11 @@ func _process(_delta: float) -> bool:
 		_apply_pose(_poses[0])
 		_wait = 0
 		return false
+	# La pose se vuelve a poner en CADA fotograma, no solo al empezar: mientras
+	# hay un arrastre en curso, cualquier movimiento del raton de verdad -y el
+	# sistema manda uno al abrirse la ventana- reescribe drag_current_m con la
+	# posicion real del cursor, y la foto sale distinta segun donde estuviera.
+	_apply_pose(_poses[_pose_index])
 	_wait += 1
 	if _wait < 3:
 		return false
@@ -67,6 +72,11 @@ func _process(_delta: float) -> bool:
 
 
 func _setup() -> void:
+	# La ayuda contextual saca un cartel donde reposa el raton, y en una foto sin
+	# manos eso depende del milisegundo: apagarla es lo que hace comparables dos
+	# capturas del mismo plano.
+	_editor._hover_help_enabled = false
+	_editor._reset_hover_help()
 	_editor.editor_data = _scenario()
 	_editor.current_floor_index = 0
 	var camera: Camera2D = _editor.get_node_or_null("World/Camera2D")
@@ -81,7 +91,7 @@ func _setup() -> void:
 		{"name": "05_arrastre_sala", "tool": 2, "drag_room": [Vector2(1.0, 5.5), Vector2(5.4, 8.2)]},
 		{"name": "06_arrastre_escalera", "tool": 4, "drag_room": [Vector2(7.0, 1.0), Vector2(10.2, 5.4)]},
 		{"name": "07_arrastre_pasillo", "tool": 3, "drag_room": [Vector2(0.5, 4.0), Vector2(6.0, 4.0)]},
-		{"name": "08_arrastre_muro", "tool": 1, "drag_wall": [Vector2(0.0, 9.0), Vector2(8.0, 9.0)]},
+		{"name": "08_arrastre_muro", "tool": 1, "drag_wall": [Vector2(-0.4, 6.4), Vector2(7.6, 6.4)]},
 		{"name": "09_planta_alta", "tool": 0, "floor": 1},
 	]
 

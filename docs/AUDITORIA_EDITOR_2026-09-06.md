@@ -890,13 +890,81 @@ pasa por el mismo módulo que la vista.
   pasadas seguidas dan **los mismos bytes**. Lo es. Tras el corte, las nueve
   fotos siguen siendo byte a byte idénticas.
 
+### Lo que quedaba al cerrar ese corte
+
+6803 líneas, con el dibujo del plano ya con red pero sin decidir su frontera.
+
+---
+
+## 15. E-12, quinto corte: el dibujo se parte en decidir y pintar
+
+`_draw()` pasa de 365 líneas repartidas en once funciones a **seis**:
+
+```gdscript
+func _draw() -> void:
+	if _editor_view_mode != EditorViewMode.MODE_2D:
+		return
+	EditorDraw2D.plan(self, _plan_view())
+	_draw_drag_preview()
+```
+
+`_plan_view()` junta el escenario con el estado de la interfaz y devuelve el
+plano **ya resuelto**: posiciones en píxeles, colores elegidos y textos
+escritos. `EditorDraw2D.plan()` lo pinta y no sabe de escenarios, ni de qué
+planta se edita, ni de qué hay seleccionado. Lo que se está arrastrando ahora
+mismo se queda en el editor —eso no es el plano, es la interacción.
+
+### El precio, dicho sin adornos
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 6803 líneas | **6851** |
+| `editor/EditorDraw2D.gd` | 229 | 422 |
+
+**El editor no adelgaza: engorda 48 líneas.** Los datos del plano ya viven ahí,
+así que lo único que se puede mover es el pintado; y escribir «esta sala se ve
+así» en un diccionario con sus claves es más largo que pintarla a pelo. Lo que
+cambia es de qué son esas líneas: antes eran `draw_rect` y `draw_string`
+mezclados con el filtro de planta y la elección de color; ahora son decisiones.
+
+Probé la alternativa —que el pintor leyera el escenario directamente y así el
+editor sí encogiera— y la descarté a medias: obligaba a reimplementar dentro del
+pintor el filtro de planta, la búsqueda de sala por id, el nombre visible y el
+tramo de cada apertura. Es decir, **una copia de la lógica del editor dentro del
+módulo de dibujo**, que es exactamente el fallo que destapó el corte de las
+escaleras. Entre un fichero 400 líneas más corto y una copia menos, la copia
+menos.
+
+### La sonda tenía dos agujeros, y los dos los enseñó ella misma
+
+La red de píxeles del corte anterior falló dos veces antes de servir, y las dos
+por lo mismo: **una foto sin manos no está quieta**.
+
+1. **El cartel de la ayuda contextual.** La primera comparación dio ocho fotos
+   iguales y una distinta… porque en una salió el cartelito que aparece donde
+   reposa el ratón. No era el dibujo: era el puntero físico, parado sobre la
+   escalera, y un temporizador que cruzó el fotograma en una pasada y no en la
+   otra. La sonda ahora apaga la ayuda contextual antes de disparar.
+2. **El ratón reescribiendo el arrastre.** Con un arrastre en curso, cualquier
+   movimiento del ratón de verdad —y el sistema manda uno al abrirse la
+   ventana— reescribe `drag_current_m` con la posición real del cursor. Se veía
+   clarísimo cuando por fin se miró: el muro salía **en diagonal** y medía 10,51
+   m en vez de los 8,00 que decía la pose. La sonda ahora vuelve a poner la pose
+   en cada fotograma, no solo al empezar.
+
+Y una lección sobre la comprobación de determinismo del corte anterior: dos
+pasadas seguidas daban los mismos bytes, y aun así la sonda no era determinista.
+Claro: entre esas dos pasadas **el cursor no se había movido**. Comprobar que
+algo repite no es comprobar que no depende de nada.
+
+Con los dos agujeros tapados, las nueve fotos salen **byte a byte iguales**
+antes y después del corte, y el volcado del árbol de la UI también.
+
 ### Lo que sigue pendiente
 
-E-12: **6803 líneas**, desde 8032. Y ahora el dibujo tiene su red esperándolo;
-lo que le falta es la decisión de diseño, no la seguridad:
-
-- **El dibujo del plano**: hay que empaquetar los `@export` de color en una
-  paleta y pasarle al módulo las salas de la planta ya filtradas, con sus
-  rectángulos resueltos. Con `PlanGeometry` fuera, eso es casi todo lo que queda.
-- **La entrada de ratón**: sigue siendo una máquina de estados con memoria entre
-  eventos, y el trabajo de verdad es nombrar esos estados.
+E-12: 6851 líneas. Queda **la entrada de ratón** (unas 350), que sigue siendo
+una máquina de estados con memoria entre eventos: `is_dragging_room`,
+`object_mouse_mode`, `pending_door_room_id`, `drag_start_m`… El trabajo de verdad
+ahí no es mover código, es nombrar esos estados y hacer explícitas las
+transiciones. Y ahora hay con qué comprobarlo: las nueve fotos cubren
+precisamente lo que se ve mientras se arrastra.

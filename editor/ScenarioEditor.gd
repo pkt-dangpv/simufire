@@ -5599,14 +5599,381 @@ func _apply_opening_properties() -> void:
 func _draw() -> void:
 	if _editor_view_mode != EditorViewMode.MODE_2D:
 		return
-	_draw_lower_floor_ghost()
-	_draw_rooms()
-	_draw_exterior_walls()
-	_draw_openings()
-	_draw_objects()
-	_draw_player_start()
-	_draw_detectors()
-	_draw_victims()
+	EditorDraw2D.plan(self, _plan_view())
+	_draw_drag_preview()
+
+
+## Junta el escenario con el estado de la interfaz y devuelve el plano ya
+## resuelto: posiciones en pixeles, colores elegidos y textos escritos.
+##
+## Es el unico sitio donde se decide COMO se ve cada cosa. Pintarlo es de
+## EditorDraw2D, que ya no sabe de escenarios ni de que hay seleccionado.
+func _plan_view() -> Dictionary:
+	var ghost: Dictionary = _plan_ghost_view()
+	return {
+		"font": _editor_font if _editor_font != null else ThemeDB.fallback_font,
+		"screen_scale_inv": _screen_scale_inv(),
+		"ghost_rooms": ghost.get("rooms", []),
+		"ghost_openings": ghost.get("openings", []),
+		"rooms": _plan_rooms_view(),
+		"exterior_walls": _plan_exterior_walls_view(),
+		"openings": _plan_openings_view(),
+		"objects": _plan_objects_view(),
+		"player_start": _plan_player_start_view(),
+		"detectors": _plan_detectors_view(),
+		"victims": _plan_victims_view()
+	}
+
+
+## La planta inmediatamente inferior, apagada. Sirve para alinear lo que se
+## dibuja encima, asi que se queda con las salas y las aperturas, sin adornos.
+func _plan_ghost_view() -> Dictionary:
+	var lower_level: float = _immediate_lower_floor_level()
+	if is_inf(lower_level):
+		return {}
+	var rooms_view: Array = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level) >= 0.05:
+			continue
+		var room_id: int = int(room_dict.get("id", -1))
+		var rect_px: Rect2 = _rect_to_px(_get_room_rect(room_id))
+		var entry: Dictionary = {
+			"rect_px": rect_px,
+			"fill": _lower_floor_ghost_fill,
+			"outline": _lower_floor_ghost_outline,
+			"is_stair": StairPlanRules.is_stair_room(room_dict),
+			"stair_dir": StairPlanRules.run_direction_for_room(room_dict),
+			"turn_degrees": float(room_dict.get("stair_turn_degrees", 0.0))
+		}
+		# Una sala diminuta en pantalla no cabe su nombre: mejor sin cartel que
+		# con un cartel que tapa el plano de arriba.
+		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
+			entry["label"] = _room_display_name(room_dict, room_id)
+			entry["label_width_px"] = maxf(30.0, _screen_width_px(rect_px.size.x) - 8.0)
+			entry["label_color"] = Color(0.74, 0.82, 0.88, 0.34)
+		rooms_view.append(entry)
+	var openings_view: Array = []
+	for opening in editor_data.get("openings_data", []):
+		if typeof(opening) != TYPE_DICTIONARY:
+			continue
+		var opening_dict: Dictionary = opening
+		if bool(opening_dict.get("is_vertical", false)):
+			continue
+		if not _opening_on_level(opening_dict, lower_level):
+			continue
+		var segment_m: PackedVector2Array = _opening_segment_m(opening_dict)
+		if segment_m.size() == 2:
+			openings_view.append({
+				"a_px": _m_to_px(segment_m[0]),
+				"b_px": _m_to_px(segment_m[1]),
+				"color": Color(0.70, 0.84, 0.92, 0.25)
+			})
+	return {"rooms": rooms_view, "openings": openings_view}
+
+
+## El color dice de que es cada sala -pasillo, escalera o estancia- y si esta
+## seleccionada; el tamaño en pantalla decide cuanta ficha cabe dentro.
+func _plan_rooms_view() -> Array:
+	var out: Array = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
+			continue
+		var room_dict: Dictionary = room
+		var room_id: int = int(room_dict.get("id", -1))
+		var rect: Rect2 = _get_room_rect(room_id)
+		var rect_px: Rect2 = _rect_to_px(rect)
+		var is_corridor: bool = _is_corridor_room(room_dict)
+		var is_stairs: bool = StairPlanRules.is_stair_room(room_dict)
+		var selected: bool = room_id == selected_room_id
+		var fill: Color = _room_selected_fill if selected else _room_fill
+		var outline: Color = _room_outline
+		if is_corridor:
+			fill = _corridor_selected_fill if selected else _corridor_fill
+			outline = _corridor_outline
+		if is_stairs:
+			fill = Color(0.24, 0.18, 0.08, 0.86) if selected else Color(0.16, 0.12, 0.06, 0.74)
+			outline = UI_YELLOW
+		var height_m: float = float(room_dict.get("height_m", 2.7))
+		var area_m2: float = rect.size.x * rect.size.y
+		var entry: Dictionary = {
+			"rect_m": rect,
+			"rect_px": rect_px,
+			"fill": fill,
+			"outline": outline,
+			"is_corridor": is_corridor,
+			"is_stair": is_stairs,
+			"stair_dir": StairPlanRules.run_direction_for_room(room_dict),
+			"turn_degrees": float(room_dict.get("stair_turn_degrees", 0.0)),
+			"name": _room_display_name(room_dict, room_id),
+			"dim_text": "%.2f × %.2f m" % [rect.size.x, rect.size.y],
+			"area_text": "%.2f m²  ·  %.2f m³" % [area_m2, area_m2 * height_m],
+			"label_width_px": maxf(40.0, _screen_width_px(rect_px.size.x) - 12.0),
+			"name_color": Color(0.94, 0.97, 1.0, 0.92),
+			"dim_color": Color(0.75, 0.88, 0.95, 0.85),
+			"area_color": Color(0.65, 0.82, 0.65, 0.85)
+		}
+		# Solo las salas giradas se dibujan como poligono: el resto, como rect.
+		var rotation_deg: float = float(room_dict.get("rotation_deg", 0.0))
+		if absf(rotation_deg) > 0.001:
+			var points_px := PackedVector2Array()
+			for point_m in PlanGeometry.rotated_rect_points_m(rect, rotation_deg):
+				points_px.append(_m_to_px(point_m))
+			entry["points_px"] = points_px
+		if selected:
+			entry["handles"] = _room_handles_view(room_id)
+		out.append(entry)
+	return out
+
+
+func _room_handles_view(room_id: int) -> Dictionary:
+	var handle_points: Dictionary = _room_handle_points_m(room_id)
+	if handle_points.is_empty():
+		return {}
+	var center_m: Vector2 = _get_room_rect(room_id).get_center()
+	var resize_pxs := PackedVector2Array()
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if handle_points.has(mode):
+			resize_pxs.append(_m_to_px(Vector2(handle_points[mode])))
+	return {
+		"center_px": _m_to_px(center_m),
+		"rotate_px": _m_to_px(Vector2(handle_points.get(ObjectMouseMode.ROTATE, center_m))),
+		"resize_pxs": resize_pxs,
+		"radius_px": object_handle_radius_px
+	}
+
+
+func _plan_exterior_walls_view() -> Array:
+	var out: Array = []
+	var walls: Array = _get_exterior_walls()
+	for i in range(walls.size()):
+		if typeof(walls[i]) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = walls[i]
+		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		if a.distance_to(b) <= 0.001:
+			continue
+		var selected: bool = i == selected_exterior_wall_index
+		out.append({
+			"a_px": _m_to_px(a),
+			"b_px": _m_to_px(b),
+			"color": _exterior_wall_selected_color if selected else _exterior_wall_color,
+			"thickness_px": maxf(3.0, float(wall.get("thickness_m", 0.16)) * pixels_per_meter),
+			"selected": selected
+		})
+	return out
+
+
+## Las puertas llevan ademas su barrido, que es lo que dice hacia donde abren y
+## por que lado tienen la bisagra.
+func _plan_openings_view() -> Array:
+	var out: Array = []
+	var openings: Array = editor_data.get("openings_data", [])
+	for i in range(openings.size()):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var opening: Dictionary = openings[i]
+		if not _opening_on_current_floor(opening):
+			continue
+		var selected: bool = i == selected_opening_index
+		if bool(opening.get("is_vertical", false)):
+			var hole_rect: Rect2 = _vertical_opening_rect(opening)
+			if hole_rect.size.x <= 0.0 or hole_rect.size.y <= 0.0:
+				continue
+			out.append({
+				"vertical": true,
+				"rect_px": _rect_to_px(hole_rect),
+				"color": Color(1.0, 1.0, 0.45, 1.0) if selected else Color(1.0, 0.78, 0.20, 0.92)
+			})
+			continue
+		var segment_m: PackedVector2Array = _opening_segment_m(opening)
+		if segment_m.size() != 2:
+			continue
+		var type_str: String = String(opening.get("type", "door"))
+		var color: Color = _window_color if type_str == "window" else (_door_color if type_str == "door" else UI_YELLOW)
+		if selected:
+			color = Color(1.0, 1.0, 0.45, 1.0)
+		var entry: Dictionary = {
+			"a_px": _m_to_px(segment_m[0]),
+			"b_px": _m_to_px(segment_m[1]),
+			"color": color
+		}
+		if type_str == "door":
+			var swing: Dictionary = _door_swing_view(opening, segment_m)
+			if not swing.is_empty():
+				entry["swing"] = swing
+		out.append(entry)
+	return out
+
+
+func _door_swing_view(opening: Dictionary, segment_m: PackedVector2Array) -> Dictionary:
+	if segment_m.size() != 2:
+		return {}
+	var hinge_left: bool = String(opening.get("hinge_side", "left")).to_lower() != "right"
+	var hinge_m: Vector2 = segment_m[0] if hinge_left else segment_m[1]
+	var normal_m: Vector2 = _inside_normal_for_wall_2d(String(opening.get("wall", "top")))
+	if String(opening.get("swing_direction", "in")).to_lower() == "out":
+		normal_m = -normal_m
+	var width_m: float = minf(
+		float(opening.get("width_m", 0.9)),
+		hinge_m.distance_to(segment_m[1] if hinge_left else segment_m[0])
+	)
+	if width_m <= 0.05:
+		return {}
+	return {
+		"hinge_px": _m_to_px(hinge_m),
+		"open_end_px": _m_to_px(hinge_m + normal_m * width_m)
+	}
+
+
+## Un objeto se dibuja por sus cuatro esquinas ya giradas, no por su rectangulo:
+## lo que se ve en el plano es la caja rotada.
+func _plan_objects_view() -> Array:
+	var out: Array = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
+			continue
+		var room_dict: Dictionary = room
+		var room_id: int = int(room_dict.get("id", -1))
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		var objects: Array = room_dict.get("fuel_objects", [])
+		for object_index in range(objects.size()):
+			if typeof(objects[object_index]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[object_index]
+			var size_m: Vector2 = PlanGeometry.object_size_m(obj)
+			var corners_px := PackedVector2Array()
+			for point_m in PlanGeometry.object_corner_points_m(room_rect, obj):
+				corners_px.append(_m_to_px(point_m))
+			var center_px: Vector2 = _m_to_px(PlanGeometry.object_world_center(room_rect, obj))
+			var selected: bool = room_id == selected_object_room_id and object_index == selected_object_index
+			var entry: Dictionary = {
+				"corners_px": corners_px,
+				"center_px": center_px,
+				"fill": _object_selected_color if selected else _object_color,
+				"ignition": bool(obj.get("is_primary_ignition_source", false)),
+				"ignition_color": _ignition_color
+			}
+			if selected:
+				entry["handles"] = _object_handles_view(room_rect, obj)
+			# Por debajo de 48 px de ancho el nombre no se lee y solo ensucia.
+			var width_px: float = size_m.x * pixels_per_meter
+			if width_px >= 48.0:
+				entry["label"] = String(obj.get("name", obj.get("kind", "")))
+				entry["label_anchor_px"] = center_px + Vector2(-width_px * 0.5, 0.0)
+				entry["label_width_px"] = maxf(16.0, _screen_width_px(width_px) - 8.0)
+				entry["label_color"] = Color(0.08, 0.05, 0.03, 0.9)
+			out.append(entry)
+	return out
+
+
+func _object_handles_view(room_rect: Rect2, obj: Dictionary) -> Dictionary:
+	var handle_points: Dictionary = _object_handle_points_m(room_rect, obj)
+	var center_m: Vector2 = PlanGeometry.object_world_center(room_rect, obj)
+	var resize_pxs := PackedVector2Array()
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if handle_points.has(mode):
+			resize_pxs.append(_m_to_px(Vector2(handle_points[mode])))
+	return {
+		"center_px": _m_to_px(center_m),
+		"rotate_px": _m_to_px(Vector2(handle_points.get(ObjectMouseMode.ROTATE, center_m))),
+		"resize_pxs": resize_pxs,
+		"radius_px": object_handle_radius_px
+	}
+
+
+func _plan_player_start_view() -> Dictionary:
+	if typeof(editor_data.get("player_start", {})) != TYPE_DICTIONARY:
+		return {}
+	var start: Dictionary = editor_data.get("player_start", {})
+	if start.is_empty():
+		return {}
+	var room_id: int = int(start.get("room_id", -1))
+	var room: Dictionary = _get_room(room_id)
+	if room.is_empty() or not _is_room_on_current_floor(room):
+		return {}
+	var local_pos: Vector2 = Serializer.vector2_from_data(start.get("position_m", Vector2.ZERO))
+	return {
+		"px": _m_to_px(_get_room_rect(room_id).position + local_pos),
+		"dir": Vector2(0.0, -1.0).rotated(deg_to_rad(float(start.get("yaw_deg", 0.0)))),
+		"radius": 9.0,
+		"color": _player_start_color
+	}
+
+
+## Cada tipo de detector tiene su color y su inicial: humo, calor y CO no se
+## distinguen por la forma, que es la misma.
+func _plan_detectors_view() -> Array:
+	var out: Array = []
+	var dets: Array = editor_data.get("detectors", [])
+	for i in range(dets.size()):
+		if typeof(dets[i]) != TYPE_DICTIONARY:
+			continue
+		var det: Dictionary = dets[i]
+		var room_id: int = int(det.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		var det_type: String = String(det.get("type", "smoke"))
+		var selected: bool = i == selected_detector_index
+		out.append({
+			"px": _m_to_px(room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))),
+			"radius": 10.0 if selected else 8.0,
+			"color": _detector_smoke_color if det_type == "smoke" else (_detector_heat_color if det_type == "heat" else _detector_co_color),
+			"label": "S" if det_type == "smoke" else ("H" if det_type == "heat" else "C"),
+			"selected": selected
+		})
+	return out
+
+
+func _plan_victims_view() -> Array:
+	var out: Array = []
+	var vics: Array = editor_data.get("victims", [])
+	for i in range(vics.size()):
+		if typeof(vics[i]) != TYPE_DICTIONARY:
+			continue
+		var vic: Dictionary = vics[i]
+		var room_id: int = int(vic.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		var selected: bool = i == selected_victim_index
+		out.append({
+			"px": _m_to_px(room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))),
+			"radius": 9.0 if selected else 7.0,
+			"color": _victim_color,
+			"selected": selected
+		})
+	return out
+
+
+## Los carteles del arrastre siguen dibujandose desde aqui, que es donde vive el
+## estado de la interaccion; el como lo pone EditorDraw2D.
+func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, max_width_px: float, font_size: int, color: Color) -> void:
+	EditorDraw2D.screen_string(
+		self,
+		_editor_font if _editor_font != null else ThemeDB.fallback_font,
+		_screen_scale_inv(),
+		anchor_px,
+		offset_px,
+		text,
+		max_width_px,
+		font_size,
+		color
+	)
+
+
+## Lo que se esta arrastrando ahora mismo: el muro, la sala, la escalera o el
+## pasillo en curso. Vive aqui y no en EditorDraw2D porque no es el plano, es
+## el estado de la interaccion.
+func _draw_drag_preview() -> void:
 	if is_dragging_exterior_wall:
 		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), _exterior_wall_selected_color, 4.0)
 		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
@@ -5676,23 +6043,6 @@ func _screen_scale_inv() -> float:
 
 func _screen_width_px(world_width_px: float) -> float:
 	return world_width_px * maxf(0.05, camera.zoom.x)
-
-
-func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, max_width_px: float, font_size: int, color: Color) -> void:
-	var font: Font = _editor_font if _editor_font != null else ThemeDB.fallback_font
-	if font == null or text == "":
-		return
-	draw_set_transform(anchor_px, 0.0, Vector2(_screen_scale_inv(), _screen_scale_inv()))
-	draw_string(
-		font,
-		offset_px,
-		text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		max_width_px,
-		font_size,
-		color
-	)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _track_hover_help_mouse(screen_pos: Vector2) -> void:
@@ -5829,45 +6179,6 @@ func _draw_corridor_drag_preview() -> void:
 	_draw_screen_string(end_px, Vector2(8.0, -8.0), label, 220.0, 12, Color(0.72, 1.0, 0.94, 0.96))
 
 
-func _draw_lower_floor_ghost() -> void:
-	var lower_level: float = _immediate_lower_floor_level()
-	if is_inf(lower_level):
-		return
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var room_dict: Dictionary = room
-		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level) >= 0.05:
-			continue
-		var rect: Rect2 = _get_room_rect(int(room_dict.get("id", -1)))
-		var rect_px: Rect2 = _rect_to_px(rect)
-		draw_rect(rect_px, _lower_floor_ghost_fill, true)
-		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
-		if StairPlanRules.is_stair_room(room_dict):
-			EditorDraw2D.stair_room_guides(self, rect_px, StairPlanRules.run_direction_for_room(room_dict), float(room_dict.get("stair_turn_degrees", 0.0)))
-		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
-			_draw_screen_string(
-				rect_px.position,
-				Vector2(6.0, 16.0),
-				_room_display_name(room_dict, int(room_dict.get("id", -1))),
-				maxf(30.0, _screen_width_px(rect_px.size.x) - 8.0),
-				10,
-				Color(0.74, 0.82, 0.88, 0.34)
-			)
-	var openings: Array = editor_data.get("openings_data", [])
-	for i in range(openings.size()):
-		if typeof(openings[i]) != TYPE_DICTIONARY:
-			continue
-		var opening: Dictionary = openings[i]
-		if bool(opening.get("is_vertical", false)):
-			continue
-		if not _opening_on_level(opening, lower_level):
-			continue
-		var segment_m: PackedVector2Array = _opening_segment_m(opening)
-		if segment_m.size() == 2:
-			draw_line(_m_to_px(segment_m[0]), _m_to_px(segment_m[1]), Color(0.70, 0.84, 0.92, 0.25), 3.0)
-
-
 func _immediate_lower_floor_level() -> float:
 	var current_level: float = _current_floor_level_m()
 	var best: float = -INF
@@ -5892,149 +6203,6 @@ func _opening_on_level(opening: Dictionary, level_m: float) -> bool:
 	return b_id != OUTSIDE_ID and absf(_room_id_floor_level(b_id) - level_m) < 0.05
 
 
-func _draw_exterior_walls() -> void:
-	var walls: Array = _get_exterior_walls()
-	for i in range(walls.size()):
-		if typeof(walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = walls[i]
-		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		if a.distance_to(b) <= 0.001:
-			continue
-		var selected: bool = i == selected_exterior_wall_index
-		var color: Color = _exterior_wall_selected_color if selected else _exterior_wall_color
-		var thickness_px: float = maxf(3.0, float(wall.get("thickness_m", 0.16)) * pixels_per_meter)
-		EditorDraw2D.exterior_wall(self, _m_to_px(a), _m_to_px(b), color, thickness_px, selected)
-
-
-func _draw_rooms() -> void:
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		if not _is_room_on_current_floor(room):
-			continue
-		var room_id: int = int(room.get("id", -1))
-		var rect: Rect2 = _get_room_rect(room_id)
-		var rect_px: Rect2 = _rect_to_px(rect)
-		var is_corridor: bool = _is_corridor_room(room)
-		var is_stairs: bool = StairPlanRules.is_stair_room(room)
-		var fill: Color = _room_selected_fill if room_id == selected_room_id else _room_fill
-		var outline: Color = _room_outline
-		if is_corridor:
-			fill = _corridor_selected_fill if room_id == selected_room_id else _corridor_fill
-			outline = _corridor_outline
-		if is_stairs:
-			fill = Color(0.24, 0.18, 0.08, 0.86) if room_id == selected_room_id else Color(0.16, 0.12, 0.06, 0.74)
-			outline = UI_YELLOW
-		var rotation_deg: float = float(room.get("rotation_deg", 0.0))
-		if absf(rotation_deg) > 0.001:
-			var points_m: PackedVector2Array = PlanGeometry.rotated_rect_points_m(rect, rotation_deg)
-			var points_px := PackedVector2Array()
-			for point_m in points_m:
-				points_px.append(_m_to_px(point_m))
-			draw_colored_polygon(points_px, fill)
-			draw_polyline(PackedVector2Array([points_px[0], points_px[1], points_px[2], points_px[3], points_px[0]]), outline, 2.0)
-		else:
-			draw_rect(rect_px, fill, true)
-			draw_rect(rect_px, outline, false, 2.0)
-		if is_corridor:
-			EditorDraw2D.corridor_room_guides(self, rect_px)
-		if is_stairs:
-			EditorDraw2D.stair_room_guides(self, rect_px, StairPlanRules.run_direction_for_room(room), float(room.get("stair_turn_degrees", 0.0)))
-		if is_corridor or is_stairs:
-			EditorDraw2D.narrow_room_dimension_labels(self, rect, rect_px, is_stairs)
-		var h: float = float(room.get("height_m", 2.7))
-		var area_m2: float = rect.size.x * rect.size.y
-		var vol_m3: float = area_m2 * h
-		var dim_text: String = "%.2f × %.2f m" % [rect.size.x, rect.size.y]
-		var area_text: String = "%.2f m²  ·  %.2f m³" % [area_m2, vol_m3]
-		var label_width_px: float = maxf(40.0, _screen_width_px(rect_px.size.x) - 12.0)
-		_draw_screen_string(
-			rect_px.position,
-			Vector2(8.0, 18.0),
-			_room_display_name(room, room_id),
-			label_width_px,
-			13,
-			Color(0.94, 0.97, 1.0, 0.92)
-		)
-		if rect_px.size.y >= 36.0:
-			_draw_screen_string(
-				rect_px.position,
-				Vector2(8.0, 32.0),
-				dim_text,
-				label_width_px,
-				11,
-				Color(0.75, 0.88, 0.95, 0.85)
-			)
-		if rect_px.size.y >= 52.0:
-			_draw_screen_string(
-				rect_px.position,
-				Vector2(8.0, 46.0),
-				area_text,
-				label_width_px,
-				11,
-				Color(0.65, 0.82, 0.65, 0.85)
-			)
-		if room_id == selected_room_id:
-			_draw_selected_room_handles(room_id)
-
-
-func _draw_selected_room_handles(room_id: int) -> void:
-	var handles: Dictionary = _room_handle_points_m(room_id)
-	if handles.is_empty():
-		return
-	var center_px: Vector2 = _m_to_px(_get_room_rect(room_id).get_center())
-	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _get_room_rect(room_id).get_center())))
-	var resize_pxs := PackedVector2Array()
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if handles.has(mode):
-			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
-	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, object_handle_radius_px)
-
-
-func _draw_openings() -> void:
-	var openings: Array = editor_data.get("openings_data", [])
-	for i in range(openings.size()):
-		if typeof(openings[i]) != TYPE_DICTIONARY:
-			continue
-		var opening: Dictionary = openings[i]
-		if not _opening_on_current_floor(opening):
-			continue
-		if bool(opening.get("is_vertical", false)):
-			_draw_vertical_opening(opening, i)
-			continue
-		var segment_m: PackedVector2Array = _opening_segment_m(opening)
-		if segment_m.size() != 2:
-			continue
-		var p1: Vector2 = _m_to_px(segment_m[0])
-		var p2: Vector2 = _m_to_px(segment_m[1])
-		var type_str: String = String(opening.get("type", "door"))
-		var color: Color = _window_color if type_str == "window" else (_door_color if type_str == "door" else UI_YELLOW)
-		if i == selected_opening_index:
-			color = Color(1.0, 1.0, 0.45, 1.0)
-		draw_line(p1, p2, Color(0.04, 0.06, 0.07, 0.95), 8.0)
-		draw_line(p1, p2, color, 4.0)
-		if type_str == "door":
-			_draw_door_swing_preview(opening, segment_m, color)
-
-
-func _draw_door_swing_preview(opening: Dictionary, segment_m: PackedVector2Array, color: Color) -> void:
-	if segment_m.size() != 2:
-		return
-	var hinge_left: bool = String(opening.get("hinge_side", "left")).to_lower() != "right"
-	var hinge_m: Vector2 = segment_m[0] if hinge_left else segment_m[1]
-	var wall: String = String(opening.get("wall", "top"))
-	var normal_m: Vector2 = _inside_normal_for_wall_2d(wall)
-	if String(opening.get("swing_direction", "in")).to_lower() == "out":
-		normal_m = -normal_m
-	var width_m: float = minf(float(opening.get("width_m", 0.9)), hinge_m.distance_to(segment_m[1] if hinge_left else segment_m[0]))
-	if width_m <= 0.05:
-		return
-	var open_end_m: Vector2 = hinge_m + normal_m * width_m
-	EditorDraw2D.door_swing_preview(self, _m_to_px(hinge_m), _m_to_px(open_end_m), color)
-
-
 func _inside_normal_for_wall_2d(wall: String) -> Vector2:
 	match wall:
 		"top":
@@ -6046,17 +6214,6 @@ func _inside_normal_for_wall_2d(wall: String) -> Vector2:
 		"right":
 			return Vector2.LEFT
 	return Vector2.DOWN
-
-
-func _draw_vertical_opening(opening: Dictionary, index: int) -> void:
-	var hole_rect: Rect2 = _vertical_opening_rect(opening)
-	if hole_rect.size.x <= 0.0 or hole_rect.size.y <= 0.0:
-		return
-	var rect_px := _rect_to_px(hole_rect)
-	var color: Color = Color(1.0, 0.78, 0.20, 0.92)
-	if index == selected_opening_index:
-		color = Color(1.0, 1.0, 0.45, 1.0)
-	EditorDraw2D.vertical_opening(self, rect_px, color)
 
 
 func _vertical_opening_rect(opening: Dictionary) -> Rect2:
@@ -6072,115 +6229,6 @@ func _vertical_opening_rect(opening: Dictionary) -> Rect2:
 	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
 	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
 	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
-
-
-func _draw_objects() -> void:
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		if not _is_room_on_current_floor(room):
-			continue
-		var room_id: int = int(room.get("id", -1))
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		var objects: Array = room.get("fuel_objects", [])
-		for object_index in range(objects.size()):
-			if typeof(objects[object_index]) != TYPE_DICTIONARY:
-				continue
-			var obj: Dictionary = objects[object_index]
-			var size: Vector2 = PlanGeometry.object_size_m(obj)
-			var corners_m: PackedVector2Array = PlanGeometry.object_corner_points_m(room_rect, obj)
-			var corners_px := PackedVector2Array()
-			for point_m in corners_m:
-				corners_px.append(_m_to_px(point_m))
-			var center_px: Vector2 = _m_to_px(PlanGeometry.object_world_center(room_rect, obj))
-			var selected: bool = room_id == selected_object_room_id and object_index == selected_object_index
-			var fill: Color = _object_selected_color if selected else _object_color
-			draw_colored_polygon(corners_px, fill)
-			draw_polyline(PackedVector2Array([corners_px[0], corners_px[1], corners_px[2], corners_px[3], corners_px[0]]), Color(0.18, 0.09, 0.04, 0.92), 1.5)
-			if bool(obj.get("is_primary_ignition_source", false)):
-				draw_circle(center_px, 7.0, _ignition_color)
-				draw_circle(center_px, 3.5, Color(1.0, 0.94, 0.25, 0.98))
-			if selected:
-				_draw_selected_object_handles(room_rect, obj)
-			if size.x * pixels_per_meter >= 48.0:
-				var label_anchor_px: Vector2 = center_px + Vector2(-size.x * pixels_per_meter * 0.5, 0.0)
-				_draw_screen_string(
-					label_anchor_px,
-					Vector2(4.0, 12.0),
-					String(obj.get("name", obj.get("kind", ""))),
-					maxf(16.0, _screen_width_px(size.x * pixels_per_meter) - 8.0),
-					10,
-					Color(0.08, 0.05, 0.03, 0.9)
-				)
-
-
-func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
-	var handles: Dictionary = _object_handle_points_m(room_rect, obj)
-	var center_px: Vector2 = _m_to_px(PlanGeometry.object_world_center(room_rect, obj))
-	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, PlanGeometry.object_world_center(room_rect, obj))))
-	var resize_pxs := PackedVector2Array()
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if handles.has(mode):
-			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
-	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, object_handle_radius_px)
-
-
-func _draw_player_start() -> void:
-	if typeof(editor_data.get("player_start", {})) != TYPE_DICTIONARY:
-		return
-	var start: Dictionary = editor_data.get("player_start", {})
-	if start.is_empty():
-		return
-	var room_id: int = int(start.get("room_id", -1))
-	var room: Dictionary = _get_room(room_id)
-	if room.is_empty() or not _is_room_on_current_floor(room):
-		return
-	var rect: Rect2 = _get_room_rect(room_id)
-	var local_pos: Vector2 = Serializer.vector2_from_data(start.get("position_m", Vector2.ZERO))
-	var world_pos: Vector2 = rect.position + local_pos
-	var px: Vector2 = _m_to_px(world_pos)
-	var radius: float = 9.0
-	var dir := Vector2(0.0, -1.0).rotated(deg_to_rad(float(start.get("yaw_deg", 0.0))))
-	EditorDraw2D.player_start_icon(self, px, dir, radius, _player_start_color)
-
-
-func _draw_detectors() -> void:
-	var dets: Array = editor_data.get("detectors", [])
-	for i in range(dets.size()):
-		if typeof(dets[i]) != TYPE_DICTIONARY:
-			continue
-		var det: Dictionary = dets[i]
-		var room_id: int = int(det.get("room_id", -1))
-		var room: Dictionary = _get_room(room_id)
-		if not _is_room_on_current_floor(room):
-			continue
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		var world_pos: Vector2 = room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))
-		var px: Vector2 = _m_to_px(world_pos)
-		var det_type: String = String(det.get("type", "smoke"))
-		var det_color: Color = _detector_smoke_color if det_type == "smoke" else (_detector_heat_color if det_type == "heat" else _detector_co_color)
-		var selected: bool = i == selected_detector_index
-		var radius: float = 10.0 if selected else 8.0
-		var label: String = "S" if det_type == "smoke" else ("H" if det_type == "heat" else "C")
-		EditorDraw2D.detector_icon(self, px, radius, det_color, label, selected)
-
-
-func _draw_victims() -> void:
-	var vics: Array = editor_data.get("victims", [])
-	for i in range(vics.size()):
-		if typeof(vics[i]) != TYPE_DICTIONARY:
-			continue
-		var vic: Dictionary = vics[i]
-		var room_id: int = int(vic.get("room_id", -1))
-		var room: Dictionary = _get_room(room_id)
-		if not _is_room_on_current_floor(room):
-			continue
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		var world_pos: Vector2 = room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))
-		var px: Vector2 = _m_to_px(world_pos)
-		var selected: bool = i == selected_victim_index
-		var r: float = 9.0 if selected else 7.0
-		EditorDraw2D.victim_icon(self, px, r, _victim_color, selected)
 
 
 func _set_status(text: String) -> void:
