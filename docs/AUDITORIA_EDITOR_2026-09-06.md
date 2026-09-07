@@ -657,10 +657,87 @@ referencias repartidas por el fichero. Hacerlo **sobre código muerto** es
 mudanza de muebles rotos: se paga el traslado dos veces. Con el camino muerto
 fuera, lo que quede de cada responsabilidad es lo que de verdad hay que mover.
 
+### Lo que quedaba al cerrar ese corte
+
+7556 líneas y 398 funciones, con el panel de propiedades como siguiente costura.
+
+---
+
+## 12. E-12, segundo corte: el panel de propiedades se va a su módulo
+
+`editor/EditorPropertyPanel.gd`, 700 líneas. Se lleva **53 mandos** del lado
+derecho y el reparto de lo que enseña cada uno.
+
+### La costura
+
+El módulo **solo sabe de mandos**. No conoce `editor_data`, ni qué hay
+seleccionado, ni el deshacer:
+
+- `show(state)` recibe en un diccionario lo que hay que enseñar y lo reparte.
+- `read_room()`, `read_object()`, `read_opening()`… devuelven lo que el usuario
+  ha tecleado, sin interpretarlo.
+- `action_requested("room_apply")` **pide**; no hace. Los nueve botones del panel
+  emiten una acción y el editor decide, porque es quien tiene los datos, el paso
+  de deshacer y la línea de estado.
+
+Lo que el panel no puede calcular por su cuenta va calculado desde el editor
+dentro de `state`: el rectángulo de la sala, si es escalera, el texto del ángulo
+de subida, la posición **visual** del objeto —que depende de su giro— y los topes
+de ancho y desplazamiento de la apertura. Esa es la línea: la geometría y las
+reglas se quedan donde están los datos; el panel pone widgets.
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 7556 líneas | **7067** |
+| Variables de nodo en el editor | 53 del panel | 0 |
+| `_refresh_property_panel()` | 185 líneas | 43, y son de juntar datos |
+| `editor/EditorPropertyPanel.gd` | — | 700 |
+
+El total sube unas 200 líneas, y está bien que suba: son la cabecera del módulo,
+las declaraciones y el diccionario de estado, o sea el precio escrito de la
+frontera. Lo que baja es el fichero que había que leer entero para tocar
+cualquier cosa.
+
+### La red: una sonda que mira lo que enseña el panel
+
+Mover 53 mandos a ciegas no es refactorizar, es apostar.
+`tools/probe_editor_property_panel.gd` monta un escenario con una sala, una
+escalera, un objeto encendido, una apertura, un detector, una víctima y un muro;
+los selecciona uno a uno y vuelca, en cada caso, **el estado de todos los mandos
+del panel**: visible, editable, valor, texto, opción elegida y unidad. Mil cien
+líneas de foto.
+
+De esas mil cien, el diff antes/después tiene **tres**, y las tres son un fallo
+que llevaba ahí desde siempre:
+
+> **El umbral del detector enseñaba la unidad equivocada.** Al seleccionar un
+> detector de calor, el panel mostraba `57` con el sufijo `kg/m³`, que es la
+> unidad del humo.
+
+La causa es de manual: había **dos caminos** para rellenar la ficha del detector.
+`_sync_detector_property_fields()` —el que se usa al arrastrar el detector por el
+plano— sí llamaba a `_sync_detector_threshold_units()`; el bloque equivalente
+dentro de `_refresh_property_panel()` —el que se usa al **seleccionarlo**, que es
+lo que hace todo el mundo— no. Dos copias del mismo relleno, una con la línea y
+otra sin ella. Al unificarlas en `fill_detector()` el fallo se fue solo.
+
+Es exactamente el fallo que E-2 decía haber cerrado: *«teclear 2,4 donde iban
+240 no lo avisa nadie»*. La unidad estaba puesta, pero el camino más usado no la
+actualizaba.
+
 ### Lo que sigue pendiente
 
-E-12 sigue abierto: 7556 líneas y 398 funciones. El siguiente corte natural es el
-panel de propiedades del lado derecho —`_refresh_property_panel()` son 185 líneas
-y `_set_property_panel_visibility()` otras 78—, y ahora hay con qué comprobarlo:
-el volcado del árbol dice si algo se ha movido de sitio, y la suite si algo ha
-dejado de funcionar.
+E-12 sigue abierto: 7067 líneas. Las siguientes costuras, por tamaño y por lo
+independientes que son:
+
+- **El dibujo del plano** (`_draw_*`, unas 400 líneas): lee los datos y pinta;
+  no toca mandos.
+- **La entrada de ratón** (`_handle_release`, `_unhandled_input` y el arrastre):
+  unas 350 líneas de máquina de estados.
+- **Las escaleras** (`_stair_*`): unas 400 líneas de geometría con vocabulario
+  propio, ya casi aisladas.
+
+Y una regla que este corte deja escrita: **antes de mover, una sonda que
+fotografíe lo que se va a mover**. La del árbol dice si algo cambió de sitio; la
+del panel, si algo cambió de valor. Las dos juntas convierten un refactor de
+apuesta en un diff de tres líneas que además explica un fallo.

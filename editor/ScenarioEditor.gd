@@ -51,6 +51,9 @@ const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
 const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
+## El panel de propiedades del lado derecho, en su modulo: 53 mandos y el
+## reparto de lo que enseña cada uno (E-12).
+const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
@@ -143,6 +146,7 @@ var selected_exterior_wall_index: int = -1
 ## entre dos sesiones no es lo que hace falta aqui, y un portapapeles en disco
 ## traeria la pregunta de que hacer cuando el escenario de origen ya no existe.
 var _clipboard: Dictionary = {}
+var _props: RefCounted = PropertyPanelScript.new()
 
 var is_dragging_room: bool = false
 var is_dragging_exterior_wall: bool = false
@@ -177,11 +181,6 @@ var _ui_root: Control
 var _status_label: Label
 var _path_edit: LineEdit
 var _object_kind_option: OptionButton
-var _name_edit: LineEdit
-var _kind_edit: LineEdit
-var _height_spin: SpinBox
-var _fuel_spin: SpinBox
-var _hrr_spin: SpinBox
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
@@ -234,60 +233,12 @@ var _opening_tool_width_spin: SpinBox
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 var _load_error_helper: EditorLoadErrorDialog = EditorLoadErrorDialog.new()
-var _room_apply_button: Button
-var _room_delete_button: Button
-var _room_x_spin: SpinBox
-var _room_y_spin: SpinBox
-var _room_width_spin: SpinBox
-var _room_depth_spin: SpinBox
-var _room_rotation_spin: SpinBox
-var _stair_turn_option: OptionButton
-var _stair_walls_check: CheckBox
-var _stair_railings_check: CheckBox
-var _stair_angle_label: Label
-var _room_mark_exterior_button: Button
 var _template_builder = BuildingTemplateScript.new()
 # Propiedades de objeto seleccionado
-var _obj_name_edit: LineEdit
-var _obj_x_spin: SpinBox
-var _obj_y_spin: SpinBox
-var _obj_width_spin: SpinBox
-var _obj_height_spin: SpinBox
-var _obj_rotation_spin: SpinBox
-var _obj_elevation_spin: SpinBox
-var _obj_fuel_spin: SpinBox
-var _obj_hrr_spin: SpinBox
-var _obj_props_container: Control
 
 # Propiedades de apertura seleccionada
-var _opening_props_container: Control
-var _opening_type_label: Label
-var _opening_width_spin: SpinBox
-var _opening_height_spin: SpinBox
-var _opening_sill_spin: SpinBox
-var _opening_offset_spin: SpinBox
-var _opening_open_option: OptionButton
-var _opening_swing_option: OptionButton
-var _opening_hinge_option: OptionButton
 # Propiedades de detector seleccionado
-var _detector_props_container: Control
-var _detector_type_option: OptionButton
-var _detector_threshold_spin: SpinBox
-var _detector_id_edit: LineEdit
-var _detector_x_spin: SpinBox
-var _detector_y_spin: SpinBox
 # Propiedades de victima seleccionada
-var _victim_props_container: Control
-var _victim_name_edit: LineEdit
-var _victim_x_spin: SpinBox
-var _victim_y_spin: SpinBox
-var _victim_height_spin: SpinBox
-var _wall_props_container: Control
-var _wall_start_x_spin: SpinBox
-var _wall_start_y_spin: SpinBox
-var _wall_end_x_spin: SpinBox
-var _wall_end_y_spin: SpinBox
-var _wall_thickness_spin: SpinBox
 
 @export var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
 @export var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
@@ -1293,33 +1244,11 @@ func _move_player_start_to(world_pos_m: Vector2) -> void:
 
 
 func _sync_detector_property_fields(det: Dictionary) -> void:
-	if det.is_empty():
-		return
-	if _detector_id_edit != null:
-		_detector_id_edit.text = String(det.get("id", ""))
-	if _detector_type_option != null:
-		var det_type: String = String(det.get("type", "smoke"))
-		_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
-	if _detector_threshold_spin != null:
-		_detector_threshold_spin.value = float(det.get("threshold", 0.025))
-	_sync_detector_threshold_units()
-	if _detector_x_spin != null:
-		_detector_x_spin.value = float(det.get("x_m", 0.0))
-	if _detector_y_spin != null:
-		_detector_y_spin.value = float(det.get("y_m", 0.0))
+	_props.fill_detector(det)
 
 
 func _sync_victim_property_fields(vic: Dictionary) -> void:
-	if vic.is_empty():
-		return
-	if _victim_name_edit != null:
-		_victim_name_edit.text = String(vic.get("name", ""))
-	if _victim_x_spin != null:
-		_victim_x_spin.value = float(vic.get("x_m", 0.0))
-	if _victim_y_spin != null:
-		_victim_y_spin.value = float(vic.get("y_m", 0.0))
-	if _victim_height_spin != null:
-		_victim_height_spin.value = float(vic.get("height_m", 0.9))
+	_props.fill_victim(vic)
 
 
 func _object_index_for_id(room_id: int, object_id: String) -> int:
@@ -1388,6 +1317,35 @@ func _get_left_node(path: String) -> Node:
 	if left_vbox == null:
 		return null
 	return left_vbox.get_node_or_null(path)
+
+
+## Los tres ayudantes que el panel izquierdo comparte con el derecho. El panel
+## derecho se llevo su copia al modulo; estos se quedan porque los usan la barra
+## de herramientas y las secciones de la izquierda.
+func _set_node_visible(path: String, visible: bool) -> void:
+	if _ui_root == null:
+		return
+	var node := _get_ui_node(path) as Control
+	if node != null:
+		node.visible = visible
+
+
+## Una casilla vive dentro de su fila con la etiqueta al lado: esconder la
+## casilla sola dejaria la etiqueta huerfana.
+func _set_control_row_visible(control: Control, visible: bool) -> void:
+	if control == null:
+		return
+	var parent := control.get_parent() as Control
+	if parent != null and parent is HBoxContainer:
+		parent.visible = visible
+	else:
+		control.visible = visible
+
+
+func _stair_turn_mode_from_option(option: OptionButton) -> String:
+	if option == null:
+		return STAIR_TURN_MODE_AUTO
+	return _stair_turn_mode_from_item_id(option.get_selected_id())
 
 
 func _get_ui_node(path: String) -> Node:
@@ -3340,21 +3298,9 @@ func _stair_direction_from_rotation(rotation_deg: float) -> Vector2:
 func _sync_room_geometry_fields(room_id: int) -> void:
 	if selected_room_id != room_id:
 		return
-	var room: Dictionary = _get_room(room_id)
-	if room.is_empty():
+	if _get_room(room_id).is_empty():
 		return
-	var rect: Rect2 = _get_room_rect(room_id)
-	if _room_x_spin != null:
-		_room_x_spin.value = rect.position.x
-	if _room_y_spin != null:
-		_room_y_spin.value = rect.position.y
-	if _room_width_spin != null:
-		_room_width_spin.value = rect.size.x
-	if _room_depth_spin != null:
-		_room_depth_spin.value = rect.size.y
-	if _room_rotation_spin != null:
-		_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
-	_update_stair_angle_label(room_id, room)
+	_props.fill_room_rect(_get_room_rect(room_id))
 
 
 func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
@@ -3669,18 +3615,6 @@ func _stair_turn_mode_for_room(room: Dictionary) -> String:
 
 func _selected_stair_tool_turn_mode() -> String:
 	return _stair_turn_mode_from_option(_stair_tool_turn_option)
-
-
-func _stair_turn_mode_from_option(option: OptionButton) -> String:
-	if option == null:
-		return STAIR_TURN_MODE_AUTO
-	match option.get_selected_id():
-		1:
-			return STAIR_TURN_MODE_STRAIGHT
-		2:
-			return STAIR_TURN_MODE_SWITCHBACK
-		_:
-			return STAIR_TURN_MODE_AUTO
 
 
 func _select_stair_turn_option(option: OptionButton, mode: String) -> void:
@@ -4242,237 +4176,139 @@ func _select_player_start(room_id: int) -> void:
 	queue_redraw()
 
 
+## Junta lo que hay seleccionado y se lo pasa al panel, que solo sabe de mandos.
+##
+## Lo que el panel no puede calcular por su cuenta va calculado aqui: el
+## rectangulo de la sala, si es escalera, el texto del angulo, la posicion visual
+## del objeto -que depende de su giro- y los topes de la apertura.
 func _refresh_property_panel() -> void:
-	if _name_edit == null:
-		return
-
-	var has_obj: bool = selected_object_room_id >= 0 and selected_object_index >= 0
 	var room: Dictionary = _get_room(selected_room_id)
 	var has_room: bool = not room.is_empty()
-	var has_stair_room: bool = has_room and _is_stair_room(room)
-	var has_detector: bool = selected_detector_index >= 0
-	var has_victim: bool = selected_victim_index >= 0
-	var walls_arr: Array = editor_data.get("exterior_walls", [])
-	var has_wall: bool = selected_exterior_wall_index >= 0 and selected_exterior_wall_index < walls_arr.size()
-
-	# Panel habitación
-	_name_edit.editable = has_room
-	_kind_edit.editable = has_room
-	if _room_x_spin != null:
-		_room_x_spin.editable = has_room
-	if _room_y_spin != null:
-		_room_y_spin.editable = has_room
-	if _room_width_spin != null:
-		_room_width_spin.editable = has_room
-	if _room_depth_spin != null:
-		_room_depth_spin.editable = has_room
-	if _room_rotation_spin != null:
-		_room_rotation_spin.editable = has_room
-	if _stair_turn_option != null:
-		_stair_turn_option.disabled = not has_stair_room
-	if _stair_walls_check != null:
-		_stair_walls_check.disabled = not has_stair_room
-	if _stair_railings_check != null:
-		_stair_railings_check.disabled = not has_stair_room
-	_height_spin.editable = has_room
-	_fuel_spin.editable = has_room
-	_hrr_spin.editable = has_room
-
-	if has_room:
-		_name_edit.text = String(room.get("name", ""))
-		_kind_edit.text = String(room.get("kind", "generic"))
-		var rect: Rect2 = _get_room_rect(selected_room_id)
-		if _room_x_spin != null:
-			_room_x_spin.value = rect.position.x
-		if _room_y_spin != null:
-			_room_y_spin.value = rect.position.y
-		if _room_width_spin != null:
-			_room_width_spin.value = maxf(0.25, rect.size.x)
-		if _room_depth_spin != null:
-			_room_depth_spin.value = maxf(0.25, rect.size.y)
-		if _room_rotation_spin != null:
-			_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
-		_select_stair_turn_option(_stair_turn_option, _stair_turn_mode_for_room(room))
-		if _stair_walls_check != null:
-			_stair_walls_check.button_pressed = bool(room.get("stair_has_walls", false))
-		if _stair_railings_check != null:
-			_stair_railings_check.button_pressed = bool(room.get("stair_has_railings", true))
-		_height_spin.value = float(room.get("height_m", 2.7))
-		_fuel_spin.value = float(room.get("fuel_energy_MJ", 0.0))
-		_hrr_spin.value = float(room.get("max_hrr_kw", 0.0))
-	else:
-		_name_edit.text = ""
-		_kind_edit.text = ""
-		if _room_x_spin != null:
-			_room_x_spin.value = 0.0
-		if _room_y_spin != null:
-			_room_y_spin.value = 0.0
-		if _room_width_spin != null:
-			_room_width_spin.value = 1.0
-		if _room_depth_spin != null:
-			_room_depth_spin.value = 1.0
-		if _room_rotation_spin != null:
-			_room_rotation_spin.value = 0.0
-		_select_stair_turn_option(_stair_turn_option, STAIR_TURN_MODE_AUTO)
-		if _stair_walls_check != null:
-			_stair_walls_check.button_pressed = false
-		if _stair_railings_check != null:
-			_stair_railings_check.button_pressed = true
-		_height_spin.value = 2.7
-		_fuel_spin.value = 0.0
-		_hrr_spin.value = 0.0
-
-	# Panel objeto
-	if _obj_props_container != null:
-		_obj_props_container.visible = has_obj
-
-	if has_obj:
-		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
-		if not obj.is_empty():
-			_sync_object_property_fields(obj)
-
-	# Panel apertura
-	var openings_arr: Array = editor_data.get("openings_data", [])
-	var has_opening_sel: bool = selected_opening_index >= 0 and selected_opening_index < openings_arr.size()
-	_set_property_panel_visibility(has_room, has_obj, has_opening_sel, has_detector, has_victim, has_wall)
-	_set_control_row_visible(_stair_walls_check, has_stair_room)
-	_set_control_row_visible(_stair_railings_check, has_stair_room)
-	_set_control_row_visible(_stair_turn_option, has_stair_room)
-	_update_stair_angle_label(selected_room_id, room if has_room else {})
-	if _opening_props_container != null:
-		_opening_props_container.visible = has_opening_sel
-	if has_opening_sel and _opening_width_spin != null:
-		var opening: Dictionary = openings_arr[selected_opening_index]
-		var op_type: String = String(opening.get("type", "door"))
-		if _opening_type_label != null:
-			var exterior_suffix: String = " exterior" if int(opening.get("b", OUTSIDE_ID)) == OUTSIDE_ID else ""
-			var type_label: String = "Puerta"
-			if op_type == "window":
-				type_label = "Ventana"
-			elif op_type == "hole":
-				type_label = "Hueco"
-			if bool(opening.get("is_vertical", false)):
-				type_label = "Hueco vertical"
-			_opening_type_label.text = type_label + exterior_suffix
-		_opening_width_spin.max_value = _max_width_for_opening(opening)
-		_opening_width_spin.value = float(opening.get("width_m", 0.9))
-		_opening_height_spin.value = float(opening.get("height_m", 2.0))
-		if _opening_offset_spin != null:
-			_opening_offset_spin.editable = not bool(opening.get("is_vertical", false))
-			_opening_offset_spin.max_value = _wall_length(_get_room_rect(int(opening.get("a", -1))), String(opening.get("wall", "top"))) if not bool(opening.get("is_vertical", false)) else 200.0
-			_opening_offset_spin.value = float(opening.get("offset_m", 0.0))
-		if _opening_sill_spin != null:
-			_opening_sill_spin.editable = op_type == "window"
-			_opening_sill_spin.value = float(opening.get("sill_m", 0.0))
-		if _opening_open_option != null:
-			var frac: float = float(opening.get("open_fraction", 1.0))
-			_opening_open_option.disabled = op_type == "hole"
-			_opening_open_option.select(0 if frac <= 0.01 else 1)
-		var is_door: bool = op_type == "door" and not bool(opening.get("is_vertical", false))
-		if _opening_swing_option != null:
-			_set_control_row_visible(_opening_swing_option, is_door)
-			_opening_swing_option.select(1 if String(opening.get("swing_direction", "in")).to_lower() == "out" else 0)
-		if _opening_hinge_option != null:
-			_set_control_row_visible(_opening_hinge_option, is_door)
-			_opening_hinge_option.select(1 if String(opening.get("hinge_side", "left")).to_lower() == "right" else 0)
-
-	if _detector_props_container != null:
-		_detector_props_container.visible = has_detector
-	if has_detector:
-		var dets: Array = editor_data.get("detectors", [])
-		if selected_detector_index < dets.size():
-			var det: Dictionary = dets[selected_detector_index]
-			if _detector_id_edit != null:
-				_detector_id_edit.text = String(det.get("id", ""))
-			if _detector_type_option != null:
-				var det_type: String = String(det.get("type", "smoke"))
-				_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
-			if _detector_threshold_spin != null:
-				_detector_threshold_spin.value = float(det.get("threshold", 0.025))
-			if _detector_x_spin != null:
-				_detector_x_spin.value = float(det.get("x_m", 0.0))
-			if _detector_y_spin != null:
-				_detector_y_spin.value = float(det.get("y_m", 0.0))
-
-	if _victim_props_container != null:
-		_victim_props_container.visible = has_victim
-	if has_victim:
-		var vics: Array = editor_data.get("victims", [])
-		if selected_victim_index < vics.size():
-			var vic: Dictionary = vics[selected_victim_index]
-			if _victim_name_edit != null:
-				_victim_name_edit.text = String(vic.get("name", ""))
-			if _victim_x_spin != null:
-				_victim_x_spin.value = float(vic.get("x_m", 0.0))
-			if _victim_y_spin != null:
-				_victim_y_spin.value = float(vic.get("y_m", 0.0))
-			if _victim_height_spin != null:
-				_victim_height_spin.value = float(vic.get("height_m", 0.9))
-
-	if _wall_props_container != null:
-		_wall_props_container.visible = has_wall
-	if has_wall and selected_exterior_wall_index < walls_arr.size():
-		var wall: Dictionary = walls_arr[selected_exterior_wall_index]
-		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		if _wall_start_x_spin != null:
-			_wall_start_x_spin.value = a.x
-		if _wall_start_y_spin != null:
-			_wall_start_y_spin.value = a.y
-		if _wall_end_x_spin != null:
-			_wall_end_x_spin.value = b.x
-		if _wall_end_y_spin != null:
-			_wall_end_y_spin.value = b.y
-		if _wall_thickness_spin != null:
-			_wall_thickness_spin.value = float(wall.get("thickness_m", 0.16))
+	var obj: Dictionary = {}
+	if selected_object_room_id >= 0 and selected_object_index >= 0:
+		obj = _get_object(selected_object_room_id, selected_object_index)
+	var state: Dictionary = {
+		"room": room,
+		"room_rect": _get_room_rect(selected_room_id) if has_room else Rect2(),
+		"room_rotation_deg": _normalize_degrees_signed(float(room.get("rotation_deg", 0.0))) if has_room else 0.0,
+		"room_is_stair": has_room and _is_stair_room(room),
+		"stair_turn_item_id": _stair_turn_item_id_for_mode(_stair_turn_mode_for_room(room)) if has_room else 0,
+		"stair_angle_text": _stair_angle_text(selected_room_id, room) if has_room else "",
+		"object": obj,
+		"opening": _element_at("openings_data", selected_opening_index),
+		"detector": _element_at("detectors", selected_detector_index),
+		"victim": _element_at("victims", selected_victim_index),
+		"wall": _element_at("exterior_walls", selected_exterior_wall_index)
+	}
+	if not obj.is_empty():
+		var size_m: Vector2 = _object_size_m(obj)
+		state["object_size"] = size_m
+		state["object_rotation_deg"] = _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0)))
+		state["object_visual_pos"] = _object_visual_min_from_local_pos(
+			size_m,
+			Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)),
+			float(obj.get("rotation_deg", 0.0))
+		)
+	var opening: Dictionary = state["opening"]
+	if not opening.is_empty():
+		state["opening_type_label"] = _opening_type_label_text(opening)
+		state["opening_max_width_m"] = _max_width_for_opening(opening)
+		state["opening_max_offset_m"] = 200.0 if bool(opening.get("is_vertical", false)) else _wall_length(
+			_get_room_rect(int(opening.get("a", -1))),
+			String(opening.get("wall", "top"))
+		)
+	_props.show(state)
 	_refresh_element_list()
 
 
+## "Puerta", "Ventana exterior", "Hueco vertical"... El nombre que lleva la ficha
+## de la apertura seleccionada.
+
+
+## El desplegable del tipo de escalera guarda 0 auto, 1 recta y 2 en U. El
+## vocabulario es del editor, que lo comparte con la herramienta de la barra
+## izquierda; el panel solo enseña el widget.
+
+
+## El panel pide; el editor decide. Todo lo que toca datos -deshacer incluido-
+## se queda de este lado.
+func _on_property_panel_action(action: String) -> void:
+	match action:
+		PropertyPanelScript.ACTION_ROOM_APPLY:
+			_apply_room_properties()
+		PropertyPanelScript.ACTION_ROOM_DELETE:
+			_delete_selected_room()
+		PropertyPanelScript.ACTION_ROOM_MARK_EXTERIOR:
+			_mark_selected_room_exterior()
+		PropertyPanelScript.ACTION_OBJECT_APPLY:
+			_apply_object_properties()
+		PropertyPanelScript.ACTION_OPENING_APPLY:
+			_apply_opening_properties()
+		PropertyPanelScript.ACTION_DETECTOR_APPLY:
+			_apply_detector_properties()
+		PropertyPanelScript.ACTION_VICTIM_APPLY:
+			_apply_victim_properties()
+		PropertyPanelScript.ACTION_WALL_APPLY:
+			_apply_exterior_wall_properties()
+		PropertyPanelScript.ACTION_DELETE_SELECTED:
+			_delete_selected()
+func _stair_turn_item_id_for_mode(mode: String) -> int:
+	match _normalized_stair_turn_mode(mode):
+		STAIR_TURN_MODE_STRAIGHT:
+			return 1
+		STAIR_TURN_MODE_SWITCHBACK:
+			return 2
+	return 0
+
+
+func _stair_turn_mode_from_item_id(item_id: int) -> String:
+	match item_id:
+		1:
+			return STAIR_TURN_MODE_STRAIGHT
+		2:
+			return STAIR_TURN_MODE_SWITCHBACK
+	return STAIR_TURN_MODE_AUTO
+func _opening_type_label_text(opening: Dictionary) -> String:
+	var op_type: String = String(opening.get("type", "door"))
+	var type_label: String = "Puerta"
+	if op_type == "window":
+		type_label = "Ventana"
+	elif op_type == "hole":
+		type_label = "Hueco"
+	if bool(opening.get("is_vertical", false)):
+		type_label = "Hueco vertical"
+	if int(opening.get("b", OUTSIDE_ID)) == OUTSIDE_ID:
+		return type_label + " exterior"
+	return type_label
+
+
+## La posicion que se enseña no es la que se guarda: en el plano el objeto se
+## agarra por su esquina visual, que depende del giro.
 func _sync_object_property_fields(obj: Dictionary) -> void:
 	if obj.is_empty():
 		return
-	if _obj_name_edit != null:
-		_obj_name_edit.text = String(obj.get("name", obj.get("kind", "")))
+	var size_m: Vector2 = _object_size_m(obj)
 	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-	var sz: Vector2 = _object_size_m(obj)
 	if selected_object_room_id >= 0:
-		pos = _object_visual_min_from_local_pos(sz, pos, float(obj.get("rotation_deg", 0.0)))
-	if _obj_x_spin != null:
-		_obj_x_spin.value = pos.x
-	if _obj_y_spin != null:
-		_obj_y_spin.value = pos.y
-	if _obj_width_spin != null:
-		_obj_width_spin.value = sz.x
-	if _obj_height_spin != null:
-		_obj_height_spin.value = sz.y
-	if _obj_rotation_spin != null:
-		_obj_rotation_spin.value = _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0)))
-	if _obj_elevation_spin != null:
-		_obj_elevation_spin.value = float(obj.get("elevation_m", 0.0))
-	if _obj_fuel_spin != null:
-		_obj_fuel_spin.value = float(obj.get("fuel_energy_MJ", 0.0))
-	if _obj_hrr_spin != null:
-		_obj_hrr_spin.value = float(obj.get("max_hrr_kw", 0.0))
+		pos = _object_visual_min_from_local_pos(size_m, pos, float(obj.get("rotation_deg", 0.0)))
+	_props.fill_object(obj, pos, size_m, _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0))))
 
 
 func _update_stair_angle_label(room_id: int, room: Dictionary) -> void:
-	if _stair_angle_label == null:
-		return
-	var show_label: bool = room_id >= 0 and not room.is_empty() and _is_stair_room(room)
-	_stair_angle_label.visible = show_label
-	if not show_label:
-		_stair_angle_label.text = ""
-		return
+	_props.set_stair_angle_text(_stair_angle_text(room_id, room))
+
+
+## La linea que resume la escalera: pendiente, tramos y hacia donde sube. Cadena
+## vacia si la sala no es una escalera, y entonces el panel la esconde.
+func _stair_angle_text(room_id: int, room: Dictionary) -> String:
+	if room_id < 0 or room.is_empty() or not _is_stair_room(room):
+		return ""
 	var rect: Rect2 = _get_room_rect(room_id)
 	var stair_dir: Vector2 = _room_stair_run_direction(room)
 	var slope_deg: float = _stair_slope_angle_deg(room_id, room, rect)
 	var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
 	var mode_text: String = "2 tramos + descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
-	_stair_angle_label.text = "Subida %.0f° | %s | orientacion %s" % [
-		slope_deg,
-		mode_text,
-		_stair_direction_label(stair_dir)
-	]
+	return "Subida %.0f° | %s | orientacion %s" % [slope_deg, mode_text, _stair_direction_label(stair_dir)]
 
 
 func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> float:
@@ -4518,108 +4354,12 @@ func _stair_direction_label(dir: Vector2) -> String:
 	return "sur" if dir.y > 0.0 else "norte"
 
 
-func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detector: bool = false, has_victim: bool = false, has_wall: bool = false) -> void:
-	if _ui_root == null:
-		return
-	var has_any: bool = has_room or has_obj or has_opening or has_detector or has_victim or has_wall
-	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
-	if right_panel != null:
-		right_panel.visible = has_any
-	var room_paths: Array[String] = [
-		"RightPanel/Scroll/VBox/RoomTitle",
-		"RightPanel/Scroll/VBox/RoomNameEdit",
-		"RightPanel/Scroll/VBox/RoomKindEdit",
-		"RightPanel/Scroll/VBox/RoomXLabel",
-		"RightPanel/Scroll/VBox/RoomXSpin",
-		"RightPanel/Scroll/VBox/RoomYLabel",
-		"RightPanel/Scroll/VBox/RoomYSpin",
-		"RightPanel/Scroll/VBox/RoomWidthLabel",
-		"RightPanel/Scroll/VBox/RoomWidthSpin",
-		"RightPanel/Scroll/VBox/RoomDepthLabel",
-		"RightPanel/Scroll/VBox/RoomDepthSpin",
-		"RightPanel/Scroll/VBox/RoomRotationLabel",
-		"RightPanel/Scroll/VBox/RoomRotationSpin",
-		"RightPanel/Scroll/VBox/RoomHeightLabel",
-		"RightPanel/Scroll/VBox/RoomHeightSpin",
-		"RightPanel/Scroll/VBox/FuelEnergyLabel",
-		"RightPanel/Scroll/VBox/FuelEnergySpin",
-		"RightPanel/Scroll/VBox/MaxHrrLabel",
-		"RightPanel/Scroll/VBox/MaxHrrSpin",
-		"RightPanel/Scroll/VBox/BtnApplyRoom",
-		"RightPanel/Scroll/VBox/BtnDeleteRoom",
-		"RightPanel/Scroll/VBox/SeparatorB"
-	]
-	for path in room_paths:
-		_set_node_visible(path, has_room)
-	_set_control_row_visible(_name_edit, has_room)
-	_set_control_row_visible(_kind_edit, has_room)
-	_set_control_row_visible(_room_x_spin, has_room)
-	_set_control_row_visible(_room_y_spin, has_room)
-	_set_control_row_visible(_room_width_spin, has_room)
-	_set_control_row_visible(_room_depth_spin, has_room)
-	_set_control_row_visible(_room_rotation_spin, has_room)
-	_set_control_row_visible(_height_spin, has_room)
-	_set_control_row_visible(_fuel_spin, has_room)
-	_set_control_row_visible(_hrr_spin, has_room)
-	if _stair_angle_label != null:
-		_stair_angle_label.visible = has_room and selected_room_id >= 0 and _is_stair_room(_get_room(selected_room_id))
-	if _room_apply_button != null:
-		_room_apply_button.visible = has_room
-	if _room_delete_button != null:
-		_room_delete_button.visible = has_room
-	if _room_mark_exterior_button != null:
-		_room_mark_exterior_button.visible = has_room
-	var before_detector: bool = has_room or has_obj or has_opening
-	var before_victim: bool = before_detector or has_detector
-	var before_wall: bool = before_victim or has_victim
-	_set_node_visible("RightPanel/Scroll/VBox/ObjectTitle", has_obj)
-	_set_node_visible("RightPanel/Scroll/VBox/SeparatorC", has_opening and (has_room or has_obj))
-	_set_node_visible("RightPanel/Scroll/VBox/OpeningTitle", has_opening)
-	_set_node_visible("RightPanel/Scroll/VBox/SeparatorD", has_detector and before_detector)
-	_set_node_visible("RightPanel/Scroll/VBox/DetectorTitle", has_detector)
-	_set_node_visible("RightPanel/Scroll/VBox/SeparatorE", has_victim and before_victim)
-	_set_node_visible("RightPanel/Scroll/VBox/VictimTitle", has_victim)
-	_set_node_visible("RightPanel/Scroll/VBox/SeparatorExteriorWall", has_wall and before_wall)
-	_set_node_visible("RightPanel/Scroll/VBox/ExteriorWallTitle", has_wall)
-	if _obj_props_container != null:
-		_obj_props_container.visible = has_obj
-	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjWidthLabel", has_obj)
-	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjWidthSpin", has_obj)
-	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjHeightLabel", has_obj)
-	_set_node_visible("RightPanel/Scroll/VBox/ObjProps/ObjHeightSpin", has_obj)
-	if _opening_props_container != null:
-		_opening_props_container.visible = has_opening
-	if _detector_props_container != null:
-		_detector_props_container.visible = has_detector
-	if _victim_props_container != null:
-		_victim_props_container.visible = has_victim
-	if _wall_props_container != null:
-		_wall_props_container.visible = has_wall
-
-
-func _set_node_visible(path: String, visible: bool) -> void:
-	if _ui_root == null:
-		return
-	var node := _get_ui_node(path) as Control
-	if node != null:
-		node.visible = visible
-
-
-func _set_control_row_visible(control: Control, visible: bool) -> void:
-	if control == null:
-		return
-	var parent := control.get_parent() as Control
-	if parent != null and parent is HBoxContainer:
-		parent.visible = visible
-	else:
-		control.visible = visible
-
-
 func _apply_room_properties() -> void:
 	if selected_room_id < 0:
 		_set_status("Selecciona una habitación antes de aplicar propiedades.")
 		return
 
+	var fields: Dictionary = _props.read_room()
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY:
@@ -4628,29 +4368,22 @@ func _apply_room_properties() -> void:
 			continue
 		_push_undo_snapshot("edit_room")
 		var room: Dictionary = rooms[i]
-		room["name"] = _name_edit.text.strip_edges()
-		room["kind"] = _kind_edit.text.strip_edges()
-		room["rotation_deg"] = _normalize_degrees_signed(_room_rotation_spin.value) if _room_rotation_spin != null else float(room.get("rotation_deg", 0.0))
+		room["name"] = String(fields.get("name", ""))
+		room["kind"] = String(fields.get("kind", ""))
+		room["rotation_deg"] = _normalize_degrees_signed(float(fields.get("rotation_deg", 0.0)))
 		if _is_stair_room(room):
 			room["stair_run_direction_m"] = Serializer.vector_to_data(_stair_direction_from_rotation(float(room.get("rotation_deg", 0.0))))
-			room["stair_turn_mode"] = _stair_turn_mode_from_option(_stair_turn_option)
-			room["stair_has_walls"] = bool(_stair_walls_check.button_pressed) if _stair_walls_check != null else bool(room.get("stair_has_walls", false))
-			room["stair_has_railings"] = bool(_stair_railings_check.button_pressed) if _stair_railings_check != null else bool(room.get("stair_has_railings", true))
-		room["height_m"] = _height_spin.value
-		room["fuel_energy_MJ"] = _fuel_spin.value
-		room["max_hrr_kw"] = _hrr_spin.value
+			room["stair_turn_mode"] = _stair_turn_mode_from_item_id(int(fields.get("stair_turn_item_id", 0)))
+			room["stair_has_walls"] = bool(fields.get("stair_has_walls", false))
+			room["stair_has_railings"] = bool(fields.get("stair_has_railings", true))
+		room["height_m"] = float(fields.get("height_m", 2.7))
+		room["fuel_energy_MJ"] = float(fields.get("fuel_energy_MJ", 0.0))
+		room["max_hrr_kw"] = float(fields.get("max_hrr_kw", 0.0))
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
-		var current_rect: Rect2 = _get_room_rect(selected_room_id)
 		var next_rect := Rect2(
-			Vector2(
-				_room_x_spin.value if _room_x_spin != null else current_rect.position.x,
-				_room_y_spin.value if _room_y_spin != null else current_rect.position.y
-			),
-			Vector2(
-				maxf(0.25, _room_width_spin.value) if _room_width_spin != null else current_rect.size.x,
-				maxf(0.25, _room_depth_spin.value) if _room_depth_spin != null else current_rect.size.y
-			)
+			Vector2(float(fields.get("x_m", 0.0)), float(fields.get("y_m", 0.0))),
+			Vector2(maxf(0.25, float(fields.get("width_m", 1.0))), maxf(0.25, float(fields.get("depth_m", 1.0))))
 		)
 		_set_room_rect(selected_room_id, next_rect)
 		if _is_stair_room(room):
@@ -5119,20 +4852,16 @@ func _apply_detector_properties() -> void:
 	var dets: Array = editor_data.get("detectors", [])
 	if selected_detector_index >= dets.size():
 		return
+	var fields: Dictionary = _props.read_detector()
 	_push_undo_snapshot("edit_detector")
 	var det: Dictionary = dets[selected_detector_index]
-	if _detector_id_edit != null:
-		det["id"] = _detector_id_edit.text.strip_edges()
-	if _detector_type_option != null:
-		var idx: int = _detector_type_option.selected
-		det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
-	if _detector_threshold_spin != null:
-		det["threshold"] = _detector_threshold_spin.value
+	det["id"] = String(fields.get("id", ""))
+	var idx: int = int(fields.get("type_index", 0))
+	det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
+	det["threshold"] = float(fields.get("threshold", 0.025))
 	var det_room_rect: Rect2 = _get_room_rect(int(det.get("room_id", -1)))
-	if _detector_x_spin != null:
-		det["x_m"] = clampf(_detector_x_spin.value, 0.0, maxf(0.0, det_room_rect.size.x))
-	if _detector_y_spin != null:
-		det["y_m"] = clampf(_detector_y_spin.value, 0.0, maxf(0.0, det_room_rect.size.y))
+	det["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.x))
+	det["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.y))
 	dets[selected_detector_index] = det
 	editor_data["detectors"] = dets
 	_set_status("Propiedades del detector actualizadas.")
@@ -5146,17 +4875,14 @@ func _apply_victim_properties() -> void:
 	var vics: Array = editor_data.get("victims", [])
 	if selected_victim_index >= vics.size():
 		return
+	var fields: Dictionary = _props.read_victim()
 	_push_undo_snapshot("edit_victim")
 	var vic: Dictionary = vics[selected_victim_index]
-	if _victim_name_edit != null:
-		vic["name"] = _victim_name_edit.text.strip_edges()
+	vic["name"] = String(fields.get("name", ""))
 	var vic_room_rect: Rect2 = _get_room_rect(int(vic.get("room_id", -1)))
-	if _victim_x_spin != null:
-		vic["x_m"] = clampf(_victim_x_spin.value, 0.0, maxf(0.0, vic_room_rect.size.x))
-	if _victim_y_spin != null:
-		vic["y_m"] = clampf(_victim_y_spin.value, 0.0, maxf(0.0, vic_room_rect.size.y))
-	if _victim_height_spin != null:
-		vic["height_m"] = _victim_height_spin.value
+	vic["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.x))
+	vic["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.y))
+	vic["height_m"] = float(fields.get("height_m", 0.9))
 	vics[selected_victim_index] = vic
 	editor_data["victims"] = vics
 	_set_status("Propiedades de la víctima actualizadas.")
@@ -5483,14 +5209,9 @@ func _apply_exterior_wall_properties() -> void:
 	if selected_exterior_wall_index < 0 or selected_exterior_wall_index >= walls.size():
 		_set_status("Selecciona un muro exterior antes de aplicar propiedades.")
 		return
-	var a := Vector2(
-		_wall_start_x_spin.value if _wall_start_x_spin != null else 0.0,
-		_wall_start_y_spin.value if _wall_start_y_spin != null else 0.0
-	)
-	var b := Vector2(
-		_wall_end_x_spin.value if _wall_end_x_spin != null else 0.0,
-		_wall_end_y_spin.value if _wall_end_y_spin != null else 0.0
-	)
+	var fields: Dictionary = _props.read_wall()
+	var a: Vector2 = fields.get("start", Vector2.ZERO)
+	var b: Vector2 = fields.get("end", Vector2.ZERO)
 	if a.distance_to(b) < GRID_M:
 		_set_status("El muro exterior es demasiado corto.")
 		return
@@ -5498,7 +5219,7 @@ func _apply_exterior_wall_properties() -> void:
 	var wall: Dictionary = walls[selected_exterior_wall_index]
 	wall["a"] = Serializer.vector_to_data(_snap_m(a))
 	wall["b"] = Serializer.vector_to_data(_snap_m(b))
-	wall["thickness_m"] = maxf(0.05, _wall_thickness_spin.value if _wall_thickness_spin != null else float(wall.get("thickness_m", 0.16)))
+	wall["thickness_m"] = maxf(0.05, float(fields.get("thickness_m", 0.16)))
 	walls[selected_exterior_wall_index] = wall
 	editor_data["exterior_walls"] = walls
 	_set_status("Muro exterior actualizado.")
@@ -6033,6 +5754,7 @@ func _apply_object_properties() -> void:
 	if selected_object_room_id < 0 or selected_object_index < 0:
 		_set_status("Selecciona un objeto antes de aplicar propiedades.")
 		return
+	var fields: Dictionary = _props.read_object()
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY:
@@ -6045,31 +5767,23 @@ func _apply_object_properties() -> void:
 			return
 		_push_undo_snapshot("edit_object")
 		var obj: Dictionary = objects[selected_object_index]
-		if _obj_name_edit != null:
-			obj["name"] = _obj_name_edit.text.strip_edges()
-		var current_size: Vector2 = _object_size_m(obj)
-		var new_w: float = _obj_width_spin.value if _obj_width_spin != null else current_size.x
-		var new_h: float = _obj_height_spin.value if _obj_height_spin != null else current_size.y
-		var current_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+		obj["name"] = String(fields.get("name", ""))
+		var new_w: float = float(fields.get("width_m", 1.0))
+		var new_h: float = float(fields.get("height_m", 1.0))
 		var room_rect: Rect2 = _get_room_rect(selected_object_room_id)
-		var new_pos := Vector2(
-			_obj_x_spin.value if _obj_x_spin != null else current_pos.x,
-			_obj_y_spin.value if _obj_y_spin != null else current_pos.y
-		)
-		var new_rotation: float = _clean_object_rotation_deg(_obj_rotation_spin.value) if _obj_rotation_spin != null else _clean_object_rotation_deg(float(obj.get("rotation_deg", 0.0)))
+		var new_rotation: float = _clean_object_rotation_deg(float(fields.get("rotation_deg", 0.0)))
+		var new_pos := Vector2(float(fields.get("x_m", 0.0)), float(fields.get("y_m", 0.0)))
 		new_pos = _object_local_pos_from_visual_min(Vector2(new_w, new_h), new_pos, new_rotation)
 		new_pos = _clamp_object_local_pos_for_rotation(room_rect, Vector2(new_w, new_h), new_pos, new_rotation)
 		obj["position_m"] = Serializer.vector_to_data(new_pos)
 		obj["size_m"] = {"x": new_w, "y": new_h}
 		obj["rotation_deg"] = new_rotation
-		obj["elevation_m"] = maxf(0.0, _obj_elevation_spin.value) if _obj_elevation_spin != null else float(obj.get("elevation_m", 0.0))
+		obj["elevation_m"] = maxf(0.0, float(fields.get("elevation_m", 0.0)))
 		obj["footprint_m2"] = new_w * new_h
 		obj["visual_pose_locked"] = true
-		if _obj_fuel_spin != null:
-			obj["fuel_energy_MJ"] = _obj_fuel_spin.value
-			obj["remaining_fuel_MJ"] = _obj_fuel_spin.value
-		if _obj_hrr_spin != null:
-			obj["max_hrr_kw"] = _obj_hrr_spin.value
+		obj["fuel_energy_MJ"] = float(fields.get("fuel_energy_MJ", 0.0))
+		obj["remaining_fuel_MJ"] = float(fields.get("fuel_energy_MJ", 0.0))
+		obj["max_hrr_kw"] = float(fields.get("max_hrr_kw", 0.0))
 		objects[selected_object_index] = obj
 		room["fuel_objects"] = objects
 		rooms[i] = room
@@ -6086,25 +5800,24 @@ func _apply_opening_properties() -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	if selected_opening_index >= openings.size():
 		return
+	var fields: Dictionary = _props.read_opening()
 	_push_undo_snapshot("edit_opening")
 	var op: Dictionary = openings[selected_opening_index]
 	var op_type: String = String(op.get("type", "door"))
-	if _opening_width_spin != null:
-		op["width_m"] = minf(_opening_width_spin.value, _max_width_for_opening(op))
-	if _opening_height_spin != null:
-		op["height_m"] = _opening_height_spin.value
-	if _opening_offset_spin != null and not bool(op.get("is_vertical", false)):
-		op["offset_m"] = clampf(_opening_offset_spin.value, 0.0, _wall_length(_get_room_rect(int(op.get("a", -1))), String(op.get("wall", "top"))))
+	op["width_m"] = minf(float(fields.get("width_m", 0.9)), _max_width_for_opening(op))
+	op["height_m"] = float(fields.get("height_m", 2.0))
+	if not bool(op.get("is_vertical", false)):
+		op["offset_m"] = clampf(
+			float(fields.get("offset_m", 0.0)),
+			0.0,
+			_wall_length(_get_room_rect(int(op.get("a", -1))), String(op.get("wall", "top")))
+		)
 		op["offset_is_fraction"] = false
-	if _opening_sill_spin != null:
-		op["sill_m"] = 0.0 if op_type == "hole" else _opening_sill_spin.value
-	if _opening_open_option != null:
-		op["open_fraction"] = 1.0 if op_type == "hole" else (0.0 if _opening_open_option.selected == 0 else 1.0)
+	op["sill_m"] = 0.0 if op_type == "hole" else float(fields.get("sill_m", 0.0))
+	op["open_fraction"] = 1.0 if op_type == "hole" else (0.0 if int(fields.get("open_index", 1)) == 0 else 1.0)
 	if op_type == "door":
-		if _opening_swing_option != null:
-			op["swing_direction"] = "out" if _opening_swing_option.selected == 1 else "in"
-		if _opening_hinge_option != null:
-			op["hinge_side"] = "right" if _opening_hinge_option.selected == 1 else "left"
+		op["swing_direction"] = "out" if int(fields.get("swing_index", 0)) == 1 else "in"
+		op["hinge_side"] = "right" if int(fields.get("hinge_index", 0)) == 1 else "left"
 	openings[selected_opening_index] = op
 	editor_data["openings_data"] = openings
 	_set_status("Apertura actualizada.")
@@ -6289,33 +6002,6 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 		var room: Dictionary = _get_room(room_id)
 		return "%s: %s (R%d)" % [_element_type_label_for_room(room), _room_display_name(room, room_id), room_id]
 	return ""
-
-
-func _on_detector_type_changed(_index: int) -> void:
-	_sync_detector_threshold_units()
-
-
-## Unidad y explicacion del umbral del detector.
-##
-## Es el unico campo del editor cuya unidad depende de otro control: un umbral
-## de 0,025 son kilogramos de humo por metro cubico, pero de 57 son grados y de
-## 300 partes por millon. Con la casilla muda -que es como estaba- no hay forma
-## de saber cual de las tres se esta tecleando. Las unidades son las que declara
-## SimulationEngine para cada tipo.
-func _sync_detector_threshold_units() -> void:
-	if _detector_threshold_spin == null:
-		return
-	var selected: int = _detector_type_option.selected if _detector_type_option != null else 0
-	var unit: String = " kg/m³"
-	var help: String = "Densidad de humo en la sala a partir de la cual salta el detector, en kilogramos por metro cúbico. Un detector domestico salta en torno a 0,025."
-	if selected == 1:
-		unit = " °C"
-		help = "Temperatura de la capa superior a partir de la cual salta el detector, en grados. Un rociador domestico salta en torno a 57."
-	elif selected == 2:
-		unit = " ppm"
-		help = "Concentración de CO en la sala a partir de la cual salta el detector, en partes por millón. Un detector domestico salta en torno a 50."
-	_detector_threshold_spin.suffix = unit
-	_set_control_tooltip(_detector_threshold_spin, help)
 
 
 func _detector_type_label(type_name: String) -> String:
@@ -6992,82 +6678,16 @@ func _bind_existing_ui() -> bool:
 	_status_label = _get_left_node("StatusLabel") as Label
 	_building_type_option = _get_left_node("BuildingTypeRow/BuildingTypeOption") as OptionButton
 
-	_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomNameEdit") as LineEdit
-	_kind_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomKindEdit") as LineEdit
-	_room_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomXSpin") as SpinBox
-	_room_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomYSpin") as SpinBox
-	_room_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomWidthSpin") as SpinBox
-	_room_depth_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomDepthSpin") as SpinBox
-	_room_rotation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/RoomRotationSpin") as SpinBox
-	_stair_turn_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomGeometry/StairTurnRow/StairTurnOption") as OptionButton
-	_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/RoomHeightSpin") as SpinBox
-	_fuel_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/FuelEnergySpin") as SpinBox
-	_hrr_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/MaxHrrSpin") as SpinBox
-
-	_obj_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps") as Control
-	_obj_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjNameEdit") as LineEdit
-	_obj_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjXSpin") as SpinBox
-	_obj_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjYSpin") as SpinBox
-	_obj_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjWidthSpin") as SpinBox
-	_obj_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjHeightSpin") as SpinBox
-	_obj_rotation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjRotationSpin") as SpinBox
-	_obj_elevation_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjElevationSpin") as SpinBox
-	_obj_fuel_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjFuelSpin") as SpinBox
-	_obj_hrr_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/ObjHrrSpin") as SpinBox
-
-	_opening_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps") as Control
-	_opening_type_label = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningTypeLabel") as Label
-	_opening_width_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningWidthSpin") as SpinBox
-	_opening_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningHeightSpin") as SpinBox
-	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningSillSpin") as SpinBox
-	_opening_offset_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningOffsetSpin") as SpinBox
-	_opening_open_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningOpenOption") as OptionButton
-	_opening_swing_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningSwingRow/OpeningSwingOption") as OptionButton
-	_opening_hinge_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/OpeningHingeRow/OpeningHingeOption") as OptionButton
-	_connect_button(_ui_root.get_node_or_null("RightPanel/Scroll/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
-
-	_detector_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps") as Control
-	_detector_id_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorIdEdit") as LineEdit
-	_detector_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorXSpin") as SpinBox
-	_detector_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorYSpin") as SpinBox
-	_detector_type_option = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorTypeOption") as OptionButton
-	if _detector_type_option != null and _detector_type_option.get_item_count() == 0:
-		_detector_type_option.add_item("Humo", 0)
-		_detector_type_option.add_item("Calor", 1)
-		_detector_type_option.add_item("CO", 2)
-	_detector_threshold_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/DetectorThresholdSpin") as SpinBox
-	if _detector_type_option != null and not _detector_type_option.item_selected.is_connected(_on_detector_type_changed):
-		_detector_type_option.item_selected.connect(_on_detector_type_changed)
-	_sync_detector_threshold_units()
-	var apply_detector_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/BtnApplyDetector") as Button
-	var delete_detector_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/DetectorProps/BtnDeleteDetector") as Button
-	_set_control_tooltip(apply_detector_button, "Aplica tipo, umbral y posición del detector seleccionado.")
-	_set_control_tooltip(delete_detector_button, "Borra el detector seleccionado.")
-	_connect_button(apply_detector_button, _apply_detector_properties)
-	_connect_button(delete_detector_button, _delete_selected)
-
-	_victim_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps") as Control
-	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimNameEdit") as LineEdit
-	_victim_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimXSpin") as SpinBox
-	_victim_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimYSpin") as SpinBox
-	_victim_height_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/VictimHeightSpin") as SpinBox
-	var apply_victim_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/BtnApplyVictim") as Button
-	var delete_victim_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/VictimProps/BtnDeleteVictim") as Button
-	_set_control_tooltip(apply_victim_button, "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada.")
-	_set_control_tooltip(delete_victim_button, "Borra la víctima seleccionada.")
-	_connect_button(apply_victim_button, _apply_victim_properties)
-	_connect_button(delete_victim_button, _delete_selected)
-
-	_wall_props_container = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps") as Control
-	_wall_start_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallStartXSpin") as SpinBox
-	_wall_start_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallStartYSpin") as SpinBox
-	_wall_end_x_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallEndXSpin") as SpinBox
-	_wall_end_y_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallEndYSpin") as SpinBox
-	_wall_thickness_spin = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ExteriorWallProps/WallThicknessSpin") as SpinBox
+	# El panel de propiedades entero -sus 53 mandos- vive en su modulo. Aqui
+	# solo se le da su raiz y se escucha lo que pide.
+	var props_ok: bool = _props.bind(_ui_root.get_node_or_null("RightPanel") as Control)
+	if not _props.action_requested.is_connected(_on_property_panel_action):
+		_props.action_requested.connect(_on_property_panel_action)
+	_populate_stair_turn_options(_props.stair_turn_option())
 
 	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false
-	if _name_edit == null or _kind_edit == null or _height_spin == null or _fuel_spin == null or _hrr_spin == null:
+	if not props_ok:
 		return false
 	_status_label.custom_minimum_size = Vector2(0.0, 64.0)
 
@@ -7080,21 +6700,9 @@ func _bind_existing_ui() -> bool:
 	_bind_lighting_controls()
 	_bind_building_type_controls()
 	_bind_element_list()
-	_bind_room_geometry_controls()
-	_bind_object_position_controls()
-	_bind_opening_position_controls()
-	_bind_opening_direction_controls()
-	_bind_detector_position_controls()
-	_bind_victim_position_controls()
-	_bind_exterior_wall_controls()
 	_bind_controls_help()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
-	# Poblamos el OptionButton de estado inicial de apertura
-	if _opening_open_option != null and _opening_open_option.get_item_count() == 0:
-		_opening_open_option.add_item("Cerrada", 0)
-		_opening_open_option.add_item("Abierta", 1)
-	_populate_opening_direction_options()
 
 	var save_button := _get_left_node("BtnSave") as Button
 	var load_button := _get_left_node("BtnLoad") as Button
@@ -7110,20 +6718,6 @@ func _bind_existing_ui() -> bool:
 	var load_scenario_button := _get_left_node("BtnLoadScenario") as Button
 	_set_control_tooltip(load_scenario_button, "Carga la plantilla seleccionada en el editor.")
 	_connect_button(load_scenario_button, _load_scenario_pressed)
-	_room_apply_button = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/BtnApplyRoom") as Button
-	_room_delete_button = _ui_root.get_node_or_null("RightPanel/Scroll/VBox/BtnDeleteRoom") as Button
-	_set_control_tooltip(_room_apply_button, "Aplica los cambios numéricos de la habitación seleccionada.")
-	_set_control_tooltip(_room_delete_button, "Borra la habitación seleccionada.")
-	_connect_button(_room_apply_button, _apply_room_properties)
-	_connect_button(_room_delete_button, _delete_selected_room)
-	_set_control_tooltip(_room_mark_exterior_button, "Marca la habitación seleccionada como parte del contorno exterior.")
-	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
-	var apply_object_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/BtnApplyObject") as Button
-	var delete_object_button := _ui_root.get_node_or_null("RightPanel/Scroll/VBox/ObjProps/BtnDeleteObject") as Button
-	_set_control_tooltip(apply_object_button, "Aplica posición, tamaño, rotación y combustible del objeto seleccionado.")
-	_set_control_tooltip(delete_object_button, "Borra el objeto seleccionado.")
-	_connect_button(apply_object_button, _apply_object_properties)
-	_connect_button(delete_object_button, _delete_selected)
 	var start_sim_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button
 	var cancel_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnCancel") as Button
 	_set_control_tooltip(start_sim_button, "Valida, exporta y abre la simulación con el escenario actual.")
@@ -7201,15 +6795,6 @@ func _bind_option_row(parent: Control, row_name: String, option_name: String) ->
 	return _scene_control(parent, "%s/%s" % [row_name, option_name]) as OptionButton
 
 
-func _populate_opening_direction_options() -> void:
-	if _opening_swing_option != null and _opening_swing_option.get_item_count() == 0:
-		_opening_swing_option.add_item("Interior", 0)
-		_opening_swing_option.add_item("Exterior", 1)
-	if _opening_hinge_option != null and _opening_hinge_option.get_item_count() == 0:
-		_opening_hinge_option.add_item("Izquierda", 0)
-		_opening_hinge_option.add_item("Derecha", 1)
-
-
 func _bind_building_type_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
@@ -7235,79 +6820,6 @@ func _bind_element_list() -> void:
 	if _element_list != null and not _element_list.item_selected.is_connected(_on_element_list_item_selected):
 		_element_list.item_selected.connect(_on_element_list_item_selected)
 	_refresh_element_list()
-
-
-func _bind_room_geometry_controls() -> void:
-	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	var geometry := _scene_control(vbox, "RoomGeometry") as VBoxContainer
-	if geometry == null:
-		return
-	_room_x_spin = _bind_spin_row(geometry, "RoomXRow", "RoomXSpin", -200.0, 200.0, 0.05)
-	_room_y_spin = _bind_spin_row(geometry, "RoomYRow", "RoomYSpin", -200.0, 200.0, 0.05)
-	_room_width_spin = _bind_spin_row(geometry, "RoomWidthRow", "RoomWidthSpin", 0.25, 200.0, 0.05)
-	_room_depth_spin = _bind_spin_row(geometry, "RoomDepthRow", "RoomDepthSpin", 0.25, 200.0, 0.05)
-	_room_rotation_spin = _bind_spin_row(geometry, "RoomRotationRow", "RoomRotationSpin", -180.0, 180.0, 1.0)
-	_stair_turn_option = _bind_option_row(geometry, "StairTurnRow", "StairTurnOption")
-	_populate_stair_turn_options(_stair_turn_option)
-	_stair_walls_check = _bind_check_row(geometry, "StairWallsRow", "StairWallsCheck")
-	_stair_railings_check = _bind_check_row(geometry, "StairRailingsRow", "StairRailingsCheck")
-	_stair_angle_label = _scene_control(geometry, "StairAngleLabel") as Label
-	_room_mark_exterior_button = _scene_control(vbox, "BtnMarkRoomExterior") as Button
-	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
-
-
-func _bind_object_position_controls() -> void:
-	if _obj_props_container == null:
-		return
-	_obj_x_spin = _bind_spin_row(_obj_props_container, "ObjXRow", "ObjXSpin", -200.0, 200.0, 0.05)
-	_obj_y_spin = _bind_spin_row(_obj_props_container, "ObjYRow", "ObjYSpin", -200.0, 200.0, 0.05)
-
-
-func _bind_opening_position_controls() -> void:
-	if _opening_props_container == null:
-		return
-	_opening_offset_spin = _bind_spin_row(_opening_props_container, "OpeningOffsetRow", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
-
-
-func _bind_opening_direction_controls() -> void:
-	if _opening_props_container == null:
-		return
-	_opening_swing_option = _bind_option_row(_opening_props_container, "OpeningSwingRow", "OpeningSwingOption")
-	_opening_hinge_option = _bind_option_row(_opening_props_container, "OpeningHingeRow", "OpeningHingeOption")
-	_populate_opening_direction_options()
-
-
-func _bind_detector_position_controls() -> void:
-	if _detector_props_container == null:
-		return
-	_detector_x_spin = _bind_spin_row(_detector_props_container, "DetectorXRow", "DetectorXSpin", 0.0, 200.0, 0.05)
-	_detector_y_spin = _bind_spin_row(_detector_props_container, "DetectorYRow", "DetectorYSpin", 0.0, 200.0, 0.05)
-
-
-func _bind_victim_position_controls() -> void:
-	if _victim_props_container == null:
-		return
-	_victim_x_spin = _bind_spin_row(_victim_props_container, "VictimXRow", "VictimXSpin", 0.0, 200.0, 0.05)
-	_victim_y_spin = _bind_spin_row(_victim_props_container, "VictimYRow", "VictimYSpin", 0.0, 200.0, 0.05)
-	_victim_height_spin = _bind_spin_row(_victim_props_container, "VictimHeightRow", "VictimHeightSpin", 0.2, 2.2, 0.05)
-
-
-func _bind_exterior_wall_controls() -> void:
-	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	_wall_props_container = _scene_control(vbox, "ExteriorWallProps") as VBoxContainer
-	if _wall_props_container == null:
-		return
-	_wall_start_x_spin = _bind_spin_row(_wall_props_container, "WallStartXRow", "WallStartXSpin", -200.0, 200.0, 0.05)
-	_wall_start_y_spin = _bind_spin_row(_wall_props_container, "WallStartYRow", "WallStartYSpin", -200.0, 200.0, 0.05)
-	_wall_end_x_spin = _bind_spin_row(_wall_props_container, "WallEndXRow", "WallEndXSpin", -200.0, 200.0, 0.05)
-	_wall_end_y_spin = _bind_spin_row(_wall_props_container, "WallEndYRow", "WallEndYSpin", -200.0, 200.0, 0.05)
-	_wall_thickness_spin = _bind_spin_row(_wall_props_container, "WallThicknessRow", "WallThicknessSpin", 0.05, 1.0, 0.01)
-	_connect_button(_scene_control(_wall_props_container, "BtnApplyExteriorWall") as Button, _apply_exterior_wall_properties)
-	_connect_button(_scene_control(_wall_props_container, "BtnDeleteExteriorWall") as Button, _delete_selected)
 
 
 func _bind_controls_help() -> void:
