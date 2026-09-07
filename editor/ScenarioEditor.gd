@@ -236,12 +236,20 @@ var _editor_runtime_dirty: bool = false
 ## fotograma son 16,7. Se rehace cuando dejas de mover, que es como lo hacen los
 ## editores de verdad y no se nota.
 const PREVIEW_3D_DELAY_S: float = 0.25
+## Cada cuanto sigue el 3D al raton mientras se arrastra.
+##
+## Medido en el piso de referencia (tools/probe_editor_3d_cost.gd): rehacerlo
+## entero cuesta 79 ms, sin muebles 18 y recolocar sin rehacer 15. Un fotograma a
+## 60 Hz son 16,7, asi que 30 veces por segundo es lo que cabe sin que el plano
+## se note pesado. Al soltar se rehace entero, ya con los muebles.
+const PREVIEW_3D_FOLLOW_MS: int = 33
 var _preview_3d_panel: PanelContainer
 var _preview_3d_viewport: SubViewport
 var _preview_3d_camera: Camera3D
 var _preview_3d_toggle: Button
 var _preview_3d_enabled: bool = false
 var _preview_3d_delay_s: float = 0.0
+var _preview_3d_last_follow_msec: int = 0
 var _editor_3d_drag_active: bool = false
 var _help_toggle_button: Button
 var _help_panel: PanelContainer
@@ -987,6 +995,45 @@ func _refresh_preview_3d(delta: float) -> void:
 		return
 	_sync_editor_runtime_views(false)
 	_frame_preview_3d()
+
+
+## El 3D sigue al raton mientras se arrastra, por el camino barato que toque.
+##
+## Moviendo paredes, los muebles no importan: se apagan y se rehace la caja
+## (18 ms en vez de 79). Moviendo un mueble no hacen falta paredes nuevas: basta
+## recargar el modelo y dejar que el visor recoloque las piezas que ya existen
+## (15 ms). Lo caro -crear muebles, a 5,5 ms cada uno- se deja para el final.
+##
+## La camara no se reencuadra aqui a proposito: saltaria en cada paso.
+func _preview_3d_follow_drag() -> void:
+	if not _preview_3d_enabled or _editor_visualizer_3d == null:
+		return
+	var now_msec: int = Time.get_ticks_msec()
+	if now_msec - _preview_3d_last_follow_msec < PREVIEW_3D_FOLLOW_MS:
+		return
+	_preview_3d_last_follow_msec = now_msec
+	if drag == Drag.OBJECT:
+		_preview_3d_restate()
+		return
+	var had_furniture: bool = _editor_visualizer_3d.show_fuel_objects_3d
+	_editor_visualizer_3d.show_fuel_objects_3d = false
+	_sync_editor_runtime_views(false)
+	_editor_visualizer_3d.show_fuel_objects_3d = had_furniture
+	# Sigue habiendo cambios que aplicar al soltar: los muebles.
+	_mark_editor_runtime_dirty()
+
+
+## Recoloca lo que ya existe sin volver a construir nada: el visor mueve sus
+## piezas al releer el modelo.
+func _preview_3d_restate() -> void:
+	if _editor_building_model == null or _editor_visualizer_3d == null:
+		return
+	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
+	if not _ignition_room_is_valid(runtime_template):
+		runtime_template.erase("ignition_room_id")
+	if not _editor_building_model.load_template_data(runtime_template, true):
+		return
+	_editor_visualizer_3d.set_state({})
 
 
 ## La camara del panel copia la del visor 3D, que ya sabe encuadrar el edificio.
@@ -3489,6 +3536,7 @@ func _update_dragged_room_geometry(pos_m: Vector2) -> void:
 				next_rect = _snap_rect_to_adjacent_rooms(next_rect, selected_room_id)
 			_set_room_rect(selected_room_id, next_rect)
 	_sync_room_geometry_fields(selected_room_id)
+	_preview_3d_follow_drag()
 	queue_redraw()
 
 
@@ -3602,6 +3650,7 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 			new_local_m = PlanGeometry.clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
 			_set_object_position(selected_object_room_id, selected_object_index, new_local_m, true)
 	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
+	_preview_3d_follow_drag()
 	queue_redraw()
 
 

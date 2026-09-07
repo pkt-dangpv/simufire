@@ -90,8 +90,135 @@ func _process(_delta: float) -> bool:
 		print("-> no cabe en un fotograma, pero si en una pausa corta: rehacer al soltar y con retardo mientras se arrastra")
 	else:
 		print("-> demasiado caro para el tiempo real: haria falta actualizacion incremental")
+	_measure_scaling()
+	_measure_contents()
+	_measure_drag_paths()
 	quit(0)
 	return true
+
+
+## El coste, sala a sala: con esto se sabe si rehacer UNA sala sale a cuenta.
+##
+## Si casi todo es coste por sala, rehacer solo la que se esta moviendo divide el
+## tiempo por el numero de salas. Si hay mucho coste fijo, el incremental apenas
+## nota.
+func _measure_scaling() -> void:
+	print("")
+	print("coste por tamaño del piso:")
+	var previous_ms: float = 0.0
+	for room_count in [1, 2, 4, 8, 16]:
+		_editor.editor_data = _grid_scenario(room_count)
+		var us: int = 0
+		for i in range(4):
+			us += _time_sync()
+		var ms: float = float(us) / 4.0 / 1000.0
+		var delta_text: String = ""
+		if previous_ms > 0.0:
+			delta_text = "  (+%.1f ms respecto al anterior)" % (ms - previous_ms)
+		print("  %2d salas: %6.1f ms%s" % [room_count, ms, delta_text])
+		previous_ms = ms
+
+
+## Los dos caminos que hacen falta para que el 3D siga al raton:
+##
+##  - arrastrando PAREDES no hacen falta los muebles: se apagan y se rehace.
+##  - arrastrando un OBJETO no hace falta rehacer nada: basta recargar el modelo
+##    y dejar que el visor recoloque las piezas que ya existen.
+func _measure_drag_paths() -> void:
+	print("")
+	print("caminos para seguir al raton (piso de referencia):")
+	_editor.editor_data = _load_reference()
+	var viz: Node = _editor._editor_visualizer_3d
+	_time_sync()
+
+	viz.show_fuel_objects_3d = false
+	var us_walls: int = 0
+	for i in range(6):
+		us_walls += _time_sync()
+	print("  rehacer sin muebles:      %6.1f ms" % (float(us_walls) / 6.0 / 1000.0))
+	viz.show_fuel_objects_3d = true
+
+	var us_state: int = 0
+	for i in range(6):
+		var start_us: int = Time.get_ticks_usec()
+		var runtime: Dictionary = Serializer.to_runtime_template(_editor.editor_data)
+		_editor._editor_building_model.load_template_data(runtime, true)
+		viz.set_state({})
+		us_state += Time.get_ticks_usec() - start_us
+	print("  recolocar sin rehacer:    %6.1f ms" % (float(us_state) / 6.0 / 1000.0))
+	var us_full: int = 0
+	for i in range(4):
+		us_full += _time_sync()
+	print("  rehacer entero (hoy):     %6.1f ms" % (float(us_full) / 4.0 / 1000.0))
+
+
+## Y ahora la otra pregunta: si las salas cuestan 2 ms, ¿de donde salen los 80 ms
+## del piso de referencia? Se prueba con muebles y con aperturas por separado.
+func _measure_contents() -> void:
+	print("")
+	print("coste del contenido (4 salas fijas):")
+	for objects_per_room in [0, 1, 3, 6]:
+		_editor.editor_data = _grid_scenario(4, objects_per_room, 0)
+		var us: int = 0
+		for i in range(4):
+			us += _time_sync()
+		print("  %d objetos por sala: %6.1f ms" % [objects_per_room, float(us) / 4.0 / 1000.0])
+	for openings in [0, 3, 6]:
+		_editor.editor_data = _grid_scenario(4, 0, openings)
+		var us2: int = 0
+		for i in range(4):
+			us2 += _time_sync()
+		print("  %d aperturas:        %6.1f ms" % [openings, float(us2) / 4.0 / 1000.0])
+
+
+## Un piso de cajas en fila: lo que importa es el numero de salas, no su forma.
+func _grid_scenario(room_count: int, objects_per_room: int = 0, opening_count: int = 0) -> Dictionary:
+	var rooms: Array = []
+	var rects: Dictionary = {}
+	for i in range(room_count):
+		var column: int = i % 4
+		var row: int = int(i / 4)
+		var objects: Array = []
+		for k in range(objects_per_room):
+			objects.append({
+				"id": "obj_%d_%d" % [i, k],
+				"room_id": i,
+				"name": "sofa",
+				"kind": "sofa",
+				"position_m": {"x": 0.4 + k * 0.8, "y": 0.4},
+				"size_m": {"x": 0.7, "y": 0.6},
+				"rotation_deg": 0.0,
+				"fuel_energy_MJ": 100.0,
+				"max_hrr_kw": 400.0
+			})
+		rooms.append({
+			"id": i,
+			"name": "Sala %d" % i,
+			"kind": "generic",
+			"rotation_deg": 0.0,
+			"height_m": 2.7,
+			"floor_level_z_m": 0.0,
+			"fuel_objects": objects
+		})
+		rects[str(i)] = {"x": column * 4.0, "y": row * 3.0, "w": 3.8, "h": 2.8}
+	var openings: Array = []
+	for i in range(opening_count):
+		openings.append({
+			"a": i % maxi(1, room_count), "b": -1, "type": "window", "wall": "top",
+			"offset_m": 1.0, "offset_is_fraction": false,
+			"width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "open_fraction": 0.0
+		})
+	return {
+		"floors": [{"name": "PB", "level_m": 0.0}],
+		"exterior_walls": [],
+		"room_rect_m": rects,
+		"rooms_data": rooms,
+		"openings_data": openings,
+		"detectors": [],
+		"victims": [],
+		"player_start": {},
+		"ignition_room_id": -1
+	}
 
 
 func _time_sync() -> int:

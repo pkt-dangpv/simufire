@@ -59,6 +59,19 @@ func _run() -> void:
 	var rooms_after: int = _rooms_in_3d(editor)
 	_expect(rooms_after > rooms_before, "el 3D en vivo no enseña la sala nueva (%d salas antes, %d despues)" % [rooms_before, rooms_after])
 
+	# Y lo que se pidio: que SIGA al raton mientras se arrastra, sin esperar al
+	# antirrebote. Se mueve la sala 0 con el raton y se mira si su suelo 3D se ha
+	# movido en el mismo instante.
+	editor._select_room(0)
+	var before: Vector3 = _room_floor_position(editor, 0)
+	# 1 = ObjectMouseMode.MOVE: el gesto de arrastrar la sala entera.
+	editor._begin_room_mouse_edit(1, Vector2(2.0, 1.5))
+	editor._update_dragged_room_geometry(Vector2(6.0, 4.5))
+	var after: Vector3 = _room_floor_position(editor, 0)
+	_expect(before != Vector3.INF and after != Vector3.INF, "no se encuentra el suelo 3D de la sala 0")
+	_expect(before.distance_to(after) > 0.5, "el 3D no sigue a la sala mientras se arrastra (%s -> %s)" % [str(before), str(after)])
+	editor._handle_release(Vector2(6.0, 4.5))
+
 	# Y al pasar a 3D a pantalla completa el panel se aparta solo.
 	editor._set_editor_view_mode(1)
 	_expect(not editor._preview_3d_enabled, "el panel sigue encendido en la vista 3D, donde sobra")
@@ -66,6 +79,19 @@ func _run() -> void:
 	remove_child(editor)
 	editor.free()
 	_finish()
+
+
+## Donde esta el suelo 3D de una sala. Se relee cada vez: al rehacer la vista los
+## nodos son otros.
+func _room_floor_position(editor: Node, room_id: int) -> Vector3:
+	var visualizer: Node = editor._editor_visualizer_3d
+	if visualizer == null:
+		return Vector3.INF
+	var items: Dictionary = visualizer._room_items
+	if not items.has(room_id):
+		return Vector3.INF
+	var floor_node := Dictionary(items[room_id]).get("floor") as Node3D
+	return floor_node.global_position if floor_node != null else Vector3.INF
 
 
 func _rooms_in_3d(editor: Node) -> int:
