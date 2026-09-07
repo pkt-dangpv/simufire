@@ -171,6 +171,15 @@ enum Drag {
 	OBJECT
 }
 var drag: int = Drag.NONE
+## Lo que se lleva tecleado mientras se arrastra: "4", "4;3", "4,5;3".
+##
+## Es la idea que hacia facil aquel SketchUp: dibujas a ojo y escribes la medida
+## sin soltar el raton ni ir a ningun campo. Mientras hay arrastre, los digitos
+## son medidas y no atajos de herramienta.
+var _typed_measure: String = ""
+## Cierto cuando el rectangulo que se acaba de cerrar lo dicto el teclado. Una
+## medida escrita es exacta: no se la retoca el encaje a las salas vecinas.
+var _measure_was_typed: bool = false
 var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
@@ -1743,7 +1752,8 @@ func _editor_help_text() -> String:
 
 func _editor_help_pages() -> PackedStringArray:
 	return PackedStringArray([
-		"Dibujo\n\nElige una herramienta en la barra superior o pulsa su tecla. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Víctima e Inicio FP se colocan clicando dentro de una sala.",
+		"Dibujo\n\nElige una herramienta en la barra superior o pulsa su tecla. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Víctima e Inicio FP se colocan clicando dentro de una sala, y lo que colocas queda seleccionado para moverlo ahí mismo.",
+		"Medidas exactas\n\nNo hace falta acertar con el ratón: arrastra a ojo y, sin soltar, escribe la medida. «4;3» e Intro crea una sala de 4,00 × 3,00 m exactos; «3,5» fija solo el ancho y deja el fondo que llevabas; en un muro o un pasillo un solo número es su largo, y en el pasillo el segundo es su ancho. La coma es el decimal, Retroceso corrige y Escape borra lo escrito sin soltar el arrastre. Lo que escribes manda: una medida tecleada no la retoca el encaje a las salas vecinas.",
 		"Teclas\n\n%s.\nEsc vuelve a %s. Ctrl+Z deshace, Ctrl+Y rehace y Supr borra la selección. Ctrl+C copia, Ctrl+V pega donde esté el cursor y Ctrl+D duplica al lado. Ctrl+S guarda y Ctrl+O carga. Mientras escribes en una casilla, las teclas de herramienta no responden." % [_tool_shortcuts_line(), _tool_display_name(Tool.SELECT)],
 		"Selección\n\nUsa %s para elegir elementos en el plano. Si un objeto, detector o víctima está encima de una sala, el editor prioriza el elemento pequeño antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan." % _tool_display_name(Tool.SELECT),
 		"Edición\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Cada casilla numérica lleva su unidad escrita dentro, y al dejar el cursor sobre un control se explica qué hace. Supr borra la selección y Ctrl+Z deshace.",
@@ -2296,9 +2306,9 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.SELECT:
 			return "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
 		Tool.EXTERIOR_WALL:
-			return "Exterior: arrastra para dibujar muros exteriores rectos. También puedes marcar el contorno de una habitación."
+			return "Exterior: arrastra para dibujar muros exteriores rectos; sin soltar, escribe su largo (6) e Intro. También puedes marcar el contorno de una habitación."
 		Tool.ROOM:
-			return "Estancia: arrastra para crear una estancia en %s." % _current_floor_name()
+			return "Estancia: arrastra para crear una estancia en %s. Sin soltar, escribe la medida (4;3) e Intro para que sea exacta." % _current_floor_name()
 		Tool.CORRIDOR_L:
 			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
 		Tool.STAIRS:
@@ -2356,6 +2366,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Mientras se arrastra, el teclado escribe medidas. Va antes que los
+		# atajos de herramienta porque comparten los digitos.
+		if _measure_input_active() and _handle_measure_key(event):
+			get_viewport().set_input_as_handled()
+			return
 		# Las teclas de herramienta no se comen lo que se esta escribiendo en una
 		# casilla: si el foco esta en un campo de texto, manda el campo.
 		if not _keyboard_is_typing() and not event.ctrl_pressed and not event.alt_pressed:
@@ -2605,6 +2620,7 @@ func _handle_release(pos_m: Vector2) -> void:
 	var start_m: Vector2 = drag_start_m
 	var end_m: Vector2 = drag_current_m
 	var rect: Rect2 = PlanGeometry.normalized_rect(start_m, end_m)
+	var typed_measure: bool = _measure_was_typed
 	_clear_drag()
 
 	if current_tool == Tool.CORRIDOR_L:
@@ -2632,9 +2648,14 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	_push_undo_snapshot("create_room")
-	var room_id: int = _create_room(_snap_rect_to_adjacent_rooms(rect))
+	# Una medida escrita es exacta: el encaje a las salas vecinas mueve aristas y
+	# dejaria 3,95 donde se pidieron 4,00.
+	var room_id: int = _create_room(rect if typed_measure else _snap_rect_to_adjacent_rooms(rect))
 	_select_room(room_id)
-	_set_status("Habitación %d creada." % room_id)
+	if typed_measure:
+		_set_status("Habitación %d creada, %.2f × %.2f m exactos." % [room_id, rect.size.x, rect.size.y])
+	else:
+		_set_status("Habitación %d creada. Puedes escribir la medida mientras arrastras: 4;3 e Intro." % room_id)
 	queue_redraw()
 
 
@@ -3189,8 +3210,111 @@ func _cancel_drag_if(expected: int) -> void:
 		drag = Drag.NONE
 
 
+## Solo se teclean medidas mientras se dibuja un rectangulo o un muro: mover o
+## girar lo ya puesto tiene sus casillas en el panel.
+func _measure_input_active() -> bool:
+	return drag == Drag.ROOM_RECT or drag == Drag.EXTERIOR_WALL
+
+
+## Devuelve cierto si la tecla era para la medida. Cifras, coma, punto y el
+## separador se acumulan; Intro cierra el dibujo con esa medida; Retroceso borra
+## y Escape deja de escribir sin soltar el arrastre.
+func _handle_measure_key(event: InputEventKey) -> bool:
+	if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if _typed_measure.strip_edges() == "":
+			return false
+		_commit_typed_measure()
+		return true
+	if event.keycode == KEY_BACKSPACE:
+		if _typed_measure == "":
+			return false
+		_typed_measure = _typed_measure.substr(0, _typed_measure.length() - 1)
+		queue_redraw()
+		return true
+	if event.keycode == KEY_ESCAPE:
+		if _typed_measure == "":
+			return false
+		_typed_measure = ""
+		_set_status("Medida borrada. Sigue arrastrando o escribe otra.")
+		queue_redraw()
+		return true
+	var typed: String = char(event.unicode) if event.unicode > 0 else ""
+	if typed == "":
+		return false
+	# El separador admite lo que sale solo al escribir: ";", "x" o un espacio.
+	if typed in [";", "x", "X", " "]:
+		if _typed_measure == "" or _typed_measure.ends_with(";"):
+			return true
+		_typed_measure += ";"
+		queue_redraw()
+		return true
+	if typed in [",", "."]:
+		_typed_measure += ","
+		queue_redraw()
+		return true
+	if typed.is_valid_int():
+		_typed_measure += typed
+		queue_redraw()
+		return true
+	return false
+
+
+## "4;3" -> [4.0, 3.0]. La coma es el decimal, como en el resto del editor.
+func _parse_typed_measure() -> PackedFloat32Array:
+	var values := PackedFloat32Array()
+	for part in _typed_measure.split(";", false):
+		var text: String = String(part).strip_edges().replace(",", ".")
+		if text == "" or not text.is_valid_float():
+			continue
+		values.append(maxf(0.0, text.to_float()))
+	return values
+
+
+## Cierra el arrastre en la medida escrita, como si se hubiera soltado el raton
+## justo ahi. La direccion la manda el arrastre: se dibuja hacia donde ibas.
+## Donde acaba el trazo: en lo tecleado si hay medida, y si no donde esta el
+## raton. Lo usan el dibujo y el cierre, para que lo que se ve al escribir sea
+## exactamente lo que se crea al pulsar Intro.
+func _drag_end_point() -> Vector2:
+	var values: PackedFloat32Array = _parse_typed_measure()
+	if values.is_empty() or values[0] <= 0.0:
+		return drag_current_m
+	var delta: Vector2 = drag_current_m - drag_start_m
+	var direction: Vector2 = delta.normalized() if delta.length() > 0.001 else Vector2.RIGHT
+	if drag == Drag.EXTERIOR_WALL or current_tool == Tool.CORRIDOR_L:
+		# Un muro y un pasillo son tiradas: un solo numero, su largo, en la
+		# direccion en la que ya se estaba arrastrando.
+		return drag_start_m + direction * values[0]
+	var sign_x: float = -1.0 if delta.x < 0.0 else 1.0
+	var sign_y: float = -1.0 if delta.y < 0.0 else 1.0
+	var width_m: float = values[0]
+	var depth_m: float = values[1] if values.size() > 1 else absf(delta.y)
+	if depth_m <= 0.0:
+		depth_m = width_m
+	return drag_start_m + Vector2(sign_x * width_m, sign_y * depth_m)
+
+
+func _commit_typed_measure() -> void:
+	var values: PackedFloat32Array = _parse_typed_measure()
+	if values.is_empty() or values[0] <= 0.0:
+		_set_status("No entiendo esa medida. Escribe por ejemplo 4;3 y pulsa Intro.")
+		_typed_measure = ""
+		queue_redraw()
+		return
+	# En el pasillo, el segundo numero es su ancho: es el otro dato que lo define.
+	if current_tool == Tool.CORRIDOR_L and values.size() > 1 and values[1] > 0.0:
+		corridor_width_m = clampf(values[1], 0.6, 3.0)
+		if _corridor_width_spin != null:
+			_corridor_width_spin.set_value_no_signal(corridor_width_m)
+	var end_m: Vector2 = _drag_end_point()
+	_measure_was_typed = true
+	_handle_release(end_m)
+
+
 func _clear_drag() -> void:
 	drag = Drag.NONE
+	_typed_measure = ""
+	_measure_was_typed = false
 	room_mouse_mode = ObjectMouseMode.NONE
 	object_mouse_mode = ObjectMouseMode.NONE
 	drag_object_cursor_offset_m = Vector2.ZERO
@@ -6062,15 +6186,21 @@ func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, m
 ## pasillo en curso. Vive aqui y no en EditorDraw2D porque no es el plano, es
 ## el estado de la interaccion.
 func _draw_drag_preview() -> void:
+	# Lo que se ve mientras se escribe una medida es ya el resultado: el mismo
+	# punto final que usara Intro.
+	var preview_end_m: Vector2 = _drag_end_point()
 	if drag == Drag.EXTERIOR_WALL:
-		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), _exterior_wall_selected_color, 4.0)
-		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
-		_draw_screen_string(_m_to_px(drag_current_m), Vector2(8.0, -8.0), "Muro exterior %.2f m" % wall_length_m, 220.0, 13, _exterior_wall_selected_color)
+		draw_line(_m_to_px(drag_start_m), _m_to_px(preview_end_m), _exterior_wall_selected_color, 4.0)
+		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(preview_end_m))
+		var wall_label: String = "Muro exterior %.2f m" % wall_length_m
+		if _typed_measure != "":
+			wall_label = "⌨ %s m   ·   Intro para crear" % _typed_measure
+		_draw_screen_string(_m_to_px(preview_end_m), Vector2(8.0, -8.0), wall_label, 240.0, 13, _exterior_wall_selected_color)
 	if drag == Drag.ROOM_RECT:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
 			return
-		var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, drag_current_m)
+		var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, preview_end_m)
 		var rect_px: Rect2 = _rect_to_px(rect)
 		var fill_color: Color = Color(0.25, 0.68, 0.95, 0.18)
 		var outline_color: Color = Color(0.55, 0.90, 1.0, 0.85)
@@ -6080,7 +6210,7 @@ func _draw_drag_preview() -> void:
 		draw_rect(rect_px, fill_color, true)
 		draw_rect(rect_px, outline_color, false, 2.0)
 		if current_tool == Tool.STAIRS and rect.size.x > 0.01 and rect.size.y > 0.01:
-			var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, drag_current_m, rect)
+			var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, preview_end_m, rect)
 			var stair_mode: String = _selected_stair_tool_turn_mode()
 			var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, stair_mode)
 			EditorDraw2D.stair_room_guides(self, rect_px, stair_dir, turn_degrees)
@@ -6096,18 +6226,27 @@ func _draw_drag_preview() -> void:
 				Color(0.95, 1.0, 0.82, 0.90)
 			)
 			_draw_screen_string(
-				_m_to_px(drag_current_m),
+				_m_to_px(preview_end_m),
 				Vector2(8.0, -18.0),
 				"SUBE",
 				80.0,
 				10,
 				Color(1.0, 0.90, 0.35, 0.94)
 			)
+		if _typed_measure != "":
+			_draw_screen_string(
+				rect_px.position,
+				Vector2(6.0, -10.0),
+				"⌨ %s   ·   Intro para crear" % _typed_measure,
+				260.0,
+				13,
+				Color(1.0, 0.92, 0.55, 0.98)
+			)
 		if rect.size.x > 0.01 and rect.size.y > 0.01:
 			var area: float = rect.size.x * rect.size.y
 			var preview_text: String = "%.2f × %.2f m  (%.2f m²)" % [rect.size.x, rect.size.y, area]
 			if current_tool == Tool.STAIRS:
-				var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, drag_current_m, rect)
+				var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, preview_end_m, rect)
 				var long_m: float = StairGeometry.long_span_m(rect, stair_dir)
 				var cross_m: float = StairGeometry.cross_span_m(rect, stair_dir)
 				var stair_mode: String = _selected_stair_tool_turn_mode()

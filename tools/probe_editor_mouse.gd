@@ -74,6 +74,26 @@ func _process(_delta: float) -> bool:
 		["motion", Vector2(4.0, 6.4)],
 		["release", Vector2(7.6, 6.4)]
 	])
+	# La medida escrita: se arrastra a ojo y se teclea 4;3.
+	_gesture("dibujar una sala escribiendo 4;3", ROOM, [
+		["press", Vector2(0.0, 6.0)],
+		["motion", Vector2(1.3, 7.1)],
+		["type", "4;3"],
+		["dump", Vector2.ZERO],
+		["enter", Vector2.ZERO]
+	])
+	_gesture("dibujar una sala escribiendo 3,5", ROOM, [
+		["press", Vector2(0.0, 6.0)],
+		["motion", Vector2(1.3, 7.1)],
+		["type", "3,5"],
+		["enter", Vector2.ZERO]
+	])
+	_gesture("muro exterior escribiendo 6", EXTERIOR_WALL, [
+		["press", Vector2(0.0, 6.0)],
+		["motion", Vector2(1.0, 6.0)],
+		["type", "6"],
+		["enter", Vector2.ZERO]
+	])
 	_gesture("dibujar una sala, a medio arrastre", ROOM, [
 		["press", Vector2(0.0, 6.0)],
 		["motion", Vector2(2.0, 7.5)],
@@ -149,7 +169,7 @@ func _gesture(label: String, tool_id: int, steps: Array) -> void:
 	_editor.current_tool = tool_id
 	for step in steps:
 		var kind: String = String(step[0])
-		var pos_m: Vector2 = step[1]
+		var pos_m: Vector2 = step[1] if step[1] is Vector2 else Vector2.ZERO
 		match kind:
 			"press":
 				_editor._handle_press(pos_m)
@@ -163,6 +183,19 @@ func _gesture(label: String, tool_id: int, steps: Array) -> void:
 				_editor._update_dragged_room_geometry(pos_m)
 			"motion_object":
 				_editor._update_dragged_object(pos_m)
+			"type":
+				# Teclas de verdad, por _unhandled_input: es donde vive el
+				# teclado de medidas.
+				for letter in String(step[1]):
+					var key := InputEventKey.new()
+					key.pressed = true
+					key.unicode = letter.unicode_at(0)
+					_editor._unhandled_input(key)
+			"enter":
+				var enter := InputEventKey.new()
+				enter.pressed = true
+				enter.keycode = KEY_ENTER
+				_editor._unhandled_input(enter)
 			"dump":
 				# El estado con el arrastre abierto: es lo que distingue una
 				# maquina de estados de una funcion.
