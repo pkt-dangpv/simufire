@@ -574,7 +574,93 @@ Cada herramienta lleva icono, le cabe el nombre entero —se compara el mínimo
 combinado del botón con su ancho real, que es lo que se recorta cuando el icono
 empuja— y la barra no se solapa con ningún panel lateral.
 
+### Lo que quedaba al cerrar esa tanda
+
+E-12: el monolito, 8000 líneas.
+
+---
+
+## 11. E-12, primer corte: borrar antes que mover — 2026-09-07
+
+El plan para el monolito era sacar módulos por responsabilidad, como se hizo en
+`view/`. Antes de mover nada conviene mirar **qué de esas 8032 líneas se ejecuta**,
+y la respuesta fue incómoda: **476 no.**
+
+### De dónde salían
+
+La migración U7 dejó la UI del editor entera en la escena, y hay un guardarraíl
+que lo vigila —`tools/validate_editor_scene_complete.gd` comprueba que ningún
+nodo bajo `CanvasLayer` lo haya creado el código—. Pero los veintidós
+`_ensure_*_in_existing_ui()` seguían trayendo cada uno su rama *«y si no está, lo
+fabrico»*:
+
+```gdscript
+var row := section.get_node_or_null("FloorRow") as HBoxContainer
+if row == null:
+	row = HBoxContainer.new()      # ← nunca pasa, y lo prueba el guardarraíl
+	row.name = "FloorRow"
+	...
+```
+
+Más de la mitad de cada función, y con ella los textos, tamaños y márgenes que
+**ya no manda nadie** porque la escena los trae escritos. Además había ocho
+funciones huérfanas del viejo `_setup_ui()` —que ya ni existe—, incluidas dos
+que solo llamaban a otra y una que era `pass`.
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 8032 líneas | **7556** |
+| Los 22 enlazadores | 644 líneas | 257 |
+| Funciones muertas | 8 | 0 |
+| `Control.new()` en el editor | 75 | 6, todos del diálogo modal de ayuda |
+
+Los `_ensure_*_in_existing_ui` pasan a llamarse `_bind_*`: el nombre decía lo que
+ya no hacen. Y donde faltaba un nodo, ahora se dice en vez de fabricarlo en
+silencio, que es lo que producía la divergencia entre lo que se ve en Godot y lo
+que se ve al jugar:
+
+```gdscript
+func _scene_control(parent: Node, path: String) -> Control:
+	var control := parent.get_node_or_null(path) as Control
+	if control == null:
+		push_error("ScenarioEditor: falta %s bajo %s en ScenarioEditorScene.tscn" % [path, parent.name])
+	return control
+```
+
+### Cómo se comprueba que un refactor no ha movido nada
+
+`tools/probe_editor_ui_tree.gd` vuelca el árbol de la UI **en orden**, con la
+clase de cada nodo, su visibilidad, su texto y —en las casillas numéricas— su
+rango, su paso y su unidad. Una foto antes, otra después, y `diff`.
+
+De 229 nodos, el volcado salió idéntico salvo en una cosa, y esa cosa era un
+fallo que llevaba ahí desde siempre:
+
+- **`CorridorWidthSpin` no cuelga de ninguna `CorridorWidthRow`**, sino
+  directamente del `VBox`. El enlazador nuevo lo buscó donde no estaba y el
+  `push_error` lo dijo en la primera ejecución. La rama muerta lo tapaba.
+- **«Aplicar apertura» estaba en medio de sus propios campos.** Los
+  `move_child()` del enlazador movían las filas «Abre hacia» y «Bisagra» al
+  índice del botón, así que el orden en pantalla acababa siendo *Aplicar,
+  Bisagra, Abre hacia* aunque la escena tuviera guardado el orden correcto. Al
+  quitar los `move_child` manda la escena: los campos primero y el botón al
+  final.
+
+El resto de los `move_child()` que se quitaron —lista de elementos, planta del
+piso, posiciones de objeto, detector y víctima— no cambiaron nada: eran no-ops
+que reordenaban la escena a la posición que la escena ya tenía.
+
+### Por qué borrar antes que mover
+
+Sacar el panel de propiedades a su módulo son 58 variables de nodo y 599
+referencias repartidas por el fichero. Hacerlo **sobre código muerto** es
+mudanza de muebles rotos: se paga el traslado dos veces. Con el camino muerto
+fuera, lo que quede de cada responsabilidad es lo que de verdad hay que mover.
+
 ### Lo que sigue pendiente
 
-E-12: el monolito, 8000 líneas. Es lo que encarece todo lo demás y el único
-hallazgo de la auditoría que sigue abierto.
+E-12 sigue abierto: 7556 líneas y 398 funciones. El siguiente corte natural es el
+panel de propiedades del lado derecho —`_refresh_property_panel()` son 185 líneas
+y `_set_property_panel_visibility()` otras 78—, y ahora hay con qué comprobarlo:
+el volcado del árbol dice si algo se ha movido de sitio, y la suite si algo ha
+dejado de funcionar.

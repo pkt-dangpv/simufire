@@ -350,7 +350,7 @@ func _ready() -> void:
 	if not _bind_existing_ui():
 		push_error("ScenarioEditor: ScenarioEditorScene.tscn incompleta — la escena es la fuente de verdad de la UI del editor")
 		return
-	_ensure_editor_mode_controls_in_existing_ui()
+	_bind_editor_mode_controls()
 	_ensure_file_dialogs()
 	_apply_editor_visual_style()
 	_ensure_floor_data()
@@ -500,10 +500,6 @@ func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin:
 	box.content_margin_top = margin.y
 	box.content_margin_bottom = margin.y
 	return box
-
-
-func _layout_editor_shell() -> void:
-	pass  # Layout controlled by scene anchors
 
 
 func _ensure_editor_branding() -> void:
@@ -672,15 +668,12 @@ func _show_hover_help_popup(text: String) -> void:
 	_hover_help_popup.move_to_front()
 
 
-func _ensure_editor_mode_controls_in_existing_ui() -> void:
-	# ViewModeRow y sus botones viven en ScenarioEditorScene.tscn; aqui
-	# solo se conectan y se sincroniza el estado.
+func _bind_editor_mode_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	var row := left_vbox.get_node_or_null("ViewModeRow") as HBoxContainer
+	var row := _scene_control(left_vbox, "ViewModeRow") as HBoxContainer
 	if row == null:
-		push_error("ScenarioEditor: falta ViewModeRow en ScenarioEditorScene.tscn")
 		return
 	_ensure_editor_mode_button(row, "BtnViewMode2D", EditorViewMode.MODE_2D)
 	_ensure_editor_mode_button(row, "BtnViewMode3D", EditorViewMode.MODE_3D)
@@ -1581,45 +1574,6 @@ func _default_floors() -> Array:
 
 
 
-func _add_spin(parent: Control, label: String, min_value: float, max_value: float, step: float) -> SpinBox:
-	var row := HBoxContainer.new()
-	parent.add_child(row)
-	var row_label := Label.new()
-	row_label.text = label
-	row_label.custom_minimum_size.x = 96.0
-	row.add_child(row_label)
-	var spin := SpinBox.new()
-	spin.min_value = min_value
-	spin.max_value = max_value
-	spin.step = step
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spin)
-	return spin
-
-
-
-
-
-
-
-
-func _create_element_list_controls(parent: Control) -> void:
-	var title := Label.new()
-	title.name = "ElementListTitle"
-	title.text = "Elementos de planta"
-	parent.add_child(title)
-	_element_list = ItemList.new()
-	_element_list.name = "ElementList"
-	_element_list.custom_minimum_size = Vector2(0.0, 132.0)
-	_element_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_element_list.select_mode = ItemList.SELECT_SINGLE
-	_element_list.allow_reselect = true
-	_element_list.auto_height = false
-	_element_list.item_selected.connect(_on_element_list_item_selected)
-	parent.add_child(_element_list)
-	_refresh_element_list()
-
-
 func _populate_building_type_option() -> void:
 	if _building_type_option == null:
 		return
@@ -1664,78 +1618,34 @@ func _on_apartment_floor_changed(value: float) -> void:
 	_set_status("Planta exterior del piso: %d." % next_floor)
 
 
-func _add_controls_help(parent: Control) -> void:
-	_ensure_controls_help_block(parent)
+func _bind_controls_help_block(parent: Control) -> void:
+	_hover_help_check = _scene_control(parent, "HoverHelpRow/HoverHelpCheck") as CheckBox
+	if _hover_help_check != null:
+		_hover_help_check.tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
+		var hover_callable := Callable(self, "_on_hover_help_toggled")
+		if not _hover_help_check.toggled.is_connected(hover_callable):
+			_hover_help_check.toggled.connect(hover_callable)
 
+	_help_toggle_button = _scene_control(parent, "ControlsHelpToggle") as Button
+	if _help_toggle_button != null:
+		_help_toggle_button.toggle_mode = false
+		_help_toggle_button.text = "AYUDA DEL EDITOR"
+		_help_toggle_button.tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
+		var help_callable := Callable(self, "_show_editor_help_dialog")
+		if not _help_toggle_button.pressed.is_connected(help_callable):
+			_help_toggle_button.pressed.connect(help_callable)
 
-func _ensure_controls_help_block(parent: Control) -> void:
-	var old_title := parent.get_node_or_null("ControlsHelpTitle") as Label
-	if old_title != null:
-		old_title.visible = false
-
-	var hover_row := parent.get_node_or_null("HoverHelpRow") as HBoxContainer
-	if hover_row == null:
-		hover_row = HBoxContainer.new()
-		hover_row.name = "HoverHelpRow"
-		hover_row.add_theme_constant_override("separation", 6)
-		parent.add_child(hover_row)
-	_hover_help_check = hover_row.get_node_or_null("HoverHelpCheck") as CheckBox
-	if _hover_help_check == null:
-		_hover_help_check = CheckBox.new()
-		_hover_help_check.name = "HoverHelpCheck"
-		_hover_help_check.text = "Ayuda contextual"
-		_hover_help_check.button_pressed = _hover_help_enabled
-		_hover_help_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hover_row.add_child(_hover_help_check)
-	_hover_help_check.tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
-	var hover_callable := Callable(self, "_on_hover_help_toggled")
-	if not _hover_help_check.toggled.is_connected(hover_callable):
-		_hover_help_check.toggled.connect(hover_callable)
-
-	_help_toggle_button = parent.get_node_or_null("ControlsHelpToggle") as Button
-	if _help_toggle_button == null:
-		_help_toggle_button = Button.new()
-		_help_toggle_button.name = "ControlsHelpToggle"
-		_help_toggle_button.custom_minimum_size = Vector2(0.0, 34.0)
-		parent.add_child(_help_toggle_button)
-	_help_toggle_button.toggle_mode = false
-	_help_toggle_button.text = "AYUDA DEL EDITOR"
-	_help_toggle_button.tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
-	var help_callable := Callable(self, "_show_editor_help_dialog")
-	if not _help_toggle_button.pressed.is_connected(help_callable):
-		_help_toggle_button.pressed.connect(help_callable)
-
-	_help_panel = parent.get_node_or_null("ControlsHelpPanel") as PanelContainer
-	if _help_panel == null:
-		_help_panel = PanelContainer.new()
-		_help_panel.name = "ControlsHelpPanel"
-		parent.add_child(_help_panel)
-	_help_panel.visible = false
-	var margin := _help_panel.get_node_or_null("Margin") as MarginContainer
-	if margin == null:
-		margin = MarginContainer.new()
-		margin.name = "Margin"
-		margin.add_theme_constant_override("margin_left", 10)
-		margin.add_theme_constant_override("margin_top", 8)
-		margin.add_theme_constant_override("margin_right", 10)
-		margin.add_theme_constant_override("margin_bottom", 8)
-		_help_panel.add_child(margin)
-
-	_help_label = margin.get_node_or_null("ControlsHelp") as Label
-	if _help_label == null:
-		var legacy_help := parent.get_node_or_null("ControlsHelp") as Label
-		if legacy_help != null and legacy_help.get_parent() == parent:
-			parent.remove_child(legacy_help)
-			margin.add_child(legacy_help)
-			_help_label = legacy_help
-		else:
-			_help_label = Label.new()
-			_help_label.name = "ControlsHelp"
-			margin.add_child(_help_label)
-	_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_help_label.add_theme_font_size_override("font_size", editor_font_size_body)
-	_help_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
-	_help_label.text = _editor_help_text()
+	_help_panel = _scene_control(parent, "ControlsHelpPanel") as PanelContainer
+	if _help_panel != null:
+		_help_panel.visible = false
+	# La guia la escribe el codigo, no la escena: se arma con las teclas de
+	# TOOL_SHORTCUTS y con el nombre de cada herramienta.
+	_help_label = _scene_control(parent, "ControlsHelpPanel/Margin/ControlsHelp") as Label
+	if _help_label != null:
+		_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_help_label.add_theme_font_size_override("font_size", editor_font_size_body)
+		_help_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+		_help_label.text = _editor_help_text()
 
 	_move_controls_help_after_element_list(parent)
 	_set_controls_help_expanded(false)
@@ -1864,52 +1774,6 @@ func _editor_help_pages() -> PackedStringArray:
 		"Edición\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Cada casilla numérica lleva su unidad escrita dentro, y al dejar el cursor sobre un control se explica qué hace. Supr borra la selección y Ctrl+Z deshace.",
 		"Archivo\n\nLa pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulación valida y exporta el escenario antes de abrir SimulationScene. Si sales con cambios sin guardar, el editor pregunta antes."
 	])
-
-
-func _create_floor_controls(parent: Control) -> void:
-	var title := Label.new()
-	title.name = "FloorTitle"
-	title.text = "Plantas"
-	parent.add_child(title)
-
-	var row := HBoxContainer.new()
-	row.name = "FloorRow"
-	row.add_theme_constant_override("separation", 4)
-	parent.add_child(row)
-
-	_floor_option = OptionButton.new()
-	_floor_option.name = "FloorOption"
-	_floor_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_floor_option)
-	if not _floor_option.item_selected.is_connected(_on_floor_selected):
-		_floor_option.item_selected.connect(_on_floor_selected)
-
-	var add_button := Button.new()
-	add_button.name = "BtnAddFloor"
-	add_button.text = "+ Planta"
-	add_button.custom_minimum_size = Vector2(86.0, 28.0)
-	add_button.pressed.connect(_add_floor_pressed)
-	row.add_child(add_button)
-
-	_floor_delete_button = Button.new()
-	_floor_delete_button.name = "BtnDeleteFloor"
-	_floor_delete_button.text = "Borrar"
-	_floor_delete_button.custom_minimum_size = Vector2(72.0, 28.0)
-	_floor_delete_button.pressed.connect(_delete_floor_pressed)
-	row.add_child(_floor_delete_button)
-
-	_floor_level_spin = _add_spin(parent, "Cota (m)", -2.0, 30.0, 0.05)
-	_floor_level_spin.name = "FloorLevelSpin"
-	if not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
-		_floor_level_spin.value_changed.connect(_on_floor_level_changed)
-
-	_floor_status_label = Label.new()
-	_floor_status_label.name = "FloorStatusLabel"
-	_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
-	_floor_status_label.modulate = UI_TEXT_MUTED
-	parent.add_child(_floor_status_label)
-	_sync_floor_controls()
 
 
 func _ensure_floor_data() -> void:
@@ -4122,12 +3986,6 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	_set_status("%s creado en L como tramos %d y %d." % [base_name, first_id, second_id])
 
 
-func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
-	_create_corridor_from_drag(start_m, end_m)
-
-
-# Ajusta cada arista del rect para que se pegue a las paredes de habitaciones
-# vecinas dentro de _CONN_GAP_TOL.  Preserva el tamaño mínimo (GRID_M × 2).
 func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) -> Rect2:
 	var min_size: float = GRID_M * 2.0
 	var left: float   = rect.position.x
@@ -6331,14 +6189,6 @@ func _screen_scale_inv() -> float:
 	return 1.0 / maxf(0.05, camera.zoom.x)
 
 
-func _screen_font_size(base_size: int) -> int:
-	return maxi(4, int(round(float(base_size) * _screen_scale_inv())))
-
-
-func _screen_offset(offset_px: Vector2) -> Vector2:
-	return offset_px * _screen_scale_inv()
-
-
 func _screen_width_px(world_width_px: float) -> float:
 	return world_width_px * maxf(0.05, camera.zoom.x)
 
@@ -7222,22 +7072,22 @@ func _bind_existing_ui() -> bool:
 	_status_label.custom_minimum_size = Vector2(0.0, 64.0)
 
 	_populate_object_type_option()
-	_ensure_floor_controls_in_existing_ui()
-	_ensure_corridor_width_control_in_existing_ui()
-	_ensure_stair_tool_controls_in_existing_ui()
-	_ensure_opening_tool_controls_in_existing_ui()
-	_ensure_hvac_option_in_existing_ui()
-	_ensure_lighting_controls_in_existing_ui()
-	_ensure_building_type_controls_in_existing_ui()
-	_ensure_element_list_in_existing_ui()
-	_ensure_room_geometry_controls_in_existing_ui()
-	_ensure_object_position_controls_in_existing_ui()
-	_ensure_opening_position_controls_in_existing_ui()
-	_ensure_opening_direction_controls_in_existing_ui()
-	_ensure_detector_position_controls_in_existing_ui()
-	_ensure_victim_position_controls_in_existing_ui()
-	_ensure_exterior_wall_controls_in_existing_ui()
-	_ensure_controls_help_in_existing_ui()
+	_bind_floor_controls()
+	_bind_corridor_width_control()
+	_bind_stair_tool_controls()
+	_bind_opening_tool_controls()
+	_bind_hvac_option()
+	_bind_lighting_controls()
+	_bind_building_type_controls()
+	_bind_element_list()
+	_bind_room_geometry_controls()
+	_bind_object_position_controls()
+	_bind_opening_position_controls()
+	_bind_opening_direction_controls()
+	_bind_detector_position_controls()
+	_bind_victim_position_controls()
+	_bind_exterior_wall_controls()
+	_bind_controls_help()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
 	# Poblamos el OptionButton de estado inicial de apertura
@@ -7303,6 +7153,21 @@ func _register_tool_button(button: Button, tool_id: int) -> void:
 	_tool_buttons[tool_id] = button
 
 
+## Un nodo que tiene que estar en ScenarioEditorScene.tscn.
+##
+## Si falta, no se fabrica: se dice y se sigue. Fabricarlo en silencio es lo que
+## producia la divergencia entre lo que se ve en Godot y lo que se ve al jugar,
+## y es lo que cerro la migracion U7; tools/validate_editor_scene_complete.gd
+## comprueba que ningun Control del editor lo cree el codigo.
+func _scene_control(parent: Node, path: String) -> Control:
+	if parent == null:
+		return null
+	var control := parent.get_node_or_null(path) as Control
+	if control == null:
+		push_error("ScenarioEditor: falta %s bajo %s en ScenarioEditorScene.tscn" % [path, parent.name])
+	return control
+
+
 func _connect_button(button: Button, callback: Callable) -> void:
 	if button == null:
 		return
@@ -7315,76 +7180,25 @@ func _set_control_tooltip(control: Control, text: String) -> void:
 		control.tooltip_text = text
 
 
-func _ensure_spin_row(parent: Control, row_name: String, label_text: String, spin_name: String, min_value: float, max_value: float, step: float) -> SpinBox:
-	var row := parent.get_node_or_null(row_name) as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = row_name
-		row.add_theme_constant_override("separation", 4)
-		parent.add_child(row)
-	var label := row.get_node_or_null(row_name + "Label") as Label
-	if label == null:
-		label = Label.new()
-		label.name = row_name + "Label"
-		label.custom_minimum_size.x = 96.0
-		row.add_child(label)
-	label.text = label_text
-	var spin := row.get_node_or_null(spin_name) as SpinBox
+## Casilla numerica de una fila del panel. La fila, su etiqueta y la casilla
+## vienen de la escena; aqui solo se le dan los limites y el paso, que son lo
+## unico que sabe el codigo y no la escena.
+func _bind_spin_row(parent: Control, row_name: String, spin_name: String, min_value: float, max_value: float, step: float) -> SpinBox:
+	var spin := _scene_control(parent, "%s/%s" % [row_name, spin_name]) as SpinBox
 	if spin == null:
-		spin = SpinBox.new()
-		spin.name = spin_name
-		spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(spin)
+		return null
 	spin.min_value = min_value
 	spin.max_value = max_value
 	spin.step = step
 	return spin
 
 
-func _ensure_check_row(parent: Control, row_name: String, label_text: String, check_name: String) -> CheckBox:
-	var row := parent.get_node_or_null(row_name) as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = row_name
-		row.add_theme_constant_override("separation", 4)
-		parent.add_child(row)
-	var spacer := row.get_node_or_null(row_name + "Spacer") as Control
-	if spacer == null:
-		spacer = Control.new()
-		spacer.name = row_name + "Spacer"
-		spacer.custom_minimum_size.x = 96.0
-		row.add_child(spacer)
-	var checkbox := row.get_node_or_null(check_name) as CheckBox
-	if checkbox == null:
-		checkbox = CheckBox.new()
-		checkbox.name = check_name
-		checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(checkbox)
-	checkbox.text = label_text
-	return checkbox
+func _bind_check_row(parent: Control, row_name: String, check_name: String) -> CheckBox:
+	return _scene_control(parent, "%s/%s" % [row_name, check_name]) as CheckBox
 
 
-func _ensure_option_row(parent: Control, row_name: String, label_text: String, option_name: String) -> OptionButton:
-	var row := parent.get_node_or_null(row_name) as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = row_name
-		row.add_theme_constant_override("separation", 4)
-		parent.add_child(row)
-	var label := row.get_node_or_null(row_name + "Label") as Label
-	if label == null:
-		label = Label.new()
-		label.name = row_name + "Label"
-		label.custom_minimum_size.x = 96.0
-		row.add_child(label)
-	label.text = label_text
-	var option := row.get_node_or_null(option_name) as OptionButton
-	if option == null:
-		option = OptionButton.new()
-		option.name = option_name
-		option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(option)
-	return option
+func _bind_option_row(parent: Control, row_name: String, option_name: String) -> OptionButton:
+	return _scene_control(parent, "%s/%s" % [row_name, option_name]) as OptionButton
 
 
 func _populate_opening_direction_options() -> void:
@@ -7396,313 +7210,132 @@ func _populate_opening_direction_options() -> void:
 		_opening_hinge_option.add_item("Derecha", 1)
 
 
-func _ensure_building_type_controls_in_existing_ui() -> void:
+func _bind_building_type_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	var row := left_vbox.get_node_or_null("BuildingTypeRow") as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = "BuildingTypeRow"
-		row.add_theme_constant_override("separation", 4)
-		left_vbox.add_child(row)
-		var floor_section := left_vbox.get_node_or_null("FloorSection") as Control
-		if floor_section != null:
-			left_vbox.move_child(row, floor_section.get_index() + 1)
-	var label := row.get_node_or_null("BuildingTypeLabel") as Label
-	if label == null:
-		label = Label.new()
-		label.name = "BuildingTypeLabel"
-		label.custom_minimum_size.x = 96.0
-		row.add_child(label)
-	label.text = "Tipo edificio"
-	_building_type_option = row.get_node_or_null("BuildingTypeOption") as OptionButton
-	if _building_type_option == null:
-		_building_type_option = OptionButton.new()
-		_building_type_option.name = "BuildingTypeOption"
-		_building_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(_building_type_option)
-	_populate_building_type_option()
-	if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
-		_building_type_option.item_selected.connect(_on_building_type_selected)
-	_apartment_floor_spin = _ensure_spin_row(left_vbox, "ApartmentFloorRow", "Planta piso", "ApartmentFloorSpin", -5.0, 80.0, 1.0)
-	_apartment_floor_spin.rounded = true
-	if not _apartment_floor_spin.value_changed.is_connected(_on_apartment_floor_changed):
-		_apartment_floor_spin.value_changed.connect(_on_apartment_floor_changed)
-	var apartment_row := _apartment_floor_spin.get_parent() as Control
-	if apartment_row != null:
-		left_vbox.move_child(apartment_row, row.get_index() + 1)
+	_building_type_option = _scene_control(left_vbox, "BuildingTypeRow/BuildingTypeOption") as OptionButton
+	if _building_type_option != null:
+		_populate_building_type_option()
+		if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
+			_building_type_option.item_selected.connect(_on_building_type_selected)
+	_apartment_floor_spin = _bind_spin_row(left_vbox, "ApartmentFloorRow", "ApartmentFloorSpin", -5.0, 80.0, 1.0)
+	if _apartment_floor_spin != null:
+		_apartment_floor_spin.rounded = true
+		if not _apartment_floor_spin.value_changed.is_connected(_on_apartment_floor_changed):
+			_apartment_floor_spin.value_changed.connect(_on_apartment_floor_changed)
 	_sync_apartment_floor_control()
 
 
-func _ensure_element_list_in_existing_ui() -> void:
+func _bind_element_list() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	var title := left_vbox.get_node_or_null("ElementListTitle") as Label
-	if title == null:
-		title = Label.new()
-		title.name = "ElementListTitle"
-		title.text = "Elementos de planta"
-		left_vbox.add_child(title)
-	else:
-		title.text = "Elementos de planta"
-	_element_list = left_vbox.get_node_or_null("ElementList") as ItemList
-	if _element_list == null:
-		_element_list = ItemList.new()
-		_element_list.name = "ElementList"
-		_element_list.custom_minimum_size = Vector2(0.0, 132.0)
-		_element_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_element_list.select_mode = ItemList.SELECT_SINGLE
-		_element_list.allow_reselect = true
-		left_vbox.add_child(_element_list)
-	if not _element_list.item_selected.is_connected(_on_element_list_item_selected):
+	_element_list = _scene_control(left_vbox, "ElementList") as ItemList
+	if _element_list != null and not _element_list.item_selected.is_connected(_on_element_list_item_selected):
 		_element_list.item_selected.connect(_on_element_list_item_selected)
-	var anchor: Control = null
-	if _apartment_floor_spin != null:
-		anchor = _apartment_floor_spin.get_parent() as Control
-	else:
-		anchor = left_vbox.get_node_or_null("BuildingTypeRow") as Control
-	if anchor != null and anchor.get_parent() == left_vbox:
-		left_vbox.move_child(title, mini(anchor.get_index() + 1, left_vbox.get_child_count() - 1))
-		left_vbox.move_child(_element_list, mini(title.get_index() + 1, left_vbox.get_child_count() - 1))
 	_refresh_element_list()
 
 
-func _ensure_room_geometry_controls_in_existing_ui() -> void:
+func _bind_room_geometry_controls() -> void:
 	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
 	if vbox == null:
 		return
-	var geometry := vbox.get_node_or_null("RoomGeometry") as VBoxContainer
+	var geometry := _scene_control(vbox, "RoomGeometry") as VBoxContainer
 	if geometry == null:
-		geometry = VBoxContainer.new()
-		geometry.name = "RoomGeometry"
-		geometry.add_theme_constant_override("separation", 4)
-		vbox.add_child(geometry)
-		if _kind_edit != null:
-			vbox.move_child(geometry, _kind_edit.get_index() + 1)
-	_room_x_spin = _ensure_spin_row(geometry, "RoomXRow", "X (m)", "RoomXSpin", -200.0, 200.0, 0.05)
-	_room_y_spin = _ensure_spin_row(geometry, "RoomYRow", "Y (m)", "RoomYSpin", -200.0, 200.0, 0.05)
-	_room_width_spin = _ensure_spin_row(geometry, "RoomWidthRow", "Ancho (m)", "RoomWidthSpin", 0.25, 200.0, 0.05)
-	_room_depth_spin = _ensure_spin_row(geometry, "RoomDepthRow", "Fondo (m)", "RoomDepthSpin", 0.25, 200.0, 0.05)
-	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Ángulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
-	_stair_turn_option = _ensure_option_row(geometry, "StairTurnRow", "Tipo escalera", "StairTurnOption")
+		return
+	_room_x_spin = _bind_spin_row(geometry, "RoomXRow", "RoomXSpin", -200.0, 200.0, 0.05)
+	_room_y_spin = _bind_spin_row(geometry, "RoomYRow", "RoomYSpin", -200.0, 200.0, 0.05)
+	_room_width_spin = _bind_spin_row(geometry, "RoomWidthRow", "RoomWidthSpin", 0.25, 200.0, 0.05)
+	_room_depth_spin = _bind_spin_row(geometry, "RoomDepthRow", "RoomDepthSpin", 0.25, 200.0, 0.05)
+	_room_rotation_spin = _bind_spin_row(geometry, "RoomRotationRow", "RoomRotationSpin", -180.0, 180.0, 1.0)
+	_stair_turn_option = _bind_option_row(geometry, "StairTurnRow", "StairTurnOption")
 	_populate_stair_turn_options(_stair_turn_option)
-	_stair_walls_check = _ensure_check_row(geometry, "StairWallsRow", "Escalera con paredes", "StairWallsCheck")
-	_stair_railings_check = _ensure_check_row(geometry, "StairRailingsRow", "Escalera con barandillas", "StairRailingsCheck")
-	_stair_angle_label = geometry.get_node_or_null("StairAngleLabel") as Label
-	if _stair_angle_label == null:
-		_stair_angle_label = Label.new()
-		_stair_angle_label.name = "StairAngleLabel"
-		_stair_angle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_stair_angle_label.add_theme_font_size_override("font_size", editor_font_size_compact)
-		_stair_angle_label.modulate = UI_TEXT_MUTED
-		geometry.add_child(_stair_angle_label)
-		if _stair_railings_check != null and _stair_railings_check.get_parent() != null and _stair_railings_check.get_parent().get_parent() == geometry:
-			geometry.move_child(_stair_angle_label, _stair_railings_check.get_parent().get_index() + 1)
-	_room_mark_exterior_button = vbox.get_node_or_null("BtnMarkRoomExterior") as Button
-	if _room_mark_exterior_button == null:
-		_room_mark_exterior_button = Button.new()
-		_room_mark_exterior_button.name = "BtnMarkRoomExterior"
-		_room_mark_exterior_button.text = "Marcar contorno exterior"
-		vbox.add_child(_room_mark_exterior_button)
-		if _room_delete_button != null:
-			vbox.move_child(_room_mark_exterior_button, _room_delete_button.get_index() + 1)
+	_stair_walls_check = _bind_check_row(geometry, "StairWallsRow", "StairWallsCheck")
+	_stair_railings_check = _bind_check_row(geometry, "StairRailingsRow", "StairRailingsCheck")
+	_stair_angle_label = _scene_control(geometry, "StairAngleLabel") as Label
+	_room_mark_exterior_button = _scene_control(vbox, "BtnMarkRoomExterior") as Button
 	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
 
 
-func _ensure_object_position_controls_in_existing_ui() -> void:
+func _bind_object_position_controls() -> void:
 	if _obj_props_container == null:
 		return
-	_obj_x_spin = _ensure_spin_row(_obj_props_container, "ObjXRow", "X local (m)", "ObjXSpin", -200.0, 200.0, 0.05)
-	_obj_y_spin = _ensure_spin_row(_obj_props_container, "ObjYRow", "Y local (m)", "ObjYSpin", -200.0, 200.0, 0.05)
-	if _obj_name_edit != null:
-		_obj_props_container.move_child(_obj_x_spin.get_parent(), _obj_name_edit.get_index() + 1)
-		_obj_props_container.move_child(_obj_y_spin.get_parent(), _obj_name_edit.get_index() + 2)
+	_obj_x_spin = _bind_spin_row(_obj_props_container, "ObjXRow", "ObjXSpin", -200.0, 200.0, 0.05)
+	_obj_y_spin = _bind_spin_row(_obj_props_container, "ObjYRow", "ObjYSpin", -200.0, 200.0, 0.05)
 
 
-func _ensure_opening_position_controls_in_existing_ui() -> void:
+func _bind_opening_position_controls() -> void:
 	if _opening_props_container == null:
 		return
-	_opening_offset_spin = _ensure_spin_row(_opening_props_container, "OpeningOffsetRow", "Posición (m)", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
-	if _opening_height_spin != null:
-		var anchor: Node = _opening_height_spin.get_parent()
-		if anchor == _opening_props_container:
-			anchor = _opening_height_spin
-		if anchor != null and anchor.get_parent() == _opening_props_container:
-			_opening_props_container.move_child(_opening_offset_spin.get_parent(), mini(anchor.get_index() + 1, _opening_props_container.get_child_count() - 1))
+	_opening_offset_spin = _bind_spin_row(_opening_props_container, "OpeningOffsetRow", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
 
 
-func _ensure_opening_direction_controls_in_existing_ui() -> void:
+func _bind_opening_direction_controls() -> void:
 	if _opening_props_container == null:
 		return
-	_opening_swing_option = _ensure_option_row(_opening_props_container, "OpeningSwingRow", "Abre hacia", "OpeningSwingOption")
-	_opening_hinge_option = _ensure_option_row(_opening_props_container, "OpeningHingeRow", "Bisagra", "OpeningHingeOption")
+	_opening_swing_option = _bind_option_row(_opening_props_container, "OpeningSwingRow", "OpeningSwingOption")
+	_opening_hinge_option = _bind_option_row(_opening_props_container, "OpeningHingeRow", "OpeningHingeOption")
 	_populate_opening_direction_options()
-	var apply_button := _opening_props_container.get_node_or_null("BtnApplyOpening") as Button
-	if apply_button != null:
-		_opening_props_container.move_child(_opening_swing_option.get_parent(), max(0, apply_button.get_index()))
-		_opening_props_container.move_child(_opening_hinge_option.get_parent(), max(0, apply_button.get_index()))
 
 
-func _ensure_detector_position_controls_in_existing_ui() -> void:
+func _bind_detector_position_controls() -> void:
 	if _detector_props_container == null:
 		return
-	_detector_x_spin = _ensure_spin_row(_detector_props_container, "DetectorXRow", "X local (m)", "DetectorXSpin", 0.0, 200.0, 0.05)
-	_detector_y_spin = _ensure_spin_row(_detector_props_container, "DetectorYRow", "Y local (m)", "DetectorYSpin", 0.0, 200.0, 0.05)
-	if _detector_id_edit != null:
-		_detector_props_container.move_child(_detector_x_spin.get_parent(), _detector_id_edit.get_index() + 1)
-		_detector_props_container.move_child(_detector_y_spin.get_parent(), _detector_id_edit.get_index() + 2)
+	_detector_x_spin = _bind_spin_row(_detector_props_container, "DetectorXRow", "DetectorXSpin", 0.0, 200.0, 0.05)
+	_detector_y_spin = _bind_spin_row(_detector_props_container, "DetectorYRow", "DetectorYSpin", 0.0, 200.0, 0.05)
 
 
-func _ensure_victim_position_controls_in_existing_ui() -> void:
+func _bind_victim_position_controls() -> void:
 	if _victim_props_container == null:
 		return
-	_victim_x_spin = _ensure_spin_row(_victim_props_container, "VictimXRow", "X local (m)", "VictimXSpin", 0.0, 200.0, 0.05)
-	_victim_y_spin = _ensure_spin_row(_victim_props_container, "VictimYRow", "Y local (m)", "VictimYSpin", 0.0, 200.0, 0.05)
-	_victim_height_spin = _ensure_spin_row(_victim_props_container, "VictimHeightRow", "Plano resp. (m)", "VictimHeightSpin", 0.2, 2.2, 0.05)
-	if _victim_name_edit != null:
-		_victim_props_container.move_child(_victim_x_spin.get_parent(), _victim_name_edit.get_index() + 1)
-		_victim_props_container.move_child(_victim_y_spin.get_parent(), _victim_name_edit.get_index() + 2)
-		_victim_props_container.move_child(_victim_height_spin.get_parent(), _victim_name_edit.get_index() + 3)
+	_victim_x_spin = _bind_spin_row(_victim_props_container, "VictimXRow", "VictimXSpin", 0.0, 200.0, 0.05)
+	_victim_y_spin = _bind_spin_row(_victim_props_container, "VictimYRow", "VictimYSpin", 0.0, 200.0, 0.05)
+	_victim_height_spin = _bind_spin_row(_victim_props_container, "VictimHeightRow", "VictimHeightSpin", 0.2, 2.2, 0.05)
 
 
-func _ensure_exterior_wall_controls_in_existing_ui() -> void:
+func _bind_exterior_wall_controls() -> void:
 	var vbox := _ui_root.get_node_or_null("RightPanel/Scroll/VBox") as VBoxContainer
 	if vbox == null:
 		return
-	var title := vbox.get_node_or_null("ExteriorWallTitle") as Label
-	if title == null:
-		title = Label.new()
-		title.name = "ExteriorWallTitle"
-		title.text = "Muro exterior"
-		vbox.add_child(title)
-	_wall_props_container = vbox.get_node_or_null("ExteriorWallProps") as VBoxContainer
+	_wall_props_container = _scene_control(vbox, "ExteriorWallProps") as VBoxContainer
 	if _wall_props_container == null:
-		_wall_props_container = VBoxContainer.new()
-		_wall_props_container.name = "ExteriorWallProps"
-		_wall_props_container.add_theme_constant_override("separation", 4)
-		vbox.add_child(_wall_props_container)
-	_wall_start_x_spin = _ensure_spin_row(_wall_props_container, "WallStartXRow", "Inicio X", "WallStartXSpin", -200.0, 200.0, 0.05)
-	_wall_start_y_spin = _ensure_spin_row(_wall_props_container, "WallStartYRow", "Inicio Y", "WallStartYSpin", -200.0, 200.0, 0.05)
-	_wall_end_x_spin = _ensure_spin_row(_wall_props_container, "WallEndXRow", "Fin X", "WallEndXSpin", -200.0, 200.0, 0.05)
-	_wall_end_y_spin = _ensure_spin_row(_wall_props_container, "WallEndYRow", "Fin Y", "WallEndYSpin", -200.0, 200.0, 0.05)
-	_wall_thickness_spin = _ensure_spin_row(_wall_props_container, "WallThicknessRow", "Grosor", "WallThicknessSpin", 0.05, 1.0, 0.01)
-	var apply_button := _wall_props_container.get_node_or_null("BtnApplyExteriorWall") as Button
-	if apply_button == null:
-		apply_button = Button.new()
-		apply_button.name = "BtnApplyExteriorWall"
-		apply_button.text = "Aplicar muro"
-		_wall_props_container.add_child(apply_button)
-	_connect_button(apply_button, _apply_exterior_wall_properties)
-	var delete_button := _wall_props_container.get_node_or_null("BtnDeleteExteriorWall") as Button
-	if delete_button == null:
-		delete_button = Button.new()
-		delete_button.name = "BtnDeleteExteriorWall"
-		delete_button.text = "Borrar muro"
-		_wall_props_container.add_child(delete_button)
-	_connect_button(delete_button, _delete_selected)
+		return
+	_wall_start_x_spin = _bind_spin_row(_wall_props_container, "WallStartXRow", "WallStartXSpin", -200.0, 200.0, 0.05)
+	_wall_start_y_spin = _bind_spin_row(_wall_props_container, "WallStartYRow", "WallStartYSpin", -200.0, 200.0, 0.05)
+	_wall_end_x_spin = _bind_spin_row(_wall_props_container, "WallEndXRow", "WallEndXSpin", -200.0, 200.0, 0.05)
+	_wall_end_y_spin = _bind_spin_row(_wall_props_container, "WallEndYRow", "WallEndYSpin", -200.0, 200.0, 0.05)
+	_wall_thickness_spin = _bind_spin_row(_wall_props_container, "WallThicknessRow", "WallThicknessSpin", 0.05, 1.0, 0.01)
+	_connect_button(_scene_control(_wall_props_container, "BtnApplyExteriorWall") as Button, _apply_exterior_wall_properties)
+	_connect_button(_scene_control(_wall_props_container, "BtnDeleteExteriorWall") as Button, _delete_selected)
 
 
-func _ensure_controls_help_in_existing_ui() -> void:
+func _bind_controls_help() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	_ensure_controls_help_block(left_vbox)
+	_bind_controls_help_block(left_vbox)
 
 
-func _ensure_floor_controls_in_existing_ui() -> void:
+func _bind_floor_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-
-	var section := left_vbox.get_node_or_null("FloorSection") as VBoxContainer
+	var section := _scene_control(left_vbox, "FloorSection") as VBoxContainer
 	if section == null:
-		section = VBoxContainer.new()
-		section.name = "FloorSection"
-		section.add_theme_constant_override("separation", 5)
-		left_vbox.add_child(section)
-		var object_label := left_vbox.get_node_or_null("ObjectLabel") as Label
-		if object_label != null:
-			left_vbox.move_child(section, object_label.get_index())
-
-	var title := section.get_node_or_null("FloorTitle") as Label
-	if title == null:
-		title = Label.new()
-		title.name = "FloorTitle"
-		title.text = "Plantas"
-		section.add_child(title)
-
-	var row := section.get_node_or_null("FloorRow") as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = "FloorRow"
-		row.add_theme_constant_override("separation", 4)
-		section.add_child(row)
-
-	_floor_option = row.get_node_or_null("FloorOption") as OptionButton
-	if _floor_option == null:
-		_floor_option = OptionButton.new()
-		_floor_option.name = "FloorOption"
-		_floor_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(_floor_option)
-	if not _floor_option.item_selected.is_connected(_on_floor_selected):
+		return
+	_floor_option = _scene_control(section, "FloorRow/FloorOption") as OptionButton
+	if _floor_option != null and not _floor_option.item_selected.is_connected(_on_floor_selected):
 		_floor_option.item_selected.connect(_on_floor_selected)
-
-	var add_button := row.get_node_or_null("BtnAddFloor") as Button
-	if add_button == null:
-		add_button = Button.new()
-		add_button.name = "BtnAddFloor"
-		add_button.text = "+ Planta"
-		add_button.custom_minimum_size = Vector2(86.0, 28.0)
-		row.add_child(add_button)
-	_connect_button(add_button, _add_floor_pressed)
-
-	_floor_delete_button = row.get_node_or_null("BtnDeleteFloor") as Button
-	if _floor_delete_button == null:
-		_floor_delete_button = Button.new()
-		_floor_delete_button.name = "BtnDeleteFloor"
-		_floor_delete_button.text = "Borrar"
-		_floor_delete_button.custom_minimum_size = Vector2(72.0, 28.0)
-		row.add_child(_floor_delete_button)
+	_connect_button(_scene_control(section, "FloorRow/BtnAddFloor") as Button, _add_floor_pressed)
+	_floor_delete_button = _scene_control(section, "FloorRow/BtnDeleteFloor") as Button
 	_connect_button(_floor_delete_button, _delete_floor_pressed)
-
-	var level_row := section.get_node_or_null("FloorLevelRow") as HBoxContainer
-	if level_row == null:
-		level_row = HBoxContainer.new()
-		level_row.name = "FloorLevelRow"
-		level_row.add_theme_constant_override("separation", 4)
-		section.add_child(level_row)
-	var level_label := level_row.get_node_or_null("FloorLevelLabel") as Label
-	if level_label == null:
-		level_label = Label.new()
-		level_label.name = "FloorLevelLabel"
-		level_label.text = "Cota (m)"
-		level_label.custom_minimum_size.x = 96.0
-		level_row.add_child(level_label)
-	_floor_level_spin = level_row.get_node_or_null("FloorLevelSpin") as SpinBox
-	if _floor_level_spin == null:
-		_floor_level_spin = SpinBox.new()
-		_floor_level_spin.name = "FloorLevelSpin"
-		_floor_level_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		level_row.add_child(_floor_level_spin)
-	_floor_level_spin.min_value = -2.0
-	_floor_level_spin.max_value = 30.0
-	_floor_level_spin.step = 0.05
-	if not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
+	_floor_level_spin = _bind_spin_row(section, "FloorLevelRow", "FloorLevelSpin", -2.0, 30.0, 0.05)
+	if _floor_level_spin != null and not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
 		_floor_level_spin.value_changed.connect(_on_floor_level_changed)
-
-	_floor_status_label = section.get_node_or_null("FloorStatusLabel") as Label
-	if _floor_status_label == null:
-		_floor_status_label = Label.new()
-		_floor_status_label.name = "FloorStatusLabel"
-		_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_floor_status_label = _scene_control(section, "FloorStatusLabel") as Label
+	if _floor_status_label != null:
 		_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
-		_floor_status_label.modulate = UI_TEXT_MUTED
-		section.add_child(_floor_status_label)
-	else:
-		_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
-
 	_sync_floor_controls()
 
 
@@ -7771,28 +7404,12 @@ func _sync_tool_option_visibility() -> void:
 		_set_control_row_visible(_opening_tool_width_spin, current_tool == Tool.HOLE)
 
 
-func _ensure_corridor_width_control_in_existing_ui() -> void:
-	var left_vbox := _find_left_vbox()
-	if left_vbox == null:
-		return
-
+func _bind_corridor_width_control() -> void:
+	# En la escena la casilla cuelga directamente del VBox, sin fila propia, y la
+	# enlaza _bind_existing_ui unas lineas mas arriba.
 	if _corridor_width_spin == null:
-		var row := HBoxContainer.new()
-		row.name = "CorridorWidthRow"
-		row.add_theme_constant_override("separation", 4)
-		var label := Label.new()
-		label.text = "Ancho pasillo"
-		label.custom_minimum_size.x = 112.0
-		row.add_child(label)
-		_corridor_width_spin = SpinBox.new()
-		_corridor_width_spin.name = "CorridorWidthSpin"
-		_corridor_width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(_corridor_width_spin)
-		left_vbox.add_child(row)
-		var path_edit := left_vbox.get_node_or_null("PathEdit") as LineEdit
-		if path_edit != null:
-			left_vbox.move_child(row, path_edit.get_index())
-
+		push_error("ScenarioEditor: falta CorridorWidthSpin en ScenarioEditorScene.tscn")
+		return
 	_corridor_width_spin.min_value = 0.6
 	_corridor_width_spin.max_value = 3.0
 	_corridor_width_spin.step = 0.05
@@ -7801,111 +7418,40 @@ func _ensure_corridor_width_control_in_existing_ui() -> void:
 		_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
 
 
-func _ensure_stair_tool_controls_in_existing_ui() -> void:
+func _bind_stair_tool_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	_stair_tool_section = left_vbox.get_node_or_null("StairToolSection") as Control
+	_stair_tool_section = _scene_control(left_vbox, "StairToolSection")
 	if _stair_tool_section == null:
-		var section := VBoxContainer.new()
-		section.name = "StairToolSection"
-		section.add_theme_constant_override("separation", 4)
-		left_vbox.add_child(section)
-		var corridor_row := left_vbox.get_node_or_null("CorridorWidthRow") as Control
-		var corridor_spin := left_vbox.get_node_or_null("CorridorWidthSpin") as Control
-		if corridor_row != null:
-			left_vbox.move_child(section, corridor_row.get_index() + 1)
-		elif corridor_spin != null:
-			left_vbox.move_child(section, corridor_spin.get_index() + 1)
-		_stair_tool_section = section
-	var title := _stair_tool_section.get_node_or_null("StairToolTitle") as Label
-	if title == null:
-		title = Label.new()
-		title.name = "StairToolTitle"
-		_stair_tool_section.add_child(title)
-	title.text = "Escalera"
-	_stair_tool_turn_option = _ensure_option_row(_stair_tool_section, "StairToolTurnRow", "Tipo", "StairToolTurnOption")
+		return
+	_stair_tool_turn_option = _bind_option_row(_stair_tool_section, "StairToolTurnRow", "StairToolTurnOption")
+	if _stair_tool_turn_option == null:
+		return
 	_populate_stair_turn_options(_stair_tool_turn_option)
 	if not _stair_tool_turn_option.item_selected.is_connected(_on_stair_tool_turn_selected):
 		_stair_tool_turn_option.item_selected.connect(_on_stair_tool_turn_selected)
 
 
-func _ensure_opening_tool_controls_in_existing_ui() -> void:
+func _bind_opening_tool_controls() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	_opening_tool_section = left_vbox.get_node_or_null("OpeningToolSection") as Control
+	_opening_tool_section = _scene_control(left_vbox, "OpeningToolSection")
 	if _opening_tool_section == null:
-		var section := VBoxContainer.new()
-		section.name = "OpeningToolSection"
-		section.add_theme_constant_override("separation", 4)
-		left_vbox.add_child(section)
-		var corridor_row := left_vbox.get_node_or_null("CorridorWidthRow") as Control
-		var corridor_spin := left_vbox.get_node_or_null("CorridorWidthSpin") as Control
-		if corridor_row != null:
-			left_vbox.move_child(section, corridor_row.get_index() + 1)
-		elif corridor_spin != null:
-			left_vbox.move_child(section, corridor_spin.get_index() + 1)
-		_opening_tool_section = section
-	var title := _opening_tool_section.get_node_or_null("OpeningToolTitle") as Label
-	if title == null:
-		title = Label.new()
-		title.name = "OpeningToolTitle"
-		title.text = "Apertura"
-		_opening_tool_section.add_child(title)
-	var row := _opening_tool_section.get_node_or_null("OpeningToolWidthRow") as HBoxContainer
-	if row == null:
-		row = HBoxContainer.new()
-		row.name = "OpeningToolWidthRow"
-		row.add_theme_constant_override("separation", 4)
-		_opening_tool_section.add_child(row)
-	var label := row.get_node_or_null("OpeningToolWidthLabel") as Label
-	if label == null:
-		label = Label.new()
-		label.name = "OpeningToolWidthLabel"
-		label.text = "Ancho hueco"
-		label.custom_minimum_size.x = 112.0
-		row.add_child(label)
-	_opening_tool_width_spin = row.get_node_or_null("OpeningToolWidthSpin") as SpinBox
+		return
+	_opening_tool_width_spin = _bind_spin_row(_opening_tool_section, "OpeningToolWidthRow", "OpeningToolWidthSpin", 0.30, 6.0, 0.05)
 	if _opening_tool_width_spin == null:
-		_opening_tool_width_spin = SpinBox.new()
-		_opening_tool_width_spin.name = "OpeningToolWidthSpin"
-		_opening_tool_width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(_opening_tool_width_spin)
-	_opening_tool_width_spin.min_value = 0.30
-	_opening_tool_width_spin.max_value = 6.0
-	_opening_tool_width_spin.step = 0.05
+		return
 	_opening_tool_width_spin.value = opening_tool_width_m
 	if not _opening_tool_width_spin.value_changed.is_connected(_on_opening_tool_width_changed):
 		_opening_tool_width_spin.value_changed.connect(_on_opening_tool_width_changed)
 
 
-func _ensure_hvac_option_in_existing_ui() -> void:
-	if _hvac_option != null:
-		_populate_hvac_option()
-		if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
-			_hvac_option.item_selected.connect(_on_hvac_option_selected)
+func _bind_hvac_option() -> void:
+	if _hvac_option == null:
+		push_error("ScenarioEditor: falta HVACRow/HVACOption en ScenarioEditorScene.tscn")
 		return
-
-	var left_vbox := _find_left_vbox()
-	if left_vbox == null:
-		return
-
-	var row := HBoxContainer.new()
-	row.name = "HVACRow"
-	row.add_theme_constant_override("separation", 4)
-	var label := Label.new()
-	label.text = "HVAC"
-	label.custom_minimum_size.x = 82.0
-	row.add_child(label)
-	_hvac_option = OptionButton.new()
-	_hvac_option.name = "HVACOption"
-	_hvac_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_hvac_option)
-	left_vbox.add_child(row)
-	var scenario_option := left_vbox.get_node_or_null("ScenarioOption") as OptionButton
-	if scenario_option != null:
-		left_vbox.move_child(row, scenario_option.get_index())
 	_populate_hvac_option()
 	if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
 		_hvac_option.item_selected.connect(_on_hvac_option_selected)
@@ -7950,33 +7496,10 @@ func _on_hvac_option_selected(index: int) -> void:
 		"mode": mode
 	}
 
-func _ensure_lighting_controls_in_existing_ui() -> void:
-	if _interior_lights_check != null:
-		if not _interior_lights_check.toggled.is_connected(_on_interior_lights_toggled):
-			_interior_lights_check.toggled.connect(_on_interior_lights_toggled)
-		_sync_lighting_controls_from_data()
+func _bind_lighting_controls() -> void:
+	if _interior_lights_check == null:
+		push_error("ScenarioEditor: falta LightingRow/InteriorLightsCheck en ScenarioEditorScene.tscn")
 		return
-
-	var left_vbox := _find_left_vbox()
-	if left_vbox == null:
-		return
-
-	var row := HBoxContainer.new()
-	row.name = "LightingRow"
-	row.add_theme_constant_override("separation", 4)
-	var label := Label.new()
-	label.text = "Luces"
-	label.custom_minimum_size.x = 82.0
-	row.add_child(label)
-	_interior_lights_check = CheckBox.new()
-	_interior_lights_check.name = "InteriorLightsCheck"
-	_interior_lights_check.text = "Interiores"
-	_interior_lights_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_interior_lights_check)
-	left_vbox.add_child(row)
-	var scenario_option := left_vbox.get_node_or_null("ScenarioOption") as OptionButton
-	if scenario_option != null:
-		left_vbox.move_child(row, scenario_option.get_index())
 	if not _interior_lights_check.toggled.is_connected(_on_interior_lights_toggled):
 		_interior_lights_check.toggled.connect(_on_interior_lights_toggled)
 	_sync_lighting_controls_from_data()
