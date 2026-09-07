@@ -3495,9 +3495,62 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	_set_stair_turn_mode_for_room(lower_id, turn_mode)
 	_set_stair_turn_mode_for_room(upper_id, turn_mode)
 	_add_vertical_stair_opening(lower_id, upper_id, rect)
+	# La escalera nace con paso a la sala de al lado. Sin esto se dibujaba
+	# tapiada: en el plano parecia conectada porque las salas se tocan, y en
+	# primera persona te comias el tabique sin poder entrar.
+	var access_room_id: int = _open_stair_access(lower_id)
 	_select_room(lower_id)
 	_sync_floor_controls()
-	_set_status("Escalera creada: %s. Se recorta hueco vertical de paso en suelos/techos solapados." % ("dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"))
+	var shape_text: String = "dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
+	if access_room_id >= 0:
+		_set_status("Escalera creada: %s, con paso abierto a la habitación %d. Se recorta hueco vertical en suelos y techos." % [shape_text, access_room_id])
+	else:
+		_set_status("Escalera creada: %s. No toca ninguna habitación, así que NO tiene acceso: dibújala pegada a una sala o añádele una puerta." % shape_text)
+
+
+## Abre el paso entre una escalera recien dibujada y la habitacion con la que
+## mas paramento comparte, en su misma planta.
+##
+## Devuelve la habitacion que queda conectada, o -1 si la escalera no toca
+## ninguna: en ese caso quien dibuja tiene que saberlo, porque una escalera sin
+## acceso no se ve rara en el plano y en primera persona no se puede ni pisar.
+func _open_stair_access(stair_room_id: int) -> int:
+	var stair_level_m: float = _room_id_floor_level(stair_room_id)
+	var best: Dictionary = {}
+	var best_width_m: float = 0.0
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = room
+		var other_id: int = int(other.get("id", -1))
+		if other_id == stair_room_id or other_id < 0:
+			continue
+		if StairPlanRules.is_stair_room(other):
+			continue
+		if absf(_room_id_floor_level(other_id) - stair_level_m) >= 0.05:
+			continue
+		var shared: Dictionary = _shared_wall_between(stair_room_id, other_id)
+		if shared.is_empty():
+			continue
+		var width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+		if width_m > best_width_m:
+			best_width_m = width_m
+			best = shared
+	# Un paso de menos de 60 cm no es un paso: mejor decirlo que fingirlo.
+	if best.is_empty() or best_width_m < 0.60:
+		return -1
+	_add_opening(
+		int(best["a"]),
+		int(best["b"]),
+		"hole",
+		String(best["wall"]),
+		float(best["offset_m"]),
+		minf(1.00, best_width_m),
+		2.10,
+		0.0,
+		1.0
+	)
+	return int(best["b"]) if int(best["a"]) == stair_room_id else int(best["a"])
 
 
 func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
@@ -3507,7 +3560,10 @@ func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degree
 			continue
 		var room: Dictionary = rooms[i]
 		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
-		room["stair_has_walls"] = false
+		# El hueco de escalera nace CON paredes. Sin ellas, en primera persona el
+		# descansillo es una repisa en el vacio: un paso de lado y te caes al
+		# piso de abajo. El paso a la sala se abre aparte, con su hueco.
+		room["stair_has_walls"] = true
 		room["stair_has_railings"] = true
 		room["stair_turn_degrees"] = turn_degrees
 		if not room.has("stair_turn_mode"):
@@ -4440,7 +4496,7 @@ func _create_object_at(pos_m: Vector2) -> void:
 	obj["visual_pose_locked"] = true
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
-	_set_status("Objeto %s colocado en habitación %d." % [kind, room_id])
+	_hand_over_to_selection("Objeto %s colocado en habitación %d" % [kind, room_id])
 	queue_redraw()
 
 
@@ -4458,6 +4514,18 @@ func _add_object_to_room(room_id: int, obj: Dictionary) -> void:
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
 		return
+
+
+## Lo que se acaba de colocar queda seleccionado Y con la herramienta de
+## selección puesta, para poder moverlo ahí mismo.
+##
+## Antes había que subir a la barra a cambiar de herramienta para tocar lo que
+## acababas de poner, y volver a bajar para poner el siguiente. Quien quiera
+## encadenar varios tiene la tecla de la herramienta a un golpe: 9 objeto,
+## D detector, V víctima.
+func _hand_over_to_selection(what: String) -> void:
+	_set_tool(Tool.SELECT)
+	_set_status("%s. Ya se puede arrastrar; pulsa su tecla para colocar otro." % what)
 
 
 func _mark_ignition_at(pos_m: Vector2) -> void:
@@ -4532,7 +4600,7 @@ func _create_detector_at(pos_m: Vector2) -> void:
 	})
 	editor_data["detectors"] = dets
 	_select_detector(dets.size() - 1)
-	_set_status("Detector %s colocado en habitación %d." % [new_id, room_id])
+	_hand_over_to_selection("Detector %s colocado en habitación %d" % [new_id, room_id])
 	queue_redraw()
 
 
@@ -4559,7 +4627,7 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	})
 	editor_data["victims"] = vics
 	_select_victim(vics.size() - 1)
-	_set_status("Víctima %s colocada en habitación %d." % [new_id, room_id])
+	_hand_over_to_selection("Víctima %s colocada en habitación %d" % [new_id, room_id])
 	queue_redraw()
 
 

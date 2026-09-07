@@ -454,6 +454,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot combustion regime: " + (diagnostic or "failed"))
 
+    # La escalera que dibuja una persona, subida por una persona. Las otras
+    # guardias de escalera prueban el rellano del bloque, que se construye solo.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_editor_stairs_climbable.tscn",
+        "[validate_editor_stairs] PASS",
+    )
+    rows.append(("Escalera dibujada se sube en FP Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor stairs climbable: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",
         "EDITOR TO SIM FLOW VALIDATION PASS",
