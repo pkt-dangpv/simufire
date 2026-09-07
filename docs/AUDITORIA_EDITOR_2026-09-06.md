@@ -960,11 +960,88 @@ algo repite no es comprobar que no depende de nada.
 Con los dos agujeros tapados, las nueve fotos salen **byte a byte iguales**
 antes y después del corte, y el volcado del árbol de la UI también.
 
+### Lo que quedaba al cerrar ese corte
+
+6851 líneas, con la entrada de ratón como última costura.
+
+---
+
+## 16. E-12, sexto corte: el arrastre pasa a tener nombre
+
+Las cuatro banderas del ratón —`is_dragging_exterior_wall`, `is_dragging_room`,
+`is_dragging_room_geometry`, `is_dragging_object`— son **excluyentes**: no se
+puede estar trazando un muro y girando un objeto a la vez. Cuatro booleanos
+permiten dieciséis combinaciones para describir cinco situaciones; las once
+sobrantes son estados que el código no sabe dibujar y que nada impedía.
+
+Ahora son un estado:
+
+```gdscript
+enum Drag { NONE, EXTERIOR_WALL, ROOM_RECT, ROOM_GEOMETRY, OBJECT }
+var drag: int = Drag.NONE
+```
+
+Con eso desaparece también una fragilidad silenciosa: `_handle_release()`
+comprobaba primero la geometría de sala y después el objeto, así que si las dos
+banderas hubieran estado encendidas a la vez, el arrastre del objeto **nunca
+habría terminado** y nadie se habría enterado. Con un estado, la pregunta no se
+puede hacer mal.
+
+### La sonda de gestos, y el fallo que cazó en mi propio cambio
+
+Ninguna red anterior tocaba esto: el árbol mira la UI, el volcado del panel mira
+los mandos y las fotos miran el plano dibujado. `tools/probe_editor_mouse.gd` da
+**gestos completos** —pulsar, mover, soltar, en metros del plano— con cada
+herramienta, y vuelca lo que queda: selección, estado del arrastre, anclas y el
+escenario entero en JSON ordenado. Incluye pasos `dump` a **mitad** del gesto,
+que es donde vive la memoria de la máquina: con el arrastre abierto.
+
+El diff antes/después salió con dos líneas distintas, y eran un fallo mío:
+
+> Al soltar el objeto después de un movimiento de sala fallido, el editor dejaba
+> de decir «Objeto movido» y el modo de objeto se quedaba colgado.
+
+La causa es la traducción automática de las banderas. El código tenía abandonos
+así:
+
+```gdscript
+func _update_dragged_room_geometry(pos_m: Vector2) -> void:
+	if selected_room_id < 0:
+		is_dragging_room_geometry = false   # apagar LA MIA
+		return
+```
+
+**«Apagar mi bandera» no es «cancelar el arrastre».** Con cuatro booleanos,
+apagar el propio era inofensivo si ya estaba apagado; con un estado único,
+borrarlo a secas cancela el arrastre **de otro**. Los tres abandonos de ese tipo
+pasan por `_cancel_drag_if(Drag.X)`, que solo cancela si el arrastre en curso es
+el suyo.
+
+Es el mismo patrón que en el corte del panel de propiedades: la unificación no
+solo ahorra código, **obliga a responder una pregunta que las copias evitaban**.
+Allí era «¿qué unidad tiene este umbral?»; aquí, «¿cancelar qué?».
+
+### El precio
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 6851 líneas | **6871** |
+| Banderas de arrastre | 4 booleanos, 16 combinaciones | 1 estado, 5 valores |
+
+Veinte líneas más, que son el `enum` con sus comentarios y el ayudante de
+cancelación. No es un corte de tamaño: es de vocabulario.
+
 ### Lo que sigue pendiente
 
-E-12: 6851 líneas. Queda **la entrada de ratón** (unas 350), que sigue siendo
-una máquina de estados con memoria entre eventos: `is_dragging_room`,
-`object_mouse_mode`, `pending_door_room_id`, `drag_start_m`… El trabajo de verdad
-ahí no es mover código, es nombrar esos estados y hacer explícitas las
-transiciones. Y ahora hay con qué comprobarlo: las nueve fotos cubren
-precisamente lo que se ve mientras se arrastra.
+E-12 se puede dar por cerrado en lo que valía la pena. El fichero es **6871
+líneas** frente a las 8032 del principio, con cuatro módulos fuera
+—`EditorPropertyPanel`, `StairPlanRules`, `PlanGeometry` y las capas de dibujo
+en `EditorDraw2D`— y una máquina de estados con nombres. Lo que queda dentro es
+sobre todo la lógica del escenario —salas, aperturas, plantas, ficheros—, que es
+de lo que trata el editor.
+
+Y queda el activo que más va a durar: **seis sondas** que fotografían el editor
+desde seis ángulos antes de tocarlo —árbol de la UI, mandos del panel, geometría
+de escaleras, geometría del plano, gestos de ratón y nueve capturas de
+pantalla—. Cinco de los seis cortes de hoy destaparon un fallo real, y ninguno
+lo destapó leyendo el código: lo destapó un `diff`.

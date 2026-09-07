@@ -153,8 +153,24 @@ var selected_exterior_wall_index: int = -1
 var _clipboard: Dictionary = {}
 var _props: RefCounted = PropertyPanelScript.new()
 
-var is_dragging_room: bool = false
-var is_dragging_exterior_wall: bool = false
+## En que anda el raton ahora mismo.
+##
+## Eran cuatro banderas sueltas -muro, rectangulo de sala, geometria de sala y
+## objeto- y son excluyentes: no se puede estar trazando un muro y girando un
+## objeto a la vez. Con cuatro banderas, "dos verdaderas" era un estado que el
+## codigo no sabe dibujar y que nada impedia; con un estado, no existe.
+enum Drag {
+	NONE,
+	## Trazando un muro exterior de punta a punta.
+	EXTERIOR_WALL,
+	## Arrastrando el rectangulo de una sala, un pasillo o una escalera nuevos.
+	ROOM_RECT,
+	## Moviendo, redimensionando o girando la sala ya seleccionada.
+	ROOM_GEOMETRY,
+	## Lo mismo, con el objeto ya seleccionado.
+	OBJECT
+}
+var drag: int = Drag.NONE
 var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
@@ -162,13 +178,11 @@ var corridor_width_m: float = 1.20
 var opening_tool_width_m: float = 1.20
 var current_floor_index: int = 0
 
-var is_dragging_object: bool = false
 var drag_object_cursor_offset_m: Vector2 = Vector2.ZERO
 var object_mouse_mode: int = ObjectMouseMode.NONE
 var object_drag_start_center_m: Vector2 = Vector2.ZERO
 var object_drag_start_size_m: Vector2 = Vector2.ONE
 var object_drag_start_rotation_deg: float = 0.0
-var is_dragging_room_geometry: bool = false
 var room_mouse_mode: int = ObjectMouseMode.NONE
 var room_drag_cursor_offset_m: Vector2 = Vector2.ZERO
 var room_drag_start_center_m: Vector2 = Vector2.ZERO
@@ -1509,9 +1523,7 @@ func _apply_history_snapshot(snapshot: Dictionary, message: String) -> void:
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	pending_door_room_id = -1
-	is_dragging_room = false
-	is_dragging_exterior_wall = false
-	is_dragging_object = false
+	drag = Drag.NONE
 	object_mouse_mode = ObjectMouseMode.NONE
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
@@ -2391,15 +2403,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseMotion:
 		_track_hover_help_mouse(event.position)
-		if is_dragging_exterior_wall:
+		if drag == Drag.EXTERIOR_WALL:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
-		elif is_dragging_room:
+		elif drag == Drag.ROOM_RECT:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
-		elif is_dragging_room_geometry:
+		elif drag == Drag.ROOM_GEOMETRY:
 			_update_dragged_room_geometry(_screen_to_m(event.position))
-		elif is_dragging_object:
+		elif drag == Drag.OBJECT:
 			_update_dragged_object(_screen_to_m_raw(event.position))
 		return
 
@@ -2488,11 +2500,11 @@ func _is_arrow_key(keycode: int) -> bool:
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
 		Tool.EXTERIOR_WALL:
-			is_dragging_exterior_wall = true
+			drag = Drag.EXTERIOR_WALL
 			drag_start_m = pos_m
 			drag_current_m = pos_m
 		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS:
-			is_dragging_room = true
+			drag = Drag.ROOM_RECT
 			drag_start_m = pos_m
 			drag_current_m = pos_m
 		Tool.SELECT:
@@ -2540,9 +2552,9 @@ func _handle_press(pos_m: Vector2) -> void:
 
 
 func _handle_release(pos_m: Vector2) -> void:
-	if is_dragging_room_geometry:
+	if drag == Drag.ROOM_GEOMETRY:
 		var completed_mode: int = room_mouse_mode
-		is_dragging_room_geometry = false
+		drag = Drag.NONE
 		room_mouse_mode = ObjectMouseMode.NONE
 		room_drag_cursor_offset_m = Vector2.ZERO
 		if completed_mode == ObjectMouseMode.ROTATE:
@@ -2555,9 +2567,9 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	if is_dragging_object:
+	if drag == Drag.OBJECT:
 		var completed_mode: int = object_mouse_mode
-		is_dragging_object = false
+		drag = Drag.NONE
 		object_mouse_mode = ObjectMouseMode.NONE
 		drag_object_cursor_offset_m = Vector2.ZERO
 		if completed_mode == ObjectMouseMode.ROTATE:
@@ -2569,7 +2581,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	if is_dragging_exterior_wall:
+	if drag == Drag.EXTERIOR_WALL:
 		drag_current_m = pos_m
 		var start_wall_m: Vector2 = _snap_m(drag_start_m)
 		var end_wall_m: Vector2 = _snap_m(drag_current_m)
@@ -2586,7 +2598,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L and current_tool != Tool.STAIRS) or not is_dragging_room:
+	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L and current_tool != Tool.STAIRS) or drag != Drag.ROOM_RECT:
 		return
 
 	drag_current_m = pos_m
@@ -3166,11 +3178,19 @@ func _snap_object_rotation_deg(rotation_deg: float) -> float:
 	return PlanGeometry.clean_object_rotation_deg(snappedf(value, step), object_axis_snap_threshold_deg)
 
 
+## Cancela el arrastre SOLO si es el que se esperaba.
+##
+## Con las cuatro banderas de antes, "apagar la mia" era inofensivo si estaba
+## apagada; con un estado unico, borrarlo a secas cancelaria el arrastre de otro.
+## La sonda de gestos lo cazo en cuanto se juntaron: soltar el objeto despues de
+## un movimiento de sala fallido dejaba de decir "Objeto movido".
+func _cancel_drag_if(expected: int) -> void:
+	if drag == expected:
+		drag = Drag.NONE
+
+
 func _clear_drag() -> void:
-	is_dragging_room = false
-	is_dragging_exterior_wall = false
-	is_dragging_room_geometry = false
-	is_dragging_object = false
+	drag = Drag.NONE
 	room_mouse_mode = ObjectMouseMode.NONE
 	object_mouse_mode = ObjectMouseMode.NONE
 	drag_object_cursor_offset_m = Vector2.ZERO
@@ -3189,7 +3209,7 @@ func _begin_room_mouse_edit(mode: int, pos_m: Vector2) -> void:
 		return
 	_push_undo_snapshot("edit_room_mouse")
 	room_mouse_mode = mode
-	is_dragging_room_geometry = true
+	drag = Drag.ROOM_GEOMETRY
 	room_drag_start_rect_m = rect
 	room_drag_start_center_m = rect.get_center()
 	room_drag_start_rotation_deg = float(room.get("rotation_deg", 0.0))
@@ -3198,7 +3218,7 @@ func _begin_room_mouse_edit(mode: int, pos_m: Vector2) -> void:
 
 func _update_dragged_room_geometry(pos_m: Vector2) -> void:
 	if selected_room_id < 0:
-		is_dragging_room_geometry = false
+		_cancel_drag_if(Drag.ROOM_GEOMETRY)
 		return
 	match room_mouse_mode:
 		ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH:
@@ -3297,7 +3317,7 @@ func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
 	var size: Vector2 = PlanGeometry.object_size_m(obj)
 	_push_undo_snapshot("edit_object_mouse")
 	object_mouse_mode = mode
-	is_dragging_object = true
+	drag = Drag.OBJECT
 	drag_object_cursor_offset_m = (rr.position + obj_pos) - pos_m
 	object_drag_start_center_m = PlanGeometry.object_world_center(rr, obj)
 	object_drag_start_size_m = size
@@ -3306,11 +3326,11 @@ func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
 
 func _update_dragged_object(pos_m: Vector2) -> void:
 	if selected_object_room_id < 0 or selected_object_index < 0:
-		is_dragging_object = false
+		_cancel_drag_if(Drag.OBJECT)
 		return
 	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 	if obj.is_empty():
-		is_dragging_object = false
+		_cancel_drag_if(Drag.OBJECT)
 		return
 	var rr: Rect2 = _get_room_rect(selected_object_room_id)
 	match object_mouse_mode:
@@ -5974,11 +5994,11 @@ func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, m
 ## pasillo en curso. Vive aqui y no en EditorDraw2D porque no es el plano, es
 ## el estado de la interaccion.
 func _draw_drag_preview() -> void:
-	if is_dragging_exterior_wall:
+	if drag == Drag.EXTERIOR_WALL:
 		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), _exterior_wall_selected_color, 4.0)
 		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
 		_draw_screen_string(_m_to_px(drag_current_m), Vector2(8.0, -8.0), "Muro exterior %.2f m" % wall_length_m, 220.0, 13, _exterior_wall_selected_color)
-	if is_dragging_room:
+	if drag == Drag.ROOM_RECT:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
 			return
@@ -6085,7 +6105,7 @@ func _reset_hover_help() -> void:
 
 
 func _is_editor_dragging_anything() -> bool:
-	return is_middle_panning or is_dragging_room or is_dragging_exterior_wall or is_dragging_room_geometry or is_dragging_object
+	return is_middle_panning or drag == Drag.ROOM_RECT or drag == Drag.EXTERIOR_WALL or drag == Drag.ROOM_GEOMETRY or drag == Drag.OBJECT
 
 
 func _hover_help_text_at(pos_m: Vector2) -> String:

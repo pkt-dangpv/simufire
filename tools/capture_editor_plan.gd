@@ -101,8 +101,7 @@ func _setup() -> void:
 func _apply_pose(pose: Dictionary) -> void:
 	_editor.current_floor_index = int(pose.get("floor", 0))
 	_editor._clear_selection()
-	_editor.is_dragging_room = false
-	_editor.is_dragging_exterior_wall = false
+	_editor.drag = 0
 	_editor.current_tool = int(pose.get("tool", 0))
 	if pose.has("room"):
 		_editor._select_room(int(pose["room"]))
@@ -111,14 +110,15 @@ func _apply_pose(pose: Dictionary) -> void:
 		_editor._select_object(int(obj[0]), int(obj[1]))
 	if pose.has("opening"):
 		_editor._select_opening(int(pose["opening"]))
+	# 0 NONE, 1 EXTERIOR_WALL, 2 ROOM_RECT: el enum Drag del editor.
 	if pose.has("drag_room"):
 		var drag: Array = pose["drag_room"]
-		_editor.is_dragging_room = true
+		_editor.drag = 2
 		_editor.drag_start_m = drag[0]
 		_editor.drag_current_m = drag[1]
 	if pose.has("drag_wall"):
 		var wall: Array = pose["drag_wall"]
-		_editor.is_dragging_exterior_wall = true
+		_editor.drag = 1
 		_editor.drag_start_m = wall[0]
 		_editor.drag_current_m = wall[1]
 	_editor.queue_redraw()
