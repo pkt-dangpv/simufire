@@ -29,6 +29,7 @@ const Serializer := preload("res://editor/ScenarioSerializer.gd")
 
 ## Herramientas del editor, por su numero en el enum Tool.
 const TOOL_ROOM: int = 2
+const StairPlanRules := preload("res://editor/StairPlanRules.gd")
 const TOOL_STAIRS: int = 4
 const TOOL_OBJECT: int = 8
 const TOOL_IGNITION: int = 9
@@ -135,7 +136,64 @@ func _run() -> void:
 	_expect(final_y > UPPER_LEVEL_M - 0.40, "no se llega a la planta de arriba: se acaba en y=%.2f y la planta esta a %.2f" % [final_y, UPPER_LEVEL_M])
 	_expect(final_y > -1.0, "el jugador se cae por el hueco de la escalera: acaba en y=%.2f" % final_y)
 
+	await _check_chaining()
+
 	_finish(null, building, fp)
+
+
+## Encadenar plantas: una escalera sobre otra, cada una con su acceso y su hueco.
+##
+## Es lo segundo que fallaba: la escalera de arriba nacia tapiada porque el
+## acceso automatico solo miraba salas de la misma planta y se saltaba las otras
+## escaleras, que es justo lo que tiene al lado al encadenar.
+func _check_chaining() -> void:
+	var packed := load("res://scenes/ScenarioEditorScene.tscn") as PackedScene
+	var editor: Node = packed.instantiate()
+	add_child(editor)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	editor.editor_data = _blank_scenario()
+	editor.current_floor_index = 0
+	_draw(editor, TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.4))
+	_draw(editor, TOOL_STAIRS, Vector2(4.0, 0.0), Vector2(6.4, 3.4))
+	editor.current_floor_index = 1
+	_draw(editor, TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.4))
+	_draw(editor, TOOL_STAIRS, Vector2(6.4, 0.0), Vector2(8.8, 3.4))
+
+	var floors: Array = editor.editor_data.get("floors", [])
+	_expect(floors.size() == 3, "encadenar dos escaleras deberia dejar 3 plantas, hay %d" % floors.size())
+	var verticals: int = 0
+	var access_by_room: Dictionary = {}
+	for opening in editor.editor_data.get("openings_data", []):
+		if typeof(opening) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = opening
+		if bool(op.get("is_vertical", false)):
+			verticals += 1
+			continue
+		access_by_room[int(op.get("a", -1))] = true
+		access_by_room[int(op.get("b", -1))] = true
+	_expect(verticals == 2, "deberia haber un hueco vertical por escalera (hay %d)" % verticals)
+	for room in editor.editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if not StairPlanRules.is_stair_room(room_dict):
+			continue
+		# La escalera de la ultima planta puede quedarse sin nada al lado: alli
+		# todavia no hay nada dibujado. Las demas tienen que tener por donde entrar.
+		if float(room_dict.get("floor_level_z_m", 0.0)) >= 5.0:
+			continue
+		var room_id: int = int(room_dict.get("id", -1))
+		_expect(access_by_room.has(room_id), "la escalera %d (%s) queda tapiada: sin ningun paso en pared" % [room_id, String(room_dict.get("name", ""))])
+	remove_child(editor)
+	editor.free()
+
+
+func _draw(editor: Node, tool_id: int, from_m: Vector2, to_m: Vector2) -> void:
+	editor.current_tool = tool_id
+	editor._handle_press(from_m)
+	editor._handle_release(to_m)
 
 
 ## Sube la escalera como se sube: de frente hasta el descansillo, se cruza al

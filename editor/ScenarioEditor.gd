@@ -2832,11 +2832,16 @@ func _handle_release(pos_m: Vector2) -> void:
 	# Una medida escrita es exacta: el encaje a las salas vecinas mueve aristas y
 	# dejaria 3,95 donde se pidieron 4,00.
 	var room_id: int = _create_room(rect if typed_measure else _snap_rect_to_adjacent_rooms(rect))
+	# Una sala nueva se engancha sola a la CIRCULACION que toque -pasillos y
+	# escaleras-, que existe justamente para eso. Con las demas salas no: dos
+	# dormitorios contiguos no comparten hueco porque esten pegados.
+	var circulation: Array[int] = _open_passages_to_circulation(room_id)
 	_select_room(room_id)
+	var circulation_text: String = "" if circulation.is_empty() else ", conectada al pasillo o escalera que toca"
 	if typed_measure:
-		_set_status("Habitación %d creada, %.2f × %.2f m exactos." % [room_id, rect.size.x, rect.size.y])
+		_set_status("Habitación %d creada, %.2f × %.2f m exactos%s." % [room_id, rect.size.x, rect.size.y, circulation_text])
 	else:
-		_set_status("Habitación %d creada. Puedes escribir la medida mientras arrastras: 4;3 e Intro." % room_id)
+		_set_status("Habitación %d creada%s. Puedes escribir la medida mientras arrastras: 4;3 e Intro." % [room_id, circulation_text])
 	queue_redraw()
 
 
@@ -3805,15 +3810,64 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	# La escalera nace con paso a la sala de al lado. Sin esto se dibujaba
 	# tapiada: en el plano parecia conectada porque las salas se tocan, y en
 	# primera persona te comias el tabique sin poder entrar.
-	var access_rooms: Array[int] = _open_passages_to_neighbours(lower_id, true)
+	# Sin saltarse las escaleras: encadenando plantas, la vecina de una escalera
+	# suele ser el hueco de la anterior, y es por donde se entra.
+	var access_rooms: Array[int] = _open_passages_to_neighbours(lower_id, true, false)
 	var access_room_id: int = access_rooms[0] if not access_rooms.is_empty() else -1
+	# Y arriba igual. Encadenando plantas, la escalera de arriba llega a un piso
+	# que puede tener ya salas -las de la escalera anterior-, y sin esto nacia
+	# tapiada aunque la de abajo estuviera bien.
+	var upper_access: Array[int] = _open_passages_to_neighbours(upper_id, true, false)
 	_select_room(lower_id)
 	_sync_floor_controls()
 	var shape_text: String = "dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
-	if access_room_id >= 0:
-		_set_status("Escalera creada: %s, con paso abierto a la habitación %d. Se recorta hueco vertical en suelos y techos." % [shape_text, access_room_id])
+	if access_room_id >= 0 and not upper_access.is_empty():
+		_set_status("Escalera creada: %s, con paso abierto abajo (habitación %d) y arriba (habitación %d)." % [shape_text, access_room_id, upper_access[0]])
+	elif access_room_id >= 0:
+		_set_status("Escalera creada: %s, con paso abierto a la habitación %d. Arriba todavía no toca nada: las salas que dibujes pegadas a ella se conectarán solas." % [shape_text, access_room_id])
 	else:
 		_set_status("Escalera creada: %s. No toca ninguna habitación, así que NO tiene acceso: dibújala pegada a una sala o añádele una puerta." % shape_text)
+
+
+## Engancha una sala recien dibujada a los pasillos y escaleras que toca.
+##
+## La circulacion existe para conectar, asi que se conecta sola y en los dos
+## sentidos: da igual si dibujas antes el pasillo o la habitacion. Con dos salas
+## normales no se hace: que dos dormitorios se toquen no significa que haya un
+## hueco entre ellos.
+func _open_passages_to_circulation(room_id: int) -> Array[int]:
+	var level_m: float = _room_id_floor_level(room_id)
+	var connected: Array[int] = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = room
+		var other_id: int = int(other.get("id", -1))
+		if other_id == room_id or other_id < 0:
+			continue
+		if not (_is_corridor_room(other) or StairPlanRules.is_stair_room(other)):
+			continue
+		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
+			continue
+		var shared: Dictionary = _shared_wall_between(room_id, other_id)
+		if shared.is_empty():
+			continue
+		var span_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+		if span_m < 0.45:
+			continue
+		_add_opening(
+			int(shared["a"]),
+			int(shared["b"]),
+			"hole",
+			String(shared["wall"]),
+			float(shared["offset_m"]),
+			minf(maxf(0.90, corridor_width_m), span_m),
+			2.10,
+			0.0,
+			1.0
+		)
+		connected.append(other_id)
+	return connected
 
 
 ## Abre paso entre una sala recien dibujada y las que toca en su misma planta.
