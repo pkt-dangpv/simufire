@@ -65,6 +65,24 @@ func _process(_delta: float) -> bool:
 		["motion", Vector2(3.0, 6.0)],
 		["release", Vector2(5.0, 8.0)]
 	])
+	# Pasillos: pegado a una sala, y un clic seco como descansillo.
+	_gesture("pasillo pegado a una sala", CORRIDOR_L, [
+		["press", Vector2(0.5, 6.2)],
+		["motion", Vector2(3.0, 6.2)],
+		["release", Vector2(5.0, 6.2)]
+	])
+	_gesture("descansillo de un clic", CORRIDOR_L, [
+		["press", Vector2(2.0, 6.2)],
+		["release", Vector2(2.0, 6.2)]
+	])
+	# Componer: dos tramos pegados tienen que unirse entre si. Es lo que sustituye
+	# al modo "L" y lo que permite hacer una U o un rellano.
+	_gesture("dos tramos de pasillo en L", CORRIDOR_L, [
+		["press", Vector2(0.5, 6.2)],
+		["release", Vector2(5.0, 6.2)],
+		["press", Vector2(5.0, 6.2)],
+		["release", Vector2(5.0, 9.0)]
+	])
 	_gesture("dibujar una escalera", STAIRS, [
 		["press", Vector2(7.0, 1.0)],
 		["release", Vector2(9.4, 4.4)]

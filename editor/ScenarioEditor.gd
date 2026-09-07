@@ -1933,6 +1933,7 @@ func _editor_help_text() -> String:
 func _editor_help_pages() -> PackedStringArray:
 	return PackedStringArray([
 		"Dibujo\n\nElige una herramienta en la barra superior o pulsa su tecla. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Víctima e Inicio FP se colocan clicando dentro de una sala, y lo que colocas queda seleccionado para moverlo ahí mismo.",
+		"Pasillos y descansillos\n\nUn pasillo es una sala con el ancho que elijas, y se conecta sola: al crearla se abre paso con todas las habitaciones que toca. Por eso los giros, las U y los rellanos se hacen dibujando tramos pegados unos a otros, no con una herramienta especial. Un clic sin arrastrar crea una pieza cuadrada del ancho del pasillo, que es un descansillo. Si un tramo pisa lo ya dibujado, se recorta hasta donde cabe en vez de solaparse: dos salas superpuestas serían dos zonas repartiéndose el mismo aire.",
 		"Medidas exactas\n\nNo hace falta acertar con el ratón: arrastra a ojo y, sin soltar, escribe la medida. «4;3» e Intro crea una sala de 4,00 × 3,00 m exactos; «3,5» fija solo el ancho y deja el fondo que llevabas; en un muro o un pasillo un solo número es su largo, y en el pasillo el segundo es su ancho. La coma es el decimal, Retroceso corrige y Escape borra lo escrito sin soltar el arrastre. Lo que escribes manda: una medida tecleada no la retoca el encaje a las salas vecinas.",
 		"Teclas\n\n%s.\nEsc vuelve a %s. Ctrl+Z deshace, Ctrl+Y rehace y Supr borra la selección. Ctrl+C copia, Ctrl+V pega donde esté el cursor y Ctrl+D duplica al lado. Ctrl+S guarda y Ctrl+O carga. Mientras escribes en una casilla, las teclas de herramienta no responden." % [_tool_shortcuts_line(), _tool_display_name(Tool.SELECT)],
 		"Selección\n\nUsa %s para elegir elementos en el plano. Si un objeto, detector o víctima está encima de una sala, el editor prioriza el elemento pequeño antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan." % _tool_display_name(Tool.SELECT),
@@ -2490,7 +2491,7 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.ROOM:
 			return "Estancia: arrastra para crear una estancia en %s. Sin soltar, escribe la medida (4;3) e Intro para que sea exacta." % _current_floor_name()
 		Tool.CORRIDOR_L:
-			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
+			return "Pasillo: arrastra un tramo del ancho elegido (%.2f m). Se conecta solo con todo lo que toca. Dibuja tramos pegados para giros, U o rellanos; un clic sin arrastrar hace un descansillo cuadrado." % corridor_width_m
 		Tool.STAIRS:
 			return "Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados." % [StairPlanRules.turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
 		Tool.DOOR:
@@ -3804,7 +3805,8 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	# La escalera nace con paso a la sala de al lado. Sin esto se dibujaba
 	# tapiada: en el plano parecia conectada porque las salas se tocan, y en
 	# primera persona te comias el tabique sin poder entrar.
-	var access_room_id: int = _open_stair_access(lower_id)
+	var access_rooms: Array[int] = _open_passages_to_neighbours(lower_id, true)
+	var access_room_id: int = access_rooms[0] if not access_rooms.is_empty() else -1
 	_select_room(lower_id)
 	_sync_floor_controls()
 	var shape_text: String = "dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
@@ -3814,49 +3816,61 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 		_set_status("Escalera creada: %s. No toca ninguna habitación, así que NO tiene acceso: dibújala pegada a una sala o añádele una puerta." % shape_text)
 
 
-## Abre el paso entre una escalera recien dibujada y la habitacion con la que
-## mas paramento comparte, en su misma planta.
+## Abre paso entre una sala recien dibujada y las que toca en su misma planta.
 ##
-## Devuelve la habitacion que queda conectada, o -1 si la escalera no toca
-## ninguna: en ese caso quien dibuja tiene que saberlo, porque una escalera sin
-## acceso no se ve rara en el plano y en primera persona no se puede ni pisar.
-func _open_stair_access(stair_room_id: int) -> int:
-	var stair_level_m: float = _room_id_floor_level(stair_room_id)
-	var best: Dictionary = {}
-	var best_width_m: float = 0.0
+## `only_widest` abre solo el paso mas ancho -lo que necesita una escalera, que
+## se entra por un sitio-; con falso abre paso a TODAS, que es lo que hace un
+## pasillo: un pasillo existe justamente para conectar.
+##
+## Devuelve los ids conectados. Vacio significa que la sala ha quedado aislada, y
+## eso hay que decirlo: en el plano no se ve, porque las salas se tocan, y en
+## primera persona es un tabique.
+func _open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: bool = true) -> Array[int]:
+	var level_m: float = _room_id_floor_level(room_id)
+	var candidates: Array[Dictionary] = []
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
 		var other: Dictionary = room
 		var other_id: int = int(other.get("id", -1))
-		if other_id == stair_room_id or other_id < 0:
+		if other_id == room_id or other_id < 0:
 			continue
-		if StairPlanRules.is_stair_room(other):
+		if skip_stairs and StairPlanRules.is_stair_room(other):
 			continue
-		if absf(_room_id_floor_level(other_id) - stair_level_m) >= 0.05:
+		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
 			continue
-		var shared: Dictionary = _shared_wall_between(stair_room_id, other_id)
+		var shared: Dictionary = _shared_wall_between(room_id, other_id)
 		if shared.is_empty():
 			continue
 		var width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
-		if width_m > best_width_m:
-			best_width_m = width_m
-			best = shared
-	# Un paso de menos de 60 cm no es un paso: mejor decirlo que fingirlo.
-	if best.is_empty() or best_width_m < 0.60:
-		return -1
-	_add_opening(
-		int(best["a"]),
-		int(best["b"]),
-		"hole",
-		String(best["wall"]),
-		float(best["offset_m"]),
-		minf(1.00, best_width_m),
-		2.10,
-		0.0,
-		1.0
-	)
-	return int(best["b"]) if int(best["a"]) == stair_room_id else int(best["a"])
+		# El codo de un pasillo en L comparte solo el ancho de la esquina, que puede
+		# quedarse en medio metro largo. Por debajo de 45 cm ya no es un paso ni en
+		# una esquina, y ahi si conviene no fingirlo.
+		if width_m < 0.45:
+			continue
+		shared["_span_m"] = width_m
+		candidates.append(shared)
+	if candidates.is_empty():
+		return []
+	if only_widest:
+		candidates.sort_custom(func(a, b): return float(a["_span_m"]) > float(b["_span_m"]))
+		candidates = [candidates[0]]
+	var connected: Array[int] = []
+	for shared in candidates:
+		var span_m: float = float(shared["_span_m"])
+		_add_opening(
+			int(shared["a"]),
+			int(shared["b"]),
+			"hole",
+			String(shared["wall"]),
+			float(shared["offset_m"]),
+			minf(maxf(1.00, corridor_width_m), span_m),
+			2.10,
+			0.0,
+			1.0
+		)
+		connected.append(int(shared["b"]) if int(shared["a"]) == room_id else int(shared["a"]))
+	return connected
 
 
 func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
@@ -4131,31 +4145,32 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	var base_id: int = _next_room_id()
 	var base_name: String = "Pasillo %d" % base_id
 	var mode: String = String(layout.get("mode", "straight"))
-	if mode == "straight":
-		var corridor_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[0])), base_name, "corridor")
-		_select_room(corridor_id)
-		_set_status("%s creado como tramo recto de %.2f m." % [base_name, float(layout.get("length_m", 0.0))])
+	var pieces: Array[int] = []
+	for index in range(rects.size()):
+		var piece_rect: Rect2 = _trim_corridor_rect(Rect2(rects[index]))
+		if piece_rect.size.x < GRID_M or piece_rect.size.y < GRID_M:
+			continue
+		var piece_name: String = base_name if rects.size() == 1 else "%s tramo %s" % [base_name, "AB"[index]]
+		pieces.append(_create_room(_snap_rect_to_adjacent_rooms(piece_rect), piece_name, "corridor"))
+	if pieces.is_empty():
+		_set_status("Ese tramo cae entero dentro de otra habitación: no hay nada que crear.")
 		return
 
-	var first_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[0])), "%s tramo A" % base_name, "corridor")
-	var second_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[1])), "%s tramo B" % base_name, "corridor")
-	var shared: Dictionary = _shared_wall_between(first_id, second_id)
-	if not shared.is_empty():
-		var max_width_m: float = _max_opening_width_for_shared(first_id, second_id, String(shared["wall"]))
-		_add_opening(
-			first_id,
-			second_id,
-			"hole",
-			String(shared["wall"]),
-			float(shared["offset_m"]),
-			minf(corridor_width_m, max_width_m),
-			2.05,
-			0.0,
-			1.0,
-			false
-		)
-	_select_room(first_id)
-	_set_status("%s creado en L como tramos %d y %d." % [base_name, first_id, second_id])
+	# Un pasillo existe para conectar: se abre paso con TODO lo que toca, incluidos
+	# los tramos entre si. Antes solo se unian los dos brazos de una L y el tramo
+	# recto no se unia con nada: quedaba una caja cerrada que en el plano parecia
+	# un pasillo y en primera persona era un tabique.
+	var connected: Array[int] = []
+	for piece_id in pieces:
+		for neighbour_id in _open_passages_to_neighbours(piece_id, false, false):
+			if not connected.has(neighbour_id) and not pieces.has(neighbour_id):
+				connected.append(neighbour_id)
+	_select_room(pieces[0])
+	var shape_text: String = "tramo recto de %.2f m" % float(layout.get("length_m", 0.0)) if mode == "straight" else "dos tramos en L"
+	if connected.is_empty():
+		_set_status("%s creado (%s). No toca ninguna habitación: dibuja el siguiente tramo pegado a él o añade una puerta." % [base_name, shape_text])
+	else:
+		_set_status("%s creado (%s), con paso abierto a %d habitación(es). Dibuja tramos pegados para hacer giros, U o descansillos." % [base_name, shape_text, connected.size()])
 
 
 func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) -> Rect2:
@@ -4200,19 +4215,66 @@ func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) 
 	return Rect2(Vector2(left, top), Vector2(maxf(min_size, right - left), maxf(min_size, bottom - top)))
 
 
+## Recorta un tramo de pasillo por donde pisa lo que ya existe.
+##
+## Dibujando en L, el segundo tramo se empieza donde acabo el primero, asi que lo
+## normal es que SOLAPE con el en el codo. Dos salas solapadas son dos zonas que
+## se reparten el mismo aire: el modelo las contaria dos veces. Se recorta el
+## trozo invadido y las dos piezas quedan a tope, que es lo que hace que despues
+## se puedan unir con un hueco.
+func _trim_corridor_rect(rect: Rect2) -> Rect2:
+	var level_m: float = _current_floor_level_m()
+	var trimmed: Rect2 = rect
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = room
+		var other_id: int = int(other.get("id", -1))
+		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
+			continue
+		var other_rect: Rect2 = _get_room_rect(other_id)
+		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
+			continue
+		var overlap: Rect2 = trimmed.intersection(other_rect)
+		if overlap.size.x <= GRID_M * 0.5 or overlap.size.y <= GRID_M * 0.5:
+			continue
+		# Se recorta por el eje largo del tramo: es el que se puede acortar sin
+		# cambiar el ancho del pasillo.
+		if trimmed.size.x >= trimmed.size.y:
+			if absf(overlap.position.x - trimmed.position.x) < 0.001:
+				var cut_start: float = overlap.end.x
+				trimmed = Rect2(Vector2(cut_start, trimmed.position.y), Vector2(maxf(0.0, trimmed.end.x - cut_start), trimmed.size.y))
+			elif absf(overlap.end.x - trimmed.end.x) < 0.001:
+				trimmed = Rect2(trimmed.position, Vector2(maxf(0.0, overlap.position.x - trimmed.position.x), trimmed.size.y))
+		else:
+			if absf(overlap.position.y - trimmed.position.y) < 0.001:
+				var cut_top: float = overlap.end.y
+				trimmed = Rect2(Vector2(trimmed.position.x, cut_top), Vector2(trimmed.size.x, maxf(0.0, trimmed.end.y - cut_top)))
+			elif absf(overlap.end.y - trimmed.end.y) < 0.001:
+				trimmed = Rect2(trimmed.position, Vector2(trimmed.size.x, maxf(0.0, overlap.position.y - trimmed.position.y)))
+	return trimmed
+
+
 func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var dx: float = end_m.x - start_m.x
 	var dy: float = end_m.y - start_m.y
 	var width_m: float = maxf(GRID_M, corridor_width_m)
 	var abs_dx: float = absf(dx)
 	var abs_dy: float = absf(dy)
+	# Un clic sin arrastre es una pieza cuadrada del ancho del pasillo: eso es un
+	# descansillo, y antes era un error. Componiendo piezas salen los giros, las
+	# U y los rellanos, que es como se hacen los pasillos de verdad.
 	if abs_dx < GRID_M and abs_dy < GRID_M:
-		return {"error": "Arrastra para marcar la dirección del pasillo."}
+		return {
+			"mode": "straight",
+			"orientation": "square",
+			"rects": [Rect2(start_m - Vector2(width_m, width_m) * 0.5, Vector2(width_m, width_m))],
+			"length_m": width_m
+		}
 
 	if abs_dx >= maxf(width_m * 1.25, abs_dy * 2.0) or abs_dy < width_m * 0.60:
-		var length_x: float = abs_dx
-		if length_x < width_m:
-			return {"error": "El tramo recto es demasiado corto para el ancho elegido."}
+		# Mas corto que ancho: se queda cuadrado, que sigue siendo una pieza util.
+		var length_x: float = maxf(abs_dx, width_m)
 		var y_center: float = start_m.y
 		var x_min: float = minf(start_m.x, end_m.x)
 		return {
@@ -4223,9 +4285,7 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 		}
 
 	if abs_dy >= maxf(width_m * 1.25, abs_dx * 2.0) or abs_dx < width_m * 0.60:
-		var length_y: float = abs_dy
-		if length_y < width_m:
-			return {"error": "El tramo recto es demasiado corto para el ancho elegido."}
+		var length_y: float = maxf(abs_dy, width_m)
 		var x_center: float = start_m.x
 		var y_min: float = minf(start_m.y, end_m.y)
 		return {
@@ -4235,8 +4295,22 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 			"length_m": length_y
 		}
 
+	# Si un brazo no da para giro, no se rechaza el gesto: sale el tramo recto del
+	# eje que manda, y el giro se hace dibujando otra pieza pegada.
 	if abs_dx < width_m * 1.5 or abs_dy < width_m * 1.5:
-		return {"error": "El pasillo en L necesita largo suficiente en ambos brazos."}
+		var along_x: bool = abs_dx >= abs_dy
+		var straight_length: float = maxf(abs_dx if along_x else abs_dy, width_m)
+		var rect_straight: Rect2
+		if along_x:
+			rect_straight = Rect2(Vector2(minf(start_m.x, end_m.x), start_m.y - width_m * 0.5), Vector2(straight_length, width_m))
+		else:
+			rect_straight = Rect2(Vector2(start_m.x - width_m * 0.5, minf(start_m.y, end_m.y)), Vector2(width_m, straight_length))
+		return {
+			"mode": "straight",
+			"orientation": "horizontal" if along_x else "vertical",
+			"rects": [rect_straight],
+			"length_m": straight_length
+		}
 
 	var sx: float = 1.0 if dx >= 0.0 else -1.0
 	var sy: float = 1.0 if dy >= 0.0 else -1.0
@@ -4250,7 +4324,12 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var vertical_rect: Rect2 = PlanGeometry.normalized_rect(v_a, v_b)
 	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
 			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
-		return {"error": "El giro del pasillo queda demasiado pequeño."}
+		return {
+			"mode": "straight",
+			"orientation": "horizontal",
+			"rects": [Rect2(Vector2(minf(start_m.x, end_m.x), start_m.y - width_m * 0.5), Vector2(maxf(abs_dx, width_m), width_m))],
+			"length_m": maxf(abs_dx, width_m)
+		}
 
 	return {
 		"mode": "l",
