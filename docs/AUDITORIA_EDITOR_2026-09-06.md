@@ -725,19 +725,79 @@ Es exactamente el fallo que E-2 decía haber cerrado: *«teclear 2,4 donde iban
 240 no lo avisa nadie»*. La unidad estaba puesta, pero el camino más usado no la
 actualizaba.
 
+### Lo que quedaba al cerrar ese corte
+
+7067 líneas, con el dibujo del plano, la entrada de ratón y las escaleras como
+siguientes costuras.
+
+Y una regla que ese corte dejó escrita: **antes de mover, una sonda que
+fotografíe lo que se va a mover**.
+
+---
+
+## 13. E-12, tercer corte: las escaleras salen del editor
+
+`editor/StairGeometry.gd`, 189 líneas de **funciones estáticas puras**: entran un
+rectángulo, una dirección y un modo de giro, y sale un número. No tocan
+`editor_data`, ni la escena, ni la selección.
+
+### Qué se fue y qué se quedó
+
+De las 428 líneas de escalera repartidas por el editor, **más de la mitad no
+necesitaban nada de él**. Se fueron 18 funciones: los tramos y el descansillo
+(`long_span_m`, `cross_span_m`, `ramp_width_m`, `landing_depth_m`), la decisión
+del giro (`can_use_180_landing`, `turn_degrees_for_mode`), el hueco vertical que
+la escalera abre en el forjado (`vertical_void_rect`), la pendiente
+(`slope_angle_deg`) y el vocabulario —auto, recta, 180—, que vive donde
+significa algo: `MODE_AUTO` no es «sin decidir», es «180 si cabe, recta si no».
+
+Se quedaron en el editor las que necesitan datos: crear la escalera y su planta
+de arriba, copiarla entre niveles, mantener sincronizados los huecos verticales y
+buscar **cuánto sube** —que se lee del hueco vertical o de la cota de la planta
+siguiente, y eso es escenario, no geometría—. La pendiente quedó partida por esa
+misma línea:
+
+```gdscript
+func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> float:
+	return StairGeometry.slope_angle_deg(
+		rect,
+		StairGeometry.run_direction_for_room(room),
+		float(room.get("stair_turn_degrees", 0.0)),
+		_stair_rise_for_room(room_id, room)   # ← lo único que hace falta del escenario
+	)
+```
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 7067 líneas | **6927** |
+| `editor/StairGeometry.gd` | — | 189 |
+| Funciones de escalera en el editor | 39 | 21 |
+
+### La sonda que pregunta a los dos lados
+
+`tools/probe_stair_geometry.gd` recorre una malla de seis rectángulos —incluido
+uno vacío y uno demasiado estrecho para el descansillo—, cinco direcciones
+—incluida una diagonal— y los modos de giro, con dos alturas de planta, y vuelca
+cada resultado con **seis decimales**: 747 líneas de tabla.
+
+Lo que la hace útil es que el mismo fichero pregunta a los dos lados: se le dice
+`editor` y llama a los métodos del editor, o `modulo` y llama a las estáticas.
+Así la foto de antes y la de después salen del mismo código, y comparar es un
+`diff` de verdad y no una traducción a ojo.
+
+Salió **idéntica**. No hay sorpresa que contar en este corte, y eso es
+exactamente lo que se le pide a una mudanza de funciones puras.
+
 ### Lo que sigue pendiente
 
-E-12 sigue abierto: 7067 líneas. Las siguientes costuras, por tamaño y por lo
-independientes que son:
+E-12 sigue abierto: **6927 líneas**, desde las 8032 con las que empezó el día.
+Quedan las dos costuras difíciles, y son difíciles por la misma razón:
 
-- **El dibujo del plano** (`_draw_*`, unas 400 líneas): lee los datos y pinta;
-  no toca mandos.
-- **La entrada de ratón** (`_handle_release`, `_unhandled_input` y el arrastre):
-  unas 350 líneas de máquina de estados.
-- **Las escaleras** (`_stair_*`): unas 400 líneas de geometría con vocabulario
-  propio, ya casi aisladas.
-
-Y una regla que este corte deja escrita: **antes de mover, una sonda que
-fotografíe lo que se va a mover**. La del árbol dice si algo cambió de sitio; la
-del panel, si algo cambió de valor. Las dos juntas convierten un refactor de
-apuesta en un diff de tres líneas que además explica un fallo.
+- **El dibujo del plano** (`_draw_*`, unas 400 líneas). No lee datos: lee
+  **estado de interacción** —zoom, arrastre en curso, herramienta activa,
+  selección—, así que la frontera no es un diccionario de datos sino la lista
+  entera de lo que el editor está haciendo en ese momento. La red aquí no es una
+  sonda de texto: es comparar capturas de pantalla píxel a píxel.
+- **La entrada de ratón** (unas 350 líneas). Es una máquina de estados con
+  memoria entre eventos; sacarla exige nombrar esos estados primero, que es el
+  trabajo de verdad.
