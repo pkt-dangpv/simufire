@@ -815,16 +815,88 @@ ningún número, y que **la copia del editor y el módulo de la línea visual
 calculaban exactamente lo mismo** el día que se juntaron. Que es la única prueba
 que se puede dar de que la duplicación aún no había divergido.
 
+### Lo que quedaba al cerrar ese corte
+
+6929 líneas, con el dibujo del plano y la entrada de ratón como costuras
+difíciles.
+
+---
+
+## 14. E-12, cuarto corte: la geometría del plano, y una red de píxeles
+
+`editor/PlanGeometry.gd`, 164 líneas y 16 funciones estáticas puras:
+rectángulos girados, la caja de un objeto dentro de su sala, distancias a un
+segmento y el largo de un paramento.
+
+### Por qué esta antes que el dibujo
+
+El corte que tocaba era el dibujo, y no salió: `_draw_*` no lee datos, lee
+**estado de interacción** —zoom, arrastre en curso, herramienta, selección— y sus
+colores son `@export`, que por la regla del repo tienen que seguir en el
+inspector. Sacarlo bien pide una paleta y una vista de datos ya resueltos; hacerlo
+mal es mover el fichero y dejar que el módulo llame de vuelta al editor, que es
+un círculo con otro nombre.
+
+Pero al mirar de qué depende el dibujo apareció algo mejor: **las funciones que
+lo bloquean no son suyas**. Rectángulo girado, esquinas de un objeto, centro,
+distancia a un segmento… las usan las **tres** cosas que trabajan sobre el
+plano: el dibujo para pintar, los clics para saber qué has tocado y el panel para
+enseñar la posición. Por eso estaban repartidas por el fichero. Sacarlas paga por
+sí sola y deja el dibujo a tiro.
+
+| | Antes | Ahora |
+|---|---|---|
+| `editor/ScenarioEditor.gd` | 6929 líneas | **6803** |
+| `editor/PlanGeometry.gd` | — | 164 |
+| Dueños de `GRID_M` | 1 constante suelta | el módulo, y el editor le da nombre corto |
+
+### El fallo: `north` medía el lado equivocado
+
+El editor calculaba el largo de un paramento así:
+
+```gdscript
+if wall == "top" or wall == "bottom":
+	return rect.size.x
+return rect.size.y
+```
+
+Comparación de cadena a pelo. Cualquier alias cardinal —`"north"`, `"south"`—
+caía en el `return` de abajo y devolvía el lado **vertical** de una pared
+horizontal. La línea visual ya se comió ese fallo una vez (el mundo FP plantaba
+las ventanas del norte en la pared derecha) y lo cerró con
+`WallSideGeometry.canonical()`; el editor seguía con su copia del problema.
+
+Hoy no rompe nada, y conviene decirlo con precisión: **ningún escenario del repo
+usa nombres cardinales** —los únicos `"north"` están en el fixture del validador
+de paridad, que existe justo para probar los alias—. Era un fallo latente, de los
+que esperan a que alguien cargue una plantilla escrita a mano. Ahora el editor
+pasa por el mismo módulo que la vista.
+
+### Dos redes, y una de ellas nueva
+
+- **La tabla** (`tools/probe_plan_geometry.gd`), como la de las escaleras: tres
+  rectángulos, nueve ángulos —incluidos 360 y 405—, tres tamaños de objeto y seis
+  nombres de pared, con seis decimales. 2154 líneas. El diff antes/después tiene
+  **cuatro**, y las cuatro son `wall_length(rect, "north")`, o sea el arreglo.
+- **Los píxeles** (`tools/capture_editor_plan.gd`), que es la red que faltaba
+  para el dibujo. Monta un piso con una de cada cosa, fija la cámara y el zoom a
+  mano —nada de ratón— y guarda **nueve fotos**: el plano quieto, una sala
+  seleccionada, un objeto, una apertura, y los arrastres de sala, escalera,
+  pasillo y muro, más la planta alta con el fantasma de la de abajo. Las
+  situaciones de arrastre se montan tocando el estado del editor, que es la única
+  forma de fotografiar un arrastre sin manos.
+
+  Antes de fiarse de ella hay que comprobar que el render es determinista: dos
+  pasadas seguidas dan **los mismos bytes**. Lo es. Tras el corte, las nueve
+  fotos siguen siendo byte a byte idénticas.
+
 ### Lo que sigue pendiente
 
-E-12 sigue abierto: **6929 líneas**, desde las 8032 con las que empezó el día.
-Quedan las dos costuras difíciles, y son difíciles por la misma razón:
+E-12: **6803 líneas**, desde 8032. Y ahora el dibujo tiene su red esperándolo;
+lo que le falta es la decisión de diseño, no la seguridad:
 
-- **El dibujo del plano** (`_draw_*`, unas 400 líneas). No lee datos: lee
-  **estado de interacción** —zoom, arrastre en curso, herramienta activa,
-  selección—, así que la frontera no es un diccionario de datos sino la lista
-  entera de lo que el editor está haciendo en ese momento. La red aquí no es una
-  sonda de texto: es comparar capturas de pantalla píxel a píxel.
-- **La entrada de ratón** (unas 350 líneas). Es una máquina de estados con
-  memoria entre eventos; sacarla exige nombrar esos estados primero, que es el
-  trabajo de verdad.
+- **El dibujo del plano**: hay que empaquetar los `@export` de color en una
+  paleta y pasarle al módulo las salas de la planta ya filtradas, con sus
+  rectángulos resueltos. Con `PlanGeometry` fuera, eso es casi todo lo que queda.
+- **La entrada de ratón**: sigue siendo una máquina de estados con memoria entre
+  eventos, y el trabajo de verdad es nombrar esos estados.

@@ -59,6 +59,9 @@ const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
 ## las de view/geometry/StairPlanRules.gd, que ya comparten el mundo FP y el visor
 ## 3D, y que el editor llevaba copiadas.
 const StairPlanRules = preload("res://editor/StairPlanRules.gd")
+## La geometria del plano -rectangulos girados, objetos dentro de su sala,
+## distancias- que comparten el dibujo, los clics y el panel (E-12).
+const PlanGeometry = preload("res://editor/PlanGeometry.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
@@ -1178,9 +1181,9 @@ func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vec
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return
-	var size: Vector2 = _object_size_m(obj)
+	var size: Vector2 = PlanGeometry.object_size_m(obj)
 	var local_pos: Vector2 = _snap_object_m(world_center_m - room_rect.position - size * 0.5)
-	local_pos = _clamp_object_local_pos_for_rotation(room_rect, size, local_pos, float(obj.get("rotation_deg", 0.0)))
+	local_pos = PlanGeometry.clamp_object_local_pos_for_rotation(room_rect, size, local_pos, float(obj.get("rotation_deg", 0.0)))
 	_set_object_position(room_id, object_index, local_pos, visual_pose_locked)
 
 
@@ -2512,7 +2515,7 @@ func _handle_press(pos_m: Vector2) -> void:
 					_select_at(pos_m)
 					return
 				var selected_room: Dictionary = _get_room(selected_room_id)
-				if not selected_room.is_empty() and _rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
+				if not selected_room.is_empty() and PlanGeometry.rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
 					_begin_room_mouse_edit(ObjectMouseMode.MOVE, pos_m)
 					return
 			_select_at(pos_m)
@@ -2589,7 +2592,7 @@ func _handle_release(pos_m: Vector2) -> void:
 	drag_current_m = pos_m
 	var start_m: Vector2 = drag_start_m
 	var end_m: Vector2 = drag_current_m
-	var rect: Rect2 = _normalized_rect(start_m, end_m)
+	var rect: Rect2 = PlanGeometry.normalized_rect(start_m, end_m)
 	_clear_drag()
 
 	if current_tool == Tool.CORRIDOR_L:
@@ -3004,7 +3007,7 @@ func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -
 		return
 	var rect: Rect2 = _get_room_rect(room_id)
 	var obj: Dictionary = Dictionary(payload.get("object", {})).duplicate(true)
-	var size: Vector2 = _object_size_m(obj)
+	var size: Vector2 = PlanGeometry.object_size_m(obj)
 	var local: Vector2
 	if beside:
 		local = _snap_object_m(Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)) + Vector2(0.5, 0.5))
@@ -3014,7 +3017,7 @@ func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -
 	obj["id"] = _next_object_id()
 	obj["room_id"] = room_id
 	obj["is_primary_ignition_source"] = false
-	obj["position_m"] = Serializer.vector_to_data(_clamp_object_local_pos_for_rotation(
+	obj["position_m"] = Serializer.vector_to_data(PlanGeometry.clamp_object_local_pos_for_rotation(
 		rect, size, local, float(obj.get("rotation_deg", 0.0))
 	))
 	obj["visual_pose_locked"] = true
@@ -3155,29 +3158,12 @@ func _snap_object_size_value(value_m: float) -> float:
 	return maxf(0.10, snappedf(value_m, step))
 
 
-func _clean_object_rotation_deg(rotation_deg: float) -> float:
-	var value: float = _normalize_degrees_signed(rotation_deg)
-	var threshold: float = maxf(0.0, object_axis_snap_threshold_deg)
-	for axis in [0.0, 90.0, -90.0, 180.0]:
-		if absf(_normalize_degrees_signed(value - axis)) <= threshold:
-			return _normalize_degrees_signed(axis)
-	if absf(value) <= 0.001:
-		return 0.0
-	return value
-
-
 func _snap_object_rotation_deg(rotation_deg: float) -> float:
-	var value: float = _clean_object_rotation_deg(rotation_deg)
+	var value: float = PlanGeometry.clean_object_rotation_deg(rotation_deg, object_axis_snap_threshold_deg)
 	var step: float = maxf(0.0, object_rotation_snap_deg)
 	if step <= 0.0:
 		return value
-	return _clean_object_rotation_deg(snappedf(value, step))
-
-
-func _normalized_rect(a: Vector2, b: Vector2) -> Rect2:
-	var pos := Vector2(minf(a.x, b.x), minf(a.y, b.y))
-	var size := Vector2(absf(a.x - b.x), absf(a.y - b.y))
-	return Rect2(pos, size)
+	return PlanGeometry.clean_object_rotation_deg(snappedf(value, step), object_axis_snap_threshold_deg)
 
 
 func _clear_drag() -> void:
@@ -3222,7 +3208,7 @@ func _update_dragged_room_geometry(pos_m: Vector2) -> void:
 		_:
 			var new_pos: Vector2 = _snap_m(pos_m + room_drag_cursor_offset_m)
 			var next_rect := Rect2(new_pos, room_drag_start_rect_m.size)
-			if absf(_normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
+			if absf(PlanGeometry.normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
 				next_rect = _snap_rect_to_adjacent_rooms(next_rect, selected_room_id)
 			_set_room_rect(selected_room_id, next_rect)
 	_sync_room_geometry_fields(selected_room_id)
@@ -3243,7 +3229,7 @@ func _resize_selected_room_with_mouse(pos_m: Vector2) -> void:
 		center_shift_local.y = (new_size.y - room_drag_start_rect_m.size.y) * 0.5
 	var new_center_m: Vector2 = room_drag_start_center_m + Transform2D(deg_to_rad(room_drag_start_rotation_deg), Vector2.ZERO) * center_shift_local
 	var next_rect := Rect2(_snap_m(new_center_m - new_size * 0.5), new_size)
-	if absf(_normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
+	if absf(PlanGeometry.normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
 		next_rect = _snap_rect_to_adjacent_rooms(next_rect, selected_room_id)
 	_set_room_rect(selected_room_id, next_rect)
 
@@ -3256,7 +3242,7 @@ func _rotate_selected_room_with_mouse(pos_m: Vector2) -> void:
 	var room: Dictionary = _get_room(selected_room_id)
 	if StairPlanRules.is_stair_room(room):
 		rotation_deg = snappedf(rotation_deg / 90.0, 1.0) * 90.0
-	_set_room_rotation(selected_room_id, _normalize_degrees_signed(rotation_deg))
+	_set_room_rotation(selected_room_id, PlanGeometry.normalize_degrees_signed(rotation_deg))
 
 
 func _world_to_room_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
@@ -3308,12 +3294,12 @@ func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
 		return
 	var rr: Rect2 = _get_room_rect(selected_object_room_id)
 	var obj_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-	var size: Vector2 = _object_size_m(obj)
+	var size: Vector2 = PlanGeometry.object_size_m(obj)
 	_push_undo_snapshot("edit_object_mouse")
 	object_mouse_mode = mode
 	is_dragging_object = true
 	drag_object_cursor_offset_m = (rr.position + obj_pos) - pos_m
-	object_drag_start_center_m = _object_world_center(rr, obj)
+	object_drag_start_center_m = PlanGeometry.object_world_center(rr, obj)
 	object_drag_start_size_m = size
 	object_drag_start_rotation_deg = float(obj.get("rotation_deg", 0.0))
 
@@ -3333,10 +3319,10 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 		ObjectMouseMode.ROTATE:
 			_rotate_selected_object_with_mouse(pos_m)
 		_:
-			var size: Vector2 = _object_size_m(obj)
+			var size: Vector2 = PlanGeometry.object_size_m(obj)
 			var new_world_m: Vector2 = _snap_object_m(pos_m + drag_object_cursor_offset_m)
 			var new_local_m: Vector2 = new_world_m - rr.position
-			new_local_m = _clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
+			new_local_m = PlanGeometry.clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
 			_set_object_position(selected_object_room_id, selected_object_index, new_local_m, true)
 	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
 	queue_redraw()
@@ -3357,10 +3343,10 @@ func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
 		new_size.y = local_mouse.y + object_drag_start_size_m.y * 0.5
 		new_size.y = clampf(_snap_object_size_value(new_size.y), 0.10, maxf(0.10, rr.size.y))
 		center_shift_local.y = (new_size.y - object_drag_start_size_m.y) * 0.5
-	var rotation_deg: float = _clean_object_rotation_deg(float(current_obj.get("rotation_deg", object_drag_start_rotation_deg)))
-	var new_center_world_m: Vector2 = object_drag_start_center_m + _object_transform(rotation_deg) * center_shift_local
+	var rotation_deg: float = PlanGeometry.clean_object_rotation_deg(float(current_obj.get("rotation_deg", object_drag_start_rotation_deg)), object_axis_snap_threshold_deg)
+	var new_center_world_m: Vector2 = object_drag_start_center_m + PlanGeometry.object_transform(rotation_deg) * center_shift_local
 	var new_local_pos: Vector2 = new_center_world_m - rr.position - new_size * 0.5
-	new_local_pos = _clamp_object_local_pos_for_rotation(rr, new_size, new_local_pos, rotation_deg)
+	new_local_pos = PlanGeometry.clamp_object_local_pos_for_rotation(rr, new_size, new_local_pos, rotation_deg)
 	_set_object_geometry(
 		selected_object_room_id,
 		selected_object_index,
@@ -3410,7 +3396,7 @@ func _set_object_rotation(room_id: int, obj_index: int, rotation_deg: float) -> 
 		room_id,
 		obj_index,
 		Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)),
-		_object_size_m(obj),
+		PlanGeometry.object_size_m(obj),
 		rotation_deg,
 		float(obj.get("elevation_m", 0.0))
 	)
@@ -3426,9 +3412,9 @@ func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size
 		if obj_index < 0 or obj_index >= objects.size() or typeof(objects[obj_index]) != TYPE_DICTIONARY:
 			return
 		var obj: Dictionary = objects[obj_index]
-		var clean_rotation_deg: float = _clean_object_rotation_deg(rotation_deg)
+		var clean_rotation_deg: float = PlanGeometry.clean_object_rotation_deg(rotation_deg, object_axis_snap_threshold_deg)
 		var clean_size_m := Vector2(maxf(0.10, size_m.x), maxf(0.10, size_m.y))
-		var clamped_pos: Vector2 = _clamp_object_local_pos_for_rotation(_get_room_rect(room_id), clean_size_m, local_pos, clean_rotation_deg)
+		var clamped_pos: Vector2 = PlanGeometry.clamp_object_local_pos_for_rotation(_get_room_rect(room_id), clean_size_m, local_pos, clean_rotation_deg)
 		obj["position_m"] = Serializer.vector_to_data(clamped_pos)
 		obj["size_m"] = Serializer.vector_to_data(clean_size_m)
 		obj["rotation_deg"] = clean_rotation_deg
@@ -3441,50 +3427,6 @@ func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
 		return
-
-
-func _clamp_object_local_pos(room_rect: Rect2, size_m: Vector2, local_pos: Vector2) -> Vector2:
-	return _clamp_object_local_pos_for_rotation(room_rect, size_m, local_pos, 0.0)
-
-
-func _clamp_object_local_pos_for_rotation(room_rect: Rect2, size_m: Vector2, local_pos: Vector2, rotation_deg: float) -> Vector2:
-	var clamped_size := Vector2(maxf(0.05, size_m.x), maxf(0.05, size_m.y))
-	var center: Vector2 = local_pos + clamped_size * 0.5
-	var extents: Vector2 = _rotated_object_aabb_size(clamped_size, rotation_deg)
-	var min_center: Vector2 = extents * 0.5
-	var max_center: Vector2 = room_rect.size - extents * 0.5
-	if max_center.x < min_center.x:
-		center.x = room_rect.size.x * 0.5
-	else:
-		center.x = clampf(center.x, min_center.x, max_center.x)
-		if center.x - min_center.x <= OBJECT_WALL_SNAP_M:
-			center.x = min_center.x
-		elif max_center.x - center.x <= OBJECT_WALL_SNAP_M:
-			center.x = max_center.x
-	if max_center.y < min_center.y:
-		center.y = room_rect.size.y * 0.5
-	else:
-		center.y = clampf(center.y, min_center.y, max_center.y)
-		if center.y - min_center.y <= OBJECT_WALL_SNAP_M:
-			center.y = min_center.y
-		elif max_center.y - center.y <= OBJECT_WALL_SNAP_M:
-			center.y = max_center.y
-	return center - clamped_size * 0.5
-
-
-func _rotated_object_aabb_size(size_m: Vector2, rotation_deg: float) -> Vector2:
-	var angle: float = deg_to_rad(rotation_deg)
-	var c: float = absf(cos(angle))
-	var s: float = absf(sin(angle))
-	return Vector2(size_m.x * c + size_m.y * s, size_m.x * s + size_m.y * c)
-
-
-func _object_visual_min_from_local_pos(size_m: Vector2, local_pos: Vector2, rotation_deg: float) -> Vector2:
-	return local_pos + size_m * 0.5 - _rotated_object_aabb_size(size_m, rotation_deg) * 0.5
-
-
-func _object_local_pos_from_visual_min(size_m: Vector2, visual_min: Vector2, rotation_deg: float) -> Vector2:
-	return visual_min + _rotated_object_aabb_size(size_m, rotation_deg) * 0.5 - size_m * 0.5
 
 
 func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "generic") -> int:
@@ -3551,7 +3493,7 @@ func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degree
 		if not room.has("stair_turn_mode"):
 			room["stair_turn_mode"] = StairPlanRules.turn_mode_from_degrees(turn_degrees)
 		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
-		room["rotation_deg"] = _normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
+		room["rotation_deg"] = PlanGeometry.normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
 		return
@@ -3922,8 +3864,8 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var v_a: Vector2 = Vector2(corner_x - sx * width_m, start_m.y + sy * width_m)
 	var v_b: Vector2 = end_m
 
-	var horizontal_rect: Rect2 = _normalized_rect(h_a, h_b)
-	var vertical_rect: Rect2 = _normalized_rect(v_a, v_b)
+	var horizontal_rect: Rect2 = PlanGeometry.normalized_rect(h_a, h_b)
+	var vertical_rect: Rect2 = PlanGeometry.normalized_rect(v_a, v_b)
 	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
 			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
 		return {"error": "El giro del pasillo queda demasiado pequeño."}
@@ -4104,7 +4046,7 @@ func _refresh_property_panel() -> void:
 	var state: Dictionary = {
 		"room": room,
 		"room_rect": _get_room_rect(selected_room_id) if has_room else Rect2(),
-		"room_rotation_deg": _normalize_degrees_signed(float(room.get("rotation_deg", 0.0))) if has_room else 0.0,
+		"room_rotation_deg": PlanGeometry.normalize_degrees_signed(float(room.get("rotation_deg", 0.0))) if has_room else 0.0,
 		"room_is_stair": has_room and StairPlanRules.is_stair_room(room),
 		"stair_turn_item_id": _stair_turn_item_id_for_mode(StairPlanRules.turn_mode_for_room(room)) if has_room else 0,
 		"stair_angle_text": _stair_angle_text(selected_room_id, room) if has_room else "",
@@ -4115,10 +4057,10 @@ func _refresh_property_panel() -> void:
 		"wall": _element_at("exterior_walls", selected_exterior_wall_index)
 	}
 	if not obj.is_empty():
-		var size_m: Vector2 = _object_size_m(obj)
+		var size_m: Vector2 = PlanGeometry.object_size_m(obj)
 		state["object_size"] = size_m
-		state["object_rotation_deg"] = _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0)))
-		state["object_visual_pos"] = _object_visual_min_from_local_pos(
+		state["object_rotation_deg"] = PlanGeometry.normalize_degrees_signed(float(obj.get("rotation_deg", 0.0)))
+		state["object_visual_pos"] = PlanGeometry.object_visual_min_from_local_pos(
 			size_m,
 			Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)),
 			float(obj.get("rotation_deg", 0.0))
@@ -4127,7 +4069,7 @@ func _refresh_property_panel() -> void:
 	if not opening.is_empty():
 		state["opening_type_label"] = _opening_type_label_text(opening)
 		state["opening_max_width_m"] = _max_width_for_opening(opening)
-		state["opening_max_offset_m"] = 200.0 if bool(opening.get("is_vertical", false)) else _wall_length(
+		state["opening_max_offset_m"] = 200.0 if bool(opening.get("is_vertical", false)) else PlanGeometry.wall_length(
 			_get_room_rect(int(opening.get("a", -1))),
 			String(opening.get("wall", "top"))
 		)
@@ -4201,11 +4143,11 @@ func _opening_type_label_text(opening: Dictionary) -> String:
 func _sync_object_property_fields(obj: Dictionary) -> void:
 	if obj.is_empty():
 		return
-	var size_m: Vector2 = _object_size_m(obj)
+	var size_m: Vector2 = PlanGeometry.object_size_m(obj)
 	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
 	if selected_object_room_id >= 0:
-		pos = _object_visual_min_from_local_pos(size_m, pos, float(obj.get("rotation_deg", 0.0)))
-	_props.fill_object(obj, pos, size_m, _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0))))
+		pos = PlanGeometry.object_visual_min_from_local_pos(size_m, pos, float(obj.get("rotation_deg", 0.0)))
+	_props.fill_object(obj, pos, size_m, PlanGeometry.normalize_degrees_signed(float(obj.get("rotation_deg", 0.0))))
 
 
 func _update_stair_angle_label(room_id: int, room: Dictionary) -> void:
@@ -4274,7 +4216,7 @@ func _apply_room_properties() -> void:
 		var room: Dictionary = rooms[i]
 		room["name"] = String(fields.get("name", ""))
 		room["kind"] = String(fields.get("kind", ""))
-		room["rotation_deg"] = _normalize_degrees_signed(float(fields.get("rotation_deg", 0.0)))
+		room["rotation_deg"] = PlanGeometry.normalize_degrees_signed(float(fields.get("rotation_deg", 0.0)))
 		if StairPlanRules.is_stair_room(room):
 			room["stair_run_direction_m"] = Serializer.vector_to_data(StairPlanRules.direction_from_rotation(float(room.get("rotation_deg", 0.0))))
 			room["stair_turn_mode"] = _stair_turn_mode_from_item_id(int(fields.get("stair_turn_item_id", 0)))
@@ -4336,25 +4278,6 @@ func _room_rotation_deg(room_id: int) -> float:
 	return float(room.get("rotation_deg", 0.0)) if not room.is_empty() else 0.0
 
 
-func _rotated_rect_points_m(rect: Rect2, rotation_deg: float) -> PackedVector2Array:
-	var center: Vector2 = rect.get_center()
-	var half: Vector2 = rect.size * 0.5
-	var rot := Transform2D(deg_to_rad(rotation_deg), Vector2.ZERO)
-	return PackedVector2Array([
-		center + rot * Vector2(-half.x, -half.y),
-		center + rot * Vector2(half.x, -half.y),
-		center + rot * Vector2(half.x, half.y),
-		center + rot * Vector2(-half.x, half.y)
-	])
-
-
-func _rotated_rect_has_point(rect: Rect2, rotation_deg: float, pos_m: Vector2) -> bool:
-	if absf(rotation_deg) <= 0.001:
-		return rect.has_point(pos_m)
-	var local: Vector2 = Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - rect.get_center())
-	return absf(local.x) <= rect.size.x * 0.5 and absf(local.y) <= rect.size.y * 0.5
-
-
 func _get_object(room_id: int, object_index: int) -> Dictionary:
 	var room: Dictionary = _get_room(room_id)
 	var objects: Array = room.get("fuel_objects", [])
@@ -4372,23 +4295,9 @@ func _find_room_at(pos_m: Vector2) -> int:
 		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
-		if _rotated_rect_has_point(_get_room_rect(room_id), _room_rotation_deg(room_id), pos_m):
+		if PlanGeometry.rotated_rect_has_point(_get_room_rect(room_id), _room_rotation_deg(room_id), pos_m):
 			return room_id
 	return -1
-
-
-func _object_size_m(obj: Dictionary) -> Vector2:
-	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-	return Vector2(maxf(0.05, size.x), maxf(0.05, size.y))
-
-
-func _object_world_center(room_rect: Rect2, obj: Dictionary) -> Vector2:
-	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-	return room_rect.position + pos + _object_size_m(obj) * 0.5
-
-
-func _object_transform(rotation_deg: float) -> Transform2D:
-	return Transform2D(deg_to_rad(rotation_deg), Vector2.ZERO)
 
 
 func _world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
@@ -4396,29 +4305,16 @@ func _world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: flo
 
 
 func _object_contains_point(room_rect: Rect2, obj: Dictionary, pos_m: Vector2) -> bool:
-	var size: Vector2 = _object_size_m(obj)
-	var local: Vector2 = _world_to_object_local(pos_m, _object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0)))
+	var size: Vector2 = PlanGeometry.object_size_m(obj)
+	var local: Vector2 = _world_to_object_local(pos_m, PlanGeometry.object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0)))
 	var hit_padding_m: float = maxf(0.05, 8.0 / pixels_per_meter)
 	return absf(local.x) <= size.x * 0.5 + hit_padding_m and absf(local.y) <= size.y * 0.5 + hit_padding_m
 
 
-func _object_corner_points_m(room_rect: Rect2, obj: Dictionary) -> PackedVector2Array:
-	var size: Vector2 = _object_size_m(obj)
-	var half: Vector2 = size * 0.5
-	var center: Vector2 = _object_world_center(room_rect, obj)
-	var rot := _object_transform(float(obj.get("rotation_deg", 0.0)))
-	return PackedVector2Array([
-		center + rot * Vector2(-half.x, -half.y),
-		center + rot * Vector2(half.x, -half.y),
-		center + rot * Vector2(half.x, half.y),
-		center + rot * Vector2(-half.x, half.y)
-	])
-
-
 func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> Dictionary:
-	var size: Vector2 = _object_size_m(obj)
-	var center: Vector2 = _object_world_center(room_rect, obj)
-	var rot := _object_transform(float(obj.get("rotation_deg", 0.0)))
+	var size: Vector2 = PlanGeometry.object_size_m(obj)
+	var center: Vector2 = PlanGeometry.object_world_center(room_rect, obj)
+	var rot := PlanGeometry.object_transform(float(obj.get("rotation_deg", 0.0)))
 	return {
 		ObjectMouseMode.RESIZE_WIDTH: center + rot * Vector2(size.x * 0.5, 0.0),
 		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, size.y * 0.5),
@@ -4468,13 +4364,6 @@ func _find_selected_object_handle_at(pos_m: Vector2) -> int:
 	return ObjectMouseMode.NONE
 
 
-func _normalize_degrees_signed(value: float) -> float:
-	var wrapped: float = fposmod(value + 180.0, 360.0) - 180.0
-	if wrapped <= -180.0:
-		return 180.0
-	return wrapped
-
-
 func _find_object_at(pos_m: Vector2) -> Dictionary:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
@@ -4508,7 +4397,7 @@ func _find_opening_at(pos_m: Vector2) -> int:
 		var segment: PackedVector2Array = _opening_segment_m(openings[i])
 		if segment.size() != 2:
 			continue
-		if _distance_to_segment(pos_m, segment[0], segment[1]) <= 0.18:
+		if PlanGeometry.distance_to_segment(pos_m, segment[0], segment[1]) <= 0.18:
 			return i
 	return -1
 
@@ -4525,7 +4414,7 @@ func _create_object_at(pos_m: Vector2) -> void:
 	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
 	var local_pos: Vector2 = _snap_object_m(pos_m - room_rect.position - size * 0.5)
-	local_pos = _clamp_object_local_pos(room_rect, size, local_pos)
+	local_pos = PlanGeometry.clamp_object_local_pos(room_rect, size, local_pos)
 	_push_undo_snapshot("create_object")
 	obj["position_m"] = Serializer.vector_to_data(local_pos)
 	obj["visual_pose_locked"] = true
@@ -5095,7 +4984,7 @@ func _find_exterior_wall_at(pos_m: Vector2) -> int:
 		var wall: Dictionary = walls[i]
 		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
 		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		var distance: float = _distance_to_segment(pos_m, a, b)
+		var distance: float = PlanGeometry.distance_to_segment(pos_m, a, b)
 		if distance <= best_distance:
 			best_distance = distance
 			best_index = i
@@ -5156,8 +5045,8 @@ func _find_wall_at(pos_m: Vector2) -> Dictionary:
 		var room_id: int = int(room.get("id", -1))
 		var rect: Rect2 = _get_room_rect(room_id)
 		for wall in ["top", "bottom", "left", "right"]:
-			var segment: PackedVector2Array = _wall_segment(rect, wall, _wall_length(rect, wall) * 0.5, _wall_length(rect, wall))
-			var dist: float = _distance_to_segment(pos_m, segment[0], segment[1])
+			var segment: PackedVector2Array = _wall_segment(rect, wall, PlanGeometry.wall_length(rect, wall) * 0.5, PlanGeometry.wall_length(rect, wall))
+			var dist: float = PlanGeometry.distance_to_segment(pos_m, segment[0], segment[1])
 			if dist < best_distance:
 				best_distance = dist
 				var offset: float = _offset_on_wall(rect, wall, pos_m)
@@ -5265,7 +5154,7 @@ func _max_width_for_opening(opening: Dictionary) -> float:
 		var rect: Rect2 = _get_room_rect(a_id)
 		if wall == "":
 			wall = "top"
-		return maxf(0.30, _wall_length(rect, wall) - 0.10)
+		return maxf(0.30, PlanGeometry.wall_length(rect, wall) - 0.10)
 	return 0.30
 
 
@@ -5377,12 +5266,6 @@ func _offset_on_wall(rect: Rect2, wall: String, pos_m: Vector2) -> float:
 	return 0.0
 
 
-func _wall_length(rect: Rect2, wall: String) -> float:
-	if wall == "top" or wall == "bottom":
-		return rect.size.x
-	return rect.size.y
-
-
 func _wall_start_dir(rect: Rect2, wall: String) -> Dictionary:
 	match wall:
 		"top":
@@ -5400,7 +5283,7 @@ func _wall_segment(rect: Rect2, wall: String, offset_m: float, width_m: float) -
 	var wall_data: Dictionary = _wall_start_dir(rect, wall)
 	var start: Vector2 = wall_data["start"]
 	var dir: Vector2 = wall_data["dir"]
-	var length: float = _wall_length(rect, wall)
+	var length: float = PlanGeometry.wall_length(rect, wall)
 	var half_width: float = minf(width_m, length) * 0.5
 	var center_offset: float = clampf(offset_m, half_width, maxf(half_width, length - half_width))
 	var center: Vector2 = start + dir * center_offset
@@ -5418,13 +5301,13 @@ func _opening_segment_m(opening: Dictionary) -> PackedVector2Array:
 		var shared: Dictionary = _shared_wall_between(a_id, b_id)
 		wall = String(shared.get("wall", "top"))
 	var width: float = float(opening.get("width_m", 0.9))
-	var offset: float = float(opening.get("offset_m", _wall_length(rect, wall) * 0.5))
+	var offset: float = float(opening.get("offset_m", PlanGeometry.wall_length(rect, wall) * 0.5))
 	if bool(opening.get("offset_is_fraction", true)):
 		if b_id != OUTSIDE_ID:
 			var shared_segment: PackedVector2Array = _shared_wall_segment(a_id, b_id, wall)
 			if shared_segment.size() == 2:
 				return _line_segment_from_fraction(shared_segment[0], shared_segment[1], offset, width)
-		offset = _wall_length(rect, wall) * clampf(offset, 0.0, 1.0)
+		offset = PlanGeometry.wall_length(rect, wall) * clampf(offset, 0.0, 1.0)
 	return _wall_segment(rect, wall, offset, width)
 
 
@@ -5438,15 +5321,6 @@ func _line_segment_from_fraction(a: Vector2, b: Vector2, offset_fraction: float,
 	var center_offset: float = clampf(length * clampf(offset_fraction, 0.0, 1.0), safe_width * 0.5, maxf(safe_width * 0.5, length - safe_width * 0.5))
 	var center: Vector2 = a + dir * center_offset
 	return PackedVector2Array([center - dir * safe_width * 0.5, center + dir * safe_width * 0.5])
-
-
-func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
-	var ab: Vector2 = b - a
-	var len_sq: float = ab.length_squared()
-	if len_sq <= 0.000001:
-		return point.distance_to(a)
-	var t: float = clampf((point - a).dot(ab) / len_sq, 0.0, 1.0)
-	return point.distance_to(a + ab * t)
 
 
 func _save_pressed() -> void:
@@ -5669,10 +5543,10 @@ func _apply_object_properties() -> void:
 		var new_w: float = float(fields.get("width_m", 1.0))
 		var new_h: float = float(fields.get("height_m", 1.0))
 		var room_rect: Rect2 = _get_room_rect(selected_object_room_id)
-		var new_rotation: float = _clean_object_rotation_deg(float(fields.get("rotation_deg", 0.0)))
+		var new_rotation: float = PlanGeometry.clean_object_rotation_deg(float(fields.get("rotation_deg", 0.0)), object_axis_snap_threshold_deg)
 		var new_pos := Vector2(float(fields.get("x_m", 0.0)), float(fields.get("y_m", 0.0)))
-		new_pos = _object_local_pos_from_visual_min(Vector2(new_w, new_h), new_pos, new_rotation)
-		new_pos = _clamp_object_local_pos_for_rotation(room_rect, Vector2(new_w, new_h), new_pos, new_rotation)
+		new_pos = PlanGeometry.object_local_pos_from_visual_min(Vector2(new_w, new_h), new_pos, new_rotation)
+		new_pos = PlanGeometry.clamp_object_local_pos_for_rotation(room_rect, Vector2(new_w, new_h), new_pos, new_rotation)
 		obj["position_m"] = Serializer.vector_to_data(new_pos)
 		obj["size_m"] = {"x": new_w, "y": new_h}
 		obj["rotation_deg"] = new_rotation
@@ -5708,7 +5582,7 @@ func _apply_opening_properties() -> void:
 		op["offset_m"] = clampf(
 			float(fields.get("offset_m", 0.0)),
 			0.0,
-			_wall_length(_get_room_rect(int(op.get("a", -1))), String(op.get("wall", "top")))
+			PlanGeometry.wall_length(_get_room_rect(int(op.get("a", -1))), String(op.get("wall", "top")))
 		)
 		op["offset_is_fraction"] = false
 	op["sill_m"] = 0.0 if op_type == "hole" else float(fields.get("sill_m", 0.0))
@@ -5741,7 +5615,7 @@ func _draw() -> void:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
 			return
-		var rect: Rect2 = _normalized_rect(drag_start_m, drag_current_m)
+		var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, drag_current_m)
 		var rect_px: Rect2 = _rect_to_px(rect)
 		var fill_color: Color = Color(0.25, 0.68, 0.95, 0.18)
 		var outline_color: Color = Color(0.55, 0.90, 1.0, 0.85)
@@ -6055,7 +5929,7 @@ func _draw_rooms() -> void:
 			outline = UI_YELLOW
 		var rotation_deg: float = float(room.get("rotation_deg", 0.0))
 		if absf(rotation_deg) > 0.001:
-			var points_m: PackedVector2Array = _rotated_rect_points_m(rect, rotation_deg)
+			var points_m: PackedVector2Array = PlanGeometry.rotated_rect_points_m(rect, rotation_deg)
 			var points_px := PackedVector2Array()
 			for point_m in points_m:
 				points_px.append(_m_to_px(point_m))
@@ -6213,12 +6087,12 @@ func _draw_objects() -> void:
 			if typeof(objects[object_index]) != TYPE_DICTIONARY:
 				continue
 			var obj: Dictionary = objects[object_index]
-			var size: Vector2 = _object_size_m(obj)
-			var corners_m: PackedVector2Array = _object_corner_points_m(room_rect, obj)
+			var size: Vector2 = PlanGeometry.object_size_m(obj)
+			var corners_m: PackedVector2Array = PlanGeometry.object_corner_points_m(room_rect, obj)
 			var corners_px := PackedVector2Array()
 			for point_m in corners_m:
 				corners_px.append(_m_to_px(point_m))
-			var center_px: Vector2 = _m_to_px(_object_world_center(room_rect, obj))
+			var center_px: Vector2 = _m_to_px(PlanGeometry.object_world_center(room_rect, obj))
 			var selected: bool = room_id == selected_object_room_id and object_index == selected_object_index
 			var fill: Color = _object_selected_color if selected else _object_color
 			draw_colored_polygon(corners_px, fill)
@@ -6242,8 +6116,8 @@ func _draw_objects() -> void:
 
 func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
 	var handles: Dictionary = _object_handle_points_m(room_rect, obj)
-	var center_px: Vector2 = _m_to_px(_object_world_center(room_rect, obj))
-	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _object_world_center(room_rect, obj))))
+	var center_px: Vector2 = _m_to_px(PlanGeometry.object_world_center(room_rect, obj))
+	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, PlanGeometry.object_world_center(room_rect, obj))))
 	var resize_pxs := PackedVector2Array()
 	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
 		if handles.has(mode):
