@@ -192,17 +192,22 @@ func _run_checks() -> void:
 	# La barra esta centrada y crece sola con su contenido: cada herramienta
 	# nueva, o cada etiqueta mas larga, la empuja hacia los lados hasta meterse
 	# debajo del panel, donde los botones dejan de poder pulsarse.
-	var top_bar := canvas.get_node_or_null("UI/TopBar") as Control
-	if top_bar != null:
-		var bar_rect: Rect2 = top_bar.get_global_rect()
+	# Ni la barra ni el panel del 3D en vivo pueden meterse debajo de los paneles
+	# laterales: lo que queda tapado no se puede pulsar.
+	for floating_name in ["TopBar", "Preview3DPanel"]:
+		var floating := canvas.get_node_or_null("UI/" + floating_name) as Control
+		if floating == null:
+			continue
+		var floating_rect: Rect2 = floating.get_global_rect()
 		for panel_name in ["LeftPanel", "RightPanel"]:
 			var side := canvas.get_node_or_null("UI/" + panel_name) as Control
 			if side == null:
 				continue
 			var side_rect: Rect2 = side.get_global_rect()
-			if bar_rect.intersects(side_rect):
-				_fail("la barra (x %d..%d) se mete debajo de %s (x %d..%d)" % [
-					int(bar_rect.position.x), int(bar_rect.end.x),
+			if floating_rect.intersects(side_rect):
+				_fail("%s (x %d..%d) se mete debajo de %s (x %d..%d)" % [
+					floating_name,
+					int(floating_rect.position.x), int(floating_rect.end.x),
 					panel_name,
 					int(side_rect.position.x), int(side_rect.end.x)
 				])

@@ -228,6 +228,20 @@ var _editor_building_model: BuildingModel
 var _editor_visualizer_3d: Visualizer3D
 var _editor_fp_controller: FirstPersonController
 var _editor_runtime_dirty: bool = false
+# ── 3D en vivo ──────────────────────────────────────────────────────────────
+## El plano en 3D mientras se dibuja, en un panel pequeño.
+##
+## No se rehace en cada movimiento del raton a proposito: rehacer la malla cuesta
+## unos 80 ms con un piso normal (medido en tools/probe_editor_3d_cost.gd) y un
+## fotograma son 16,7. Se rehace cuando dejas de mover, que es como lo hacen los
+## editores de verdad y no se nota.
+const PREVIEW_3D_DELAY_S: float = 0.25
+var _preview_3d_panel: PanelContainer
+var _preview_3d_viewport: SubViewport
+var _preview_3d_camera: Camera3D
+var _preview_3d_toggle: Button
+var _preview_3d_enabled: bool = false
+var _preview_3d_delay_s: float = 0.0
 var _editor_3d_drag_active: bool = false
 var _help_toggle_button: Button
 var _help_panel: PanelContainer
@@ -807,7 +821,17 @@ func _sync_editor_runtime_views(rebuild_fp: bool = true) -> void:
 		return
 	_lock_all_object_visual_poses()
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
-	_editor_building_model.load_template_data(runtime_template, true)
+	# Un escenario a medio dibujar todavia no tiene foco de ignicion, y
+	# BuildingModel rechaza el template entero por eso -"ignition_room_id no
+	# referencia una sala valida"-. Al rechazarlo se queda con el edificio
+	# anterior, asi que el 3D del editor enseñaba una vista vieja sin avisar.
+	# Para MIRAR no hace falta foco: se quita del template de la vista, y el de
+	# verdad, el que se exporta para simular, no se toca.
+	if not _ignition_room_is_valid(runtime_template):
+		runtime_template.erase("ignition_room_id")
+	if not _editor_building_model.load_template_data(runtime_template, true):
+		_set_status("La vista 3D no se pudo actualizar: revisa el escenario.")
+		return
 	if _editor_visualizer_3d != null:
 		_editor_visualizer_3d.building = _editor_building_model
 		_editor_visualizer_3d.rebuild_from_building()
@@ -819,8 +843,21 @@ func _sync_editor_runtime_views(rebuild_fp: bool = true) -> void:
 	_sync_editor_visualizer_selection()
 
 
+## Cierto si el foco de ignicion apunta a una sala que existe. Sin foco todavia
+## -lo normal mientras se dibuja- devuelve falso y la vista se monta igual.
+func _ignition_room_is_valid(runtime_template: Dictionary) -> bool:
+	if not runtime_template.has("ignition_room_id"):
+		return true
+	var ignition_id: int = int(runtime_template.get("ignition_room_id", -1))
+	for room in runtime_template.get("rooms_data", []):
+		if typeof(room) == TYPE_DICTIONARY and int(Dictionary(room).get("id", -1)) == ignition_id:
+			return true
+	return false
+
+
 func _mark_editor_runtime_dirty() -> void:
 	_editor_runtime_dirty = true
+	_preview_3d_delay_s = PREVIEW_3D_DELAY_S
 
 
 func _lock_all_object_visual_poses() -> void:
@@ -883,6 +920,88 @@ func _sync_editor_visualizer_selection() -> void:
 		_editor_visualizer_3d.clear_selection()
 
 
+## Enlaza el panel del 3D en vivo, que vive en la escena.
+func _bind_preview_3d() -> void:
+	_preview_3d_panel = _get_ui_node("Preview3DPanel") as PanelContainer
+	_preview_3d_viewport = _get_ui_node("Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport") as SubViewport
+	_preview_3d_camera = _get_ui_node("Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport/Preview3DCamera") as Camera3D
+	_preview_3d_toggle = _get_left_node("Preview3DToggle") as Button
+	if _preview_3d_toggle != null:
+		_preview_3d_toggle.toggle_mode = true
+		if not _preview_3d_toggle.toggled.is_connected(_on_preview_3d_toggled):
+			_preview_3d_toggle.toggled.connect(_on_preview_3d_toggled)
+	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DFrame") as Button, _frame_preview_3d)
+	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DClose") as Button, _close_preview_3d)
+	_set_preview_3d_enabled(false)
+
+
+func _on_preview_3d_toggled(pressed: bool) -> void:
+	_set_preview_3d_enabled(pressed)
+
+
+func _close_preview_3d() -> void:
+	_set_preview_3d_enabled(false)
+
+
+## Enciende o apaga el panel.
+##
+## El truco para que el mismo mundo 3D se vea dentro del editor 2D: el
+## SubViewport comparte el World3D de la ventana y trae SU PROPIA camara, asi que
+## la del visor puede quedarse apagada. Con el visor visible pero sin camara
+## activa, el mundo no se cuela detras del plano y si aparece en el panel.
+func _set_preview_3d_enabled(enabled: bool) -> void:
+	_preview_3d_enabled = enabled
+	if _preview_3d_panel != null:
+		_preview_3d_panel.visible = enabled
+	if _preview_3d_toggle != null and _preview_3d_toggle.button_pressed != enabled:
+		_preview_3d_toggle.set_pressed_no_signal(enabled)
+	if not enabled:
+		# Se devuelve el mundo al estado que le toca por el modo de vista.
+		var use_3d: bool = _editor_view_mode == EditorViewMode.MODE_3D
+		var use_fp: bool = _editor_view_mode == EditorViewMode.MODE_FP
+		if _editor_world_3d != null:
+			_editor_world_3d.visible = use_3d or use_fp
+		if _editor_visualizer_3d != null:
+			_editor_visualizer_3d.set_active(use_3d or use_fp, use_3d, use_3d, use_fp)
+		return
+	_ensure_editor_3d_nodes()
+	if _preview_3d_viewport != null:
+		_preview_3d_viewport.world_3d = get_viewport().world_3d
+	if _editor_world_3d != null:
+		_editor_world_3d.visible = true
+	if _editor_visualizer_3d != null:
+		# Visible, pero sin robar la camara de la ventana principal.
+		_editor_visualizer_3d.set_active(true, false, false, false)
+	_sync_editor_runtime_views(false)
+	_frame_preview_3d()
+	_set_status("3D en vivo encendido: se rehace solo al soltar cada cambio.")
+
+
+## Rehace el panel cuando se deja de mover. Cada cambio reinicia la cuenta, asi
+## que arrastrar una sala entera cuesta UNA reconstruccion, no una por fotograma.
+func _refresh_preview_3d(delta: float) -> void:
+	if not _preview_3d_enabled or not _editor_runtime_dirty:
+		return
+	_preview_3d_delay_s -= delta
+	if _preview_3d_delay_s > 0.0:
+		return
+	_sync_editor_runtime_views(false)
+	_frame_preview_3d()
+
+
+## La camara del panel copia la del visor 3D, que ya sabe encuadrar el edificio.
+## Asi el panel enseña lo mismo que veras al pasar a 3D, sin duplicar el calculo.
+func _frame_preview_3d() -> void:
+	if _preview_3d_camera == null or _editor_visualizer_3d == null:
+		return
+	var source := _editor_visualizer_3d.get_node_or_null("CameraRig/Camera3D") as Camera3D
+	if source == null:
+		return
+	_preview_3d_camera.global_transform = source.global_transform
+	_preview_3d_camera.fov = source.fov
+	_preview_3d_camera.current = true
+
+
 func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	if not force and _editor_view_mode == mode:
 		return
@@ -905,8 +1024,11 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 		world_2d.visible = use_2d
 	if camera != null:
 		camera.enabled = use_2d
+	if _preview_3d_enabled and (use_3d or use_fp):
+		# En 3D o en primera persona el panel sobra: ya se esta viendo el mundo.
+		_set_preview_3d_enabled(false)
 	if _editor_world_3d != null:
-		_editor_world_3d.visible = use_3d or use_fp
+		_editor_world_3d.visible = use_3d or use_fp or _preview_3d_enabled
 	if _editor_visualizer_3d != null:
 		_editor_visualizer_3d.set_active(use_3d or use_fp, use_3d, use_3d, use_fp)
 		_update_editor_visualizer_drag_mode()
@@ -6723,6 +6845,7 @@ func _bind_existing_ui() -> bool:
 	_bind_building_type_controls()
 	_bind_element_list()
 	_bind_controls_help()
+	_bind_preview_3d()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
 
@@ -7065,6 +7188,7 @@ func _physics_process(delta: float) -> void:
 	_refresh_editor_runtime_if_needed()
 	if _editor_view_mode != EditorViewMode.MODE_2D:
 		return
+	_refresh_preview_3d(delta)
 	_update_hover_help(delta)
 	var direction := Vector2.ZERO
 

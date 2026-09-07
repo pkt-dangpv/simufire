@@ -59,7 +59,7 @@ func _process(_delta: float) -> bool:
 	# posicion real del cursor, y la foto sale distinta segun donde estuviera.
 	_apply_pose(_poses[_pose_index])
 	_wait += 1
-	if _wait < 3:
+	if _wait < 12:
 		return false
 	_shoot(_poses[_pose_index])
 	_pose_index += 1
@@ -93,6 +93,7 @@ func _setup() -> void:
 		{"name": "07_arrastre_pasillo", "tool": 3, "drag_room": [Vector2(0.5, 4.0), Vector2(6.0, 4.0)]},
 		{"name": "08_arrastre_muro", "tool": 1, "drag_wall": [Vector2(-0.4, 6.4), Vector2(7.6, 6.4)]},
 		{"name": "09_planta_alta", "tool": 0, "floor": 1},
+		{"name": "10_3d_en_vivo", "tool": 0, "room": 7, "preview_3d": true},
 	]
 
 
@@ -116,6 +117,10 @@ func _apply_pose(pose: Dictionary) -> void:
 		_editor.drag = 2
 		_editor.drag_start_m = drag[0]
 		_editor.drag_current_m = drag[1]
+	# El 3D en vivo: se enciende solo en la pose que lo pide.
+	var wants_preview: bool = bool(pose.get("preview_3d", false))
+	if _editor._preview_3d_enabled != wants_preview:
+		_editor._set_preview_3d_enabled(wants_preview)
 	if pose.has("drag_wall"):
 		var wall: Array = pose["drag_wall"]
 		_editor.drag = 1

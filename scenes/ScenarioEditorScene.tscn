@@ -516,6 +516,15 @@ theme_override_font_sizes/font_size = 12
 button_pressed = true
 text = "AYUDA CONTEXTUAL"
 
+[node name="Preview3DToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=770011202]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+tooltip_text = "Enseña el plano en 3D mientras lo dibujas, en un panel pequeño. Se rehace sola al soltar cada cambio."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "3D EN VIVO"
+
 [node name="ControlsHelpToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=813305791]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
@@ -1888,6 +1897,68 @@ layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR MURO"
+
+[node name="Preview3DPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=770011201]
+custom_minimum_size = Vector2(320, 236)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -588.0
+offset_top = -320.0
+offset_right = -268.0
+offset_bottom = -84.0
+grow_horizontal = 0
+grow_vertical = 0
+tooltip_text = "Vista 3D en vivo del plano que estás dibujando. Se rehace sola al soltar cada cambio."
+theme_override_styles/panel = SubResource("StyleBoxFlat_dnoaf")
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/Preview3DPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeaderRow" type="HBoxContainer" parent="CanvasLayer/UI/Preview3DPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Preview3DTitle" type="Label" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "3D en vivo"
+
+[node name="BtnPreview3DFrame" type="Button" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
+custom_minimum_size = Vector2(72, 24)
+layout_mode = 2
+tooltip_text = "Vuelve a encuadrar la vista 3D sobre todo lo dibujado."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+text = "Encuadrar"
+
+[node name="BtnPreview3DClose" type="Button" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Cierra la vista 3D en vivo. Se vuelve a abrir con el botón 3D EN VIVO del panel izquierdo."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+text = "X"
+
+[node name="Preview3DViewportContainer" type="SubViewportContainer" parent="CanvasLayer/UI/Preview3DPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="Preview3DViewport" type="SubViewport" parent="CanvasLayer/UI/Preview3DPanel/VBox/Preview3DViewportContainer"]
+handle_input_locally = false
+size = Vector2i(312, 196)
+render_target_update_mode = 4
+
+[node name="Preview3DCamera" type="Camera3D" parent="CanvasLayer/UI/Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 10)
+fov = 55.0
 
 [node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
 layout_mode = 1

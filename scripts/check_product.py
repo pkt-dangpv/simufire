@@ -454,6 +454,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot combustion regime: " + (diagnostic or "failed"))
 
+    # El 3D en vivo mientras se dibuja en planta: que se encienda, comparta mundo
+    # y se rehaga al soltar cada cambio.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_editor_live_3d.tscn",
+        "[validate_editor_live_3d] PASS",
+    )
+    rows.append(("3D en vivo del editor Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor live 3D: " + (diagnostic or "failed"))
+
     # La escalera que dibuja una persona, subida por una persona. Las otras
     # guardias de escalera prueban el rellano del bloque, que se construye solo.
     rc, count, fails, diagnostic = _run_godot_scene(
