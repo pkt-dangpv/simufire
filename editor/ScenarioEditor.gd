@@ -54,9 +54,11 @@ const Serializer = preload("res://editor/ScenarioSerializer.gd")
 ## El panel de propiedades del lado derecho, en su modulo: 53 mandos y el
 ## reparto de lo que enseña cada uno (E-12).
 const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
-## La geometria de las escaleras, sin editor: funciones puras que entran
-## rectangulo y direccion y sacan numeros (E-12).
-const StairGeometry = preload("res://editor/StairGeometry.gd")
+## Las reglas de escalera del editor -el vocabulario de giros y lo que se deduce
+## de un arrastre- en su modulo (E-12). Las MEDIDAS del tramo no estan ahi: son
+## las de view/geometry/StairPlanRules.gd, que ya comparten el mundo FP y el visor
+## 3D, y que el editor llevaba copiadas.
+const StairPlanRules = preload("res://editor/StairPlanRules.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
@@ -1344,7 +1346,7 @@ func _set_control_row_visible(control: Control, visible: bool) -> void:
 
 func _stair_turn_mode_from_option(option: OptionButton) -> String:
 	if option == null:
-		return StairGeometry.MODE_AUTO
+		return StairPlanRules.MODE_AUTO
 	return _stair_turn_mode_from_item_id(option.get_selected_id())
 
 
@@ -1907,7 +1909,7 @@ func _refresh_element_list() -> void:
 
 
 func _element_type_label_for_room(room: Dictionary) -> String:
-	if StairGeometry.is_stair_room(room):
+	if StairPlanRules.is_stair_room(room):
 		return "Escalera"
 	if _is_corridor_room(room):
 		return "Pasillo"
@@ -2285,7 +2287,7 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.CORRIDOR_L:
 			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
 		Tool.STAIRS:
-			return "Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados." % [StairGeometry.turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
+			return "Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados." % [StairPlanRules.turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
 		Tool.DOOR:
 			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
 		Tool.HOLE:
@@ -2597,7 +2599,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	if current_tool == Tool.STAIRS:
-		var stair_dir: Vector2 = StairGeometry.run_direction_from_drag(start_m, end_m, rect)
+		var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(start_m, end_m, rect)
 		var stair_long_m: float = StairGeometry.long_span_m(rect, stair_dir)
 		var stair_cross_m: float = StairGeometry.cross_span_m(rect, stair_dir)
 		if stair_long_m < GRID_M * 5.0 or stair_cross_m < GRID_M * 3.0:
@@ -3252,7 +3254,7 @@ func _rotate_selected_room_with_mouse(pos_m: Vector2) -> void:
 		return
 	var rotation_deg: float = snappedf(rad_to_deg(atan2(dir.y, dir.x)) + 90.0, 1.0)
 	var room: Dictionary = _get_room(selected_room_id)
-	if StairGeometry.is_stair_room(room):
+	if StairPlanRules.is_stair_room(room):
 		rotation_deg = snappedf(rotation_deg / 90.0, 1.0) * 90.0
 	_set_room_rotation(selected_room_id, _normalize_degrees_signed(rotation_deg))
 
@@ -3267,24 +3269,24 @@ func _set_room_rect(room_id: int, rect: Rect2) -> void:
 	rects[str(room_id)] = Serializer.rect_to_data(snapped_rect)
 	editor_data["room_rect_m"] = rects
 	var room: Dictionary = _get_room(room_id)
-	if StairGeometry.is_stair_room(room):
+	if StairPlanRules.is_stair_room(room):
 		_sync_linked_stair_rects(room_id, snapped_rect)
 		_sync_vertical_stair_openings(room_id)
 
 
 func _set_room_rotation(room_id: int, rotation_deg: float) -> void:
 	var rooms: Array = editor_data.get("rooms_data", [])
-	var stair_dir: Vector2 = StairGeometry.direction_from_rotation(rotation_deg)
+	var stair_dir: Vector2 = StairPlanRules.direction_from_rotation(rotation_deg)
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
 			continue
 		var room: Dictionary = rooms[i]
 		room["rotation_deg"] = rotation_deg
-		if StairGeometry.is_stair_room(room):
+		if StairPlanRules.is_stair_room(room):
 			room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
-		if StairGeometry.is_stair_room(room):
+		if StairPlanRules.is_stair_room(room):
 			_apply_stair_rotation_to_linked_rooms(room_id, rotation_deg, stair_dir)
 			_sync_vertical_stair_openings(room_id)
 		return
@@ -3523,9 +3525,9 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	var upper_name: String = "Escalera %s" % String(Dictionary(floors[upper_floor_index]).get("name", _default_floor_name(upper_floor_index)))
 	var lower_id: int = _create_room_at_level(rect, lower_name, "escalera", lower_level_m, minf(upper_level_m - lower_level_m, 3.2))
 	var upper_id: int = _create_room_at_level(rect, upper_name, "escalera", upper_level_m, 2.55)
-	var stair_dir: Vector2 = StairGeometry.run_direction_from_drag(start_m, end_m, rect)
+	var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(start_m, end_m, rect)
 	var turn_mode: String = _selected_stair_tool_turn_mode()
-	var turn_degrees: float = StairGeometry.turn_degrees_for_mode(rect, stair_dir, turn_mode)
+	var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
 	_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
 	_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
 	_set_stair_turn_mode_for_room(lower_id, turn_mode)
@@ -3547,7 +3549,7 @@ func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degree
 		room["stair_has_railings"] = true
 		room["stair_turn_degrees"] = turn_degrees
 		if not room.has("stair_turn_mode"):
-			room["stair_turn_mode"] = StairGeometry.turn_mode_from_degrees(turn_degrees)
+			room["stair_turn_mode"] = StairPlanRules.turn_mode_from_degrees(turn_degrees)
 		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
 		room["rotation_deg"] = _normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
 		rooms[i] = room
@@ -3564,10 +3566,10 @@ func _select_stair_turn_option(option: OptionButton, mode: String) -> void:
 		return
 	_populate_stair_turn_options(option)
 	var target_id: int = 0
-	match StairGeometry.normalized_turn_mode(mode):
-		StairGeometry.MODE_STRAIGHT:
+	match StairPlanRules.normalized_turn_mode(mode):
+		StairPlanRules.MODE_STRAIGHT:
 			target_id = 1
-		StairGeometry.MODE_SWITCHBACK:
+		StairPlanRules.MODE_SWITCHBACK:
 			target_id = 2
 	for i in range(option.get_item_count()):
 		if option.get_item_id(i) == target_id:
@@ -3589,7 +3591,7 @@ func _set_stair_turn_mode_for_room(room_id: int, mode: String) -> void:
 		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
 			continue
 		var room: Dictionary = rooms[i]
-		room["stair_turn_mode"] = StairGeometry.normalized_turn_mode(mode)
+		room["stair_turn_mode"] = StairPlanRules.normalized_turn_mode(mode)
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
 		return
@@ -3641,7 +3643,7 @@ func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> v
 		var op: Dictionary = raw_op
 		if bool(op.get("is_vertical", false)) and int(op.get("a", -1)) == lower_id and int(op.get("b", -1)) == upper_id:
 			return
-	var stair_dir: Vector2 = StairGeometry.run_direction_for_room(_get_room(lower_id))
+	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(_get_room(lower_id))
 	var turn_degrees: float = float(_get_room(lower_id).get("stair_turn_degrees", 0.0))
 	var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
 	openings.append({
@@ -3663,7 +3665,7 @@ func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
 		var room_dict: Dictionary = room
-		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level_m) < 0.05 and StairGeometry.is_stair_room(room_dict):
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level_m) < 0.05 and StairPlanRules.is_stair_room(room_dict):
 			lower_stairs.append(room_dict)
 	if lower_stairs.is_empty():
 		return
@@ -3677,9 +3679,9 @@ func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float
 		if upper_id < 0:
 			var floor_name: String = _floor_name_for_level(upper_level_m)
 			upper_id = _create_room_at_level(rect, "Escalera %s" % floor_name, "escalera", upper_level_m, 2.55)
-		var stair_dir: Vector2 = StairGeometry.run_direction_for_room(lower_room)
-		var turn_mode: String = StairGeometry.turn_mode_for_room(lower_room)
-		var turn_degrees: float = StairGeometry.turn_degrees_for_mode(rect, stair_dir, turn_mode)
+		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(lower_room)
+		var turn_mode: String = StairPlanRules.turn_mode_for_room(lower_room)
+		var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
 		_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
 		_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
 		_set_stair_turn_mode_for_room(lower_id, turn_mode)
@@ -3692,7 +3694,7 @@ func _find_matching_stair_room_at_level(rect: Rect2, level_m: float) -> int:
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
 		var room_dict: Dictionary = room
-		if not StairGeometry.is_stair_room(room_dict):
+		if not StairPlanRules.is_stair_room(room_dict):
 			continue
 		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - level_m) >= 0.05:
 			continue
@@ -3723,7 +3725,7 @@ func _sync_linked_stair_rects(room_id: int, rect: Rect2) -> void:
 	var rects: Dictionary = editor_data.get("room_rect_m", {})
 	for linked_id in _linked_vertical_stair_room_ids(room_id):
 		var linked_room: Dictionary = _get_room(linked_id)
-		if StairGeometry.is_stair_room(linked_room):
+		if StairPlanRules.is_stair_room(linked_room):
 			rects[str(linked_id)] = Serializer.rect_to_data(rect)
 	editor_data["room_rect_m"] = rects
 
@@ -3740,7 +3742,7 @@ func _apply_stair_rotation_to_linked_rooms(room_id: int, rotation_deg: float, st
 		if linked_ids.find(linked_id) < 0:
 			continue
 		var room: Dictionary = rooms[i]
-		if not StairGeometry.is_stair_room(room):
+		if not StairPlanRules.is_stair_room(room):
 			continue
 		room["rotation_deg"] = rotation_deg
 		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
@@ -3766,9 +3768,9 @@ func _sync_vertical_stair_openings(room_id: int) -> void:
 			lower_id = b_id
 		var rect: Rect2 = _get_room_rect(lower_id)
 		var lower_room: Dictionary = _get_room(lower_id)
-		var stair_dir: Vector2 = StairGeometry.run_direction_for_room(lower_room)
-		var turn_mode: String = StairGeometry.turn_mode_for_room(lower_room)
-		var turn_degrees: float = StairGeometry.turn_degrees_for_mode(rect, stair_dir, turn_mode)
+		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(lower_room)
+		var turn_mode: String = StairPlanRules.turn_mode_for_room(lower_room)
+		var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
 		_set_stair_turn_degrees_for_room(lower_id, turn_degrees)
 		var other_id: int = b_id if lower_id == a_id else a_id
 		if other_id >= 0:
@@ -4103,8 +4105,8 @@ func _refresh_property_panel() -> void:
 		"room": room,
 		"room_rect": _get_room_rect(selected_room_id) if has_room else Rect2(),
 		"room_rotation_deg": _normalize_degrees_signed(float(room.get("rotation_deg", 0.0))) if has_room else 0.0,
-		"room_is_stair": has_room and StairGeometry.is_stair_room(room),
-		"stair_turn_item_id": _stair_turn_item_id_for_mode(StairGeometry.turn_mode_for_room(room)) if has_room else 0,
+		"room_is_stair": has_room and StairPlanRules.is_stair_room(room),
+		"stair_turn_item_id": _stair_turn_item_id_for_mode(StairPlanRules.turn_mode_for_room(room)) if has_room else 0,
 		"stair_angle_text": _stair_angle_text(selected_room_id, room) if has_room else "",
 		"object": obj,
 		"opening": _element_at("openings_data", selected_opening_index),
@@ -4165,10 +4167,10 @@ func _on_property_panel_action(action: String) -> void:
 		PropertyPanelScript.ACTION_DELETE_SELECTED:
 			_delete_selected()
 func _stair_turn_item_id_for_mode(mode: String) -> int:
-	match StairGeometry.normalized_turn_mode(mode):
-		StairGeometry.MODE_STRAIGHT:
+	match StairPlanRules.normalized_turn_mode(mode):
+		StairPlanRules.MODE_STRAIGHT:
 			return 1
-		StairGeometry.MODE_SWITCHBACK:
+		StairPlanRules.MODE_SWITCHBACK:
 			return 2
 	return 0
 
@@ -4176,10 +4178,10 @@ func _stair_turn_item_id_for_mode(mode: String) -> int:
 func _stair_turn_mode_from_item_id(item_id: int) -> String:
 	match item_id:
 		1:
-			return StairGeometry.MODE_STRAIGHT
+			return StairPlanRules.MODE_STRAIGHT
 		2:
-			return StairGeometry.MODE_SWITCHBACK
-	return StairGeometry.MODE_AUTO
+			return StairPlanRules.MODE_SWITCHBACK
+	return StairPlanRules.MODE_AUTO
 func _opening_type_label_text(opening: Dictionary) -> String:
 	var op_type: String = String(opening.get("type", "door"))
 	var type_label: String = "Puerta"
@@ -4213,23 +4215,23 @@ func _update_stair_angle_label(room_id: int, room: Dictionary) -> void:
 ## La linea que resume la escalera: pendiente, tramos y hacia donde sube. Cadena
 ## vacia si la sala no es una escalera, y entonces el panel la esconde.
 func _stair_angle_text(room_id: int, room: Dictionary) -> String:
-	if room_id < 0 or room.is_empty() or not StairGeometry.is_stair_room(room):
+	if room_id < 0 or room.is_empty() or not StairPlanRules.is_stair_room(room):
 		return ""
 	var rect: Rect2 = _get_room_rect(room_id)
-	var stair_dir: Vector2 = StairGeometry.run_direction_for_room(room)
+	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
 	var slope_deg: float = _stair_slope_angle_deg(room_id, room, rect)
 	var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
 	var mode_text: String = "2 tramos + descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
-	return "Subida %.0f° | %s | orientacion %s" % [slope_deg, mode_text, StairGeometry.direction_label(stair_dir)]
+	return "Subida %.0f° | %s | orientacion %s" % [slope_deg, mode_text, StairPlanRules.direction_label(stair_dir)]
 
 
 ## La pendiente es geometria, pero la altura que salva la escalera es un dato del
 ## escenario: hay que mirar el hueco vertical o la cota de la planta de arriba.
 ## Aqui se busca la altura y el modulo hace la trigonometria.
 func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> float:
-	return StairGeometry.slope_angle_deg(
+	return StairPlanRules.slope_angle_deg(
 		rect,
-		StairGeometry.run_direction_for_room(room),
+		StairPlanRules.run_direction_for_room(room),
 		float(room.get("stair_turn_degrees", 0.0)),
 		_stair_rise_for_room(room_id, room)
 	)
@@ -4273,8 +4275,8 @@ func _apply_room_properties() -> void:
 		room["name"] = String(fields.get("name", ""))
 		room["kind"] = String(fields.get("kind", ""))
 		room["rotation_deg"] = _normalize_degrees_signed(float(fields.get("rotation_deg", 0.0)))
-		if StairGeometry.is_stair_room(room):
-			room["stair_run_direction_m"] = Serializer.vector_to_data(StairGeometry.direction_from_rotation(float(room.get("rotation_deg", 0.0))))
+		if StairPlanRules.is_stair_room(room):
+			room["stair_run_direction_m"] = Serializer.vector_to_data(StairPlanRules.direction_from_rotation(float(room.get("rotation_deg", 0.0))))
 			room["stair_turn_mode"] = _stair_turn_mode_from_item_id(int(fields.get("stair_turn_item_id", 0)))
 			room["stair_has_walls"] = bool(fields.get("stair_has_walls", false))
 			room["stair_has_railings"] = bool(fields.get("stair_has_railings", true))
@@ -4288,10 +4290,10 @@ func _apply_room_properties() -> void:
 			Vector2(maxf(0.25, float(fields.get("width_m", 1.0))), maxf(0.25, float(fields.get("depth_m", 1.0))))
 		)
 		_set_room_rect(selected_room_id, next_rect)
-		if StairGeometry.is_stair_room(room):
+		if StairPlanRules.is_stair_room(room):
 			var stair_dir: Vector2 = Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN))
-			var stair_mode: String = StairGeometry.turn_mode_for_room(room)
-			var turn_degrees: float = StairGeometry.turn_degrees_for_mode(next_rect, stair_dir, stair_mode)
+			var stair_mode: String = StairPlanRules.turn_mode_for_room(room)
+			var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(next_rect, stair_dir, stair_mode)
 			_set_stair_turn_degrees_for_room(selected_room_id, turn_degrees)
 			for linked_id in _linked_vertical_stair_room_ids(selected_room_id):
 				_set_stair_turn_mode_for_room(linked_id, stair_mode)
@@ -5749,9 +5751,9 @@ func _draw() -> void:
 		draw_rect(rect_px, fill_color, true)
 		draw_rect(rect_px, outline_color, false, 2.0)
 		if current_tool == Tool.STAIRS and rect.size.x > 0.01 and rect.size.y > 0.01:
-			var stair_dir: Vector2 = StairGeometry.run_direction_from_drag(drag_start_m, drag_current_m, rect)
+			var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, drag_current_m, rect)
 			var stair_mode: String = _selected_stair_tool_turn_mode()
-			var turn_degrees: float = StairGeometry.turn_degrees_for_mode(rect, stair_dir, stair_mode)
+			var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, stair_mode)
 			EditorDraw2D.stair_room_guides(self, rect_px, stair_dir, turn_degrees)
 			var void_px: Rect2 = _rect_to_px(StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees))
 			draw_rect(void_px, Color(1.0, 0.26, 0.08, 0.18), true)
@@ -5776,12 +5778,12 @@ func _draw() -> void:
 			var area: float = rect.size.x * rect.size.y
 			var preview_text: String = "%.2f × %.2f m  (%.2f m²)" % [rect.size.x, rect.size.y, area]
 			if current_tool == Tool.STAIRS:
-				var stair_dir: Vector2 = StairGeometry.run_direction_from_drag(drag_start_m, drag_current_m, rect)
+				var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(drag_start_m, drag_current_m, rect)
 				var long_m: float = StairGeometry.long_span_m(rect, stair_dir)
 				var cross_m: float = StairGeometry.cross_span_m(rect, stair_dir)
 				var stair_mode: String = _selected_stair_tool_turn_mode()
-				var mode_label: String = StairGeometry.turn_mode_label(stair_mode)
-				if StairGeometry.normalized_turn_mode(stair_mode) == StairGeometry.MODE_SWITCHBACK and not StairGeometry.can_use_180_landing(rect, stair_dir):
+				var mode_label: String = StairPlanRules.turn_mode_label(stair_mode)
+				if StairPlanRules.normalized_turn_mode(stair_mode) == StairPlanRules.MODE_SWITCHBACK and not StairPlanRules.can_use_180_landing(rect, stair_dir):
 					mode_label += " no cabe"
 				preview_text = "Escalera %s  %.2f m largo × %.2f m ancho  | ENTRADA -> SUBE" % [mode_label, long_m, cross_m]
 			_draw_screen_string(
@@ -5967,8 +5969,8 @@ func _draw_lower_floor_ghost() -> void:
 		var rect_px: Rect2 = _rect_to_px(rect)
 		draw_rect(rect_px, _lower_floor_ghost_fill, true)
 		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
-		if StairGeometry.is_stair_room(room_dict):
-			EditorDraw2D.stair_room_guides(self, rect_px, StairGeometry.run_direction_for_room(room_dict), float(room_dict.get("stair_turn_degrees", 0.0)))
+		if StairPlanRules.is_stair_room(room_dict):
+			EditorDraw2D.stair_room_guides(self, rect_px, StairPlanRules.run_direction_for_room(room_dict), float(room_dict.get("stair_turn_degrees", 0.0)))
 		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
 			_draw_screen_string(
 				rect_px.position,
@@ -6042,7 +6044,7 @@ func _draw_rooms() -> void:
 		var rect: Rect2 = _get_room_rect(room_id)
 		var rect_px: Rect2 = _rect_to_px(rect)
 		var is_corridor: bool = _is_corridor_room(room)
-		var is_stairs: bool = StairGeometry.is_stair_room(room)
+		var is_stairs: bool = StairPlanRules.is_stair_room(room)
 		var fill: Color = _room_selected_fill if room_id == selected_room_id else _room_fill
 		var outline: Color = _room_outline
 		if is_corridor:
@@ -6065,7 +6067,7 @@ func _draw_rooms() -> void:
 		if is_corridor:
 			EditorDraw2D.corridor_room_guides(self, rect_px)
 		if is_stairs:
-			EditorDraw2D.stair_room_guides(self, rect_px, StairGeometry.run_direction_for_room(room), float(room.get("stair_turn_degrees", 0.0)))
+			EditorDraw2D.stair_room_guides(self, rect_px, StairPlanRules.run_direction_for_room(room), float(room.get("stair_turn_degrees", 0.0)))
 		if is_corridor or is_stairs:
 			EditorDraw2D.narrow_room_dimension_labels(self, rect, rect_px, is_stairs)
 		var h: float = float(room.get("height_m", 2.7))
@@ -6189,8 +6191,8 @@ func _vertical_opening_rect(opening: Dictionary) -> Rect2:
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return Rect2()
 	var room: Dictionary = _get_room(a_id)
-	if not room.is_empty() and StairGeometry.is_stair_room(room):
-		var stair_dir: Vector2 = StairGeometry.run_direction_for_room(room)
+	if not room.is_empty() and StairPlanRules.is_stair_room(room):
+		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
 		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
 		return StairGeometry.vertical_void_rect(room_rect, stair_dir, turn_degrees)
 	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))

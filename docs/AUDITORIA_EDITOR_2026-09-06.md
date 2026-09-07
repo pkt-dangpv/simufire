@@ -735,11 +735,34 @@ fotografíe lo que se va a mover**.
 
 ---
 
-## 13. E-12, tercer corte: las escaleras salen del editor
+## 13. E-12, tercer corte: las escaleras salen del editor, y aparece una copia
 
-`editor/StairGeometry.gd`, 189 líneas de **funciones estáticas puras**: entran un
-rectángulo, una dirección y un modo de giro, y sale un número. No tocan
-`editor_data`, ni la escena, ni la selección.
+`editor/StairPlanRules.gd`, 138 líneas de **funciones estáticas puras**: entran
+un rectángulo, una dirección y un modo de giro, y sale un número o una palabra.
+No tocan `editor_data`, ni la escena, ni la selección.
+
+### El corte se hizo dos veces, y la segunda es la que importa
+
+La primera versión del módulo se llamaba `editor/StairGeometry.gd` y traía las 18
+funciones puras del editor. Al ir a escribir esto apareció el problema: **ya
+existe `view/geometry/StairGeometry.gd`**, el módulo que comparten el mundo FP y
+el visor 3D, y cinco de esas funciones —`long_span_m`, `cross_span_m`,
+`ramp_width_m`, `top_landing_depth_m` y `vertical_void_rect`— ya estaban ahí,
+**línea por línea iguales**.
+
+O sea que el editor no tenía «geometría de escaleras»: tenía **una copia** de la
+de la línea visual. Y eso es exactamente lo que la regla de esa línea prohíbe:
+*al tocar geometría de una vista, el cambio va al módulo, no a la copia*. Si
+alguien hubiera cambiado el hueco vertical en `view/geometry/`, el 3D habría
+construido un hueco y el plano del editor habría seguido dibujando el viejo, sin
+que nadie se enterara: no hay ningún guardarraíl que compare el editor con la
+vista, porque nadie sabía que había dos.
+
+Sacar el módulo lo destapó, y el arreglo es no tener módulo nuevo para eso: las
+cinco se borran y el editor llama a `view/geometry/StairGeometry.gd`. Lo que
+queda en `StairPlanRules` es lo que sí es del editor de planos: el vocabulario
+—`MODE_AUTO` no es «sin decidir», es «180 si cabe, recta si no»—, lo que se
+deduce de un arrastre o de una sala, y la pendiente que se enseña en el panel.
 
 ### Qué se fue y qué se quedó
 
@@ -769,9 +792,10 @@ func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> floa
 
 | | Antes | Ahora |
 |---|---|---|
-| `editor/ScenarioEditor.gd` | 7067 líneas | **6927** |
-| `editor/StairGeometry.gd` | — | 189 |
+| `editor/ScenarioEditor.gd` | 7067 líneas | **6929** |
+| `editor/StairPlanRules.gd` | — | 138 |
 | Funciones de escalera en el editor | 39 | 21 |
+| Copias de `view/geometry/StairGeometry.gd` | 5 | **0** |
 
 ### La sonda que pregunta a los dos lados
 
@@ -781,16 +805,19 @@ uno vacío y uno demasiado estrecho para el descansillo—, cinco direcciones
 cada resultado con **seis decimales**: 747 líneas de tabla.
 
 Lo que la hace útil es que el mismo fichero pregunta a los dos lados: se le dice
-`editor` y llama a los métodos del editor, o `modulo` y llama a las estáticas.
-Así la foto de antes y la de después salen del mismo código, y comparar es un
-`diff` de verdad y no una traducción a ojo.
+`editor` y llama a los métodos del editor, o `modulo` y llama a las estáticas —a
+las de `StairPlanRules` y, en las cinco compartidas, a las de
+`view/geometry/StairGeometry.gd`—. Así la foto de antes y la de después salen del
+mismo código, y comparar es un `diff` de verdad y no una traducción a ojo.
 
-Salió **idéntica**. No hay sorpresa que contar en este corte, y eso es
-exactamente lo que se le pide a una mudanza de funciones puras.
+Salió **idéntica**, y esa igualdad dice dos cosas: que la mudanza no cambió
+ningún número, y que **la copia del editor y el módulo de la línea visual
+calculaban exactamente lo mismo** el día que se juntaron. Que es la única prueba
+que se puede dar de que la duplicación aún no había divergido.
 
 ### Lo que sigue pendiente
 
-E-12 sigue abierto: **6927 líneas**, desde las 8032 con las que empezó el día.
+E-12 sigue abierto: **6929 líneas**, desde las 8032 con las que empezó el día.
 Quedan las dos costuras difíciles, y son difíciles por la misma razón:
 
 - **El dibujo del plano** (`_draw_*`, unas 400 líneas). No lee datos: lee

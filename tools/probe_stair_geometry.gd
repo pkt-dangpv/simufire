@@ -12,7 +12,11 @@ extends SceneTree
 ##
 ##   godot --headless --path . --script res://tools/probe_stair_geometry.gd -- <salida.txt> [editor|modulo]
 
-const StairGeometryScript = preload("res://editor/StairGeometry.gd")
+## Dos modulos, y la sonda dice cual contesta a cada funcion: las MEDIDAS del
+## tramo son de la linea visual -las comparten el mundo FP y el visor 3D- y las
+## REGLAS del editor son suyas. El editor tenia copia de las cinco primeras.
+const StairPlanRulesScript = preload("res://editor/StairPlanRules.gd")
+const SHARED: Array[String] = ["long_span_m", "cross_span_m", "ramp_width_m", "landing_depth_m", "vertical_void_rect"]
 
 const RECTS: Array[Rect2] = [
 	Rect2(0.0, 0.0, 4.0, 3.0),
@@ -27,7 +31,10 @@ const MODES: Array[String] = ["auto", "straight", "switchback", "AUTO", "  Recta
 
 ## Las estaticas del modulo se llaman igual sobre una instancia, y `callv` solo
 ## funciona sobre una instancia.
-var _module: RefCounted = StairGeometryScript.new()
+var _module: RefCounted = StairPlanRulesScript.new()
+## El modulo compartido con el mundo FP y el visor 3D. Instancia, porque `callv`
+## no se puede llamar sobre la clase.
+var _shared: RefCounted = StairGeometry.new()
 var _editor: Node = null
 var _frames: int = 0
 var _out_path: String = ""
@@ -134,6 +141,10 @@ const EDITOR_NAMES: Dictionary = {
 func _call(name: String, args: Array) -> Variant:
 	if _ask_editor:
 		return _editor.callv(String(EDITOR_NAMES[name]), args)
+	if SHARED.has(name):
+		# El de la linea visual llama "top_landing_depth_m" a lo que el editor
+		# llamaba "landing_depth_m"; es la misma cuenta.
+		return _shared.callv("top_landing_depth_m" if name == "landing_depth_m" else name, args)
 	return _module.callv(name, args)
 
 
