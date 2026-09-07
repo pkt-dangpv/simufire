@@ -22,18 +22,25 @@ cuatro módulos de apoyo de `editor/`.
 
 | # | Hallazgo | Sev. | La cifra | Estado |
 |---|---|---|---|---|
-| E-1 | Controles sin ninguna explicación | 🔴 | **62 de 99** | ✅ **corregido** |
-| E-2 | Campos numéricos sin unidad | 🔴 | **36 de 36** | ✅ **corregido** |
-| E-3 | Ningún panel tiene barra de desplazamiento | 🟠 | 31 secciones, repartidas en 3 pestañas | ✅ **corregido** (severidad rebajada, ver §7) |
-| E-4 | No hay rehacer | 🔴 | 48 pasos de deshacer, 0 de rehacer | ✅ **corregido** |
-| E-5 | El interruptor de la ayuda contextual está oculto | 🟠 | `visible = false` | pendiente |
-| E-6 | Ningún atajo de teclado para las herramientas | 🟠 | **0** `shortcut`, 14 herramientas | pendiente |
-| E-7 | No hay navegación por teclado | 🟠 | **57** controles con `focus_mode = 0` | pendiente |
-| E-8 | Se sale del editor sin avisar de cambios sin guardar | 🟠 | `_cancel_pressed()` cambia de escena y ya | ✅ **corregido** |
-| E-9 | No hay copiar, pegar ni duplicar | 🟠 | — | pendiente |
-| E-10 | Texto de ayuda sin tildes junto a etiquetas con tildes | 🟡 | 1 bloque, ~12 palabras | pendiente |
-| E-11 | Herramientas con abreviaturas y sin icono | 🟡 | **0** iconos; "SEL", "DETECT.", "VICT." | pendiente |
-| E-12 | El script del editor es un monolito | 🟠 | 7435 líneas, 377 funciones, 1 `@onready` | pendiente |
+| E-1 | Controles sin ninguna explicación | 🔴 | **62 de 99** | ✅ **corregido** (§7) |
+| E-2 | Campos numéricos sin unidad | 🔴 | **36 de 36** | ✅ **corregido** (§7); un camino se quedó sin actualizar la unidad y lo destapó §12 |
+| E-3 | Ningún panel tiene barra de desplazamiento | 🟠 | 31 secciones, repartidas en 3 pestañas | ✅ **corregido** (severidad rebajada, §7) |
+| E-4 | No hay rehacer | 🔴 | 48 pasos de deshacer, 0 de rehacer | ✅ **corregido** (§7) |
+| E-5 | El interruptor de la ayuda contextual está oculto | 🟠 | `visible = false` | ✅ **corregido** (§8); el diagnóstico era otro: abría por la pestaña equivocada |
+| E-6 | Ningún atajo de teclado para las herramientas | 🟠 | **0** `shortcut`, 14 herramientas | ✅ **corregido** (§8): 15 teclas |
+| E-7 | No hay navegación por teclado | 🟠 | **57** controles con `focus_mode = 0` | ✅ **corregido** (§8): eran 93 en ejecución, ahora 0 |
+| E-8 | Se sale del editor sin avisar de cambios sin guardar | 🟠 | `_cancel_pressed()` cambia de escena y ya | ✅ **corregido** (§7) |
+| E-9 | No hay copiar, pegar ni duplicar | 🟠 | — | ✅ **corregido** (§9); el hallazgo estaba mal medido: duplicar objeto ya existía, y con tres fallos |
+| E-10 | Texto de ayuda sin tildes junto a etiquetas con tildes | 🟡 | 1 bloque, ~12 palabras | ✅ **corregido** (§8): ~270 tildes y eñes en 86 líneas |
+| E-11 | Herramientas con abreviaturas y sin icono | 🟡 | **0** iconos; "SEL", "DETECT.", "VICT." | ✅ **corregido** (§8 nombres, §10 iconos) |
+| E-12 | El script del editor es un monolito | 🟠 | 7435 líneas, 377 funciones, 1 `@onready` | ✅ **cerrado en lo que valía la pena** (§11–§16): 6871 líneas y cuatro módulos fuera |
+
+**Los doce hallazgos están cerrados** (2026-09-07). Las secciones §7 a §16 cuentan
+cada tanda, incluidas **cuatro correcciones a esta misma auditoría**: E-3 estaba
+sobredimensionado (§7), E-5 no era un mando escondido sino una pestaña de
+arranque equivocada (§8), E-9 decía «no hay nada» cuando el menú contextual ya
+duplicaba objetos (§9) y el módulo de escaleras que saqué duplicaba el de la
+línea visual (§13).
 
 ### Lo que sí está bien, y conviene no romper
 
