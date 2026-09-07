@@ -795,7 +795,14 @@ func _add_editor_visualizer_children(visualizer: Node3D) -> void:
 		visualizer.add_child(fill)
 
 
-func _sync_editor_runtime_views() -> void:
+## Rehace las vistas 3D desde el escenario. Solo las que se estan mirando.
+##
+## Medido con el piso de referencia (5 salas, 7 aperturas, 10 objetos): exportar
+## y cargar el modelo cuestan 2 ms, rehacer la malla del visor 3D 75 ms y rehacer
+## el mundo de primera persona 135 ms. Antes se rehacian siempre los dos, asi que
+## mover un objeto en 3D costaba 237 ms -catorce fotogramas- de los cuales 135
+## eran un mundo que no estaba en pantalla.
+func _sync_editor_runtime_views(rebuild_fp: bool = true) -> void:
 	if _editor_building_model == null:
 		return
 	_lock_all_object_visual_poses()
@@ -805,7 +812,7 @@ func _sync_editor_runtime_views() -> void:
 		_editor_visualizer_3d.building = _editor_building_model
 		_editor_visualizer_3d.rebuild_from_building()
 		_editor_visualizer_3d.set_state({})
-	if _editor_fp_controller != null:
+	if rebuild_fp and _editor_fp_controller != null:
 		_editor_fp_controller.setup(_editor_building_model)
 		_editor_fp_controller.set_state({})
 	_editor_runtime_dirty = false
@@ -849,7 +856,9 @@ func _refresh_editor_runtime_if_needed() -> void:
 		return
 	if _editor_view_mode != EditorViewMode.MODE_3D and _editor_view_mode != EditorViewMode.MODE_FP:
 		return
-	_sync_editor_runtime_views()
+	# Mirando el 3D no hace falta rehacer el mundo de primera persona: son 135 ms
+	# de los 237 que costaba cada cambio.
+	_sync_editor_runtime_views(_editor_view_mode == EditorViewMode.MODE_FP)
 
 
 func _sync_editor_visualizer_selection() -> void:
@@ -879,7 +888,9 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 		return
 	if mode == EditorViewMode.MODE_3D or mode == EditorViewMode.MODE_FP:
 		_ensure_editor_3d_nodes()
-		_sync_editor_runtime_views()
+		# Al entrar en primera persona hay que montar su mundo; al entrar en 3D,
+		# no: se rehace al volver, si hace falta.
+		_sync_editor_runtime_views(mode == EditorViewMode.MODE_FP)
 	_clear_drag()
 	_editor_3d_drag_active = false
 	is_middle_panning = false
@@ -1173,7 +1184,7 @@ func _on_editor_3d_element_drag_ended(kind: String) -> void:
 		return
 	_editor_3d_drag_active = false
 	_mark_editor_runtime_dirty()
-	_sync_editor_runtime_views()
+	_sync_editor_runtime_views(false)
 	_refresh_property_panel()
 	match kind:
 		"object":
