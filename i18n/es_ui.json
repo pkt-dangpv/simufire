@@ -1,7 +1,7 @@
 {
 	"locale": "es",
 	"messages": {
-		"main.subtitle": "SIMULADOR TACTICO DE INCENDIOS",
+		"main.subtitle": "SIMULADOR TÁCTICO DE INCENDIOS",
 		"main.start_simulation": "INICIAR SIMULACIÓN",
 		"main.open_editor": "EDITOR DE VIVIENDA",
 		"main.quit": "SALIR",
@@ -25,7 +25,7 @@
 		"main.interior.off": "Interiores OFF",
 		"main.glass.none": "Sin rotura",
 		"main.glass.temperature": "Umbral temp.",
-		"main.glass.probabilistic": "Probabilistica",
+		"main.glass.probabilistic": "Probabilística",
 		"editor.title": "EDITOR DE ESCENARIOS",
 		"editor.tool.select": "Selección",
 		"editor.tool.exterior": "Exterior",
@@ -52,9 +52,9 @@
 		"hud.play": "REANUDAR",
 		"hud.pause": "PAUSA",
 		"hud.stopped": "DETENIDA",
-		"hud.shortcut_help": "%s/%s tiempo | %s/%s salas | %s reanudar/pausa | %s graficas",
+		"hud.shortcut_help": "%s/%s tiempo | %s/%s salas | %s reanudar/pausa | %s gráficas",
 		"hud.exit_only": "Salir sin guardar",
-		"hud.exit_save_graphs": "Salir y guardar + graficas",
+		"hud.exit_save_graphs": "Salir y guardar + gráficas",
 		"hud.exit": "SALIR",
 		"hud.openings_title": "Estado de aperturas",
 		"hud.no_selection": "Sin selección",
@@ -70,7 +70,7 @@
 		"hud.tooltip_fp": "Entrar en primera persona",
 		"hud.tooltip_hvac": "Activar o desactivar HVAC",
 		"summary.window_title": "Resumen tecnico post-simulación",
-		"summary.graphs_dir_title": "Guardar graficas y log",
-		"summary.graphs_window_title": "Graficas de simulación"
+		"summary.graphs_dir_title": "Guardar gráficas y log",
+		"summary.graphs_window_title": "Gráficas de simulación"
 	}
 }

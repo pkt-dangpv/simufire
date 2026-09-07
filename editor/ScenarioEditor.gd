@@ -933,7 +933,7 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	_update_tool_buttons_enabled()
 	_sync_tool_option_visibility()
 	if use_2d:
-		_set_status("Modo 2D: editor clasico activo.")
+		_set_status("Modo 2D: editor clásico activo.")
 	elif use_3d:
 		_set_status("Modo 3D: edita aberturas y elementos simples. La geometría de salas sigue en 2D.")
 	else:
@@ -2339,6 +2339,40 @@ const TOOL_NAMES: Dictionary = {
 	Tool.PLAYER_START: ["editor.tool.player_start", "Inicio FP"],
 	Tool.IGNITION: ["editor.tool.ignition", "Ignición"],
 }
+
+
+## Icono de cada herramienta. Dibujo de linea de 18 px en ui/icons, en blanco:
+## el color lo pone el tema segun el estado del boton, asi que la herramienta
+## activa enciende su icono con el mismo naranja que su etiqueta.
+##
+## Una barra de solo texto en mayusculas se lee como prototipo, y con catorce
+## herramientas el icono es lo que se reconoce antes de leer.
+const TOOL_ICONS: Dictionary = {
+	Tool.SELECT: "res://ui/icons/tool_select.svg",
+	Tool.EXTERIOR_WALL: "res://ui/icons/tool_exterior.svg",
+	Tool.ROOM: "res://ui/icons/tool_room.svg",
+	Tool.CORRIDOR_L: "res://ui/icons/tool_corridor.svg",
+	Tool.STAIRS: "res://ui/icons/tool_stairs.svg",
+	Tool.DOOR: "res://ui/icons/tool_door.svg",
+	Tool.WINDOW: "res://ui/icons/tool_window.svg",
+	Tool.HOLE: "res://ui/icons/tool_hole.svg",
+	Tool.OBJECT: "res://ui/icons/tool_object.svg",
+	Tool.DELETE: "res://ui/icons/tool_delete.svg",
+	Tool.DETECTOR: "res://ui/icons/tool_detector.svg",
+	Tool.VICTIM: "res://ui/icons/tool_victim.svg",
+	Tool.PLAYER_START: "res://ui/icons/tool_player_start.svg",
+	Tool.IGNITION: "res://ui/icons/tool_ignite.svg",
+}
+
+
+func _tool_icon(tool_id: int) -> Texture2D:
+	if not TOOL_ICONS.has(tool_id):
+		return null
+	var path: String = String(TOOL_ICONS[tool_id])
+	if not ResourceLoader.exists(path):
+		push_error("ScenarioEditor: falta el icono %s" % path)
+		return null
+	return load(path) as Texture2D
 
 
 func _tool_display_name(tool_id: int) -> String:
@@ -7262,6 +7296,7 @@ func _bind_existing_ui() -> bool:
 
 func _register_tool_button(button: Button, tool_id: int) -> void:
 	button.toggle_mode = true
+	button.icon = _tool_icon(tool_id)
 	button.tooltip_text = _tool_tooltip(tool_id)
 	if not button.pressed.is_connected(Callable(self, "_set_tool").bind(tool_id)):
 		button.pressed.connect(Callable(self, "_set_tool").bind(tool_id))

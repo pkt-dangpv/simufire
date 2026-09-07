@@ -105,15 +105,15 @@ mouse_filter = 1
 theme = ExtResource("3_sftheme")
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
-custom_minimum_size = Vector2(700, 88)
+custom_minimum_size = Vector2(560, 116)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -350.0
+offset_left = -280.0
 offset_top = 8.0
-offset_right = 350.0
-offset_bottom = 96.0
+offset_right = 280.0
+offset_bottom = 124.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
 
@@ -121,7 +121,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
-columns = 7
+columns = 5
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
 custom_minimum_size = Vector2(92, 28)

@@ -500,8 +500,81 @@ que se lleva lo de dentro con ids nuevos, que **no** clona el foco de ignición,
 que borrarla no deja huérfanos y que deshacer la revierte. Es la única regla que
 toca los datos del editor, y lo hace sobre la instancia headless.
 
-### Lo que sigue pendiente
+### Lo que quedaba al cerrar esa tanda
 
 E-11 en su otra mitad (ningún icono en la barra de herramientas) y E-12 (el
-monolito de 7435 líneas, que ya son 7997). El segundo es el que encarece
-todo lo demás.
+monolito de 7435 líneas, que ya son 7997).
+
+---
+
+## 10. Los iconos, y mirar en vez de medir — 2026-09-07
+
+### E-11, la mitad que faltaba
+
+Catorce iconos de línea en `ui/icons`, SVG de 24 unidades de lienzo y 18 px de
+salida, trazo blanco. El color lo pone el tema según el estado del botón, así que
+**la herramienta activa enciende su icono con el mismo naranja que su etiqueta**.
+Se sirven desde `TOOL_ICONS`, al lado de `TOOL_NAMES`, por la razón de la
+sección 8: en la barra manda el script, no la escena.
+
+Los SVG se importan sin abrir el editor de Godot —`godot --headless --path .
+--import`— y sus `.import` van al repositorio como los del resto de recursos.
+
+### Dos iteraciones, porque a 18 px un trazo de más es una mancha
+
+`tools/probe_tool_icons.gd` los pega en una hoja de contactos ampliada ×6 sobre
+el fondo del editor. Seis de los catorce no pasaron la primera mirada:
+
+| Icono | Qué se leía | Qué se hizo |
+|---|---|---|
+| Detector | `(o)`: los arcos, pegados al punto | el punto abajo y las ondas abriéndose |
+| Ignición | una gota de agua | mordisco lateral, que es lo que distingue fuego de agua |
+| Víctima | tendida, un palo con un círculo | de pie; el ojo ya ocupa «primera persona» |
+| Objeto | rectángulo con raya: una ficha | sofá en planta, como el editor dibuja los muebles |
+| Puerta | el símbolo de plano salía banderín | la hoja y su pomo |
+| Exterior | idéntico a Pasillo | trazo grueso, que es lo que dice «muro» |
+
+Y una séptima en la siguiente pasada: **Ventana** partida solo en vertical se
+confundía con el sofá de **Objeto**, que está a su lado en la barra. Cuatro hojas.
+
+### El icono rompió la barra, y el guardarraíl lo dijo
+
+Añadir 18 px a cada botón ensanchó la barra 52 px. Está centrada y crece sola con
+su contenido, así que **se metió debajo del panel izquierdo**, donde los botones
+dejan de poder pulsarse. La regla 9 lo cazó con el número exacto: barra en
+`x 264..1016`, panel en `x 0..296`.
+
+La barra pasa de 7 columnas a **5** (tres filas). No es solo que quepa: con cinco
+columnas, cada herramienta nueva la hace crecer **hacia abajo**, que es espacio
+que sobra, en vez de hacia los lados, que es donde están los paneles.
+
+### Medir no es mirar
+
+El guardarraíl comprueba que todo tenga explicación, unidad, foco, tilde, tecla,
+icono y sitio. Nada de eso ve lo que el usuario dijo: *«no se ve profesional»*.
+`tools/capture_editor_ui.gd` abre el editor con ventana real y guarda un PNG. La
+primera captura enseñó dos cosas que ninguna regla estaba mirando:
+
+- **La casilla «Ayuda contextual» se leía como una alarma.** `CheckBox` no estaba
+  definido en el tema, y Godot cae al tipo padre: heredaba de `Button` el
+  recuadro y el texto naranja de *pulsado*. Marcada parecía un error. Ahora la
+  casilla marcada tiene el aspecto normal y el naranja se reserva a la marca,
+  que es lo que dice «esto está encendido». Nadie lo había visto porque hasta la
+  tanda anterior **el interruptor estaba en una pestaña que no era la de
+  arranque** (E-5).
+- **«Modo 2D: editor clasico activo.»** Una tilde suelta en la línea de estado,
+  que la regla 6 no cazaba porque «clasico» no estaba en su lista. Está añadida,
+  con cinco palabras más, y de paso se corrigieron las que quedaban fuera del
+  editor en `i18n/es_ui.json`: «SIMULADOR TÁCTICO», «gráficas»,
+  «Probabilística».
+
+### El guardarraíl, regla 9
+
+Cada herramienta lleva icono, le cabe el nombre entero —se compara el mínimo
+combinado del botón con su ancho real, que es lo que se recorta cuando el icono
+empuja— y la barra no se solapa con ningún panel lateral.
+
+### Lo que sigue pendiente
+
+E-12: el monolito, 8000 líneas. Es lo que encarece todo lo demás y el único
+hallazgo de la auditoría que sigue abierto.

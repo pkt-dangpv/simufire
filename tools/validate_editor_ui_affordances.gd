@@ -27,6 +27,10 @@ extends SceneTree
 ##     codigo es una convencion razonable; en la pantalla es una falta.
 ##  7. **Las teclas anunciadas cambian de herramienta de verdad.** Anunciar un
 ##     atajo que no responde es peor que no tenerlo.
+##  9. **Cada herramienta lleva icono, le cabe el nombre entero y la barra no
+##     pisa los paneles.** Una barra de texto abreviado en mayusculas se lee
+##     como prototipo; una etiqueta recortada por el icono, tambien; y una barra
+##     que crece al añadir una herramienta acaba tapando el panel de al lado.
 ##  8. **Duplicar una habitacion se lleva lo que hay dentro, y una sola vez.**
 ##     Copiar objetos, detectores y victimas es el motivo de la funcion; clonar
 ##     ademas el foco de ignicion dejaria dos focos y un escenario que se
@@ -55,6 +59,7 @@ const MISSPELLED: Array[String] = [
 	"maxima", "minima", "ultimo", "aqui", "anadir", "angulo", "numero",
 	"deteccion", "informacion", "configuracion", "presion", "energia",
 	"combustion", "oxigeno", "estan", "despues", "segun", "duracion",
+	"clasico", "basico", "practico", "grafica", "graficas", "codigo",
 ]
 
 var _editor: Node = null
@@ -140,6 +145,19 @@ func _run_checks() -> void:
 			if String(button.text).ends_with("."):
 				_fail("la herramienta %s lleva el nombre cortado: %s" % [button.name, button.text])
 
+			# 9. Icono, y sitio para el icono.
+			#
+			# Un dibujo nuevo al lado de una etiqueta entera es justo la
+			# combinacion que desborda un boton de ancho fijo, y lo que se
+			# recorta entonces es el nombre.
+			if button.icon == null:
+				_fail("la herramienta %s no lleva icono" % button.name)
+			var needed: float = button.get_combined_minimum_size().x
+			if needed > button.size.x + 0.5:
+				_fail("a %s no le cabe el contenido: necesita %d px y tiene %d" % [
+					button.name, int(ceil(needed)), int(button.size.x)
+				])
+
 	# 6. El texto que lee el usuario lleva tildes.
 	#
 	# La guia rapida del editor, que es el texto mas largo que se lee dentro de
@@ -169,6 +187,26 @@ func _run_checks() -> void:
 	# 8. Duplicar una habitacion se lleva lo de dentro, y no clona el foco.
 	_check_duplicate_room()
 
+	# 9 (segunda mitad). La barra no se solapa con los paneles laterales.
+	#
+	# La barra esta centrada y crece sola con su contenido: cada herramienta
+	# nueva, o cada etiqueta mas larga, la empuja hacia los lados hasta meterse
+	# debajo del panel, donde los botones dejan de poder pulsarse.
+	var top_bar := canvas.get_node_or_null("UI/TopBar") as Control
+	if top_bar != null:
+		var bar_rect: Rect2 = top_bar.get_global_rect()
+		for panel_name in ["LeftPanel", "RightPanel"]:
+			var side := canvas.get_node_or_null("UI/" + panel_name) as Control
+			if side == null:
+				continue
+			var side_rect: Rect2 = side.get_global_rect()
+			if bar_rect.intersects(side_rect):
+				_fail("la barra (x %d..%d) se mete debajo de %s (x %d..%d)" % [
+					int(bar_rect.position.x), int(bar_rect.end.x),
+					panel_name,
+					int(side_rect.position.x), int(side_rect.end.x)
+				])
+
 	# Los dos paneles laterales tienen que poder desplazarse.
 	for panel_name in ["LeftPanel", "RightPanel"]:
 		var panel := canvas.get_node_or_null("UI/" + panel_name)
@@ -179,7 +217,7 @@ func _run_checks() -> void:
 			_fail("%s no tiene ScrollContainer: con la ventana baja, lo de abajo no se alcanza" % panel_name)
 
 	if _failures.is_empty():
-		print("[validate_editor_ui] PASS: %d controles con explicacion, unidad, foco y tildes; paneles desplazables; %d teclas de herramienta responden; duplicar se lleva lo de dentro" % [controls.size(), _editor.TOOL_SHORTCUTS.size()])
+		print("[validate_editor_ui] PASS: %d controles con explicacion, unidad, foco y tildes; paneles desplazables; %d teclas de herramienta responden; duplicar se lleva lo de dentro; 14 herramientas con icono" % [controls.size(), _editor.TOOL_SHORTCUTS.size()])
 		quit(0)
 		return
 	print("[validate_editor_ui] FAIL:")
