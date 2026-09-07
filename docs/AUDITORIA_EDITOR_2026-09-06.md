@@ -420,8 +420,88 @@ nuevas:
    tooltip, esta pulsa las 15 teclas y comprueba `current_tool`. Anunciar un
    atajo que no responde es peor que no tenerlo.
 
-### Lo que sigue pendiente
+### Lo que quedaba al cerrar esa tanda
 
 E-9 (copiar, pegar y duplicar), E-11 en su otra mitad (ningún icono en la barra)
-y E-12 (el monolito de 7435 líneas). Los tres son trabajo de otra escala que lo
-cerrado hasta aquí.
+y E-12 (el monolito de 7435 líneas).
+
+---
+
+## 9. Copiar, pegar y duplicar — 2026-09-07
+
+### Corrección a la propia auditoría: E-9 no era «no hay nada»
+
+Escribí que para copiar «no hay nada» y que lo único parecido era
+`_copy_stairs_from_level_to_level`. Es falso: el menú del botón derecho ya traía
+**«Duplicar objeto»** desde antes de la auditoría. Lo miré por atajos y por el
+panel, y no abrí el menú contextual.
+
+Lo que sí era cierto es lo que importaba —**no se podía duplicar una
+habitación**, que es la operación cara— y, al abrir esa función para
+generalizarla, resultó que la que había tenía tres fallos:
+
+- **No pasaba por deshacer.** `_duplicate_object_at_context()` no llamaba a
+  `_push_undo_snapshot()`, así que un objeto duplicado por error no se podía
+  deshacer, y el editor tampoco se marcaba como «con cambios sin guardar».
+- **Clonaba el foco de ignición.** Duplicar el sofá que arde daba dos objetos con
+  `is_primary_ignition_source = true`, y el escenario pasaba a contradecirse
+  consigo mismo.
+- **Repetía ids.** `_next_object_id()` devolvía `"obj_%03d" % (cuántos hay + 1)`,
+  y lo mismo hacían los de detectores y víctimas. Basta borrar uno y crear otro
+  para tener dos `obj_003`. Duplicar multiplica esas coincidencias, que es
+  justamente lo que iba a hacer la función nueva.
+
+### Lo que se ha hecho
+
+Tres verbos, un solo camino: **Ctrl+C** copia la selección, **Ctrl+V** la pega
+donde esté el cursor y **Ctrl+D** duplica al lado del original. Funcionan con
+habitaciones, objetos, detectores y víctimas.
+
+| | Antes | Ahora |
+|---|---|---|
+| Duplicar habitación | no existía | con sus objetos, detectores y víctimas |
+| Duplicar objeto | menú contextual, sin deshacer | los tres verbos, con deshacer |
+| Pegar | no existía | en el cursor, o donde se pulsó el botón derecho |
+
+Las decisiones que merecen quedar escritas:
+
+- **Una habitación se lleva lo que hay dentro** —objetos, detectores y víctimas—,
+  que es lo que hacía cara la copia a mano. Sus posiciones son locales a la sala,
+  así que basta apuntarlas a la copia para que caigan en el mismo sitio.
+- **No se lleva sus puertas ni sus ventanas.** Una apertura une dos salas
+  concretas por un paramento concreto; copiarla dejaría una puerta a ninguna
+  parte. El editor lo dice en la línea de estado en vez de callárselo.
+- **La copia cae en la planta que se está editando**, no en la del original. Es
+  lo que convierte «duplicar una habitación» en «repetir la distribución de la
+  planta baja en la primera».
+- **El foco de ignición no se clona nunca**, ni al duplicar un objeto ni al
+  duplicar la sala entera.
+- **Duplicar no toca el portapapeles.** Quien copia una cosa y duplica otra
+  espera que Ctrl+V siga pegando la primera.
+- **Los nombres no encadenan sufijos**: «Salón» → «Salón (copia)» → «Salón
+  (copia 2)», no «Salón (copia) (copia)».
+- **Los ids ahora son el primer hueco libre**, no un contador. Arregla también la
+  creación normal, que ya repetía ids sin que nadie lo hubiera notado.
+
+### Un fallo simétrico que apareció al escribirlo
+
+Duplicar una sala tiene que llevarse sus detectores y sus víctimas; **borrarla
+tenía que dejárselos, y no lo hacía**. `_delete_room()` limpiaba las aperturas y
+el punto de inicio del jugador, pero dejaba detectores y víctimas apuntando a un
+`room_id` que ya no existe. Y `Serializer.validate_scenario()` no mira esas dos
+listas, así que el escenario roto no se veía al validar: se veía al ejecutar.
+Ahora se van con la sala.
+
+### El guardarraíl, regla 8
+
+La regla nueva monta una sala con un objeto encendido, un detector y una víctima,
+la duplica y comprueba lo que ha salido: que la copia existe con su geometría,
+que se lleva lo de dentro con ids nuevos, que **no** clona el foco de ignición,
+que borrarla no deja huérfanos y que deshacer la revierte. Es la única regla que
+toca los datos del editor, y lo hace sobre la instancia headless.
+
+### Lo que sigue pendiente
+
+E-11 en su otra mitad (ningún icono en la barra de herramientas) y E-12 (el
+monolito de 7435 líneas, que ya son 7997). El segundo es el que encarece
+todo lo demás.

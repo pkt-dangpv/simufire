@@ -27,6 +27,10 @@ extends SceneTree
 ##     codigo es una convencion razonable; en la pantalla es una falta.
 ##  7. **Las teclas anunciadas cambian de herramienta de verdad.** Anunciar un
 ##     atajo que no responde es peor que no tenerlo.
+##  8. **Duplicar una habitacion se lleva lo que hay dentro, y una sola vez.**
+##     Copiar objetos, detectores y victimas es el motivo de la funcion; clonar
+##     ademas el foco de ignicion dejaria dos focos y un escenario que se
+##     contradice.
 ##
 ## Uso: godot --headless --path . --script res://tools/validate_editor_ui_affordances.gd
 
@@ -162,6 +166,9 @@ func _run_checks() -> void:
 				OS.get_keycode_string(int(keycode)), expected, int(_editor.current_tool)
 			])
 
+	# 8. Duplicar una habitacion se lleva lo de dentro, y no clona el foco.
+	_check_duplicate_room()
+
 	# Los dos paneles laterales tienen que poder desplazarse.
 	for panel_name in ["LeftPanel", "RightPanel"]:
 		var panel := canvas.get_node_or_null("UI/" + panel_name)
@@ -172,13 +179,95 @@ func _run_checks() -> void:
 			_fail("%s no tiene ScrollContainer: con la ventana baja, lo de abajo no se alcanza" % panel_name)
 
 	if _failures.is_empty():
-		print("[validate_editor_ui] PASS: %d controles con explicacion, unidad, foco y tildes; paneles desplazables; %d teclas de herramienta responden" % [controls.size(), _editor.TOOL_SHORTCUTS.size()])
+		print("[validate_editor_ui] PASS: %d controles con explicacion, unidad, foco y tildes; paneles desplazables; %d teclas de herramienta responden; duplicar se lleva lo de dentro" % [controls.size(), _editor.TOOL_SHORTCUTS.size()])
 		quit(0)
 		return
 	print("[validate_editor_ui] FAIL:")
 	for failure in _failures:
 		print("  - " + failure)
 	quit(1)
+
+
+## Monta una sala con un objeto encendido, un detector y una victima, la duplica
+## y mira que ha salido. Es la unica regla que toca los datos del editor, y lo
+## hace sobre la instancia headless: no se guarda nada.
+func _check_duplicate_room() -> void:
+	_editor.editor_data = {
+		"floors": [{"name": "PB", "level_m": 0.0}],
+		"exterior_walls": [],
+		"room_rect_m": {"7": {"x": 0.0, "y": 0.0, "w": 4.0, "h": 3.0}},
+		"rooms_data": [{
+			"id": 7,
+			"name": "Dormitorio",
+			"kind": "generic",
+			"rotation_deg": 0.0,
+			"height_m": 2.7,
+			"floor_level_z_m": 0.0,
+			"fuel_objects": [{
+				"id": "obj_001",
+				"room_id": 7,
+				"name": "cama",
+				"position_m": {"x": 0.5, "y": 0.5},
+				"size_m": {"x": 1.4, "y": 2.0},
+				"is_primary_ignition_source": true
+			}]
+		}],
+		"openings_data": [],
+		"detectors": [{"id": "det_001", "room_id": 7, "type": "smoke", "threshold": 0.025, "x_m": 1.0, "y_m": 1.0}],
+		"victims": [{"id": "vic_001", "room_id": 7, "name": "Víctima 1", "x_m": 2.0, "y_m": 1.0, "height_m": 0.9}],
+		"player_start": {},
+		"ignition_room_id": 7
+	}
+	_editor.current_floor_index = 0
+	_editor._select_room(7)
+	_editor._duplicate_selection()
+
+	var rooms: Array = _editor.editor_data.get("rooms_data", [])
+	if rooms.size() != 2:
+		_fail("duplicar una habitacion no crea la copia (salas: %d)" % rooms.size())
+		return
+	var copy: Dictionary = rooms[1]
+	var copy_id: int = int(copy.get("id", -1))
+	if copy_id == 7:
+		_fail("la copia de la habitacion se queda con el id del original")
+	if String(copy.get("name", "")) != "Dormitorio (copia)":
+		_fail("la copia no se renombra: %s" % copy.get("name", ""))
+	if not _editor.editor_data.get("room_rect_m", {}).has(str(copy_id)):
+		_fail("la copia no tiene entrada en room_rect_m: quedaria sin geometria")
+
+	var copied_objects: Array = copy.get("fuel_objects", [])
+	if copied_objects.size() != 1:
+		_fail("la copia no se lleva los objetos (%d)" % copied_objects.size())
+	else:
+		var copied_object: Dictionary = copied_objects[0]
+		if String(copied_object.get("id", "")) == "obj_001":
+			_fail("el objeto copiado repite el id del original")
+		if bool(copied_object.get("is_primary_ignition_source", false)):
+			_fail("la copia clona el foco de ignicion: quedarian dos focos")
+
+	var dets: Array = _editor.editor_data.get("detectors", [])
+	var vics: Array = _editor.editor_data.get("victims", [])
+	if dets.size() != 2 or int(Dictionary(dets[1]).get("room_id", -1)) != copy_id:
+		_fail("el detector no acompaña a la copia")
+	elif String(Dictionary(dets[1]).get("id", "")) == "det_001":
+		_fail("el detector copiado repite el id del original")
+	if vics.size() != 2 or int(Dictionary(vics[1]).get("room_id", -1)) != copy_id:
+		_fail("la victima no acompaña a la copia")
+
+	# Y lo simetrico: borrar la sala se lleva lo que hay dentro, que antes se
+	# quedaba apuntando a un room_id inexistente.
+	_editor._delete_room(copy_id)
+	for list_key in ["detectors", "victims"]:
+		for item in Array(_editor.editor_data.get(list_key, [])):
+			if typeof(item) == TYPE_DICTIONARY and int(Dictionary(item).get("room_id", -1)) == copy_id:
+				_fail("borrar la habitacion deja %s huerfanos apuntando a la sala %d" % [list_key, copy_id])
+				break
+
+	# Deshacer tiene que poder volver: duplicar es una accion como cualquier otra.
+	_editor._undo_last_action()
+	_editor._undo_last_action()
+	if Array(_editor.editor_data.get("rooms_data", [])).size() != 1:
+		_fail("deshacer no revierte el duplicado")
 
 
 func _collect_controls(node: Node, out: Array[Control]) -> void:

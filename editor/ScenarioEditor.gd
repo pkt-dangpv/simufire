@@ -139,6 +139,10 @@ var selected_detector_index: int = -1
 var selected_victim_index: int = -1
 var selected_player_start_room_id: int = -1
 var selected_exterior_wall_index: int = -1
+## Lo ultimo copiado con Ctrl+C. Vive en memoria y muere con el editor: pegar
+## entre dos sesiones no es lo que hace falta aqui, y un portapapeles en disco
+## traeria la pregunta de que hacer cuando el escenario de origen ya no existe.
+var _clipboard: Dictionary = {}
 
 var is_dragging_room: bool = false
 var is_dragging_exterior_wall: bool = false
@@ -324,6 +328,7 @@ const _CTX_DESELECT  := 7
 const _CTX_ADD_HOLE  := 8
 const _CTX_MARK_EXTERIOR := 9
 const _CTX_SET_PLAYER_START := 10
+const _CTX_PASTE     := 11
 # ── Tolerancias para detección de paredes adyacentes / solapadas ──────────
 const _CONN_GAP_TOL: float = 0.30       # brecha máxima entre paredes (m)
 const _CONN_OVERLAP_FRAC: float = 0.85  # solapamiento máximo (fracción de dim menor)
@@ -1854,7 +1859,7 @@ func _editor_help_text() -> String:
 func _editor_help_pages() -> PackedStringArray:
 	return PackedStringArray([
 		"Dibujo\n\nElige una herramienta en la barra superior o pulsa su tecla. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Víctima e Inicio FP se colocan clicando dentro de una sala.",
-		"Teclas\n\n%s.\nEsc vuelve a %s. Ctrl+Z deshace, Ctrl+Y rehace y Supr borra la selección. Ctrl+S guarda y Ctrl+O carga. Mientras escribes en una casilla, las teclas de herramienta no responden." % [_tool_shortcuts_line(), _tool_display_name(Tool.SELECT)],
+		"Teclas\n\n%s.\nEsc vuelve a %s. Ctrl+Z deshace, Ctrl+Y rehace y Supr borra la selección. Ctrl+C copia, Ctrl+V pega donde esté el cursor y Ctrl+D duplica al lado. Ctrl+S guarda y Ctrl+O carga. Mientras escribes en una casilla, las teclas de herramienta no responden." % [_tool_shortcuts_line(), _tool_display_name(Tool.SELECT)],
 		"Selección\n\nUsa %s para elegir elementos en el plano. Si un objeto, detector o víctima está encima de una sala, el editor prioriza el elemento pequeño antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan." % _tool_display_name(Tool.SELECT),
 		"Edición\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Cada casilla numérica lleva su unidad escrita dentro, y al dejar el cursor sobre un control se explica qué hace. Supr borra la selección y Ctrl+Z deshace.",
 		"Archivo\n\nLa pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulación valida y exporta el escenario antes de abrir SimulationScene. Si sales con cambios sin guardar, el editor pregunta antes."
@@ -2486,6 +2491,18 @@ func _unhandled_input(event: InputEvent) -> void:
 				_set_tool(shortcut_tool)
 				get_viewport().set_input_as_handled()
 				return
+		if event.keycode == KEY_C and event.ctrl_pressed:
+			_copy_selection()
+			get_viewport().set_input_as_handled()
+			return
+		if event.keycode == KEY_V and event.ctrl_pressed:
+			_paste_clipboard()
+			get_viewport().set_input_as_handled()
+			return
+		if event.keycode == KEY_D and event.ctrl_pressed:
+			_duplicate_selection()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_S and event.ctrl_pressed:
 			_save_pressed()
 			get_viewport().set_input_as_handled()
@@ -2813,7 +2830,7 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		_ctx_obj_index   = int(hit_obj.get("object_index", -1))
 		var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
 		menu.add_item("Mostrar propiedades: %s" % str(obj.get("name", "objeto")), _CTX_EDIT)
-		menu.add_item("Duplicar objeto", _CTX_DUPLICATE)
+		menu.add_item("Duplicar objeto  [Ctrl+D]", _CTX_DUPLICATE)
 		menu.add_separator()
 		menu.add_item("Borrar objeto", _CTX_DELETE)
 	elif hit_opening >= 0:
@@ -2839,9 +2856,16 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		menu.add_item("Marcar contorno exterior", _CTX_MARK_EXTERIOR)
 		menu.add_item("Marcar ignición aquí", _CTX_IGNITE)
 		menu.add_separator()
+		menu.add_item("Duplicar habitación con lo que hay dentro  [Ctrl+D]", _CTX_DUPLICATE)
 		menu.add_item("Borrar habitación", _CTX_DELETE)
 	else:
 		menu.add_item("Deseleccionar todo", _CTX_DESELECT)
+
+	# Pegar solo aparece cuando hay algo copiado: una opcion que nunca hace nada
+	# es una opcion que estorba.
+	if not _clipboard.is_empty():
+		menu.add_separator()
+		menu.add_item("Pegar aquí: %s  [Ctrl+V]" % _payload_label(_clipboard), _CTX_PASTE)
 
 	if menu.get_item_count() == 0:
 		return
@@ -2891,36 +2915,331 @@ func _on_context_id_pressed(id: int) -> void:
 			if _ctx_room_id >= 0:
 				_set_player_start_at(_ctx_room_id, _ctx_pos_m)
 		_CTX_DUPLICATE:
-			_duplicate_object_at_context()
+			# Duplicar trabaja sobre la seleccion, asi que primero se selecciona
+			# aquello sobre lo que se ha pulsado.
+			if _ctx_obj_index >= 0:
+				_select_object(_ctx_room_id, _ctx_obj_index)
+			elif _ctx_room_id >= 0:
+				_select_room(_ctx_room_id)
+			_duplicate_selection()
+		_CTX_PASTE:
+			# Donde se pulso el boton derecho, no donde este el raton ahora: al
+			# abrirse el menu el cursor ya se ha movido.
+			_paste_clipboard_at(_ctx_pos_m)
 		_CTX_DESELECT:
 			_clear_selection()
 			queue_redraw()
 
 
-func _duplicate_object_at_context() -> void:
-	if _ctx_room_id < 0 or _ctx_obj_index < 0:
+# ---------------------------------------------------------------------------
+# Copiar, pegar y duplicar
+# ---------------------------------------------------------------------------
+## En un editor de plantas duplicar es la operacion que mas se repite: cuatro
+## dormitorios iguales eran cuatro veces dibujar y cuatro veces ajustar las
+## mismas propiedades.
+##
+## Tres verbos y un solo camino: copiar guarda la seleccion, pegar la inserta
+## donde mira el usuario y duplicar hace las dos cosas al lado del original sin
+## tocar lo copiado, que es lo que hace cualquier editor.
+
+
+## Lo que se copia de la seleccion actual, listo para insertarse otra vez.
+##
+## Una habitacion se lleva lo que tiene dentro -objetos, detectores y victimas-,
+## que es justo lo que hace cara la copia a mano. No se lleva sus puertas ni sus
+## ventanas: una apertura une dos salas concretas por un paramento concreto, y
+## copiarla dejaria una puerta a ninguna parte.
+func _selection_payload() -> Dictionary:
+	if selected_room_id >= 0:
+		var room: Dictionary = _get_room(selected_room_id)
+		if room.is_empty():
+			return {}
+		return {
+			"kind": "room",
+			"room": room.duplicate(true),
+			"rect": Serializer.rect_to_data(_get_room_rect(selected_room_id)),
+			"detectors": _elements_in_room("detectors", selected_room_id),
+			"victims": _elements_in_room("victims", selected_room_id)
+		}
+	if selected_object_room_id >= 0 and selected_object_index >= 0:
+		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+		if obj.is_empty():
+			return {}
+		return {"kind": "object", "object": obj.duplicate(true), "room_id": selected_object_room_id}
+	if selected_detector_index >= 0:
+		var det: Dictionary = _element_at("detectors", selected_detector_index)
+		if det.is_empty():
+			return {}
+		return {"kind": "detector", "detector": det.duplicate(true)}
+	if selected_victim_index >= 0:
+		var vic: Dictionary = _element_at("victims", selected_victim_index)
+		if vic.is_empty():
+			return {}
+		return {"kind": "victim", "victim": vic.duplicate(true)}
+	return {}
+
+
+func _element_at(list_key: String, index: int) -> Dictionary:
+	var items: Array = editor_data.get(list_key, [])
+	if index < 0 or index >= items.size() or typeof(items[index]) != TYPE_DICTIONARY:
+		return {}
+	return items[index]
+
+
+func _elements_in_room(list_key: String, room_id: int) -> Array:
+	var found: Array = []
+	for item in Array(editor_data.get(list_key, [])):
+		if typeof(item) == TYPE_DICTIONARY and int(Dictionary(item).get("room_id", -1)) == room_id:
+			found.append(Dictionary(item).duplicate(true))
+	return found
+
+
+func _payload_label(payload: Dictionary) -> String:
+	match String(payload.get("kind", "")):
+		"room":
+			var room: Dictionary = payload.get("room", {})
+			return "habitación «%s»" % _room_display_name(room, int(room.get("id", -1)))
+		"object":
+			var obj: Dictionary = payload.get("object", {})
+			return "objeto %s" % String(obj.get("name", obj.get("id", "")))
+		"detector":
+			return "detector %s" % String(Dictionary(payload.get("detector", {})).get("id", ""))
+		"victim":
+			return "víctima %s" % String(Dictionary(payload.get("victim", {})).get("name", ""))
+	return "nada"
+
+
+func _copy_selection() -> void:
+	var payload: Dictionary = _selection_payload()
+	if payload.is_empty():
+		_set_status("Copiar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima.")
 		return
-	var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
-	if obj.is_empty():
+	_clipboard = payload
+	_set_status("Copiada la %s. Ctrl+V la pega donde esté el cursor." % _payload_label(payload))
+
+
+func _paste_clipboard() -> void:
+	_paste_clipboard_at(_mouse_pos_m())
+
+
+func _paste_clipboard_at(pos_m: Vector2) -> void:
+	if _clipboard.is_empty():
+		_set_status("No hay nada copiado. Ctrl+C copia lo que esté seleccionado.")
 		return
-	var dup: Dictionary = obj.duplicate(true)
-	var pos: Vector2 = Serializer.vector2_from_data(dup.get("position_m", Vector2.ZERO))
-	var size: Vector2 = _object_size_m(dup)
-	dup["id"] = _next_object_id()
-	dup["position_m"] = Serializer.vector_to_data(_clamp_object_local_pos_for_rotation(
-		_get_room_rect(_ctx_room_id),
-		size,
-		_snap_object_m(pos + Vector2(0.5, 0.5)),
-		float(dup.get("rotation_deg", 0.0))
-	))
-	dup["visual_pose_locked"] = true
-	var room: Dictionary = _get_room(_ctx_room_id)
-	var objects: Array = room.get("fuel_objects", [])
-	objects.append(dup)
+	_insert_payload(_clipboard, pos_m, false)
+
+
+## Duplicar no toca el portapapeles: quien copia una cosa y duplica otra espera
+## que Ctrl+V siga pegando la primera.
+func _duplicate_selection() -> void:
+	var payload: Dictionary = _selection_payload()
+	if payload.is_empty():
+		_set_status("Duplicar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima.")
+		return
+	_insert_payload(payload, Vector2.ZERO, true)
+
+
+## beside = al lado del original (duplicar). Si no, en pos_m (pegar).
+func _insert_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
+	match String(payload.get("kind", "")):
+		"room":
+			_insert_room_payload(payload, pos_m, beside)
+		"object":
+			_insert_object_payload(payload, pos_m, beside)
+		"detector":
+			_insert_point_payload(payload, "detector", "detectors", pos_m, beside)
+		"victim":
+			_insert_point_payload(payload, "victim", "victims", pos_m, beside)
+		_:
+			_set_status("Eso no se puede pegar.")
+
+
+## La copia cae en la planta que se esta editando, no en la del original: es lo
+## que permite repetir la distribucion de la planta baja en la primera.
+func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
+	var source_rect: Rect2 = Serializer.rect2_from_data(payload.get("rect", {}))
+	if source_rect.size.x <= 0.0 or source_rect.size.y <= 0.0:
+		_set_status("La habitación copiada no tiene geometría válida.")
+		return
+	var rect := source_rect
+	if beside:
+		rect.position = _snap_m(source_rect.position + Vector2(source_rect.size.x + GRID_M, 0.0))
+	else:
+		rect.position = _snap_m(pos_m)
+
+	_push_undo_snapshot("duplicate_room" if beside else "paste_room")
+	var room: Dictionary = Dictionary(payload.get("room", {})).duplicate(true)
+	var new_id: int = _next_room_id()
+	room["id"] = new_id
+	room["name"] = _copy_name(String(room.get("name", "")), _room_names())
+	room["floor_level_z_m"] = _current_floor_level_m()
+	# El foco inicial no se clona: solo hay uno, y dos objetos marcados dejarian
+	# el escenario contradiciendose consigo mismo.
+	var objects: Array = []
+	for obj in Array(room.get("fuel_objects", [])):
+		if typeof(obj) != TYPE_DICTIONARY:
+			continue
+		var copy_obj: Dictionary = Dictionary(obj).duplicate(true)
+		copy_obj["id"] = _next_object_id_including(objects)
+		copy_obj["room_id"] = new_id
+		copy_obj["is_primary_ignition_source"] = false
+		objects.append(copy_obj)
 	room["fuel_objects"] = objects
-	_select_object(_ctx_room_id, objects.size() - 1)
-	_set_status("Objeto duplicado.")
+
+	var rooms: Array = editor_data.get("rooms_data", [])
+	rooms.append(room)
+	editor_data["rooms_data"] = rooms
+	var rects: Dictionary = editor_data.get("room_rect_m", {})
+	rects[str(new_id)] = Serializer.rect_to_data(rect)
+	editor_data["room_rect_m"] = rects
+
+	# Detectores y victimas guardan su posicion local a la sala, asi que basta
+	# apuntarlos a la copia para que caigan en el mismo sitio de la copia.
+	var dets: Array = editor_data.get("detectors", [])
+	for det in Array(payload.get("detectors", [])):
+		var copy_det: Dictionary = Dictionary(det).duplicate(true)
+		copy_det["id"] = _next_detector_id()
+		copy_det["room_id"] = new_id
+		dets.append(copy_det)
+	editor_data["detectors"] = dets
+	var vics: Array = editor_data.get("victims", [])
+	for vic in Array(payload.get("victims", [])):
+		var copy_vic: Dictionary = Dictionary(vic).duplicate(true)
+		copy_vic["id"] = _next_victim_id()
+		copy_vic["room_id"] = new_id
+		copy_vic["name"] = _copy_name(String(copy_vic.get("name", "")), _victim_names())
+		vics.append(copy_vic)
+	editor_data["victims"] = vics
+
+	_update_floor_status()
+	_select_room(new_id)
+	_set_status("Copiada como «%s» en %s, con %d objetos, %d detectores y %d víctimas. Las puertas y ventanas no se copian." % [
+		String(room.get("name", "")),
+		_current_floor_name(),
+		objects.size(),
+		Array(payload.get("detectors", [])).size(),
+		Array(payload.get("victims", [])).size()
+	])
 	queue_redraw()
+
+
+## Como _next_object_id(), contando ademas los que aun no estan en el arbol: al
+## copiar una sala entera sus objetos se numeran antes de insertarse.
+func _next_object_id_including(pending: Array) -> String:
+	var taken: Dictionary = {}
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		for obj in Array(Dictionary(room).get("fuel_objects", [])):
+			if typeof(obj) == TYPE_DICTIONARY:
+				taken[String(Dictionary(obj).get("id", ""))] = true
+	for pending_obj in pending:
+		if typeof(pending_obj) == TYPE_DICTIONARY:
+			taken[String(Dictionary(pending_obj).get("id", ""))] = true
+	return _first_free_id("obj_%03d", taken)
+
+
+func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
+	var room_id: int = int(payload.get("room_id", -1)) if beside else _find_room_at(pos_m)
+	if room_id < 0 or _get_room(room_id).is_empty():
+		_set_status("Pega el objeto dentro de una habitación de %s." % _current_floor_name())
+		return
+	var rect: Rect2 = _get_room_rect(room_id)
+	var obj: Dictionary = Dictionary(payload.get("object", {})).duplicate(true)
+	var size: Vector2 = _object_size_m(obj)
+	var local: Vector2
+	if beside:
+		local = _snap_object_m(Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)) + Vector2(0.5, 0.5))
+	else:
+		local = _snap_object_m(pos_m - rect.position - size * 0.5)
+	_push_undo_snapshot("duplicate_object" if beside else "paste_object")
+	obj["id"] = _next_object_id()
+	obj["room_id"] = room_id
+	obj["is_primary_ignition_source"] = false
+	obj["position_m"] = Serializer.vector_to_data(_clamp_object_local_pos_for_rotation(
+		rect, size, local, float(obj.get("rotation_deg", 0.0))
+	))
+	obj["visual_pose_locked"] = true
+	_add_object_to_room(room_id, obj)
+	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
+	_set_status("Objeto %s copiado en la habitación %d." % [String(obj.get("id", "")), room_id])
+	queue_redraw()
+
+
+## Detectores y victimas comparten forma -id, room_id y un punto local dentro de
+## la sala-, asi que comparten pegado.
+func _insert_point_payload(payload: Dictionary, kind: String, list_key: String, pos_m: Vector2, beside: bool) -> void:
+	var item: Dictionary = Dictionary(payload.get(kind, {})).duplicate(true)
+	var room_id: int = int(item.get("room_id", -1)) if beside else _find_room_at(pos_m)
+	if room_id < 0 or _get_room(room_id).is_empty():
+		_set_status("Pega el elemento dentro de una habitación de %s." % _current_floor_name())
+		return
+	var rect: Rect2 = _get_room_rect(room_id)
+	var local: Vector2
+	if beside:
+		local = Vector2(float(item.get("x_m", 0.0)), float(item.get("y_m", 0.0))) + Vector2(GRID_M, GRID_M)
+	else:
+		local = pos_m - rect.position
+	local.x = clampf(snappedf(local.x, GRID_M), 0.0, maxf(0.0, rect.size.x))
+	local.y = clampf(snappedf(local.y, GRID_M), 0.0, maxf(0.0, rect.size.y))
+	_push_undo_snapshot(("duplicate_" if beside else "paste_") + kind)
+	item["room_id"] = room_id
+	item["x_m"] = local.x
+	item["y_m"] = local.y
+	var items: Array = editor_data.get(list_key, [])
+	if kind == "detector":
+		item["id"] = _next_detector_id()
+	else:
+		item["id"] = _next_victim_id()
+		item["name"] = _copy_name(String(item.get("name", "")), _victim_names())
+	items.append(item)
+	editor_data[list_key] = items
+	if kind == "detector":
+		_select_detector(items.size() - 1)
+		_set_status("Detector %s copiado en la habitación %d." % [String(item.get("id", "")), room_id])
+	else:
+		_select_victim(items.size() - 1)
+		_set_status("Víctima %s copiada en la habitación %d." % [String(item.get("name", "")), room_id])
+	queue_redraw()
+
+
+## "Salón" -> "Salón (copia)" -> "Salón (copia 2)". El sufijo se recorta antes de
+## volver a ponerlo, para que copiar una copia no encadene "(copia) (copia)".
+func _copy_name(base_name: String, taken: Dictionary) -> String:
+	var base: String = base_name.strip_edges()
+	var suffix_at: int = base.rfind(" (copia")
+	if suffix_at > 0 and base.ends_with(")"):
+		base = base.substr(0, suffix_at)
+	if base == "":
+		base = "Copia"
+	var candidate: String = "%s (copia)" % base
+	var n: int = 2
+	while taken.has(candidate):
+		candidate = "%s (copia %d)" % [base, n]
+		n += 1
+	return candidate
+
+
+func _room_names() -> Dictionary:
+	var names: Dictionary = {}
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) == TYPE_DICTIONARY:
+			names[String(Dictionary(room).get("name", ""))] = true
+	return names
+
+
+func _victim_names() -> Dictionary:
+	var names: Dictionary = {}
+	for vic in Array(editor_data.get("victims", [])):
+		if typeof(vic) == TYPE_DICTIONARY:
+			names[String(Dictionary(vic).get("name", ""))] = true
+	return names
+
+
+## Donde esta el raton, en metros del plano. Pegar donde mira el usuario es lo
+## que hace cualquier editor de planos.
+func _mouse_pos_m() -> Vector2:
+	return _screen_to_m(get_viewport().get_mouse_position())
 
 
 func _set_player_start_at(room_id: int, world_pos_m: Vector2) -> void:
@@ -3886,13 +4205,25 @@ func _next_room_id() -> int:
 	return next_id
 
 
+## Primer id libre, no "cuantos hay mas uno". El contador simple repetia id en
+## cuanto se borraba algo, y duplicar multiplica esas coincidencias.
 func _next_object_id() -> String:
-	var count: int = 0
+	var taken: Dictionary = {}
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
-		count += Array(room.get("fuel_objects", [])).size()
-	return "obj_%03d" % (count + 1)
+		for obj in Array(room.get("fuel_objects", [])):
+			if typeof(obj) == TYPE_DICTIONARY:
+				taken[String(Dictionary(obj).get("id", ""))] = true
+	return _first_free_id("obj_%03d", taken)
+
+
+## El primer "<patron> %03d" que nadie use.
+func _first_free_id(pattern: String, taken: Dictionary) -> String:
+	var n: int = 1
+	while taken.has(pattern % n):
+		n += 1
+	return pattern % n
 
 
 func _select_at(pos_m: Vector2) -> void:
@@ -4732,11 +5063,19 @@ func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
 
 
 func _next_detector_id() -> String:
-	return "det_%03d" % (Array(editor_data.get("detectors", [])).size() + 1)
+	return _first_free_id("det_%03d", _taken_ids("detectors"))
 
 
 func _next_victim_id() -> String:
-	return "vic_%03d" % (Array(editor_data.get("victims", [])).size() + 1)
+	return _first_free_id("vic_%03d", _taken_ids("victims"))
+
+
+func _taken_ids(list_key: String) -> Dictionary:
+	var taken: Dictionary = {}
+	for item in Array(editor_data.get(list_key, [])):
+		if typeof(item) == TYPE_DICTIONARY:
+			taken[String(Dictionary(item).get("id", ""))] = true
+	return taken
 
 
 func _create_detector_at(pos_m: Vector2) -> void:
@@ -5164,6 +5503,16 @@ func _delete_room(room_id: int) -> void:
 	editor_data["openings_data"] = openings
 	if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY and int(Dictionary(editor_data.get("player_start", {})).get("room_id", -1)) == room_id:
 		editor_data["player_start"] = {}
+
+	# Los detectores y las victimas de la sala se van con ella. Quedaban
+	# apuntando a un room_id inexistente, y validate_scenario() no mira esas dos
+	# listas: el escenario roto no se veia hasta ejecutarlo.
+	for list_key in ["detectors", "victims"]:
+		var items: Array = editor_data.get(list_key, [])
+		for i in range(items.size() - 1, -1, -1):
+			if typeof(items[i]) == TYPE_DICTIONARY and int(Dictionary(items[i]).get("room_id", -1)) == room_id:
+				items.remove_at(i)
+		editor_data[list_key] = items
 
 	_clear_selection()
 	_set_status("Habitación %d eliminada." % room_id)
