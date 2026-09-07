@@ -18,6 +18,15 @@ extends SceneTree
 ##     no es alta lo de abajo se corta y no hay forma de llegar; y lo de abajo
 ##     del panel izquierdo es guardar, cargar, exportar y la unica linea de
 ##     estado del editor.
+##  4. **Se llega a los controles con el teclado.** focus_mode = 0 apaga el
+##     tabulador, y el tema ya trae estilo de foco: apagarlo no evitaba ningun
+##     recuadro feo, solo quitaba la navegacion.
+##  5. **Cada herramienta dice su tecla y lleva su nombre entero.** Un atajo que
+##     no se anuncia no existe, y una etiqueta cortada se lee como prototipo.
+##  6. **El texto que lee el usuario lleva tildes.** Escribir sin ellas en el
+##     codigo es una convencion razonable; en la pantalla es una falta.
+##  7. **Las teclas anunciadas cambian de herramienta de verdad.** Anunciar un
+##     atajo que no responde es peor que no tenerlo.
 ##
 ## Uso: godot --headless --path . --script res://tools/validate_editor_ui_affordances.gd
 
@@ -29,6 +38,19 @@ const NUMERIC_WITHOUT_UNIT: Array[String] = [
 	# Su unidad depende del tipo de detector -kg/m3, grados o ppm- y se la pone
 	# el codigo en _sync_detector_threshold_units().
 	"DetectorThresholdSpin",
+]
+
+## Palabras sin tilde que no admiten discusion: no existe ninguna frase donde
+## "habitacion" o "victima" sean correctas. Las ambiguas -"esta"/"esta",
+## "mas"/"mas", "solo"/"solo"- se quedan fuera a proposito: aqui solo caben las
+## que siempre son falta, para que el guardarrail no de falsos positivos.
+const MISSPELLED: Array[String] = [
+	"habitacion", "victima", "victimas", "simulacion", "seleccion", "ignicion",
+	"edicion", "aparicion", "posicion", "direccion", "opcion", "geometria",
+	"tamano", "pequeno", "pequena", "boton", "tambien", "maximo", "minimo",
+	"maxima", "minima", "ultimo", "aqui", "anadir", "angulo", "numero",
+	"deteccion", "informacion", "configuracion", "presion", "energia",
+	"combustion", "oxigeno", "estan", "despues", "segun", "duracion",
 ]
 
 var _editor: Node = null
@@ -83,6 +105,63 @@ func _run_checks() -> void:
 		for path in unitless:
 			_fail("    " + path)
 
+	# 4. Se puede llegar a los controles con el teclado.
+	#
+	# Estaban los 57 con focus_mode = 0, que apaga el tabulador. No era para
+	# evitar un recuadro feo: el tema ya trae estilo de foco para Button,
+	# LineEdit, OptionButton y SpinBox.
+	var unfocusable: Array[String] = []
+	for control in controls:
+		if control.focus_mode == Control.FOCUS_NONE:
+			unfocusable.append(_path_of(control))
+	if not unfocusable.is_empty():
+		_fail("%d controles no se alcanzan con el teclado (focus_mode = 0):" % unfocusable.size())
+		for path in unfocusable:
+			_fail("    " + path)
+
+	# 5. Cada herramienta dice su tecla y lleva su nombre entero.
+	#
+	# Un atajo que no se anuncia en ningun sitio es un atajo que no existe, y
+	# una etiqueta cortada -"DETECT.", "VICT."- se lee como prototipo.
+	var toolbar := canvas.get_node_or_null("UI/TopBar/HBox")
+	if toolbar == null:
+		_fail("falta la barra de herramientas")
+	else:
+		for child in toolbar.get_children():
+			var button := child as Button
+			if button == null:
+				continue
+			if not String(button.tooltip_text).contains("[tecla "):
+				_fail("la herramienta %s no dice su tecla" % button.name)
+			if String(button.text).ends_with("."):
+				_fail("la herramienta %s lleva el nombre cortado: %s" % [button.name, button.text])
+
+	# 6. El texto que lee el usuario lleva tildes.
+	#
+	# La guia rapida del editor, que es el texto mas largo que se lee dentro de
+	# la aplicacion, iba sin ellas -"Seleccion", "Victima", "pequeno"- y convivia
+	# con etiquetas que si las llevaban.
+	var misspelled: Array[String] = []
+	_collect_misspellings(canvas, misspelled)
+	if not misspelled.is_empty():
+		_fail("%d textos de pantalla sin tilde:" % misspelled.size())
+		for hit in misspelled:
+			_fail("    " + hit)
+
+	# 7. Las teclas anunciadas cambian de herramienta de verdad.
+	#
+	# La regla 5 solo mira lo que dice el tooltip. Esta pulsa la tecla.
+	for keycode in _editor.TOOL_SHORTCUTS:
+		var expected: int = int(_editor.TOOL_SHORTCUTS[keycode])
+		var event := InputEventKey.new()
+		event.keycode = int(keycode)
+		event.pressed = true
+		_editor._unhandled_input(event)
+		if int(_editor.current_tool) != expected:
+			_fail("la tecla %s no cambia de herramienta (esperada %d, quedo %d)" % [
+				OS.get_keycode_string(int(keycode)), expected, int(_editor.current_tool)
+			])
+
 	# Los dos paneles laterales tienen que poder desplazarse.
 	for panel_name in ["LeftPanel", "RightPanel"]:
 		var panel := canvas.get_node_or_null("UI/" + panel_name)
@@ -93,7 +172,7 @@ func _run_checks() -> void:
 			_fail("%s no tiene ScrollContainer: con la ventana baja, lo de abajo no se alcanza" % panel_name)
 
 	if _failures.is_empty():
-		print("[validate_editor_ui] PASS: %d controles con explicacion y unidad, paneles desplazables" % controls.size())
+		print("[validate_editor_ui] PASS: %d controles con explicacion, unidad, foco y tildes; paneles desplazables; %d teclas de herramienta responden" % [controls.size(), _editor.TOOL_SHORTCUTS.size()])
 		quit(0)
 		return
 	print("[validate_editor_ui] FAIL:")
@@ -111,6 +190,44 @@ func _collect_controls(node: Node, out: Array[Control]) -> void:
 			out.append(child as Control)
 		if child.get_child_count() > 0:
 			_collect_controls(child, out)
+
+
+## Recorre todo lo que se lee en pantalla -texto y tooltip de cualquier nodo que
+## los tenga- buscando las palabras de MISSPELLED.
+func _collect_misspellings(node: Node, out: Array[String]) -> void:
+	for child in node.get_children():
+		var control := child as Control
+		if control != null:
+			var pieces: Array[String] = [String(control.tooltip_text)]
+			if "text" in control:
+				pieces.append(String(control.get("text")))
+			for piece in pieces:
+				for word in MISSPELLED:
+					if _contains_word(piece.to_lower(), word):
+						out.append("%s: \"%s\" -> %s" % [_path_of(control), word, piece.substr(0, 60)])
+		if child.get_child_count() > 0:
+			_collect_misspellings(child, out)
+
+
+## Palabra entera, no trozo: "area" no puede saltar dentro de "areas" ni
+## "estan" dentro de "estanteria".
+func _contains_word(haystack: String, word: String) -> bool:
+	var from: int = 0
+	while true:
+		var at: int = haystack.find(word, from)
+		if at < 0:
+			return false
+		var before_ok: bool = at == 0 or not _is_letter(haystack[at - 1])
+		var after: int = at + word.length()
+		var after_ok: bool = after >= haystack.length() or not _is_letter(haystack[after])
+		if before_ok and after_ok:
+			return true
+		from = at + 1
+	return false
+
+
+func _is_letter(c: String) -> bool:
+	return c.to_lower() != c.to_upper() or c == "ñ"
 
 
 func _find_scroll(node: Node) -> ScrollContainer:

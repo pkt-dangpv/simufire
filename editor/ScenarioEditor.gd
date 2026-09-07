@@ -207,7 +207,11 @@ var _help_dialog_page_label: Label
 var _help_page_index: int = 0
 var _hover_help_check: CheckBox
 var _hover_help_enabled: bool = true
-var _active_left_tab: int = EditorLeftTab.SCENARIO
+## Con que pestana abre el editor. Abria por Archivo, asi que lo primero que se
+## veia al entrar era guardar, cargar y exportar, y las herramientas de dibujo
+## -y con ellas las plantas, la lista de elementos y el interruptor de la ayuda
+## contextual- quedaban a un clic de distancia sin que nada lo indicara.
+var _active_left_tab: int = EditorLeftTab.TOOLS
 var _left_tab_buttons: Dictionary = {}
 var _hover_help_popup: PanelContainer
 var _hover_help_popup_label: Label
@@ -926,7 +930,7 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	if use_2d:
 		_set_status("Modo 2D: editor clasico activo.")
 	elif use_3d:
-		_set_status("Modo 3D: edita aberturas y elementos simples. La geometria de salas sigue en 2D.")
+		_set_status("Modo 3D: edita aberturas y elementos simples. La geometría de salas sigue en 2D.")
 	else:
 		_set_status("Modo FP: inspeccion activa. Pulsa Esc para volver a 2D.")
 	queue_redraw()
@@ -971,10 +975,24 @@ func _is_3d_simple_tool(tool_id: int) -> bool:
 	]
 
 
+## Nombre de la tecla que activa una herramienta. Sale de TOOL_SHORTCUTS, la
+## misma tabla que escucha el teclado, para que no puedan discrepar.
+func _tool_shortcut_label(tool_id: int) -> String:
+	for keycode in TOOL_SHORTCUTS:
+		if int(TOOL_SHORTCUTS[keycode]) == tool_id:
+			return OS.get_keycode_string(int(keycode))
+	return ""
+
+
 func _tool_tooltip(tool_id: int) -> String:
 	var text: String = _tool_hint(tool_id)
 	if text == "":
 		return ""
+	# Un atajo que no se anuncia en ningun sitio es un atajo que no existe: la
+	# tecla se escribe en el tooltip de la propia herramienta.
+	var key_label: String = _tool_shortcut_label(tool_id)
+	if key_label != "":
+		text = "%s  [tecla %s]" % [text, key_label]
 	if not _tool_available_in_current_mode(tool_id):
 		return "%s\nNo disponible en el modo actual." % text
 	return text
@@ -993,7 +1011,7 @@ func _on_editor_3d_room_clicked(room_id: int) -> void:
 	if _editor_view_mode != EditorViewMode.MODE_3D:
 		return
 	if current_tool == Tool.DELETE:
-		_set_status("El borrado de geometria de salas se mantiene en 2D.")
+		_set_status("El borrado de geometría de salas se mantiene en 2D.")
 		return
 	if current_tool != Tool.SELECT:
 		return
@@ -1001,7 +1019,7 @@ func _on_editor_3d_room_clicked(room_id: int) -> void:
 		_select_room(room_id)
 	else:
 		_clear_selection()
-		_set_status("Sin seleccion.")
+		_set_status("Sin selección.")
 
 
 func _on_editor_3d_opening_clicked(opening_index: int, _screen_pos: Vector2) -> void:
@@ -1103,9 +1121,9 @@ func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
 			_create_player_start_at(floor_pos_m)
 			_sync_editor_3d_after_direct_edit()
 		Tool.IGNITION:
-			_set_status("Ignicion 3D: pulsa directamente sobre un objeto combustible.")
+			_set_status("Ignición 3D: pulsa directamente sobre un objeto combustible.")
 		Tool.DELETE:
-			_set_status("Borrado 3D: pulsa una apertura, objeto, detector, victima o inicio FP.")
+			_set_status("Borrado 3D: pulsa una apertura, objeto, detector, víctima o inicio FP.")
 
 
 func _on_editor_3d_element_drag_started(kind: String) -> void:
@@ -1186,7 +1204,7 @@ func _on_editor_3d_element_drag_ended(kind: String) -> void:
 		"detector":
 			_set_status("Detector movido en 3D.")
 		"victim":
-			_set_status("Victima movida en 3D.")
+			_set_status("Víctima movida en 3D.")
 		"player_start":
 			_set_status("Inicio FP movido en 3D.")
 		_:
@@ -1421,7 +1439,9 @@ func _style_editor_controls(node: Node) -> void:
 	if node is Button:
 		var button := node as Button
 		button.text = button.text.to_upper()
-		button.focus_mode = Control.FOCUS_NONE
+		# El foco no se apaga: el tema trae recuadro de foco, y sin foco no hay
+		# tabulador, que en un panel de catorce casillas obliga a clicar una a una.
+		button.focus_mode = Control.FOCUS_ALL
 		button.add_theme_font_override("font", _editor_title_font)
 		button.add_theme_font_size_override("font_size", editor_font_size_button)
 	if node is LineEdit:
@@ -1430,16 +1450,18 @@ func _style_editor_controls(node: Node) -> void:
 		edit.add_theme_font_size_override("font_size", editor_font_size_body)
 	if node is SpinBox:
 		var spin := node as SpinBox
+		# SpinBox nace sin foco: aqui hay que pedirlo, no solo no quitarlo.
+		spin.focus_mode = Control.FOCUS_ALL
 		spin.add_theme_font_override("font", _editor_font)
 		spin.add_theme_font_size_override("font_size", editor_font_size_body)
 	if node is OptionButton:
 		var option := node as OptionButton
-		option.focus_mode = Control.FOCUS_NONE
+		option.focus_mode = Control.FOCUS_ALL
 		option.add_theme_font_override("font", _editor_title_font)
 		option.add_theme_font_size_override("font_size", editor_font_size_button)
 	if node is ItemList:
 		var item_list := node as ItemList
-		item_list.focus_mode = Control.FOCUS_NONE
+		item_list.focus_mode = Control.FOCUS_ALL
 		item_list.add_theme_font_override("font", _editor_font)
 		item_list.add_theme_font_size_override("font_size", editor_font_size_compact)
 	for child in node.get_children():
@@ -1831,10 +1853,11 @@ func _editor_help_text() -> String:
 
 func _editor_help_pages() -> PackedStringArray:
 	return PackedStringArray([
-		"Dibujo\n\nElige una herramienta en la barra superior. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Victima e Inicio FP se colocan clicando dentro de una sala.",
-		"Seleccion\n\nUsa Select para elegir elementos en el plano. Si un objeto, detector o victima esta encima de una sala, el editor prioriza el elemento pequeno antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan.",
-		"Edicion\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Supr borra la seleccion y Ctrl+Z deshace.",
-		"Archivo\n\nLa pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulacion valida y exporta el escenario antes de abrir SimulationScene."
+		"Dibujo\n\nElige una herramienta en la barra superior o pulsa su tecla. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Víctima e Inicio FP se colocan clicando dentro de una sala.",
+		"Teclas\n\n%s.\nEsc vuelve a %s. Ctrl+Z deshace, Ctrl+Y rehace y Supr borra la selección. Ctrl+S guarda y Ctrl+O carga. Mientras escribes en una casilla, las teclas de herramienta no responden." % [_tool_shortcuts_line(), _tool_display_name(Tool.SELECT)],
+		"Selección\n\nUsa %s para elegir elementos en el plano. Si un objeto, detector o víctima está encima de una sala, el editor prioriza el elemento pequeño antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan." % _tool_display_name(Tool.SELECT),
+		"Edición\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Cada casilla numérica lleva su unidad escrita dentro, y al dejar el cursor sobre un control se explica qué hace. Supr borra la selección y Ctrl+Z deshace.",
+		"Archivo\n\nLa pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulación valida y exporta el escenario antes de abrir SimulationScene. Si sales con cambios sin guardar, el editor pregunta antes."
 	])
 
 
@@ -2032,7 +2055,7 @@ func _refresh_element_list() -> void:
 		var room_id: int = int(vic.get("room_id", -1))
 		if not _is_room_on_current_floor(_get_room(room_id)):
 			continue
-		_element_list.add_item("Victima  %s  R%d" % [String(vic.get("name", vic.get("id", str(i)))), room_id])
+		_element_list.add_item("Víctima  %s  R%d" % [String(vic.get("name", vic.get("id", str(i)))), room_id])
 		_element_list.set_item_metadata(row_index, {"type": "victim", "victim_index": i})
 		if selected_victim_index == i:
 			selected_item_index = row_index
@@ -2264,6 +2287,89 @@ func _opening_on_current_floor(opening: Dictionary) -> bool:
 	return a_on_floor and absf(_room_id_floor_level(b_id) - _current_floor_level_m()) < 0.05
 
 
+## Tecla de cada herramienta. En un editor de planos se cambia de herramienta
+## cada pocos segundos: sin teclas, cada cambio es un viaje del raton a la barra
+## de arriba y vuelta.
+##
+## Los digitos siguen el orden de la barra; las letras son la inicial de lo que
+## colocan. Escape vuelve a seleccionar, que es lo que hace todo editor.
+##
+## Escape va el ultimo a proposito: el tooltip anuncia la primera tecla de la
+## lista, y "1" se lee mas rapido que "Escape".
+const TOOL_SHORTCUTS: Dictionary = {
+	KEY_1: Tool.SELECT,
+	KEY_2: Tool.EXTERIOR_WALL,
+	KEY_3: Tool.ROOM,
+	KEY_4: Tool.CORRIDOR_L,
+	KEY_5: Tool.STAIRS,
+	KEY_6: Tool.DOOR,
+	KEY_7: Tool.WINDOW,
+	KEY_8: Tool.HOLE,
+	KEY_9: Tool.OBJECT,
+	KEY_0: Tool.DELETE,
+	KEY_D: Tool.DETECTOR,
+	KEY_V: Tool.VICTIM,
+	KEY_F: Tool.PLAYER_START,
+	KEY_I: Tool.IGNITION,
+	KEY_ESCAPE: Tool.SELECT,
+}
+
+
+## Nombre visible de cada herramienta y su clave de traduccion. Lo leen los
+## botones de la barra y la pagina de teclas de la ayuda: una sola lista, para
+## que la ayuda no anuncie un nombre que el boton ya no lleva.
+const TOOL_NAMES: Dictionary = {
+	Tool.SELECT: ["editor.tool.select", "Selección"],
+	Tool.EXTERIOR_WALL: ["editor.tool.exterior", "Exterior"],
+	Tool.ROOM: ["editor.tool.room", "Sala"],
+	Tool.CORRIDOR_L: ["editor.tool.corridor", "Pasillo"],
+	Tool.STAIRS: ["editor.tool.stairs", "Escalera"],
+	Tool.DOOR: ["editor.tool.door", "Puerta"],
+	Tool.WINDOW: ["editor.tool.window", "Ventana"],
+	Tool.HOLE: ["editor.tool.hole", "Hueco"],
+	Tool.OBJECT: ["editor.tool.object", "Objeto"],
+	Tool.DELETE: ["editor.tool.delete", "Borrar"],
+	Tool.DETECTOR: ["editor.tool.detector", "Detector"],
+	Tool.VICTIM: ["editor.tool.victim", "Víctima"],
+	Tool.PLAYER_START: ["editor.tool.player_start", "Inicio FP"],
+	Tool.IGNITION: ["editor.tool.ignition", "Ignición"],
+}
+
+
+func _tool_display_name(tool_id: int) -> String:
+	if not TOOL_NAMES.has(tool_id):
+		return ""
+	var entry: Array = TOOL_NAMES[tool_id]
+	return _ui_text(String(entry[0]), String(entry[1]))
+
+
+## La linea de teclas de la ayuda, escrita desde la misma tabla que las escucha.
+## Escape se cuenta aparte porque comparte herramienta con el 1.
+func _tool_shortcuts_line() -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	for keycode in TOOL_SHORTCUTS:
+		if int(keycode) == KEY_ESCAPE:
+			continue
+		parts.append("%s %s" % [
+			OS.get_keycode_string(int(keycode)),
+			_tool_display_name(int(TOOL_SHORTCUTS[keycode]))
+		])
+	return " · ".join(parts)
+
+
+func _tool_for_keycode(keycode: int) -> int:
+	return int(TOOL_SHORTCUTS[keycode]) if TOOL_SHORTCUTS.has(keycode) else -1
+
+
+## Cierto si el foco esta en algo donde se escribe. Sin esto, teclear "sala" en
+## el nombre de una habitacion cambiaria de herramienta cuatro veces.
+func _keyboard_is_typing() -> bool:
+	var focus_owner: Control = get_viewport().gui_get_focus_owner()
+	if focus_owner == null:
+		return false
+	return focus_owner is LineEdit or focus_owner is TextEdit or focus_owner is SpinBox
+
+
 func _set_tool(tool_id: int) -> void:
 	if not _tool_available_in_current_mode(tool_id):
 		_set_status("Esa herramienta esta reservada al modo 2D.")
@@ -2289,7 +2395,7 @@ func _tool_hint(tool_id: int) -> String:
 	if _editor_view_mode == EditorViewMode.MODE_3D:
 		match tool_id:
 			Tool.SELECT:
-				return _ui_text("editor.tooltip_3d_select", "3D seleccionar: selecciona y arrastra objetos, detectores, victimas o inicio FP. Boton derecho orbita.")
+				return _ui_text("editor.tooltip_3d_select", "3D seleccionar: selecciona y arrastra objetos, detectores, víctimas o inicio FP. Botón derecho orbita.")
 			Tool.DOOR:
 				return "3D Puerta: pulsa el suelo muy cerca de una pared compartida o exterior."
 			Tool.HOLE:
@@ -2297,22 +2403,22 @@ func _tool_hint(tool_id: int) -> String:
 			Tool.WINDOW:
 				return "3D Ventana: pulsa el suelo muy cerca de una pared exterior."
 			Tool.OBJECT:
-				return _ui_text("editor.tooltip_3d_object", "3D objeto: pulsa el suelo de una habitacion para colocar el combustible elegido.")
+				return _ui_text("editor.tooltip_3d_object", "3D objeto: pulsa el suelo de una habitación para colocar el combustible elegido.")
 			Tool.IGNITION:
-				return "3D Ignicion: pulsa directamente sobre un objeto combustible."
+				return "3D Ignición: pulsa directamente sobre un objeto combustible."
 			Tool.PLAYER_START:
-				return "3D Inicio FP: pulsa el suelo de una habitacion para colocar la aparicion."
+				return "3D Inicio FP: pulsa el suelo de una habitación para colocar la aparición."
 			Tool.DELETE:
-				return "3D Borrar: pulsa apertura, objeto, detector, victima o inicio FP. Salas y muros siguen en 2D."
+				return "3D Borrar: pulsa apertura, objeto, detector, víctima o inicio FP. Salas y muros siguen en 2D."
 			Tool.DETECTOR:
-				return "3D Detector: pulsa el suelo de una habitacion para colocar un detector."
+				return "3D Detector: pulsa el suelo de una habitación para colocar un detector."
 			Tool.VICTIM:
-				return "3D Victima: pulsa el suelo de una habitacion para marcar una victima."
+				return "3D Víctima: pulsa el suelo de una habitación para marcar una víctima."
 	match tool_id:
 		Tool.SELECT:
-			return "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
+			return "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
 		Tool.EXTERIOR_WALL:
-			return "Exterior: arrastra para dibujar muros exteriores rectos. Tambien puedes marcar el contorno de una habitacion."
+			return "Exterior: arrastra para dibujar muros exteriores rectos. También puedes marcar el contorno de una habitación."
 		Tool.ROOM:
 			return "Estancia: arrastra para crear una estancia en %s." % _current_floor_name()
 		Tool.CORRIDOR_L:
@@ -2322,21 +2428,21 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.DOOR:
 			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
 		Tool.HOLE:
-			return "Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho maximo limitado por el paramento." % _current_floor_name()
+			return "Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho máximo limitado por el paramento." % _current_floor_name()
 		Tool.WINDOW:
 			return "Ventana: pulsa cerca de una pared exterior en %s." % _current_floor_name()
 		Tool.OBJECT:
 			return "Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
 		Tool.IGNITION:
-			return "Ignicion: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
+			return "Ignición: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
 		Tool.PLAYER_START:
 			return "Inicio FP: pulsa dentro de una estancia de %s para colocar donde aparece el jugador." % _current_floor_name()
 		Tool.DELETE:
 			return "Borrar: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
 		Tool.DETECTOR:
-			return "Detector: pulsa dentro de una habitacion de %s para colocar un detector de humo, calor o CO." % _current_floor_name()
+			return "Detector: pulsa dentro de una habitación de %s para colocar un detector de humo, calor o CO." % _current_floor_name()
 		Tool.VICTIM:
-			return "Victima: pulsa dentro de una habitacion de %s para marcar la posicion de una victima." % _current_floor_name()
+			return "Víctima: pulsa dentro de una habitación de %s para marcar la posición de una víctima." % _current_floor_name()
 	return ""
 
 
@@ -2372,6 +2478,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Las teclas de herramienta no se comen lo que se esta escribiendo en una
+		# casilla: si el foco esta en un campo de texto, manda el campo.
+		if not _keyboard_is_typing() and not event.ctrl_pressed and not event.alt_pressed:
+			var shortcut_tool: int = _tool_for_keycode(event.keycode)
+			if shortcut_tool >= 0:
+				_set_tool(shortcut_tool)
+				get_viewport().set_input_as_handled()
+				return
+		if event.keycode == KEY_S and event.ctrl_pressed:
+			_save_pressed()
+			get_viewport().set_input_as_handled()
+			return
+		if event.keycode == KEY_O and event.ctrl_pressed:
+			_load_pressed()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_Z and event.ctrl_pressed and event.shift_pressed:
 			_redo_last_action()
 			get_viewport().set_input_as_handled()
@@ -2463,7 +2585,7 @@ func _delete_selected_3d_simple() -> void:
 		_sync_editor_3d_after_direct_edit()
 		return
 	if selected_room_id >= 0 or selected_exterior_wall_index >= 0:
-		_set_status("El borrado de geometria sigue reservado al modo 2D.")
+		_set_status("El borrado de geometría sigue reservado al modo 2D.")
 		return
 	_set_status("No hay ninguna apertura ni elemento simple seleccionado para borrar.")
 
@@ -2546,11 +2668,11 @@ func _handle_release(pos_m: Vector2) -> void:
 		room_mouse_mode = ObjectMouseMode.NONE
 		room_drag_cursor_offset_m = Vector2.ZERO
 		if completed_mode == ObjectMouseMode.ROTATE:
-			_set_status("Angulo de la habitacion actualizado.")
+			_set_status("Ángulo de la habitación actualizado.")
 		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
-			_set_status("Tamano de la habitacion actualizado.")
+			_set_status("Tamaño de la habitación actualizado.")
 		else:
-			_set_status("Habitacion movida.")
+			_set_status("Habitación movida.")
 		_refresh_element_list()
 		queue_redraw()
 		return
@@ -2563,7 +2685,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		if completed_mode == ObjectMouseMode.ROTATE:
 			_set_status("Rotacion del objeto actualizada.")
 		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
-			_set_status("Tamano del objeto actualizado.")
+			_set_status("Tamaño del objeto actualizado.")
 		else:
 			_set_status("Objeto movido.")
 		queue_redraw()
@@ -2606,7 +2728,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		var stair_long_m: float = _stair_long_span_m(rect, stair_dir)
 		var stair_cross_m: float = _stair_cross_span_m(rect, stair_dir)
 		if stair_long_m < GRID_M * 5.0 or stair_cross_m < GRID_M * 3.0:
-			_set_status("La escalera es demasiado pequena: arrastra al menos %.2f m de largo y %.2f m de ancho." % [GRID_M * 5.0, GRID_M * 3.0])
+			_set_status("La escalera es demasiado pequeña: arrastra al menos %.2f m de largo y %.2f m de ancho." % [GRID_M * 5.0, GRID_M * 3.0])
 			queue_redraw()
 			return
 		_push_undo_snapshot("create_stairs")
@@ -2615,14 +2737,14 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	if rect.size.x < GRID_M or rect.size.y < GRID_M:
-		_set_status("La habitacion es demasiado pequena.")
+		_set_status("La habitación es demasiado pequeña.")
 		queue_redraw()
 		return
 
 	_push_undo_snapshot("create_room")
 	var room_id: int = _create_room(_snap_rect_to_adjacent_rooms(rect))
 	_select_room(room_id)
-	_set_status("Habitacion %d creada." % room_id)
+	_set_status("Habitación %d creada." % room_id)
 	queue_redraw()
 
 
@@ -2710,14 +2832,14 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		var rname: String = _room_display_name(room, hit_room)
 		menu.add_item("Mostrar propiedades: %s" % rname, _CTX_EDIT)
 		menu.add_separator()
-		menu.add_item("Anadir puerta aqui", _CTX_ADD_DOOR)
-		menu.add_item("Anadir hueco aqui", _CTX_ADD_HOLE)
-		menu.add_item("Anadir ventana aqui", _CTX_ADD_WIN)
-		menu.add_item("Punto inicio jugador aqui", _CTX_SET_PLAYER_START)
+		menu.add_item("Añadir puerta aquí", _CTX_ADD_DOOR)
+		menu.add_item("Añadir hueco aquí", _CTX_ADD_HOLE)
+		menu.add_item("Añadir ventana aquí", _CTX_ADD_WIN)
+		menu.add_item("Punto inicio jugador aquí", _CTX_SET_PLAYER_START)
 		menu.add_item("Marcar contorno exterior", _CTX_MARK_EXTERIOR)
-		menu.add_item("Marcar ignicion aqui", _CTX_IGNITE)
+		menu.add_item("Marcar ignición aquí", _CTX_IGNITE)
 		menu.add_separator()
-		menu.add_item("Borrar habitacion", _CTX_DELETE)
+		menu.add_item("Borrar habitación", _CTX_DELETE)
 	else:
 		menu.add_item("Deseleccionar todo", _CTX_DESELECT)
 
@@ -3614,7 +3736,7 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 
 	var rects: Array = layout.get("rects", [])
 	if rects.is_empty():
-		_set_status("El pasillo no tiene tamano suficiente.")
+		_set_status("El pasillo no tiene tamaño suficiente.")
 		return
 
 	var base_id: int = _next_room_id()
@@ -3702,7 +3824,7 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var abs_dx: float = absf(dx)
 	var abs_dy: float = absf(dy)
 	if abs_dx < GRID_M and abs_dy < GRID_M:
-		return {"error": "Arrastra para marcar la direccion del pasillo."}
+		return {"error": "Arrastra para marcar la dirección del pasillo."}
 
 	if abs_dx >= maxf(width_m * 1.25, abs_dy * 2.0) or abs_dy < width_m * 0.60:
 		var length_x: float = abs_dx
@@ -3745,7 +3867,7 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var vertical_rect: Rect2 = _normalized_rect(v_a, v_b)
 	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
 			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
-		return {"error": "El giro del pasillo queda demasiado pequeno."}
+		return {"error": "El giro del pasillo queda demasiado pequeño."}
 
 	return {
 		"mode": "l",
@@ -3809,7 +3931,7 @@ func _select_at(pos_m: Vector2) -> void:
 		_select_room(room_id)
 	else:
 		_clear_selection()
-		_set_status("Sin seleccion.")
+		_set_status("Sin selección.")
 	queue_redraw()
 
 
@@ -3833,7 +3955,7 @@ func _select_room(room_id: int) -> void:
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
-	_set_status("Habitacion %d seleccionada. Ajusta X/Y, ancho, fondo y angulo en Propiedades." % room_id)
+	_set_status("Habitación %d seleccionada. Ajusta X/Y, ancho, fondo y ángulo en Propiedades." % room_id)
 	queue_redraw()
 
 
@@ -3893,7 +4015,7 @@ func _select_player_start(room_id: int) -> void:
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
-	_set_status("Inicio FP seleccionado. Arrastralo en 3D para cambiar el punto de aparicion.")
+	_set_status("Inicio FP seleccionado. Arrástralo en 3D para cambiar el punto de aparición.")
 	queue_redraw()
 
 
@@ -4272,7 +4394,7 @@ func _set_control_row_visible(control: Control, visible: bool) -> void:
 
 func _apply_room_properties() -> void:
 	if selected_room_id < 0:
-		_set_status("Selecciona una habitacion antes de aplicar propiedades.")
+		_set_status("Selecciona una habitación antes de aplicar propiedades.")
 		return
 
 	var rooms: Array = editor_data.get("rooms_data", [])
@@ -4318,7 +4440,7 @@ func _apply_room_properties() -> void:
 				_set_stair_turn_degrees_for_room(linked_id, turn_degrees)
 			_apply_stair_rotation_to_linked_rooms(selected_room_id, float(room.get("rotation_deg", 0.0)), stair_dir)
 			_sync_vertical_stair_openings(selected_room_id)
-		_set_status("Propiedades de habitacion %d actualizadas." % selected_room_id)
+		_set_status("Propiedades de habitación %d actualizadas." % selected_room_id)
 		_refresh_element_list()
 		queue_redraw()
 		return
@@ -4540,7 +4662,7 @@ func _find_opening_at(pos_m: Vector2) -> int:
 func _create_object_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitacion para colocar un objeto.")
+		_set_status("Pulsa dentro de una habitación para colocar un objeto.")
 		return
 
 	var selected: int = _object_kind_option.selected if _object_kind_option != null else -1
@@ -4555,7 +4677,7 @@ func _create_object_at(pos_m: Vector2) -> void:
 	obj["visual_pose_locked"] = true
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
-	_set_status("Objeto %s colocado en habitacion %d." % [kind, room_id])
+	_set_status("Objeto %s colocado en habitación %d." % [kind, room_id])
 	queue_redraw()
 
 
@@ -4620,7 +4742,7 @@ func _next_victim_id() -> String:
 func _create_detector_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitacion para colocar un detector.")
+		_set_status("Pulsa dentro de una habitación para colocar un detector.")
 		return
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var local_pos: Vector2 = pos_m - room_rect.position
@@ -4639,14 +4761,14 @@ func _create_detector_at(pos_m: Vector2) -> void:
 	})
 	editor_data["detectors"] = dets
 	_select_detector(dets.size() - 1)
-	_set_status("Detector %s colocado en habitacion %d." % [new_id, room_id])
+	_set_status("Detector %s colocado en habitación %d." % [new_id, room_id])
 	queue_redraw()
 
 
 func _create_victim_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitacion para colocar una victima.")
+		_set_status("Pulsa dentro de una habitación para colocar una víctima.")
 		return
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var local_pos: Vector2 = pos_m - room_rect.position
@@ -4659,14 +4781,14 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	vics.append({
 		"id": new_id,
 		"room_id": room_id,
-		"name": "Victima %d" % vic_num,
+		"name": "Víctima %d" % vic_num,
 		"x_m": local_pos.x,
 		"y_m": local_pos.y,
 		"height_m": 0.9
 	})
 	editor_data["victims"] = vics
 	_select_victim(vics.size() - 1)
-	_set_status("Victima %s colocada en habitacion %d." % [new_id, room_id])
+	_set_status("Víctima %s colocada en habitación %d." % [new_id, room_id])
 	queue_redraw()
 
 
@@ -4740,7 +4862,7 @@ func _select_victim(index: int) -> void:
 	var vics: Array = editor_data.get("victims", [])
 	if index >= 0 and index < vics.size():
 		var vic: Dictionary = vics[index]
-		_set_status("Victima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
+		_set_status("Víctima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
 	queue_redraw()
 
 
@@ -4788,7 +4910,7 @@ func _apply_detector_properties() -> void:
 
 func _apply_victim_properties() -> void:
 	if selected_victim_index < 0:
-		_set_status("Selecciona una victima antes de aplicar propiedades.")
+		_set_status("Selecciona una víctima antes de aplicar propiedades.")
 		return
 	var vics: Array = editor_data.get("victims", [])
 	if selected_victim_index >= vics.size():
@@ -4806,7 +4928,7 @@ func _apply_victim_properties() -> void:
 		vic["height_m"] = _victim_height_spin.value
 	vics[selected_victim_index] = vic
 	editor_data["victims"] = vics
-	_set_status("Propiedades de la victima actualizadas.")
+	_set_status("Propiedades de la víctima actualizadas.")
 	queue_redraw()
 
 
@@ -4838,22 +4960,22 @@ func _create_door_at(pos_m: Vector2) -> void:
 			0.0,
 			1.0
 		)
-		_set_status("Puerta exterior creada en habitacion %d." % int(exterior_wall["room_id"]))
+		_set_status("Puerta exterior creada en habitación %d." % int(exterior_wall["room_id"]))
 		queue_redraw()
 		return
 
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa una pared compartida, una pared exterior o una habitacion.")
+		_set_status("Pulsa una pared compartida, una pared exterior o una habitación.")
 		return
 
 	if pending_door_room_id < 0:
 		pending_door_room_id = room_id
-		_set_status("Primera habitacion %d seleccionada para puerta." % room_id)
+		_set_status("Primera habitación %d seleccionada para puerta." % room_id)
 		return
 
 	if pending_door_room_id == room_id:
-		_set_status("Selecciona una segunda habitacion adyacente.")
+		_set_status("Selecciona una segunda habitación adyacente.")
 		return
 
 	var connection: Dictionary = _shared_wall_between(pending_door_room_id, room_id)
@@ -4912,7 +5034,7 @@ func _create_window_at(pos_m: Vector2) -> void:
 		return
 
 	_add_opening(int(wall["room_id"]), OUTSIDE_ID, "window", String(wall["wall"]), float(wall["offset_m"]), window_width_m, 1.1, 0.9, 1.0)
-	_set_status("Ventana exterior creada en habitacion %d." % int(wall["room_id"]))
+	_set_status("Ventana exterior creada en habitación %d." % int(wall["room_id"]))
 	queue_redraw()
 
 
@@ -5044,7 +5166,7 @@ func _delete_room(room_id: int) -> void:
 		editor_data["player_start"] = {}
 
 	_clear_selection()
-	_set_status("Habitacion %d eliminada." % room_id)
+	_set_status("Habitación %d eliminada." % room_id)
 	_update_floor_status()
 	queue_redraw()
 
@@ -5144,7 +5266,7 @@ func _apply_exterior_wall_properties() -> void:
 
 func _mark_selected_room_exterior() -> void:
 	if selected_room_id < 0:
-		_set_status("Selecciona una habitacion para marcar su contorno exterior.")
+		_set_status("Selecciona una habitación para marcar su contorno exterior.")
 		return
 	_mark_room_as_exterior(selected_room_id)
 
@@ -5159,7 +5281,7 @@ func _mark_room_as_exterior(room_id: int) -> void:
 	_add_exterior_wall(rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y), 0.16, false)
 	_add_exterior_wall(rect.position + Vector2(0.0, rect.size.y), rect.position, 0.16, false)
 	_select_room(room_id)
-	_set_status("Contorno exterior marcado para habitacion %d." % room_id)
+	_set_status("Contorno exterior marcado para habitación %d." % room_id)
 	queue_redraw()
 
 
@@ -5617,7 +5739,7 @@ func _delete_selected_room() -> void:
 	if selected_room_id >= 0:
 		_delete_room(selected_room_id)
 	else:
-		_set_status("Selecciona primero una habitacion.")
+		_set_status("Selecciona primero una habitación.")
 
 
 func _delete_selected() -> void:
@@ -5648,7 +5770,7 @@ func _delete_selected() -> void:
 			vics.remove_at(selected_victim_index)
 			editor_data["victims"] = vics
 		_clear_selection()
-		_set_status("Victima eliminada.")
+		_set_status("Víctima eliminada.")
 		queue_redraw()
 		return
 	elif selected_player_start_room_id >= 0:
@@ -5909,7 +6031,7 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 	if vic_index >= 0:
 		var vics: Array = editor_data.get("victims", [])
 		var vic: Dictionary = vics[vic_index] if vic_index < vics.size() and typeof(vics[vic_index]) == TYPE_DICTIONARY else {}
-		return "Victima: %s" % String(vic.get("name", vic.get("id", str(vic_index))))
+		return "Víctima: %s" % String(vic.get("name", vic.get("id", str(vic_index))))
 
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	if not hit_obj.is_empty():
@@ -5923,7 +6045,7 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 			return _element_label_for_opening(Dictionary(openings[opening_index]), opening_index)
 
 	if _player_start_hit_test(pos_m):
-		return "Inicio FP: aparicion del jugador"
+		return "Inicio FP: aparición del jugador"
 
 	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
 	if exterior_wall_index >= 0:
@@ -6584,22 +6706,22 @@ func _bind_existing_ui() -> bool:
 	for b in required_buttons:
 		if b == null:
 			return false
-	btn_select.text = _ui_text("editor.tool.select", "Sel")
-	btn_exterior.text = _ui_text("editor.tool.exterior", "Exterior")
-	btn_room.text = _ui_text("editor.tool.room", "Sala")
-	btn_corridor.text = _ui_text("editor.tool.corridor", "Pasillo")
-	btn_stairs.text = _ui_text("editor.tool.stairs", "Escalera")
-	btn_door.text = _ui_text("editor.tool.door", "Puerta")
-	btn_hole.text = _ui_text("editor.tool.hole", "Hueco")
-	btn_window.text = _ui_text("editor.tool.window", "Ventana")
-	btn_object.text = _ui_text("editor.tool.object", "Objeto")
-	btn_ignite.text = _ui_text("editor.tool.ignition", "Ignicion")
-	btn_player_start.text = _ui_text("editor.tool.player_start", "Inicio FP")
-	btn_delete.text = _ui_text("editor.tool.delete", "Borrar")
+	btn_select.text = _tool_display_name(Tool.SELECT)
+	btn_exterior.text = _tool_display_name(Tool.EXTERIOR_WALL)
+	btn_room.text = _tool_display_name(Tool.ROOM)
+	btn_corridor.text = _tool_display_name(Tool.CORRIDOR_L)
+	btn_stairs.text = _tool_display_name(Tool.STAIRS)
+	btn_door.text = _tool_display_name(Tool.DOOR)
+	btn_hole.text = _tool_display_name(Tool.HOLE)
+	btn_window.text = _tool_display_name(Tool.WINDOW)
+	btn_object.text = _tool_display_name(Tool.OBJECT)
+	btn_ignite.text = _tool_display_name(Tool.IGNITION)
+	btn_player_start.text = _tool_display_name(Tool.PLAYER_START)
+	btn_delete.text = _tool_display_name(Tool.DELETE)
 	if btn_detector != null:
-		btn_detector.text = _ui_text("editor.tool.detector", "Detect.")
+		btn_detector.text = _tool_display_name(Tool.DETECTOR)
 	if btn_victim != null:
-		btn_victim.text = _ui_text("editor.tool.victim", "Vict.")
+		btn_victim.text = _tool_display_name(Tool.VICTIM)
 
 	_tool_buttons.clear()
 	_register_tool_button(btn_select, Tool.SELECT)
@@ -6749,8 +6871,8 @@ func _bind_existing_ui() -> bool:
 	_connect_button(load_button, _load_pressed)
 	var export_button := _get_left_node("BtnExportRuntime") as Button
 	if export_button != null:
-		export_button.text = _ui_text("editor.file.export_runtime", "Exportar simulacion")
-		export_button.tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
+		export_button.text = _ui_text("editor.file.export_runtime", "Exportar simulación")
+		export_button.tooltip_text = "Guarda una copia interna para probar la simulación; Iniciar simulación lo hace automáticamente."
 	_connect_button(export_button, _export_runtime_pressed)
 	var load_scenario_button := _get_left_node("BtnLoadScenario") as Button
 	_set_control_tooltip(load_scenario_button, "Carga la plantilla seleccionada en el editor.")
@@ -6791,7 +6913,6 @@ func _bind_existing_ui() -> bool:
 
 func _register_tool_button(button: Button, tool_id: int) -> void:
 	button.toggle_mode = true
-	button.focus_mode = Control.FOCUS_NONE
 	button.tooltip_text = _tool_tooltip(tool_id)
 	if not button.pressed.is_connected(Callable(self, "_set_tool").bind(tool_id)):
 		button.pressed.connect(Callable(self, "_set_tool").bind(tool_id))
@@ -6980,7 +7101,7 @@ func _ensure_room_geometry_controls_in_existing_ui() -> void:
 	_room_y_spin = _ensure_spin_row(geometry, "RoomYRow", "Y (m)", "RoomYSpin", -200.0, 200.0, 0.05)
 	_room_width_spin = _ensure_spin_row(geometry, "RoomWidthRow", "Ancho (m)", "RoomWidthSpin", 0.25, 200.0, 0.05)
 	_room_depth_spin = _ensure_spin_row(geometry, "RoomDepthRow", "Fondo (m)", "RoomDepthSpin", 0.25, 200.0, 0.05)
-	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Angulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
+	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Ángulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
 	_stair_turn_option = _ensure_option_row(geometry, "StairTurnRow", "Tipo escalera", "StairTurnOption")
 	_populate_stair_turn_options(_stair_turn_option)
 	_stair_walls_check = _ensure_check_row(geometry, "StairWallsRow", "Escalera con paredes", "StairWallsCheck")
@@ -7019,7 +7140,7 @@ func _ensure_object_position_controls_in_existing_ui() -> void:
 func _ensure_opening_position_controls_in_existing_ui() -> void:
 	if _opening_props_container == null:
 		return
-	_opening_offset_spin = _ensure_spin_row(_opening_props_container, "OpeningOffsetRow", "Posicion (m)", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
+	_opening_offset_spin = _ensure_spin_row(_opening_props_container, "OpeningOffsetRow", "Posición (m)", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
 	if _opening_height_spin != null:
 		var anchor: Node = _opening_height_spin.get_parent()
 		if anchor == _opening_props_container:

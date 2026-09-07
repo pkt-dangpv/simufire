@@ -327,7 +327,101 @@ son de las que se rompen solas al añadir un control:
 
 Sin él, esta lista se vuelve a llenar con el siguiente control que se añada.
 
-### Lo que sigue pendiente
+### Lo que quedaba al cerrar esa tanda
 
 E-5 (interruptor de ayuda oculto), E-6 (atajos), E-7 (foco de teclado), E-9
 (copiar/pegar), E-10 (tildes), E-11 (iconos) y E-12 (el monolito).
+
+---
+
+## 8. El teclado y el texto — segunda tanda del 2026-09-07
+
+### Corrección a la propia auditoría: E-5 no era un mando escondido
+
+Escribí que `HoverHelpRow` tiene `visible = false` en la escena y que por tanto
+el usuario **no puede apagar** la ayuda contextual. Lo primero es cierto; lo
+segundo, no. El interruptor pertenece a la pestaña **Dibujo**, y
+`_sync_left_editor_tab_visibility()` lo enseña en cuanto esa pestaña está activa.
+
+Lo que pasaba de verdad es peor de explicar y más fácil de arreglar: **el editor
+abría por la pestaña Archivo** (`_active_left_tab = EditorLeftTab.SCENARIO`). Lo
+primero que se veía al entrar en un editor de planos era guardar, cargar y
+exportar, y las herramientas de dibujo —con ellas las plantas, la lista de
+elementos y el interruptor de la ayuda— quedaban a un clic de distancia sin que
+nada lo indicara. Ahora abre por Dibujo, que es donde se trabaja.
+
+Medir el `.tscn` no bastaba para verlo. Por eso hay una sonda,
+`tools/probe_editor_visibility.gd`, que instancia el editor y dice qué se ve de
+verdad al arrancar en vez de qué guarda la escena.
+
+### La escena no es la fuente de verdad del texto ni del foco
+
+Este es el hallazgo que más tiempo ahorra a la siguiente sesión. La convención
+del repo —«la UI vive en la escena»— vale para la estructura, pero **el script
+reescribe en tiempo de ejecución el texto, el tooltip y el foco de los mandos**:
+
+| Lo que se toca en la escena | Quién lo pisa al arrancar |
+|---|---|
+| `text` de las 14 herramientas | `_bind_existing_ui()`, desde `i18n/es_ui.json` |
+| `tooltip_text` de las herramientas | `_register_tool_button()` → `_tool_tooltip()` |
+| `focus_mode` de botones, desplegables y listas | `_style_editor_controls()`, en cuatro sitios |
+| texto de la guía rápida | `_editor_help_text()` |
+
+O sea: quitar `focus_mode = 0` de los 57 controles de la escena no devolvía el
+tabulador, y escribir `SELECCIÓN` en el botón no cambiaba lo que se leía. Las
+correcciones de abajo están hechas donde manda —el script y el JSON de textos—,
+y el guardarraíl **instancia el editor y lo arranca** en vez de leer el `.tscn`,
+que era lo único que podía detectarlo.
+
+### Lo que se ha hecho
+
+| Hallazgo | Antes | Ahora |
+|---|---|---|
+| E-5 | se abría por Archivo, con el interruptor de ayuda en otra pestaña | abre por Dibujo; sonda que lo comprueba |
+| E-6 | 0 atajos para 14 herramientas | 15 teclas, anunciadas en cada tooltip y en la guía |
+| E-7 | 93 controles sin foco en ejecución | 0; `Tab` recorre el editor |
+| E-10 | el texto de pantalla, sin tildes | ~270 tildes y eñes en 86 líneas de texto |
+| E-11 | `SEL`, `DETECT.`, `VICT.` | `SELECCIÓN`, `DETECTOR`, `VÍCTIMA` (iconos, aún no) |
+
+Detalles que merecen quedar escritos:
+
+- **Los atajos y su anuncio salen de la misma tabla.** `TOOL_SHORTCUTS` la lee el
+  teclado, `_tool_tooltip()` la escribe en cada herramienta y
+  `_tool_shortcuts_line()` arma con ella la página «Teclas» de la guía. No pueden
+  discrepar. Los dígitos siguen el orden de la barra y las letras son la inicial
+  de lo que colocan (`D` detector, `V` víctima, `F` inicio FP, `I` ignición);
+  `Esc` vuelve a Selección, y se añaden `Ctrl+S` guardar y `Ctrl+O` cargar.
+- **Escribir «sala» en un nombre ya no cambia cuatro veces de herramienta.**
+  `_keyboard_is_typing()` cede el teclado a `LineEdit`, `TextEdit` y `SpinBox`
+  cuando tienen el foco. Sin eso, los atajos y el foco de teclado se estorban.
+- **`SpinBox` nace sin foco**: no bastaba con dejar de apagarlo, había que
+  pedirlo. Es la razón de que quedaran casillas inalcanzables con `Tab` aun
+  después de limpiar la escena.
+- **Los nombres cortados venían del JSON de textos**, no de la escena:
+  `"editor.tool.detector": "Detect."`. Ahora hay una sola lista, `TOOL_NAMES`,
+  que usan el botón y la guía, para que la ayuda no anuncie un nombre que el
+  botón ya no lleva.
+- **Las tildes se han puesto solo en el texto de pantalla.** El código y los
+  comentarios siguen sin ellas, que es la convención del repo y no la lee nadie
+  desde la aplicación.
+
+### El guardarraíl, ampliado
+
+`tools/validate_editor_ui_affordances.gd` pasa de tres reglas a siete. Las cuatro
+nuevas:
+
+4. Todo control se alcanza con el teclado (`focus_mode != 0`).
+5. Cada herramienta dice su tecla y lleva el nombre entero, sin cortar.
+6. El texto que lee el usuario lleva tildes. La lista `MISSPELLED` solo recoge
+   palabras que **siempre** son falta —«habitacion», «victima»—; las ambiguas
+   («esta», «mas», «solo») se quedan fuera a propósito, para que la regla no dé
+   falsos positivos y acabe desactivada.
+7. Las teclas anunciadas cambian de herramienta **de verdad**: la regla 5 mira el
+   tooltip, esta pulsa las 15 teclas y comprueba `current_tool`. Anunciar un
+   atajo que no responde es peor que no tenerlo.
+
+### Lo que sigue pendiente
+
+E-9 (copiar, pegar y duplicar), E-11 en su otra mitad (ningún icono en la barra)
+y E-12 (el monolito de 7435 líneas). Los tres son trabajo de otra escala que lo
+cerrado hasta aquí.

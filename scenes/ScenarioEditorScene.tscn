@@ -105,14 +105,14 @@ mouse_filter = 1
 theme = ExtResource("3_sftheme")
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
-custom_minimum_size = Vector2(560, 88)
+custom_minimum_size = Vector2(700, 88)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -280.0
+offset_left = -350.0
 offset_top = 8.0
-offset_right = 280.0
+offset_right = 350.0
 offset_bottom = 96.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
@@ -124,145 +124,131 @@ theme_override_constants/v_separation = 4
 columns = 7
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
-focus_mode = 0
+tooltip_text = "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 button_pressed = true
-text = "SEL"
+text = "SELECCIÓN"
 
 [node name="BtnExteriorWall" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1824601915]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Exterior: arrastra para dibujar muros exteriores rectos. Tambien puedes marcar el contorno de una habitacion."
-focus_mode = 0
+tooltip_text = "Exterior: arrastra para dibujar muros exteriores rectos. También puedes marcar el contorno de una habitación."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "EXTERIOR"
 
 [node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Estancia: arrastra para crear una estancia en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "SALA"
 
 [node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (1.20 m actualmente)"
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "PASILLO"
 
 [node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en PB. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "ESCALERA"
 
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Puerta: pulsa una pared compartida o exterior en PB para crear puerta."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "PUERTA"
 
 [node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Hueco: pulsa una pared compartida en PB. Se crea un paso sin puerta con ancho maximo limitado por el paramento."
-focus_mode = 0
+tooltip_text = "Hueco: pulsa una pared compartida en PB. Se crea un paso sin puerta con ancho máximo limitado por el paramento."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "HUECO"
 
 [node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Ventana: pulsa cerca de una pared exterior en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "VENTANA"
 
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Objeto: pulsa dentro de una estancia de PB para colocar el combustible elegido."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "OBJETO"
 
 [node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Ignicion: pulsa un objeto de PB para marcarlo como foco inicial."
-focus_mode = 0
+tooltip_text = "Ignición: pulsa un objeto de PB para marcarlo como foco inicial."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "IGNICION"
+text = "IGNICIÓN"
 
 [node name="BtnPlayerStart" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1330466507]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Inicio FP: pulsa dentro de una estancia de PB para colocar donde aparece el jugador."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "INICIO FP"
 
 [node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Borrar: elimina objeto, apertura o estancia bajo el cursor en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "BORRAR"
 
 [node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Detector: pulsa dentro de una habitacion de PB para colocar un detector de humo, calor o CO."
-focus_mode = 0
+tooltip_text = "Detector: pulsa dentro de una habitación de PB para colocar un detector de humo, calor o CO."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "DETECT."
+text = "DETECTOR"
 
 [node name="BtnVictim" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200002]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Victima: pulsa dentro de una habitacion de PB para marcar la posicion de una victima."
-focus_mode = 0
+tooltip_text = "Víctima: pulsa dentro de una habitación de PB para marcar la posición de una víctima."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "VICT."
+text = "VÍCTIMA"
 
 [node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
 custom_minimum_size = Vector2(276, 0)
@@ -314,7 +300,6 @@ custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Dibujo: herramientas de creación y edición sobre el plano."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -325,7 +310,6 @@ custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Lista: selecciona salas, objetos, aperturas, detectores, víctimas e inicio FP cuando se solapan."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -336,7 +320,6 @@ custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Archivo: guardar, cargar, plantillas, tiempo, luces, tipo de edificio y HVAC."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -353,7 +336,6 @@ custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista 2D: edición precisa de geometría, aperturas, objetos y planta."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -365,7 +347,6 @@ custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista 3D: inspección orbital y edición de elementos simples."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -376,7 +357,6 @@ custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista FP: inspección en primera persona desde el marcador Inicio FP."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -402,7 +382,6 @@ theme_override_constants/separation = 4
 tooltip_text = "Planta que se está editando. El plano, la lista de elementos y las herramientas actúan solo sobre ella."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -414,7 +393,6 @@ popup/item_0/id = 0
 tooltip_text = "Añade una planta por encima de la actual y copia en ella las escaleras que arranquen de esta."
 custom_minimum_size = Vector2(86, 28)
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "+ PLANTA"
@@ -423,7 +401,6 @@ text = "+ PLANTA"
 tooltip_text = "Borra la planta actual con todo lo que contiene. No se puede borrar la última planta."
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
@@ -474,7 +451,6 @@ text = "TIPO EDIFICIO"
 tooltip_text = "Unifamiliar dibuja jardín, porche y vecindario alrededor. Piso dibuja calle, portal con escalera y edificio de enfrente."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -519,7 +495,6 @@ visible = false
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 allow_reselect = true
@@ -536,7 +511,6 @@ theme_override_constants/separation = 6
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 button_pressed = true
@@ -546,7 +520,6 @@ text = "AYUDA CONTEXTUAL"
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "AYUDA DEL EDITOR"
@@ -568,21 +541,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "Dibujo
-
-Elige una herramienta en la barra superior. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Victima e Inicio FP se colocan clicando dentro de una sala.
-
-Seleccion
-
-Usa Select para elegir elementos en el plano. Si un objeto, detector o victima esta encima de una sala, el editor prioriza el elemento pequeno antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan.
-
-Edicion
-
-El panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Supr borra la seleccion y Ctrl+Z deshace.
-
-Archivo
-
-La pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulacion valida y exporta el escenario antes de abrir SimulationScene."
+text = "La guia del editor se escribe al arrancar desde ScenarioEditor.gd, que la arma con las teclas de TOOL_SHORTCUTS."
 autowrap_mode = 3
 
 [node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1026911107]
@@ -597,7 +556,6 @@ text = "OBJETO A COLOCAR"
 tooltip_text = "Tipo de objeto que colocará la herramienta OBJETO. Fija su carga de fuego, su HRR y cómo se dibuja."
 visible = false
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -641,7 +599,6 @@ text = "user://editor_scenario.json"
 [node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=55829757]
 layout_mode = 2
 tooltip_text = "Guarda el escenario actual en la ruta indicada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "GUARDAR"
@@ -649,18 +606,16 @@ text = "GUARDAR"
 [node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=456158521]
 layout_mode = 2
 tooltip_text = "Carga un escenario desde la ruta indicada sin perder el anterior si falla la validación."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "CARGAR"
 
 [node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2085730832]
 layout_mode = 2
-tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
-focus_mode = 0
+tooltip_text = "Guarda una copia interna para probar la simulación; Iniciar simulación lo hace automáticamente."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "EXPORTAR SIMULACION"
+text = "EXPORTAR SIMULACIÓN"
 
 [node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2108069766]
 visible = false
@@ -713,7 +668,6 @@ text = "TIPO"
 tooltip_text = "Escalera recta de un tramo, o dos tramos con descansillo y giro de 180°."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -802,7 +756,6 @@ text = "HVAC"
 tooltip_text = "Ventilación mecánica del escenario. Mueve aire, humo y calor entre salas aunque las puertas estén cerradas."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -830,7 +783,6 @@ text = "LUCES"
 tooltip_text = "Arranca la simulación con las luces de las salas encendidas o apagadas."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 button_pressed = true
@@ -839,7 +791,6 @@ text = "INTERIORES"
 [node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1034367345]
 tooltip_text = "Escenario de catálogo que cargará el botón de abajo. Sustituye lo que haya en el editor."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -926,7 +877,6 @@ popup/item_38/id = 38
 [node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=445792796]
 layout_mode = 2
 tooltip_text = "Carga la plantilla seleccionada en el editor."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "EDITAR PLANTILLA"
@@ -1100,7 +1050,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "ANGULO (DEG)"
+text = "ÁNGULO (DEG)"
 
 [node name="RoomRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomRotationRow" unique_id=1758863150]
 tooltip_text = "Giro de la sala en grados. Las puertas y ventanas de sus paredes giran con ella."
@@ -1128,7 +1078,6 @@ text = "TIPO ESCALERA"
 tooltip_text = "Escalera recta de un tramo, o dos tramos con descansillo y giro de 180°."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
@@ -1154,7 +1103,6 @@ layout_mode = 2
 tooltip_text = "Levanta paredes a los lados de la escalera. Afecta a la vista 3D y a por dónde pasa el humo."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
@@ -1173,7 +1121,6 @@ layout_mode = 2
 tooltip_text = "Pone barandilla a la escalera. Solo cambia lo que se ve, no cómo circula el humo."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
@@ -1246,7 +1193,6 @@ editable = false
 visible = false
 layout_mode = 2
 tooltip_text = "Aplica los cambios numéricos de la habitación seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR HABITACIÓN"
@@ -1255,7 +1201,6 @@ text = "APLICAR HABITACIÓN"
 visible = false
 layout_mode = 2
 tooltip_text = "Borra la habitación seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR HABITACIÓN"
@@ -1421,7 +1366,6 @@ step = 10.0
 [node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1849481972]
 layout_mode = 2
 tooltip_text = "Aplica posición, tamaño, rotación y combustible del objeto seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR OBJETO"
@@ -1429,7 +1373,6 @@ text = "APLICAR OBJETO"
 [node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=670449681]
 layout_mode = 2
 tooltip_text = "Borra el objeto seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR OBJETO"
@@ -1501,7 +1444,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "POSICION (M)"
+text = "POSICIÓN (M)"
 
 [node name="OpeningOffsetSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningOffsetRow" unique_id=725991204]
 tooltip_text = "Dónde cae el hueco a lo largo de su pared, en metros desde el arranque del paramento."
@@ -1528,7 +1471,6 @@ step = 0.05
 [node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=53628024]
 tooltip_text = "Si el hueco arranca abierto o cerrado. Durante la simulación se puede cambiar."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1554,7 +1496,6 @@ text = "ABRE HACIA"
 tooltip_text = "Hacia qué lado abre la hoja. Solo cambia cómo se dibuja al abrirla."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1580,7 +1521,6 @@ text = "BISAGRA"
 tooltip_text = "De qué lado están las bisagras. Solo cambia cómo se dibuja al abrirla."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1593,7 +1533,6 @@ popup/item_1/id = 1
 [node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648205]
 tooltip_text = "Guarda en la abertura seleccionada los valores de este panel."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR APERTURA"
@@ -1672,7 +1611,6 @@ text = "TIPO"
 [node name="DetectorTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200008]
 tooltip_text = "Qué mide el detector. Cambia también la unidad del umbral de abajo."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1699,7 +1637,6 @@ step = 0.001
 [node name="BtnApplyDetector" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200011]
 layout_mode = 2
 tooltip_text = "Aplica tipo, umbral y posición del detector seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR DETECTOR"
@@ -1707,7 +1644,6 @@ text = "APLICAR DETECTOR"
 [node name="BtnDeleteDetector" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200012]
 layout_mode = 2
 tooltip_text = "Borra el detector seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR DETECTOR"
@@ -1722,7 +1658,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
-text = "PROPIEDADES DE LA VICTIMA"
+text = "PROPIEDADES DE LA VÍCTIMA"
 
 [node name="VictimProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200015]
 visible = false
@@ -1801,24 +1737,21 @@ value = 0.2
 [node name="BtnApplyVictim" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=811200017]
 layout_mode = 2
 tooltip_text = "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "APLICAR VICTIMA"
+text = "APLICAR VÍCTIMA"
 
 [node name="BtnDeleteVictim" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=811200018]
 layout_mode = 2
 tooltip_text = "Borra la víctima seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "BORRAR VICTIMA"
+text = "BORRAR VÍCTIMA"
 
 [node name="BtnMarkRoomExterior" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=99174965]
 visible = false
 layout_mode = 2
 tooltip_text = "Marca la habitación seleccionada como parte del contorno exterior."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "MARCAR CONTORNO EXTERIOR"
@@ -1945,7 +1878,6 @@ value = 0.05
 [node name="BtnApplyExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ExteriorWallProps" unique_id=236944218]
 tooltip_text = "Guarda en el muro exterior seleccionado los valores de este panel."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR MURO"
@@ -1953,7 +1885,6 @@ text = "APLICAR MURO"
 [node name="BtnDeleteExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ExteriorWallProps" unique_id=1720961175]
 tooltip_text = "Borra el muro exterior seleccionado."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR MURO"
@@ -1980,7 +1911,6 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 tooltip_text = "Valida, exporta y abre la simulación con el escenario actual."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "✓ INICIAR SIMULACIÓN"
@@ -1989,7 +1919,6 @@ text = "✓ INICIAR SIMULACIÓN"
 custom_minimum_size = Vector2(160, 42)
 layout_mode = 2
 tooltip_text = "Sale del editor y vuelve al menú principal."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "✗ CANCELAR"
