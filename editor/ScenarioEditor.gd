@@ -999,12 +999,19 @@ func _refresh_preview_3d(delta: float) -> void:
 
 ## El 3D sigue al raton mientras se arrastra, por el camino barato que toque.
 ##
-## Moviendo paredes, los muebles no importan: se apagan y se rehace la caja
-## (18 ms en vez de 79). Moviendo un mueble no hacen falta paredes nuevas: basta
-## recargar el modelo y dejar que el visor recoloque las piezas que ya existen
-## (15 ms). Lo caro -crear muebles, a 5,5 ms cada uno- se deja para el final.
+## Moviendo un mueble no hacen falta paredes nuevas: basta recargar el modelo y
+## dejar que el visor recoloque las piezas que ya existen (11 ms). Moviendo
+## paredes hay que rehacer la caja, y desde que los muebles sobreviven a la
+## reconstruccion -Visualizer3D._harvest_fuel_object_nodes()- eso cuesta 13 ms en
+## vez de 47: cabe en un fotograma CON los muebles puestos.
 ##
-## La camara no se reencuadra aqui a proposito: saltaria en cada paso.
+## Antes se apagaban para que saliera barato, y el efecto era el que se veia:
+## arrastrabas una habitacion y sus muebles desaparecian hasta soltar. Ahora la
+## siguen, porque su sitio se guarda en coordenadas de la sala y al moverla se
+## mueven con ella.
+##
+## La camara no se reencuadra aqui a proposito: saltaria en cada paso. Queda
+## marcado como pendiente para que al soltar se reencuadre una vez.
 func _preview_3d_follow_drag() -> void:
 	if not _preview_3d_enabled or _editor_visualizer_3d == null:
 		return
@@ -1015,11 +1022,7 @@ func _preview_3d_follow_drag() -> void:
 	if drag == Drag.OBJECT:
 		_preview_3d_restate()
 		return
-	var had_furniture: bool = _editor_visualizer_3d.show_fuel_objects_3d
-	_editor_visualizer_3d.show_fuel_objects_3d = false
 	_sync_editor_runtime_views(false)
-	_editor_visualizer_3d.show_fuel_objects_3d = had_furniture
-	# Sigue habiendo cambios que aplicar al soltar: los muebles.
 	_mark_editor_runtime_dirty()
 
 

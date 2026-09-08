@@ -826,10 +826,68 @@ func _get_or_create_node3d(path: NodePath, fallback_name: String) -> Node3D:
 	return node
 
 
+## Los muebles que esperan a que la reconstruccion los vuelva a colgar, por
+## "sala|objeto". Ver _harvest_fuel_object_nodes().
+var _fuel_node_pool: Dictionary = {}
+
+
+## Guarda los muebles antes de vaciar la escena, para volver a colgarlos.
+##
+## Rehacer la escena tiraba el arbol entero, y volver a crear cada mueble cuesta
+## unos 4 ms: con diez muebles son tres cuartas partes de los 63 ms que costaba
+## una reconstruccion. Por eso el 3D en vivo los apagaba mientras se arrastraba
+## una sala, y los muebles desaparecian justo mientras movias su habitacion.
+##
+## No es un atajo: es el MISMO nodo que _update_room_fuel_objects_3d ya reutiliza
+## entre pasada y pasada -con su forma, su color y su estado recalculados-, solo
+## que ahora tambien sobrevive al rebuild. Lo que nadie reclame se libera en
+## _release_unclaimed_fuel_nodes().
+func _harvest_fuel_object_nodes() -> void:
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for obj_id in nodes.keys():
+			var node := nodes[obj_id] as Node3D
+			if node == null or not is_instance_valid(node):
+				continue
+			var key: String = "%d|%s" % [int(room_id), String(obj_id)]
+			var previous := _fuel_node_pool.get(key) as Node3D
+			if previous != null and is_instance_valid(previous) and previous != node:
+				previous.queue_free()
+			var parent: Node = node.get_parent()
+			if parent != null:
+				parent.remove_child(node)
+			_fuel_node_pool[key] = node
+
+
+## Un mueble guardado, si lo hay, listo para colgarlo de su sala.
+func _claim_pooled_fuel_node(room_id: int, obj_id: String) -> Node3D:
+	var key: String = "%d|%s" % [room_id, obj_id]
+	var node := _fuel_node_pool.get(key) as Node3D
+	if node == null:
+		return null
+	_fuel_node_pool.erase(key)
+	if not is_instance_valid(node):
+		return null
+	return node
+
+
+## Los que ya no tiene sala nadie: se van.
+func _release_unclaimed_fuel_nodes() -> void:
+	if _fuel_node_pool.is_empty():
+		return
+	for key in _fuel_node_pool.keys():
+		var node := _fuel_node_pool[key] as Node3D
+		if node != null and is_instance_valid(node):
+			node.queue_free()
+	_fuel_node_pool.clear()
+
+
 func _rebuild_scene() -> void:
 	if building == null or _rooms_root == null:
 		return
 
+	_harvest_fuel_object_nodes()
 	_clear_container(_rooms_root)
 	_clear_container(_openings_root)
 	_clear_container(_atmosphere_root)
@@ -1606,6 +1664,8 @@ func _update_dynamic_state() -> void:
 	var update_fuel_objects: bool = _should_update_fuel_objects_this_pass()
 	for room_id in _room_items.keys():
 		_update_room(int(room_id), update_fuel_objects)
+	if update_fuel_objects:
+		_release_unclaimed_fuel_nodes()
 	_update_openings()
 	_update_player_start_marker_3d()
 	_apply_selection_visuals()
@@ -3299,7 +3359,10 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		if fuel_obj_nodes.has(obj_id):
 			node = fuel_obj_nodes[obj_id] as Node3D
 		else:
-			node = _create_fuel_object_node(obj_id, kind_name, visual_size_m)
+			# Primero el que sobrevivio a la reconstruccion; crear es lo caro.
+			node = _claim_pooled_fuel_node(room_id, obj_id)
+			if node == null:
+				node = _create_fuel_object_node(obj_id, kind_name, visual_size_m)
 			fuel_objects_root.add_child(node)
 			fuel_obj_nodes[obj_id] = node
 
