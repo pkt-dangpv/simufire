@@ -474,6 +474,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor stairs climbable: " + (diagnostic or "failed"))
 
+    # Dibujar EN la vista 3D, no solo mirarla: arrastrar sobre el suelo traza
+    # salas y muros igual que en planta.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_editor_draw_in_3d.tscn",
+        "[validate_editor_draw_in_3d] PASS",
+    )
+    rows.append(("Dibujo directo en 3D del editor Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor draw in 3D: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",
         "EDITOR TO SIM FLOW VALIDATION PASS",

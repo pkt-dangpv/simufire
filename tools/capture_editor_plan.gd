@@ -94,6 +94,7 @@ func _setup() -> void:
 		{"name": "08_arrastre_muro", "tool": 1, "drag_wall": [Vector2(-0.4, 6.4), Vector2(7.6, 6.4)]},
 		{"name": "09_planta_alta", "tool": 0, "floor": 1},
 		{"name": "10_3d_en_vivo", "tool": 0, "room": 7, "preview_3d": true},
+		{"name": "11_dibujar_en_3d", "tool": 2, "view_3d": true, "draw_3d": [Vector2(0.65, 0.74), Vector2(0.85, 0.74)]},
 	]
 
 
@@ -126,6 +127,25 @@ func _apply_pose(pose: Dictionary) -> void:
 		_editor.drag = 1
 		_editor.drag_start_m = wall[0]
 		_editor.drag_current_m = wall[1]
+	# Dibujar EN la vista 3D: se cambia de modo y se deja un arrastre a medias,
+	# que es lo que enseña la caja de previsualizacion.
+	if bool(pose.get("view_3d", false)):
+		if _editor._editor_view_mode != 1:
+			_editor._set_editor_view_mode(1)
+		_editor.current_tool = int(pose.get("tool", 0))
+		if pose.has("draw_3d"):
+			var screen: Vector2 = _editor.get_viewport().get_visible_rect().size
+			var points: Array = pose["draw_3d"]
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = true
+			press.position = screen * Vector2(points[0])
+			_editor._unhandled_input(press)
+			var motion := InputEventMouseMotion.new()
+			motion.position = screen * Vector2(points[1])
+			_editor._unhandled_input(motion)
+	elif _editor._editor_view_mode != 0:
+		_editor._set_editor_view_mode(0)
 	_editor.queue_redraw()
 
 

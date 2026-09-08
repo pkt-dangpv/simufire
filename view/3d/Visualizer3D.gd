@@ -1866,8 +1866,21 @@ func _has_selection() -> bool:
 		or _selected_player_start
 
 
-func screen_to_floor_m(screen_pos: Vector2) -> Variant:
-	return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
+## Donde cae un punto de la pantalla sobre el suelo, en metros del plano.
+##
+## `floor_level_m` importa al dibujar en una planta alta: el punto tiene que caer
+## sobre el suelo de ESA planta, no sobre la cota cero.
+func screen_to_floor_m(screen_pos: Vector2, floor_level_m: float = 0.0) -> Variant:
+	if absf(floor_level_m) <= 0.001:
+		return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
+	return _screen_to_floor_at_level(screen_pos, floor_level_m)
+
+
+## Un punto del plano, en metros, a coordenadas del mundo 3D y a la altura que se
+## pida. Publica por lo mismo que screen_to_floor_m: el editor dibuja sobre el
+## suelo y necesita colocar ahi su previsualizacion.
+func floor_point_to_world(point_m: Vector2, height_m: float) -> Vector3:
+	return _to_world(Vector3(point_m.x, height_m, point_m.y))
 
 
 func _screen_to_floor_at_level(screen_pos: Vector2, floor_level_m: float) -> Variant:

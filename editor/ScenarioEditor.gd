@@ -1087,7 +1087,7 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	if use_2d:
 		_set_status("Modo 2D: editor clásico activo.")
 	elif use_3d:
-		_set_status("Modo 3D: edita aberturas y elementos simples. La geometría de salas sigue en 2D.")
+		_set_status("Modo 3D: dibuja arrastrando sobre el suelo, igual que en planta.")
 	else:
 		_set_status("Modo FP: inspeccion activa. Pulsa Esc para volver a 2D.")
 	queue_redraw()
@@ -1117,8 +1117,15 @@ func _tool_available_in_current_mode(tool_id: int) -> bool:
 	return false
 
 
+## Las que se pueden usar en la vista 3D. Ya no es solo "colocar cosas": las
+## cuatro que dibujan geometria -sala, pasillo, escalera y muro- se trazan
+## arrastrando sobre el suelo, igual que en planta.
 func _is_3d_simple_tool(tool_id: int) -> bool:
 	return tool_id in [
+		Tool.ROOM,
+		Tool.CORRIDOR_L,
+		Tool.STAIRS,
+		Tool.EXTERIOR_WALL,
 		Tool.SELECT,
 		Tool.DOOR,
 		Tool.HOLE,
@@ -1248,6 +1255,97 @@ func _on_editor_3d_player_start_clicked(room_id: int) -> void:
 		_sync_editor_3d_after_direct_edit()
 	elif current_tool == Tool.SELECT:
 		_select_player_start(room_id)
+
+
+## Dibujar en 3D: arrastrar sobre el suelo traza lo mismo que en planta.
+##
+## El punto del raton se convierte al plano de la planta que se esta editando y
+## se entrega a los MISMOS manejadores que usa el 2D. Asi una sala trazada en 3D
+## es exactamente una sala trazada en planta -mismo encaje, misma conexion
+## automatica, misma medida escrita con el teclado- y no una segunda version de
+## la misma regla.
+##
+## Devuelve cierto si el evento era para dibujar.
+func _handle_3d_draw_input(event: InputEvent) -> bool:
+	if not _tool_draws_geometry(current_tool):
+		return false
+	if event is InputEventMouseButton:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if _is_pointer_over_ui():
+			return false
+		var pos_m: Variant = _screen_to_floor_m_3d(mouse_event.position)
+		if typeof(pos_m) != TYPE_VECTOR2:
+			return false
+		if mouse_event.pressed:
+			_handle_press(_snap_m(pos_m))
+		else:
+			_handle_release(_snap_m(pos_m))
+			_clear_3d_draw_preview()
+			_sync_editor_3d_after_direct_edit()
+		get_viewport().set_input_as_handled()
+		return true
+	if event is InputEventMouseMotion and drag != Drag.NONE:
+		var moved_m: Variant = _screen_to_floor_m_3d((event as InputEventMouseMotion).position)
+		if typeof(moved_m) != TYPE_VECTOR2:
+			return false
+		drag_current_m = _snap_m(moved_m)
+		_update_3d_draw_preview()
+		get_viewport().set_input_as_handled()
+		return true
+	return false
+
+
+## Las cuatro que trazan geometria arrastrando.
+func _tool_draws_geometry(tool_id: int) -> bool:
+	return tool_id == Tool.ROOM or tool_id == Tool.CORRIDOR_L \
+		or tool_id == Tool.STAIRS or tool_id == Tool.EXTERIOR_WALL
+
+
+func _screen_to_floor_m_3d(screen_pos: Vector2) -> Variant:
+	if _editor_visualizer_3d == null:
+		return null
+	return _editor_visualizer_3d.screen_to_floor_m(screen_pos, _current_floor_level_m())
+
+
+## La caja translucida que se ve mientras se traza en 3D. Es el equivalente de la
+## previsualizacion del plano: sin ella se dibuja a ciegas.
+func _update_3d_draw_preview() -> void:
+	if _editor_world_3d == null or drag == Drag.NONE:
+		return
+	var preview := _editor_world_3d.get_node_or_null("DrawPreview3D") as MeshInstance3D
+	if preview == null:
+		preview = MeshInstance3D.new()
+		preview.name = "DrawPreview3D"
+		preview.mesh = BoxMesh.new()
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.35, 0.78, 1.0, 0.35)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		preview.material_override = material
+		_editor_world_3d.add_child(preview)
+	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, drag_current_m)
+	var height_m: float = 0.12 if drag == Drag.EXTERIOR_WALL else 2.60
+	var size_m: Vector2 = rect.size
+	if drag == Drag.EXTERIOR_WALL:
+		# Un muro no es una caja: es una tirada estrecha entre los dos puntos.
+		var along: Vector2 = drag_current_m - drag_start_m
+		size_m = Vector2(maxf(0.16, absf(along.x)), maxf(0.16, absf(along.y)))
+		height_m = 2.60
+	var box := preview.mesh as BoxMesh
+	box.size = Vector3(maxf(0.05, size_m.x), height_m, maxf(0.05, size_m.y))
+	var center_m: Vector2 = rect.get_center()
+	preview.global_position = _editor_visualizer_3d.floor_point_to_world(center_m, _current_floor_level_m() + height_m * 0.5)
+	preview.visible = true
+
+
+func _clear_3d_draw_preview() -> void:
+	if _editor_world_3d == null:
+		return
+	var preview := _editor_world_3d.get_node_or_null("DrawPreview3D") as MeshInstance3D
+	if preview != null:
+		preview.visible = false
 
 
 func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
@@ -2441,7 +2539,7 @@ func _keyboard_is_typing() -> bool:
 
 func _set_tool(tool_id: int) -> void:
 	if not _tool_available_in_current_mode(tool_id):
-		_set_status("Esa herramienta esta reservada al modo 2D.")
+		_set_status("En primera persona solo se mira: vuelve a 2D o a 3D para editar.")
 		_sync_tool_button_states()
 		return
 	current_tool = tool_id
@@ -2478,7 +2576,7 @@ func _tool_hint(tool_id: int) -> String:
 			Tool.PLAYER_START:
 				return "3D Inicio FP: pulsa el suelo de una habitación para colocar la aparición."
 			Tool.DELETE:
-				return "3D Borrar: pulsa apertura, objeto, detector, víctima o inicio FP. Salas y muros siguen en 2D."
+				return "3D Borrar: pulsa lo que quieras quitar; con una sala o un muro seleccionado, Supr también los borra."
 			Tool.DETECTOR:
 				return "3D Detector: pulsa el suelo de una habitación para colocar un detector."
 			Tool.VICTIM:
@@ -2636,6 +2734,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _handle_3d_editor_input(event: InputEvent) -> void:
+	if _handle_3d_draw_input(event):
+		return
 	if not (event is InputEventKey):
 		return
 	var key_event := event as InputEventKey
@@ -2671,7 +2771,8 @@ func _delete_selected_3d_simple() -> void:
 		_sync_editor_3d_after_direct_edit()
 		return
 	if selected_room_id >= 0 or selected_exterior_wall_index >= 0:
-		_set_status("El borrado de geometría sigue reservado al modo 2D.")
+		_delete_selected()
+		_sync_editor_3d_after_direct_edit()
 		return
 	_set_status("No hay ninguna apertura ni elemento simple seleccionado para borrar.")
 
