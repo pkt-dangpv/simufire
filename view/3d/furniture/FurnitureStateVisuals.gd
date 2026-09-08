@@ -43,6 +43,37 @@ static func apply(
 			mat.emission_energy_multiplier = heat_t * 0.75 + (0.18 if is_ignition_source else 0.0)
 
 
+## El color de un mueble del que no se sabe nada.
+const DEFAULT_BASE_COLOR: Color = Color(0.55, 0.52, 0.48, 1.0)
+
+
+## Lleva un material del color que tenia al que le toca por su estado: se oscurece
+## segun lo consumido y se acerca al color del fuego segun lo caliente que este.
+##
+## Sobre un material con textura, tenir el albedo la multiplica, que es justo lo
+## que hace falta para ennegrecerla.
+static func _tint(
+	material: StandardMaterial3D,
+	base_color: Color,
+	state_name: String,
+	state_color: Color,
+	heat_t: float,
+	char_t: float
+) -> void:
+	var char_color: Color = Color(0.10, 0.09, 0.08, 1.0)
+	var final_color: Color = base_color.lerp(char_color, clampf(char_t * 0.75, 0.0, 0.85))
+	final_color = final_color.lerp(state_color, heat_t * 0.42)
+	if state_name == "burned_out":
+		final_color = Color(0.11, 0.11, 0.10, 1.0)
+	material.albedo_color = final_color
+	material.emission_enabled = heat_t > 0.05
+	if material.emission_enabled:
+		material.emission = Color(state_color.r, state_color.g * 0.65, state_color.b * 0.20, 1.0)
+		material.emission_energy_multiplier = heat_t * (1.55 if state_name == "flaming" else 0.65)
+	else:
+		material.emission_energy_multiplier = 0.0
+
+
 static func _apply_materials_recursive(
 	root: Node,
 	state_name: String,
@@ -55,20 +86,23 @@ static func _apply_materials_recursive(
 			var mesh_node := child as MeshInstance3D
 			if mesh_node.name == "HeatGlow":
 				continue
-			var mat := mesh_node.material_override as StandardMaterial3D
-			if mat != null:
-				var base_color: Color = Color(mesh_node.get_meta("base_color", Color(0.55, 0.52, 0.48, 1.0)))
-				var char_color: Color = Color(0.10, 0.09, 0.08, 1.0)
-				var final_color: Color = base_color.lerp(char_color, clampf(char_t * 0.75, 0.0, 0.85))
-				final_color = final_color.lerp(state_color, heat_t * 0.42)
-				if state_name == "burned_out":
-					final_color = Color(0.11, 0.11, 0.10, 1.0)
-				mat.albedo_color = final_color
-				mat.emission_enabled = heat_t > 0.05
-				if mat.emission_enabled:
-					mat.emission = Color(state_color.r, state_color.g * 0.65, state_color.b * 0.20, 1.0)
-					mat.emission_energy_multiplier = heat_t * (1.55 if state_name == "flaming" else 0.65)
-				else:
-					mat.emission_energy_multiplier = 0.0
+			# Dos caminos, y hasta ahora solo se recorria el primero: las formas de
+			# respaldo llevan material_override, y los modelos importados llevan un
+			# material POR SUPERFICIE. Como el override es nulo en un modelo, ningun
+			# mueble de verdad se calentaba ni se calcinaba: ardias la casa entera y
+			# los muebles seguian como recien comprados.
+			var override_mat := mesh_node.material_override as StandardMaterial3D
+			if override_mat != null:
+				_tint(override_mat, Color(mesh_node.get_meta("base_color", DEFAULT_BASE_COLOR)),
+					state_name, state_color, heat_t, char_t)
+			var mesh := mesh_node.mesh
+			if mesh != null:
+				for surface_index in mesh.get_surface_count():
+					var surface_mat := mesh_node.get_surface_override_material(surface_index) as StandardMaterial3D
+					if surface_mat == null:
+						continue
+					var meta_name: String = "base_color_%d" % surface_index
+					var base: Color = Color(mesh_node.get_meta(meta_name, surface_mat.albedo_color))
+					_tint(surface_mat, base, state_name, state_color, heat_t, char_t)
 		if child.get_child_count() > 0:
 			_apply_materials_recursive(child, state_name, state_color, heat_t, char_t)

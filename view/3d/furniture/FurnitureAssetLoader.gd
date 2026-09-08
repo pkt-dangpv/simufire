@@ -321,6 +321,11 @@ static func _prepare_asset_materials(root: Node) -> void:
 						if surf_mat is StandardMaterial3D:
 							var material_copy := surf_mat.duplicate() as StandardMaterial3D
 							mesh_node.set_surface_override_material(surf_idx, material_copy)
+							# El color de partida, uno por superficie: una cama trae
+							# siete materiales y con uno solo saldrian todos iguales.
+							var meta_name: String = "base_color_%d" % surf_idx
+							if not mesh_node.has_meta(meta_name):
+								mesh_node.set_meta(meta_name, material_copy.albedo_color)
 							if not mesh_node.has_meta("base_color"):
 								mesh_node.set_meta("base_color", material_copy.albedo_color)
 		if child.get_child_count() > 0:
