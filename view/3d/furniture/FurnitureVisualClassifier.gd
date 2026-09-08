@@ -1,6 +1,53 @@
 extends RefCounted
 
 
+## Todos los arquetipos que puede devolver visual_archetype().
+##
+## Escrita porque es un CONTRATO con el catalogo de modelos: cada uno de estos
+## tiene que resolver a un modelo de assets/fp/furniture/ y no a las cajas de
+## respaldo. Lo comprueba tools/validate_furniture_runtime.tscn, que es la red
+## para cuando entren modelos nuevos: un arquetipo sin fichero, o un fichero
+## renombrado, cae a cajas sin decir nada.
+const ARCHETYPES: Array[String] = [
+	"armchair",
+	"bathtub",
+	"bed",
+	"bed_bunk",
+	"bed_single",
+	"bench",
+	"bookcase",
+	"chair",
+	"chair_desk",
+	"clutter",
+	"coffee_table",
+	"containers",
+	"curtain",
+	"desk",
+	"dresser",
+	"dryer",
+	"kitchen_fridge",
+	"kitchen_sink",
+	"kitchen_stove",
+	"kitchen_unit",
+	"lamp_floor",
+	"lamp_table",
+	"lounge_sofa_long",
+	"plant",
+	"pool",
+	"rug",
+	"shower",
+	"side_table",
+	"sink",
+	"sofa",
+	"storage",
+	"table",
+	"textile_pile",
+	"toilet",
+	"tv_stand",
+	"wardrobe",
+	"washer",
+]
+
 static func visual_archetype(obj: Dictionary) -> String:
 	var kind_text: String = String(obj.get("kind", "")).strip_edges().to_lower()
 	var name_text: String = String(obj.get("name", "")).strip_edges().to_lower()

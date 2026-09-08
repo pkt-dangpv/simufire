@@ -243,6 +243,16 @@ static func _transform_aabb(xform: Transform3D, aabb: AABB) -> AABB:
 	return AABB(mn, mx - mn)
 
 
+## Cierto si el arquetipo tiene modelo propio, o sea si NO va a caer en las
+## formas de respaldo.
+##
+## Hay que preguntarlo aqui y no adivinar el nombre del fichero: en medio esta
+## el mapa de alias -"containers" se dibuja con plastic_bin, "storage" con la
+## libreria-, y saltarselo da una respuesta que parece buena y no lo es.
+static func has_model(kind_name: String) -> bool:
+	return ResourceLoader.exists("res://assets/fp/furniture/%s.tscn" % _asset_kind_for(kind_name))
+
+
 static func _asset_kind_for(kind_name: String) -> String:
 	match kind_name:
 		"storage":

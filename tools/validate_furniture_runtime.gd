@@ -8,6 +8,11 @@ const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
+const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
+const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
+
+## Donde viven los modelos de mobiliario.
+const FURNITURE_ASSET_DIR: String = "res://assets/fp/furniture"
 
 ## Muebles con modelo de verdad, de los que traen varios materiales.
 const BURN_KINDS: Array[String] = ["sofa", "bed", "wardrobe"]
@@ -17,6 +22,58 @@ var _failures: Array[String] = []
 
 func _ready() -> void:
 	call_deferred("_run")
+
+
+## Cada arquetipo tiene que salir con su modelo, no con las cajas de respaldo.
+##
+## Las cajas existen para no quedarse sin nada que dibujar, y por eso el fallo es
+## silencioso: un arquetipo sin fichero, o un fichero renombrado, sigue pintando
+## algo -peor, pero algo- y nadie se entera hasta que lo ve en la pantalla. Con el
+## catalogo creciendo, esta es la red.
+func _check_every_archetype_has_a_model() -> void:
+	# Se le pregunta al CARGADOR, que es quien conoce el mapa de alias. Construir
+	# la pieza y mirar si devuelve tamaño no vale: la ruta de respaldo también
+	# devuelve el suyo, así que un arquetipo sin modelo pasaba por bueno.
+	var fallen_back: PackedStringArray = PackedStringArray()
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		if not FurnitureAssetLoader.has_model(archetype):
+			fallen_back.append(archetype)
+	_expect(fallen_back.is_empty(),
+		"arquetipos que salen como cajas por no encontrar modelo: %s" % ", ".join(fallen_back))
+
+	# Y al reves: un modelo que no carga o que llega sin mallas es un asset roto,
+	# y desde fuera se ve igual que uno que falta.
+	var broken: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(FURNITURE_ASSET_DIR)
+	if dir == null:
+		_expect(false, "no se puede abrir %s" % FURNITURE_ASSET_DIR)
+		return
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".tscn"):
+			continue
+		var packed := load("%s/%s" % [FURNITURE_ASSET_DIR, file_name]) as PackedScene
+		if packed == null:
+			broken.append("%s (no carga)" % file_name)
+			continue
+		var instance := packed.instantiate() as Node
+		if instance == null:
+			broken.append("%s (no se instancia)" % file_name)
+			continue
+		add_child(instance)
+		if _mesh_count(instance) == 0:
+			broken.append("%s (sin mallas)" % file_name)
+		remove_child(instance)
+		instance.free()
+	_expect(broken.is_empty(), "modelos de mobiliario rotos: %s" % ", ".join(broken))
+
+
+func _mesh_count(node: Node) -> int:
+	var count: int = 0
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			count += 1
+		count += _mesh_count(child)
+	return count
 
 
 ## El fuego tiene que verse en los muebles.
@@ -88,6 +145,7 @@ func _changed(before: Array, after: Array) -> int:
 func _run() -> void:
 	await get_tree().process_frame
 
+	_check_every_archetype_has_a_model()
 	_check_burning_changes_furniture()
 
 	var editor_data: Dictionary = _make_moved_simple_house()
