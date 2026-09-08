@@ -27,8 +27,7 @@ extends Node
 ## Uso: godot --headless --path . tools/validate_editor_draw_in_3d.tscn
 
 const TOOL_SELECT: int = 0
-const TOOL_EXTERIOR_WALL: int = 1
-const TOOL_ROOM: int = 2
+const TOOL_ROOM: int = 1
 const MODE_3D: int = 1
 
 var _failures: Array[String] = []
@@ -53,7 +52,6 @@ func _run() -> void:
 
 	# La herramienta de sala ya no esta prohibida en 3D.
 	_expect(editor._tool_available_in_current_mode(TOOL_ROOM), "la herramienta Sala sigue prohibida en la vista 3D")
-	_expect(editor._tool_available_in_current_mode(TOOL_EXTERIOR_WALL), "la herramienta Exterior sigue prohibida en la vista 3D")
 
 	var rooms_before: int = Array(editor.editor_data.get("rooms_data", [])).size()
 	editor._set_tool(TOOL_ROOM)
@@ -87,7 +85,7 @@ func _run() -> void:
 			"la sala no sale donde se solto el raton: esperada en %s y esta en %s" % [str(expected.get_center()), str(rect.get_center())])
 		_expect(not editor._is_corridor_room(new_room), "lo dibujado con la herramienta Sala no deberia ser un pasillo")
 
-	# Y otra sala más, y un muro: dibujar no es dibujar una vez. Esto es lo que
+	# Y otra sala más: dibujar no es dibujar una vez. Esto es lo que
 	# el usuario encontró roto -"he podido poner una habitación pero no más"- y lo
 	# que la guardia no veía por llamar al editor a mano.
 	var second_from_px: Vector2 = viewport_size * Vector2(0.60, 0.55)
@@ -99,15 +97,6 @@ func _run() -> void:
 	_expect(Array(editor.editor_data.get("rooms_data", [])).size() == rooms_before + 2,
 		"la segunda sala no se dibuja: hay %d salas y debería haber %d" % [
 			Array(editor.editor_data.get("rooms_data", [])).size(), rooms_before + 2])
-
-	var walls_before: int = Array(editor.editor_data.get("exterior_walls", [])).size()
-	editor._set_tool(TOOL_EXTERIOR_WALL)
-	_push(editor, _mouse(viewport_size * Vector2(0.30, 0.78), true))
-	_push(editor, _motion(viewport_size * Vector2(0.70, 0.82)))
-	_push(editor, _mouse(viewport_size * Vector2(0.70, 0.82), false))
-	_expect(Array(editor.editor_data.get("exterior_walls", [])).size() == walls_before + 1,
-		"el muro exterior no se dibuja en 3D (%d muros antes, %d después)" % [
-			walls_before, Array(editor.editor_data.get("exterior_walls", [])).size()])
 
 	# La medida tecleada: en perspectiva es la unica forma de ser exacto.
 	editor.editor_data = _one_room_scenario()

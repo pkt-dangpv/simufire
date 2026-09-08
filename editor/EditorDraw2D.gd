@@ -221,35 +221,11 @@ static func vertical_opening(canvas: CanvasItem, rect_px: Rect2, color: Color) -
 ## a_px / b_px = endpoints in canvas pixels (already converted from metres).
 ## color = wall color (selected or default). thickness_px = computed wall thickness in pixels.
 ## selected = true draws endpoint circles.
-static func exterior_wall(canvas: CanvasItem, a_px: Vector2, b_px: Vector2, color: Color, thickness_px: float, selected: bool) -> void:
-	canvas.draw_line(a_px, b_px, Color(0.0, 0.0, 0.0, 0.76), thickness_px + 2.0)
-	canvas.draw_line(a_px, b_px, color, thickness_px)
-	if selected:
-		canvas.draw_circle(a_px, 5.0, color)
-		canvas.draw_circle(b_px, 5.0, color)
-
-
-# ── El plano, capa a capa ───────────────────────────────────────────────────
-#
-# Estas ocho funciones dibujan el plano entero a partir de datos YA resueltos:
-# posiciones en pixeles, colores elegidos y textos escritos. No saben de
-# editor_data, ni de que planta se esta editando, ni de que hay seleccionado.
-# Todo eso lo decide ScenarioEditor en `_plan_view()`, que es el unico sitio
-# donde se junta el escenario con el estado de la interfaz.
-#
-# La frontera se paga con un diccionario por elemento, y compra dos cosas: que
-# el dibujo se pueda leer entero de una sentada, y que cambiarlo no obligue a
-# entender el resto del editor.
-
-
-## Todo el plano en su orden: primero el fantasma de la planta de abajo, luego
-## las salas, y encima lo que va sobre ellas. El orden ES el dibujo.
 static func plan(canvas: CanvasItem, view: Dictionary) -> void:
 	var font: Font = view.get("font")
 	var scale_inv: float = float(view.get("screen_scale_inv", 1.0))
 	ghost_floor(canvas, view.get("ghost_rooms", []), view.get("ghost_openings", []), font, scale_inv)
 	rooms(canvas, view.get("rooms", []), font, scale_inv)
-	exterior_walls(canvas, view.get("exterior_walls", []))
 	openings(canvas, view.get("openings", []))
 	objects(canvas, view.get("objects", []), font, scale_inv)
 	player_start(canvas, view.get("player_start", {}))
@@ -310,22 +286,6 @@ static func rooms(canvas: CanvasItem, rooms_view: Array, font: Font, scale_inv: 
 			handles(canvas, room["handles"])
 
 
-static func exterior_walls(canvas: CanvasItem, walls_view: Array) -> void:
-	for entry in walls_view:
-		var wall: Dictionary = entry
-		exterior_wall(
-			canvas,
-			wall.get("a_px", Vector2.ZERO),
-			wall.get("b_px", Vector2.ZERO),
-			wall.get("color", Color.WHITE),
-			float(wall.get("thickness_px", 3.0)),
-			bool(wall.get("selected", false))
-		)
-
-
-## Puertas, ventanas y huecos. El hueco vertical de una escalera se dibuja como
-## rectangulo; el resto, como un trazo sobre su paramento con su barrido si es
-## puerta.
 static func openings(canvas: CanvasItem, openings_view: Array) -> void:
 	for entry in openings_view:
 		var opening: Dictionary = entry

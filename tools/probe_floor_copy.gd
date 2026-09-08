@@ -7,14 +7,14 @@ extends SceneTree
 ##
 ##   godot --headless --path . --script res://tools/probe_floor_copy.gd
 
-const TOOL_ROOM: int = 2
-const TOOL_CORRIDOR: int = 3
-const TOOL_STAIRS: int = 4
-const TOOL_WINDOW: int = 7
-const TOOL_OBJECT: int = 8
-const TOOL_PLAYER_START: int = 10
-const TOOL_DETECTOR: int = 12
-const TOOL_VICTIM: int = 13
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
+const TOOL_STAIRS: int = 3
+const TOOL_WINDOW: int = 6
+const TOOL_OBJECT: int = 7
+const TOOL_PLAYER_START: int = 9
+const TOOL_DETECTOR: int = 11
+const TOOL_VICTIM: int = 12
 
 var _editor: Node = null
 var _frames: int = 0

@@ -40,7 +40,6 @@ func _process(_delta: float) -> bool:
 	_snapshot("apertura 0", func(): _editor._select_opening(0), out)
 	_snapshot("detector 0", func(): _editor._select_detector(0), out)
 	_snapshot("victima 0", func(): _editor._select_victim(0), out)
-	_snapshot("muro exterior 0", func(): _editor._select_exterior_wall(0), out)
 
 	var text: String = "\n".join(out)
 	if _out_path == "":
@@ -101,7 +100,7 @@ func _dump(node: Node, path: String, out: PackedStringArray) -> void:
 func _scenario() -> Dictionary:
 	return {
 		"floors": [{"name": "PB", "level_m": 0.0}, {"name": "P1", "level_m": 2.7}],
-		"exterior_walls": [{"a": {"x": 0.0, "y": 0.0}, "b": {"x": 6.0, "y": 0.0}, "thickness_m": 0.16}],
+		"exterior_walls": [],
 		"room_rect_m": {
 			"7": {"x": 0.0, "y": 0.0, "w": 4.0, "h": 3.0},
 			"8": {"x": 4.5, "y": 0.0, "w": 2.4, "h": 3.0}

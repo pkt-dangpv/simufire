@@ -28,11 +28,11 @@ const FirstPersonControllerScript := preload("res://view/fp/FirstPersonControlle
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 
 ## Herramientas del editor, por su numero en el enum Tool.
-const TOOL_ROOM: int = 2
+const TOOL_ROOM: int = 1
 const StairPlanRules := preload("res://editor/StairPlanRules.gd")
-const TOOL_STAIRS: int = 4
-const TOOL_OBJECT: int = 8
-const TOOL_IGNITION: int = 9
+const TOOL_STAIRS: int = 3
+const TOOL_OBJECT: int = 7
+const TOOL_IGNITION: int = 8
 
 const UPPER_LEVEL_M: float = 2.90
 const STEP_S: float = 1.0 / 60.0

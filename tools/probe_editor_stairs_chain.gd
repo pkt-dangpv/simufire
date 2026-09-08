@@ -12,10 +12,10 @@ extends SceneTree
 
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 
-const TOOL_ROOM: int = 2
-const TOOL_STAIRS: int = 4
-const TOOL_OBJECT: int = 8
-const TOOL_IGNITION: int = 9
+const TOOL_ROOM: int = 1
+const TOOL_STAIRS: int = 3
+const TOOL_OBJECT: int = 7
+const TOOL_IGNITION: int = 8
 
 var _editor: Node = null
 var _frames: int = 0

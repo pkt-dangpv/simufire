@@ -18,12 +18,10 @@ extends RefCounted
 ## tiene los datos, el deshacer y la linea de estado.
 const ACTION_ROOM_APPLY: String = "room_apply"
 const ACTION_ROOM_DELETE: String = "room_delete"
-const ACTION_ROOM_MARK_EXTERIOR: String = "room_mark_exterior"
 const ACTION_OBJECT_APPLY: String = "object_apply"
 const ACTION_OPENING_APPLY: String = "opening_apply"
 const ACTION_DETECTOR_APPLY: String = "detector_apply"
 const ACTION_VICTIM_APPLY: String = "victim_apply"
-const ACTION_WALL_APPLY: String = "wall_apply"
 ## Borrar objeto, apertura, detector, victima o muro: el editor ya sabe cual esta
 ## seleccionado, asi que los cinco botones piden lo mismo.
 const ACTION_DELETE_SELECTED: String = "delete_selected"
@@ -43,7 +41,6 @@ var _fuel_spin: SpinBox
 var _hrr_spin: SpinBox
 var _room_apply_button: Button
 var _room_delete_button: Button
-var _room_mark_exterior_button: Button
 var _stair_turn_option: OptionButton
 var _stair_walls_check: CheckBox
 var _stair_railings_check: CheckBox
@@ -87,14 +84,6 @@ var _victim_x_spin: SpinBox
 var _victim_y_spin: SpinBox
 var _victim_height_spin: SpinBox
 
-# ── Muro exterior ───────────────────────────────────────────────────────────
-var _wall_props_container: Control
-var _wall_start_x_spin: SpinBox
-var _wall_start_y_spin: SpinBox
-var _wall_end_x_spin: SpinBox
-var _wall_end_y_spin: SpinBox
-var _wall_thickness_spin: SpinBox
-
 var _panel_root: Control = null
 
 
@@ -111,7 +100,6 @@ func bind(panel_root: Control) -> bool:
 	_bind_opening()
 	_bind_detector()
 	_bind_victim()
-	_bind_wall()
 	return _name_edit != null and _kind_edit != null and _height_spin != null \
 		and _fuel_spin != null and _hrr_spin != null
 
@@ -133,13 +121,10 @@ func _bind_room() -> void:
 	_stair_angle_label = _control("RoomGeometry/StairAngleLabel") as Label
 	_room_apply_button = _control("BtnApplyRoom") as Button
 	_room_delete_button = _control("BtnDeleteRoom") as Button
-	_room_mark_exterior_button = _control("BtnMarkRoomExterior") as Button
 	_tooltip(_room_apply_button, "Aplica los cambios numéricos de la habitación seleccionada.")
 	_tooltip(_room_delete_button, "Borra la habitación seleccionada.")
-	_tooltip(_room_mark_exterior_button, "Marca la habitación seleccionada como parte del contorno exterior.")
 	_on_pressed(_room_apply_button, ACTION_ROOM_APPLY)
 	_on_pressed(_room_delete_button, ACTION_ROOM_DELETE)
-	_on_pressed(_room_mark_exterior_button, ACTION_ROOM_MARK_EXTERIOR)
 
 
 func _bind_object() -> void:
@@ -216,20 +201,6 @@ func _bind_victim() -> void:
 	_on_pressed(delete_button, ACTION_DELETE_SELECTED)
 
 
-func _bind_wall() -> void:
-	_wall_props_container = _control("ExteriorWallProps")
-	_wall_start_x_spin = _spin("ExteriorWallProps/WallStartXRow/WallStartXSpin", -200.0, 200.0, 0.05)
-	_wall_start_y_spin = _spin("ExteriorWallProps/WallStartYRow/WallStartYSpin", -200.0, 200.0, 0.05)
-	_wall_end_x_spin = _spin("ExteriorWallProps/WallEndXRow/WallEndXSpin", -200.0, 200.0, 0.05)
-	_wall_end_y_spin = _spin("ExteriorWallProps/WallEndYRow/WallEndYSpin", -200.0, 200.0, 0.05)
-	_wall_thickness_spin = _spin("ExteriorWallProps/WallThicknessRow/WallThicknessSpin", 0.05, 1.0, 0.01)
-	_on_pressed(_control("ExteriorWallProps/BtnApplyExteriorWall") as Button, ACTION_WALL_APPLY)
-	_on_pressed(_control("ExteriorWallProps/BtnDeleteExteriorWall") as Button, ACTION_DELETE_SELECTED)
-
-
-## El desplegable del tipo de escalera lo rellena y lo selecciona el editor: el
-## vocabulario de escaleras -auto, recta, 180- es suyo y lo comparte con la
-## herramienta del panel izquierdo. El panel solo pone el widget.
 func stair_turn_option() -> OptionButton:
 	return _stair_turn_option
 
@@ -255,8 +226,6 @@ func show(state: Dictionary) -> void:
 	var has_detector: bool = not det.is_empty()
 	var vic: Dictionary = state.get("victim", {})
 	var has_victim: bool = not vic.is_empty()
-	var wall: Dictionary = state.get("wall", {})
-	var has_wall: bool = not wall.is_empty()
 
 	_fill_room(state)
 	if has_obj:
@@ -272,10 +241,8 @@ func show(state: Dictionary) -> void:
 		fill_detector(det)
 	if has_victim:
 		fill_victim(vic)
-	if has_wall:
-		_fill_wall(wall)
 
-	_set_visibility(has_room, has_obj, has_opening, has_detector, has_victim, has_wall, is_stair)
+	_set_visibility(has_room, has_obj, has_opening, has_detector, has_victim, is_stair)
 	set_stair_angle_text(String(state.get("stair_angle_text", "")))
 
 
@@ -412,18 +379,6 @@ func fill_victim(vic: Dictionary) -> void:
 	_set_spin(_victim_height_spin, float(vic.get("height_m", 0.9)))
 
 
-func _fill_wall(wall: Dictionary) -> void:
-	var a: Dictionary = wall.get("a", {})
-	var b: Dictionary = wall.get("b", {})
-	_set_spin(_wall_start_x_spin, float(a.get("x", 0.0)))
-	_set_spin(_wall_start_y_spin, float(a.get("y", 0.0)))
-	_set_spin(_wall_end_x_spin, float(b.get("x", 0.0)))
-	_set_spin(_wall_end_y_spin, float(b.get("y", 0.0)))
-	_set_spin(_wall_thickness_spin, float(wall.get("thickness_m", 0.16)))
-
-
-## Solo la geometria de la sala, para redibujar mientras se arrastra sin tocar el
-## resto del panel.
 func fill_room_rect(rect: Rect2) -> void:
 	_set_spin(_room_x_spin, rect.position.x)
 	_set_spin(_room_y_spin, rect.position.y)
@@ -469,10 +424,10 @@ func _on_detector_type_selected(_index: int) -> void:
 ## El panel derecho entero desaparece cuando no hay nada seleccionado, y dentro
 ## de el cada ficha se enseña sola. Los separadores solo salen si hay algo antes
 ## y algo despues: si no, quedan rayas sueltas.
-func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detector: bool, has_victim: bool, has_wall: bool, is_stair: bool) -> void:
+func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detector: bool, has_victim: bool, is_stair: bool) -> void:
 	if _panel_root == null:
 		return
-	_panel_root.visible = has_room or has_obj or has_opening or has_detector or has_victim or has_wall
+	_panel_root.visible = has_room or has_obj or has_opening or has_detector or has_victim
 
 	for node_name in [
 		"RoomTitle", "RoomNameEdit", "RoomKindEdit",
@@ -502,12 +457,8 @@ func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detec
 		_room_apply_button.visible = has_room
 	if _room_delete_button != null:
 		_room_delete_button.visible = has_room
-	if _room_mark_exterior_button != null:
-		_room_mark_exterior_button.visible = has_room
-
 	var before_detector: bool = has_room or has_obj or has_opening
 	var before_victim: bool = before_detector or has_detector
-	var before_wall: bool = before_victim or has_victim
 	_set_node_visible("ObjectTitle", has_obj)
 	_set_node_visible("SeparatorC", has_opening and (has_room or has_obj))
 	_set_node_visible("OpeningTitle", has_opening)
@@ -515,8 +466,6 @@ func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detec
 	_set_node_visible("DetectorTitle", has_detector)
 	_set_node_visible("SeparatorE", has_victim and before_victim)
 	_set_node_visible("VictimTitle", has_victim)
-	_set_node_visible("SeparatorExteriorWall", has_wall and before_wall)
-	_set_node_visible("ExteriorWallTitle", has_wall)
 	_set_node_visible("ObjProps/ObjWidthLabel", has_obj)
 	_set_node_visible("ObjProps/ObjWidthSpin", has_obj)
 	_set_node_visible("ObjProps/ObjHeightLabel", has_obj)
@@ -529,8 +478,6 @@ func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detec
 		_detector_props_container.visible = has_detector
 	if _victim_props_container != null:
 		_victim_props_container.visible = has_victim
-	if _wall_props_container != null:
-		_wall_props_container.visible = has_wall
 
 
 # ============================================================================
@@ -601,17 +548,6 @@ func read_victim() -> Dictionary:
 	}
 
 
-func read_wall() -> Dictionary:
-	return {
-		"start": Vector2(_value(_wall_start_x_spin), _value(_wall_start_y_spin)),
-		"end": Vector2(_value(_wall_end_x_spin), _value(_wall_end_y_spin)),
-		"thickness_m": _value(_wall_thickness_spin)
-	}
-
-
-# ============================================================================
-# Utilidades
-# ============================================================================
 func _control(path: String) -> Control:
 	if _panel_root == null:
 		return null

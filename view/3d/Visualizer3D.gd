@@ -932,7 +932,6 @@ func _rebuild_scene() -> void:
 	for room_id in room_ids:
 		_create_room(room_id, Rect2(rects[room_id]))
 
-	_create_exterior_wall_visuals()
 	_create_stair_visuals()
 
 	for index in range(building.get_opening_count()):
@@ -1277,35 +1276,6 @@ func _create_stair_visual_flight_segment(stair_root: Node3D, node_prefix: String
 			stair_root.add_child(rail)
 
 
-func _create_exterior_wall_visuals() -> void:
-	if building == null or _rooms_root == null:
-		return
-	for i in range(building.exterior_walls.size()):
-		if typeof(building.exterior_walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = building.exterior_walls[i]
-		var a: Vector2 = wall.get("a", Vector2.ZERO)
-		var b: Vector2 = wall.get("b", Vector2.ZERO)
-		var axis: Vector2 = b - a
-		var length_m: float = axis.length()
-		if length_m <= 0.05:
-			continue
-		var thickness_m: float = maxf(0.05, float(wall.get("thickness_m", wall_thickness_m * 2.0)))
-		var root := Node3D.new()
-		root.name = "ExteriorWall_%02d" % i
-		_rooms_root.add_child(root)
-		var mesh := _create_box(
-			"WallMesh",
-			Vector3(length_m, default_room_height_m, thickness_m) * meters_to_units,
-			_make_material(Color(0.72, 0.70, 0.64, 0.72), true)
-		)
-		mesh.position = _to_world(Vector3((a.x + b.x) * 0.5, default_room_height_m * 0.5, (a.y + b.y) * 0.5))
-		mesh.rotation.y = -atan2(axis.y, axis.x)
-		root.add_child(mesh)
-
-
-## El reparto en losas vive en `SlabGeometry`, compartido con el mundo de
-## primera persona; aqui solo se emite cada losa como malla de maqueta.
 func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
 	if parent == null:
 		parent = _rooms_root

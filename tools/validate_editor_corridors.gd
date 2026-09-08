@@ -18,8 +18,8 @@ extends Node
 ##
 ## Uso: godot --headless --path . tools/validate_editor_corridors.tscn
 
-const TOOL_ROOM: int = 2
-const TOOL_CORRIDOR: int = 3
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
 ## El hueco deja 10 cm de margen contra las esquinas del paramento
 ## (_max_opening_width_for_shared), asi que un paso "de ancho completo" es el
 ## ancho del pasillo menos ese margen.

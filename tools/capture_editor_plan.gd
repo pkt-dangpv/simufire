@@ -13,8 +13,7 @@ extends SceneTree
 ##   5. arrastrando una sala nueva
 ##   6. arrastrando una escalera (guias, hueco vertical y los carteles)
 ##   7. arrastrando un pasillo en L
-##   8. arrastrando un muro exterior
-##   9. la planta de arriba, con el fantasma de la de abajo
+##   8. la planta de arriba, con el fantasma de la de abajo
 ##
 ## IMPORTANTE: con ventana real, como tools/capture_editor_ui.gd. En --headless
 ## no hay rasterizado y las fotos salen vacias.
@@ -91,7 +90,6 @@ func _setup() -> void:
 		{"name": "05_arrastre_sala", "tool": 2, "drag_room": [Vector2(1.0, 5.5), Vector2(5.4, 8.2)]},
 		{"name": "06_arrastre_escalera", "tool": 4, "drag_room": [Vector2(7.0, 1.0), Vector2(10.2, 5.4)]},
 		{"name": "07_arrastre_pasillo", "tool": 3, "drag_room": [Vector2(0.5, 4.0), Vector2(6.0, 4.0)]},
-		{"name": "08_arrastre_muro", "tool": 1, "drag_wall": [Vector2(-0.4, 6.4), Vector2(7.6, 6.4)]},
 		{"name": "09_planta_alta", "tool": 0, "floor": 1},
 		{"name": "10_3d_en_vivo", "tool": 0, "room": 7, "preview_3d": true},
 		{"name": "11_dibujar_en_3d", "tool": 2, "view_3d": true, "draw_3d": [Vector2(0.65, 0.74), Vector2(0.85, 0.74)]},
@@ -112,21 +110,16 @@ func _apply_pose(pose: Dictionary) -> void:
 		_editor._select_object(int(obj[0]), int(obj[1]))
 	if pose.has("opening"):
 		_editor._select_opening(int(pose["opening"]))
-	# 0 NONE, 1 EXTERIOR_WALL, 2 ROOM_RECT: el enum Drag del editor.
+	# 0 NONE, 1 ROOM_RECT: el enum Drag del editor.
 	if pose.has("drag_room"):
 		var drag: Array = pose["drag_room"]
-		_editor.drag = 2
+		_editor.drag = 1
 		_editor.drag_start_m = drag[0]
 		_editor.drag_current_m = drag[1]
 	# El 3D en vivo: se enciende solo en la pose que lo pide.
 	var wants_preview: bool = bool(pose.get("preview_3d", false))
 	if _editor._preview_3d_enabled != wants_preview:
 		_editor._set_preview_3d_enabled(wants_preview)
-	if pose.has("drag_wall"):
-		var wall: Array = pose["drag_wall"]
-		_editor.drag = 1
-		_editor.drag_start_m = wall[0]
-		_editor.drag_current_m = wall[1]
 	# Dibujar EN la vista 3D: se cambia de modo y se deja un arrastre a medias,
 	# que es lo que enseña la caja de previsualizacion.
 	if bool(pose.get("view_3d", false)):
@@ -166,10 +159,7 @@ func _shoot(pose: Dictionary) -> void:
 func _scenario() -> Dictionary:
 	return {
 		"floors": [{"name": "PB", "level_m": 0.0}, {"name": "P1", "level_m": 2.7}],
-		"exterior_walls": [
-			{"a": {"x": -0.4, "y": -0.4}, "b": {"x": 9.4, "y": -0.4}, "thickness_m": 0.24},
-			{"a": {"x": 9.4, "y": -0.4}, "b": {"x": 9.4, "y": 7.4}, "thickness_m": 0.24}
-		],
+		"exterior_walls": [],
 		"room_rect_m": {
 			"7": {"x": 0.0, "y": 0.0, "w": 4.2, "h": 3.4},
 			"8": {"x": 4.2, "y": 0.0, "w": 2.6, "h": 3.4},

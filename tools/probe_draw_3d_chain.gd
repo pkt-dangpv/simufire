@@ -11,8 +11,7 @@ extends SceneTree
 ##
 ##   godot --headless --path . --script res://tools/probe_draw_3d_chain.gd
 
-const TOOL_EXTERIOR_WALL: int = 1
-const TOOL_ROOM: int = 2
+const TOOL_ROOM: int = 1
 const MODE_3D: int = 1
 
 var _editor: Node = null
@@ -56,11 +55,6 @@ func _process(_delta: float) -> bool:
 			print("=== 3ª sala, encima de donde ya hay algo")
 			_drag(TOOL_ROOM, Vector2(0.46, 0.56), Vector2(0.56, 0.66))
 			_report()
-		4:
-			print("")
-			print("=== un muro exterior")
-			_drag(TOOL_EXTERIOR_WALL, Vector2(0.30, 0.75), Vector2(0.70, 0.80))
-			_report()
 		_:
 			quit(0)
 			return true
@@ -96,13 +90,10 @@ func _push_motion(position: Vector2) -> void:
 
 func _report() -> void:
 	var rooms: Array = _editor.editor_data.get("rooms_data", [])
-	var walls: Array = _editor.editor_data.get("exterior_walls", [])
-	print("  salas: %d   muros exteriores: %d" % [rooms.size(), walls.size()])
+	print("  salas: %d" % rooms.size())
 	for room in rooms:
 		var rect: Rect2 = _editor._get_room_rect(int(room.get("id", -1)))
 		print("    sala %2d %-12s %5.2f,%5.2f  %4.2f x %4.2f" % [
 			int(room.get("id", -1)), String(room.get("name", "")),
 			rect.position.x, rect.position.y, rect.size.x, rect.size.y])
-	for wall in walls:
-		print("    muro %s -> %s" % [str(wall.get("a", {})), str(wall.get("b", {}))])
 	print("  estado: %s" % (_editor._status_label.text if _editor._status_label != null else "-"))

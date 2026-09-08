@@ -3,7 +3,6 @@ class_name ScenarioEditor
 
 enum Tool {
 	SELECT,
-	EXTERIOR_WALL,
 	ROOM,
 	CORRIDOR_L,
 	STAIRS,
@@ -150,7 +149,6 @@ var selected_object_index: int = -1
 var selected_detector_index: int = -1
 var selected_victim_index: int = -1
 var selected_player_start_room_id: int = -1
-var selected_exterior_wall_index: int = -1
 ## Lo ultimo copiado con Ctrl+C. Vive en memoria y muere con el editor: pegar
 ## entre dos sesiones no es lo que hace falta aqui, y un portapapeles en disco
 ## traeria la pregunta de que hacer cuando el escenario de origen ya no existe.
@@ -165,8 +163,6 @@ var _props: RefCounted = PropertyPanelScript.new()
 ## codigo no sabe dibujar y que nada impedia; con un estado, no existe.
 enum Drag {
 	NONE,
-	## Trazando un muro exterior de punta a punta.
-	EXTERIOR_WALL,
 	## Arrastrando el rectangulo de una sala, un pasillo o una escalera nuevos.
 	ROOM_RECT,
 	## Moviendo, redimensionando o girando la sala ya seleccionada.
@@ -306,8 +302,6 @@ var _template_builder = BuildingTemplateScript.new()
 @export var _room_outline: Color = Color(0.28, 0.32, 0.35, 0.95)
 @export var _lower_floor_ghost_fill: Color = Color(0.55, 0.64, 0.68, 0.14)
 @export var _lower_floor_ghost_outline: Color = Color(0.70, 0.82, 0.88, 0.28)
-@export var _exterior_wall_color: Color = Color(1.00, 0.84, 0.28, 0.98)
-@export var _exterior_wall_selected_color: Color = Color(1.00, 1.00, 0.70, 1.0)
 @export var _corridor_fill: Color = Color(0.03, 0.10, 0.11, 0.76)
 @export var _corridor_selected_fill: Color = Color(0.04, 0.18, 0.19, 0.88)
 @export var _corridor_outline: Color = UI_BLUE
@@ -338,7 +332,6 @@ const _CTX_IGNITE    := 5
 const _CTX_DUPLICATE := 6
 const _CTX_DESELECT  := 7
 const _CTX_ADD_HOLE  := 8
-const _CTX_MARK_EXTERIOR := 9
 const _CTX_SET_PLAYER_START := 10
 const _CTX_PASTE     := 11
 # ── Tolerancias para detección de paredes adyacentes / solapadas ──────────
@@ -352,7 +345,6 @@ var _ctx_pos_m: Vector2 = Vector2.ZERO
 var _ctx_room_id: int = -1
 var _ctx_obj_index: int = -1
 var _ctx_opening_index: int = -1
-var _ctx_exterior_wall_index: int = -1
 
 func _ready() -> void:
 	UILocalizationScript.ensure_loaded()
@@ -1136,11 +1128,11 @@ func _tool_available_in_current_mode(tool_id: int) -> bool:
 ## arrastrando sobre el suelo, igual que en planta.
 func _is_3d_simple_tool(tool_id: int) -> bool:
 	return tool_id in [
+		Tool.SELECT,
 		Tool.ROOM,
 		Tool.CORRIDOR_L,
 		Tool.STAIRS,
-		Tool.EXTERIOR_WALL,
-		Tool.SELECT,
+
 		Tool.DOOR,
 		Tool.HOLE,
 		Tool.WINDOW,
@@ -1363,7 +1355,7 @@ func _show_typed_measure_in_status() -> void:
 		return
 	var values: PackedFloat32Array = _parse_typed_measure()
 	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, _drag_end_point())
-	if drag == Drag.EXTERIOR_WALL or current_tool == Tool.CORRIDOR_L:
+	if current_tool == Tool.CORRIDOR_L:
 		_set_status("Medida: %s m de largo. Intro para crear." % _typed_measure)
 		return
 	if values.size() > 1:
@@ -1374,8 +1366,7 @@ func _show_typed_measure_in_status() -> void:
 
 ## Las cuatro que trazan geometria arrastrando.
 func _tool_draws_geometry(tool_id: int) -> bool:
-	return tool_id == Tool.ROOM or tool_id == Tool.CORRIDOR_L \
-		or tool_id == Tool.STAIRS or tool_id == Tool.EXTERIOR_WALL
+	return tool_id == Tool.ROOM or tool_id == Tool.CORRIDOR_L or tool_id == Tool.STAIRS
 
 
 func _screen_to_floor_m_3d(screen_pos: Vector2) -> Variant:
@@ -1404,13 +1395,8 @@ func _update_3d_draw_preview() -> void:
 	# ensena esa, que es lo que se va a crear al pulsar Intro.
 	var end_m: Vector2 = _drag_end_point()
 	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, end_m)
-	var height_m: float = 0.12 if drag == Drag.EXTERIOR_WALL else 2.60
+	var height_m: float = 2.60
 	var size_m: Vector2 = rect.size
-	if drag == Drag.EXTERIOR_WALL:
-		# Un muro no es una caja: es una tirada estrecha entre los dos puntos.
-		var along: Vector2 = end_m - drag_start_m
-		size_m = Vector2(maxf(0.16, absf(along.x)), maxf(0.16, absf(along.y)))
-		height_m = 2.60
 	var box := preview.mesh as BoxMesh
 	box.size = Vector3(maxf(0.05, size_m.x), height_m, maxf(0.05, size_m.y))
 	var center_m: Vector2 = rect.get_center()
@@ -2758,7 +2744,6 @@ func _opening_on_current_floor(opening: Dictionary) -> bool:
 ## lista, y "1" se lee mas rapido que "Escape".
 const TOOL_SHORTCUTS: Dictionary = {
 	KEY_1: Tool.SELECT,
-	KEY_2: Tool.EXTERIOR_WALL,
 	KEY_3: Tool.ROOM,
 	KEY_4: Tool.CORRIDOR_L,
 	KEY_5: Tool.STAIRS,
@@ -2780,7 +2765,6 @@ const TOOL_SHORTCUTS: Dictionary = {
 ## que la ayuda no anuncie un nombre que el boton ya no lleva.
 const TOOL_NAMES: Dictionary = {
 	Tool.SELECT: ["editor.tool.select", "Selección"],
-	Tool.EXTERIOR_WALL: ["editor.tool.exterior", "Exterior"],
 	Tool.ROOM: ["editor.tool.room", "Sala"],
 	Tool.CORRIDOR_L: ["editor.tool.corridor", "Pasillo"],
 	Tool.STAIRS: ["editor.tool.stairs", "Escalera"],
@@ -2804,7 +2788,6 @@ const TOOL_NAMES: Dictionary = {
 ## herramientas el icono es lo que se reconoce antes de leer.
 const TOOL_ICONS: Dictionary = {
 	Tool.SELECT: "res://ui/icons/tool_select.svg",
-	Tool.EXTERIOR_WALL: "res://ui/icons/tool_exterior.svg",
 	Tool.ROOM: "res://ui/icons/tool_room.svg",
 	Tool.CORRIDOR_L: "res://ui/icons/tool_corridor.svg",
 	Tool.STAIRS: "res://ui/icons/tool_stairs.svg",
@@ -2911,8 +2894,6 @@ func _tool_hint(tool_id: int) -> String:
 	match tool_id:
 		Tool.SELECT:
 			return "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
-		Tool.EXTERIOR_WALL:
-			return "Exterior: arrastra para dibujar muros exteriores rectos; sin soltar, escribe su largo (6) e Intro. También puedes marcar el contorno de una habitación."
 		Tool.ROOM:
 			return "Estancia: arrastra para crear una estancia en %s. Sin soltar, escribe la medida (4;3) e Intro para que sea exacta." % _current_floor_name()
 		Tool.CORRIDOR_L:
@@ -3024,10 +3005,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event is InputEventMouseMotion:
 		_track_hover_help_mouse(event.position)
-		if drag == Drag.EXTERIOR_WALL:
-			drag_current_m = _screen_to_m(event.position)
-			queue_redraw()
-		elif drag == Drag.ROOM_RECT:
+		if drag == Drag.ROOM_RECT:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
 		elif drag == Drag.ROOM_GEOMETRY:
@@ -3097,7 +3075,7 @@ func _delete_selected_3d_simple() -> void:
 		_delete_selected()
 		_sync_editor_3d_after_direct_edit()
 		return
-	if selected_room_id >= 0 or selected_exterior_wall_index >= 0:
+	if selected_room_id >= 0:
 		_delete_selected()
 		_sync_editor_3d_after_direct_edit()
 		return
@@ -3123,10 +3101,6 @@ func _is_arrow_key(keycode: int) -> bool:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.EXTERIOR_WALL:
-			drag = Drag.EXTERIOR_WALL
-			drag_start_m = pos_m
-			drag_current_m = pos_m
 		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS:
 			drag = Drag.ROOM_RECT
 			drag_start_m = pos_m
@@ -3202,23 +3176,6 @@ func _handle_release(pos_m: Vector2) -> void:
 			_set_status("Tamaño del objeto actualizado.")
 		else:
 			_set_status("Objeto movido.")
-		queue_redraw()
-		return
-
-	if drag == Drag.EXTERIOR_WALL:
-		drag_current_m = pos_m
-		var start_wall_m: Vector2 = _snap_m(drag_start_m)
-		var end_wall_m: Vector2 = _snap_m(drag_current_m)
-		_clear_drag()
-		if start_wall_m.distance_to(end_wall_m) < GRID_M:
-			var wall_index: int = _find_exterior_wall_at(pos_m)
-			if wall_index >= 0:
-				_select_exterior_wall(wall_index)
-			else:
-				_set_status("Arrastra para dibujar un muro exterior.")
-			queue_redraw()
-			return
-		_add_exterior_wall(start_wall_m, end_wall_m)
 		queue_redraw()
 		return
 
@@ -3325,14 +3282,12 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 	_ctx_room_id = -1
 	_ctx_obj_index = -1
 	_ctx_opening_index = -1
-	_ctx_exterior_wall_index = -1
 
 	var menu := _get_context_menu()
 	menu.clear()
 
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	var hit_opening: int = _find_opening_at(pos_m)
-	var hit_wall: int = _find_exterior_wall_at(pos_m)
 	var hit_room: int = _find_room_at(pos_m)
 
 	if not hit_obj.is_empty():
@@ -3348,11 +3303,6 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		menu.add_item("Mostrar propiedades apertura", _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Borrar apertura", _CTX_DELETE)
-	elif hit_wall >= 0:
-		_ctx_exterior_wall_index = hit_wall
-		menu.add_item("Mostrar propiedades muro exterior", _CTX_EDIT)
-		menu.add_separator()
-		menu.add_item("Borrar muro exterior", _CTX_DELETE)
 	elif hit_room >= 0:
 		_ctx_room_id = hit_room
 		var room: Dictionary = _get_room(hit_room)
@@ -3363,7 +3313,6 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		menu.add_item("Añadir hueco aquí", _CTX_ADD_HOLE)
 		menu.add_item("Añadir ventana aquí", _CTX_ADD_WIN)
 		menu.add_item("Punto inicio jugador aquí", _CTX_SET_PLAYER_START)
-		menu.add_item("Marcar contorno exterior", _CTX_MARK_EXTERIOR)
 		menu.add_item("Marcar ignición aquí", _CTX_IGNITE)
 		menu.add_separator()
 		menu.add_item("Duplicar habitación con lo que hay dentro  [Ctrl+D]", _CTX_DUPLICATE)
@@ -3389,8 +3338,6 @@ func _on_context_id_pressed(id: int) -> void:
 				_select_object(_ctx_room_id, _ctx_obj_index)
 			elif _ctx_opening_index >= 0:
 				_select_opening(_ctx_opening_index)
-			elif _ctx_exterior_wall_index >= 0:
-				_select_exterior_wall(_ctx_exterior_wall_index)
 			elif _ctx_room_id >= 0:
 				_select_room(_ctx_room_id)
 		_CTX_DELETE:
@@ -3399,9 +3346,6 @@ func _on_context_id_pressed(id: int) -> void:
 				_delete_selected()
 			elif _ctx_opening_index >= 0:
 				_select_opening(_ctx_opening_index)
-				_delete_selected()
-			elif _ctx_exterior_wall_index >= 0:
-				_select_exterior_wall(_ctx_exterior_wall_index)
 				_delete_selected()
 			elif _ctx_room_id >= 0:
 				_select_room(_ctx_room_id)
@@ -3418,9 +3362,6 @@ func _on_context_id_pressed(id: int) -> void:
 		_CTX_IGNITE:
 			_set_tool(Tool.IGNITION)
 			_mark_ignition_at(_ctx_pos_m)
-		_CTX_MARK_EXTERIOR:
-			if _ctx_room_id >= 0:
-				_mark_room_as_exterior(_ctx_room_id)
 		_CTX_SET_PLAYER_START:
 			if _ctx_room_id >= 0:
 				_set_player_start_at(_ctx_room_id, _ctx_pos_m)
@@ -3829,7 +3770,7 @@ func _cancel_drag_if(expected: int) -> void:
 ## Solo se teclean medidas mientras se dibuja un rectangulo o un muro: mover o
 ## girar lo ya puesto tiene sus casillas en el panel.
 func _measure_input_active() -> bool:
-	return drag == Drag.ROOM_RECT or drag == Drag.EXTERIOR_WALL
+	return drag == Drag.ROOM_RECT
 
 
 ## Devuelve cierto si la tecla era para la medida. Cifras, coma, punto y el
@@ -3897,9 +3838,9 @@ func _drag_end_point() -> Vector2:
 		return drag_current_m
 	var delta: Vector2 = drag_current_m - drag_start_m
 	var direction: Vector2 = delta.normalized() if delta.length() > 0.001 else Vector2.RIGHT
-	if drag == Drag.EXTERIOR_WALL or current_tool == Tool.CORRIDOR_L:
-		# Un muro y un pasillo son tiradas: un solo numero, su largo, en la
-		# direccion en la que ya se estaba arrastrando.
+	if current_tool == Tool.CORRIDOR_L:
+		# Un pasillo es una tirada: un solo numero, su largo, en la direccion en
+		# la que ya se estaba arrastrando.
 		return drag_start_m + direction * values[0]
 	var sign_x: float = -1.0 if delta.x < 0.0 else 1.0
 	var sign_y: float = -1.0 if delta.y < 0.0 else 1.0
@@ -5000,11 +4941,6 @@ func _select_at(pos_m: Vector2) -> void:
 		_select_opening(opening_index)
 		return
 
-	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
-	if exterior_wall_index >= 0:
-		_select_exterior_wall(exterior_wall_index)
-		return
-
 	if _player_start_hit_test(pos_m):
 		var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
 		_select_player_start(int(start.get("room_id", -1)))
@@ -5024,7 +4960,6 @@ func _has_non_room_selection_hit_at(pos_m: Vector2) -> bool:
 		or _find_victim_at(pos_m) >= 0 \
 		or not _find_object_at(pos_m).is_empty() \
 		or _find_opening_at(pos_m) >= 0 \
-		or _find_exterior_wall_at(pos_m) >= 0 \
 		or _player_start_hit_test(pos_m)
 
 
@@ -5036,7 +4971,6 @@ func _select_room(room_id: int) -> void:
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	_set_status("Habitación %d seleccionada. Ajusta X/Y, ancho, fondo y ángulo en Propiedades." % room_id)
@@ -5051,7 +4985,6 @@ func _select_opening(index: int) -> void:
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var opening: Dictionary = Array(editor_data.get("openings_data", []))[index]
@@ -5067,7 +5000,6 @@ func _select_object(room_id: int, object_index: int) -> void:
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var obj: Dictionary = _get_object(room_id, object_index)
@@ -5083,7 +5015,6 @@ func _clear_selection() -> void:
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 
@@ -5096,7 +5027,6 @@ func _select_player_start(room_id: int) -> void:
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = room_id
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	_set_status("Inicio FP seleccionado. Arrástralo en 3D para cambiar el punto de aparición.")
@@ -5124,8 +5054,7 @@ func _refresh_property_panel() -> void:
 		"object": obj,
 		"opening": _element_at("openings_data", selected_opening_index),
 		"detector": _element_at("detectors", selected_detector_index),
-		"victim": _element_at("victims", selected_victim_index),
-		"wall": _element_at("exterior_walls", selected_exterior_wall_index)
+		"victim": _element_at("victims", selected_victim_index)
 	}
 	if not obj.is_empty():
 		var size_m: Vector2 = PlanGeometry.object_size_m(obj)
@@ -5165,8 +5094,6 @@ func _on_property_panel_action(action: String) -> void:
 			_apply_room_properties()
 		PropertyPanelScript.ACTION_ROOM_DELETE:
 			_delete_selected_room()
-		PropertyPanelScript.ACTION_ROOM_MARK_EXTERIOR:
-			_mark_selected_room_exterior()
 		PropertyPanelScript.ACTION_OBJECT_APPLY:
 			_apply_object_properties()
 		PropertyPanelScript.ACTION_OPENING_APPLY:
@@ -5175,8 +5102,6 @@ func _on_property_panel_action(action: String) -> void:
 			_apply_detector_properties()
 		PropertyPanelScript.ACTION_VICTIM_APPLY:
 			_apply_victim_properties()
-		PropertyPanelScript.ACTION_WALL_APPLY:
-			_apply_exterior_wall_properties()
 		PropertyPanelScript.ACTION_DELETE_SELECTED:
 			_delete_selected()
 func _stair_turn_item_id_for_mode(mode: String) -> int:
@@ -5672,7 +5597,6 @@ func _select_detector(index: int) -> void:
 	selected_detector_index = index
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var dets: Array = editor_data.get("detectors", [])
@@ -5690,28 +5614,12 @@ func _select_victim(index: int) -> void:
 	selected_detector_index = -1
 	selected_victim_index = index
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var vics: Array = editor_data.get("victims", [])
 	if index >= 0 and index < vics.size():
 		var vic: Dictionary = vics[index]
 		_set_status("Víctima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
-	queue_redraw()
-
-
-func _select_exterior_wall(index: int) -> void:
-	selected_room_id = -1
-	selected_opening_index = -1
-	selected_object_room_id = -1
-	selected_object_index = -1
-	selected_detector_index = -1
-	selected_victim_index = -1
-	selected_player_start_room_id = -1
-	selected_exterior_wall_index = index
-	_refresh_property_panel()
-	_sync_editor_visualizer_selection()
-	_set_status("Muro exterior %d seleccionado." % index)
 	queue_redraw()
 
 
@@ -5894,7 +5802,6 @@ func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: floa
 	selected_detector_index = -1
 	selected_victim_index = -1
 	selected_player_start_room_id = -1
-	selected_exterior_wall_index = -1
 
 
 func _delete_opening(opening_index: int) -> bool:
@@ -5932,12 +5839,6 @@ func _delete_at(pos_m: Vector2) -> void:
 	var opening_index: int = _find_opening_at(pos_m)
 	if opening_index >= 0:
 		_delete_opening(opening_index)
-		return
-
-	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
-	if exterior_wall_index >= 0:
-		_select_exterior_wall(exterior_wall_index)
-		_delete_selected()
 		return
 
 	var room_id: int = _find_room_at(pos_m)
@@ -6008,115 +5909,6 @@ func _delete_room(room_id: int) -> void:
 	queue_redraw()
 
 
-func _get_exterior_walls() -> Array:
-	if typeof(editor_data.get("exterior_walls", [])) != TYPE_ARRAY:
-		editor_data["exterior_walls"] = []
-	return editor_data.get("exterior_walls", [])
-
-
-func _add_exterior_wall(a_m: Vector2, b_m: Vector2, thickness_m: float = 0.16, record_undo: bool = true) -> int:
-	var walls: Array = _get_exterior_walls()
-	var a: Vector2 = _snap_m(a_m)
-	var b: Vector2 = _snap_m(b_m)
-	if a.distance_to(b) < GRID_M:
-		_set_status("El muro exterior es demasiado corto.")
-		return -1
-	var new_wall := {
-		"a": Serializer.vector_to_data(a),
-		"b": Serializer.vector_to_data(b),
-		"thickness_m": maxf(0.05, thickness_m)
-	}
-	var existing_index: int = _find_equivalent_exterior_wall(a, b)
-	if existing_index >= 0:
-		if record_undo:
-			_push_undo_snapshot("edit_exterior_wall")
-		walls[existing_index] = new_wall
-		editor_data["exterior_walls"] = walls
-		_select_exterior_wall(existing_index)
-		_set_status("Muro exterior actualizado.")
-		return existing_index
-	if record_undo:
-		_push_undo_snapshot("add_exterior_wall")
-	walls.append(new_wall)
-	editor_data["exterior_walls"] = walls
-	_select_exterior_wall(walls.size() - 1)
-	_set_status("Muro exterior dibujado.")
-	return walls.size() - 1
-
-
-func _find_equivalent_exterior_wall(a_m: Vector2, b_m: Vector2) -> int:
-	var walls: Array = _get_exterior_walls()
-	for i in range(walls.size()):
-		if typeof(walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = walls[i]
-		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		if (a.distance_to(a_m) <= 0.05 and b.distance_to(b_m) <= 0.05) or (a.distance_to(b_m) <= 0.05 and b.distance_to(a_m) <= 0.05):
-			return i
-	return -1
-
-
-func _find_exterior_wall_at(pos_m: Vector2) -> int:
-	var walls: Array = _get_exterior_walls()
-	var best_index: int = -1
-	var best_distance: float = 0.24
-	for i in range(walls.size()):
-		if typeof(walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = walls[i]
-		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		var distance: float = PlanGeometry.distance_to_segment(pos_m, a, b)
-		if distance <= best_distance:
-			best_distance = distance
-			best_index = i
-	return best_index
-
-
-func _apply_exterior_wall_properties() -> void:
-	var walls: Array = _get_exterior_walls()
-	if selected_exterior_wall_index < 0 or selected_exterior_wall_index >= walls.size():
-		_set_status("Selecciona un muro exterior antes de aplicar propiedades.")
-		return
-	var fields: Dictionary = _props.read_wall()
-	var a: Vector2 = fields.get("start", Vector2.ZERO)
-	var b: Vector2 = fields.get("end", Vector2.ZERO)
-	if a.distance_to(b) < GRID_M:
-		_set_status("El muro exterior es demasiado corto.")
-		return
-	_push_undo_snapshot("edit_exterior_wall")
-	var wall: Dictionary = walls[selected_exterior_wall_index]
-	wall["a"] = Serializer.vector_to_data(_snap_m(a))
-	wall["b"] = Serializer.vector_to_data(_snap_m(b))
-	wall["thickness_m"] = maxf(0.05, float(fields.get("thickness_m", 0.16)))
-	walls[selected_exterior_wall_index] = wall
-	editor_data["exterior_walls"] = walls
-	_set_status("Muro exterior actualizado.")
-	queue_redraw()
-
-
-func _mark_selected_room_exterior() -> void:
-	if selected_room_id < 0:
-		_set_status("Selecciona una habitación para marcar su contorno exterior.")
-		return
-	_mark_room_as_exterior(selected_room_id)
-
-
-func _mark_room_as_exterior(room_id: int) -> void:
-	var rect: Rect2 = _get_room_rect(room_id)
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-		return
-	_push_undo_snapshot("mark_room_exterior")
-	_add_exterior_wall(rect.position, rect.position + Vector2(rect.size.x, 0.0), 0.16, false)
-	_add_exterior_wall(rect.position + Vector2(rect.size.x, 0.0), rect.position + rect.size, 0.16, false)
-	_add_exterior_wall(rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y), 0.16, false)
-	_add_exterior_wall(rect.position + Vector2(0.0, rect.size.y), rect.position, 0.16, false)
-	_select_room(room_id)
-	_set_status("Contorno exterior marcado para habitación %d." % room_id)
-	queue_redraw()
-
-
 func _find_wall_at(pos_m: Vector2) -> Dictionary:
 	var best: Dictionary = {}
 	var best_distance: float = 0.22
@@ -6163,10 +5955,6 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 	if wall_seg.size() != 2:
 		return false
 
-	var exterior_walls: Array = _get_exterior_walls()
-	if not exterior_walls.is_empty() and not _wall_segment_matches_exterior(wall_seg[0], wall_seg[1]):
-		return false
-
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
@@ -6182,18 +5970,6 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 		if other_seg.size() == 2 and _segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
 			return false
 	return true
-
-
-func _wall_segment_matches_exterior(a: Vector2, b: Vector2) -> bool:
-	for raw_wall in _get_exterior_walls():
-		if typeof(raw_wall) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = raw_wall
-		var wa: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var wb: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		if _segments_overlap_m(a, b, wa, wb):
-			return true
-	return false
 
 
 func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVector2Array:
@@ -6560,17 +6336,7 @@ func _delete_selected_room() -> void:
 
 
 func _delete_selected() -> void:
-	if selected_exterior_wall_index >= 0:
-		var walls: Array = _get_exterior_walls()
-		if selected_exterior_wall_index < walls.size():
-			_push_undo_snapshot("delete_exterior_wall")
-			walls.remove_at(selected_exterior_wall_index)
-			editor_data["exterior_walls"] = walls
-		_clear_selection()
-		_set_status("Muro exterior eliminado.")
-		queue_redraw()
-		return
-	elif selected_detector_index >= 0:
+	if selected_detector_index >= 0:
 		var dets: Array = editor_data.get("detectors", [])
 		if selected_detector_index < dets.size():
 			_push_undo_snapshot("delete_detector")
@@ -6699,7 +6465,6 @@ func _plan_view() -> Dictionary:
 		"ghost_rooms": ghost.get("rooms", []),
 		"ghost_openings": ghost.get("openings", []),
 		"rooms": _plan_rooms_view(),
-		"exterior_walls": _plan_exterior_walls_view(),
 		"openings": _plan_openings_view(),
 		"objects": _plan_objects_view(),
 		"player_start": _plan_player_start_view(),
@@ -6830,30 +6595,6 @@ func _room_handles_view(room_id: int) -> Dictionary:
 	}
 
 
-func _plan_exterior_walls_view() -> Array:
-	var out: Array = []
-	var walls: Array = _get_exterior_walls()
-	for i in range(walls.size()):
-		if typeof(walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = walls[i]
-		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
-		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
-		if a.distance_to(b) <= 0.001:
-			continue
-		var selected: bool = i == selected_exterior_wall_index
-		out.append({
-			"a_px": _m_to_px(a),
-			"b_px": _m_to_px(b),
-			"color": _exterior_wall_selected_color if selected else _exterior_wall_color,
-			"thickness_px": maxf(3.0, float(wall.get("thickness_m", 0.16)) * pixels_per_meter),
-			"selected": selected
-		})
-	return out
-
-
-## Las puertas llevan ademas su barrido, que es lo que dice hacia donde abren y
-## por que lado tienen la bisagra.
 func _plan_openings_view() -> Array:
 	var out: Array = []
 	var openings: Array = editor_data.get("openings_data", [])
@@ -7060,13 +6801,6 @@ func _draw_drag_preview() -> void:
 	# Lo que se ve mientras se escribe una medida es ya el resultado: el mismo
 	# punto final que usara Intro.
 	var preview_end_m: Vector2 = _drag_end_point()
-	if drag == Drag.EXTERIOR_WALL:
-		draw_line(_m_to_px(drag_start_m), _m_to_px(preview_end_m), _exterior_wall_selected_color, 4.0)
-		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(preview_end_m))
-		var wall_label: String = "Muro exterior %.2f m" % wall_length_m
-		if _typed_measure != "":
-			wall_label = "⌨ %s m   ·   Intro para crear" % _typed_measure
-		_draw_screen_string(_m_to_px(preview_end_m), Vector2(8.0, -8.0), wall_label, 240.0, 13, _exterior_wall_selected_color)
 	if drag == Drag.ROOM_RECT:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
@@ -7183,7 +6917,7 @@ func _reset_hover_help() -> void:
 
 
 func _is_editor_dragging_anything() -> bool:
-	return is_middle_panning or drag == Drag.ROOM_RECT or drag == Drag.EXTERIOR_WALL or drag == Drag.ROOM_GEOMETRY or drag == Drag.OBJECT
+	return is_middle_panning or drag == Drag.ROOM_RECT or drag == Drag.ROOM_GEOMETRY or drag == Drag.OBJECT
 
 
 func _hover_help_text_at(pos_m: Vector2) -> String:
@@ -7212,10 +6946,6 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 
 	if _player_start_hit_test(pos_m):
 		return "Inicio FP: aparición del jugador"
-
-	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
-	if exterior_wall_index >= 0:
-		return "Muro exterior %d" % exterior_wall_index
 
 	var room_id: int = _find_room_at(pos_m)
 	if room_id >= 0:
@@ -7545,7 +7275,6 @@ func _bind_existing_ui() -> bool:
 		return false
 
 	var btn_select := _ui_root.get_node_or_null("TopBar/HBox/BtnSelect") as Button
-	var btn_exterior := _ui_root.get_node_or_null("TopBar/HBox/BtnExteriorWall") as Button
 	var btn_room := _ui_root.get_node_or_null("TopBar/HBox/BtnRoom") as Button
 	var btn_corridor := _ui_root.get_node_or_null("TopBar/HBox/BtnCorridorL") as Button
 	var btn_stairs := _ui_root.get_node_or_null("TopBar/HBox/BtnStairs") as Button
@@ -7561,12 +7290,11 @@ func _bind_existing_ui() -> bool:
 
 	# Todos los botones del toolbar viven en ScenarioEditorScene.tscn; si
 	# falta alguno se aborta el bind (la escena es la fuente de verdad).
-	var required_buttons: Array[Button] = [btn_select, btn_exterior, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_player_start, btn_delete]
+	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_player_start, btn_delete]
 	for b in required_buttons:
 		if b == null:
 			return false
 	btn_select.text = _tool_display_name(Tool.SELECT)
-	btn_exterior.text = _tool_display_name(Tool.EXTERIOR_WALL)
 	btn_room.text = _tool_display_name(Tool.ROOM)
 	btn_corridor.text = _tool_display_name(Tool.CORRIDOR_L)
 	btn_stairs.text = _tool_display_name(Tool.STAIRS)
@@ -7584,7 +7312,6 @@ func _bind_existing_ui() -> bool:
 
 	_tool_buttons.clear()
 	_register_tool_button(btn_select, Tool.SELECT)
-	_register_tool_button(btn_exterior, Tool.EXTERIOR_WALL)
 	_register_tool_button(btn_room, Tool.ROOM)
 	_register_tool_button(btn_corridor, Tool.CORRIDOR_L)
 	_register_tool_button(btn_stairs, Tool.STAIRS)

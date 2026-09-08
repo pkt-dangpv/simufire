@@ -17,7 +17,7 @@ extends Node
 ##
 ## Uso: godot --headless --path . tools/validate_editor_live_3d.tscn
 
-const TOOL_ROOM: int = 2
+const TOOL_ROOM: int = 1
 ## Margen sobre el retardo del editor (0,25 s), en fotogramas de fisica.
 const SETTLE_FRAMES: int = 40
 

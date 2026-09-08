@@ -20,13 +20,13 @@ extends Node
 ##
 ## Uso: godot --headless --path . tools/validate_editor_floor_copy.tscn
 
-const TOOL_ROOM: int = 2
-const TOOL_CORRIDOR: int = 3
-const TOOL_STAIRS: int = 4
-const TOOL_OBJECT: int = 8
-const TOOL_PLAYER_START: int = 10
-const TOOL_DETECTOR: int = 12
-const TOOL_VICTIM: int = 13
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
+const TOOL_STAIRS: int = 3
+const TOOL_OBJECT: int = 7
+const TOOL_PLAYER_START: int = 9
+const TOOL_DETECTOR: int = 11
+const TOOL_VICTIM: int = 12
 
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const StairPlanRules := preload("res://editor/StairPlanRules.gd")

@@ -21,13 +21,13 @@ extends Node
 
 const Review := preload("res://editor/ScenarioReview.gd")
 
-const TOOL_ROOM: int = 2
-const TOOL_CORRIDOR: int = 3
-const TOOL_STAIRS: int = 4
-const TOOL_WINDOW: int = 7
-const TOOL_OBJECT: int = 8
-const TOOL_IGNITION: int = 9
-const TOOL_PLAYER_START: int = 10
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
+const TOOL_STAIRS: int = 3
+const TOOL_WINDOW: int = 6
+const TOOL_OBJECT: int = 7
+const TOOL_IGNITION: int = 8
+const TOOL_PLAYER_START: int = 9
 
 var _failures: Array[String] = []
 var _editor: Node = null

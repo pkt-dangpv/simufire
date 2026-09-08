@@ -16,7 +16,6 @@ extends SceneTree
 ## Los numeros de herramienta, con su nombre: el enum vive en el editor y aqui
 ## se escribe una vez para no sembrar el fichero de cifras sueltas.
 const SELECT: int = 0
-const EXTERIOR_WALL: int = 1
 const ROOM: int = 2
 const CORRIDOR_L: int = 3
 const STAIRS: int = 4
@@ -87,11 +86,6 @@ func _process(_delta: float) -> bool:
 		["press", Vector2(7.0, 1.0)],
 		["release", Vector2(9.4, 4.4)]
 	])
-	_gesture("dibujar un muro exterior", EXTERIOR_WALL, [
-		["press", Vector2(-0.4, 6.4)],
-		["motion", Vector2(4.0, 6.4)],
-		["release", Vector2(7.6, 6.4)]
-	])
 	# La medida escrita: se arrastra a ojo y se teclea 4;3.
 	_gesture("dibujar una sala escribiendo 4;3", ROOM, [
 		["press", Vector2(0.0, 6.0)],
@@ -104,12 +98,6 @@ func _process(_delta: float) -> bool:
 		["press", Vector2(0.0, 6.0)],
 		["motion", Vector2(1.3, 7.1)],
 		["type", "3,5"],
-		["enter", Vector2.ZERO]
-	])
-	_gesture("muro exterior escribiendo 6", EXTERIOR_WALL, [
-		["press", Vector2(0.0, 6.0)],
-		["motion", Vector2(1.0, 6.0)],
-		["type", "6"],
 		["enter", Vector2.ZERO]
 	])
 	_gesture("dibujar una sala, a medio arrastre", ROOM, [
@@ -227,11 +215,11 @@ func _gesture(label: String, tool_id: int, steps: Array) -> void:
 
 
 func _dump_state() -> void:
-	_out.append("  seleccion: sala=%d apertura=%d objeto=%d/%d detector=%d victima=%d inicio=%d muro=%d" % [
+	_out.append("  seleccion: sala=%d apertura=%d objeto=%d/%d detector=%d victima=%d inicio=%d" % [
 		_editor.selected_room_id, _editor.selected_opening_index,
 		_editor.selected_object_room_id, _editor.selected_object_index,
 		_editor.selected_detector_index, _editor.selected_victim_index,
-		_editor.selected_player_start_room_id, _editor.selected_exterior_wall_index
+		_editor.selected_player_start_room_id
 	])
 	_out.append("  arrastre: %s modo_objeto=%d modo_sala=%d" % [
 		DRAG_NAMES[int(_editor.drag)] if int(_editor.drag) < DRAG_NAMES.size() else str(_editor.drag),

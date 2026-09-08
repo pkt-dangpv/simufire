@@ -8,8 +8,8 @@ extends SceneTree
 ##
 ##   godot --headless --path . --script res://tools/probe_corridor_corner.gd
 
-const TOOL_ROOM: int = 2
-const TOOL_CORRIDOR: int = 3
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
 
 var _editor: Node = null
 var _frames: int = 0
