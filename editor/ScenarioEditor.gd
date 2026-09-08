@@ -1272,6 +1272,24 @@ func _on_editor_3d_player_start_clicked(room_id: int) -> void:
 func _handle_3d_draw_input(event: InputEvent) -> bool:
 	if not _tool_draws_geometry(current_tool):
 		return false
+	# El teclado escribe medidas mientras se arrastra, igual que en planta. Sin
+	# esto la vista 3D anunciaba en su linea de estado algo que no hacia: "puedes
+	# escribir la medida mientras arrastras".
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		if not key_event.pressed or key_event.echo:
+			return false
+		if not (_measure_input_active() and _handle_measure_key(key_event)):
+			return false
+		if drag == Drag.NONE:
+			# Intro ha cerrado el dibujo con la medida escrita.
+			_clear_3d_draw_preview()
+			_sync_editor_3d_after_direct_edit()
+		else:
+			_update_3d_draw_preview()
+			_show_typed_measure_in_status()
+		get_viewport().set_input_as_handled()
+		return true
 	if event is InputEventMouseButton:
 		var mouse_event: InputEventMouseButton = event
 		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
@@ -1298,6 +1316,40 @@ func _handle_3d_draw_input(event: InputEvent) -> bool:
 		get_viewport().set_input_as_handled()
 		return true
 	return false
+
+
+## La coletilla que salva un arrastre plano en 3D.
+##
+## En perspectiva, un gesto casi horizontal en pantalla cae casi paralelo al
+## suelo y se convierte en una franja de unos centimetros de fondo: pasa mucho
+## dibujando cerca del horizonte, y "demasiado pequeña" a secas no dice como
+## salir de ahi. La salida es la misma que en planta -escribir la medida-, solo
+## que en 3D hace falta decirlo.
+func _flat_drag_hint(rect: Rect2) -> String:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return ""
+	if minf(rect.size.x, rect.size.y) > GRID_M:
+		return ""
+	return " En 3D, cerca del horizonte el arrastre se aplana: gira la vista o escribe la medida (4;3 e Intro) sin soltar."
+
+
+## Lo que se lleva tecleado, en la linea de estado.
+##
+## En planta la medida se pinta en el plano, al lado del cursor. En 3D no hay
+## plano donde pintarla, y escribir a ciegas no es escribir: se dice aqui.
+func _show_typed_measure_in_status() -> void:
+	if _typed_measure == "":
+		_set_status("Escribe la medida y pulsa Intro. Escape la borra.")
+		return
+	var values: PackedFloat32Array = _parse_typed_measure()
+	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, _drag_end_point())
+	if drag == Drag.EXTERIOR_WALL or current_tool == Tool.CORRIDOR_L:
+		_set_status("Medida: %s m de largo. Intro para crear." % _typed_measure)
+		return
+	if values.size() > 1:
+		_set_status("Medida: %s → %.2f × %.2f m. Intro para crear." % [_typed_measure, rect.size.x, rect.size.y])
+		return
+	_set_status("Medida: %s m de ancho; escribe ;alto o pulsa Intro." % _typed_measure)
 
 
 ## Las cuatro que trazan geometria arrastrando.
@@ -1328,12 +1380,15 @@ func _update_3d_draw_preview() -> void:
 		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		preview.material_override = material
 		_editor_world_3d.add_child(preview)
-	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, drag_current_m)
+	# El final del trazo, no la posicion del raton: si hay medida escrita, la caja
+	# ensena esa, que es lo que se va a crear al pulsar Intro.
+	var end_m: Vector2 = _drag_end_point()
+	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, end_m)
 	var height_m: float = 0.12 if drag == Drag.EXTERIOR_WALL else 2.60
 	var size_m: Vector2 = rect.size
 	if drag == Drag.EXTERIOR_WALL:
 		# Un muro no es una caja: es una tirada estrecha entre los dos puntos.
-		var along: Vector2 = drag_current_m - drag_start_m
+		var along: Vector2 = end_m - drag_start_m
 		size_m = Vector2(maxf(0.16, absf(along.x)), maxf(0.16, absf(along.y)))
 		height_m = 2.60
 	var box := preview.mesh as BoxMesh
@@ -2919,7 +2974,8 @@ func _handle_release(pos_m: Vector2) -> void:
 		var stair_long_m: float = StairGeometry.long_span_m(rect, stair_dir)
 		var stair_cross_m: float = StairGeometry.cross_span_m(rect, stair_dir)
 		if stair_long_m < GRID_M * 5.0 or stair_cross_m < GRID_M * 3.0:
-			_set_status("La escalera es demasiado pequeña: arrastra al menos %.2f m de largo y %.2f m de ancho." % [GRID_M * 5.0, GRID_M * 3.0])
+			_set_status("La escalera es demasiado pequeña (%.2f × %.2f m): al menos %.2f m de largo y %.2f m de ancho.%s" % [
+				stair_long_m, stair_cross_m, GRID_M * 5.0, GRID_M * 3.0, _flat_drag_hint(rect)])
 			queue_redraw()
 			return
 		_push_undo_snapshot("create_stairs")
@@ -2928,7 +2984,8 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	if rect.size.x < GRID_M or rect.size.y < GRID_M:
-		_set_status("La habitación es demasiado pequeña.")
+		_set_status("La habitación es demasiado pequeña (%.2f × %.2f m).%s" % [
+			rect.size.x, rect.size.y, _flat_drag_hint(rect)])
 		queue_redraw()
 		return
 
