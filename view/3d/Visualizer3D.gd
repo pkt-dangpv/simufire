@@ -632,6 +632,20 @@ func clear_selection() -> void:
 @export var allow_left_click_picking: bool = true
 
 
+## Cuadra la vista con los ejes del plano: el giro se lleva al múltiplo de 90°
+## más cercano, sin tocar la inclinación.
+##
+## Dibujando en 3D esto no es estética. Con la vista girada 42°, un arrastre
+## cuadrado de 200 x 200 px en pantalla cae en diagonal sobre el plano, y como
+## la sala que sale es el rectángulo recto que lo envuelve, salía de 2,69 x 0,20
+## m: una tira. Con la vista cuadrada, el mismo gesto da 1,86 x 1,95 m, que es lo
+## que se ve dibujar.
+func align_yaw_to_plan_axes() -> void:
+	var quarter_turn: float = PI * 0.5
+	_orbit_y = roundf(_orbit_y / quarter_turn) * quarter_turn
+	_apply_camera_transform()
+
+
 func set_left_click_picking_enabled(enabled: bool) -> void:
 	allow_left_click_picking = enabled
 	if not enabled:

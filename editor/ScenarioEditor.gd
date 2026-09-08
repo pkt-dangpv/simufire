@@ -1262,8 +1262,16 @@ func _update_editor_visualizer_drag_mode() -> void:
 	# visor no puede quedárselo. Sin esto solo se podía dibujar la primera sala:
 	# en cuanto había una, el visor se comía el clic -para seleccionarla, o para
 	# deseleccionar si se pulsaba fuera- y el editor no llegaba a enterarse.
+	var drawing_in_3d: bool = in_3d and _tool_draws_geometry(current_tool)
 	if _editor_visualizer_3d.has_method("set_left_click_picking_enabled"):
-		_editor_visualizer_3d.set_left_click_picking_enabled(not (in_3d and _tool_draws_geometry(current_tool)))
+		_editor_visualizer_3d.set_left_click_picking_enabled(not drawing_in_3d)
+	# Y se cuadra la vista con los ejes del plano al coger una herramienta de
+	# dibujo. Con la vista girada 42°, arrastrar un cuadrado en pantalla daba una
+	# sala de 2,69 × 0,20 m: el gesto cae en diagonal sobre el plano y la sala es
+	# el rectángulo recto que lo envuelve. Cuadrada, el mismo gesto da 1,86 × 1,95.
+	# La inclinación no se toca, y se puede seguir orbitando con el botón derecho.
+	if drawing_in_3d and _editor_visualizer_3d.has_method("align_yaw_to_plan_axes"):
+		_editor_visualizer_3d.align_yaw_to_plan_axes()
 
 
 func _on_editor_fp_exit_requested() -> void:

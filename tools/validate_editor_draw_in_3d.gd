@@ -16,6 +16,11 @@ extends Node
 ##    e Intro sin soltar, igual que en planta. La linea de estado lo anunciaba en
 ##    3D desde el primer dia y no funcionaba: las teclas no llegaban.
 ##  - Dibujar en una PLANTA ALTA, donde el suelo no esta a cota cero.
+##  - Que un gesto CUADRADO en pantalla salga cuadrado en el plano. La vista 3D
+##    nace girada 42 grados, y con ese giro un arrastre de 200 x 200 px cae en
+##    diagonal sobre el plano: como la sala es el rectangulo recto que envuelve
+##    el trazo, salia de 2,69 x 0,20 m. Coger una herramienta de dibujo cuadra la
+##    vista con los ejes del plano, y entonces el mismo gesto da 1,86 x 1,95 m.
 ##
 ## OJO con cómo se manda el ratón: los eventos se EMPUJAN por el viewport, no se
 ## le pasan al editor a mano. La primera versión de esta guardia llamaba a
@@ -143,6 +148,28 @@ func _run() -> void:
 		if typeof(room) == TYPE_DICTIONARY and absf(float(Dictionary(room).get("floor_level_z_m", 0.0)) - upper_level_m) < 0.05:
 			upstairs += 1
 	_expect(upstairs == 1, "dibujar en 3D estando en la planta alta deja %d salas alli" % upstairs)
+
+	# Un cuadrado en pantalla tiene que caer cuadrado en el plano.
+	#
+	# Se mide el MAPEO y no la sala que sale: la sala pasa además por el encaje
+	# con las vecinas, que mueve aristas a propósito, y eso taparía lo que aquí se
+	# está probando.
+	editor.editor_data = _one_room_scenario()
+	editor.current_floor_index = 0
+	editor._set_editor_view_mode(MODE_3D)
+	await get_tree().process_frame
+	editor._set_tool(TOOL_ROOM)
+	var centre_px: Vector2 = viewport_size * Vector2(0.5, 0.55)
+	var corner_a: Variant = editor._screen_to_floor_m_3d(centre_px - Vector2(100.0, 100.0))
+	var corner_b: Variant = editor._screen_to_floor_m_3d(centre_px + Vector2(100.0, 100.0))
+	if typeof(corner_a) == TYPE_VECTOR2 and typeof(corner_b) == TYPE_VECTOR2:
+		var span: Vector2 = (Vector2(corner_b) - Vector2(corner_a)).abs()
+		var longest: float = maxf(span.x, span.y)
+		var shortest: float = maxf(0.001, minf(span.x, span.y))
+		_expect(longest / shortest < 1.6,
+			"un cuadrado de 200 × 200 px cae en el plano como %.2f × %.2f m: la vista no está cuadrada con el plano" % [span.x, span.y])
+	else:
+		_expect(false, "no se puede convertir la pantalla al plano con la herramienta de dibujo puesta")
 
 	# El arrastre plano: en perspectiva sale solo, y la negativa tiene que decir
 	# como salir de ahi en vez de dejarte mirando "demasiado pequeña".
