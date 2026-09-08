@@ -220,6 +220,11 @@ var _object_catalog: ItemList
 ## dónde está el ratón. Vacío quiere decir que no se está arrastrando nada.
 var _catalog_drag_kind: String = ""
 var _catalog_drag_screen: Vector2 = Vector2.ZERO
+## El panel del 3D en vivo, mientras se arrastra: "" quieto, "move" cambiando de
+## sitio, "resize" cambiando de tamaño.
+var _preview_3d_panel_drag: String = ""
+var _preview_3d_panel_drag_mouse: Vector2 = Vector2.ZERO
+var _preview_3d_panel_drag_rect := Rect2()
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
@@ -256,6 +261,9 @@ const PREVIEW_3D_DELAY_S: float = 0.25
 const PREVIEW_3D_FOLLOW_MS: int = 33
 ## Lo alto que se dibuja la pieza que se lleva en la mano, en la vista 3D.
 const CATALOG_GHOST_HEIGHT_M: float = 0.80
+## Lo mas pequeño que se puede dejar el panel del 3D en vivo sin que deje de
+## servir para mirar.
+const PREVIEW_3D_MIN_SIZE_PX := Vector2(240.0, 180.0)
 var _preview_3d_panel: PanelContainer
 var _preview_3d_viewport: SubViewport
 var _preview_3d_camera: Camera3D
@@ -947,6 +955,18 @@ func _bind_preview_3d() -> void:
 		_preview_3d_toggle.toggle_mode = true
 		if not _preview_3d_toggle.toggled.is_connected(_on_preview_3d_toggled):
 			_preview_3d_toggle.toggled.connect(_on_preview_3d_toggled)
+	# La barra del titulo mueve el panel y la esquina lo agranda. Era de tamaño y
+	# sitio fijos: servia para vigilar de reojo, no para trabajar mirandolo.
+	var header := _get_ui_node("Preview3DPanel/VBox/HeaderRow") as Control
+	if header != null:
+		header.mouse_filter = Control.MOUSE_FILTER_STOP
+		header.mouse_default_cursor_shape = Control.CURSOR_MOVE
+		header.tooltip_text = "Arrastra esta barra para llevarte la vista 3D a otra esquina."
+		if not header.gui_input.is_connected(_on_preview_3d_header_gui_input):
+			header.gui_input.connect(_on_preview_3d_header_gui_input)
+	var grip := _get_ui_node("Preview3DPanel/VBox/Preview3DFooter/Preview3DResizeGrip") as Button
+	if grip != null and not grip.gui_input.is_connected(_on_preview_3d_grip_gui_input):
+		grip.gui_input.connect(_on_preview_3d_grip_gui_input)
 	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DFrame") as Button, _frame_preview_3d)
 	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DClose") as Button, _close_preview_3d)
 	_set_preview_3d_enabled(false)
@@ -954,6 +974,64 @@ func _bind_preview_3d() -> void:
 
 func _on_preview_3d_toggled(pressed: bool) -> void:
 	_set_preview_3d_enabled(pressed)
+
+
+# ── Mover y agrandar el panel del 3D en vivo ────────────────────────────────
+func _on_preview_3d_header_gui_input(event: InputEvent) -> void:
+	_begin_preview_3d_panel_drag(event, "move")
+
+
+func _on_preview_3d_grip_gui_input(event: InputEvent) -> void:
+	_begin_preview_3d_panel_drag(event, "resize")
+
+
+func _begin_preview_3d_panel_drag(event: InputEvent, mode: String) -> void:
+	if _preview_3d_panel == null or not (event is InputEventMouseButton):
+		return
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	_preview_3d_panel_drag = mode
+	_preview_3d_panel_drag_mouse = get_viewport().get_mouse_position()
+	_preview_3d_panel_drag_rect = Rect2(_preview_3d_panel.position, _preview_3d_panel.size)
+
+
+## Cierto si el evento era para mover o agrandar el panel.
+func _handle_preview_3d_panel_drag(event: InputEvent) -> bool:
+	if _preview_3d_panel_drag == "" or _preview_3d_panel == null:
+		return false
+	if event is InputEventMouseMotion:
+		var delta: Vector2 = (event as InputEventMouseMotion).position - _preview_3d_panel_drag_mouse
+		if _preview_3d_panel_drag == "move":
+			_place_preview_3d_panel(_preview_3d_panel_drag_rect.position + delta, _preview_3d_panel_drag_rect.size)
+		else:
+			_place_preview_3d_panel(_preview_3d_panel_drag_rect.position, _preview_3d_panel_drag_rect.size + delta)
+		return true
+	if event is InputEventMouseButton:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and not mouse_event.pressed:
+			_preview_3d_panel_drag = ""
+			return true
+	return false
+
+
+## Deja el panel donde se pide, sin que se salga de la pantalla ni se quede tan
+## pequeño que no se vea nada. Se ancla arriba-izquierda: con el anclaje de
+## esquina que traia, mover y redimensionar peleaban entre si.
+func _place_preview_3d_panel(position: Vector2, size: Vector2) -> void:
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+	var clamped_size := Vector2(
+		clampf(size.x, PREVIEW_3D_MIN_SIZE_PX.x, screen.x),
+		clampf(size.y, PREVIEW_3D_MIN_SIZE_PX.y, screen.y))
+	var clamped_position := Vector2(
+		clampf(position.x, 0.0, maxf(0.0, screen.x - clamped_size.x)),
+		clampf(position.y, 0.0, maxf(0.0, screen.y - clamped_size.y)))
+	_preview_3d_panel.set_anchors_preset(Control.PRESET_TOP_LEFT, false)
+	_preview_3d_panel.offset_left = clamped_position.x
+	_preview_3d_panel.offset_top = clamped_position.y
+	_preview_3d_panel.offset_right = clamped_position.x + clamped_size.x
+	_preview_3d_panel.offset_bottom = clamped_position.y + clamped_size.y
+	_preview_3d_panel.size = clamped_size
 
 
 func _close_preview_3d() -> void:
@@ -3093,6 +3171,10 @@ func _input(event: InputEvent) -> void:
 	# plano, así que se mira aquí: en _unhandled_input ya sería tarde, porque el
 	# panel se queda el evento.
 	if _handle_catalog_drag_input(event):
+		get_viewport().set_input_as_handled()
+		return
+	# Mover o agrandar el panel del 3D: empieza en un mando y sigue fuera de él.
+	if _handle_preview_3d_panel_drag(event):
 		get_viewport().set_input_as_handled()
 		return
 	if _editor_view_mode != EditorViewMode.MODE_2D:

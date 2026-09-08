@@ -10,6 +10,10 @@ extends Node
 ## Rehacer la malla cuesta unos 13 ms con un piso normal (medido en
 ## tools/probe_editor_3d_cost.gd), asi que se rehace cuando dejas de mover.
 ##
+## Y que el panel se pueda mover y agrandar: era de tamaño y sitio fijos -320 x
+## 236 px clavados en una esquina-, así que servía para vigilar de reojo pero no
+## para trabajar mirándolo.
+##
 ## Y vigila los MUEBLES mientras se arrastra la sala. Antes se apagaban para que
 ## la reconstruccion saliera barata, y al mover una habitacion sus muebles
 ## desaparecian hasta soltarla. Ahora tienen que seguir puestos y moverse con
@@ -87,6 +91,27 @@ func _run() -> void:
 		_expect(furniture_shift.distance_to(room_shift) < 0.05,
 			"el mueble no sigue a su habitación: la sala se mueve %s y el mueble %s" % [str(room_shift), str(furniture_shift)])
 	editor._handle_release(Vector2(6.0, 4.5))
+
+	# El panel se lleva a otro sitio y se agranda, y no se sale de la pantalla.
+	var panel := editor.get_node_or_null("CanvasLayer/UI/Preview3DPanel") as Control
+	_expect(panel != null, "falta el panel del 3D en vivo en la escena")
+	if panel != null:
+		var start_rect := Rect2(panel.position, panel.size)
+		editor._place_preview_3d_panel(Vector2(60.0, 40.0), start_rect.size)
+		_expect(panel.position.distance_to(Vector2(60.0, 40.0)) < 1.0,
+			"el panel no se deja mover: se pidió (60, 40) y está en %s" % str(panel.position))
+		var bigger: Vector2 = start_rect.size + Vector2(180.0, 120.0)
+		editor._place_preview_3d_panel(Vector2(60.0, 40.0), bigger)
+		_expect(panel.size.distance_to(bigger) < 1.0,
+			"el panel no se deja agrandar: se pidió %s y mide %s" % [str(bigger), str(panel.size)])
+		# Ni tan pequeño que no se vea, ni fuera de la pantalla.
+		editor._place_preview_3d_panel(Vector2(60.0, 40.0), Vector2(10.0, 10.0))
+		_expect(panel.size.x >= editor.PREVIEW_3D_MIN_SIZE_PX.x - 0.5 and panel.size.y >= editor.PREVIEW_3D_MIN_SIZE_PX.y - 0.5,
+			"el panel se deja encoger hasta %s, por debajo del mínimo" % str(panel.size))
+		var screen: Vector2 = editor.get_viewport().get_visible_rect().size
+		editor._place_preview_3d_panel(screen + Vector2(400.0, 400.0), panel.size)
+		_expect(panel.position.x + panel.size.x <= screen.x + 0.5 and panel.position.y + panel.size.y <= screen.y + 0.5,
+			"el panel se escapa de la pantalla: %s en una de %s" % [str(Rect2(panel.position, panel.size)), str(screen)])
 
 	# Y al pasar a 3D a pantalla completa el panel se aparta solo.
 	editor._set_editor_view_mode(1)
@@ -166,7 +191,7 @@ func _expect(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("[validate_editor_live_3d] PASS: el panel se enciende, se rehace al dibujar y los muebles siguen a su sala")
+		print("[validate_editor_live_3d] PASS: el panel se enciende, se rehace al dibujar, se mueve y se agranda, y los muebles siguen a su sala")
 		get_tree().quit(0)
 		return
 	print("[validate_editor_live_3d] FAIL:")
