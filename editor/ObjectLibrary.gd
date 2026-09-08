@@ -21,6 +21,41 @@ static func get_object_kinds() -> Array[String]:
 	]
 
 
+## El nombre que se enseña en el catálogo. El `kind` es el identificador interno
+## y va en inglés porque lo comparten los datos guardados y el motor; lo que lee
+## una persona no tiene por qué ser eso.
+const DISPLAY_NAMES: Dictionary = {
+	"sofa": "Sofá",
+	"armchair": "Sillón",
+	"bed": "Cama",
+	"table": "Mesa",
+	"coffee_table": "Mesa de centro",
+	"desk": "Escritorio",
+	"curtain": "Cortina",
+	"wardrobe": "Armario",
+	"bookcase": "Estantería",
+	"dresser": "Cómoda",
+	"tv_stand": "Mueble de TV",
+	"rug": "Alfombra",
+	"kitchen_unit": "Módulo de cocina",
+	"plastic_bin": "Papelera"
+}
+
+
+static func display_name(kind: String) -> String:
+	return String(DISPLAY_NAMES.get(kind, kind))
+
+
+## Lo que ocupa en planta, sin fabricar el objeto entero. Lo usa el arrastre para
+## enseñar la huella de verdad mientras la llevas al plano.
+static func size_m(kind: String) -> Vector2:
+	var sample: Dictionary = create_object(kind, "", -1, Vector2.ZERO)
+	var raw: Variant = sample.get("size_m", {"x": 1.0, "y": 1.0})
+	if typeof(raw) == TYPE_VECTOR2:
+		return raw
+	return Vector2(float(raw.get("x", 1.0)), float(raw.get("y", 1.0)))
+
+
 static func create_object(kind: String, id: String, room_id: int, position_m: Vector2) -> Dictionary:
 	var base: Dictionary = _base_object(id, room_id, position_m)
 	match kind:

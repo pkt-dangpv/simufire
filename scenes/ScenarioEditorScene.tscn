@@ -566,42 +566,14 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "OBJETO A COLOCAR"
 
-[node name="ObjectTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=137288235]
-tooltip_text = "Tipo de objeto que colocará la herramienta OBJETO. Fija su carga de fuego, su HRR y cómo se dibuja."
+[node name="ObjectCatalog" type="ItemList" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=137288235]
+custom_minimum_size = Vector2(0, 168)
+tooltip_text = "Catálogo de mobiliario. Arrastra una pieza al plano para colocarla, o elígela aquí y pulsa dentro de una habitación. El tipo fija su carga de fuego, su HRR y cómo se dibuja."
 visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-selected = 0
-item_count = 14
-popup/item_0/text = "sofa"
-popup/item_0/id = 0
-popup/item_1/text = "armchair"
-popup/item_1/id = 1
-popup/item_2/text = "bed"
-popup/item_2/id = 2
-popup/item_3/text = "table"
-popup/item_3/id = 3
-popup/item_4/text = "coffee_table"
-popup/item_4/id = 4
-popup/item_5/text = "desk"
-popup/item_5/id = 5
-popup/item_6/text = "curtain"
-popup/item_6/id = 6
-popup/item_7/text = "wardrobe"
-popup/item_7/id = 7
-popup/item_8/text = "bookcase"
-popup/item_8/id = 8
-popup/item_9/text = "dresser"
-popup/item_9/id = 9
-popup/item_10/text = "tv_stand"
-popup/item_10/id = 10
-popup/item_11/text = "rug"
-popup/item_11/id = 11
-popup/item_12/text = "kitchen_unit"
-popup/item_12/id = 12
-popup/item_13/text = "plastic_bin"
-popup/item_13/id = 13
+allow_reselect = true
 
 [node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1659549896]
 tooltip_text = "Ruta del fichero de escenario que usan GUARDAR y CARGAR. user:// es la carpeta de datos del usuario."

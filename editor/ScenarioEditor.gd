@@ -215,7 +215,11 @@ var _unsaved_changes: bool = false
 var _ui_root: Control
 var _status_label: Label
 var _path_edit: LineEdit
-var _object_kind_option: OptionButton
+var _object_catalog: ItemList
+## La pieza que se lleva en la mano mientras se arrastra desde el catálogo, y
+## dónde está el ratón. Vacío quiere decir que no se está arrastrando nada.
+var _catalog_drag_kind: String = ""
+var _catalog_drag_screen: Vector2 = Vector2.ZERO
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
@@ -250,6 +254,8 @@ const PREVIEW_3D_DELAY_S: float = 0.25
 ## 60 Hz son 16,7, asi que 30 veces por segundo es lo que cabe sin que el plano
 ## se note pesado. Al soltar se rehace entero, ya con los muebles.
 const PREVIEW_3D_FOLLOW_MS: int = 33
+## Lo alto que se dibuja la pieza que se lleva en la mano, en la vista 3D.
+const CATALOG_GHOST_HEIGHT_M: float = 0.80
 var _preview_3d_panel: PanelContainer
 var _preview_3d_viewport: SubViewport
 var _preview_3d_camera: Camera3D
@@ -3083,6 +3089,12 @@ func _delete_selected_3d_simple() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# El arrastre del catálogo empieza en un mando de la interfaz y termina en el
+	# plano, así que se mira aquí: en _unhandled_input ya sería tarde, porque el
+	# panel se queda el evento.
+	if _handle_catalog_drag_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if _editor_view_mode != EditorViewMode.MODE_2D:
 		return
 	if not (event is InputEventKey):
@@ -3250,6 +3262,12 @@ func _screen_to_m(screen_pos: Vector2) -> Vector2:
 func _screen_to_m_raw(screen_pos: Vector2) -> Vector2:
 	var local_px: Vector2 = get_global_transform_with_canvas().affine_inverse() * screen_pos
 	return local_px / pixels_per_meter
+
+
+## El camino de vuelta de _screen_to_m_raw(): de metros del plano a píxeles de la
+## pantalla. Hace falta para soltar cosas donde el usuario apunta.
+func _m_to_screen(pos_m: Vector2) -> Vector2:
+	return get_global_transform_with_canvas() * (pos_m * pixels_per_meter)
 
 
 func _screen_to_m_for_tool(screen_pos: Vector2) -> Vector2:
@@ -5398,14 +5416,15 @@ func _find_opening_at(pos_m: Vector2) -> int:
 	return -1
 
 
-func _create_object_at(pos_m: Vector2) -> void:
+## Coloca una pieza. Sin `kind`, la elegida en el catálogo; el arrastre pasa la
+## suya, que es la que el usuario tiene cogida.
+func _create_object_at(pos_m: Vector2, kind_override: String = "") -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitación para colocar un objeto.")
+		_set_status("Suelta la pieza dentro de una habitación: el mobiliario vive en una sala.")
 		return
 
-	var selected: int = _object_kind_option.selected if _object_kind_option != null else -1
-	var kind: String = _object_kind_option.get_item_text(selected) if _object_kind_option != null and selected >= 0 else "sofa"
+	var kind: String = kind_override if kind_override != "" else _selected_object_kind()
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
@@ -5416,7 +5435,7 @@ func _create_object_at(pos_m: Vector2) -> void:
 	obj["visual_pose_locked"] = true
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
-	_hand_over_to_selection("Objeto %s colocado en habitación %d" % [kind, room_id])
+	_hand_over_to_selection("%s colocado en habitación %d" % [ObjectLibraryScript.display_name(kind), room_id])
 	queue_redraw()
 
 
@@ -6450,6 +6469,26 @@ func _draw() -> void:
 		return
 	EditorDraw2D.plan(self, _plan_view())
 	_draw_drag_preview()
+	_draw_catalog_drag_ghost()
+
+
+## La pieza que se lleva del catálogo, dibujada a tamaño real bajo el cursor: es
+## lo que convierte "elige y pulsa" en "coge y suelta".
+func _draw_catalog_drag_ghost() -> void:
+	if _catalog_drag_kind == "":
+		return
+	var size_m: Vector2 = ObjectLibraryScript.size_m(_catalog_drag_kind)
+	var center_m: Vector2 = _screen_to_m(_catalog_drag_screen)
+	var rect_px: Rect2 = _rect_to_px(Rect2(center_m - size_m * 0.5, size_m))
+	var inside: bool = _find_room_at(center_m) >= 0
+	var fill: Color = Color(1.0, 0.55, 0.15, 0.30) if inside else Color(0.85, 0.20, 0.20, 0.22)
+	var line: Color = Color(1.0, 0.70, 0.30, 0.95) if inside else Color(1.0, 0.45, 0.45, 0.85)
+	draw_rect(rect_px, fill, true)
+	draw_rect(rect_px, line, false, 2.0)
+	var label: String = ObjectLibraryScript.display_name(_catalog_drag_kind)
+	if not inside:
+		label += "  ·  fuera de habitación"
+	_draw_screen_string(rect_px.position, Vector2(0.0, -6.0), label, 260.0, 13, line)
 
 
 ## Junta el escenario con el estado de la interfaz y devuelve el plano ya
@@ -7327,7 +7366,7 @@ func _bind_existing_ui() -> bool:
 	if btn_victim != null:
 		_register_tool_button(btn_victim, Tool.VICTIM)
 
-	_object_kind_option = _get_left_node("ObjectTypeOption") as OptionButton
+	_object_catalog = _get_left_node("ObjectCatalog") as ItemList
 	_path_edit = _get_left_node("PathEdit") as LineEdit
 	_scenario_option = _get_left_node("ScenarioOption") as OptionButton
 	_hvac_option = _get_left_node("HVACRow/HVACOption") as OptionButton
@@ -7352,7 +7391,7 @@ func _bind_existing_ui() -> bool:
 		_props.action_requested.connect(_on_property_panel_action)
 	_populate_stair_turn_options(_props.stair_turn_option())
 
-	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
+	if _object_catalog == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false
 	if not props_ok:
 		return false
@@ -7522,12 +7561,134 @@ func _bind_floor_controls() -> void:
 	_sync_floor_controls()
 
 
+## El catálogo: cada pieza con su nombre en castellano y su medida, que es lo que
+## hace falta para elegir. El identificador interno viaja en la metadata.
 func _populate_object_type_option() -> void:
-	if _object_kind_option == null:
+	if _object_catalog == null:
 		return
-	_object_kind_option.clear()
+	_object_catalog.clear()
 	for kind in ObjectLibraryScript.get_object_kinds():
-		_object_kind_option.add_item(kind)
+		var size_m: Vector2 = ObjectLibraryScript.size_m(kind)
+		var index: int = _object_catalog.add_item("%s  ·  %.2f × %.2f m" % [
+			ObjectLibraryScript.display_name(kind), size_m.x, size_m.y])
+		_object_catalog.set_item_metadata(index, kind)
+		_object_catalog.set_item_tooltip(index, "Arrastra %s al plano, o selecciónalo y pulsa dentro de una habitación." % ObjectLibraryScript.display_name(kind))
+	if _object_catalog.item_count > 0:
+		_object_catalog.select(0)
+	if not _object_catalog.gui_input.is_connected(_on_object_catalog_gui_input):
+		_object_catalog.gui_input.connect(_on_object_catalog_gui_input)
+
+
+## La pieza elegida en el catálogo.
+func _selected_object_kind() -> String:
+	if _object_catalog == null:
+		return "sofa"
+	var selected: PackedInt32Array = _object_catalog.get_selected_items()
+	if selected.is_empty():
+		return "sofa"
+	var meta: Variant = _object_catalog.get_item_metadata(selected[0])
+	return String(meta) if meta != null else "sofa"
+
+
+# ── Arrastrar una pieza del catálogo al plano ───────────────────────────────
+#
+# Colocar mobiliario era: elegir en un desplegable, cambiar de herramienta y
+# pulsar. Tres gestos para poner un sofá, y sin ver lo que ibas a poner hasta
+# que estaba puesto. Ahora se coge del catálogo y se suelta donde va, con la
+# huella de la pieza siguiendo al ratón.
+func _on_object_catalog_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mouse_event: InputEventMouseButton = event
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	var index: int = _object_catalog.get_item_at_position(_object_catalog.get_local_mouse_position(), true)
+	if index < 0:
+		return
+	_object_catalog.select(index)
+	_catalog_drag_kind = String(_object_catalog.get_item_metadata(index))
+	_catalog_drag_screen = get_viewport().get_mouse_position()
+	_set_status("Suelta %s dentro de una habitación." % ObjectLibraryScript.display_name(_catalog_drag_kind))
+	queue_redraw()
+
+
+## Cierto si el evento era del arrastre del catálogo.
+func _handle_catalog_drag_input(event: InputEvent) -> bool:
+	if _catalog_drag_kind == "":
+		return false
+	if event is InputEventMouseMotion:
+		_catalog_drag_screen = (event as InputEventMouseMotion).position
+		_update_catalog_drag_ghost()
+		queue_redraw()
+		return true
+	if event is InputEventMouseButton:
+		var mouse_event: InputEventMouseButton = event
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT or mouse_event.pressed:
+			return false
+		_catalog_drag_screen = mouse_event.position
+		_drop_catalog_object()
+		return true
+	if event is InputEventKey and (event as InputEventKey).pressed \
+			and (event as InputEventKey).keycode == KEY_ESCAPE:
+		_cancel_catalog_drag("Arrastre cancelado.")
+		return true
+	return false
+
+
+func _drop_catalog_object() -> void:
+	var kind: String = _catalog_drag_kind
+	if _is_pointer_over_ui():
+		_cancel_catalog_drag("Ahí no: suelta la pieza sobre el plano, dentro de una habitación.")
+		return
+	var pos_m: Variant = _catalog_drop_position_m()
+	if typeof(pos_m) != TYPE_VECTOR2:
+		_cancel_catalog_drag("No se puede colocar ahí.")
+		return
+	_cancel_catalog_drag("")
+	_create_object_at(Vector2(pos_m), kind)
+
+
+## Dónde cae el ratón en el plano, venga de la vista 2D o de la 3D.
+func _catalog_drop_position_m() -> Variant:
+	if _editor_view_mode == EditorViewMode.MODE_3D:
+		return _screen_to_floor_m_3d(_catalog_drag_screen)
+	if _editor_view_mode == EditorViewMode.MODE_2D:
+		return _screen_to_m(_catalog_drag_screen)
+	return null
+
+
+func _cancel_catalog_drag(message: String) -> void:
+	_catalog_drag_kind = ""
+	_clear_3d_draw_preview()
+	if message != "":
+		_set_status(message)
+	queue_redraw()
+
+
+## En 3D la huella se enseña con la misma caja translúcida que el dibujo.
+func _update_catalog_drag_ghost() -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D or _editor_world_3d == null:
+		return
+	var pos_m: Variant = _screen_to_floor_m_3d(_catalog_drag_screen)
+	if typeof(pos_m) != TYPE_VECTOR2:
+		return
+	var size_m: Vector2 = ObjectLibraryScript.size_m(_catalog_drag_kind)
+	var preview := _editor_world_3d.get_node_or_null("DrawPreview3D") as MeshInstance3D
+	if preview == null:
+		preview = MeshInstance3D.new()
+		preview.name = "DrawPreview3D"
+		preview.mesh = BoxMesh.new()
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.35, 0.78, 1.0, 0.35)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		preview.material_override = material
+		_editor_world_3d.add_child(preview)
+	var box := preview.mesh as BoxMesh
+	box.size = Vector3(maxf(0.05, size_m.x), CATALOG_GHOST_HEIGHT_M, maxf(0.05, size_m.y))
+	preview.global_position = _editor_visualizer_3d.floor_point_to_world(
+		Vector2(pos_m), _current_floor_level_m() + CATALOG_GHOST_HEIGHT_M * 0.5)
+	preview.visible = true
 
 
 func _on_stop_time_changed(v: float) -> void:
@@ -7564,8 +7725,8 @@ func _sync_tool_option_visibility() -> void:
 	_set_node_visible("LeftPanel/Scroll/VBox/ObjectLabel", object_visible)
 	_set_node_visible("LeftPanel/Scroll/VBox/ObjectToolLabel", object_visible)
 	_set_node_visible("LeftPanel/Scroll/VBox/ObjectTypeOption", object_visible)
-	if _object_kind_option != null:
-		_set_control_row_visible(_object_kind_option, object_visible)
+	if _object_catalog != null:
+		_set_control_row_visible(_object_catalog, object_visible)
 	var object_section := _get_left_node("ObjectToolSection") as Control
 	if object_section != null:
 		object_section.visible = object_visible
