@@ -48,13 +48,17 @@ static func create_room_shell(
 	label.name = "Label_%02d" % room_id
 	label.text = room_label
 	label.modulate = label_color
-	label.font_size = 54
-	label.pixel_size = 0.014
+	label.font_size = LABEL_FONT_SIZE
 	label.outline_size = 6
 	label.no_depth_test = false
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = 3
-	label.width = (minf(rect_m.size.x, rect_m.size.y) * 0.82) / 0.014
+	# El rotulo se mide y se ajusta a la sala. Antes tenia un tamaño fijo de
+	# 0,76 m por linea y un ancho de corte que partia las palabras: en un
+	# pasillo de 1,20 m, "Pasillo" salia como "Pa/sil/lo" ocupando dos metros y
+	# medio y tapando el suelo. Se ve en cualquier captura del 3D.
+	label.pixel_size = _label_pixel_size(room_label, rect_m)
+	label.width = maxf(1.0, _label_text_width_px(room_label) + 8.0)
 	label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	label.position = _room_center(rect_m, floor_thickness_m + 0.012, origin_offset_m, meters_to_units)
 	label.position.y += floor_level_m * meters_to_units
@@ -68,6 +72,32 @@ static func create_room_shell(
 		"walls": walls,
 		"label": label,
 	}
+
+
+## Cuanto ocupa el rotulo, medido de verdad con la fuente que lo va a pintar.
+const LABEL_FONT_SIZE: int = 54
+## Tamaño de referencia, el de siempre: 0,014 m por pixel de fuente.
+const LABEL_PIXEL_SIZE_MAX: float = 0.014
+## Y un suelo, para que en una sala diminuta siga leyendose algo.
+const LABEL_PIXEL_SIZE_MIN: float = 0.0035
+
+
+static func _label_text_width_px(text: String) -> float:
+	var font: Font = ThemeDB.fallback_font
+	if font == null:
+		# Sin fuente medible se estima ancho; mas vale corto que desbordado.
+		return maxf(1.0, float(text.length()) * float(LABEL_FONT_SIZE) * 0.55)
+	return maxf(1.0, font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1.0, LABEL_FONT_SIZE).x)
+
+
+## El rotulo cabe a lo ancho del lado corto de la sala, entero y en una
+## linea. Es lo que hace que un pasillo diga "Pasillo" y no "Pa sil lo".
+static func _label_pixel_size(text: String, rect_m: Rect2) -> float:
+	var available_m: float = minf(rect_m.size.x, rect_m.size.y) * 0.82
+	if available_m <= 0.0:
+		return LABEL_PIXEL_SIZE_MAX
+	var fitted: float = available_m / _label_text_width_px(text)
+	return clampf(fitted, LABEL_PIXEL_SIZE_MIN, LABEL_PIXEL_SIZE_MAX)
 
 
 static func _add_wall(

@@ -134,6 +134,31 @@ func _run() -> void:
 	_expect(flat_status.contains("escribe la medida") or flat_status.contains("gira la vista"),
 		"un arrastre plano en 3D se rechaza sin decir cómo salir: \"%s\"" % flat_status)
 
+	# Y que la vista se pueda leer mientras se dibuja: el rotulo de una sala cabe
+	# DENTRO de ella. Con un tamaño fijo, "Pasillo" en un pasillo de 1,20 m salia
+	# partido en "Pa/sil/lo" y ocupaba dos metros y medio de suelo.
+	editor.editor_data = _corridor_scenario()
+	editor.current_floor_index = 0
+	editor._sync_editor_runtime_views(false)
+	await get_tree().process_frame
+	var label_room_id: int = 0
+	var items: Dictionary = editor._editor_visualizer_3d._room_items
+	if items.has(label_room_id):
+		var label := Dictionary(items[label_room_id]).get("label") as Label3D
+		if label == null:
+			_expect(false, "la sala no tiene rótulo en el 3D")
+		else:
+			var rect_m: Rect2 = editor._get_room_rect(label_room_id)
+			var short_side_m: float = minf(rect_m.size.x, rect_m.size.y)
+			var drawn_m: float = label.pixel_size * _text_width_px(label.text, label.font_size)
+			var line_m: float = label.pixel_size * float(label.font_size)
+			_expect(drawn_m <= short_side_m * 0.95,
+				"el rótulo \"%s\" mide %.2f m de ancho en una sala de %.2f m: se sale" % [label.text, drawn_m, short_side_m])
+			_expect(line_m <= short_side_m * 0.95,
+				"el rótulo \"%s\" mide %.2f m de alto en una sala de %.2f m" % [label.text, line_m, short_side_m])
+	else:
+		_expect(false, "el 3D del editor no ha construido la sala del rótulo")
+
 	# Y la previsualizacion se recoge al soltar.
 	var preview_after := editor.get_node_or_null("EditorWorld3D/DrawPreview3D") as Node3D
 	_expect(preview_after == null or not preview_after.visible, "la caja de previsualizacion se queda puesta despues de soltar")
@@ -170,6 +195,32 @@ func _key(keycode: int) -> InputEventKey:
 	event.pressed = true
 	event.keycode = keycode
 	return event
+
+
+## Lo mismo que la fuente del rotulo va a pintar, para medirlo igual que ella.
+func _text_width_px(text: String, font_size: int) -> float:
+	var font: Font = ThemeDB.fallback_font
+	if font == null:
+		return float(text.length()) * float(font_size) * 0.55
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1.0, font_size).x
+
+
+## Un pasillo estrecho con nombre largo: el caso donde el rotulo se desbordaba.
+func _corridor_scenario() -> Dictionary:
+	return {
+		"floors": [{"name": "PB", "level_m": 0.0}],
+		"exterior_walls": [],
+		"room_rect_m": {"0": {"x": 0.0, "y": 0.0, "w": 6.0, "h": 1.2}},
+		"rooms_data": [{
+			"id": 0, "name": "Pasillo", "kind": "pasillo", "rotation_deg": 0.0,
+			"height_m": 2.7, "floor_level_z_m": 0.0, "fuel_objects": []
+		}],
+		"openings_data": [],
+		"detectors": [],
+		"victims": [],
+		"player_start": {},
+		"ignition_room_id": -1
+	}
 
 
 func _one_room_scenario() -> Dictionary:
