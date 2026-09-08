@@ -4305,7 +4305,7 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	var mode: String = String(layout.get("mode", "straight"))
 	var pieces: Array[int] = []
 	for index in range(rects.size()):
-		var piece_rect: Rect2 = _trim_corridor_rect(Rect2(rects[index]))
+		var piece_rect: Rect2 = _trim_corridor_rect(_fit_corridor_piece(Rect2(rects[index]), start_m, end_m))
 		if piece_rect.size.x < GRID_M or piece_rect.size.y < GRID_M:
 			continue
 		var piece_name: String = base_name if rects.size() == 1 else "%s tramo %s" % [base_name, "AB"[index]]
@@ -4371,6 +4371,132 @@ func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) 
 				bottom = r.position.y
 
 	return Rect2(Vector2(left, top), Vector2(maxf(min_size, right - left), maxf(min_size, bottom - top)))
+
+
+## Encaja un tramo de pasillo en el sitio donde se ha dibujado.
+##
+## El trazo del raton es el EJE del pasillo, no su borde, y con eso solo pasaban
+## dos cosas -las dos medidas con tools/probe_corridor_corner.gd-:
+##
+##  - Al GIRAR, el tramo nuevo sobresalia media anchura por detras de la esquina,
+##    asi que los dos tramos solo compartian ese resto: un pasillo de 1,20 m
+##    dejaba un paso de 0,50 m en el codo. Un giro de pasillo tiene que ser tan
+##    ancho como el pasillo.
+##  - Dibujando por la JUNTA entre dos habitaciones -que es justo donde va un
+##    pasillo-, el eje caia dentro de una de ellas, el recorte se comia el tramo
+##    entero y el editor contestaba "cae entero dentro de otra habitación".
+##
+## Se arregla antes de recortar, moviendo el tramo de lado: nunca a lo largo, que
+## eso sigue siendo cosa de _trim_corridor_rect().
+func _fit_corridor_piece(rect: Rect2, start_m: Vector2, end_m: Vector2) -> Rect2:
+	var along_x: bool = rect.size.x >= rect.size.y
+	return _slide_corridor_out_of_rooms(_align_corridor_corner(rect, along_x, start_m, end_m), along_x)
+
+
+## El lado corto del tramo, como intervalo: es lo unico que estas dos reglas
+## mueven.
+func _corridor_cross_interval(rect: Rect2, along_x: bool) -> Vector2:
+	return Vector2(rect.position.y, rect.end.y) if along_x else Vector2(rect.position.x, rect.end.x)
+
+
+func _corridor_with_cross_interval(rect: Rect2, along_x: bool, lo: float, hi: float) -> Rect2:
+	if along_x:
+		return Rect2(rect.position.x, lo, rect.size.x, hi - lo)
+	return Rect2(lo, rect.position.y, hi - lo, rect.size.y)
+
+
+## El codo: el tramo nuevo se mete dentro del pasillo que continua.
+##
+## Solo se aplica al pasillo donde empieza o acaba el trazo -ahi es donde el
+## usuario esta girando- y solo si el desplazamiento es menor que un ancho: mas
+## lejos que eso ya no es su esquina, es otro pasillo cualquiera.
+func _align_corridor_corner(rect: Rect2, along_x: bool, start_m: Vector2, end_m: Vector2) -> Rect2:
+	var level_m: float = _current_floor_level_m()
+	var band: Vector2 = _corridor_cross_interval(rect, along_x)
+	var width_m: float = band.y - band.x
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = room
+		if not _is_corridor_room(other):
+			continue
+		var other_id: int = int(other.get("id", -1))
+		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
+			continue
+		var other_rect: Rect2 = _get_room_rect(other_id)
+		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
+			continue
+		var reach: Rect2 = other_rect.grow(GRID_M)
+		if not (reach.has_point(start_m) or reach.has_point(end_m)):
+			continue
+		var host: Vector2 = _corridor_cross_interval(other_rect, along_x)
+		# Si el tramo no cabe de ancho dentro del otro, no hay codo que cuadrar.
+		if host.y - host.x < width_m - 0.001:
+			continue
+		var lo: float = clampf(band.x, host.x, host.y - width_m)
+		if absf(lo - band.x) > width_m + 0.001:
+			continue
+		band = Vector2(lo, lo + width_m)
+	return _corridor_with_cross_interval(rect, along_x, band.x, band.y)
+
+
+## El hueco: si el tramo pisa de lado a lado una habitacion, se corre al hueco
+## libre que tiene al lado en vez de recortarse hasta desaparecer.
+##
+## Lo que distingue "estorbo lateral" de "el tramo del que vengo" es cuanto del
+## largo pisa: el pasillo anterior toca una PUNTA -y eso lo recorta el recorte-,
+## mientras que la habitacion por cuya junta estas dibujando cruza el tramo
+## entero.
+func _slide_corridor_out_of_rooms(rect: Rect2, along_x: bool) -> Rect2:
+	var level_m: float = _current_floor_level_m()
+	var band: Vector2 = _corridor_cross_interval(rect, along_x)
+	var width_m: float = band.y - band.x
+	var run_lo: float = rect.position.x if along_x else rect.position.y
+	var run_hi: float = rect.end.x if along_x else rect.end.y
+	var run_span: float = maxf(0.001, run_hi - run_lo)
+	var centre: float = (band.x + band.y) * 0.5
+	var free_lo: float = -INF
+	var free_hi: float = INF
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other_id: int = int(Dictionary(room).get("id", -1))
+		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
+			continue
+		var other_rect: Rect2 = _get_room_rect(other_id)
+		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
+			continue
+		var other_run_lo: float = other_rect.position.x if along_x else other_rect.position.y
+		var other_run_hi: float = other_rect.end.x if along_x else other_rect.end.y
+		if minf(run_hi, other_run_hi) - maxf(run_lo, other_run_lo) < run_span * 0.80:
+			continue
+		var other_cross: Vector2 = _corridor_cross_interval(other_rect, along_x)
+		if other_cross.y <= centre + 0.001:
+			free_lo = maxf(free_lo, other_cross.y)
+		elif other_cross.x >= centre - 0.001:
+			free_hi = minf(free_hi, other_cross.x)
+		else:
+			# El eje cae DENTRO de una habitacion: ahi no hay hueco al lado, y
+			# mover el pasillo seria inventarse otro sitio.
+			return rect
+	if free_lo == -INF and free_hi == INF:
+		return rect
+	var lo: float = free_lo if free_lo != -INF else band.x
+	var hi: float = free_hi if free_hi != INF else band.y
+	var gap_m: float = hi - lo
+	if free_lo != -INF and free_hi != INF and gap_m < width_m - 0.001:
+		# El hueco es mas estrecho que el pasillo configurado: se estrecha el
+		# pasillo, que es lo que el usuario esta dibujando. Por debajo de 60 cm
+		# ya no es un paso y se deja como estaba.
+		if gap_m < 0.60:
+			return rect
+		return _corridor_with_cross_interval(rect, along_x, lo, hi)
+	var start_lo: float = band.x
+	if free_lo != -INF:
+		start_lo = maxf(start_lo, free_lo)
+	if free_hi != INF:
+		start_lo = minf(start_lo, free_hi - width_m)
+	return _corridor_with_cross_interval(rect, along_x, start_lo, start_lo + width_m)
 
 
 ## Recorta un tramo de pasillo por donde pisa lo que ya existe.
