@@ -1540,12 +1540,17 @@ func create_ranch_family_house() -> Dictionary:
 
 	var r_living := Rect2(0.0, 0.0, 5.6, 4.6)
 	var r_kitchen := Rect2(0.0, 4.6, 3.8, 3.4)
-	var r_dining := Rect2(3.8, 4.6, 3.0, 3.4)
+	# 1,80 y no 3,00 de ancho: con 3,00 el comedor se metia 1,20 m dentro del
+	# pasillo (x 5,60 a 6,80) y esas dos zonas se repartian el mismo aire, que el
+	# modelo zonal contaba dos veces. El bloque de la izquierda acaba en 5,60.
+	var r_dining := Rect2(3.8, 4.6, 1.8, 3.4)
 	var r_hall := Rect2(5.6, 0.8, 1.5, 7.2)
 	var r_primary := Rect2(7.1, 0.0, 4.1, 3.7)
 	var r_bed2 := Rect2(7.1, 3.7, 3.5, 3.1)
 	var r_bed3 := Rect2(7.1, 6.8, 3.5, 3.1)
-	var r_bath := Rect2(5.6, 8.0, 2.0, 2.1)
+	# 1,50 y no 2,00: con 2,00 el bano invadia 0,50 m el dormitorio 3. Ahora tiene
+	# el ancho del pasillo, que es de donde se entra.
+	var r_bath := Rect2(5.6, 8.0, 1.5, 2.1)
 	var r_laundry := Rect2(3.8, 8.0, 1.8, 2.1)
 
 	room_rect_m[0] = r_living
