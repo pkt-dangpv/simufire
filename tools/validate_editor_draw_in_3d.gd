@@ -17,6 +17,13 @@ extends Node
 ##    3D desde el primer dia y no funcionaba: las teclas no llegaban.
 ##  - Dibujar en una PLANTA ALTA, donde el suelo no esta a cota cero.
 ##
+## OJO con cómo se manda el ratón: los eventos se EMPUJAN por el viewport, no se
+## le pasan al editor a mano. La primera versión de esta guardia llamaba a
+## editor._unhandled_input() directamente, y así el visor 3D -que cuelga del
+## editor y mira el evento antes que él- nunca entraba en la prueba. Pasaba en
+## verde mientras dibujar en 3D estaba roto de verdad: se podía hacer la primera
+## sala y ninguna más, porque en cuanto había una el visor se quedaba el clic.
+##
 ## Uso: godot --headless --path . tools/validate_editor_draw_in_3d.tscn
 
 const TOOL_SELECT: int = 0
@@ -49,7 +56,7 @@ func _run() -> void:
 	_expect(editor._tool_available_in_current_mode(TOOL_EXTERIOR_WALL), "la herramienta Exterior sigue prohibida en la vista 3D")
 
 	var rooms_before: int = Array(editor.editor_data.get("rooms_data", [])).size()
-	editor.current_tool = TOOL_ROOM
+	editor._set_tool(TOOL_ROOM)
 
 	# Se arrastra sobre el suelo, en pantalla, como haria una persona.
 	var viewport_size: Vector2 = editor.get_viewport().get_visible_rect().size
@@ -60,13 +67,13 @@ func _run() -> void:
 	_expect(typeof(start_m) == TYPE_VECTOR2 and typeof(end_m) == TYPE_VECTOR2,
 		"la pantalla no se convierte a suelo en 3D: sin eso no se puede dibujar")
 
-	editor._unhandled_input(_mouse(from_px, true))
+	_push(editor, _mouse(from_px, true))
 	_expect(editor.drag != 0, "pulsar sobre el suelo en 3D no empieza a dibujar")
-	editor._unhandled_input(_motion(to_px))
+	_push(editor, _motion(to_px))
 	var preview := editor.get_node_or_null("EditorWorld3D/DrawPreview3D")
 	_expect(preview != null and (preview as Node3D).visible,
 		"no se ve la caja de previsualizacion mientras se traza en 3D")
-	editor._unhandled_input(_mouse(to_px, false))
+	_push(editor, _mouse(to_px, false))
 
 	var rooms_after: int = Array(editor.editor_data.get("rooms_data", [])).size()
 	_expect(rooms_after == rooms_before + 1, "arrastrar en 3D no crea la sala (%d salas antes, %d despues)" % [rooms_before, rooms_after])
@@ -80,18 +87,40 @@ func _run() -> void:
 			"la sala no sale donde se solto el raton: esperada en %s y esta en %s" % [str(expected.get_center()), str(rect.get_center())])
 		_expect(not editor._is_corridor_room(new_room), "lo dibujado con la herramienta Sala no deberia ser un pasillo")
 
+	# Y otra sala más, y un muro: dibujar no es dibujar una vez. Esto es lo que
+	# el usuario encontró roto -"he podido poner una habitación pero no más"- y lo
+	# que la guardia no veía por llamar al editor a mano.
+	var second_from_px: Vector2 = viewport_size * Vector2(0.60, 0.55)
+	var second_to_px: Vector2 = viewport_size * Vector2(0.76, 0.72)
+	editor._set_tool(TOOL_ROOM)
+	_push(editor, _mouse(second_from_px, true))
+	_push(editor, _motion(second_to_px))
+	_push(editor, _mouse(second_to_px, false))
+	_expect(Array(editor.editor_data.get("rooms_data", [])).size() == rooms_before + 2,
+		"la segunda sala no se dibuja: hay %d salas y debería haber %d" % [
+			Array(editor.editor_data.get("rooms_data", [])).size(), rooms_before + 2])
+
+	var walls_before: int = Array(editor.editor_data.get("exterior_walls", [])).size()
+	editor._set_tool(TOOL_EXTERIOR_WALL)
+	_push(editor, _mouse(viewport_size * Vector2(0.30, 0.78), true))
+	_push(editor, _motion(viewport_size * Vector2(0.70, 0.82)))
+	_push(editor, _mouse(viewport_size * Vector2(0.70, 0.82), false))
+	_expect(Array(editor.editor_data.get("exterior_walls", [])).size() == walls_before + 1,
+		"el muro exterior no se dibuja en 3D (%d muros antes, %d después)" % [
+			walls_before, Array(editor.editor_data.get("exterior_walls", [])).size()])
+
 	# La medida tecleada: en perspectiva es la unica forma de ser exacto.
 	editor.editor_data = _one_room_scenario()
 	editor.current_floor_index = 0
 	await get_tree().process_frame
-	editor.current_tool = TOOL_ROOM
-	editor._unhandled_input(_mouse(from_px, true))
-	editor._unhandled_input(_motion(to_px))
+	editor._set_tool(TOOL_ROOM)
+	_push(editor, _mouse(from_px, true))
+	_push(editor, _motion(to_px))
 	for character in ["4", ";", "3"]:
-		editor._unhandled_input(_typed(character))
+		_push(editor, _typed(character))
 	_expect(editor._typed_measure == "4;3",
 		"lo tecleado en 3D no se recoge: se lleva '%s'" % editor._typed_measure)
-	editor._unhandled_input(_key(KEY_ENTER))
+	_push(editor, _key(KEY_ENTER))
 	var typed_rooms: Array = editor.editor_data.get("rooms_data", [])
 	if typed_rooms.size() >= 2:
 		var typed_rect: Rect2 = editor._get_room_rect(int(Dictionary(typed_rooms[-1]).get("id", -1)))
@@ -116,10 +145,10 @@ func _run() -> void:
 	# Lo que se prueba aqui es la COTA, no la punteria.
 	var up_from_px: Vector2 = viewport_size * Vector2(0.44, 0.50)
 	var up_to_px: Vector2 = viewport_size * Vector2(0.62, 0.78)
-	editor.current_tool = TOOL_ROOM
-	editor._unhandled_input(_mouse(up_from_px, true))
-	editor._unhandled_input(_motion(up_to_px))
-	editor._unhandled_input(_mouse(up_to_px, false))
+	editor._set_tool(TOOL_ROOM)
+	_push(editor, _mouse(up_from_px, true))
+	_push(editor, _motion(up_to_px))
+	_push(editor, _mouse(up_to_px, false))
 	var upstairs: int = 0
 	for room in editor.editor_data.get("rooms_data", []):
 		if typeof(room) == TYPE_DICTIONARY and absf(float(Dictionary(room).get("floor_level_z_m", 0.0)) - upper_level_m) < 0.05:
@@ -129,7 +158,7 @@ func _run() -> void:
 	# El arrastre plano: en perspectiva sale solo, y la negativa tiene que decir
 	# como salir de ahi en vez de dejarte mirando "demasiado pequeña".
 	editor.current_floor_index = 0
-	editor.current_tool = TOOL_ROOM
+	editor._set_tool(TOOL_ROOM)
 	editor._handle_press(Vector2(0.0, 0.0))
 	editor._handle_release(Vector2(4.0, 0.01))
 	var flat_status: String = editor._status_label.text if editor._status_label != null else ""
@@ -168,6 +197,12 @@ func _run() -> void:
 	remove_child(editor)
 	editor.free()
 	_finish()
+
+
+## Por el viewport: así el evento recorre el árbol entero -visor 3D incluido-
+## igual que cuando lo manda el ratón.
+func _push(editor: Node, event: InputEvent) -> void:
+	editor.get_viewport().push_input(event, true)
 
 
 func _mouse(position: Vector2, pressed: bool) -> InputEventMouseButton:

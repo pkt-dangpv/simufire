@@ -1177,8 +1177,17 @@ func _tool_tooltip(tool_id: int) -> String:
 
 
 func _update_editor_visualizer_drag_mode() -> void:
-	if _editor_visualizer_3d != null and _editor_visualizer_3d.has_method("set_element_drag_enabled"):
-		_editor_visualizer_3d.set_element_drag_enabled(_editor_view_mode == EditorViewMode.MODE_3D and current_tool == Tool.SELECT)
+	if _editor_visualizer_3d == null:
+		return
+	var in_3d: bool = _editor_view_mode == EditorViewMode.MODE_3D
+	if _editor_visualizer_3d.has_method("set_element_drag_enabled"):
+		_editor_visualizer_3d.set_element_drag_enabled(in_3d and current_tool == Tool.SELECT)
+	# Con una herramienta de dibujo puesta, el clic izquierdo es un TRAZO y el
+	# visor no puede quedárselo. Sin esto solo se podía dibujar la primera sala:
+	# en cuanto había una, el visor se comía el clic -para seleccionarla, o para
+	# deseleccionar si se pulsaba fuera- y el editor no llegaba a enterarse.
+	if _editor_visualizer_3d.has_method("set_left_click_picking_enabled"):
+		_editor_visualizer_3d.set_left_click_picking_enabled(not (in_3d and _tool_draws_geometry(current_tool)))
 
 
 func _on_editor_fp_exit_requested() -> void:

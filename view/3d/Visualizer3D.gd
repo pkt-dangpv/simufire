@@ -620,6 +620,24 @@ func clear_selection() -> void:
 	_apply_selection_visuals()
 
 
+## Con esto en falso, el boton izquierdo NO es del visor: ni selecciona, ni
+## arrastra elementos, ni deselecciona.
+##
+## Lo apaga el editor mientras hay una herramienta de dibujo puesta, porque ahi
+## ese clic es un trazo. Sin esto solo se podia dibujar la primera sala: en
+## cuanto habia una, el visor se quedaba el clic -para seleccionarla, o para
+## deseleccionar si se pulsaba fuera- y el trazo no llegaba nunca al editor. El
+## boton derecho (orbita) y la rueda (zoom) siguen siendo suyos: mientras dibujas
+## quieres poder mover la camara.
+@export var allow_left_click_picking: bool = true
+
+
+func set_left_click_picking_enabled(enabled: bool) -> void:
+	allow_left_click_picking = enabled
+	if not enabled:
+		_clear_element_drag()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_active or not enable_mouse_camera or not is_visible_in_tree():
 		return
@@ -640,6 +658,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if not allow_left_click_picking:
+				# Ese clic es de quien esté dibujando; aquí ni se mira.
+				return
 			if mb.pressed:
 				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 					var player_start_hit: Dictionary = _player_start_at_screen_pos(mb.position)
