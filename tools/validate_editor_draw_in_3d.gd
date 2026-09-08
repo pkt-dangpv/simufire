@@ -103,7 +103,9 @@ func _run() -> void:
 	# Y en una planta alta, donde el suelo del 3D no esta a cota cero.
 	editor.editor_data = _one_room_scenario()
 	editor.current_floor_index = 0
-	editor._add_floor_pressed()
+	# _create_floor(false) y no el boton: el boton abre el dialogo de "vacía o
+	# copiada", y aqui lo que se prueba es dibujar arriba.
+	editor._create_floor(false)
 	editor.current_floor_index = 1
 	editor._sync_floor_controls()
 	await get_tree().process_frame

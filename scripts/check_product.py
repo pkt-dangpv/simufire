@@ -494,6 +494,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor corridors: " + (diagnostic or "failed"))
 
+    # Crear planta: vacia o copia de la actual, y que la copia suba obra y no
+    # personas.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_editor_floor_copy.tscn",
+        "[validate_editor_floor_copy] PASS",
+    )
+    rows.append(("Copiar planta en el editor Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor floor copy: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",
         "EDITOR TO SIM FLOW VALIDATION PASS",

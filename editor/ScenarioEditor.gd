@@ -201,6 +201,8 @@ var _undo_stack: Array[Dictionary] = []
 ## Pila de rehacer. Con instantaneas completas sale casi gratis: al deshacer, el
 ## estado actual pasa a esta pila, y rehacer es la misma operacion al reves.
 var _redo_stack: Array[Dictionary] = []
+## El boton "Copiar <planta>" del dialogo de planta nueva. Se anade una vez.
+var _new_floor_copy_button: Button = null
 ## Si el escenario tiene cambios que no estan en disco. No confundir con
 ## `_editor_runtime_dirty`, que solo dice si hay que refrescar las vistas 3D.
 var _unsaved_changes: bool = false
@@ -2324,23 +2326,272 @@ func _on_floor_selected(index: int) -> void:
 	queue_redraw()
 
 
+## El boton "+ Planta" pregunta; la planta la hace _create_floor().
+##
+## Se pregunta porque las dos respuestas son normales y ninguna vale siempre: un
+## unifamiliar tiene plantas distintas -abajo el salon, arriba los dormitorios- y
+## ahi copiar estorba; un bloque de viviendas las tiene iguales y volver a
+## dibujarlas es media tarde. Antes no habia eleccion: nacia vacia y punto.
+##
+## Si la planta de partida no tiene nada que copiar, no se pregunta: se crea.
 func _add_floor_pressed() -> void:
+	if _floor_contents_summary(_current_floor_level_m()).is_empty():
+		_create_floor(false)
+		return
+	_show_new_floor_dialog()
+
+
+## Crea la planta de encima. Con `copy_contents`, con lo que hay en la actual.
+## Devuelve el indice de la planta nueva.
+func _create_floor(copy_contents: bool) -> int:
 	_push_undo_snapshot("add_floor")
 	var floors: Array = _get_floors()
-	var lower_level_m: float = _current_floor_level_m()
+	# Dos plantas distintas, y a proposito:
+	#
+	#  - la de DEBAJO de la nueva es la ultima de la pila, y es con la que hay que
+	#    encadenar la escalera: es la que tiene el forjado que se perfora.
+	#  - la que se COPIA es la que estas mirando, que es la que dice el dialogo.
+	#    Dibujando un bloque de viviendas se termina la planta baja y se pide otra
+	#    igual; la ultima de la pila puede ser el hueco de escalera vacio que
+	#    creo sola la herramienta de escaleras, y copiar eso no es copiar nada.
+	var source_level_m: float = _current_floor_level_m()
+	var lower_level_m: float = source_level_m
 	var next_level_m: float = 0.0
 	if not floors.is_empty():
 		lower_level_m = float(floors[floors.size() - 1].get("level_m", 0.0))
 		next_level_m = lower_level_m + DEFAULT_FLOOR_HEIGHT_M
 	floors.append({"name": _default_floor_name(floors.size()), "level_m": next_level_m})
 	editor_data["floors"] = floors
+	# Las escaleras primero: encadenan las dos plantas y abren el hueco vertical.
+	# La copia va despues y las respeta, para no duplicar ese hueco.
 	_copy_stairs_from_level_to_level(lower_level_m, next_level_m)
+	var copied: Dictionary = {}
+	if copy_contents:
+		copied = _copy_floor_contents(source_level_m, next_level_m)
 	current_floor_index = floors.size() - 1
 	pending_door_room_id = -1
 	_clear_selection()
 	_sync_floor_controls()
-	_set_status("Nueva planta creada: %s." % _current_floor_name())
+	if copied.is_empty():
+		_set_status("Nueva planta creada: %s." % _current_floor_name())
+	else:
+		_set_status("Nueva planta creada: %s, copiada de %s (%s)." % [
+			_current_floor_name(), _floor_name_for_level(source_level_m), _copy_summary_text(copied)])
+	_mark_editor_runtime_dirty()
 	queue_redraw()
+	return current_floor_index
+
+
+## "1 sala" / "3 salas". El "(s)" vale en una linea de estado que pasa; en un
+## cuadro que se lee entero, canta.
+func _plural(count: int, singular: String, plural: String) -> String:
+	return "%d %s" % [count, singular if count == 1 else plural]
+
+
+## La pregunta, con el nombre de la planta que se va a copiar y lo que trae.
+##
+## El dialogo esta en ScenarioEditorScene.tscn, como el resto de la interfaz. El
+## boton de copiar se anade aqui una sola vez porque su texto lleva el nombre de
+## la planta, que cambia.
+func _show_new_floor_dialog() -> void:
+	var dialog := get_node_or_null("CanvasLayer/NewFloorDialog") as ConfirmationDialog
+	if dialog == null:
+		# Sin dialogo no se bloquea el trabajo: se crea vacia, que es lo de antes.
+		push_warning("Falta NewFloorDialog en ScenarioEditorScene.tscn")
+		_create_floor(false)
+		return
+	var source_name: String = _current_floor_name()
+	var summary: Dictionary = _floor_contents_summary(_current_floor_level_m())
+	var objects: int = int(summary.get("objects", 0))
+	dialog.dialog_text = "Vas a crear la planta de encima de %s, que tiene %s%s.\n\nCopiarla sube las salas, sus puertas y ventanas, el mobiliario y los detectores.\n\nLas víctimas y el inicio FP no suben: son personas, no obra." % [
+		source_name,
+		_plural(int(summary.get("rooms", 0)), "sala", "salas"),
+		" y %s" % _plural(objects, "objeto", "objetos") if objects > 0 else ""
+	]
+	if _new_floor_copy_button == null:
+		_new_floor_copy_button = dialog.add_button("Copiar planta", false, "copy")
+		if not dialog.custom_action.is_connected(_on_new_floor_custom_action):
+			dialog.custom_action.connect(_on_new_floor_custom_action)
+		if not dialog.confirmed.is_connected(_on_new_floor_confirmed):
+			dialog.confirmed.connect(_on_new_floor_confirmed)
+	_new_floor_copy_button.text = "Copiar %s" % source_name
+	_new_floor_copy_button.tooltip_text = "Crea la planta con lo mismo que hay en %s." % source_name
+	# Con medida: el texto en una sola linea sacaba el dialogo de la pantalla.
+	dialog.popup_centered(Vector2i(560, 260))
+
+
+## Intro crea la planta vacia: en un unifamiliar es lo normal.
+func _on_new_floor_confirmed() -> void:
+	_create_floor(false)
+
+
+func _on_new_floor_custom_action(action: StringName) -> void:
+	if String(action) != "copy":
+		return
+	var dialog := get_node_or_null("CanvasLayer/NewFloorDialog") as ConfirmationDialog
+	if dialog != null:
+		dialog.hide()
+	_create_floor(true)
+
+
+## Lo que hay construido en una planta, contado. Vacio si no hay nada que copiar.
+func _floor_contents_summary(level_m: float) -> Dictionary:
+	var rooms: int = 0
+	var objects: int = 0
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - level_m) >= 0.05:
+			continue
+		# Las escaleras suben solas al crear la planta: no son motivo para
+		# preguntar si se copia o no.
+		if StairPlanRules.is_stair_room(room_dict):
+			continue
+		rooms += 1
+		objects += Array(room_dict.get("fuel_objects", [])).size()
+	if rooms == 0:
+		return {}
+	return {"rooms": rooms, "objects": objects}
+
+
+func _copy_summary_text(copied: Dictionary) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	parts.append("%d sala(s)" % int(copied.get("rooms", 0)))
+	if int(copied.get("openings", 0)) > 0:
+		parts.append("%d apertura(s)" % int(copied.get("openings", 0)))
+	if int(copied.get("objects", 0)) > 0:
+		parts.append("%d objeto(s)" % int(copied.get("objects", 0)))
+	if int(copied.get("detectors", 0)) > 0:
+		parts.append("%d detector(es)" % int(copied.get("detectors", 0)))
+	return ", ".join(parts)
+
+
+## Copia lo CONSTRUIDO de una planta a la de encima: salas, pasillos, sus
+## aperturas, el mobiliario y los detectores.
+##
+## No copia victimas ni el inicio en primera persona: son personas, no obra, y
+## repartir la misma victima por cada planta es lo contrario de lo que se quiere.
+##
+## Las escaleras no se duplican: ya estan arriba -las pone
+## _copy_stairs_from_level_to_level()- y se emparejan por su rectangulo, para que
+## la puerta que abajo daba a la escalera arriba de a la escalera de arriba.
+func _copy_floor_contents(from_level_m: float, to_level_m: float) -> Dictionary:
+	var id_map: Dictionary = {}
+	var copied_rooms: int = 0
+	var copied_objects: int = 0
+	var rooms: Array = editor_data.get("rooms_data", [])
+	var source_rooms: Array[Dictionary] = []
+	for room in rooms:
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - from_level_m) < 0.05:
+			source_rooms.append(room_dict)
+
+	for source in source_rooms:
+		var source_id: int = int(source.get("id", -1))
+		var rect: Rect2 = _get_room_rect(source_id)
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		if StairPlanRules.is_stair_room(source):
+			var twin_id: int = _find_matching_stair_room_at_level(rect, to_level_m)
+			if twin_id >= 0:
+				id_map[source_id] = twin_id
+			continue
+		var copy: Dictionary = source.duplicate(true)
+		var new_id: int = _next_room_id()
+		copy["id"] = new_id
+		copy["floor_level_z_m"] = to_level_m
+		rooms.append(copy)
+		editor_data["rooms_data"] = rooms
+		_set_room_rect(new_id, rect)
+		# Los ids de mueble se piden DESPUES de meter la sala en la lista: la
+		# cuenta de ids libres mira lo que hay, y si no esta puesta se repiten.
+		var objects: Array = copy.get("fuel_objects", [])
+		for i in range(objects.size()):
+			if typeof(objects[i]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[i]
+			obj["id"] = _next_object_id()
+			obj["room_id"] = new_id
+			objects[i] = obj
+			copied_objects += 1
+		copy["fuel_objects"] = objects
+		id_map[source_id] = new_id
+		copied_rooms += 1
+
+	var copied_openings: int = _copy_openings_for_map(from_level_m, id_map)
+	var copied_detectors: int = _copy_detectors_for_map(id_map)
+	return {
+		"rooms": copied_rooms,
+		"objects": copied_objects,
+		"openings": copied_openings,
+		"detectors": copied_detectors
+	}
+
+
+## Rehace en la planta nueva las aperturas de la vieja, con los ids nuevos.
+##
+## Las verticales no: son el hueco de la escalera, que ya lo abre el encadenado,
+## y repetirlo perforaria dos veces el mismo forjado.
+func _copy_openings_for_map(from_level_m: float, id_map: Dictionary) -> int:
+	var openings: Array = editor_data.get("openings_data", [])
+	var copies: Array[Dictionary] = []
+	for raw_op in openings:
+		if typeof(raw_op) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = raw_op
+		if bool(op.get("is_vertical", false)):
+			continue
+		var a_id: int = int(op.get("a", -1))
+		var b_id: int = int(op.get("b", OUTSIDE_ID))
+		if not id_map.has(a_id):
+			continue
+		if b_id != OUTSIDE_ID and not id_map.has(b_id):
+			continue
+		if absf(_room_id_floor_level(a_id) - from_level_m) >= 0.05:
+			continue
+		var new_a: int = int(id_map[a_id])
+		var new_b: int = OUTSIDE_ID if b_id == OUTSIDE_ID else int(id_map[b_id])
+		# Dos escaleras que se mapean a si mismas serian el mismo paso otra vez:
+		# ese lo abrio el encadenado al subir la escalera.
+		if new_a == a_id and new_b == b_id:
+			continue
+		var copy: Dictionary = op.duplicate(true)
+		copy["a"] = new_a
+		copy["b"] = new_b
+		copies.append(copy)
+	for copy in copies:
+		openings.append(copy)
+	editor_data["openings_data"] = openings
+	return copies.size()
+
+
+## Los detectores son instalacion del edificio: suben con su sala.
+func _copy_detectors_for_map(id_map: Dictionary) -> int:
+	var detectors: Array = editor_data.get("detectors", [])
+	var pending: Array[Dictionary] = []
+	for raw in detectors:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var detector: Dictionary = raw
+		var room_id: int = int(detector.get("room_id", -1))
+		if not id_map.has(room_id) or int(id_map[room_id]) == room_id:
+			continue
+		var copy: Dictionary = detector.duplicate(true)
+		copy["room_id"] = int(id_map[room_id])
+		pending.append(copy)
+	for copy in pending:
+		detectors.append(copy)
+		editor_data["detectors"] = detectors
+		# El id se pide con la copia ya en la lista, para que no se repita con la
+		# siguiente.
+		copy["id"] = ""
+		copy["id"] = _next_detector_id()
+		detectors[detectors.size() - 1] = copy
+	editor_data["detectors"] = detectors
+	return pending.size()
 
 
 func _delete_floor_pressed() -> void:
