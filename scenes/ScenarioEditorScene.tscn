@@ -101,6 +101,13 @@ ok_button_text = "Vacía"
 cancel_button_text = "Cancelar"
 dialog_autowrap = true
 
+[node name="ScenarioReviewDialog" type="ConfirmationDialog" parent="CanvasLayer" unique_id=1655230904]
+title = "Revisión del escenario"
+size = Vector2i(640, 340)
+ok_button_text = "Volver al plano"
+cancel_button_text = "Cerrar"
+dialog_autowrap = true
+
 [node name="UI" type="Control" parent="CanvasLayer" unique_id=630610743]
 layout_mode = 3
 anchors_preset = 15
@@ -1974,9 +1981,9 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -226.0
+offset_left = -305.0
 offset_top = -66.0
-offset_right = 226.0
+offset_right = 305.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_lvx7d")
@@ -1992,6 +1999,14 @@ tooltip_text = "Valida, exporta y abre la simulación con el escenario actual."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "✓ INICIAR SIMULACIÓN"
+
+[node name="BtnReviewScenario" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=1120344881]
+custom_minimum_size = Vector2(150, 42)
+layout_mode = 2
+tooltip_text = "Busca lo que hace que una simulación no enseñe nada: salas selladas, sin foco de ignición, plantas sin comunicar."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "REVISAR"
 
 [node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=2143511484]
 custom_minimum_size = Vector2(160, 42)

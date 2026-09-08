@@ -62,6 +62,10 @@ const StairPlanRules = preload("res://editor/StairPlanRules.gd")
 ## La geometria del plano -rectangulos girados, objetos dentro de su sala,
 ## distancias- que comparten el dibujo, los clics y el panel (E-12).
 const PlanGeometry = preload("res://editor/PlanGeometry.gd")
+## La revision de antes de arrancar: lo que se puede ejecutar pero no enseña
+## nada. Separada de validate_scenario(), que mira que los datos esten bien
+## formados; esto mira que el incendio tenga sentido.
+const ScenarioReview = preload("res://editor/ScenarioReview.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
@@ -203,6 +207,11 @@ var _undo_stack: Array[Dictionary] = []
 var _redo_stack: Array[Dictionary] = []
 ## El boton "Copiar <planta>" del dialogo de planta nueva. Se anade una vez.
 var _new_floor_copy_button: Button = null
+## El boton "Arrancar igualmente" del cuadro de la revision. Tambien una vez.
+var _review_run_anyway_button: Button = null
+## Cierto mientras se arranca con los avisos ya leidos, para que la revision no
+## vuelva a saltar en el mismo gesto.
+var _review_acknowledged: bool = false
 ## Si el escenario tiene cambios que no estan en disco. No confundir con
 ## `_editor_runtime_dirty`, que solo dice si hay que refrescar las vistas 3D.
 var _unsaved_changes: bool = false
@@ -7416,11 +7425,69 @@ func _run_simulation_pressed() -> void:
 	if runtime_rooms.is_empty():
 		_show_load_error("El escenario no tiene habitaciones. No se puede ejecutar.")
 		return
+	# La revisión no impide ejecutar, pero callarla es dejar correr una simulación
+	# en la que no pasa nada sin que el usuario sepa por qué.
+	if not _review_acknowledged and not ScenarioReview.review(editor_data).is_empty():
+		_show_review_dialog(true)
+		return
 	if not Serializer.save_runtime_template(RUNTIME_EXPORT_PATH, editor_data):
 		_set_status("Error al exportar el template runtime.")
 		return
 	_set_status("Iniciando simulación...")
 	get_tree().change_scene_to_file(MAIN_SCENE_PATH)
+
+
+## La revisión, pedida a mano desde la barra de abajo.
+##
+## Se puede pedir en cualquier momento, no solo al arrancar: mientras dibujas te
+## dice si lo que llevas se sostiene.
+func _review_scenario_pressed() -> void:
+	_ensure_floor_data()
+	if ScenarioReview.review(editor_data).is_empty():
+		_set_status("Revisión: el escenario no tiene ningún aviso.")
+		return
+	_show_review_dialog(false)
+
+
+## Enseña los avisos. Con `before_running`, además ofrece arrancar igualmente,
+## porque ninguno de ellos impide ejecutar: son decisiones, no errores.
+func _show_review_dialog(before_running: bool) -> void:
+	var warnings: Array[Dictionary] = ScenarioReview.review(editor_data)
+	var dialog := get_node_or_null("CanvasLayer/ScenarioReviewDialog") as ConfirmationDialog
+	if dialog == null:
+		push_warning("Falta ScenarioReviewDialog en ScenarioEditorScene.tscn")
+		# Sin cuadro no se traga la revisión: se dice en la línea de estado.
+		_set_status("Revisión: %d aviso(s). %s" % [warnings.size(), String(warnings[0].get("text", ""))])
+		return
+	var lines: PackedStringArray = PackedStringArray()
+	for warning in warnings:
+		lines.append("• " + String(warning.get("text", "")))
+	var header: String = "El escenario es válido, pero hay %s que conviene mirar:" % _plural(warnings.size(), "aviso", "avisos")
+	dialog.dialog_text = "%s\n\n%s" % [header, "\n\n".join(lines)]
+	if _review_run_anyway_button == null:
+		_review_run_anyway_button = dialog.add_button("Arrancar igualmente", false, "run_anyway")
+		if not dialog.custom_action.is_connected(_on_review_custom_action):
+			dialog.custom_action.connect(_on_review_custom_action)
+	# Sin arrancar de por medio, ofrecer "arrancar igualmente" no viene a cuento.
+	_review_run_anyway_button.visible = before_running
+	dialog.ok_button_text = "Volver al plano" if before_running else "Cerrar"
+	# El botón de cancelar sobra: "Volver al plano" ya es no arrancar, y dos
+	# botones que hacen lo mismo obligan a leerlos dos veces.
+	dialog.get_cancel_button().visible = false
+	dialog.popup_centered(Vector2i(640, 360))
+
+
+func _on_review_custom_action(action: StringName) -> void:
+	if String(action) != "run_anyway":
+		return
+	var dialog := get_node_or_null("CanvasLayer/ScenarioReviewDialog") as ConfirmationDialog
+	if dialog != null:
+		dialog.hide()
+	# Solo para este arranque: al siguiente se vuelve a revisar, porque el plano
+	# habrá cambiado.
+	_review_acknowledged = true
+	_run_simulation_pressed()
+	_review_acknowledged = false
 
 
 func _cancel_pressed() -> void:
@@ -7587,6 +7654,9 @@ func _bind_existing_ui() -> bool:
 	var cancel_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnCancel") as Button
 	_set_control_tooltip(start_sim_button, "Valida, exporta y abre la simulación con el escenario actual.")
 	_set_control_tooltip(cancel_button, "Sale del editor y vuelve al menú principal.")
+	var review_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnReviewScenario") as Button
+	_set_control_tooltip(review_button, "Busca lo que hace que una simulación no enseñe nada: salas selladas, sin foco de ignición, plantas sin comunicar.")
+	_connect_button(review_button, _review_scenario_pressed)
 	_connect_button(start_sim_button, _run_simulation_pressed)
 	_connect_button(cancel_button, _cancel_pressed)
 
