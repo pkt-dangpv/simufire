@@ -752,10 +752,30 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Fuego FP")
 @export var show_fp_fire: bool = true
 @export var fp_fire_min_visible_hrr_kw: float = 0.5
+## Ya no escala la llama -de eso se encarga Heskestad- pero sigue siendo la
+## referencia del color y del ancho de la columna.
 @export var fp_fire_reference_hrr_kw: float = 1000.0
 @export var fp_fire_base_radius_m: float = 0.14
 @export var fp_fire_max_radius_m: float = 0.48
-@export var fp_fire_max_height_m: float = 1.75
+## Tope de la llama libre, por si un HRR disparatado pide una columna absurda.
+## Ya no es "la altura a 1 MW": la altura la da la correlacion.
+@export var fp_fire_max_height_m: float = 6.00
+
+## Tiempo en el que la llama recorre el 63 % de lo que le falta para su tamano.
+##
+## **Aqui estaba G-5.** El acercamiento era un `lerp` de factor fijo que se
+## ejecutaba UNA VEZ POR ESTADO de la simulacion, no por unidad de tiempo: con
+## 0,28 por estado hacen falta siete estados para llegar al 90 %, asi que en
+## cualquier instante la llama se dibujaba a una fraccion de su tamano. Medido:
+## con el HUD marcando 850 kW se construia una llama de **0,60 m** cuando la
+## correlacion pide 1,95. Ahora es una constante de tiempo y avanza con el
+## reloj, no con el ritmo al que llegue el estado.
+@export_range(0.05, 3.0, 0.05) var fp_fire_grow_tau_s: float = 0.45
+
+## Lo mismo, pero para cuando la llama BAJA. Una llama que se apaga lo hace
+## antes de lo que tarda en crecer, y ademas una brasa colgando medio segundo
+## de mas se lee como que el fuego sigue vivo.
+@export_range(0.05, 3.0, 0.05) var fp_fire_fade_tau_s: float = 0.22
 @export var fp_fire_ceiling_clearance_m: float = 0.10
 @export var fp_fire_ceiling_cap_thickness_m: float = 0.20
 ## Energia de la luz del fuego cuando HRR = 1000 kW (referencia 1 MW).
@@ -1055,7 +1075,7 @@ func _physics_process(delta: float) -> void:
 	_fp_fire_phase += delta
 	_apply_movement(delta)
 	_update_opening_hold(delta)
-	_animate_fp_fire()
+	_animate_fp_fire(delta)
 	_update_prompt()
 	_update_visibility_overlay()
 	_update_status_hud()
@@ -5139,10 +5159,20 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 	if has_visible_fire:
 		var fire_t: float = clampf(hrr_kw / maxf(1.0, fp_fire_reference_hrr_kw), 0.0, 1.8)
 		var fire_strength: float = clampf(sqrt(maxf(0.0, fire_t)), 0.0, 1.35)
+		# Altura de llama por la correlacion de Heskestad, que es la que usan
+		# los manuales de ingenieria de incendios (SFPE):
+		#
+		#     L = 0,235 · Q^(2/5) − 1,02 · D
+		#
+		# Q en kW y D el diametro de la base del fuego. El termino de D es lo
+		# que hace que el mismo calor de una llama alta y flaca en una papelera
+		# y una baja y ancha en un sofa; la ley que habia -0,18 + sqrt(HRR/1000)
+		# x 1,75- no sabia nada del diametro y era dos numeros elegidos a ojo.
+		var base_diameter_m: float = maxf(0.12, source_radius_m * 2.0)
 		var free_plume_height_m: float = clampf(
-			0.18 + fire_strength * fp_fire_max_height_m,
+			0.235 * pow(maxf(1.0, hrr_kw), 0.4) - 1.02 * base_diameter_m,
 			0.12,
-			available_height_m + fp_fire_max_height_m * 0.30
+			fp_fire_max_height_m
 		)
 		target_height = minf(free_plume_height_m, available_height_m)
 		target_radius = maxf(
@@ -5164,18 +5194,21 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 			var cap_limit_m: float = maxf(0.30, minf(fp_fire_max_radius_m * 2.8, minf(rect.size.x, rect.size.y) * 0.46))
 			target_cap_radius = lerpf(fp_fire_max_radius_m * 0.70, cap_limit_m, clampf(target_cap_weight, 0.0, 1.0))
 
-	var current_height: float = lerpf(float(item.get("fire_height_m", 0.0)), target_height, 0.28 if has_visible_fire else 0.36)
-	var current_radius: float = lerpf(float(item.get("fire_radius_m", fp_fire_base_radius_m)), target_radius, 0.28)
-	var current_cap_radius: float = lerpf(float(item.get("fire_cap_radius_m", 0.0)), target_cap_radius, 0.24)
-	var current_cap_weight: float = lerpf(float(item.get("fire_cap_weight", 0.0)), target_cap_weight, 0.24)
-	item["fire_height_m"] = current_height
-	item["fire_radius_m"] = current_radius
-	item["fire_cap_radius_m"] = current_cap_radius
-	item["fire_cap_weight"] = current_cap_weight
+	# Aqui solo se apunta a donde tiene que llegar la llama. Quien la lleva es
+	# `_grow_fp_fire_item`, que corre con el reloj: si el acercamiento se hace
+	# aqui, avanza una vez por estado y la llama nunca llega (G-5).
+	item["fire_target_height_m"] = target_height
+	item["fire_target_radius_m"] = target_radius
+	item["fire_target_cap_radius_m"] = target_cap_radius
+	item["fire_target_cap_weight"] = target_cap_weight
 	item["fire_available_height_m"] = available_height_m
+	var current_height: float = float(item.get("fire_height_m", 0.0))
 
 	fire_root.position = fire_pos
-	fire_root.visible = show_fp_fire and current_height > 0.05
+	# La visibilidad la manda el DESTINO, no el tamano de este instante: si no,
+	# el nodo nace oculto -la llama empieza en cero- y no se enciende hasta el
+	# siguiente estado.
+	fire_root.visible = show_fp_fire and (current_height > 0.05 or target_height > 0.05)
 
 	var fire_light := item.get("fire_light") as OmniLight3D
 	if fire_light != null:
@@ -5335,12 +5368,35 @@ func _fp_fire_base_y_for_object(obj: Dictionary) -> float:
 	return clampf(elevation_m + object_top_m, 0.02, 1.25)
 
 
-func _animate_fp_fire() -> void:
+func _animate_fp_fire(delta: float = 0.0) -> void:
 	for raw_room_id in _fire_nodes_by_room.keys():
 		var item: Dictionary = _fire_nodes_by_room[raw_room_id]
+		if delta > 0.0:
+			_grow_fp_fire_item(item, delta)
 		var fire_root := item.get("fire_root") as Node3D
 		if fire_root != null and fire_root.visible:
 			_animate_fp_fire_item(item)
+
+
+## Acerca la llama a su tamano CON EL RELOJ.
+##
+## El acercamiento es exponencial con constante de tiempo `fp_fire_grow_tau_s`:
+## en tau recorre el 63 % de lo que le falta, y el resultado no depende ni de
+## los fotogramas por segundo ni de cada cuanto llega el estado de la
+## simulacion. Antes era un `lerp` de factor fijo ejecutado una vez por estado,
+## y por eso la llama se quedaba en un tercio de su tamano (G-5).
+func _grow_fp_fire_item(item: Dictionary, delta: float) -> void:
+	var k_sube: float = 1.0 - exp(-delta / maxf(0.01, fp_fire_grow_tau_s))
+	var k_baja: float = 1.0 - exp(-delta / maxf(0.01, fp_fire_fade_tau_s))
+	for clave in ["height_m", "radius_m", "cap_radius_m", "cap_weight"]:
+		var actual: float = float(item.get("fire_" + clave, 0.0))
+		var destino: float = float(item.get("fire_target_" + clave, actual))
+		item["fire_" + clave] = actual + (destino - actual) * (k_sube if destino >= actual else k_baja)
+	var fire_root := item.get("fire_root") as Node3D
+	if fire_root != null:
+		fire_root.visible = show_fp_fire and (
+			float(item.get("fire_height_m", 0.0)) > 0.05
+			or float(item.get("fire_target_height_m", 0.0)) > 0.05)
 
 
 func _animate_fp_fire_item(item: Dictionary) -> void:
