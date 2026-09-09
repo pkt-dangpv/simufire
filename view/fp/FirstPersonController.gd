@@ -260,8 +260,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Radio de difuminado de la sombra del sol. En GL Compatibility el difuminado
 ## se hace con un patron TRAMADO por pixel: con radios altos el borde de sombra
 ## se llena de puntos que reptan al mover la camara. 1,4 era demasiado.
-## Con el filtro de sombra en calidad 0 el difuminado deja de aportar y solo
-## reintroduce inestabilidad; se deja a 0 y se sube si se quiere sombra blanda.
+##
+## Se queda en 0 a proposito, pero por una razon distinta de la de antes. El
+## 2026-09-01 se bajo el filtro de sombra del proyecto a calidad 0 persiguiendo
+## unas manchas que cambiaban al mover la camara, y entonces el difuminado no
+## aportaba nada. Aquel diagnostico resulto FALSO -X-8 era z-fighting, cerrada
+## el 2026-09-05-, asi que el 2026-09-09 el filtro vuelve a calidad 3 y el
+## suavizado del borde ya lo da el filtro. El difuminado se sube solo si se
+## quiere sombra mas blanda todavia, sabiendo que arriesga el tramado.
 @export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 0.0
 ## Alcance del mapa de sombra direccional. Repartir la misma resolucion entre
 ## 42 m deja muy pocos texeles donde de verdad se mira, dentro de la vivienda,
