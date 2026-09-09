@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-09 · **HEAD:** 08dc041 · **Godot:** 4.7.1 · **Renderer:** `gl_compatibility`
 **Estado:** auditoría cerrada · plan en marcha · **fase 0 completa** (G-3, los dos
-prompts al motor y N-6·N-7) · **fase 1: N-4 y N-3 hechos, G-4 a medias**
+prompts al motor y N-6·N-7) · **fase 1: N-4 y N-3 hechos, G-4 cerrado**
 
 Documento conjunto. La **parte I** es la auditoría del estado actual del diseñador de
 niveles y del aparato gráfico: once hallazgos, todos medidos o mirados hoy sobre el
@@ -311,6 +311,59 @@ generan y `_crosses_roadway` las descarta, porque desde EXT-1 la calle es un
 queda sitio a los lados. O el anillo deja hueco para medianeras, o esos dos
 cuerpos sobran. Sin decidir.
 
+#### ✅ Cerrado el 2026-09-09 — tres tipologías y el fondo por manzana
+
+Petición tuya: que el exterior sea un tipo de edificio distinto según la altura,
+porque *«no es lo mismo la proporción de ancho y alto de uno de 20 plantas que
+uno de 80»*, y que tape la vista de fondo. Las dos cosas están hechas, y la
+segunda resultó no ser un problema de altura.
+
+**Las tres tipologías** viven en `view/fp/FPUrbanTypology.gd`, y no son la misma
+caja escalada: cada tramo trae sus piezas. Dentro de cada tramo los números se
+interpolan, o 21 plantas y 49 se dibujarían igual.
+
+| tramo | frente | fondo | esbeltez | ventanas | otras piezas |
+|---|---|---|---|---|---|
+| manzana (≤20) | 8,5 → 16 m | 6,6 → 13 m | 1:0,2 → 1:2,7 | hueco | zócalo, cornisa, balcones, bajo comercial |
+| torre (21-50) | 24 → 34 m | 18 → 26 m | 1:2,5 → 1:4,2 | banda corrida | podio de 2 plantas, 1 retranqueo, remate |
+| rascacielos (51-80) | 40 → 54 m | 30 → 40 m | 1:3,6 → 1:4,2 | banda corrida | podio de 5, 2 retranqueos, coronación, antena y baliza |
+
+La banda corrida no es solo estilo: a 60 plantas, cuatro columnas de ventanas de
+cuatro nodos cada una son mil nodos por módulo. Tabla completa en
+`tools/probe_urban_typology.gd`.
+
+**El fondo.** Aquí el diagnóstico cambió a mitad de camino. Mirando capturas no
+había forma de saber si la superficie gris que se comía media ventana era un
+edificio, el telón del skyline o el cielo: una foto no dice el nombre del nodo.
+`tools/probe_exterior_occlusion.gd` lanza un abanico de rayos desde el hueco y sí
+lo dice. Con eso:
+
+- El decorado cubría **de −15 a +15 grados** y el resto era cielo.
+- La causa no era la altura: **el fondo se construía por fachada**, y solo
+  delante de las que tienen ventana. En diagonal no había nada construido.
+
+Es la regla de EXT-1 otra vez —*una calle no se construye por fachadas, se
+construye por manzana*—, que la calzada ya cumplía y el fondo no. Ahora la fila
+de fondo es un **anillo de ocho orientaciones**, las cuatro diagonales incluidas
+porque eran justo el agujero, en **dos filas desplazadas media pieza**, más un
+**suelo de ciudad**: más allá del anillo de la calle tampoco había pavimento, y
+al mirar hacia abajo en diagonal se veía el vacío.
+
+**Medido**: de 27 rayos por debajo del horizonte, 27 tapados en las plantas 0, 5,
+15, 35 y 65; y a +45 grados sigue habiendo cielo en las nueve direcciones,
+porque taparlo todo también está mal. Lo fija `validate_exterior_occlusion`, en
+la suite, probado con tres mutaciones (volver al fondo por fachada, quitar el
+suelo, y disparar la altura de la fila de fondo).
+
+**Y cuesta menos que antes**: 1,58 → 1,17 ms de fotograma medio en la planta 1.
+Una torre son pocas piezas anchas con bandas, en vez de muchas estrechas con una
+cajita por ventana.
+
+**Lo que queda a la vista y no he tocado**: el color. Los edificios de enfrente
+son casi negros de día (`opposite_facade_day_color`), y ahora que llenan la
+ventana entera se nota mucho más que cuando eran una franja. Es un mando del
+inspector.
+
 #### 🟡 G-5. El fuego se lee flojo para lo que dice el HUD
 
 En la vista de incendio del salón, con **HRR 850 kW y 340 °C**: una llama de
@@ -337,7 +390,7 @@ que la capa de humo no tenga representación propia a esa densidad.
 - **Estructura del editor**: recuento de funciones y variables sobre el fuente.
 - **Suite completa**: `python scripts/check_product.py` → 42 OK y el FAIL
   conocido de la línea del motor (R2-1, informes por regenerar). Tras la fase 1
-  son 43: entra `validate_building_height`.
+  son 44: entran `validate_building_height` y `validate_exterior_occlusion`.
 
 ---
 
@@ -720,7 +773,7 @@ hallazgos ordenados por fase, con quién tiene que hacer cada uno.
 | — | Escribir los prompts al motor (patios, viento por altura) | plan | coordinación | 0 ✅ |
 | **N-4** | Plantas totales y planta del incendio en el selector | petición | visual + editor | 1 ✅ |
 | **N-3** | Que se note la altura al mirar afuera | petición | visual | 1 ✅ (falta bruma) |
-| **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 🟠 a medias |
+| **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 ✅ |
 | **N-5** | Viento: dirección y velocidad, con tope de 28 m/s | petición | visual + **motor** | 2 |
 | **G-2** | Ningún mueble tiene textura — decisión de material | 🔴 auditoría | decisión | 3 |
 | **G-1** | 121 de 140 modelos sin envoltorio: no se pueden dibujar | 🔴 auditoría | visual | 3 |
