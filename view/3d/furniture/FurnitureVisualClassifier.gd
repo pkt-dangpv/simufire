@@ -10,6 +10,7 @@ extends RefCounted
 ## renombrado, cae a cajas sin decir nada.
 const ARCHETYPES: Array[String] = [
 	"armchair",
+	"bathroom_cabinet",
 	"bathtub",
 	"bed",
 	"bed_bunk",
@@ -111,6 +112,14 @@ static func visual_archetype(obj: Dictionary) -> String:
 		return "kitchen_sink"
 	if _has(tokens, ["lavabo", "sink"]):
 		return "sink"
+	# El mueble de bano tiene que ir ANTES que el "armario" generico de mas
+	# abajo. Sin esto un armario de bano salia dibujado como un ROPERO de 2,05 m
+	# de alto dentro de un bano de 4 m2, y un botiquin caia en el monton de
+	# bultos del fallback. El modelo existia y no lo alcanzaba nadie.
+	if _has(tokens, ["mueble de bano", "mueble de baño", "armario de bano",
+			"armario de baño", "botiquin", "botiquín", "bathroom cabinet",
+			"medicine cabinet", "vanity"]):
+		return "bathroom_cabinet"
 
 	# --- Cocina (electrodomésticos antes que unidad genérica) ---
 	if _has(tokens, ["nevera", "frigo", "frigorifico", "frigorífico", "fridge"]):

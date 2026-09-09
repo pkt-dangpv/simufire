@@ -154,6 +154,13 @@ static func _bathroom(room_id: int, w: float, d: float) -> Array:
 		pieces.append(_piece(room_id, "bathtub", "Banera", Vector2(1.70, 0.75), Vector2(w * 0.5, d - 0.45)))
 	else:
 		pieces.append(_piece(room_id, "shower", "Ducha", Vector2(0.90, 0.90), Vector2(w - 0.55, d - 0.55)))
+	# El mueble del lavabo va JUNTO al lavabo, en su mismo paramento, no en
+	# cualquier hueco libre: es la pieza que lo acompana. Solo si de verdad queda
+	# sitio al lado -si no, el bano sale abarrotado, que es otra forma de no ser
+	# creible-.
+	if w >= 2.30:
+		pieces.append(_piece(room_id, "bathroom_cabinet", "Mueble de bano",
+			Vector2(0.60, 0.20), Vector2(clampf(w * 0.5 - 0.75, 0.40, w - 0.40), 0.30)))
 	pieces.append(_piece(room_id, "textile_pile", "Toallas", Vector2(0.45, 0.35), Vector2(w - 0.40, d * 0.35)))
 	return pieces
 

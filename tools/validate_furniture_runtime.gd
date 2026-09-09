@@ -14,6 +14,13 @@ const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoa
 ## Donde viven los modelos de mobiliario.
 const FURNITURE_ASSET_DIR: String = "res://assets/fp/furniture"
 
+## El fichero del clasificador, que se lee como texto: ver _check_contract_is_complete().
+const CLASSIFIER_PATH: String = "res://view/3d/furniture/FurnitureVisualClassifier.gd"
+
+## Donde acaba visual_archetype(): el salto de linea va aparte para que el
+## literal no lleve uno dentro.
+const NEXT_FUNCTION_MARK: String = "\nstatic func "
+
 ## Muebles con modelo de verdad, de los que traen varios materiales.
 const BURN_KINDS: Array[String] = ["sofa", "bed", "wardrobe"]
 
@@ -22,6 +29,67 @@ var _failures: Array[String] = []
 
 func _ready() -> void:
 	call_deferred("_run")
+
+
+## La lista de arquetipos no puede descolgarse del clasificador.
+##
+## ARCHETYPES esta escrita a MANO, y la comprobacion de abajo solo mira lo que
+## hay en ella: un `return "x"` nuevo en el clasificador que nadie apunte en la
+## lista se salta la red entera, y vuelve exactamente el fallo mudo que la red
+## venia a matar -el arquetipo cae a cajas y nadie se entera-. Asi que aqui la
+## lista se compara con los returns del propio fichero, leido como texto.
+func _check_contract_is_complete() -> void:
+	var source: String = _classifier_source()
+	if source == "":
+		_expect(false, "no se puede leer %s para comprobar el contrato" % CLASSIFIER_PATH)
+		return
+
+	var returned: Dictionary = {}
+	var pattern := RegEx.create_from_string('return "([a-z_]+)"')
+	for found in pattern.search_all(source):
+		returned[found.get_string(1)] = true
+	_expect(not returned.is_empty(),
+		"no se ha encontrado ningun `return` en visual_archetype(): la lectura del fichero no vale")
+
+	var listed: Dictionary = {}
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		listed[archetype] = true
+
+	var missing: PackedStringArray = PackedStringArray()
+	for archetype in returned:
+		if not listed.has(archetype):
+			missing.append(archetype)
+	missing.sort()
+	_expect(missing.is_empty(),
+		"el clasificador devuelve arquetipos que no estan en ARCHETYPES, o sea sin red: %s"
+			% ", ".join(missing))
+
+	var stale: PackedStringArray = PackedStringArray()
+	for archetype in listed:
+		if not returned.has(archetype):
+			stale.append(archetype)
+	stale.sort()
+	_expect(stale.is_empty(),
+		"ARCHETYPES nombra arquetipos que el clasificador ya no devuelve: %s" % ", ".join(stale))
+
+
+## El cuerpo de visual_archetype(), sin el resto del fichero.
+##
+## Se recorta a esa funcion porque es la unica que devuelve arquetipos; leer el
+## fichero entero colaria como arquetipo cualquier cadena devuelta por otra.
+func _classifier_source() -> String:
+	var file := FileAccess.open(CLASSIFIER_PATH, FileAccess.READ)
+	if file == null:
+		return ""
+	var text: String = file.get_as_text()
+	file.close()
+	var from: int = text.find("static func visual_archetype")
+	if from < 0:
+		return ""
+	var to: int = text.find(NEXT_FUNCTION_MARK, from + 1)
+	if to < 0:
+		to = text.length()
+	return text.substr(from, to - from)
 
 
 ## Cada arquetipo tiene que salir con su modelo, no con las cajas de respaldo.
@@ -65,6 +133,24 @@ func _check_every_archetype_has_a_model() -> void:
 		remove_child(instance)
 		instance.free()
 	_expect(broken.is_empty(), "modelos de mobiliario rotos: %s" % ", ".join(broken))
+
+	# Y el tercer sentido: un modelo que NINGUN arquetipo alcanza. No da error, no
+	# rompe nada -simplemente no aparece nunca en la casa-, y por eso el mueble de
+	# bano estuvo en el catalogo sin que se dibujara una sola vez. Con el catalogo
+	# creciendo esto es lo que hay que cazar: un modelo comprado y no usado.
+	var reachable: Dictionary = {}
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		reachable[FurnitureAssetLoader.model_path(archetype)] = true
+	var unreached: PackedStringArray = PackedStringArray()
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".tscn"):
+			continue
+		if not reachable.has("%s/%s" % [FURNITURE_ASSET_DIR, file_name]):
+			unreached.append(file_name)
+	unreached.sort()
+	_expect(unreached.is_empty(),
+		"modelos que ningun arquetipo alcanza, o sea que no se dibujan nunca: %s"
+			% ", ".join(unreached))
 
 
 func _mesh_count(node: Node) -> int:
@@ -145,6 +231,7 @@ func _changed(before: Array, after: Array) -> int:
 func _run() -> void:
 	await get_tree().process_frame
 
+	_check_contract_is_complete()
 	_check_every_archetype_has_a_model()
 	_check_burning_changes_furniture()
 

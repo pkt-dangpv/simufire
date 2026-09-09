@@ -990,6 +990,61 @@ Instrumental disponible: `tools/validate_furniture_layout.gd` con `VERBOSE = tru
 vuelca las 319 piezas medidas con su arquetipo y sus dimensiones, y
 `tools/probe_furniture_assets.gd` mide el tamaño nativo de cada modelo.
 
+### 14.5 El tercer sentido de la red: un modelo que nadie alcanza — 2026-09-09
+
+La red del catálogo (`008a6be`) comprobaba dos sentidos: que todo arquetipo tiene
+modelo, y que todo modelo carga y trae mallas. Faltaba el tercero, y en él había
+un caso real: **`bathroom_cabinet` tenía modelo, ficha de medidas y entrada en el
+mapa de alias, y ninguna rama del clasificador podía devolverlo**. 37 modelos, 36
+alcanzables. No daba error de ninguna clase — simplemente no se dibujaba nunca.
+
+Lo que salía en su lugar, medido con el clasificador antes del arreglo:
+
+| lo que dice el escenario | salía como | alto |
+|---|---|---|
+| `armario de baño` | `wardrobe` | **2,05 m** |
+| `mueble de baño` | `clutter` | 0,45 m |
+| `botiquín` | `clutter` | 0,45 m |
+
+O sea las dos quejas del usuario a la vez, en una sola pieza: un **ropero de
+2,05 m dentro de un baño** ("muebles en sitios que no corresponden") y un montón
+de bultos ("cosas que no parecen muebles"). El fallback `clutter` otra vez de por
+medio.
+
+Arreglado en tres sitios, y los tres hacen falta:
+
+- rama de baño en `FurnitureVisualClassifier`, **antes** que el `armario`
+  genérico —que está más abajo y se lo comía—;
+- `bathroom_cabinet` en `ARCHETYPES`, o el arquetipo no tendría red;
+- una pieza en `_bathroom()` de `FurnitureRoomFurnisher`, **junto al lavabo y en
+  su mismo paramento**, y solo si el baño mide 2,30 m de ancho. Sin esto el
+  arreglo era teórico: ningún escenario del catálogo nombra un mueble de baño,
+  así que el modelo habría seguido sin dibujarse. Sale construido a
+  0,50 × 0,22 × 0,70 m en `compact_apartment` y en la suite del
+  `piso_mediterraneo`; los baños estrechos lo saltan.
+
+Y la red se cubre ahora a sí misma. `ARCHETYPES` está escrita a mano, así que un
+`return` nuevo en el clasificador que nadie apunte allí **se saltaba la
+comprobación entera**: el arquetipo caía a cajas y la red pasaba. Ahora
+`validate_furniture_runtime` lee los `return` del propio fichero y compara la
+lista con ellos en los dos sentidos, y además exige que todo `.tscn` del catálogo
+lo alcance algún arquetipo. Probado al revés: con un `return "trampolin"`
+inventado falla con *"el clasificador devuelve arquetipos que no están en
+ARCHETYPES, o sea sin red: trampolin"*, y quitando `bathroom_cabinet` de la lista
+reaparece el hallazgo original — *"modelos que ningún arquetipo alcanza, o sea que
+no se dibujan nunca: bathroom_cabinet.tscn"*.
+
+**Lo que enseña, y vale para la compra de assets que viene**: un modelo que no
+alcanza nadie es indistinguible de un modelo que no existe, y ninguna de las dos
+redes anteriores lo veía. Con el catálogo creciendo, comprar un modelo y no
+enganchar la rama que lo nombra es el fallo por defecto.
+
+Sigue sin haber modelo para **espejo** ni **toallero**: los dos caen en `clutter`
+y ahí se quedan hasta que entren en el catálogo. No se han mapeado a otra cosa a
+propósito — un espejo dibujado como armario es justo el error que se acaba de
+quitar. Y no hay mecanismo de pieza **colgada a una altura**: el mueble se apoya
+en el suelo, que cuela para un mueble de lavabo y no para un botiquín.
+
 ---
 
 ## 15. 🟠 EXT-1. El exterior por la ventana — **[ENTREGADO sin pulir]**

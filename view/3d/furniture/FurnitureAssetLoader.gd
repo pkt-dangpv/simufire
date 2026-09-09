@@ -250,7 +250,17 @@ static func _transform_aabb(xform: Transform3D, aabb: AABB) -> AABB:
 ## el mapa de alias -"containers" se dibuja con plastic_bin, "storage" con la
 ## libreria-, y saltarselo da una respuesta que parece buena y no lo es.
 static func has_model(kind_name: String) -> bool:
-	return ResourceLoader.exists("res://assets/fp/furniture/%s.tscn" % _asset_kind_for(kind_name))
+	return ResourceLoader.exists(model_path(kind_name))
+
+
+## El fichero con el que se dibuja un arquetipo, ya pasado por el mapa de alias.
+##
+## Publico porque hace falta preguntarlo en los DOS sentidos: no solo "tiene
+## este arquetipo un modelo", tambien "alcanza alguien este modelo". Un modelo
+## que nadie alcanza no da ningun error: simplemente no aparece nunca en la
+## casa, y asi estuvo el mueble de bano.
+static func model_path(kind_name: String) -> String:
+	return "res://assets/fp/furniture/%s.tscn" % _asset_kind_for(kind_name)
 
 
 static func _asset_kind_for(kind_name: String) -> String:
