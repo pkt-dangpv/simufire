@@ -61,6 +61,13 @@ const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 ## Fotogramas de espera tras recolocar la camara.
 @export_range(1, 120, 1) var settle_frames_view: int = 12
 
+@export_group("Altura del piso patron")
+## En que planta esta el piso: 0 = baja, negativo = sotano. Cambia la cota de
+## la calle y la altura de los vecinos (N-4/N-3), no la vivienda. Tambien se
+## puede pasar por linea de comandos con --floor=, para sacar un juego por
+## planta sin tocar la escena.
+@export var apartment_floor_number: int = 1
+
 @export_group("Iluminacion del piso patron")
 ## Mismos valores que scenes/SimulationScene.tscn, para que la captura
 ## corresponda con lo que ve el usuario y no con los defaults del script.
@@ -95,6 +102,9 @@ func _run() -> void:
 		default_dir = ProjectSettings.globalize_path("res://.test_tmp/visual_reference")
 	_out_dir = _cmdline_value("--out=", default_dir)
 	_label = _cmdline_value("--label=", output_label)
+	var floor_arg: String = _cmdline_value("--floor=", "")
+	if floor_arg != "":
+		apartment_floor_number = int(floor_arg)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	print("[capture] destino=%s display=%s" % [_out_dir, DisplayServer.get_name()])
 	if DisplayServer.get_name() == "headless":
@@ -319,6 +329,7 @@ func _make_template() -> Dictionary:
 	return {
 		"version": 1,
 		"building_type": "apartment",
+		"apartment_floor_number": apartment_floor_number,
 		"outside_temp_c": 18.0,
 		"outside_o2": 0.209,
 		"stop_time_s": 0.0,

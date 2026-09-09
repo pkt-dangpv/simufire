@@ -14,8 +14,11 @@ const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 
 const CASES: Array[Dictionary] = [
-	{"template": "compact_apartment", "night": false},
-	{"template": "simple_house", "night": false},
+	{"template": "compact_apartment", "night": false, "floor": 1},
+	{"template": "simple_house", "night": false, "floor": 1},
+	# Desde arriba el decorado tiene que seguir teniendo alzado: es lo que se
+	# mide para G-4, y ademas dice lo que cuesta en nodos una calle alta.
+	{"template": "compact_apartment", "night": false, "floor": 15},
 ]
 
 ## Familias que interesan, por prefijo del nombre del nodo.
@@ -44,11 +47,11 @@ func _ready() -> void:
 func _run() -> void:
 	await get_tree().process_frame
 	for case_data in CASES:
-		await _probe(String(case_data["template"]), bool(case_data["night"]))
+		await _probe(String(case_data["template"]), bool(case_data["night"]), int(case_data.get("floor", 1)))
 	get_tree().quit(0)
 
 
-func _probe(template_name: String, night: bool) -> void:
+func _probe(template_name: String, night: bool, floor_number: int = 1) -> void:
 	var builder = BuildingTemplateScript.new()
 	var editor_data: Dictionary = Serializer.normalize_editor_data(builder.create_by_name(template_name))
 	var runtime_json: Dictionary = Serializer.to_runtime_json_data(editor_data)
@@ -56,8 +59,10 @@ func _probe(template_name: String, night: bool) -> void:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		print("%s: no se pudo construir" % template_name)
 		return
+	var data: Dictionary = Dictionary(parsed)
+	data["apartment_floor_number"] = floor_number
 	var building: BuildingModel = BuildingModelScript.new()
-	building.load_template_data(Dictionary(parsed))
+	building.load_template_data(data)
 
 	var fp: FirstPersonController = FirstPersonControllerScript.new()
 	fp.name = "ProbeExteriorFP"
@@ -73,7 +78,7 @@ func _probe(template_name: String, night: bool) -> void:
 
 	var root := fp.get_node_or_null("FirstPersonWorld") as Node3D
 	print("")
-	print("=== %s (%s) ===" % [template_name, "noche" if night else "dia"])
+	print("=== %s (%s, planta %d) ===" % [template_name, "noche" if night else "dia", floor_number])
 	if root == null:
 		print("  no hay ExteriorContext")
 		remove_child(fp)

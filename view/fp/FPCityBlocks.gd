@@ -275,10 +275,15 @@ static func _block_openings(prefix: String, t: float, facade_dist: float, width:
 			"color": awning,
 		})
 	if bool(o.get("balconies_enabled", true)) and height > 6.0:
-		var floors: int = clampi(int((height - 3.6) / 2.85), 1, 5)
+		# El tope de cinco plantas era el error de N-4: la manzana se quedaba en
+		# cinco pisos de balcones tuviese la altura que tuviese, asi que desde la
+		# planta 15 se miraba por encima de una fachada ciega. Ahora las plantas
+		# salen de la altura y de la altura de planta real del edificio.
+		var floor_h: float = maxf(2.0, float(o.get("floor_height_m", 2.85)))
+		var floors: int = maxi(1, int((height - 3.6) / floor_h))
 		var balcony_color: Color = o.get("balcony_color", Color(0.28, 0.29, 0.30, 1.0))
 		for f in range(floors):
-			var y: float = 3.9 + float(f) * 2.85
+			var y: float = 3.9 + float(f) * floor_h
 			if y > height - 1.2:
 				break
 			out.append({

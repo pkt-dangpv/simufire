@@ -164,7 +164,7 @@ class TestGodotEditability(unittest.TestCase):
                 "own_facade_side_margin_m",
                 "own_facade_plinth_height_m",
                 "own_facade_parapet_m",
-                "own_facade_storey_pitch_m",
+                "exterior_storey_pitch_m",
                 "landing_ambient_lights_enabled",
                 "landing_ambient_light_factor",
             ],

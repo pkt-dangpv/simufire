@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-09 · **HEAD:** 08dc041 · **Godot:** 4.7.1 · **Renderer:** `gl_compatibility`
 **Estado:** auditoría cerrada · plan en marcha · **fase 0 completa** (G-3, los dos
-prompts al motor y N-6·N-7)
+prompts al motor y N-6·N-7) · **fase 1: N-4 y N-3 hechos, G-4 a medias**
 
 Documento conjunto. La **parte I** es la auditoría del estado actual del diseñador de
 niveles y del aparato gráfico: once hallazgos, todos medidos o mirados hoy sobre el
@@ -292,6 +292,25 @@ calle, los edificios vecinos son **bloques negros y grises sin una sola ventana*
 y la fachada propia es casi negra con un único hueco iluminado. La calzada, la
 línea discontinua y el paso de cebra están; el alzado no.
 
+**Medio cerrado el 2026-09-09.** La fachada de enfrente sí tenía ventanas, pero
+el número de filas estaba topado a cuatro y la separación se calculaba dividiendo
+la altura entre ellas: en una fachada de 45 m salían cuatro ventanas cada once
+metros, que es exactamente «un muro liso». Ahora hay **una fila por planta real**,
+con la altura de planta del edificio, y lo fija el guardarraíl de la altura.
+
+Sigue abierto: los **retornos de esquina** y los **vecinos de nuestro lado** son
+volúmenes ciegos (la fila de atrás lo es a propósito, ahí lo que se lee es la
+silueta). Probé a darles bajos y balcones y lo revertí: en ninguna vista llegué a
+verlos, y decorado que no se puede comprobar es como se colaron las tapias de
+EXT-1.
+
+**Y un hallazgo nuevo, de la misma medición:** `NearNeighbour` —los dos cuerpos
+que deberían flanquear nuestro edificio— **no se construye nunca**. Las piezas se
+generan y `_crosses_roadway` las descarta, porque desde EXT-1 la calle es un
+**anillo alrededor de la manzana** y nuestro edificio es la manzana entera: no
+queda sitio a los lados. O el anillo deja hueco para medianeras, o esos dos
+cuerpos sobran. Sin decidir.
+
 #### 🟡 G-5. El fuego se lee flojo para lo que dice el HUD
 
 En la vista de incendio del salón, con **HRR 850 kW y 340 °C**: una llama de
@@ -317,7 +336,8 @@ que la capa de humo no tenga representación propia a esa densidad.
   sin textura de uno con la textura embebida.
 - **Estructura del editor**: recuento de funciones y variables sobre el fuente.
 - **Suite completa**: `python scripts/check_product.py` → 42 OK y el FAIL
-  conocido de la línea del motor (R2-1, informes por regenerar).
+  conocido de la línea del motor (R2-1, informes por regenerar). Tras la fase 1
+  son 43: entra `validate_building_height`.
 
 ---
 
@@ -451,6 +471,22 @@ menú— **no llega nunca a la vista**: buscándolo en todo el árbol solo apare
 planta 20? ¿Las cubiertas de los vecinos y el horizonte? ¿Otros bloques altos
 alrededor? ¿La calle sigue estando, muy abajo?
 
+#### ✅ La cota, cerrada el 2026-09-09
+
+`exterior_floor_drop_m` ya no existe. La calle cae **una altura de planta por
+cada planta que hay debajo del forjado dibujado**, y la altura de planta sale
+medida del propio edificio cuando tiene dos o más plantas. Medido con el piso
+patrón: planta 0 → 0,00 m · planta 5 → −14,25 m · planta 15 → −42,75 m.
+
+Capturas en `.test_tmp/ventana/` (asomarse recto, abajo y arriba, plantas 0 y
+15): desde la 15 se mira **por encima de las cubiertas de los vecinos**, con el
+cielo ocupando la mitad de arriba del hueco y la calle ya fuera del encuadre.
+Eso responde por construcción la mitad de la pregunta abierta.
+
+**Lo que sigue faltando de N-3:** la perspectiva aérea. Desde una planta alta el
+telón del skyline se lee como un plano gris grande. La bruma de distancia
+(`sky_haze_*`) no se ha tocado.
+
 ---
 
 ### N-4 · Altura del edificio y planta del incendio en el selector
@@ -485,6 +521,41 @@ inventar un horizonte.
   recomendación: dato aparte.** Se dibujan 2 o 3 plantas y se declara que el
   edificio tiene 12; las que no se dibujan no arden, pero existen para la vista y
   para el tiro.
+
+#### ✅ Cerrado el 2026-09-09 — decidido al revés de mi recomendación
+
+**Las plantas del edificio son las dibujadas**, no un número declarado aparte, y
+**los vecinos tienen esas mismas plantas**. Lo que sí es un dato es a qué altura
+se planta esa pila: `apartment_floor_number` dice en qué planta cae el forjado
+más bajo dibujado, y debajo quedan plantas de relleno que existen para la vista
+—y para que los vecinos igualen la altura— pero que no se dibujan, no arden y no
+salen en el HUD. Así el catálogo, que son pisos de una sola planta, sigue
+pudiendo arrancar en la planta 15.
+
+**La cuenta es la española y ahora está escrita**: 0 es la planta baja, los
+positivos suben y los negativos son sótanos —el mando ya traía ese recorrido, de
+−5 a 80, pero no lo decía en ninguna parte—. Está en el tooltip del editor, en el
+del menú y en el resumen de la portada («piso, planta baja», «piso, sótano 2»).
+
+Las cuentas viven en `view/geometry/BuildingLevels.gd` (`drawn_floor_count`,
+`floor_to_floor_m`, `apparent_total_floors`, `street_drop_m`), que es donde ya
+estaba la geometría compartida por las dos vistas.
+
+**Los vecinos**: la fachada de enfrente medía 15 m constantes y los balcones
+estaban topados a cinco plantas. Ahora la altura sale de las plantas que aparenta
+nuestro edificio, y `opposite_facade_height_m` pasa a ser el mínimo. Medido:
+planta 0 → vecinos de 15,0 m · planta 5 → 17,1 m · planta 15 → 45,6 m.
+
+**Un mando de menos**: `own_facade_storey_pitch_m` y la altura de planta de
+relleno eran lo mismo escrito dos veces. Ahora es `exterior_storey_pitch_m`, y
+gobierna las tres cosas que tienen que cuadrar entre sí —las líneas de forjado de
+nuestra fachada, la caída de la calle y la altura de los vecinos—.
+
+**Guardarraíl** `tools/validate_building_height.gd`, en la suite: la calle baja
+con la planta y baja lo que toca, los vecinos acompañan, hay una fila de ventanas
+por planta —contada en lo construido, leyendo el índice de planta del nombre del
+nodo— y una unifamiliar no se eleva por mucho que diga el mando. Comprobado con
+tres mutaciones, una por cada constante vieja.
 
 ---
 
@@ -647,9 +718,9 @@ hallazgos ordenados por fase, con quién tiene que hacer cada uno.
 | **N-6·N-7** | El menú inicial no cabe (430 × 719 px) y satura | petición | visual | 0 ✅ |
 | **G-3** | Borde de sombra dentado: tres valores a cero | 🟠 auditoría | visual | 0 ✅ |
 | — | Escribir los prompts al motor (patios, viento por altura) | plan | coordinación | 0 ✅ |
-| **N-4** | Plantas totales y planta del incendio en el selector | petición | visual + editor | 1 |
-| **N-3** | Que se note la altura al mirar afuera | petición | visual | 1 |
-| **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 |
+| **N-4** | Plantas totales y planta del incendio en el selector | petición | visual + editor | 1 ✅ |
+| **N-3** | Que se note la altura al mirar afuera | petición | visual | 1 ✅ (falta bruma) |
+| **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 🟠 a medias |
 | **N-5** | Viento: dirección y velocidad, con tope de 28 m/s | petición | visual + **motor** | 2 |
 | **G-2** | Ningún mueble tiene textura — decisión de material | 🔴 auditoría | decisión | 3 |
 | **G-1** | 121 de 140 modelos sin envoltorio: no se pueden dibujar | 🔴 auditoría | visual | 3 |
@@ -742,7 +813,7 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
    10 y de la velocidad básica del CTE)?
 5. **N-3 · Qué se ve desde arriba**: ¿cubiertas y horizonte, otros bloques altos,
    la calle muy abajo?
-6. **N-4 · Plantas totales**: ¿dato aparte del número de plantas dibujadas (mi
-   recomendación), o son lo mismo?
+6. ~~**N-4 · Plantas totales**~~ — **decidido: son las dibujadas**, y los
+   vecinos las mismas. Hecho el 2026-09-09.
 7. **N-1 · Balcones**: ¿solo en el edificio del jugador, o también en las plantas
    de arriba y abajo, que es lo que se ve al asomarse?

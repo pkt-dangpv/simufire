@@ -313,7 +313,6 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.2, 6.0, 0.1) var sky_sun_size_deg: float = 1.6
 @export_range(0.0, 1.5, 0.05) var sky_sun_halo_day: float = 0.55
 @export_range(0.0, 1.5, 0.05) var sky_sun_halo_night: float = 0.25
-@export var exterior_floor_drop_m: float = 5.8
 
 @export_subgroup("Cielo: bruma, nubes y noche")
 ## Banda de aire pegada al horizonte. Sin ella el degradado se corta en seco y
@@ -364,7 +363,17 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 2.0, 0.05) var own_facade_parapet_m: float = 0.55
 ## Separacion entre las lineas de forjado dibujadas en las plantas inferiores
 ## no modeladas (solo aparecen si la vivienda esta elevada sobre la calle).
-@export_range(2.0, 4.0, 0.01) var own_facade_storey_pitch_m: float = 2.85
+## Altura de una planta. Gobierna tres cosas que TIENEN que cuadrar entre si:
+## las lineas de forjado de nuestra fachada, cuanto cae la calle segun la
+## planta en la que este el piso, y cuantas plantas se levantan los vecinos
+## (N-3/N-4). Es el valor de reserva: cuando el edificio tiene dos o mas
+## plantas dibujadas, la altura sale medida del propio edificio.
+##
+## Se llamaba `own_facade_storey_pitch_m` y solo lo leia la fachada propia.
+@export_range(2.0, 4.0, 0.01) var exterior_storey_pitch_m: float = 2.85:
+	set(value):
+		exterior_storey_pitch_m = value
+		_rebuild_if_live()
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 24.0
 @export var city_backdrop_distance_m: float = 52.0
@@ -437,6 +446,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 	set(value):
 		opposite_facade_enabled = value
 		_rebuild_if_live()
+## Altura MINIMA de la fachada de enfrente. Dejo de ser la altura a secas: los
+## vecinos se levantan tantas plantas como aparente el nuestro (N-4), y esto es
+## el suelo de esa cuenta -una calle de ciudad no baja de cuatro plantas aunque
+## la vivienda sea de una-.
 @export var opposite_facade_height_m: float = 15.0
 @export var opposite_facade_length_m: float = 46.0
 @export var opposite_facade_day_color: Color = Color(0.55, 0.52, 0.48, 1.0)
@@ -444,7 +457,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var opposite_window_day_color: Color = Color(0.22, 0.26, 0.30, 1.0)
 @export var opposite_window_night_color: Color = Color(0.10, 0.11, 0.13, 1.0)
 @export var opposite_window_lit_color: Color = Color(1.0, 0.82, 0.48, 1.0)
-@export_range(0, 12, 1) var opposite_facade_floors: int = 4
+## Tope de filas de ventanas por fachada. Dejo de ser el NUMERO de filas: las
+## filas son las plantas que tiene la fachada, y la fachada tiene las plantas
+## que aparenta nuestro edificio (N-4). Con el tope viejo de cuatro filas, una
+## fachada de 45 m repartia cuatro ventanas cada once metros y se leia como un
+## muro liso: ese era el hallazgo G-4. Sigue siendo un mando porque las filas
+## cuestan nodos, y 0 apaga las ventanas.
+@export_range(0, 40, 1) var opposite_facade_max_window_floors: int = 24
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
 
 @export_subgroup("Unifamiliar: porche y parcela")
@@ -3304,7 +3323,7 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	# planten sobre ellos y no en el aire.
 	var front_modules: Array = []
 	if opposite_facade_enabled:
-		var facade_h: float = maxf(7.5, opposite_facade_height_m)
+		var facade_h: float = _neighbour_facade_height_m()
 		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
 		var module_count: int = clampi(city_facade_module_count, 3, 8)
 		var facade_span_m: float = minf(opposite_facade_length_m, city_facade_max_span_m)
@@ -3682,7 +3701,7 @@ func _add_perimeter_block(
 	ground_y: float
 ) -> void:
 	var night: bool = _exterior_is_night()
-	var height: float = maxf(7.5, opposite_facade_height_m)
+	var height: float = _neighbour_facade_height_m()
 	var depth: float = 9.0
 	var distance: float = maxf(0.5, street_sidewalk_width_m) * 2.0 + maxf(2.0, street_road_width_m)
 	var center: Vector3 = anchor - normal * (distance + depth * 0.5)
@@ -3781,7 +3800,8 @@ func _spawn_city_pieces(
 		"front_span_m": minf(opposite_facade_length_m, city_facade_max_span_m),
 		"front_modules": front_modules,
 		"facade_dist_m": facade_dist,
-		"facade_height_m": maxf(7.5, opposite_facade_height_m),
+		"facade_height_m": _neighbour_facade_height_m(),
+		"floor_height_m": BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m),
 		"block_depth_m": city_facade_depth_m * 2.2,
 		"own_facade_half_m": _own_facade_half_extent_m(tangent),
 		"sidewalk_w_m": maxf(0.5, street_sidewalk_width_m),
@@ -3857,9 +3877,11 @@ func _own_facade_half_extent_m(tangent: Vector3) -> float:
 ## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
 ## (no cajitas sueltas), con algunas encendidas de noche.
 func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, module_w: float, facade_h: float) -> void:
-	if opposite_facade_floors <= 0 or opposite_facade_columns <= 0:
+	if opposite_facade_max_window_floors <= 0 or opposite_facade_columns <= 0:
 		return
-	var floors: int = clampi(mini(opposite_facade_floors, int(round((facade_h - 1.2) / 2.55))), 2, 6)
+	# Una fila por planta de verdad, con la altura de planta del edificio.
+	var floor_h_real: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	var floors: int = clampi(int((facade_h - 1.25) / floor_h_real), 2, opposite_facade_max_window_floors)
 	var columns: int = clampi(mini(opposite_facade_columns, int(round(module_w / 2.25))), 2, 4)
 	var night: bool = _exterior_is_night()
 	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
@@ -4093,11 +4115,28 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 ## fachada calculaba la suya con la planta minima de sus propios huecos, asi
 ## que dos fachadas del mismo edificio podian tener la calle a alturas
 ## distintas.
+## Altura de los edificios de alrededor.
+##
+## Decision de N-4 (2026-09-09): **los vecinos tienen las mismas plantas que el
+## nuestro**. Antes era una constante de 15 m, asi que desde la planta 15 se
+## miraba por encima de toda la manzana y nuestro bloque quedaba suelto en el
+## aire. Ahora sale de las plantas que aparenta el edificio -las de relleno de
+## debajo mas las dibujadas- por su altura de planta, con
+## `opposite_facade_height_m` de minimo.
+func _neighbour_facade_height_m() -> float:
+	var plantas: int = BuildingLevels.apparent_total_floors(building)
+	var altura_planta: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	return maxf(maxf(7.5, opposite_facade_height_m), float(plantas) * altura_planta)
+
+
 func _exterior_ground_level_m() -> float:
 	var span: Dictionary = _building_vertical_span()
 	var base_y: float = float(span.get("min_y", 0.0))
 	if _is_apartment_building():
-		return base_y - maxf(0.0, exterior_floor_drop_m)
+		# La calle cae una altura de planta por cada planta que hay debajo del
+		# forjado dibujado. En la baja es 0, y en un sotano sale negativo: la
+		# calle queda por encima, que es lo que toca.
+		return base_y - BuildingLevels.street_drop_m(building, exterior_storey_pitch_m)
 	return base_y - 0.015
 
 
@@ -4256,10 +4295,11 @@ func _own_facade_band_levels(ground_y: float, top_y: float) -> Array[float]:
 		if level <= base_y + 0.05:
 			continue
 		levels.append(level - 0.12)
-	var implicit_y: float = base_y - own_facade_storey_pitch_m
+	var pitch: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	var implicit_y: float = base_y - pitch
 	while implicit_y > ground_y + 0.60 and levels.size() < 24:
 		levels.append(implicit_y)
-		implicit_y -= own_facade_storey_pitch_m
+		implicit_y -= pitch
 	var unique: Array[float] = []
 	for level in levels:
 		if level <= ground_y + 0.10 or level >= top_y - 0.35:

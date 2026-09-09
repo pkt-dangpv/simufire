@@ -478,7 +478,7 @@ theme_override_font_sizes/font_size = 13
 text = "PLANTA PISO"
 
 [node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ApartmentFloorRow" unique_id=1621999601]
-tooltip_text = "En qué planta del edificio está el piso. Solo cambia lo que se ve por la ventana y el portal: la vivienda es la misma."
+tooltip_text = "En qué planta del edificio está el piso: 0 es la planta baja y los negativos son sótanos. Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -5.0

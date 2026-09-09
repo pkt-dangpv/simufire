@@ -308,7 +308,14 @@ func _update_summary() -> void:
 			var planta: int = 1
 			if _apartment_floor_spin != null:
 				planta = int(round(_apartment_floor_spin.value))
-			partes.append("piso, planta %d" % planta)
+			# 0 es la baja y los negativos son sotanos: decirlo con numero
+			# ("planta 0", "planta -2") no se entiende de un vistazo.
+			if planta == 0:
+				partes.append("piso, planta baja")
+			elif planta < 0:
+				partes.append("piso, sotano %d" % absi(planta))
+			else:
+				partes.append("piso, planta %d" % planta)
 		else:
 			partes.append("casa unifamiliar")
 

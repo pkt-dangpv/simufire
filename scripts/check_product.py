@@ -238,6 +238,14 @@ def main() -> int:
         diagnostics.append("Godot view geometry parity: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_building_height.tscn",
+        "BUILDING HEIGHT VALIDATION PASS",
+    )
+    rows.append(("Altura del edificio Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot altura del edificio: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_landing_surfaces.tscn",
         "LANDING SURFACES VALIDATION PASS",
     )
