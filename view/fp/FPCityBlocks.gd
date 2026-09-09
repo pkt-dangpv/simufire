@@ -106,7 +106,9 @@ static func _far_blocks(o: Dictionary) -> Array:
 	var wing: float = (span - covered) * 0.5
 	if wing <= 1.0:
 		return out
-	var per_side: int = maxi(1, int(round(wing / 14.0)))
+	# Cuantas piezas caben en el ala, segun lo ancha que sea una pieza de este
+	# tipo: portales de trece metros o frentes de treinta y cuatro.
+	var per_side: int = maxi(1, int(round(wing / maxf(6.0, float(o.get("block_span_m", 14.0))))))
 	for side_i in range(2):
 		var direction: float = -1.0 if side_i == 0 else 1.0
 		var cursor: float = covered * 0.5
@@ -161,7 +163,8 @@ static func _corner_returns(o: Dictionary) -> Array:
 	var height: float = float(o.get("facade_height_m", 15.0))
 	var base: Color = o.get("block_color", Color(0.55, 0.52, 0.48, 1.0))
 	var length: float = facade_dist + 8.0
-	var corner_w: float = 6.5
+	# El retorno de esquina tiene que ser del mismo tamano que lo que remata.
+	var corner_w: float = maxf(6.5, float(o.get("block_span_m", 14.0)) * 0.45)
 	for side_i in range(2):
 		var direction: float = -1.0 if side_i == 0 else 1.0
 		var corner_h: float = height * (0.86 + 0.18 * float(side_i))
@@ -196,7 +199,7 @@ static func _near_neighbours(o: Dictionary) -> Array:
 	var depth: float = 11.0
 	for side_i in range(2):
 		var direction: float = -1.0 if side_i == 0 else 1.0
-		var neighbour_w: float = 13.0 + 4.0 * float(side_i)
+		var neighbour_w: float = maxf(13.0, float(o.get("block_span_m", 14.0))) + 4.0 * float(side_i)
 		var neighbour_h: float = height * (0.92 + 0.16 * float(side_i))
 		out.append({
 			"name": "NearNeighbour_%d" % side_i,
@@ -215,6 +218,14 @@ static func _near_neighbours(o: Dictionary) -> Array:
 ##
 ## Entre la fachada de enfrente y el skyline plano. Son volumenes sordos, sin
 ## ventanas: a esa distancia lo que se lee es la silueta.
+##
+## **Es la fila que tapa el fondo**, y por eso es mucho mas ancha que la calle.
+## Medido con `probe_exterior_occlusion`: cubriendo solo la anchura de la calle,
+## un rayo horizontal desde la ventana encontraba edificio entre -15 y +15
+## grados y CIELO a partir de ahi -y desde una planta alta ese cielo por debajo
+## del horizonte es la superficie gris uniforme que se comia media ventana-.
+## Con el factor de abajo el abanico tapado pasa a ser el que se ve desde el
+## hueco entero.
 static func _back_row(o: Dictionary) -> Array:
 	var out: Array = []
 	var count: int = int(o.get("back_block_count", 5))
@@ -225,21 +236,37 @@ static func _back_row(o: Dictionary) -> Array:
 	var height: float = float(o.get("facade_height_m", 15.0))
 	var base: Color = o.get("back_block_color", Color(0.45, 0.47, 0.52, 1.0))
 	var row_dist: float = facade_dist + float(o.get("block_depth_m", 10.0)) + 9.0
-	var pitch: float = (span * 1.25) / float(count)
-	for i in range(count):
-		var t: float = (float(i) + 0.5) / float(count) - 0.5
-		var seed: float = float(i * 41 + 7)
-		var block_h: float = height * (1.05 + fposmod(seed * 0.193, 0.85))
-		out.append({
-			"name": "BackBlock_%02d" % i,
-			"t": t * span * 1.25,
-			"n": row_dist + fposmod(seed * 0.37, 7.0) + BACK_BLOCK_DEPTH_M * 0.5,
-			"y": block_h * 0.5,
-			"w": pitch * 0.82,
-			"h": block_h,
-			"d": BACK_BLOCK_DEPTH_M,
-			"color": base.lightened(fposmod(seed * 0.13, 0.10)),
-		})
+	# Cuanto mas ancha que la calle es la fila de atras. Tres es lo que hace
+	# falta para que un rayo a 45 grados desde la ventana siga encontrando
+	# edificio en vez de cielo.
+	var factor: float = maxf(1.25, float(o.get("back_row_span_factor", 3.0)))
+	var span_total: float = span * factor
+	count = maxi(3, int(round(float(count) * factor)))
+	var pitch: float = span_total / float(count)
+	# DOS filas, y la de detras desplazada media pieza. Con una sola quedaba un
+	# 18 % de junta entre bloques, y a cuarenta metros un rayo se cuela por ahi:
+	# en la sonda de oclusion salia cielo a 30 grados aunque hubiera edificios de
+	# sobra a los lados. Una ciudad tampoco tiene una sola fila.
+	for row in range(2):
+		var fondo: float = row_dist + float(row) * (BACK_BLOCK_DEPTH_M * 2.4)
+		var desfase: float = 0.5 * pitch * float(row)
+		for i in range(count):
+			var t: float = (float(i) + 0.5) / float(count) - 0.5
+			var seed: float = float(i * 41 + 7 + row * 97)
+			var block_h: float = height * (float(o.get("back_row_base", 1.05)) + fposmod(seed * 0.193, float(o.get("back_row_gain", 0.85))))
+			out.append({
+				"name": "BackBlock_%02d_%02d" % [row, i],
+				"t": t * span_total + desfase,
+				"n": fondo + fposmod(seed * 0.37, 7.0) + BACK_BLOCK_DEPTH_M * 0.5,
+				"y": block_h * 0.5,
+				# La fila de delante deja junta -es lo que la hace parecer
+				# manzanas y no un muro-; la de atras va casi corrida, porque su
+				# trabajo es que no quede ni un rayo suelto.
+				"w": pitch * (1.0 if row == 0 else 0.99),
+				"h": block_h,
+				"d": BACK_BLOCK_DEPTH_M,
+				"color": base.lightened(fposmod(seed * 0.13, 0.10)).darkened(0.06 * float(row)),
+			})
 	return out
 
 

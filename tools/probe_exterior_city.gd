@@ -19,6 +19,8 @@ const CASES: Array[Dictionary] = [
 	# Desde arriba el decorado tiene que seguir teniendo alzado: es lo que se
 	# mide para G-4, y ademas dice lo que cuesta en nodos una calle alta.
 	{"template": "compact_apartment", "night": false, "floor": 15},
+	{"template": "compact_apartment", "night": false, "floor": 35},
+	{"template": "compact_apartment", "night": false, "floor": 65},
 ]
 
 ## Familias que interesan, por prefijo del nombre del nodo.

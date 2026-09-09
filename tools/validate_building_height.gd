@@ -66,7 +66,10 @@ func _run() -> void:
 	if int(alta["filas"]) <= int(baja["filas"]) :
 		_failures.append("la fachada alta tiene %d filas de ventanas y la baja %d: no crecen con la altura" % [
 			alta["filas"], baja["filas"]])
-	var filas_esperadas: int = int(float(alta["vecinos_m"]) / float(alta["pitch_m"])) - 1
+	# Menos dos, no menos una: los modulos de la fachada no miden todos lo
+	# mismo a proposito -si midieran lo mismo seria un muro- y el mas bajo se
+	# queda a una fila del tope.
+	var filas_esperadas: int = int(float(alta["vecinos_m"]) / float(alta["pitch_m"])) - 2
 	if int(alta["filas"]) < filas_esperadas:
 		_failures.append("la fachada de %.1f m tiene %d filas de ventanas y le caben %d" % [
 			alta["vecinos_m"], alta["filas"], filas_esperadas])

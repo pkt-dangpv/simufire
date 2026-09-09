@@ -463,7 +463,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## fachada de 45 m repartia cuatro ventanas cada once metros y se leia como un
 ## muro liso: ese era el hallazgo G-4. Sigue siendo un mando porque las filas
 ## cuestan nodos, y 0 apaga las ventanas.
-@export_range(0, 40, 1) var opposite_facade_max_window_floors: int = 24
+@export_range(0, 90, 1) var opposite_facade_max_window_floors: int = 80
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
 
 @export_subgroup("Unifamiliar: porche y parcela")
@@ -3253,6 +3253,7 @@ func _create_exterior_context() -> void:
 		facade_index += 1
 
 	_create_block_perimeter(root, decorated_sides)
+	_create_city_back_ring(root)
 
 	# La valla va la ultima: necesita saber por donde sale el camino de la
 	# puerta para dejarle el hueco de la cancela, y eso lo fija el porche.
@@ -3263,6 +3264,71 @@ func _create_exterior_context() -> void:
 			_exterior_ground_level_m()
 		)
 
+
+## El fondo de la ciudad, en anillo alrededor de la manzana.
+##
+## Estaba construido por fachada, y por eso se veia el cielo en diagonal: el
+## decorado solo existe delante de las fachadas CON ventana, asi que mirando a
+## 30 o 40 grados desde el hueco no habia nada construido. Medido con
+## `tools/probe_exterior_occlusion.gd`, que dice el nombre del nodo que
+## encuentra cada rayo: entre -25 y +25 grados salia edificio y a partir de ahi
+## CIELO -y desde una planta alta ese cielo por debajo del horizonte es la
+## superficie gris uniforme que se comia media ventana-.
+##
+## Es exactamente la leccion de EXT-1 otra vez: **esto se construye por manzana,
+## no por fachada**. La calle ya se hacia asi; el fondo, no.
+func _create_city_back_ring(parent: Node3D) -> void:
+	if not _is_apartment_building() or city_back_block_count <= 0:
+		return
+	if _street_grid.is_empty():
+		return
+	var ground_y: float = _exterior_ground_level_m()
+	var facade_dist: float = maxf(0.5, street_sidewalk_width_m) * 2.0 + maxf(2.0, street_road_width_m)
+	# Ocho orientaciones, no cuatro: las cuatro diagonales son justo por donde
+	# se veia el cielo. Un anillo de cuatro lados deja las esquinas abiertas, y
+	# la esquina es lo que se mira al asomarse de medio lado.
+	var d: float = sqrt(0.5)
+	var sides: Array = [
+		{"normal": Vector3(0.0, 0.0, 1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"normal": Vector3(0.0, 0.0, -1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"normal": Vector3(1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"normal": Vector3(-1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"normal": Vector3(d, 0.0, d), "tangent": Vector3(d, 0.0, -d)},
+		{"normal": Vector3(d, 0.0, -d), "tangent": Vector3(d, 0.0, d)},
+		{"normal": Vector3(-d, 0.0, d), "tangent": Vector3(d, 0.0, d)},
+		{"normal": Vector3(-d, 0.0, -d), "tangent": Vector3(d, 0.0, -d)},
+	]
+	# Suelo de la ciudad. El anillo de la calle solo pavimenta nuestra manzana;
+	# mas alla no habia NADA, y mirando hacia abajo en diagonal desde una planta
+	# alta se veia el vacio -otra vez cielo por debajo del horizonte-. Va un pelo
+	# por debajo de la calzada para no compartir plano con ella.
+	var suelo := Vector3(0.0, ground_y - 0.06, 0.0)
+	var anchor_x: Vector3 = _facade_wall_anchor(Vector3(1.0, 0.0, 0.0), ground_y)
+	var anchor_z: Vector3 = _facade_wall_anchor(Vector3(0.0, 0.0, 1.0), ground_y)
+	suelo.x = anchor_x.x
+	suelo.z = anchor_z.z
+	var lado: float = maxf(240.0, city_backdrop_distance_m * 2.4)
+	_add_oriented_box(parent, "CityGroundPlane", suelo, Vector3(1.0, 0.0, 0.0),
+		lado, 0.30, lado, _mat(sidewalk_color.darkened(0.22), false), false)
+
+	# Todas las orientaciones usan el MISMO ancho: el del lado mas largo. Con el
+	# suyo propio, la fila del lado corto se quedaba corta y dejaba los extremos
+	# de la calle larga sin edificar -que es justo lo que caza el guardarrail
+	# "se ve el final de la calle"-.
+	var span_max: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
+	for side in sides:
+		var n: Vector3 = Vector3(side["normal"])
+		var sd: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-n.x, -n.z))
+		span_max = maxf(span_max, float(sd.get("span_m", 0.0)))
+
+	var index: int = 800
+	for side in sides:
+		var normal: Vector3 = Vector3(side["normal"])
+		var tangent: Vector3 = Vector3(side["tangent"])
+		var anchor: Vector3 = _facade_wall_anchor(normal, ground_y)
+		var span_w: float = span_max
+		_spawn_city_pieces(parent, index, anchor, normal, tangent, ground_y, span_w, facade_dist, [], true)
+		index += 1
 
 ## Entrada por la puerta: rellano/porche + escalon a ras de suelo. El
 ## paisaje de fondo lo genera _create_exterior_context una vez por fachada.
@@ -3322,18 +3388,32 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	# Donde cae cada modulo del frente, para que los bajos y los balcones se
 	# planten sobre ellos y no en el aire.
 	var front_modules: Array = []
+	var tipo: Dictionary = _urban_typology()
 	if opposite_facade_enabled:
 		var facade_h: float = _neighbour_facade_height_m()
 		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
-		var module_count: int = clampi(city_facade_module_count, 3, 8)
 		var facade_span_m: float = minf(opposite_facade_length_m, city_facade_max_span_m)
+		# Cuantas piezas caben, segun lo ancha que sea una pieza de este tipo.
+		# Una manzana son portales de trece metros; una torre, frentes de
+		# treinta. Con el mismo numero de modulos para las dos, la torre salia
+		# hecha de lapices.
+		var module_span: float = maxf(6.0, float(tipo.get("module_span_m", 13.0)))
+		# En la manzana manda el mando de siempre -son los portales que ya
+		# habia, y cambiarlos dejaba la calle mas corta que la calzada-. En los
+		# tramos altos manda la anchura de la pieza: es lo que evita las torres
+		# hechas de lapices.
+		var module_count: int = clampi(city_facade_module_count, 3, 8)
+		if String(tipo.get("tier", "")) != FPUrbanTypology.TIER_BLOCK:
+			module_count = clampi(
+				int(round(facade_span_m / module_span)), 1, int(tipo.get("module_count_max", 8)))
+		var variacion: float = float(tipo.get("height_variation", city_facade_height_variation))
 		var module_pitch: float = facade_span_m / float(module_count)
 		for module_i in range(module_count):
 			var module_t: float = (float(module_i) + 0.5) / float(module_count) - 0.5
 			var variant: float = fposmod(float(index * 19 + module_i * 37) * 0.173, 1.0)
 			var module_w: float = module_pitch - 0.18
-			var module_h: float = facade_h * (1.0 - city_facade_height_variation + variant * city_facade_height_variation)
-			var module_depth: float = city_facade_depth_m * (1.0 + variant * 0.40)
+			var module_h: float = facade_h * (1.0 - variacion + variant * variacion)
+			var module_depth: float = city_facade_depth_m * float(tipo.get("facade_depth_factor", 1.0)) * (1.0 + variant * 0.25)
 			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * facade_span_m)
 			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
 			body_center.y = street_y + module_h * 0.5
@@ -3342,17 +3422,12 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 				# ventanas y su portal flotarian en el aire.
 				continue
 			var module_color: Color = base_color.lightened(0.035) if module_i % 3 == 0 else (base_color.darkened(0.055) if module_i % 3 == 1 else base_color)
-			_add_oriented_box(parent, "CityFacadeBody_%02d_%02d" % [index, module_i], body_center, tangent,
-				module_w, module_h, module_depth, _mat(module_color, false), false)
-			var plinth: Vector3 = face_center + normal * 0.035
-			plinth.y = street_y + 0.42
-			_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i], plinth, tangent,
-				module_w - 0.10, 0.84, 0.07, _mat(module_color.darkened(0.16), false), false)
-			var cornice: Vector3 = face_center + normal * 0.08
-			cornice.y = street_y + module_h - 0.14
-			_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i], cornice, tangent,
-				module_w + 0.10, 0.22, 0.18, _mat(module_color.lightened(0.10), false), false)
-			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h)
+			_create_city_module_body(parent, index, module_i, face_center, normal, tangent,
+				street_y, module_w, module_h, module_depth, module_color, tipo)
+			_create_city_module_crown(parent, index, module_i, face_center, normal, tangent,
+				street_y, module_w, module_h, module_color, tipo, night)
+			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h, tipo)
+			_create_facade_entrance(parent, index, module_i, face_center, normal, tangent, street_y)
 			front_modules.append({"t": module_t * facade_span_m, "w": module_w, "h": module_h})
 		_create_exterior_facade_fill(
 			parent,
@@ -3791,9 +3866,15 @@ func _spawn_city_pieces(
 	street_y: float,
 	span_w: float,
 	facade_dist: float,
-	front_modules: Array
+	front_modules: Array,
+	only_back_row: bool = false
 ) -> void:
 	var night: bool = _exterior_is_night()
+	var tipo: Dictionary = _urban_typology()
+	# La fila de fondo se construye por MANZANA, no por fachada (ver
+	# _create_city_back_ring): aqui se apaga, y en la pasada del anillo se
+	# apaga todo lo demas.
+	var solo: bool = only_back_row
 	var pieces: Array = FPCityBlocks.pieces({
 		"night": night,
 		"street_span_m": span_w,
@@ -3802,25 +3883,34 @@ func _spawn_city_pieces(
 		"facade_dist_m": facade_dist,
 		"facade_height_m": _neighbour_facade_height_m(),
 		"floor_height_m": BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m),
-		"block_depth_m": city_facade_depth_m * 2.2,
+		# La manzana entera se dibuja con el mismo tipo que el frente: una torre
+		# rodeada de portales de trece metros se ve enseguida.
+		"tier": tipo.get("tier", ""),
+		"block_span_m": tipo.get("module_span_m", 14.0),
+		"block_depth_m": float(tipo.get("depth_m", city_facade_depth_m * 2.2)) * 1.15,
+		"back_row_base": tipo.get("back_row_base", 1.05),
+		"back_row_gain": tipo.get("back_row_gain", 0.85),
+		"back_row_span_factor": tipo.get("back_row_span_factor", 3.0),
 		"own_facade_half_m": _own_facade_half_extent_m(tangent),
 		"sidewalk_w_m": maxf(0.5, street_sidewalk_width_m),
 		"road_w_m": maxf(2.0, street_road_width_m),
 		"curb_h_m": street_curb_height_m,
-		"far_blocks_enabled": city_far_blocks_enabled,
-		"corner_returns_enabled": city_corner_returns_enabled,
-		"near_neighbours_enabled": city_near_neighbours_enabled,
-		"back_block_count": city_back_block_count,
-		"shopfronts_enabled": city_shopfronts_enabled,
-		"balconies_enabled": city_balconies_enabled,
-		"lamp_count": city_lamp_count,
-		"bin_count": city_bin_count,
-		"bench_count": city_bench_count,
-		"bollard_count": city_bollard_count,
-		"sign_count": city_sign_count,
-		"planter_count": city_planter_count,
-		"crossing_enabled": city_crossing_enabled,
-		"bus_stop_enabled": city_bus_stop_enabled,
+		"far_blocks_enabled": city_far_blocks_enabled and not solo,
+		"corner_returns_enabled": city_corner_returns_enabled and not solo,
+		"near_neighbours_enabled": city_near_neighbours_enabled and not solo,
+		"back_block_count": city_back_block_count if solo else 0,
+		"shopfronts_enabled": city_shopfronts_enabled and bool(tipo.get("shopfronts", true)),
+		# Los balcones son de la manzana. A veinte plantas no se leen y
+		# multiplican nodos por nada.
+		"balconies_enabled": city_balconies_enabled and bool(tipo.get("balconies", true)),
+		"lamp_count": 0 if solo else city_lamp_count,
+		"bin_count": 0 if solo else city_bin_count,
+		"bench_count": 0 if solo else city_bench_count,
+		"bollard_count": 0 if solo else city_bollard_count,
+		"sign_count": 0 if solo else city_sign_count,
+		"planter_count": 0 if solo else city_planter_count,
+		"crossing_enabled": city_crossing_enabled and not solo,
+		"bus_stop_enabled": city_bus_stop_enabled and not solo,
 		"crossing_offset_m": -span_w * 0.18,
 		"bus_stop_offset_m": span_w * 0.20,
 		"block_color": opposite_facade_night_color if night else opposite_facade_day_color,
@@ -3844,7 +3934,11 @@ func _spawn_city_pieces(
 		var piece: Dictionary = raw
 		var piece_center: Vector3 = center - normal * float(piece.get("n", 0.0)) + tangent * float(piece.get("t", 0.0))
 		piece_center.y = street_y + float(piece.get("y", 0.0))
-		if _crosses_roadway(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0))):
+		# El guardarrail de la calzada protege NUESTRA calle. La fila de fondo
+		# esta siempre mas alla del anillo -a treinta metros largos-, y aplicarle
+		# el filtro descartaba justo las piezas de las esquinas: eran ellas las
+		# que dejaban el cielo abierto en diagonal.
+		if not solo and _crosses_roadway(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0))):
 			continue
 		var color: Color = piece.get("color", Color(0.5, 0.5, 0.5, 1.0))
 		var energy: float = float(piece.get("energy", 0.0))
@@ -3874,25 +3968,220 @@ func _own_facade_half_extent_m(tangent: Vector3) -> float:
 	return maxf(3.0, extent * 0.5 + own_facade_side_margin_m)
 
 
-## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
-## (no cajitas sueltas), con algunas encendidas de noche.
-func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, module_w: float, facade_h: float) -> void:
-	if opposite_facade_max_window_floors <= 0 or opposite_facade_columns <= 0:
+## Que tipo de edificio toca en la calle, segun las plantas que aparente el
+## nuestro. Ver `FPUrbanTypology`: una manzana, una torre o un rascacielos no
+## son el mismo volumen escalado.
+func _urban_typology() -> Dictionary:
+	var pitch: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	var plantas: int = int(round(_neighbour_facade_height_m() / maxf(1.0, pitch)))
+	return FPUrbanTypology.for_floors(plantas, pitch)
+
+
+## Cuerpo de un edificio de enfrente: podio, fuste y retranqueos.
+##
+## Un bloque de una pieza vale para seis plantas. A partir de veinte, dos cosas
+## lo delatan: que arranca del pavimento sin podio -sale como un poste- y que
+## sube con la misma seccion hasta arriba. Los retranqueos vienen de la ficha
+## del tipo, en fraccion de la altura, y cada uno estrecha tambien el fondo.
+func _create_city_module_body(
+	parent: Node3D, index: int, module_i: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, module_h: float, module_depth: float,
+	module_color: Color, tipo: Dictionary
+) -> void:
+	var pitch: float = maxf(2.0, float(tipo.get("pitch_m", exterior_storey_pitch_m)))
+	var podium_h: float = minf(float(int(tipo.get("podium_floors", 0))) * pitch, module_h * 0.40)
+	var overhang: float = float(tipo.get("podium_overhang_m", 0.0))
+
+	# El fuste, por tramos: uno mas por cada retranqueo.
+	var tramo_y0: float = 0.0
+	var estrecha: float = 0.0
+	var tramos: Array = []
+	for raw in tipo.get("setbacks", []):
+		var sb: Array = raw
+		var at: float = clampf(float(sb[0]), 0.05, 0.98)
+		if at * module_h <= tramo_y0 + 0.5:
+			continue
+		tramos.append({"y0": tramo_y0, "y1": at * module_h, "k": 1.0 - estrecha})
+		tramo_y0 = at * module_h
+		estrecha += float(sb[1])
+	tramos.append({"y0": tramo_y0, "y1": module_h, "k": 1.0 - estrecha})
+
+	for i in range(tramos.size()):
+		var tramo: Dictionary = tramos[i]
+		var alto: float = float(tramo["y1"]) - float(tramo["y0"])
+		if alto <= 0.2:
+			continue
+		var k: float = float(tramo["k"])
+		var ancho: float = module_w * k
+		var fondo: float = module_depth * k
+		# Los tramos altos se retranquean por delante y por los lados, no por
+		# detras: es lo que hace que el retranqueo se VEA desde la calle.
+		var frente: Vector3 = face_center - normal * ((module_depth - fondo) * 0.5)
+		var body_center: Vector3 = frente - normal * (fondo * 0.5)
+		body_center.y = street_y + float(tramo["y0"]) + alto * 0.5
+		_add_oriented_box(parent, "CityFacadeBody_%02d_%02d_%02d" % [index, module_i, i],
+			body_center, tangent, ancho, alto, fondo, _mat(module_color, false), false)
+		if i > 0:
+			# Losa de remate del tramo de abajo: sin ella el retranqueo es un
+			# escalon de aire.
+			var losa: Vector3 = face_center - normal * (module_depth * 0.5)
+			losa.y = street_y + float(tramo["y0"]) + 0.12
+			_add_oriented_box(parent, "CityFacadeSetback_%02d_%02d_%02d" % [index, module_i, i],
+				losa, tangent, module_w * float(tramos[i - 1]["k"]) + 0.2, 0.24,
+				module_depth * float(tramos[i - 1]["k"]) + 0.2,
+				_mat(module_color.lightened(0.10), false), false)
+
+	# El podio ata el edificio al suelo. Sobresale hacia la calle lo que
+	# sobresale una cornisa -no mas: al otro lado esta la acera-.
+	if podium_h > 0.6:
+		var pod_front: Vector3 = face_center + normal * 0.22
+		var pod_center: Vector3 = pod_front - normal * ((module_depth + 0.44) * 0.5)
+		pod_center.y = street_y + podium_h * 0.5
+		_add_oriented_box(parent, "CityFacadePodium_%02d_%02d" % [index, module_i],
+			pod_center, tangent, module_w - 0.06, podium_h, module_depth + 0.44,
+			_mat(module_color.darkened(0.12), false), false)
+		var cap: Vector3 = face_center + normal * (0.22 + overhang * 0.5)
+		cap.y = street_y + podium_h + 0.16
+		_add_oriented_box(parent, "CityFacadePodiumCap_%02d_%02d" % [index, module_i],
+			cap, tangent, module_w - 0.06, 0.30, overhang + 0.55,
+			_mat(module_color.lightened(0.08), false), false)
+	else:
+		# Manzana: el zocalo de siempre.
+		var plinth: Vector3 = face_center + normal * 0.035
+		plinth.y = street_y + 0.42
+		_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i],
+			plinth, tangent, module_w - 0.10, 0.84, 0.07,
+			_mat(module_color.darkened(0.16), false), false)
+
+
+## Como termina arriba: cornisa de manzana, remate de torre o coronacion con
+## antena. Lo de arriba es lo que se mira desde una planta alta, y una caja
+## cortada en seco es justo lo que delata que es una caja.
+func _create_city_module_crown(
+	parent: Node3D, index: int, module_i: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, module_h: float, module_color: Color,
+	tipo: Dictionary, night: bool
+) -> void:
+	var estrecha: float = 0.0
+	for raw in tipo.get("setbacks", []):
+		estrecha += float((raw as Array)[1])
+	var ancho: float = module_w * (1.0 - estrecha)
+	var crown: String = String(tipo.get("crown", "cornisa"))
+	var cornice: Vector3 = face_center + normal * 0.08
+	cornice.y = street_y + module_h - 0.14
+	if crown == "cornisa":
+		_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
+			cornice, tangent, ancho + 0.10, 0.22, 0.18,
+			_mat(module_color.lightened(0.10), false), false)
 		return
-	# Una fila por planta de verdad, con la altura de planta del edificio.
-	var floor_h_real: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
-	var floors: int = clampi(int((facade_h - 1.25) / floor_h_real), 2, opposite_facade_max_window_floors)
+
+	# Torre y rascacielos: un antepecho macizo, no una moldura de 22 cm.
+	cornice.y = street_y + module_h - 0.45
+	_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
+		cornice, tangent, ancho + 0.16, 0.90, 0.26,
+		_mat(module_color.lightened(0.12), false), false)
+	if crown != "corona":
+		return
+
+	# Coronacion escalonada y antena. La baliza roja de noche es lo que dice
+	# "esto es alto" sin tener que verle la base.
+	var paso1: Vector3 = face_center - normal * 1.2
+	paso1.y = street_y + module_h + 1.1
+	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_0" % [index, module_i],
+		paso1, tangent, ancho * 0.62, 2.2, ancho * 0.42,
+		_mat(module_color.darkened(0.06), false), false)
+	var paso2: Vector3 = paso1
+	paso2.y = street_y + module_h + 3.4
+	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_1" % [index, module_i],
+		paso2, tangent, ancho * 0.34, 2.4, ancho * 0.24,
+		_mat(module_color.darkened(0.02), false), false)
+	if not bool(tipo.get("antenna", false)):
+		return
+	var mastil: Vector3 = paso2
+	mastil.y = street_y + module_h + 9.5
+	_add_oriented_box(parent, "CityFacadeAntenna_%02d_%02d" % [index, module_i],
+		mastil, tangent, 0.35, 10.0, 0.35,
+		_mat(module_color.darkened(0.30), false), false)
+	var baliza: Vector3 = paso2
+	baliza.y = street_y + module_h + 14.6
+	var rojo := Color(1.0, 0.18, 0.12, 1.0)
+	_add_oriented_box(parent, "CityFacadeBeacon_%02d_%02d" % [index, module_i],
+		baliza, tangent, 0.6, 0.6, 0.6,
+		_mat(rojo, false, rojo, 1.6 if night else 0.35), false)
+
+
+## Ventanas de la fachada de enfrente. Dos formas, y no es un capricho de
+## estilo: son las dos que se construyen.
+##
+## - **Hueco** (manzana): una cajita por ventana, con marco, cristal, parteluz y
+##   vierteaguas. Da el detalle que se mira desde el otro lado de la calle.
+## - **Banda** (torre y rascacielos): una franja corrida por planta. Ademas de
+##   ser lo que tiene una torre de verdad, es lo unico viable: a sesenta
+##   plantas, cuatro columnas de ventanas de cuatro nodos cada una son mil
+##   nodos por modulo.
+##
+## En los dos casos hay UNA fila por planta de verdad. El tope viejo eran
+## cuatro filas repartidas por toda la altura, y en una fachada de 45 m eso
+## era una ventana cada once metros: un muro liso (G-4).
+func _create_facade_windows(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, facade_h: float, tipo: Dictionary
+) -> void:
+	if opposite_facade_max_window_floors <= 0:
+		return
+	var pitch: float = maxf(2.0, float(tipo.get("pitch_m", exterior_storey_pitch_m)))
+	var podium_h: float = minf(float(int(tipo.get("podium_floors", 0))) * pitch, facade_h * 0.40)
+	var arranque: float = maxf(podium_h, 1.25)
+	var floors: int = clampi(int((facade_h - arranque) / pitch), 2, opposite_facade_max_window_floors)
+	if String(tipo.get("windows", FPUrbanTypology.WINDOWS_PUNCHED)) == FPUrbanTypology.WINDOWS_RIBBON:
+		_create_facade_ribbons(parent, index, module_index, face_center, normal, tangent,
+			street_y, module_w, arranque, pitch, floors, tipo)
+		return
+	_create_facade_punched_windows(parent, index, module_index, face_center, normal, tangent,
+		street_y, module_w, facade_h, arranque, pitch, floors)
+
+
+## Portal de un edificio de enfrente: puerta retranqueada y marquesina. Lo lleva
+## cualquier tipo -una torre tambien se entra por algun sitio- y por eso esta
+## fuera de las dos formas de ventana.
+func _create_facade_entrance(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float
+) -> void:
+	var frame_col: Color = city_window_frame_night_color if _exterior_is_night() else city_window_frame_day_color
+	var entrance: Vector3 = face_center + normal * 0.052
+	entrance.y = street_y + 1.08
+	_add_oriented_box(parent, "CityEntrance_%02d_%02d" % [index, module_index], entrance, tangent,
+		1.05, 2.16, 0.08, _mat(Color(0.16, 0.18, 0.19, 1.0), false), false)
+	var canopy: Vector3 = entrance + normal * 0.32
+	canopy.y = street_y + 2.28
+	_add_oriented_box(parent, "CityEntranceCanopy_%02d_%02d" % [index, module_index], canopy, tangent,
+		1.42, 0.10, 0.66, _mat(frame_col.darkened(0.18), false), false)
+
+
+## Ventana de hueco, la de la manzana.
+func _create_facade_punched_windows(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, facade_h: float, arranque: float, pitch: float, floors: int
+) -> void:
+	if opposite_facade_columns <= 0:
+		return
 	var columns: int = clampi(mini(opposite_facade_columns, int(round(module_w / 2.25))), 2, 4)
 	var night: bool = _exterior_is_night()
 	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
 	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
-	var floor_h: float = (facade_h - 1.25) / float(floors)
 	var col_step: float = module_w / float(columns + 1)
 	var win_w: float = minf(1.20, col_step * 0.64)
-	var win_h: float = minf(1.38, floor_h * 0.58)
+	var win_h: float = minf(1.38, pitch * 0.58)
 	var frame_col: Color = city_window_frame_night_color if night else city_window_frame_day_color
 	for f in range(floors):
-		var y: float = street_y + 1.28 + floor_h * (float(f) + 0.5)
+		var y: float = street_y + arranque + pitch * (float(f) + 0.5)
+		if y > street_y + facade_h - 1.0:
+			break
 		for c in range(columns):
 			var x: float = (float(c) + 1.0) * col_step - module_w * 0.5
 			var variant_seed: float = float(index * 7 + module_index * 43 + f * 31 + c * 13)
@@ -3921,17 +4210,54 @@ func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_
 			var sill: Vector3 = wc + normal * 0.055
 			sill.y = y - win_h * 0.5 - 0.055
 			_add_oriented_box(parent, "CityWindowSill_%02d_%02d_%02d_%02d" % [index, module_index, f, c], sill, tangent,
-				win_w + 0.18, 0.07, 0.22, _mat(frame_col.lightened(0.07), false), false)
+				win_w + 0.18, 0.07, 0.14, _mat(frame_col.lightened(0.06), false), false)
 
-	# Entrada de portal centrada y ligeramente retranqueada.
-	var entrance: Vector3 = face_center + normal * 0.052
-	entrance.y = street_y + 1.08
-	_add_oriented_box(parent, "CityEntrance_%02d_%02d" % [index, module_index], entrance, tangent,
-		1.05, 2.16, 0.08, _mat(Color(0.16, 0.18, 0.19, 1.0), false), false)
-	var canopy: Vector3 = entrance + normal * 0.32
-	canopy.y = street_y + 2.28
-	_add_oriented_box(parent, "CityEntranceCanopy_%02d_%02d" % [index, module_index], canopy, tangent,
-		1.42, 0.10, 0.66, _mat(frame_col.darkened(0.18), false), false)
+
+## Banda corrida, la de la torre. Dos piezas por planta: el vidrio y el
+## antepecho que lo separa del de arriba. Sin el antepecho la torre entera se
+## lee como un espejo de una pieza.
+func _create_facade_ribbons(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, arranque: float, pitch: float, floors: int, tipo: Dictionary
+) -> void:
+	var night: bool = _exterior_is_night()
+	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
+	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
+	var frame_col: Color = city_window_frame_night_color if night else city_window_frame_day_color
+	# Cada retranqueo estrecha tambien la banda, o el vidrio sobresaldria del
+	# fuste al que pertenece.
+	var cortes: Array = tipo.get("setbacks", [])
+	for f in range(floors):
+		var y: float = street_y + arranque + pitch * (float(f) + 0.55)
+		var altura_rel: float = (arranque + pitch * (float(f) + 0.55)) / maxf(1.0, arranque + pitch * float(floors))
+		var estrecha: float = 0.0
+		for raw in cortes:
+			var sb: Array = raw
+			if altura_rel > float(sb[0]):
+				estrecha += float(sb[1])
+		var ancho: float = module_w * (1.0 - estrecha)
+		# Que la banda entera se encienda de noche no pasa: se encienden
+		# tramos. Se parte en tercios y cada tercio decide.
+		for tercio in range(3):
+			var seed: float = float(index * 11 + module_index * 29 + f * 17 + tercio * 7)
+			var lit: bool = night and fposmod(seed * 0.191, 1.0) < lit_ratio * 1.4
+			var col: Color = opposite_window_lit_color if lit else base_col
+			var w3: float = ancho / 3.0
+			var wc: Vector3 = face_center + tangent * ((float(tercio) - 1.0) * w3) + normal * 0.06
+			wc.y = y
+			_add_oriented_box(
+				parent,
+				"CityWindowGlass_%02d_%02d_%02d_%02d" % [index, module_index, f, tercio],
+				wc, tangent, w3 - 0.06, pitch * 0.46, 0.05,
+				_mat(col, false, col if lit else Color(0.0, 0.0, 0.0, 0.0), 0.75 if lit else 0.0),
+				false
+			)
+		var antepecho: Vector3 = face_center + normal * 0.04
+		antepecho.y = y + pitch * 0.42
+		_add_oriented_box(parent, "CityRibbonSpandrel_%02d_%02d_%02d" % [index, module_index, f],
+			antepecho, tangent, ancho, pitch * 0.36, 0.04,
+			_mat(frame_col.darkened(0.25), false), false)
 
 
 ## Skyline de fondo: dibujo del usuario si hay textura, o silueta procedural
