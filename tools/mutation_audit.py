@@ -688,7 +688,9 @@ def _record_existing(case_name: str, destination: Path, mutant_id: str | None = 
     }
 
 
-def _evaluate_with_overlay(overlay: Path, case_name: str) -> dict[str, dict[str, Any]]:
+def _evaluate_with_overlay(
+    overlay: Path, case_name: str, expected_check_count: int
+) -> dict[str, dict[str, Any]]:
     evaluation_root = overlay.parents[1] / "evaluations"
     evaluation_root.mkdir(parents=True, exist_ok=True)
     evaluation_dir = Path(tempfile.mkdtemp(prefix="simufire_mutation_eval_", dir=evaluation_root))
@@ -706,7 +708,7 @@ def _evaluate_with_overlay(overlay: Path, case_name: str) -> dict[str, dict[str,
         validator._ARTIFACT_CACHE.clear()
         output = io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-            exit_code = validator.main([])
+            exit_code = validator.main([], verify_gap_evidence=False)
         sys.modules.pop(module_name, None)
         if exit_code not in (0, 1):
             raise RuntimeError(f"reference evaluator exited {exit_code}: {output.getvalue()}")
@@ -715,7 +717,7 @@ def _evaluate_with_overlay(overlay: Path, case_name: str) -> dict[str, dict[str,
             raise RuntimeError("reference evaluator did not write an aggregate")
         aggregate = json.loads(aggregate_path.read_text(encoding="utf-8"))
         checks = aggregate.get("checks")
-        if not isinstance(checks, list) or len(checks) != 530:
+        if not isinstance(checks, list) or len(checks) != expected_check_count:
             raise RuntimeError("reference aggregate is missing or truncated")
         names = [item.get("name") for item in checks]
         if len(names) != len(set(names)):
@@ -731,8 +733,9 @@ def _evaluate_mutant(mutant_id: str, control_dir: Path, mutant_dir: Path, run_re
     expected_names = contract["checks"]
     if len(expected_names) != len(set(expected_names)):
         raise RuntimeError(f"{mutant_id}: duplicate names in mutation manifest")
-    control = _evaluate_with_overlay(control_dir, case_name)
-    mutated = _evaluate_with_overlay(mutant_dir, case_name)
+    expected_check_count = len(canonical)
+    control = _evaluate_with_overlay(control_dir, case_name, expected_check_count)
+    mutated = _evaluate_with_overlay(mutant_dir, case_name, expected_check_count)
     missing = [name for name in expected_names if name not in control or name not in mutated]
     if missing:
         raise RuntimeError(f"{mutant_id}: missing checks: {missing}")
@@ -825,6 +828,22 @@ def main(argv: list[str] | None = None) -> int:
             )
             run_records.append(record)
             print(f"  DONE {mutant_id} {record['elapsed_s']:.3f}s", flush=True)
+        runtime_source_commits = {
+            record["runtime_health"].get("source_commit") for record in run_records
+        }
+        if None in runtime_source_commits or len(runtime_source_commits) != 1:
+            raise RuntimeError(
+                "runtime evidence does not identify one source commit: "
+                f"{sorted(str(item) for item in runtime_source_commits)}"
+            )
+        runtime_source_commit = runtime_source_commits.pop()
+        if not args.evaluate_only and runtime_source_commit != source_commit:
+            raise RuntimeError(
+                "fresh runtime evidence source commit does not match HEAD: "
+                f"{runtime_source_commit} != {source_commit}"
+            )
+        source_commit = runtime_source_commit
+        source_tree_oid = _git_output("rev-parse", f"{source_commit}^{{tree}}")
         results = {mutant_id: _evaluate_mutant(mutant_id, control_root / contract["case"], mutant_root / mutant_id, run_records, canonical_checks) for mutant_id, contract in MUTATION_MANIFEST.items()}
         report = {
             "schema_version": 2, "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),

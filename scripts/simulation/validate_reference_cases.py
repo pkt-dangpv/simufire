@@ -3379,7 +3379,9 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
     return checks
 
 
-def _apply_gap_dispositions(checks: list[Check]) -> None:
+def _apply_gap_dispositions(
+    checks: list[Check], *, verify_evidence: bool = True
+) -> None:
     indexed = {check.name: check for check in checks}
     missing = sorted(_GAP_DISPOSITIONS.keys() - indexed.keys())
     if missing:
@@ -3392,25 +3394,30 @@ def _apply_gap_dispositions(checks: list[Check]) -> None:
             )
         if check.disposition is not None and check.disposition != entry["disposition"]:
             raise ValueError(f"conflicting final disposition for {name}")
-        row = _GAP_DISPOSITION_EVIDENCE[name]
-        current = check.to_dict()
-        for field in (
-            "actual",
-            "expected",
-            "tolerance",
-            "minimum",
-            "maximum",
-            "required",
-            "pass",
-        ):
-            if row.get(field) != current.get(field):
-                raise ValueError(f"stale gap evidence for {name}: {field}")
-        if row.get("source_artifacts") != current.get("provenance", {}).get("artifacts"):
-            raise ValueError(f"stale gap source artifacts for {name}")
+        if verify_evidence:
+            row = _GAP_DISPOSITION_EVIDENCE[name]
+            current = check.to_dict()
+            for field in (
+                "actual",
+                "expected",
+                "tolerance",
+                "minimum",
+                "maximum",
+                "required",
+                "pass",
+            ):
+                if row.get(field) != current.get(field):
+                    raise ValueError(f"stale gap evidence for {name}: {field}")
+            if row.get("source_artifacts") != current.get("provenance", {}).get(
+                "artifacts"
+            ):
+                raise ValueError(f"stale gap source artifacts for {name}")
         check.disposition = entry["disposition"]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(
+    argv: list[str] | None = None, *, verify_gap_evidence: bool = True
+) -> int:
     parser = argparse.ArgumentParser(
         description="Compare SimuFire validation outputs against external references."
     )
@@ -3475,7 +3482,9 @@ def main(argv: list[str] | None = None) -> int:
         + build_stage_b_pending_checks()
     )
     _attach_provenance(all_checks)
-    _apply_gap_dispositions(all_checks)
+    _apply_gap_dispositions(
+        all_checks, verify_evidence=verify_gap_evidence
+    )
     required = [check for check in all_checks if check.required]
     failed = [check for check in required if not check.passed()]
     known_gaps = [check for check in all_checks if not check.required and not check.passed()]

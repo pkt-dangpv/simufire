@@ -197,5 +197,10 @@ def test_o2_limitation_accounts_for_fourteen_previously_blocked_rows() -> None:
 def test_validator_applies_registry_without_changing_contract_fields() -> None:
     assert "GAP_DISPOSITIONS_PATH" in VALIDATOR
     assert "_load_gap_dispositions" in VALIDATOR
-    assert "_apply_gap_dispositions(all_checks)" in VALIDATOR
+    assert "verify_gap_evidence: bool = True" in VALIDATOR
+    assert (
+        "_apply_gap_dispositions(\n"
+        "        all_checks, verify_evidence=verify_gap_evidence\n"
+        "    )"
+    ) in VALIDATOR
     assert "check.disposition = entry[\"disposition\"]" in VALIDATOR

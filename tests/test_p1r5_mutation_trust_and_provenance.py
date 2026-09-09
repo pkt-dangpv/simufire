@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -16,6 +17,7 @@ REFERENCE_REPORT = ROOT / "sim/validation/reports/reference_checks.json"
 MUTATION_REPORT = ROOT / "tools/reports/mutation_results.json"
 CASE_RUNNER = ROOT / "sim/validation/CaseRunner.gd"
 CREDIBILITY_REPORTER = ROOT / "tools/credibility_report.py"
+VALIDATOR_PATH = ROOT / "scripts/simulation/validate_reference_cases.py"
 
 
 def _load_auditor():
@@ -35,6 +37,18 @@ def _load_mutation_runner():
     return module
 
 
+def _load_validator():
+    module_name = "validate_reference_cases_mutation_contract"
+    spec = importlib.util.spec_from_file_location(
+        module_name, VALIDATOR_PATH
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_current_mutation_report_is_complete_and_non_vacuous():
     auditor = _load_auditor()
     report = json.loads(MUTATION_REPORT.read_text(encoding="utf-8"))
@@ -50,6 +64,61 @@ def test_current_mutation_report_is_complete_and_non_vacuous():
     assert len(report["source_tree_oid"]) == 40
     assert len(report["reference_report_sha256"]) == 64
     assert len(report["required_check_names_sha256"]) == 64
+
+
+def test_mutation_overlay_uses_current_contract_and_explicit_evidence_mode():
+    runner_source = MUTATION_RUNNER_PATH.read_text(encoding="utf-8")
+    validator_source = (
+        ROOT / "scripts/simulation/validate_reference_cases.py"
+    ).read_text(encoding="utf-8")
+
+    assert "len(checks) != 530" not in runner_source
+    assert "validator.main([], verify_gap_evidence=False)" in runner_source
+    assert "verify_gap_evidence: bool = True" in validator_source
+    assert (
+        "_apply_gap_dispositions(\n"
+        "        all_checks, verify_evidence=verify_gap_evidence\n"
+        "    )"
+    ) in validator_source
+    assert (
+        'source_tree_oid = _git_output("rev-parse", f"{source_commit}^{{tree}}")'
+        in runner_source
+    )
+
+
+def test_gap_evidence_bypass_is_explicit_and_canonical_mode_stays_strict(
+    monkeypatch,
+):
+    validator = _load_validator()
+    check = validator.Check(
+        name="mutation_only_gap",
+        actual=2.0,
+        maximum=1.0,
+        required=False,
+        provenance={"artifacts": ["mutated.json"]},
+    )
+    monkeypatch.setattr(
+        validator,
+        "_GAP_DISPOSITIONS",
+        {"mutation_only_gap": {"disposition": "VERIFIED_MODEL_LIMITATION"}},
+    )
+    monkeypatch.setattr(
+        validator,
+        "_GAP_DISPOSITION_EVIDENCE",
+        {
+            "mutation_only_gap": {
+                **check.to_dict(),
+                "actual": 3.0,
+                "source_artifacts": ["canonical.json"],
+            }
+        },
+    )
+
+    with pytest.raises(ValueError, match="stale gap evidence"):
+        validator._apply_gap_dispositions([check])
+
+    validator._apply_gap_dispositions([check], verify_evidence=False)
+    assert check.disposition == "VERIFIED_MODEL_LIMITATION"
 
 
 def test_vacuous_stale_mutation_report_is_rejected():
