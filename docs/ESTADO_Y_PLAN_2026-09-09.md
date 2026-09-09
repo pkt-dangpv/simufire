@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-09 · **HEAD:** 08dc041 · **Godot:** 4.7.1 · **Renderer:** `gl_compatibility`
 **Estado:** auditoría cerrada · plan en marcha · **fase 0 completa** (G-3, los dos
-prompts al motor y N-6·N-7) · **fase 1: N-4 y N-3 hechos, G-4 cerrado**
+prompts al motor y N-6·N-7) · **fase 1 completa** · **fase 2: parte visual hecha, falta el motor**
 
 Documento conjunto. La **parte I** es la auditoría del estado actual del diseñador de
 niveles y del aparato gráfico: once hallazgos, todos medidos o mirados hoy sobre el
@@ -405,7 +405,8 @@ que la capa de humo no tenga representación propia a esa densidad.
 - **Estructura del editor**: recuento de funciones y variables sobre el fuente.
 - **Suite completa**: `python scripts/check_product.py` → 42 OK y el FAIL
   conocido de la línea del motor (R2-1, informes por regenerar). Tras la fase 1
-  son 44: entran `validate_building_height` y `validate_exterior_occlusion`.
+  son 45: entran `validate_building_height`, `validate_exterior_occlusion` y
+  `validate_wind_controls`.
 
 ---
 
@@ -697,6 +698,36 @@ Para la corrección por altura, la ley de potencia con exponente urbano
 (α ≈ 0,25–0,33 en ciudad; 0,22 en periferia) da, por ejemplo, que 10 m/s de calle
 son unos **15 m/s en la planta 15**. Es medio Beaufort más solo por subir.
 
+#### ✅ Parte visual cerrada el 2026-09-09
+
+Dos mandos en el editor y dos en el menú: **de dónde viene el viento** (ocho
+rumbos) y **a qué velocidad** (0–28 m/s, paso 0,5, con los km/h en el resumen y
+en el tooltip). La rosa vive en `ui/WindRose.gd`, escrita una vez para las dos
+interfaces, porque la conversión es la trampa: el motor guarda los grados con la
+convención meteorológica —de dónde **viene** el viento, no hacia dónde va— y
+confundirlo invierte barlovento y sotavento. Por eso los mandos dicen «viento
+del» y no «dirección».
+
+**Ocho rumbos y no un ángulo libre**: es como se lee un parte, y la física del
+motor solo distingue cuatro caras de edificio. Afinar a un grado sería precisión
+fingida.
+
+El resumen del menú lo dice entero: «viento 12,5 m/s (45 km/h) del SO».
+
+**Guardarraíl** `tools/validate_wind_controls.gd`, en la suite, con cuatro
+reglas: el dato sobrevive el viaje editor → normalización → JSON → `BuildingModel`;
+el signo es el correcto a barlovento y a sotavento; a velocidad 0 no pasa nada
+—que es el valor por defecto de todo el catálogo, así que encenderlo no cambia
+nada de lo ya medido—; y **toda apertura exterior tiene lado canónico**. Esta
+última no es teórica: `_compute_wind_dp_pa` hace `match op.wall_side` con
+top/bottom/left/right y devuelve 0 para cualquier otra cosa, así que una apertura
+con el lado vacío —o escrito «north»— se quedaría sin viento **sin avisar**. Hoy
+las 67 aperturas exteriores del catálogo lo tienen; la red está para cuando
+alguien dibuje una que no.
+
+**Lo que falta es del motor**: corregir la velocidad por la altura de la
+apertura. Encargado en `docs/PROMPT_MOTOR_VIENTO_ALTURA.md`.
+
 ---
 
 ### N-6 · El menú inicial es demasiado grande
@@ -789,7 +820,7 @@ hallazgos ordenados por fase, con quién tiene que hacer cada uno.
 | **N-4** | Plantas totales y planta del incendio en el selector | petición | visual + editor | 1 ✅ |
 | **N-3** | Que se note la altura al mirar afuera | petición | visual | 1 ✅ (falta bruma) |
 | **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 ✅ |
-| **N-5** | Viento: dirección y velocidad, con tope de 28 m/s | petición | visual + **motor** | 2 |
+| **N-5** | Viento: dirección y velocidad, con tope de 28 m/s | petición | visual + **motor** | 2 ✅ visual |
 | **G-2** | Ningún mueble tiene textura — decisión de material | 🔴 auditoría | decisión | 3 |
 | **G-1** | 121 de 140 modelos sin envoltorio: no se pueden dibujar | 🔴 auditoría | visual | 3 |
 | **D-2** | El catálogo del editor cubre 14 de 38 arquetipos | 🔴 auditoría | editor | 3 |
@@ -845,7 +876,7 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
   la misma línea de código.
 
 ### Fase 2 — el viento
-- **N-5, parte visual**: mandos en el editor y en el menú, y que lleguen al
+- ✅ **N-5, parte visual**: mandos en el editor y en el menú, y que lleguen al
   `BuildingModel` (que ya los espera).
 - **N-5, parte motor**: prompt para la corrección de la velocidad por altura de
   la apertura. Se puede escribir ya, en la fase 0, para que vaya en paralelo.
@@ -877,8 +908,8 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
    sentido impuesta? Cambia el encargo al motor.
 3. **G-2 · El material del mobiliario**: ¿textura propia sobre el kit que ya
    tenemos, o cambiar a un kit texturizado? Va antes de envolver 121 modelos.
-4. **N-5 · El tope del viento**: ¿confirmas 28 m/s (≈100 km/h, techo de Beaufort
-   10 y de la velocidad básica del CTE)?
+4. ~~**N-5 · El tope del viento**~~ — implementado a **28 m/s** con esa
+   justificación; cambiarlo es una constante en `ui/WindRose.gd`.
 5. **N-3 · Qué se ve desde arriba**: ¿cubiertas y horizonte, otros bloques altos,
    la calle muy abajo?
 6. ~~**N-4 · Plantas totales**~~ — **decidido: son las dibujadas**, y los
