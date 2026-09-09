@@ -390,6 +390,36 @@ pero la magnitud de lo que se ve no acompaña a la del número.
 No está diagnosticado: puede ser el tamaño de la llama, el tinte de estado, o
 que la capa de humo no tenga representación propia a esa densidad.
 
+#### ✅ Diagnosticado y arreglado el 2026-09-10 — no era ninguna de las tres
+
+Medido con `tools/probe_fp_fire_scale.gd`, que monta el mundo FP y mide **la
+malla construida**, no la fórmula: con el HUD en 850 kW se dibujaba una llama de
+**0,60 m**. La fórmula de entonces decía 1,79 y Heskestad pide 1,95, así que el
+tamaño se perdía por el camino.
+
+**La causa**: el acercamiento al tamaño era un `lerp` de factor fijo que se
+ejecutaba **una vez por estado de la simulación**, no por unidad de tiempo. Con
+0,28 por estado hacen falta siete estados para llegar al 90 %, así que en
+cualquier instante la llama estaba a un tercio de lo suyo —y cuanto más lento el
+ritmo de estados, peor—. Ahora es una constante de tiempo (0,45 s al crecer,
+0,22 al apagarse) que avanza con el reloj de física.
+
+**Y la ley**: `0,18 + sqrt(HRR/1000) × 1,75` —dos números a ojo, sin diámetro de
+fuego— pasa a ser la correlación de **Heskestad**, `L = 0,235·Q^(2/5) − 1,02·D`.
+
+| HRR | antes | ahora |
+|---|---|---|
+| 120 kW | 0,26 m | 1,02 m |
+| 400 kW | 0,43 m | 2,05 m |
+| 850 kW | 0,60 m | 2,29 m (toca techo) |
+| 1800 kW | 2,03 m | 2,29 m |
+
+La red de fuego daba todo esto por bueno porque solo miraba que la llama
+estuviera «escalada»; ahora comprueba que llega a lo que pide la correlación.
+
+**Queda el tinte del mueble** —rojo plano, sin tizne—, aparcado a propósito: es
+material de mobiliario y el kit se cambia entero.
+
 ---
 
 ## 4. Cómo se ha medido el estado
@@ -830,7 +860,7 @@ hallazgos ordenados por fase, con quién tiene que hacer cada uno.
 | **D-3** | La ficha de la sala la tapan los muebles | 🟠 auditoría | editor | 6 |
 | **D-4** | El 3D en vivo se sale del fotograma a ~16 salas | 🟠 auditoría | editor | 6 |
 | **D-5** | La auditoría del editor se quedó en el día 7 | 🟠 auditoría | docs | 6 |
-| **G-5** | El fuego se lee flojo para el HRR del HUD | 🟡 auditoría | visual | 6 |
+| **G-5** | El fuego se lee flojo para el HRR del HUD | 🟡 auditoría | visual | 6 ✅ |
 | **D-6** | Las sondas de captura no pasan por el camino real | 🟡 auditoría | herramientas | 6 |
 
 ---
