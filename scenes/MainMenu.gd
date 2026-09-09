@@ -20,9 +20,21 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+const ScenarioCardScene = preload("res://ui/ScenarioCard.tscn")
+## Los ocho mandos viven detras de "Retocar", en un panel modal aparte del VBox
+## de la portada. El camino se escribe una vez.
+const TWEAK_ROWS: String = "TweakCenter/TweakPanel/Pad/Rows/"
 
 var _template_builder = BuildingTemplateScript.new()
-var _template_option: OptionButton = null
+## La lista de escenarios sustituye al desplegable de plantilla: la portada
+## ensena de que va cada uno sin tener que abrirlo.
+var _scenario_list: VBoxContainer = null
+var _scenario_cards: Array[Button] = []
+var _scenario_group: ButtonGroup = ButtonGroup.new()
+var _selected_preset_index: int = 0
+var _summary_label: Label = null
+var _tweak_dim: Control = null
+var _tweak_center: Control = null
 var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
 var _interior_lights_option: OptionButton = null
@@ -93,29 +105,42 @@ func _open_validation_scene_next_frame() -> void:
 
 
 func _bind_existing_ui() -> bool:
-	var btn_new := get_node_or_null("Center/VBox/BtnNewSim") as Button
-	var btn_editor := get_node_or_null("Center/VBox/BtnEditor") as Button
-	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
-	if btn_new == null or btn_editor == null or btn_quit == null:
+	var btn_new := get_node_or_null("Center/VBox/ActionsRow/BtnNewSim") as Button
+	var btn_tweak := get_node_or_null("Center/VBox/ActionsRow/BtnTweak") as Button
+	var btn_editor := get_node_or_null("Center/VBox/SecondaryRow/BtnEditor") as Button
+	var btn_quit := get_node_or_null("Center/VBox/SecondaryRow/BtnQuit") as Button
+	var btn_tweak_close := get_node_or_null(TWEAK_ROWS + "BtnTweakClose") as Button
+	if btn_new == null or btn_tweak == null or btn_editor == null or btn_quit == null 			or btn_tweak_close == null:
 		return false
 	_connect_once(btn_new.pressed, _on_new_sim_pressed)
+	_connect_once(btn_tweak.pressed, _on_tweak_pressed)
 	_connect_once(btn_editor.pressed, _on_editor_pressed)
 	_connect_once(btn_quit.pressed, _on_quit_pressed)
+	_connect_once(btn_tweak_close.pressed, _on_tweak_close_pressed)
 
-	_template_option = get_node_or_null("Center/VBox/PresetRow/Option") as OptionButton
-	_building_type_option = get_node_or_null("Center/VBox/BuildingTypeRow/Option") as OptionButton
-	_apartment_floor_spin = get_node_or_null("Center/VBox/ApartmentFloorRow/Spin") as SpinBox
-	_hvac_option = get_node_or_null("Center/VBox/HvacRow/Option") as OptionButton
-	_lighting_option = get_node_or_null("Center/VBox/LightingRow/Option") as OptionButton
-	_interior_lights_option = get_node_or_null("Center/VBox/InteriorLightsRow/Option") as OptionButton
-	_glass_break_option = get_node_or_null("Center/VBox/GlassBreakRow/Option") as OptionButton
-	_visibility_option = get_node_or_null("Center/VBox/VisibilityRow/Option") as OptionButton
-	if _template_option == null or _building_type_option == null or _apartment_floor_spin == null \
-			or _hvac_option == null or _lighting_option == null or _glass_break_option == null \
-			or _interior_lights_option == null or _visibility_option == null:
+	_scenario_list = get_node_or_null("Center/VBox/ScenarioScroll/ScenarioList") as VBoxContainer
+	_summary_label = get_node_or_null("Center/VBox/Summary") as Label
+	_tweak_dim = get_node_or_null("TweakDim") as Control
+	_tweak_center = get_node_or_null("TweakCenter") as Control
+	if _scenario_list == null or _summary_label == null 			or _tweak_dim == null or _tweak_center == null:
 		return false
 
-	_populate_template_option()
+	_building_type_option = get_node_or_null(TWEAK_ROWS + "BuildingTypeRow/Option") as OptionButton
+	_apartment_floor_spin = get_node_or_null(TWEAK_ROWS + "ApartmentFloorRow/Spin") as SpinBox
+	_hvac_option = get_node_or_null(TWEAK_ROWS + "HvacRow/Option") as OptionButton
+	_lighting_option = get_node_or_null(TWEAK_ROWS + "LightingRow/Option") as OptionButton
+	_interior_lights_option = get_node_or_null(TWEAK_ROWS + "InteriorLightsRow/Option") as OptionButton
+	_glass_break_option = get_node_or_null(TWEAK_ROWS + "GlassBreakRow/Option") as OptionButton
+	_visibility_option = get_node_or_null(TWEAK_ROWS + "VisibilityRow/Option") as OptionButton
+	if _building_type_option == null or _apartment_floor_spin == null 			or _hvac_option == null or _lighting_option == null or _glass_break_option == null 			or _interior_lights_option == null or _visibility_option == null:
+		return false
+
+	# Patron del proyecto: la escena se guarda VISIBLE -para poder componer el
+	# panel dentro de Godot- y es el codigo quien lo esconde al arrancar.
+	_tweak_dim.visible = false
+	_tweak_center.visible = false
+
+	_populate_scenario_cards()
 	_populate_building_type_option()
 	_populate_apartment_floor_spin()
 	_populate_hvac_option()
@@ -124,7 +149,14 @@ func _bind_existing_ui() -> bool:
 	_populate_glass_break_option()
 	_populate_visibility_option()
 	_connect_once(_building_type_option.item_selected, _on_building_type_selected)
+	# Cualquier mando que cambie reescribe el resumen de la portada: es lo que
+	# permite tener los ajustes escondidos sin que se olvide lo que valen.
+	for opt in [_building_type_option, _hvac_option, _lighting_option,
+			_interior_lights_option, _glass_break_option, _visibility_option]:
+		_connect_once((opt as OptionButton).item_selected, _on_any_option_changed)
+	_connect_once(_apartment_floor_spin.value_changed, _on_any_option_changed)
 	_sync_apartment_floor_visibility()
+	_update_summary()
 	return true
 
 
@@ -139,16 +171,20 @@ func _ui_text(key: String, fallback: String) -> String:
 
 func _localize_texts() -> void:
 	_set_label_text("Center/VBox/Subtitle", _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS"))
-	_set_label_text("Center/VBox/PresetRow/PresetLabel", _ui_text("main.template", "Plantilla").to_upper())
-	_set_label_text("Center/VBox/BuildingTypeRow/BuildingTypeLabel", _ui_text("main.building_type", "Exterior").to_upper())
-	_set_label_text("Center/VBox/ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta piso").to_upper())
-	_set_label_text("Center/VBox/LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
-	_set_label_text("Center/VBox/InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
-	_set_label_text("Center/VBox/GlassBreakRow/GlassBreakLabel", _ui_text("main.glass_break", "Cristales").to_upper())
-	_set_label_text("Center/VBox/VisibilityRow/VisibilityLabel", _ui_text("main.visibility", "Visibilidad").to_upper())
-	_set_button_text("Center/VBox/BtnNewSim", _ui_text("main.start_simulation", "INICIAR SIMULACION"))
-	_set_button_text("Center/VBox/BtnEditor", _ui_text("main.open_editor", "EDITOR DE VIVIENDA"))
-	_set_button_text("Center/VBox/BtnQuit", _ui_text("main.quit", "SALIR"))
+	_set_label_text("Center/VBox/ScenarioLabel", _ui_text("main.scenario", "Escenario").to_upper())
+	_set_label_text(TWEAK_ROWS + "TweakTitle", _ui_text("main.tweak_title", "Ajustes de la simulacion").to_upper())
+	_set_label_text(TWEAK_ROWS + "BuildingTypeRow/BuildingTypeLabel", _ui_text("main.building_type", "Exterior").to_upper())
+	_set_label_text(TWEAK_ROWS + "ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta piso").to_upper())
+	_set_label_text(TWEAK_ROWS + "HvacRow/HvacLabel", _ui_text("main.hvac", "HVAC").to_upper())
+	_set_label_text(TWEAK_ROWS + "LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
+	_set_label_text(TWEAK_ROWS + "InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
+	_set_label_text(TWEAK_ROWS + "GlassBreakRow/GlassBreakLabel", _ui_text("main.glass_break", "Cristales").to_upper())
+	_set_label_text(TWEAK_ROWS + "VisibilityRow/VisibilityLabel", _ui_text("main.visibility", "Visibilidad").to_upper())
+	_set_button_text("Center/VBox/ActionsRow/BtnNewSim", _ui_text("main.start_simulation", "EMPEZAR"))
+	_set_button_text("Center/VBox/ActionsRow/BtnTweak", _ui_text("main.tweak", "Retocar..."))
+	_set_button_text("Center/VBox/SecondaryRow/BtnEditor", _ui_text("main.open_editor", "EDITOR DE VIVIENDA"))
+	_set_button_text("Center/VBox/SecondaryRow/BtnQuit", _ui_text("main.quit", "SALIR"))
+	_set_button_text(TWEAK_ROWS + "BtnTweakClose", _ui_text("main.tweak_done", "Listo"))
 
 
 func _set_label_text(path: String, value: String) -> void:
@@ -163,82 +199,175 @@ func _set_button_text(path: String, value: String) -> void:
 		button.text = value.to_upper()
 
 
+## Adapta el menu a la altura real de la ventana.
+##
+## Antes esta funcion tenia que encoger el logo, los botones Y las once filas de
+## mandos hasta que cupieran, porque el menu pedia 719 px en una ventana de 720.
+## Ahora los mandos viven detras de "Retocar" y solo quedan dos cosas elasticas:
+## el logo y la altura de la lista de escenarios. Lo que se recorta es la lista,
+## que ademas tiene barra, asi que nada deja de ser alcanzable.
 func _fit_main_menu_layout() -> void:
 	var vbox := get_node_or_null("Center/VBox") as VBoxContainer
 	if vbox == null:
 		return
-	vbox.scale = Vector2.ONE  # por si quedó de una versión anterior
-	# Altura disponible real: tamaño del contenedor Center (full-rect), que
-	# refleja el área 2D tras el stretch; get_viewport_rect no es fiable aquí.
+	vbox.scale = Vector2.ONE
 	var center := get_node_or_null("Center") as Control
 	var viewport_h: float = get_viewport_rect().size.y
 	if center != null and center.size.y > 1.0:
 		viewport_h = center.size.y
-	var compact: bool = viewport_h < 820.0
-	var tight: bool = viewport_h < 700.0
-	vbox.add_theme_constant_override("separation", 6 if tight else (8 if compact else 10))
 
 	var logo := vbox.get_node_or_null("Logo") as TextureRect
-	var logo_h: float = 285.0
-	if compact:
-		logo_h = 220.0
-	if tight:
-		logo_h = 160.0
+	var scroll := vbox.get_node_or_null("ScenarioScroll") as ScrollContainer
+	# Ojo con lo que se mide: el stretch del proyecto da una altura LOGICA que
+	# no baja de 720 aunque la ventana sea mas baja -a 1000x650 el viewport 2D
+	# es 1280x832-. Por eso el caso peor real es 720, y los dos escalones de
+	# abajo son la red por si algun dia cambia el modo de stretch.
+	var logo_h: float = 150.0
+	var list_h: float = 214.0
+	if viewport_h < 820.0:
+		logo_h = 120.0
+	if viewport_h < 700.0:
+		logo_h = 92.0
+		list_h = 160.0
+	if viewport_h < 600.0:
+		logo_h = 70.0
+		list_h = 106.0
 	if logo != null:
 		logo.custom_minimum_size = Vector2(430.0, logo_h)
+	if scroll != null:
+		scroll.custom_minimum_size = Vector2(430.0, list_h)
 
-	var buttons: Array = []
-	var rows: Array = []
-	for child in vbox.get_children():
-		if child is Button:
-			(child as Button).custom_minimum_size = Vector2(420.0, 40.0 if tight else 44.0)
-			buttons.append(child)
-		elif child is HBoxContainer:
-			for row_child in child.get_children():
-				if row_child is OptionButton or row_child is SpinBox:
-					(row_child as Control).custom_minimum_size = Vector2(250.0, 30.0 if tight else 32.0)
-					rows.append(row_child)
-
-	# Reducir tamaños REALES hasta que quepa (determinista, sí renderiza).
-	# Primero el logo (lo más grande), luego reparte el resto entre filas y botones.
-	var avail: float = viewport_h * 0.98
-	var over: float = vbox.get_combined_minimum_size().y - avail
-	if over > 0.0 and logo != null:
-		var reduce_logo: float = minf(over, logo_h - 90.0)
-		logo.custom_minimum_size = Vector2(430.0, logo_h - reduce_logo)
-		over -= reduce_logo
-	if over > 0.0:
-		var n: int = buttons.size() + rows.size()
-		if n > 0:
-			var per: float = over / float(n)
-			for b in buttons:
-				var bc := b as Control
-				bc.custom_minimum_size = Vector2(bc.custom_minimum_size.x, maxf(30.0, bc.custom_minimum_size.y - per))
-			for r in rows:
-				var rc := r as Control
-				rc.custom_minimum_size = Vector2(rc.custom_minimum_size.x, maxf(22.0, rc.custom_minimum_size.y - per))
+	# Ultimo recurso: si aun no cabe, lo que cede es la lista, nunca los botones.
+	var over: float = vbox.get_combined_minimum_size().y - viewport_h * 0.98
+	if over > 0.0 and scroll != null:
+		scroll.custom_minimum_size = Vector2(430.0, maxf(50.0, list_h - over))
 
 
-func _populate_template_option() -> void:
-	if _template_option == null:
+## Una ficha por escenario, con su nombre y de que va.
+##
+## El texto sale de get_preset_definitions(), que ya trae "name" y
+## "description": no se inventa aqui ninguna descripcion. Las fichas se crean
+## por codigo porque son CONTENIDO, no cromo -la regla del proyecto prohibe
+## Controls estaticos por codigo, y por eso la ficha es una escena,
+## ui/ScenarioCard.tscn, igual que HudCard.tscn-.
+func _populate_scenario_cards() -> void:
+	if _scenario_list == null:
 		return
+	for child in _scenario_list.get_children():
+		child.queue_free()
+	_scenario_cards.clear()
 
 	var presets: Array[Dictionary] = _template_builder.get_preset_definitions()
 	_preset_ids.clear()
-	_template_option.clear()
 	for preset in presets:
-		var preset_id: String = String(preset.get("id", "simple_house"))
-		_preset_ids.append(preset_id)
-	for i in range(presets.size()):
-		var preset: Dictionary = presets[i]
-		var preset_id: String = _preset_ids[i]
-		_template_option.add_item(String(preset.get("name", preset_id)), i)
+		_preset_ids.append(String(preset.get("id", "simple_house")))
 
 	var saved: Dictionary = _load_startup_options()
 	var selected_id: String = String(saved.get("template_name", "simple_house"))
-	var selected_index: int = maxi(0, _preset_ids.find(selected_id))
-	if _template_option.get_item_count() > 0:
-		_template_option.select(clampi(selected_index, 0, _template_option.get_item_count() - 1))
+	_selected_preset_index = maxi(0, _preset_ids.find(selected_id))
+
+	for i in range(presets.size()):
+		var preset: Dictionary = presets[i]
+		var card := ScenarioCardScene.instantiate() as Button
+		card.name = "Card%d" % i
+		card.button_group = _scenario_group
+		var name_label := card.get_node_or_null("Box/Name") as Label
+		var desc_label := card.get_node_or_null("Box/Desc") as Label
+		if name_label != null:
+			name_label.text = String(preset.get("name", _preset_ids[i]))
+		if desc_label != null:
+			desc_label.text = String(preset.get("description", ""))
+		card.tooltip_text = String(preset.get("description", ""))
+		card.set_meta("preset_index", i)
+		card.toggled.connect(_on_scenario_card_toggled.bind(i))
+		_scenario_list.add_child(card)
+		_scenario_cards.append(card)
+
+	if _selected_preset_index < _scenario_cards.size():
+		_scenario_cards[_selected_preset_index].button_pressed = true
+
+
+func _on_scenario_card_toggled(pressed: bool, index: int) -> void:
+	if not pressed:
+		return
+	_selected_preset_index = index
+	_update_summary()
+
+
+## El resumen de la portada: lo que valen ahora mismo los mandos escondidos.
+##
+## Existe porque esconder los ajustes solo es aceptable si desde fuera se ve en
+## que estado estan. Sin esta linea, "Retocar" seria una caja negra.
+func _update_summary() -> void:
+	if _summary_label == null:
+		return
+	var partes: Array[String] = []
+
+	if _building_type_option != null:
+		if _building_type_option.selected == 1:
+			var planta: int = 1
+			if _apartment_floor_spin != null:
+				planta = int(round(_apartment_floor_spin.value))
+			partes.append("piso, planta %d" % planta)
+		else:
+			partes.append("casa unifamiliar")
+
+	if _lighting_option != null:
+		partes.append("de dia" if _lighting_option.selected == 0 else "de noche")
+	if _interior_lights_option != null:
+		partes.append("luces encendidas" if _interior_lights_option.selected == 0 else "luces apagadas")
+	if _hvac_option != null:
+		match _hvac_option.selected:
+			1: partes.append("HVAC parado")
+			2: partes.append("HVAC en marcha")
+			_: partes.append("sin HVAC")
+	if _glass_break_option != null:
+		match _glass_break_option.selected:
+			1: partes.append("cristales por temperatura")
+			2: partes.append("cristales probabilistico")
+			_: partes.append("cristales sin rotura")
+	if _visibility_option != null and _visibility_option.selected == 1:
+		partes.append("humo solo en el HUD")
+
+	_summary_label.text = " · ".join(partes)
+
+
+func _on_any_option_changed(_value) -> void:
+	_sync_apartment_floor_visibility()
+	_update_summary()
+
+
+func _on_tweak_pressed() -> void:
+	_set_tweak_visible(true)
+
+
+func _on_tweak_close_pressed() -> void:
+	_set_tweak_visible(false)
+
+
+func _set_tweak_visible(shown: bool) -> void:
+	if _tweak_dim != null:
+		_tweak_dim.visible = shown
+	if _tweak_center != null:
+		_tweak_center.visible = shown
+	if shown:
+		var first := get_node_or_null(TWEAK_ROWS + "BuildingTypeRow/Option") as Control
+		if first != null:
+			first.grab_focus()
+	else:
+		_update_summary()
+		var btn := get_node_or_null("Center/VBox/ActionsRow/BtnTweak") as Control
+		if btn != null:
+			btn.grab_focus()
+
+
+## Escape cierra los ajustes, que es lo que espera cualquiera.
+func _unhandled_input(event: InputEvent) -> void:
+	if _tweak_center == null or not _tweak_center.visible:
+		return
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_set_tweak_visible(false)
+		get_viewport().set_input_as_handled()
 
 
 func _populate_hvac_option() -> void:
@@ -356,8 +485,8 @@ func _load_startup_options() -> Dictionary:
 
 func _save_startup_options() -> void:
 	var selected_template_id: String = "simple_house"
-	if _template_option != null and not _preset_ids.is_empty():
-		var idx: int = clampi(_template_option.selected, 0, _preset_ids.size() - 1)
+	if not _preset_ids.is_empty():
+		var idx: int = clampi(_selected_preset_index, 0, _preset_ids.size() - 1)
 		selected_template_id = _preset_ids[idx]
 
 	var selected_hvac_mode: String = "none"

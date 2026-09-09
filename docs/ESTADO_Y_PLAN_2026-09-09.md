@@ -1,7 +1,8 @@
 # SimuFire — estado y plan de trabajo
 
 **Fecha:** 2026-09-09 · **HEAD:** 08dc041 · **Godot:** 4.7.1 · **Renderer:** `gl_compatibility`
-**Estado:** auditoría cerrada · plan propuesto, nada implementado
+**Estado:** auditoría cerrada · plan en marcha · **fase 0 completa** (G-3, los dos
+prompts al motor y N-6·N-7)
 
 Documento conjunto. La **parte I** es la auditoría del estado actual del diseñador de
 niveles y del aparato gráfico: once hallazgos, todos medidos o mirados hoy sobre el
@@ -603,6 +604,32 @@ no en la puerta de entrada.
 **Falta decidirlo contigo antes de tocar nada**, porque condiciona dónde caen los
 mandos de N-4 y N-5.
 
+#### ✅ Cerrado el 2026-09-09 — se hizo la opción (3)
+
+La portada es ahora **logo · lista de escenarios · resumen · EMPEZAR / Retocar…**,
+y los ocho mandos viven detrás de «Retocar» en un panel modal con velo, que se
+cierra con «Listo» o con Escape. Medido con ventana real: el `VBox` pasa de
+**719 px a 542**, y el panel de ajustes pide 357 aparte, así que **caben los
+cuatro mandos de N-4 y N-5 sin volver a tocar la portada** —que era el motivo de
+hacer esto primero—.
+
+Piezas: `ui/ScenarioCard.tscn` (la ficha; las fichas se instancian por código
+porque son CONTENIDO, no cromo) y el panel `TweakCenter` dentro de
+`MainMenu.tscn`. El texto de cada ficha sale de `get_preset_definitions()`
+—nombre y descripción—, no se inventa ninguna.
+
+Dos cosas que importan para lo que viene:
+
+- **El resumen de la portada** («piso, planta 3 · de noche · luces encendidas ·
+  sin HVAC · cristales sin rotura») es lo que hace aceptable esconder los
+  mandos. Cada mando nuevo tiene que añadir su trozo ahí, o «Retocar» se
+  convierte en una caja negra.
+- **La red vieja fijaba el diseño viejo**: `validate_main_menu_scene.gd` exigía
+  `PresetRow` y las siete filas en la portada. Reescrita, y ahora incluye la
+  regla que faltaba —**ningún `OptionButton` ni `SpinBox` cuelga del `VBox` de
+  la portada**, y la portada tiene que caber en 720 px—. Comprobado con tres
+  mutaciones: sin ellas, una red así solo sabe pasar.
+
 ---
 
 
@@ -617,9 +644,9 @@ hallazgos ordenados por fase, con quién tiene que hacer cada uno.
 
 | id | qué | tipo | línea | fase |
 |---|---|---|---|---|
-| **N-6·N-7** | El menú inicial no cabe (430 × 719 px) y satura | petición | visual | 0 |
-| **G-3** | Borde de sombra dentado: tres valores a cero | 🟠 auditoría | visual | 0 |
-| — | Escribir los prompts al motor (patios, viento por altura) | plan | coordinación | 0 |
+| **N-6·N-7** | El menú inicial no cabe (430 × 719 px) y satura | petición | visual | 0 ✅ |
+| **G-3** | Borde de sombra dentado: tres valores a cero | 🟠 auditoría | visual | 0 ✅ |
+| — | Escribir los prompts al motor (patios, viento por altura) | plan | coordinación | 0 ✅ |
 | **N-4** | Plantas totales y planta del incendio en el selector | petición | visual + editor | 1 |
 | **N-3** | Que se note la altura al mirar afuera | petición | visual | 1 |
 | **G-4** | Exterior sin alzado: los vecinos no tienen ventanas | 🟠 auditoría | visual | 1 |
@@ -663,11 +690,12 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
 
 ## 9. Orden propuesto
 
-### Fase 0 — desatascar el menú *(bloquea casi todo lo demás)*
-- **N-6 + N-7**: rehacer el menú inicial con la forma que decidamos. Sin mandos
-  nuevos todavía: solo reorganizar los ocho que ya hay y dejar el sitio hecho.
-- **G-3**: los tres valores del antialiasing y el filtro de sombra. Media hora, y
-  se nota en todas las vistas. Va aquí porque es barato y no depende de nada.
+### Fase 0 — desatascar el menú *(bloquea casi todo lo demás)* — ✅ COMPLETA
+- ✅ **N-6 + N-7**: menú rehecho con preajustes en ficha y panel «Retocar». De
+  719 px a 542. Ficha de cierre en la sección N-7.
+- ✅ **G-3**: los tres valores del antialiasing y el filtro de sombra (`08c3705`).
+- ✅ Los dos prompts al motor: `docs/PROMPT_MOTOR_PATIO.md` y
+  `docs/PROMPT_MOTOR_VIENTO_ALTURA.md` (`bf166e7`).
 
 ### Fase 1 — la altura como dato de verdad
 - **N-4**: `plantas_totales` y `planta_del_incendio` en el escenario, el editor y
@@ -704,8 +732,8 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
 
 ## 10. Lo que necesito que decidas antes de empezar
 
-1. **N-7 · La forma del menú**: ¿preajustes con resumen (mi recomendación),
-   pestañas, o «básico + avanzado»?
+1. ~~**N-7 · La forma del menú**~~ — **decidido: preajustes con resumen**, hecho
+   el 2026-09-09.
 2. **N-2 · El patio**: ¿física completa con plano neutro, o chimenea de un solo
    sentido impuesta? Cambia el encargo al motor.
 3. **G-2 · El material del mobiliario**: ¿textura propia sobre el kit que ya
