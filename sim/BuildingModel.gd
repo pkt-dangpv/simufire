@@ -110,6 +110,10 @@ func _ready() -> void:
 		template_data["apartment_floor_number"] = int(startup_options.get("apartment_floor_number", 1))
 	if startup_options.has("building_total_floors"):
 		template_data["building_total_floors"] = int(startup_options.get("building_total_floors", 0))
+	if startup_options.has("wind_speed_m_s"):
+		template_data["wind_speed_m_s"] = float(startup_options.get("wind_speed_m_s", 0.0))
+	if startup_options.has("wind_direction_deg"):
+		template_data["wind_direction_deg"] = float(startup_options.get("wind_direction_deg", 0.0))
 	if startup_options.has("interior_lights_on"):
 		template_data["interior_lights_on"] = bool(startup_options.get("interior_lights_on", true))
 	if startup_options.has("exterior_lighting_mode"):

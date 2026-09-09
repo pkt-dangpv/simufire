@@ -237,6 +237,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot view geometry parity: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_wind_controls.gd",
+        "WIND CONTROLS VALIDATION PASS",
+    )
+    rows.append(("Mandos del viento Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot mandos del viento: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

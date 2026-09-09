@@ -13,6 +13,8 @@
 		"main.building_type": "Exterior",
 		"main.apartment_floor": "Planta",
 		"main.total_floors": "De un total de",
+		"main.wind_direction": "Viento del",
+		"main.wind_speed": "Velocidad",
 		"main.lighting": "Iluminación",
 		"main.interior_lights": "Luces int.",
 		"main.glass_break": "Cristales",

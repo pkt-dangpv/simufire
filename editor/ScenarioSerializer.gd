@@ -82,6 +82,8 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"building_type": String(data.get("building_type", "single_family")),
 		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
 		"building_total_floors": int(data.get("building_total_floors", 0)),
+		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
+		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"floors": Array(data.get("floors", [])).duplicate(true),
@@ -106,6 +108,8 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"building_type": String(data.get("building_type", "single_family")),
 		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
 		"building_total_floors": int(data.get("building_total_floors", 0)),
+		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
+		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
@@ -149,6 +153,8 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	data["building_type"] = building_type
 	data["apartment_floor_number"] = maxi(0, int(data.get("apartment_floor_number", 1)))
 	data["building_total_floors"] = maxi(0, int(data.get("building_total_floors", 0)))
+	data["wind_speed_m_s"] = maxf(0.0, float(data.get("wind_speed_m_s", 0.0)))
+	data["wind_direction_deg"] = fposmod(float(data.get("wind_direction_deg", 0.0)), 360.0)
 	data["interior_lights_on"] = bool(data.get("interior_lights_on", true))
 	var exterior_lighting_mode: String = String(data.get("exterior_lighting_mode", "Dia")).strip_edges()
 	data["exterior_lighting_mode"] = "Noche" if exterior_lighting_mode.to_lower() == "noche" else "Dia"

@@ -236,6 +236,8 @@ var _floor_delete_button: Button
 var _building_type_option: OptionButton
 var _apartment_floor_spin: SpinBox
 var _total_floors_spin: SpinBox
+var _wind_dir_option: OptionButton
+var _wind_speed_spin: SpinBox
 var _element_list: ItemList
 var _element_list_sync_in_progress: bool = false
 var _editor_view_mode: int = EditorViewMode.MODE_2D
@@ -1902,6 +1904,8 @@ func _create_empty_scenario() -> void:
 		"building_type": "single_family",
 		"apartment_floor_number": 1,
 		"building_total_floors": 2,
+		"wind_speed_m_s": 0.0,
+		"wind_direction_deg": 0.0,
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
@@ -7647,7 +7651,57 @@ func _bind_building_type_controls() -> void:
 		_total_floors_spin.rounded = true
 		if not _total_floors_spin.value_changed.is_connected(_on_total_floors_changed):
 			_total_floors_spin.value_changed.connect(_on_total_floors_changed)
+	_wind_dir_option = _scene_control(left_vbox, "WindDirRow/WindDirOption") as OptionButton
+	if _wind_dir_option != null:
+		if _wind_dir_option.item_count == 0:
+			for punto in WindRose.POINTS:
+				_wind_dir_option.add_item(String(punto["nombre"]))
+		if not _wind_dir_option.item_selected.is_connected(_on_wind_direction_selected):
+			_wind_dir_option.item_selected.connect(_on_wind_direction_selected)
+	_wind_speed_spin = _bind_spin_row(left_vbox, "WindSpeedRow", "WindSpeedSpin", 0.0, WindRose.MAX_SPEED_M_S, WindRose.SPEED_STEP_M_S)
+	if _wind_speed_spin != null:
+		if not _wind_speed_spin.value_changed.is_connected(_on_wind_speed_changed):
+			_wind_speed_spin.value_changed.connect(_on_wind_speed_changed)
+	_sync_wind_controls()
 	_sync_apartment_floor_control()
+
+
+## Los dos mandos del viento leen lo que hay en el escenario. La rosa la
+## traduce `WindRose`: el motor guarda grados de DONDE VIENE el viento, y
+## confundir eso con "hacia donde va" invierte barlovento y sotavento.
+func _sync_wind_controls() -> void:
+	if _wind_speed_spin != null:
+		_wind_speed_spin.value = clampf(
+			float(editor_data.get("wind_speed_m_s", 0.0)), 0.0, WindRose.MAX_SPEED_M_S)
+	if _wind_dir_option != null:
+		_wind_dir_option.select(
+			WindRose.index_for_degrees(float(editor_data.get("wind_direction_deg", 0.0))))
+
+
+func _on_wind_speed_changed(value: float) -> void:
+	var next: float = clampf(value, 0.0, WindRose.MAX_SPEED_M_S)
+	if is_equal_approx(float(editor_data.get("wind_speed_m_s", 0.0)), next):
+		return
+	_push_undo_snapshot("wind_speed")
+	editor_data["wind_speed_m_s"] = next
+	var rumbo: float = float(editor_data.get("wind_direction_deg", 0.0))
+	if next <= 0.05:
+		_set_status("Sin viento.")
+	else:
+		_set_status("Viento %s del %s." % [WindRose.speed_text(next), WindRose.short_name(rumbo)])
+
+
+func _on_wind_direction_selected(index: int) -> void:
+	var next: float = WindRose.degrees_for_index(index)
+	if is_equal_approx(float(editor_data.get("wind_direction_deg", 0.0)), next):
+		return
+	_push_undo_snapshot("wind_direction")
+	editor_data["wind_direction_deg"] = next
+	var v: float = float(editor_data.get("wind_speed_m_s", 0.0))
+	if v <= 0.05:
+		_set_status("Viento del %s, pero la velocidad esta a 0." % WindRose.short_name(next))
+	else:
+		_set_status("Viento %s del %s." % [WindRose.speed_text(v), WindRose.short_name(next)])
 
 
 func _bind_element_list() -> void:

@@ -508,6 +508,44 @@ value = 2.0
 rounded = true
 suffix = " plantas"
 
+[node name="WindDirRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074012]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WindDirRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindDirRow" unique_id=1261591422]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "VIENTO DEL"
+
+[node name="WindDirOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindDirRow" unique_id=1621999603]
+tooltip_text = "De dónde VIENE el viento, como en un parte meteorológico. Empuja hacia dentro en la fachada que le da la cara y succiona en la de sotavento."
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WindSpeedRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074013]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WindSpeedRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindSpeedRow" unique_id=1261591423]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "VELOCIDAD"
+
+[node name="WindSpeedSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindSpeedRow" unique_id=1621999604]
+tooltip_text = "Velocidad del viento. 0 lo apaga. Lo interesante pasa entre 5 y 15 m/s (18-54 km/h); el tope de 28 m/s son 100 km/h, el techo de la fuerza 10."
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 28.0
+step = 0.5
+suffix = " m/s"
+
 [node name="ElementListTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1790654901]
 visible = false
 layout_mode = 2

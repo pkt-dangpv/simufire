@@ -20,6 +20,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+const WindRoseScript = preload("res://ui/WindRose.gd")
 const ScenarioCardScene = preload("res://ui/ScenarioCard.tscn")
 ## Los ocho mandos viven detras de "Retocar", en un panel modal aparte del VBox
 ## de la portada. El camino se escribe una vez.
@@ -43,6 +44,8 @@ var _visibility_option: OptionButton = null
 var _building_type_option: OptionButton = null
 var _apartment_floor_spin: SpinBox = null
 var _total_floors_spin: SpinBox = null
+var _wind_dir_option: OptionButton = null
+var _wind_speed_spin: SpinBox = null
 var _preset_ids: Array[String] = []
 var _hvac_modes: Array[String] = ["none", "off", "on"]
 var _lighting_modes: Array[String] = ["Dia", "Noche"]
@@ -129,6 +132,8 @@ func _bind_existing_ui() -> bool:
 	_building_type_option = get_node_or_null(TWEAK_ROWS + "BuildingTypeRow/Option") as OptionButton
 	_apartment_floor_spin = get_node_or_null(TWEAK_ROWS + "ApartmentFloorRow/Spin") as SpinBox
 	_total_floors_spin = get_node_or_null(TWEAK_ROWS + "TotalFloorsRow/Spin") as SpinBox
+	_wind_dir_option = get_node_or_null(TWEAK_ROWS + "WindDirRow/Option") as OptionButton
+	_wind_speed_spin = get_node_or_null(TWEAK_ROWS + "WindSpeedRow/Spin") as SpinBox
 	_hvac_option = get_node_or_null(TWEAK_ROWS + "HvacRow/Option") as OptionButton
 	_lighting_option = get_node_or_null(TWEAK_ROWS + "LightingRow/Option") as OptionButton
 	_interior_lights_option = get_node_or_null(TWEAK_ROWS + "InteriorLightsRow/Option") as OptionButton
@@ -146,6 +151,7 @@ func _bind_existing_ui() -> bool:
 	_populate_building_type_option()
 	_populate_apartment_floor_spin()
 	_populate_total_floors_spin()
+	_populate_wind_controls()
 	_populate_hvac_option()
 	_populate_lighting_option()
 	_populate_interior_lights_option()
@@ -159,6 +165,8 @@ func _bind_existing_ui() -> bool:
 		_connect_once((opt as OptionButton).item_selected, _on_any_option_changed)
 	_connect_once(_apartment_floor_spin.value_changed, _on_apartment_floor_changed)
 	_connect_once(_total_floors_spin.value_changed, _on_total_floors_changed)
+	_connect_once(_wind_speed_spin.value_changed, _on_any_option_changed)
+	_connect_once(_wind_dir_option.item_selected, _on_any_option_changed)
 	_sync_apartment_floor_visibility()
 	_update_summary()
 	return true
@@ -179,7 +187,9 @@ func _localize_texts() -> void:
 	_set_label_text(TWEAK_ROWS + "TweakTitle", _ui_text("main.tweak_title", "Ajustes de la simulacion").to_upper())
 	_set_label_text(TWEAK_ROWS + "BuildingTypeRow/BuildingTypeLabel", _ui_text("main.building_type", "Exterior").to_upper())
 	_set_label_text(TWEAK_ROWS + "ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta").to_upper())
-	_set_label_text(TWEAK_ROWS + "TotalFloorsRow/TotalFloorsLabel", _ui_text("main.total_floors", "Plantas").to_upper())
+	_set_label_text(TWEAK_ROWS + "TotalFloorsRow/TotalFloorsLabel", _ui_text("main.total_floors", "De un total de").to_upper())
+	_set_label_text(TWEAK_ROWS + "WindDirRow/WindDirLabel", _ui_text("main.wind_direction", "Viento del").to_upper())
+	_set_label_text(TWEAK_ROWS + "WindSpeedRow/WindSpeedLabel", _ui_text("main.wind_speed", "Velocidad").to_upper())
 	_set_label_text(TWEAK_ROWS + "HvacRow/HvacLabel", _ui_text("main.hvac", "HVAC").to_upper())
 	_set_label_text(TWEAK_ROWS + "LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
 	_set_label_text(TWEAK_ROWS + "InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
@@ -325,6 +335,9 @@ func _update_summary() -> void:
 		else:
 			partes.append("casa unifamiliar")
 
+	if _wind_speed_spin != null and _wind_dir_option != null:
+		var rumbo: float = WindRoseScript.degrees_for_index(_wind_dir_option.selected)
+		partes.append(WindRoseScript.summary_text(_wind_speed_spin.value, rumbo))
 	if _lighting_option != null:
 		partes.append("de dia" if _lighting_option.selected == 0 else "de noche")
 	if _interior_lights_option != null:
@@ -381,6 +394,21 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_set_tweak_visible(false)
 		get_viewport().set_input_as_handled()
+
+
+## Los dos mandos del viento. La rosa la pone `WindRose`, que es la que sabe
+## que los grados del motor son "de donde VIENE" y no "hacia donde va".
+func _populate_wind_controls() -> void:
+	if _wind_dir_option == null or _wind_speed_spin == null:
+		return
+	if _wind_dir_option.item_count == 0:
+		for punto in WindRoseScript.POINTS:
+			_wind_dir_option.add_item(String(punto["nombre"]))
+	var saved: Dictionary = _load_startup_options()
+	_wind_speed_spin.max_value = WindRoseScript.MAX_SPEED_M_S
+	_wind_speed_spin.step = WindRoseScript.SPEED_STEP_M_S
+	_wind_speed_spin.value = clampf(float(saved.get("wind_speed_m_s", 0.0)), 0.0, WindRoseScript.MAX_SPEED_M_S)
+	_wind_dir_option.select(WindRoseScript.index_for_degrees(float(saved.get("wind_direction_deg", 0.0))))
 
 
 func _populate_hvac_option() -> void:
@@ -535,6 +563,13 @@ func _save_startup_options() -> void:
 		var idx: int = clampi(_selected_preset_index, 0, _preset_ids.size() - 1)
 		selected_template_id = _preset_ids[idx]
 
+	var selected_wind_speed: float = 0.0
+	if _wind_speed_spin != null:
+		selected_wind_speed = clampf(_wind_speed_spin.value, 0.0, WindRoseScript.MAX_SPEED_M_S)
+	var selected_wind_direction: float = 0.0
+	if _wind_dir_option != null:
+		selected_wind_direction = WindRoseScript.degrees_for_index(_wind_dir_option.selected)
+
 	var selected_hvac_mode: String = "none"
 	if _hvac_option != null:
 		var hvac_idx: int = clampi(_hvac_option.selected, 0, _hvac_modes.size() - 1)
@@ -579,6 +614,8 @@ func _save_startup_options() -> void:
 		"building_type": selected_building_type,
 		"apartment_floor_number": selected_apartment_floor,
 		"building_total_floors": selected_total_floors,
+		"wind_speed_m_s": selected_wind_speed,
+		"wind_direction_deg": selected_wind_direction,
 		"hvac_mode": selected_hvac_mode,
 		"exterior_lighting_mode": selected_lighting_mode,
 		"interior_lights_on": selected_interior_lights_on,

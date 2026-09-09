@@ -261,6 +261,42 @@ max_value = 80.0
 value = 2.0
 rounded = true
 
+[node name="WindDirRow" type="HBoxContainer" parent="TweakCenter/TweakPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WindDirLabel" type="Label" parent="TweakCenter/TweakPanel/Pad/Rows/WindDirRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "VIENTO DEL"
+
+[node name="Option" type="OptionButton" parent="TweakCenter/TweakPanel/Pad/Rows/WindDirRow"]
+tooltip_text = "De dónde VIENE el viento, como en un parte meteorológico. Empuja hacia dentro en la fachada que le da la cara y succiona en la de sotavento."
+custom_minimum_size = Vector2(250, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="WindSpeedRow" type="HBoxContainer" parent="TweakCenter/TweakPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WindSpeedLabel" type="Label" parent="TweakCenter/TweakPanel/Pad/Rows/WindSpeedRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "VELOCIDAD"
+
+[node name="Spin" type="SpinBox" parent="TweakCenter/TweakPanel/Pad/Rows/WindSpeedRow"]
+tooltip_text = "Velocidad del viento. 0 lo apaga. Lo interesante pasa entre 5 y 15 m/s (18-54 km/h); el tope de 28 m/s son 100 km/h, el techo de la fuerza 10."
+custom_minimum_size = Vector2(250, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 28.0
+step = 0.5
+suffix = " m/s"
+
 [node name="HvacRow" type="HBoxContainer" parent="TweakCenter/TweakPanel/Pad/Rows"]
 layout_mode = 2
 theme_override_constants/separation = 8
