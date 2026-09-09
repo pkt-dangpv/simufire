@@ -11,6 +11,7 @@ const FPPlayerMotion := preload("res://view/fp/FPPlayerMotion.gd")
 const FireAnimation3D := preload("res://view/3d/fire/FireAnimation3D.gd")
 const FireMeshFactory := preload("res://view/3d/fire/FireMeshFactory.gd")
 const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
@@ -4902,9 +4903,11 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 			continue
 
 		var floor_level_m: float = room.floor_level_z_m if room != null else float(room_state.get("floor_level_z_m", 0.0))
+		# Una pieza colgada arranca a su altura, no en el suelo: es lo que
+		# permite que el armario del bano este sobre el lavabo y no dentro.
 		node.position = _to_world(Vector3(
 			rect.position.x + visual_center_m.x,
-			0.0,
+			FurnitureDimensions.mount_height_m(kind_name),
 			rect.position.y + visual_center_m.y
 		), floor_level_m)
 		node.rotation_degrees.y = rotation_deg

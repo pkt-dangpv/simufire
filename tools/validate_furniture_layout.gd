@@ -212,6 +212,16 @@ func _check_template(template_name: String) -> void:
 					_fail("%s: %s (%s) deberia ir contra un paramento y esta a %.2f m de todos, sala %d" % [
 						_case, id, kind, gap, room_id])
 
+			# 5. Lo que va colgado, colgado. Un mueble alto apoyado en el suelo
+			# no solo se ve mal: ocupa un sitio que deberia quedar libre para lo
+			# que va debajo.
+			var mount: float = FurnitureDimensions.mount_height_m(kind)
+			if mount > 0.01:
+				var base_m: float = aabb.position.y - floor_level
+				if absf(base_m - mount) > 0.12:
+					_fail("%s: %s (%s) va colgado a %.2f m y arranca a %.2f, sala %d" % [
+						_case, id, kind, mount, base_m, room_id])
+
 			# 5. El paso de las puertas, libre.
 			if top_m > FLOOR_LEVEL_TOP_M:
 				for door in doors:

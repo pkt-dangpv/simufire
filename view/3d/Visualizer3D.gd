@@ -32,6 +32,7 @@ const CameraOrbit3D := preload("res://view/3d/camera/CameraOrbit3D.gd")
 const FireAnimation3D := preload("res://view/3d/fire/FireAnimation3D.gd")
 const FireMeshFactory := preload("res://view/3d/fire/FireMeshFactory.gd")
 const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
@@ -3379,7 +3380,11 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 
 		var center_x: float = rect.position.x + visual_center_m.x
 		var center_z: float = rect.position.y + visual_center_m.y
-		node.position = _to_world(Vector3(center_x, float(item.get("floor_level_m", 0.0)), center_z))
+		# Lo colgado arranca a su altura sobre el forjado de su planta.
+		node.position = _to_world(Vector3(
+			center_x,
+			float(item.get("floor_level_m", 0.0)) + FurnitureDimensions.mount_height_m(kind_name),
+			center_z))
 		node.rotation_degrees.y = rotation_deg
 		node.set_meta("room_id", room_id)
 		node.set_meta("object_id", obj_id)

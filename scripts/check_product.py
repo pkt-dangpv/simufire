@@ -238,6 +238,14 @@ def main() -> int:
         diagnostics.append("Godot view geometry parity: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_object_catalog.gd",
+        "OBJECT CATALOG VALIDATION PASS",
+    )
+    rows.append(("Catalogo de objetos del editor Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot catalogo de objetos: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_script(
         "res://tools/validate_wind_controls.gd",
         "WIND CONTROLS VALIDATION PASS",
     )

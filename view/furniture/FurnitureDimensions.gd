@@ -38,14 +38,18 @@ extends RefCounted
 const UNKNOWN_SPEC: Dictionary = {
 	"long_m": 0.60, "deep_m": 0.50, "high_m": 0.45,
 	"long_min_m": 0.0, "long_max_m": 0.0,
-	"free_plan": true, "wall": false, "floor": false,
+	"free_plan": true, "wall": false, "floor": false, "mount_h_m": 0.0,
 }
 
 ## Relleno de las claves que una ficha no declara.
+##
+## `mount_h_m` es a que altura sobre el suelo arranca la pieza. Cero es lo
+## normal -esta apoyada-; por encima de cero esta COLGADA, y entonces deja el
+## suelo libre por debajo: un mueble alto no impide poner nada bajo el.
 const DEFAULT_SPEC: Dictionary = {
 	"long_m": 0.60, "deep_m": 0.50, "high_m": 0.45,
 	"long_min_m": 0.0, "long_max_m": 0.0,
-	"free_plan": false, "wall": false, "floor": false,
+	"free_plan": false, "wall": false, "floor": false, "mount_h_m": 0.0,
 }
 
 const SPECS: Dictionary = {
@@ -102,7 +106,12 @@ const SPECS: Dictionary = {
 	"shower": {"long_m": 0.90, "deep_m": 0.90, "high_m": 2.00, "wall": true},
 	"toilet": {"long_m": 0.70, "deep_m": 0.38, "high_m": 0.80, "wall": true},
 	"sink": {"long_m": 0.60, "deep_m": 0.45, "high_m": 0.90, "wall": true},
-	"bathroom_cabinet": {"long_m": 0.60, "deep_m": 0.20, "high_m": 0.70, "wall": true},
+	# Colgado sobre el lavabo, que es donde va. Es la primera pieza que usa
+	# `mount_h_m`, y el motivo de que exista el mecanismo: el kit nuevo trae
+	# espejos, toalleros, muebles altos y campanas, y hasta ahora no habia
+	# ninguna manera de ponerlos a una altura.
+	"bathroom_cabinet": {"long_m": 0.60, "deep_m": 0.20, "high_m": 0.70,
+		"wall": true, "mount_h_m": 0.95},
 
 	# --- Iluminacion y decoracion ---
 	"lamp_floor": {"long_m": 0.35, "deep_m": 0.35, "high_m": 1.60},
@@ -170,6 +179,16 @@ static func height_m(archetype: String) -> float:
 ## Piezas que en una vivienda van de espaldas a un paramento.
 static func is_wall_hugging(archetype: String) -> bool:
 	return bool(spec_for(archetype).get("wall", false))
+
+
+## A que altura arranca la pieza. Cero = apoyada en el suelo.
+static func mount_height_m(archetype: String) -> float:
+	return maxf(0.0, float(spec_for(archetype).get("mount_h_m", 0.0)))
+
+
+## Una pieza colgada no ocupa el suelo: se le puede poner algo debajo.
+static func is_wall_mounted(archetype: String) -> bool:
+	return mount_height_m(archetype) > 0.01
 
 
 ## Piezas rasantes: otra cosa puede estar encima sin que sea un error.

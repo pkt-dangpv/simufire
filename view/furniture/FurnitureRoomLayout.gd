@@ -90,7 +90,7 @@ static func layout_room(room_size_m: Vector2, doors: Array, specs: Array) -> Arr
 
 
 static func _has_overlap(placed: Array) -> bool:
-	var cajas: Array[Rect2] = []
+	var cajas: Array[Dictionary] = []
 	for raw in placed:
 		if typeof(raw) != TYPE_DICTIONARY:
 			continue
@@ -102,12 +102,17 @@ static func _has_overlap(placed: Array) -> bool:
 		var size: Vector2 = _to_vector2(spec.get("size_m", Vector2.ZERO))
 		var world: Vector2 = _world_size(size, float(spec.get("rotation_deg", 0.0)))
 		var center: Vector2 = _to_vector2(spec.get("position_m", Vector2.ZERO)) + size * 0.5
+		# Una pieza colgada puede estar encima de otra: el lavabo va debajo del
+		# armario. Se queda fuera de esta cuenta, y el resto se mira en planta,
+		# igual que lo mira el guardarrail.
+		if FurnitureDimensions.is_wall_mounted(String(spec.get("visual_archetype", ""))):
+			continue
 		var caja := Rect2(center - world * 0.5, world)
 		for otra in cajas:
-			var inter: Rect2 = caja.intersection(otra)
+			var inter: Rect2 = caja.intersection(Rect2(otra["rect"]))
 			if inter.size.x > 0.02 and inter.size.y > 0.02:
 				return true
-		cajas.append(caja)
+		cajas.append({"rect": caja})
 	return false
 
 
@@ -139,7 +144,14 @@ static func _layout_pass(room_size_m: Vector2, doors: Array, specs: Array, cabec
 	var contexto: Dictionary = {"doors": doors, "runs": {}, "blockers": [], "cabecero": cabecero}
 
 	contexto["blockers"] = blockers
-	var occupied: Array[Rect2] = blockers.duplicate()
+	# Sin tipar: aqui van bandas de puerta (Rect2 pelado) y losas de pieza
+	# -huella mas franja de aire-. Tipar esto como Array[Rect2] hacia que las
+	# losas no se anadieran y la sala se colocara SIN detectar choques.
+	# `blockers.duplicate()` conserva el tipo Array[Rect2], asi que se copia a
+	# mano: en esta lista conviven bandas de puerta y losas de pieza.
+	var occupied: Array = []
+	for banda in blockers:
+		occupied.append(banda)
 
 	# Lo que el usuario haya colocado a mano manda, y manda ANTES que nada: se
 	# queda donde esta y las demas piezas lo esquivan. Recolocarselo seria
@@ -147,7 +159,7 @@ static func _layout_pass(room_size_m: Vector2, doors: Array, specs: Array, cabec
 	for piece in plan:
 		if not bool(piece.get("locked", false)):
 			continue
-		occupied.append(_rect_of(piece))
+		occupied.append(_slab_of(piece))
 
 	# Se coloca por GRUPOS, no pieza a pieza.
 	#
@@ -198,14 +210,14 @@ static func _place_one(
 			# relacion dos veces la empeoraba -la segunda vez el sitio bueno ya
 			# estaba ocupado por otra pieza y acababa girandola por girarla-.
 			piece["emparejada"] = true
-			occupied.append(_rect_of(piece))
+			occupied.append(_slab_of(piece))
 			return
 
 	if bool(piece.get("wall", false)):
 		_place_against_wall(room, piece, occupied, contexto)
 	else:
 		_place_free(room, piece, occupied, contexto.get("blockers", []))
-	occupied.append(_rect_of(piece))
+	occupied.append(_slab_of(piece))
 
 
 ## Quien va detras de esta pieza: las que se agarran a ella y las que comparten
@@ -364,6 +376,8 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 		"wall": FurnitureDimensions.is_wall_hugging(archetype),
 		"floor": FurnitureDimensions.is_floor_level(archetype),
 		"long_along": long_along,
+		"mount": FurnitureDimensions.mount_height_m(archetype),
+		"high": FurnitureDimensions.height_m(archetype),
 		"cabecero": cabecero,
 	}
 
@@ -472,7 +486,7 @@ static func _place_in_run(room: Rect2, piece: Dictionary, occupied: Array, conte
 		contexto["runs"] = _with_run(runs, grupo, estado)
 		return false
 	_apply_side(room, piece, side, along)
-	if _collides(_rect_of(piece), occupied):
+	if _collides(_rect_of(piece), occupied, _franja_of(piece)):
 		if not _try_side(room, piece, side, occupied):
 			contexto["runs"] = _with_run(runs, grupo, estado)
 			return false
@@ -583,7 +597,7 @@ static func _occupancy_excluding(plan: Array, blockers: Array, index: int) -> Ar
 		var piece: Dictionary = plan[i]
 		if bool(piece.get("hidden", false)) or bool(piece.get("floor", false)):
 			continue
-		out.append(_rect_of(piece))
+		out.append(_slab_of(piece))
 	return out
 
 
@@ -652,7 +666,7 @@ static func _place_related(
 		var direccion: Vector2 = Vector2(candidato["dir"])
 		var distancia: float = float(candidato["media"]) + gap + _extent_along(world, direccion) * 0.5
 		var center: Vector2 = _clamp_center(room, anchor_center + direccion * distancia, world)
-		if _collides(Rect2(center - world * 0.5, world), occupied):
+		if _collides(Rect2(center - world * 0.5, world), occupied, _franja_of(piece)):
 			continue
 		piece["center"] = center
 		piece["rotation"] = rot
@@ -705,7 +719,7 @@ static func _reorient_in_place(
 		piece["center"] = center
 		return
 	var nuevo_centro: Vector2 = _clamp_center(room, center, world)
-	if _collides(Rect2(nuevo_centro - world * 0.5, world), occupied):
+	if _collides(Rect2(nuevo_centro - world * 0.5, world), occupied, _franja_of(piece)):
 		piece["center"] = center
 		piece["rotation"] = rotacion_antes
 		piece["world_size"] = _footprint(piece, rotacion_antes)
@@ -720,12 +734,13 @@ static func _reorient_in_place(
 ## una puerta estorba de verdad.
 static func _overlap_cost(rect: Rect2, occupied: Array, blockers: Array) -> float:
 	var coste: float = 0.0
-	for other in occupied:
-		var inter: Rect2 = rect.intersection(Rect2(other))
+	for raw in occupied:
+		var other: Rect2 = Rect2(Dictionary(raw)["rect"]) if typeof(raw) == TYPE_DICTIONARY else Rect2(raw)
+		var inter: Rect2 = rect.intersection(other)
 		if inter.size.x <= 0.0 or inter.size.y <= 0.0:
 			continue
 		var area: float = inter.size.x * inter.size.y
-		coste += area * (4.0 if _is_blocker(Rect2(other), blockers) else 1.0)
+		coste += area * (4.0 if _is_blocker(other, blockers) else 1.0)
 	return coste
 
 
@@ -771,7 +786,7 @@ static func _try_side(room: Rect2, piece: Dictionary, side: String, occupied: Ar
 			if candidate < min_along or candidate > max_along:
 				continue
 			_apply_side(room, piece, side, candidate)
-			if not _collides(_rect_of(piece), occupied):
+			if not _collides(_rect_of(piece), occupied, _franja_of(piece)):
 				return true
 			if step == 0:
 				break
@@ -805,7 +820,9 @@ static func _place_free(room: Rect2, piece: Dictionary, occupied: Array, blocker
 		var rect := Rect2(center - world * 0.5, world)
 		var pushed: bool = false
 		for other in occupied:
-			var other_rect := Rect2(other)
+			# En `occupied` conviven bandas de puerta (Rect2) y losas de pieza
+			# (huella + franja de aire). Aqui solo interesa la huella.
+			var other_rect: Rect2 = Rect2(Dictionary(other)["rect"]) if typeof(other) == TYPE_DICTIONARY else Rect2(other)
 			var inter: Rect2 = rect.intersection(other_rect)
 			if inter.size.x <= 0.0 or inter.size.y <= 0.0:
 				continue
@@ -822,7 +839,7 @@ static func _place_free(room: Rect2, piece: Dictionary, occupied: Array, blocker
 		if not pushed:
 			break
 	piece["center"] = center
-	if not _collides(_rect_of(piece), occupied):
+	if not _collides(_rect_of(piece), occupied, _franja_of(piece)):
 		return
 	# Apartarse a empujones puede no converger: entre la cama y la banda de
 	# paso de la puerta, una mesilla rebota de una a otra. Cuando pasa, se
@@ -840,7 +857,7 @@ static func _place_free(room: Rect2, piece: Dictionary, occupied: Array, blocker
 			var distance: float = candidate.distance_squared_to(wanted)
 			if distance >= best_distance:
 				continue
-			if _collides(Rect2(candidate - world * 0.5, world), occupied):
+			if _collides(Rect2(candidate - world * 0.5, world), occupied, _franja_of(piece)):
 				continue
 			best = candidate
 			best_distance = distance
@@ -860,7 +877,7 @@ static func _place_free(room: Rect2, piece: Dictionary, occupied: Array, blocker
 					var libre: Vector2 = _clamp_center(
 						room, Vector2(float(ix) * SLIDE_STEP_M, float(iy) * SLIDE_STEP_M), world
 					)
-					if _collides(Rect2(libre - world * 0.5, world), occupied):
+					if _collides(Rect2(libre - world * 0.5, world), occupied, _franja_of(piece)):
 						continue
 					piece["center"] = libre
 					return
@@ -974,17 +991,44 @@ static func _world_size(size: Vector2, rotation_deg: float) -> Vector2:
 	return Vector2(c * size.x + s * size.y, s * size.x + c * size.y)
 
 
+## Franja de aire que ocupa una pieza: de donde arranca a donde termina.
+static func _franja_of(piece: Dictionary) -> Vector2:
+	var mount: float = float(piece.get("mount", 0.0))
+	return Vector2(mount, mount + float(piece.get("high", 0.45)))
+
+
+## Lo que se guarda para que las demas la esquiven: su huella y su franja.
+static func _slab_of(piece: Dictionary) -> Dictionary:
+	return {"rect": _rect_of(piece), "franja": _franja_of(piece)}
+
+
 static func _rect_of(piece: Dictionary) -> Rect2:
 	var world: Vector2 = Vector2(piece["world_size"])
 	return Rect2(Vector2(piece["center"]) - world * 0.5, world)
 
 
-static func _collides(rect: Rect2, occupied: Array) -> bool:
+## Dos piezas chocan si comparten sitio EN PLANTA y ademas franja de aire.
+##
+## Sin lo segundo, un armario colgado a 0,95 m impediria poner el lavabo
+## debajo, que es justo lo contrario de para lo que sirve colgarlo. Las bandas
+## de paso de las puertas no tienen franja: estorban a cualquier altura
+## alcanzable, y por eso van con el rango de una persona.
+static func _collides(rect: Rect2, occupied: Array, franja: Vector2 = Vector2(0.0, 9.0)) -> bool:
 	var grown := Rect2(rect.position - Vector2.ONE * PIECE_GAP_M, rect.size + Vector2.ONE * PIECE_GAP_M * 2.0)
-	for other in occupied:
-		var inter: Rect2 = grown.intersection(Rect2(other))
-		if inter.size.x > 0.0 and inter.size.y > 0.0:
-			return true
+	for raw in occupied:
+		var otra_franja := Vector2(0.0, 9.0)
+		var other_rect: Rect2
+		if typeof(raw) == TYPE_DICTIONARY:
+			other_rect = Rect2(Dictionary(raw)["rect"])
+			otra_franja = Vector2(Dictionary(raw)["franja"])
+		else:
+			other_rect = Rect2(raw)
+		var inter: Rect2 = grown.intersection(other_rect)
+		if inter.size.x <= 0.0 or inter.size.y <= 0.0:
+			continue
+		if franja.y <= otra_franja.x + 0.02 or otra_franja.y <= franja.x + 0.02:
+			continue
+		return true
 	return false
 
 
