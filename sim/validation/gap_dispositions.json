@@ -1,0 +1,478 @@
+{
+  "schema_version": 1,
+  "contract": "final-non-gating-dispositions-v1",
+  "checkpoint": "edc61f4e50d290b70e3ef26f5867343e7d784a4f",
+  "source_proposal_sha256": "154761cb8b94d7cedc5d84a4d1463a46a0d8d5369fa154870765877e750f7430",
+  "entry_count": 78,
+  "unresolved_count": 0,
+  "checks": {
+    "cfast_2r_hall_rmse_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_hall_rmse_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_hall_t240_co_lower_ppm": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_hall_t240_co_lower_ppm",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_hall_t240_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_hall_t240_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_hall_t360_co_lower_ppm": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_hall_t360_co_lower_ppm",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_hall_t360_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_hall_t360_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t120_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t120_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t240_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t240_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t240_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t240_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t360_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t360_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t360_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t360_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t450_o2_lower": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t450_o2_lower",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t480_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t480_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_2r_r0_t480_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_2r_r0_t480_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_bed_co_upper_t480_co_upper_ppm": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_bed_co_upper_t480_co_upper_ppm",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_burnout_peak_temp_timing": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_burnout_peak_temp_timing",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_chain_r0_o2_t600_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_chain_r0_o2_t600_o2",
+      "basis": "The preserved O2 divergence is attributable to the documented one-zone versus CFAST two-zone exchange and combustion coupling boundary; this is contractual closure, not physical repair."
+    },
+    "cfast_chain_r0_t300_temp_upper_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_chain_r0_t300_temp_upper_c",
+      "basis": "The preserved fire-room temperature undershoot is attributable to the documented one-zone versus CFAST two-zone mass and enthalpy transport boundary; this is contractual closure, not physical repair."
+    },
+    "cfast_chain_r0_t600_temp_upper_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_chain_r0_t600_temp_upper_c",
+      "basis": "The preserved fire-room temperature undershoot is attributable to the documented one-zone versus CFAST two-zone mass and enthalpy transport boundary; this is contractual closure, not physical repair."
+    },
+    "cfast_chain_r2_o2_t480_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_chain_r2_o2_t480_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_chain_r2_o2_t600_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_chain_r2_o2_t600_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_closed_peak_temp_timing": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_closed_peak_temp_timing",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_closed_rmse_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_closed_rmse_o2",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_closed_t360_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_closed_t360_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_closed_t480_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_closed_t480_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_doorclose_r0_t300_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_doorclose_r0_t300_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_fo_t150_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_fo_t150_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_fo_t150_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_fo_t150_pressure_pa",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_fo_t240_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_fo_t240_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_fo_t350_co2_upper_pct": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_fo_t350_co2_upper_pct",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_fo_t350_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_fo_t350_pressure_pa",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_hvac_t180_pressure_pa": {
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_hvac_t180_pressure_pa",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics."
+    },
+    "cfast_hvac_t180_temp_upper_c": {
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_hvac_t180_temp_upper_c",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics."
+    },
+    "cfast_hvac_t300_pressure_pa": {
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_hvac_t300_pressure_pa",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics."
+    },
+    "cfast_hvac_t450_co_upper_ppm": {
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_hvac_t450_co_upper_ppm",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics."
+    },
+    "cfast_hvac_t450_pressure_pa": {
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_hvac_t450_pressure_pa",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics."
+    },
+    "cfast_multifuel_t120_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_multifuel_t120_pressure_pa",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_peak_temp_timing_pre_open": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_peak_temp_timing_pre_open",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_rmse_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_rmse_o2",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_slow_t240_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_slow_t240_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_slow_t480_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_slow_t480_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_slow_t600_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_slow_t600_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_t240_o2_depleted": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t240_o2_depleted",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair."
+    },
+    "cfast_t350_co2_upper_ppm": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t350_co2_upper_ppm",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_t350_hot_layer_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t350_hot_layer_m",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_t350_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t350_o2",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair."
+    },
+    "cfast_t350_pressure_pa": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t350_pressure_pa",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_t360_hot_layer_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t360_hot_layer_m",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_t360_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t360_o2",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair."
+    },
+    "cfast_t420_hot_layer_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t420_hot_layer_m",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "cfast_t510_co2_upper_ppm": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t510_co2_upper_ppm",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved."
+    },
+    "cfast_t510_hot_layer_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#cfast_t510_hot_layer_m",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review."
+    },
+    "confinement_open_close_room_0_final_o2": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#confinement_open_close_room_0_final_o2",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "flashover_simple_house_room_0_peak_temp_upper_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#flashover_simple_house_room_0_peak_temp_upper_c",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "g2_gie_transitional_attack_time_room_0_hrr_below_100_post_attack_s": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#g2_gie_transitional_attack_time_room_0_hrr_below_100_post_attack_s",
+      "basis": "Fresh runtime evidence preserves the failed post-attack timing result; the current tactical fire-response model does not satisfy this behavior and no physical repair is claimed."
+    },
+    "g4_gie_delayed_entry_hazard_time_room_1_fed_above_0_1_s": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#g4_gie_delayed_entry_hazard_time_room_1_fed_above_0_1_s",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "ghanekar_far_hall_co_known_gap": {
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#ghanekar_far_hall_co_known_gap",
+      "basis": "The check uses a 200 ppm threshold while the published observable is an initial-response estimator, and the retained tolerance is not traceable."
+    },
+    "ghanekar_far_hall_o2_response_time_s": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 Ghanekar contract owner",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#ghanekar_far_hall_o2_response_time_s",
+      "basis": "The current far-hall O2 response remains outside the retained contract. The published analyser threshold and exact probe equivalence remain unresolved, so this records a visible model/measurement limitation without changing the contract."
+    },
+    "ghanekar_flashover_0_9m_known_gap": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 primary-source reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#ghanekar_flashover_0_9m_known_gap",
+      "basis": "The published T(0.9 m) > 600 C observable is correctly identified and the final runtime never reaches it; the model under-predicts this event."
+    },
+    "ghanekar_kitchen_far_hall_idlh_co_s": {
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#ghanekar_kitchen_far_hall_idlh_co_s",
+      "basis": "The 642 s publication value is the first low-oxygen IDLH event, not a CO time; the frozen CO crossing is close to the separately derived CO time."
+    },
+    "ghanekar_kitchen_fire_room_flashover_s": {
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#ghanekar_kitchen_fire_room_flashover_s",
+      "basis": "The case and check do not reproduce the published control volume, ignition origin, or 0.9 m flashover observable, so the comparison is not equivalent."
+    },
+    "layer150_tenability_room_0_final_layer_150c_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#layer150_tenability_room_0_final_layer_150c_m",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "layer150_tenability_room_1_final_temp_at_1_8m_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#layer150_tenability_room_1_final_temp_at_1_8m_c",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "layer150_tenability_room_1_min_l150_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#layer150_tenability_room_1_min_l150_m",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "living_room_hallway_room_0_final_layer_150c_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#living_room_hallway_room_0_final_layer_150c_m",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "living_room_hallway_room_1_final_temp_at_1_8m_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#living_room_hallway_room_1_final_temp_at_1_8m_c",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "living_room_hallway_room_1_min_l150_m": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#living_room_hallway_room_1_min_l150_m",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "postfire_decay_room_0_final_smoke_kg": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#postfire_decay_room_0_final_smoke_kg",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "postfire_decay_room_0_peak_hrr_kw": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#postfire_decay_room_0_peak_hrr_kw",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "postfire_decay_room_1_final_smoke_kg": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#postfire_decay_room_1_final_smoke_kg",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "postfire_decay_smoke_deposited_total_kg": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#postfire_decay_smoke_deposited_total_kg",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "secondary_ignition_demo_room_1_max_fuel_objects_flaming_count": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#secondary_ignition_demo_room_1_max_fuel_objects_flaming_count",
+      "basis": "Fresh runtime evidence preserves the absence of secondary ignition; the current spread model does not satisfy this behavior and no physical repair is claimed."
+    },
+    "secondary_ignition_demo_room_1_peak_hrr_kw": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#secondary_ignition_demo_room_1_peak_hrr_kw",
+      "basis": "Fresh runtime evidence preserves the absent secondary-fire HRR; the current spread model does not satisfy this behavior and no physical repair is claimed."
+    },
+    "secondary_ignition_demo_time_room_1_hrr_above_20_s": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#secondary_ignition_demo_time_room_1_hrr_above_20_s",
+      "basis": "Fresh runtime evidence preserves that the secondary-fire threshold is not reached; the current spread model does not satisfy this behavior and no physical repair is claimed."
+    },
+    "two_storey_smoke_room_7_final_temp_upper_raw_c": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#two_storey_smoke_room_7_final_temp_upper_raw_c",
+      "basis": "Repeated controlled evidence preserves the remote upper-storey temperature shortfall within the current vertical transport model; no physical repair is claimed."
+    },
+    "two_storey_smoke_time_room_7_temp_above_40_s": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#two_storey_smoke_time_room_7_temp_above_40_s",
+      "basis": "Repeated controlled evidence preserves that the remote upper-storey threshold is not reached within the current vertical transport model; no physical repair is claimed."
+    },
+    "v3_hallway_fed_exposure_room_0_peak_hrr_kw": {
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#v3_hallway_fed_exposure_room_0_peak_hrr_kw",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed."
+    },
+    "v7_underventilated_co_peak_time_room_0_co_upper_above_5000_s": {
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8-V7-RELATIONAL-CONTRACT",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#v7_underventilated_co_peak_time_room_0_co_upper_above_5000_s",
+      "basis": "The exact timestamp is an internal regression snapshot, while the declared BV-005 behavior is event ordering; fresh evidence proves CO >=5000 ppm precedes peak HRR."
+    },
+    "v7_underventilated_co_peak_time_room_0_o2_below_15pct_s": {
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8-V7-RELATIONAL-CONTRACT",
+      "evidence": "sim/validation/evidence/p1r8_gap_disposition_evidence.json#v7_underventilated_co_peak_time_room_0_o2_below_15pct_s",
+      "basis": "The exact timestamp is an internal regression snapshot, while the declared BV-005 behavior is event ordering; fresh evidence proves O2 <=15% precedes peak HRR."
+    }
+  }
+}

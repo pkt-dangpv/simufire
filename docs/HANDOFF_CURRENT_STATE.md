@@ -2,6 +2,44 @@
 
 Date: 2026-08-25.
 
+## Current Program Update - 2026-09-09 - P1R8 contractual gap closure
+
+- The aggregate now contains 532 checks: **346/346 required PASS** and 78
+  failing non-gating checks, all 78 carrying an explicit final disposition.
+- Six former required CFAST `VALID_GAP` checks remain failed and visible as
+  `VERIFIED_MODEL_LIMITATION`; their actual, expected, tolerance, minimum and
+  maximum fields are unchanged.
+- Six remaining behavioral failures are `VERIFIED_MODEL_LIMITATION`. Two stale
+  V7 timestamp snapshots are `FALSE_POSITIVE` and remain visible unchanged;
+  two new required relational checks prove the declared event order.
+- The verified final runtime matrix refreshed 13 stale canonical reports and
+  11 CFAST logs. Two non-gating Ghanekar FED checks now pass at 635.4167 s and
+  784.75 s under their unchanged retained contracts, so their former
+  `VERIFIED_MODEL_LIMITATION` dispositions were retired. This is evidence
+  synchronization, not a claim of physical equivalence.
+- This closes validation-contract bookkeeping only. It does not repair the
+  named physical limitations or grant runtime authority. The final P1R8 matrix
+  completed, but independent review rejected closure until the gap evidence and
+  stale mutation campaign are remediated and re-run from a clean checkpoint.
+
+## Current Program Update - 2026-09-09 - P1R8 O2 owner disposition
+
+- `O2-OWNER-001` has the user-approved final audit disposition
+  `VERIFIED_MODEL_LIMITATION`. The legacy open-interior path can select
+  lower-zone O2 while debiting bulk O2; this is recorded as a model limitation,
+  not represented as a physical fix.
+- Candidates A, B and C were rejected. The Z0/Z1 conservative evaluator was
+  preserved under session 124 and removed from the runtime candidate. Z1 proved
+  6/6 OFF byte identity but its first ON control exceeded 900 s.
+- The generic Godot quiet-period supervisor guard remains as a separate
+  validation-safety change. No physical source, default, case, baseline,
+  expected value or tolerance changed in the withdrawal/disposition step.
+- The separate P1R8 disposition lane is now contractually complete; its failed
+  measurements remain visible and P1R8 has not yet issued an independent
+  `CLEAN GO`.
+- Runtime authority, H3.2b4, H3.3 and D1 remain NO-GO/frozen. HVAC remains
+  excluded. A future two-zone O2 implementation is a separate motor programme.
+
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
 `C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. Explicit

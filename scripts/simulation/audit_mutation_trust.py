@@ -161,6 +161,17 @@ def validate_mutation_report(report: Any, expected_required_count: int) -> list[
         return ["mutation report must be an object"]
 
     errors: list[str] = []
+    if report.get("worktree_clean") is not True:
+        errors.append("mutation campaign was not executed from a clean worktree")
+    for field, length in (
+        ("source_commit", 40),
+        ("source_tree_oid", 40),
+        ("reference_report_sha256", 64),
+        ("required_check_names_sha256", 64),
+    ):
+        value = report.get(field)
+        if not isinstance(value, str) or len(value) != length:
+            errors.append(f"invalid or missing mutation provenance field: {field}")
     if report.get("baseline_required_checks") != expected_required_count:
         errors.append(
             "baseline_required_checks does not match the frozen reference contract"

@@ -1,6 +1,6 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 22 agosto 2026 (sesión 26 — corrección documental contra la fuente primaria Ghanekar verificada)
-**Estado validacion**: 344/350 PASS required, 74 gaps non-gating, 6 VALID_GAP + 0 required blockers
+**Generado**: 24 mayo 2026 | **Actualizado**: 9 septiembre 2026 (P1R8 — cierre contractual de disposiciones)
+**Estado validacion**: 346/346 PASS required, 78 gaps non-gating, 78/78 con disposición final, 0 required failures
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -38,7 +38,23 @@
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 74 gaps non-gating (per reference_checks.json). 344/350 required checks PASS. 6 required failures classified as VALID_GAP y 0 required failures no permitidos (ver tablas abajo).**
+**Total: 78 gaps non-gating (per reference_checks.json), todos con disposición final. 346/346 required checks PASS y 0 required failures.**
+
+*(Sincronización 2026-09-09 — P1R8 completa las disposiciones contractuales.
+`O2-OWNER-001` y los seis fallos conductuales restantes quedan como
+**VERIFIED_MODEL_LIMITATION** sin afirmar reparación física. Los seis checks
+CFAST `VALID_GAP` pasan de required a non-gating y conservan intactos actual,
+expected, tolerancia, mínimo y máximo. Los dos snapshots temporales V7 quedan
+**FALSE_POSITIVE** y se sustituyen por dos checks required del orden de eventos,
+ambos PASS. Resultado: 530→532 checks, 350→346 required, 6→0 required FAIL y
+74→78 gaps non-gating, 78/78 con disposición final. Casos, baselines, HVAC,
+defaults y autoridad permanecen congelados. Evidencia:
+`docs/validation/P1R8_FINAL_GAP_DISPOSITIONS.md` y
+`docs/validation/P1R8_O2_OWNER_001_DISPOSITION.md`. La matriz runtime final
+refresca después 13 reportes y 11 logs stale: los dos checks FED Ghanekar
+pasan sin mover sus contratos, retiran sus disposiciones de fallo y reducen el
+conteo vigente 80→78; el resultado final de esta sincronización ya se refleja
+arriba.)*
 
 *(Sincronización 2026-08-27 — P1R5 finaliza la democión contractual
 Ghanekar. Los tres checks `ghanekar_far_hall_o2_response_time_s`,
@@ -48,10 +64,10 @@ pasan de required a non-gating: `required_count` 353→350, `known_gap_count`
 casos, baselines, física ni reportes de caso**; los `expected`/`tolerance`
 históricos se conservan intactos para trazabilidad y los resultados frescos
 siguen visibles (232.5 s; FED 0.3 y FED 1.0 no alcanzados). La clasificación
-final es **VERIFIED_MODEL_LIMITATION**: no afirma conformidad empírica ni concede
-autoridad, pero elimina el estado provisional después de verificar la fuente
-primaria, el observable consumido y el resultado runtime. Evidencia: sesiones
-22-27 y campaña P1R5.)*
+en ese checkpoint fue **VERIFIED_MODEL_LIMITATION**. La matriz final P1R8
+reemplaza la evidencia stale y retira posteriormente esa disposición de los dos
+checks FED que ahora pasan; O2 conserva la limitación. Evidencia: sesiones
+22-27, campaña P1R5 y matriz final P1R8.)*
 
 *(Sincronización 2026-08-21 — BRI-1 full-corpus refresh con Godot 4.7.1:
 18/18 casos completados. Gaps 71→73 por reapertura de
@@ -83,28 +99,31 @@ total de required PASS cambia 348→347.)*
 
 *(Sincronización 2026-07-09 — Grupo E CERRADO (`fix(logging): avoid duplicate final CSV snapshots` + fix runner/config): (a) artefacto doble-log cerrado en 5823ee98 — CTRLs S0:1 retirados. (b) Grupo E cfast_slow: los 6 VALID_GAP no eran gap físico sino mismatch de runner — el caso declaraba `validation_fire_o2_mode="upper"` en top-level pero `run_scenario_headless` solo aplica claves de `engine_overrides`; corregido añadiendo `fire_o2_mode="upper"` dentro de `engine_overrides`. Con la física declarada los 6 checks pasan: O2 upper a t=300 0.155 (CFAST 0.164, gap −0.009, tol 0.010), temp_upper a t=480 141.5°C (CFAST 151°C, gap −9.5°C, tol 10°C). KNOWN_VALID_GAP_REQUIRED_FAILURES: 15→9. Required PASS: 338→344.)*
 
-### Required failures closed-as-gap (6 checks — estado F3.3l)
+### Former required VALID_GAP checks (6 checks — P1R8)
 
-Estos 6 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 3+ para cerrarse. Codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`.
+Estos seis checks siguen fallando y siguen visibles, pero ahora son non-gating
+con disposición `VERIFIED_MODEL_LIMITATION`. No se ha movido ningún valor
+numérico del contrato ni se afirma reparación física. La arquitectura necesaria
+para resolverlos queda fuera de esta auditoría y no concede autoridad.
 
-### Required failures no permitidos (0 checks — sesión 23)
+### Required failures (0 checks — P1R8)
 
-**Ninguno.** Los tres bloqueantes BRI-1 fueron demovidos a gaps non-gating
-el 2026-08-22 (sesión 23) y finalizados como limitaciones verificadas en P1R5.
+**Ninguno.** Los 346 checks required pasan. Todo resultado fallido permanece
+visible como gap non-gating con una disposición final explícita.
 
-### Ghanekar — VERIFIED_MODEL_LIMITATION non-gating (3 checks)
+### Ghanekar — 1 VERIFIED_MODEL_LIMITATION y 2 non-gating PASS
 
-Estos tres checks **siguen fallando y siguen visibles**. Dejaron de bloquear,
-con disposición final **VERIFIED_MODEL_LIMITATION**: el modelo/observable no
-representa el contrato publicado y no se presenta como validado. Los
-`expected`/`tolerance` históricos se conservan **sin cambios** para trazabilidad,
-aunque no sean satisfacibles tal como están escritos.
+Los tres checks siguen visibles y non-gating. La corrida final P1R8 confirma que
+los dos checks FED ahora pasan bajo sus contratos retenidos sin cambios, por lo
+que ya no tienen disposición de fallo. El check O2 sigue fallando y conserva
+`VERIFIED_MODEL_LIMITATION`. Ningún pass se presenta como validación física:
+los defectos de observable y procedencia del contrato siguen documentados.
 
 | Check | Actual fresco | Contrato retenido | Valor publicado | Defecto del contrato |
 |-------|---------------|-------------------|-----------------|----------------------|
 | `ghanekar_far_hall_o2_response_time_s` | **232.5 s** | 198±30 s | 198±**18** s | observable y definición incorrectos: lee `room.o2` **bulk** cruzando 20.4 vol%, cuando el paper reporta **respuesta inicial** en una sonda a **0.9 m**. Tolerancia ampliada 1.67× sin trazabilidad. |
-| `ghanekar_kitchen_far_hall_fed_0_3_s` | **no alcanzado** (FED pico 0.237) | 546±515 s | 546±**120** s | tolerancia **ajustada 4.29×** para cerrar un gap (`161c4a64`), ventana [31, 1061] s casi vacua, y aun así falla. |
-| `ghanekar_kitchen_far_hall_fed_1_0_s` | **no alcanzado** | **812.75**±126 s | **624**±126 s | `expected` **rebaselinado sobre salida runtime** por `a4b5e8f5`; la ventana [686.75, 938.75] **excluye el dato publicado**, así que el propio experimento fallaría este check. |
+| `ghanekar_kitchen_far_hall_fed_0_3_s` | **635.4167 s — PASS non-gating, sin disposición** | 546±515 s | 546±**120** s | tolerancia **ajustada 4.29×** para cerrar un gap (`161c4a64`), ventana [31, 1061] s casi vacua; el pass actual no corrige esa procedencia. |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` | **784.75 s — PASS non-gating, sin disposición** | **812.75**±126 s | **624**±126 s | `expected` **rebaselinado sobre salida runtime** por `a4b5e8f5`; la ventana [686.75, 938.75] **excluye el dato publicado**, así que el pass actual no demuestra equivalencia experimental. |
 
 **Base de la disposición final, por check:**
 

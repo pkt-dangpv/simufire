@@ -139,8 +139,8 @@ def _failed_required_check(name: str) -> dict:
     }
 
 
-# Any one of the documented VALID_GAP required failures.
-A_VALID_GAP_NAME = sorted(gap_inventory_check.KNOWN_VALID_GAP_REQUIRED_FAILURES)[0]
+# A former VALID_GAP name must no longer bypass the required gate.
+FORMER_VALID_GAP_NAME = "cfast_t240_o2_depleted"
 
 
 def _json_data(
@@ -286,14 +286,14 @@ class TestGapInventoryCheckMain(unittest.TestCase):
             self.assertEqual(rc, 1)
             self.assertIn("brand_new_regression_check", out)
 
-    def test_exit0_valid_gap_required_failures_allowed(self):
-        """exit 0 when the only failing required checks are documented VALID_GAPs."""
+    def test_exit1_former_valid_gap_required_failure(self):
+        """A former VALID_GAP becomes blocking if it is made required again."""
         with _temporary_directory() as tmp:
             data = _json_data(
                 all_required_pass=False,
                 failed_required_count=1,
                 known_gap_count=0,
-                checks=[_failed_required_check(A_VALID_GAP_NAME)],
+                checks=[_failed_required_check(FORMER_VALID_GAP_NAME)],
             )
             jp = _write_json(tmp, data)
             ip = _write_inventory(tmp, 0)
@@ -301,18 +301,18 @@ class TestGapInventoryCheckMain(unittest.TestCase):
                 gap_inventory_check.main,
                 ["--json", str(jp), "--inventory", str(ip)],
             )
-            self.assertEqual(rc, 0)
-            self.assertIn("VALID_GAP", out)
+            self.assertEqual(rc, 1)
+            self.assertIn(FORMER_VALID_GAP_NAME, out)
 
-    def test_exit1_valid_gap_plus_unexpected(self):
-        """exit 1 when an unexpected required failure accompanies a VALID_GAP one."""
+    def test_exit1_former_valid_gap_plus_unexpected(self):
+        """Both historical and new required failures remain blocking."""
         with _temporary_directory() as tmp:
             data = _json_data(
                 all_required_pass=False,
                 failed_required_count=2,
                 known_gap_count=0,
                 checks=[
-                    _failed_required_check(A_VALID_GAP_NAME),
+                    _failed_required_check(FORMER_VALID_GAP_NAME),
                     _failed_required_check("brand_new_regression_check"),
                 ],
             )

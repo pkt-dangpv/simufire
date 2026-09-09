@@ -38,20 +38,31 @@ def _load_mutation_runner():
 def test_current_mutation_report_is_complete_and_non_vacuous():
     auditor = _load_auditor()
     report = json.loads(MUTATION_REPORT.read_text(encoding="utf-8"))
-    errors = auditor.validate_mutation_report(report, expected_required_count=350)
+    reference = json.loads(REFERENCE_REPORT.read_text(encoding="utf-8"))
+    errors = auditor.validate_mutation_report(
+        report, expected_required_count=reference["required_count"]
+    )
 
     assert errors == []
     assert report["killed_count"] == report["total_mutants"] == 8
+    assert report["worktree_clean"] is True
+    assert len(report["source_commit"]) == 40
+    assert len(report["source_tree_oid"]) == 40
+    assert len(report["reference_report_sha256"]) == 64
+    assert len(report["required_check_names_sha256"]) == 64
 
 
 def test_vacuous_stale_mutation_report_is_rejected():
     auditor = _load_auditor()
     report = json.loads(MUTATION_REPORT.read_text(encoding="utf-8"))
+    reference = json.loads(REFERENCE_REPORT.read_text(encoding="utf-8"))
     report["baseline_required_checks"] = 381
     report["mutants"] = {
         "M-HRR": {**auditor.example_valid_mutation_result(), "required_checks_evaluated": 0}
     }
-    errors = auditor.validate_mutation_report(report, expected_required_count=350)
+    errors = auditor.validate_mutation_report(
+        report, expected_required_count=reference["required_count"]
+    )
 
     assert any("required_checks_evaluated" in error for error in errors)
     assert any("mutants" in error for error in errors)
@@ -296,7 +307,7 @@ def test_case_command_uses_captured_output_instead_of_godot_log_file(tmp_path):
 def test_every_required_reference_check_has_explicit_machine_provenance():
     report = json.loads(REFERENCE_REPORT.read_text(encoding="utf-8"))
     required = [check for check in report["checks"] if check["required"]]
-    assert len(required) == 350
+    assert len(required) == 346
 
     for check in required:
         provenance = check.get("provenance")
@@ -330,20 +341,23 @@ def test_credibility_report_reads_the_authoritative_mutation_report():
 
 
 @pytest.mark.parametrize(
-    ("name", "expected", "tolerance"),
+    ("name", "expected", "tolerance", "passed", "disposition"),
     [
-        ("ghanekar_far_hall_o2_response_time_s", 198.0, 30.0),
-        ("ghanekar_kitchen_far_hall_fed_0_3_s", 546.0, 515.0),
-        ("ghanekar_kitchen_far_hall_fed_1_0_s", 812.75, 126.0),
+        ("ghanekar_far_hall_o2_response_time_s", 198.0, 30.0, False,
+         "VERIFIED_MODEL_LIMITATION"),
+        ("ghanekar_kitchen_far_hall_fed_0_3_s", 546.0, 515.0, True, None),
+        ("ghanekar_kitchen_far_hall_fed_1_0_s", 812.75, 126.0, True, None),
     ],
 )
-def test_ghanekar_demotions_have_final_truthful_disposition(name, expected, tolerance):
+def test_ghanekar_demotions_have_current_truthful_disposition(
+    name, expected, tolerance, passed, disposition
+):
     report = json.loads(REFERENCE_REPORT.read_text(encoding="utf-8"))
     check = next(item for item in report["checks"] if item["name"] == name)
 
     assert check["required"] is False
-    assert check["pass"] is False
+    assert check["pass"] is passed
     assert check["expected"] == expected
     assert check["tolerance"] == tolerance
-    assert check.get("disposition") == "VERIFIED_MODEL_LIMITATION"
+    assert check.get("disposition") == disposition
     assert "PROVISIONAL" not in check["note"].upper()

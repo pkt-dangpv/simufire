@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "contract": "p1r8-v7-event-order-observation-v1",
+  "checkpoint": "edc61f4e50d290b70e3ef26f5867343e7d784a4f",
+  "case": "v7_underventilated_co_peak",
+  "engine_version": "4.7.1.stable.official.a13da4feb",
+  "sample_count": 7202,
+  "sample_period_s": 0.08333333333333333,
+  "events_s": {
+    "co_upper_above_5000": 139.749999999998,
+    "o2_below_15pct": 166.166666666668,
+    "peak_hrr": 171.6
+  },
+  "source": "runs/motor_post_audit_p1_remediation_session114/flashover_v7_requalification.json",
+  "source_runtime_exit_code": 0,
+  "source_supervisor_errors": [],
+  "protected_tree_oids_unchanged": true
+}

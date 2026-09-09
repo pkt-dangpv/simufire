@@ -1,0 +1,2749 @@
+{
+  "schema_version": 1,
+  "contract": "p1r8-current-gap-disposition-evidence-v1",
+  "candidate_base_commit": "edc61f4e50d290b70e3ef26f5867343e7d784a4f",
+  "source_aggregate_generated_at": "2026-09-09T13:46:06Z",
+  "check_count": 78,
+  "checks": {
+    "cfast_2r_hall_rmse_o2": {
+      "actual": 0.07868188182619089,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 0.06,
+      "required": false,
+      "pass": false,
+      "note": "CMV-2: hall O2 RMSE (SF o2_upper vs CFAST ULO2). Phase-2a doorway routing active. Residual structural gap at t=360 (SF fire active, CFAST extinguished). threshold=0.060.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_hall_t240_co_lower_ppm": {
+      "actual": 119.0,
+      "expected": 0.0,
+      "tolerance": 100.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: hall lower-zone CO (CFAST LLCO ≈ 0; SF fully-mixed over-predicts lower-zone CO — structural gap).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_hall_t240_o2": {
+      "actual": 0.1816,
+      "expected": 0.11126200000000001,
+      "tolerance": 0.025,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Structural gap (Phase 2a): at t=360 SF fire still active while CFAST extinguishes via upper-zone O2 depletion.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_hall_t360_co_lower_ppm": {
+      "actual": 255.0,
+      "expected": 0.0,
+      "tolerance": 100.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: hall lower-zone CO (CFAST LLCO ≈ 0; SF fully-mixed over-predicts lower-zone CO — structural gap).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_hall_t360_o2": {
+      "actual": 0.1693,
+      "expected": 0.056457,
+      "tolerance": 0.06,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Structural gap (Phase 2a): at t=360 SF fire still active while CFAST extinguishes via upper-zone O2 depletion.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t120_co2_upper_pct": {
+      "actual": 6.2227,
+      "expected": 1.58066,
+      "tolerance": 3.5,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 transport to fire room — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t240_co2_upper_pct": {
+      "actual": 25.7062,
+      "expected": 10.6992,
+      "tolerance": 3.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 transport to fire room — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t240_pressure_pa": {
+      "actual": 2.39,
+      "expected": 163.079,
+      "tolerance": 160.3,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: two-room pressure coupling — structural gap (one-zone vs two-zone).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t360_co2_upper_pct": {
+      "actual": 29.9997,
+      "expected": 11.178,
+      "tolerance": 3.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 transport to fire room — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t360_pressure_pa": {
+      "actual": 198.42,
+      "expected": -38.7189,
+      "tolerance": 47.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: two-room pressure coupling — structural gap (one-zone vs two-zone).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t450_o2_lower": {
+      "actual": 0.0652,
+      "expected": 0.09087329999999999,
+      "tolerance": 0.025,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Fase 2A: fire-room lower-zone O2 (CFAST LLO2 near ambient; SF o2_lower tracked independently — gap closes with two-zone doorway flow).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t480_co2_upper_pct": {
+      "actual": 29.9997,
+      "expected": 9.9052,
+      "tolerance": 3.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 transport to fire room — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_2r_r0_t480_pressure_pa": {
+      "actual": 121.68,
+      "expected": 6.01672,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: two-room pressure coupling — structural gap (one-zone vs two-zone).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.json",
+          "bytes": 13074,
+          "sha256": "64648d20003106739925f361d0990f0bd5b8da52eef268082bfe05fa9e2c4b7e"
+        },
+        {
+          "path": "sim/validation/reports/cfast_two_room_door_open.log",
+          "bytes": 225024,
+          "sha256": "01966d051a38861fd4d3b488b11ca48977b1086b7cd5b425b57a79b040b37406"
+        },
+        {
+          "path": "sim/validation/cases/cfast_two_room_door_open.json",
+          "bytes": 2912,
+          "sha256": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open_compartments.csv",
+          "bytes": 61742,
+          "sha256": "c26fc6e5853c0f01c22f308c4814c324a9fb33e5dd6b3f2468128c8c7f904109"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_two_room_door_open.in",
+          "bytes": 2995,
+          "sha256": "355785098013a296017b125169db2bb498ab60490cfaf24675cddfcc2f9174f4"
+        }
+      ]
+    },
+    "cfast_bed_co_upper_t480_co_upper_ppm": {
+      "actual": 12431.0,
+      "expected": 4224.12,
+      "tolerance": 3200.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "BCD-1 (non-gating): Phase 1.5 CO upper gap at t=480s. CFAST UL CO=4224 ppm; SF=12431 ppm; absolute gap=8207 ppm; tol=3200 ppm. SimuFire and CFAST use different zone-mixing models.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_bedroom_closed_door.json",
+          "bytes": 7388,
+          "sha256": "b5d964fe34cc8fee7c91fb8a01bd5420fdcf037b6d698c03cabad180c2eff813"
+        },
+        {
+          "path": "sim/validation/reports/cfast_bedroom_closed_door.log",
+          "bytes": 332362,
+          "sha256": "181abf37ca91a61458352718f6ec1742c995f7c05c5d262ff29525664c4de692"
+        },
+        {
+          "path": "sim/validation/cases/cfast_bedroom_closed_door.json",
+          "bytes": 2523,
+          "sha256": "e68609b55d527d02d4f1a2d7b82f6d92ee91cce3118745423fb297bc3177542f"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_bedroom_closed_door_compartments.csv",
+          "bytes": 53902,
+          "sha256": "42dbff99795d2ff8f2fbb36420c8ff9c394173567a12def530b9d9fd4c37fc16"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_bedroom_closed_door.in",
+          "bytes": 2382,
+          "sha256": "5a5c10b3a0ff905236c783ada4b1215728ef1f8824f0d60f4ba9a35314ff55e0"
+        }
+      ]
+    },
+    "cfast_burnout_peak_temp_timing": {
+      "actual": 330.1,
+      "expected": 210.0,
+      "tolerance": 120.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "1.5C: long-burnout peak temp timing within ±120s of CFAST.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_long_burnout_3600s.json",
+          "bytes": 7810,
+          "sha256": "82dbe69ce1f3ff8517bffcedc4122a258fee5919406de3daa22169429792ccd7"
+        },
+        {
+          "path": "sim/validation/reports/cfast_long_burnout_3600s.log",
+          "bytes": 442019,
+          "sha256": "07eb1736a877618a0828fdfbb15250e996f069c4d5dc40924d653f6254e63908"
+        },
+        {
+          "path": "sim/validation/cases/cfast_long_burnout_3600s.json",
+          "bytes": 2559,
+          "sha256": "0c61b2f91db91e4c0ac7e970e7f2485a5500c4f2765e541461ff171562480c64"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_long_burnout_3600s_compartments.csv",
+          "bytes": 71235,
+          "sha256": "02106584caca0804280bebae8ec602860e971e95f0e6f075d64b67430bb8b1b9"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_long_burnout_3600s.in",
+          "bytes": 2882,
+          "sha256": "2d078223a1e47caf888e2c6d34ccd30fdca25e03f1ad14b37bc54122e0658590"
+        }
+      ]
+    },
+    "cfast_chain_r0_o2_t600_o2": {
+      "actual": 0.1329,
+      "expected": 0.09568289999999999,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CCH-1: corridor chain R0 O2 upper at t=600s. tol=0.015 (≥3× step @0.0001).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved O2 divergence is attributable to the documented one-zone versus CFAST two-zone exchange and combustion coupling boundary; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.json",
+          "bytes": 18441,
+          "sha256": "f02fb2ce615aa3734c465464ea3cfe3ad403a97e90c70aedd066a9cacb78e39d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.log",
+          "bytes": 223283,
+          "sha256": "90026e1a76f0407e0651601335b955b36986fff13b0d0cbf48fe06a14db027ec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_corridor_chain.json",
+          "bytes": 3182,
+          "sha256": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain_compartments.csv",
+          "bytes": 85791,
+          "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain.in",
+          "bytes": 3366,
+          "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593"
+        }
+      ]
+    },
+    "cfast_chain_r0_t300_temp_upper_c": {
+      "actual": 117.53,
+      "expected": 166.268,
+      "tolerance": 20.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CCH-1: corridor chain R0 fire room temp_upper at t=300s. tol=20.0°C (≥3× @0.1°C).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved fire-room temperature undershoot is attributable to the documented one-zone versus CFAST two-zone mass and enthalpy transport boundary; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.json",
+          "bytes": 18441,
+          "sha256": "f02fb2ce615aa3734c465464ea3cfe3ad403a97e90c70aedd066a9cacb78e39d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.log",
+          "bytes": 223283,
+          "sha256": "90026e1a76f0407e0651601335b955b36986fff13b0d0cbf48fe06a14db027ec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_corridor_chain.json",
+          "bytes": 3182,
+          "sha256": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain_compartments.csv",
+          "bytes": 85791,
+          "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain.in",
+          "bytes": 3366,
+          "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593"
+        }
+      ]
+    },
+    "cfast_chain_r0_t600_temp_upper_c": {
+      "actual": 94.56,
+      "expected": 168.796,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CCH-1: corridor chain R0 fire room temp_upper at t=600s. tol=30.0°C (≥3× @0.1°C).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved fire-room temperature undershoot is attributable to the documented one-zone versus CFAST two-zone mass and enthalpy transport boundary; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.json",
+          "bytes": 18441,
+          "sha256": "f02fb2ce615aa3734c465464ea3cfe3ad403a97e90c70aedd066a9cacb78e39d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.log",
+          "bytes": 223283,
+          "sha256": "90026e1a76f0407e0651601335b955b36986fff13b0d0cbf48fe06a14db027ec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_corridor_chain.json",
+          "bytes": 3182,
+          "sha256": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain_compartments.csv",
+          "bytes": 85791,
+          "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain.in",
+          "bytes": 3366,
+          "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593"
+        }
+      ]
+    },
+    "cfast_chain_r2_o2_t480_o2": {
+      "actual": 0.1863,
+      "expected": 0.129077,
+      "tolerance": 0.019,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "KNOWN_DEVIATION R1-1: CCH-1 corridor chain R2 O2 at t=480s. A priori tol=25%×delta (§6.2). Structural gap: SF single-zone transport vs CFAST two-zone. Will gate after Fase 2 two-zone migration.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.json",
+          "bytes": 18441,
+          "sha256": "f02fb2ce615aa3734c465464ea3cfe3ad403a97e90c70aedd066a9cacb78e39d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.log",
+          "bytes": 223283,
+          "sha256": "90026e1a76f0407e0651601335b955b36986fff13b0d0cbf48fe06a14db027ec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_corridor_chain.json",
+          "bytes": 3182,
+          "sha256": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain_compartments.csv",
+          "bytes": 85791,
+          "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain.in",
+          "bytes": 3366,
+          "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593"
+        }
+      ]
+    },
+    "cfast_chain_r2_o2_t600_o2": {
+      "actual": 0.1719,
+      "expected": 0.111228,
+      "tolerance": 0.023,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "KNOWN_DEVIATION R1-1: CCH-1 corridor chain R2 O2 at t=600s. A priori tol=25%×delta (§6.2). Structural gap: SF single-zone transport vs CFAST two-zone. Will gate after Fase 2 two-zone migration.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.json",
+          "bytes": 18441,
+          "sha256": "f02fb2ce615aa3734c465464ea3cfe3ad403a97e90c70aedd066a9cacb78e39d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_corridor_chain.log",
+          "bytes": 223283,
+          "sha256": "90026e1a76f0407e0651601335b955b36986fff13b0d0cbf48fe06a14db027ec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_corridor_chain.json",
+          "bytes": 3182,
+          "sha256": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain_compartments.csv",
+          "bytes": 85791,
+          "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_corridor_chain.in",
+          "bytes": 3366,
+          "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593"
+        }
+      ]
+    },
+    "cfast_closed_peak_temp_timing": {
+      "actual": 320.1,
+      "expected": 200.0,
+      "tolerance": 90.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "1.5B: sealed-room peak temp timing within ±90s of CFAST.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.json",
+          "bytes": 7550,
+          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+        },
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.log",
+          "bytes": 222302,
+          "sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_single_room_closed.json",
+          "bytes": 2594,
+          "sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed_compartments.csv",
+          "bytes": 36315,
+          "sha256": "27a04487ad0ae9a008d3dff62ffbd9ff84f47c6284e6c49ca8f6c87eb530e16b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed.in",
+          "bytes": 2324,
+          "sha256": "73ad7629e75478e9f539634a35fe208e39d43cc79d99c7695a54434cfc4043c5"
+        }
+      ]
+    },
+    "cfast_closed_rmse_o2": {
+      "actual": 0.02580450022994697,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 0.025,
+      "required": false,
+      "pass": false,
+      "note": "CMV-2: O2 RMSE ≤ 0.025 (sealed room). Structural gap expected.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.json",
+          "bytes": 7550,
+          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+        },
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.log",
+          "bytes": 222302,
+          "sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_single_room_closed.json",
+          "bytes": 2594,
+          "sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed_compartments.csv",
+          "bytes": 36315,
+          "sha256": "27a04487ad0ae9a008d3dff62ffbd9ff84f47c6284e6c49ca8f6c87eb530e16b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed.in",
+          "bytes": 2324,
+          "sha256": "73ad7629e75478e9f539634a35fe208e39d43cc79d99c7695a54434cfc4043c5"
+        }
+      ]
+    },
+    "cfast_closed_t360_pressure_pa": {
+      "actual": 2417.58,
+      "expected": 167.939,
+      "tolerance": 1200.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: Phase 3 pressure ODE — non-gating gap (SF fire persists vs CFAST extinction).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.json",
+          "bytes": 7550,
+          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+        },
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.log",
+          "bytes": 222302,
+          "sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_single_room_closed.json",
+          "bytes": 2594,
+          "sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed_compartments.csv",
+          "bytes": 36315,
+          "sha256": "27a04487ad0ae9a008d3dff62ffbd9ff84f47c6284e6c49ca8f6c87eb530e16b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed.in",
+          "bytes": 2324,
+          "sha256": "73ad7629e75478e9f539634a35fe208e39d43cc79d99c7695a54434cfc4043c5"
+        }
+      ]
+    },
+    "cfast_closed_t480_pressure_pa": {
+      "actual": 2006.96,
+      "expected": 168.174,
+      "tolerance": 320.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: Phase 3 pressure ODE — non-gating gap (SF fire persists vs CFAST extinction).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.json",
+          "bytes": 7550,
+          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+        },
+        {
+          "path": "sim/validation/reports/cfast_single_room_closed.log",
+          "bytes": 222302,
+          "sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec"
+        },
+        {
+          "path": "sim/validation/cases/cfast_single_room_closed.json",
+          "bytes": 2594,
+          "sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed_compartments.csv",
+          "bytes": 36315,
+          "sha256": "27a04487ad0ae9a008d3dff62ffbd9ff84f47c6284e6c49ca8f6c87eb530e16b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_single_room_closed.in",
+          "bytes": 2324,
+          "sha256": "73ad7629e75478e9f539634a35fe208e39d43cc79d99c7695a54434cfc4043c5"
+        }
+      ]
+    },
+    "cfast_doorclose_r0_t300_pressure_pa": {
+      "actual": 550260.2,
+      "expected": 154.307,
+      "tolerance": 145.7,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-3/CMV-1: sealed-room thermodynamic vs buoyancy pressure structural Phase 3 gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_door_close_midfire.json",
+          "bytes": 12959,
+          "sha256": "4bd2710e9a594b54e2450ff262422fa2dd1ac1b48575d64af9a98773516b16ac"
+        },
+        {
+          "path": "sim/validation/reports/cfast_door_close_midfire.log",
+          "bytes": 223277,
+          "sha256": "7e7a1416020d874e5f217e450706d4f3a7d09cab58822b10e3a79d48859eb69a"
+        },
+        {
+          "path": "sim/validation/cases/cfast_door_close_midfire.json",
+          "bytes": 2559,
+          "sha256": "331cf79442e3a96885fd24c2733313dfbe37c81b4f63b706350807db244ac5d4"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_door_close_midfire_compartments.csv",
+          "bytes": 61742,
+          "sha256": "e87f0a0190292dc27f709a04c30023e19f915a4d7150de4ba44c5dd5179ebd27"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_door_close_midfire.in",
+          "bytes": 3379,
+          "sha256": "c11a1a769e3ebbcd90812c00f00a1686cf274555bf57381fac4da8376f1feb96"
+        }
+      ]
+    },
+    "cfast_fo_t150_co2_upper_pct": {
+      "actual": 7.7579,
+      "expected": 3.75437,
+      "tolerance": 3.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 upper layer mol% in vented scenario — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.json",
+          "bytes": 7491,
+          "sha256": "6593675ff30bb1626d1597891c0385943f0dbd4dce0a531faddab03519a3913d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.log",
+          "bytes": 149469,
+          "sha256": "328f43de5681c35939576f114dde6861e215e78e5f0f60de8a5492f84da605f3"
+        },
+        {
+          "path": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "bytes": 2396,
+          "sha256": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv",
+          "bytes": 24675,
+          "sha256": "6cc6209289ffab82487baa19768d78ab2af0875a2de7d390a28be9e308f7ad4b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented.in",
+          "bytes": 2832,
+          "sha256": "eecd04d73bdd77bddf15cec0e0bb931f36c69c23cb8fa54993b2715c23b7da23"
+        }
+      ]
+    },
+    "cfast_fo_t150_pressure_pa": {
+      "actual": 492.38,
+      "expected": -2.81472,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: vented-room pressure sign/magnitude — CFAST ~−6 Pa (outflow driven).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.json",
+          "bytes": 7491,
+          "sha256": "6593675ff30bb1626d1597891c0385943f0dbd4dce0a531faddab03519a3913d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.log",
+          "bytes": 149469,
+          "sha256": "328f43de5681c35939576f114dde6861e215e78e5f0f60de8a5492f84da605f3"
+        },
+        {
+          "path": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "bytes": 2396,
+          "sha256": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv",
+          "bytes": 24675,
+          "sha256": "6cc6209289ffab82487baa19768d78ab2af0875a2de7d390a28be9e308f7ad4b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented.in",
+          "bytes": 2832,
+          "sha256": "eecd04d73bdd77bddf15cec0e0bb931f36c69c23cb8fa54993b2715c23b7da23"
+        }
+      ]
+    },
+    "cfast_fo_t240_co2_upper_pct": {
+      "actual": 1.3178,
+      "expected": 7.77377,
+      "tolerance": 4.5,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 upper layer mol% in vented scenario — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.json",
+          "bytes": 7491,
+          "sha256": "6593675ff30bb1626d1597891c0385943f0dbd4dce0a531faddab03519a3913d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.log",
+          "bytes": 149469,
+          "sha256": "328f43de5681c35939576f114dde6861e215e78e5f0f60de8a5492f84da605f3"
+        },
+        {
+          "path": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "bytes": 2396,
+          "sha256": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv",
+          "bytes": 24675,
+          "sha256": "6cc6209289ffab82487baa19768d78ab2af0875a2de7d390a28be9e308f7ad4b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented.in",
+          "bytes": 2832,
+          "sha256": "eecd04d73bdd77bddf15cec0e0bb931f36c69c23cb8fa54993b2715c23b7da23"
+        }
+      ]
+    },
+    "cfast_fo_t350_co2_upper_pct": {
+      "actual": 0.2378,
+      "expected": 7.89231,
+      "tolerance": 7.5,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: CO2 upper layer mol% in vented scenario — structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.json",
+          "bytes": 7491,
+          "sha256": "6593675ff30bb1626d1597891c0385943f0dbd4dce0a531faddab03519a3913d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.log",
+          "bytes": 149469,
+          "sha256": "328f43de5681c35939576f114dde6861e215e78e5f0f60de8a5492f84da605f3"
+        },
+        {
+          "path": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "bytes": 2396,
+          "sha256": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv",
+          "bytes": 24675,
+          "sha256": "6cc6209289ffab82487baa19768d78ab2af0875a2de7d390a28be9e308f7ad4b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented.in",
+          "bytes": 2832,
+          "sha256": "eecd04d73bdd77bddf15cec0e0bb931f36c69c23cb8fa54993b2715c23b7da23"
+        }
+      ]
+    },
+    "cfast_fo_t350_pressure_pa": {
+      "actual": 972.22,
+      "expected": -6.00936,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: vented-room pressure sign/magnitude — CFAST ~−6 Pa (outflow driven).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.json",
+          "bytes": 7491,
+          "sha256": "6593675ff30bb1626d1597891c0385943f0dbd4dce0a531faddab03519a3913d"
+        },
+        {
+          "path": "sim/validation/reports/cfast_post_flashover_vented.log",
+          "bytes": 149469,
+          "sha256": "328f43de5681c35939576f114dde6861e215e78e5f0f60de8a5492f84da605f3"
+        },
+        {
+          "path": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "bytes": 2396,
+          "sha256": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv",
+          "bytes": 24675,
+          "sha256": "6cc6209289ffab82487baa19768d78ab2af0875a2de7d390a28be9e308f7ad4b"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_post_flashover_vented.in",
+          "bytes": 2832,
+          "sha256": "eecd04d73bdd77bddf15cec0e0bb931f36c69c23cb8fa54993b2715c23b7da23"
+        }
+      ]
+    },
+    "cfast_hvac_t180_pressure_pa": {
+      "actual": 179202.53,
+      "expected": 768.421,
+      "tolerance": 767.5,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: HVAC-pressurized room overpressure — structural Phase 3 gap.",
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.json",
+          "bytes": 7741,
+          "sha256": "dc063baf5b2a92c271b63ebcf9596f65ac23fa0904f43aeee50db755e0f0e906"
+        },
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.log",
+          "bytes": 222655,
+          "sha256": "185da2d9d9a49b1fa5b65b72771a69cd42cae9b03ca933b114402e19341f68f7"
+        },
+        {
+          "path": "sim/validation/cases/cfast_hvac_residential.json",
+          "bytes": 2971,
+          "sha256": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential_compartments.csv",
+          "bytes": 36315,
+          "sha256": "aa0be533940ebdea4dffd7630ca634be8776e72d31af5fba11c6e92b32e4eea3"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential.in",
+          "bytes": 3028,
+          "sha256": "93b2fb43a20fe11708de0a44ced9f6015583960474a59ecf48db831c9ab87c86"
+        }
+      ]
+    },
+    "cfast_hvac_t180_temp_upper_c": {
+      "actual": 178.51,
+      "expected": 259.591,
+      "tolerance": 36.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "KNOWN_DEVIATION R1-1: HVAC t=180s temp_upper. A priori tol=36°C (15%×ΔT, §6.2). diff=76.9°C > 36°C. Structural: SF burns at full HRR vs CFAST two-zone O2 moderation.",
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.json",
+          "bytes": 7741,
+          "sha256": "dc063baf5b2a92c271b63ebcf9596f65ac23fa0904f43aeee50db755e0f0e906"
+        },
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.log",
+          "bytes": 222655,
+          "sha256": "185da2d9d9a49b1fa5b65b72771a69cd42cae9b03ca933b114402e19341f68f7"
+        },
+        {
+          "path": "sim/validation/cases/cfast_hvac_residential.json",
+          "bytes": 2971,
+          "sha256": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential_compartments.csv",
+          "bytes": 36315,
+          "sha256": "aa0be533940ebdea4dffd7630ca634be8776e72d31af5fba11c6e92b32e4eea3"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential.in",
+          "bytes": 3028,
+          "sha256": "93b2fb43a20fe11708de0a44ced9f6015583960474a59ecf48db831c9ab87c86"
+        }
+      ]
+    },
+    "cfast_hvac_t300_pressure_pa": {
+      "actual": 522544.23,
+      "expected": 154.56,
+      "tolerance": 148.5,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: HVAC-pressurized room overpressure — structural Phase 3 gap.",
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.json",
+          "bytes": 7741,
+          "sha256": "dc063baf5b2a92c271b63ebcf9596f65ac23fa0904f43aeee50db755e0f0e906"
+        },
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.log",
+          "bytes": 222655,
+          "sha256": "185da2d9d9a49b1fa5b65b72771a69cd42cae9b03ca933b114402e19341f68f7"
+        },
+        {
+          "path": "sim/validation/cases/cfast_hvac_residential.json",
+          "bytes": 2971,
+          "sha256": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential_compartments.csv",
+          "bytes": 36315,
+          "sha256": "aa0be533940ebdea4dffd7630ca634be8776e72d31af5fba11c6e92b32e4eea3"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential.in",
+          "bytes": 3028,
+          "sha256": "93b2fb43a20fe11708de0a44ced9f6015583960474a59ecf48db831c9ab87c86"
+        }
+      ]
+    },
+    "cfast_hvac_t450_co_upper_ppm": {
+      "actual": 1499.0,
+      "expected": 731.456,
+      "tolerance": 500.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Structural gap (Phase 2C): CO upper — SF fire at max HRR vs CFAST two-zone O2 dynamics.",
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.json",
+          "bytes": 7741,
+          "sha256": "dc063baf5b2a92c271b63ebcf9596f65ac23fa0904f43aeee50db755e0f0e906"
+        },
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.log",
+          "bytes": 222655,
+          "sha256": "185da2d9d9a49b1fa5b65b72771a69cd42cae9b03ca933b114402e19341f68f7"
+        },
+        {
+          "path": "sim/validation/cases/cfast_hvac_residential.json",
+          "bytes": 2971,
+          "sha256": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential_compartments.csv",
+          "bytes": 36315,
+          "sha256": "aa0be533940ebdea4dffd7630ca634be8776e72d31af5fba11c6e92b32e4eea3"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential.in",
+          "bytes": 3028,
+          "sha256": "93b2fb43a20fe11708de0a44ced9f6015583960474a59ecf48db831c9ab87c86"
+        }
+      ]
+    },
+    "cfast_hvac_t450_pressure_pa": {
+      "actual": 977652.03,
+      "expected": 168.371,
+      "tolerance": 161.6,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: HVAC-pressurized room overpressure — structural Phase 3 gap.",
+      "disposition": "USER_EXCLUDED_HVAC",
+      "owner": "user scope authority",
+      "basis": "The user repeatedly and explicitly excluded HVAC from this program. This records scope only and does not accept the physics.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.json",
+          "bytes": 7741,
+          "sha256": "dc063baf5b2a92c271b63ebcf9596f65ac23fa0904f43aeee50db755e0f0e906"
+        },
+        {
+          "path": "sim/validation/reports/cfast_hvac_residential.log",
+          "bytes": 222655,
+          "sha256": "185da2d9d9a49b1fa5b65b72771a69cd42cae9b03ca933b114402e19341f68f7"
+        },
+        {
+          "path": "sim/validation/cases/cfast_hvac_residential.json",
+          "bytes": 2971,
+          "sha256": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential_compartments.csv",
+          "bytes": 36315,
+          "sha256": "aa0be533940ebdea4dffd7630ca634be8776e72d31af5fba11c6e92b32e4eea3"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_hvac_residential.in",
+          "bytes": 3028,
+          "sha256": "93b2fb43a20fe11708de0a44ced9f6015583960474a59ecf48db831c9ab87c86"
+        }
+      ]
+    },
+    "cfast_multifuel_t120_pressure_pa": {
+      "actual": 314.41,
+      "expected": -1.12982,
+      "tolerance": 10.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-3/CMV-1: multi-fuel vented room pressure comparison (expected near-zero both).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_multi_fuel_couch_tv.json",
+          "bytes": 8607,
+          "sha256": "76eca366d5d366511291cc65c7f0b643641698a27b272485afb92c94071c3ef5"
+        },
+        {
+          "path": "sim/validation/reports/cfast_multi_fuel_couch_tv.log",
+          "bytes": 224280,
+          "sha256": "2cd5bf709c9477209d5b612fbebf28efd58f933230e2f48e874a29e834fa0896"
+        },
+        {
+          "path": "sim/validation/cases/cfast_multi_fuel_couch_tv.json",
+          "bytes": 1258,
+          "sha256": "0ca255630d7f596582658d9f5cd8f9364851c735db867a5e0aa2ad04b712b472"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_multi_fuel_couch_tv_compartments.csv",
+          "bytes": 36351,
+          "sha256": "d37cb26ee9543f7194fd38e78b52ba03946d6502ce8a636fcecde3af8f05f936"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_multi_fuel_couch_tv.in",
+          "bytes": 3427,
+          "sha256": "8f3de4c4d3552ab52ea05ebaa10be70d067568dd9a1e4080282c0f6888d00c75"
+        }
+      ]
+    },
+    "cfast_peak_temp_timing_pre_open": {
+      "actual": 280.0,
+      "expected": 200.0,
+      "tolerance": 60.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "1.5B: pre-opening peak temp_upper timing within ±60s of CFAST.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_rmse_o2": {
+      "actual": 0.045691347273384565,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 0.025,
+      "required": false,
+      "pass": false,
+      "note": "CMV-2: O2 RMSE(o2_upper vs ULO2) ≤ 0.025 pre-opening t=0–360s. Apples-to-apples after Fase 1A.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_slow_t240_pressure_pa": {
+      "actual": 2240.43,
+      "expected": 176.193,
+      "tolerance": 177.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "SGB-1 (non-gating): Phase 3 — thermodynamic vs buoyancy pressure model gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
+          "bytes": 7695,
+          "sha256": "c34093068760d5570c72831513c794242e4193336525e1c8d73491304431f087"
+        },
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
+          "bytes": 661464,
+          "sha256": "b4760100cce285ac4e7c87350b2a15d66effdd19cf7c8a4024959e058ac19b98"
+        },
+        {
+          "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
+          "bytes": 2799,
+          "sha256": "dae9071957be4ba75986998999b1b5be4935835bc5dd5892b6a2c1441e8b1a17"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed_compartments.csv",
+          "bytes": 106155,
+          "sha256": "7152f9924015da8fd6d2e73c397adf8fac6e482bb1522f27ba1c14c008ffa653"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed.in",
+          "bytes": 2712,
+          "sha256": "b22e9611e9ec1263984b8429ed6a9ab65d25f11971122a938320f4327e712408"
+        }
+      ]
+    },
+    "cfast_slow_t480_pressure_pa": {
+      "actual": 3915.44,
+      "expected": 23.1977,
+      "tolerance": 22.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "SGB-1 (non-gating): Phase 3 — thermodynamic vs buoyancy pressure model gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
+          "bytes": 7695,
+          "sha256": "c34093068760d5570c72831513c794242e4193336525e1c8d73491304431f087"
+        },
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
+          "bytes": 661464,
+          "sha256": "b4760100cce285ac4e7c87350b2a15d66effdd19cf7c8a4024959e058ac19b98"
+        },
+        {
+          "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
+          "bytes": 2799,
+          "sha256": "dae9071957be4ba75986998999b1b5be4935835bc5dd5892b6a2c1441e8b1a17"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed_compartments.csv",
+          "bytes": 106155,
+          "sha256": "7152f9924015da8fd6d2e73c397adf8fac6e482bb1522f27ba1c14c008ffa653"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed.in",
+          "bytes": 2712,
+          "sha256": "b22e9611e9ec1263984b8429ed6a9ab65d25f11971122a938320f4327e712408"
+        }
+      ]
+    },
+    "cfast_slow_t600_pressure_pa": {
+      "actual": 4392.48,
+      "expected": 65.1494,
+      "tolerance": 63.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "SGB-1 (non-gating): Phase 3 — thermodynamic vs buoyancy pressure model gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
+          "bytes": 7695,
+          "sha256": "c34093068760d5570c72831513c794242e4193336525e1c8d73491304431f087"
+        },
+        {
+          "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
+          "bytes": 661464,
+          "sha256": "b4760100cce285ac4e7c87350b2a15d66effdd19cf7c8a4024959e058ac19b98"
+        },
+        {
+          "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
+          "bytes": 2799,
+          "sha256": "dae9071957be4ba75986998999b1b5be4935835bc5dd5892b6a2c1441e8b1a17"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed_compartments.csv",
+          "bytes": 106155,
+          "sha256": "7152f9924015da8fd6d2e73c397adf8fac6e482bb1522f27ba1c14c008ffa653"
+        },
+        {
+          "path": "sim/validation/cfast/cfast_slow_growth_sealed.in",
+          "bytes": 2712,
+          "sha256": "b22e9611e9ec1263984b8429ed6a9ab65d25f11971122a938320f4327e712408"
+        }
+      ]
+    },
+    "cfast_t240_o2_depleted": {
+      "actual": 0.1595,
+      "expected": 0.085108,
+      "tolerance": 0.031,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Deep O2 depletion by t=240s (CFAST ULO2=8.51%). Uses SF o2_upper. R1-1: tol widened 0.022→0.031 (a priori §6.2: 25%×O2_delta=0.031).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t350_co2_upper_ppm": {
+      "actual": 161432.0,
+      "expected": 110600.0,
+      "tolerance": 28000.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Non-gating: requires CO2u= key in log (updated SimulationLogWriter).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t350_hot_layer_m": {
+      "actual": 0.82,
+      "expected": 0.1,
+      "tolerance": 0.15,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "KNOWN_DEVIATION R1-1: layer height during O2-crisis ticks. A priori tol=0.15 m (§6.2). Structural gap Fase 2: SF uses room-avg O2, hot-layer height diverges from CFAST two-zone.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t350_o2": {
+      "actual": 0.0881,
+      "expected": 0.06597990000000001,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t350_pressure_pa": {
+      "actual": 403945.54,
+      "expected": 167.461,
+      "tolerance": 162.9,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: window-vented scenario pressure — CFAST ~0 Pa post-opening; t=350 sealed structural gap.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t360_hot_layer_m": {
+      "actual": 0.84,
+      "expected": 0.1,
+      "tolerance": 0.15,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "KNOWN_DEVIATION R1-1: layer height during O2-crisis ticks. A priori tol=0.15 m (§6.2). Structural gap Fase 2: SF uses room-avg O2, hot-layer height diverges from CFAST two-zone.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t360_o2": {
+      "actual": 0.0837,
+      "expected": 0.0645067,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-CFAST-TWO-ZONE-LIMITATION",
+      "basis": "The preserved SimuFire result differs from the CFAST upper-zone O2 profile because the current combustion and transport model does not implement an equivalent canonical bi-zone transaction; this is contractual closure, not physical repair.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t420_hot_layer_m": {
+      "actual": 1.87,
+      "expected": 1.01963,
+      "tolerance": 0.55,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: post-opening hot_layer_m structural gap: SF=1.87 m vs CFAST=1.02 m; tol=0.55 m. Window upper-half hot-gas outflow is not modelled.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t510_co2_upper_ppm": {
+      "actual": 11210.0,
+      "expected": 52300.00000000001,
+      "tolerance": 20000.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Non-gating: requires CO2u= key in log (updated SimulationLogWriter).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 CFAST model-boundary reviewer",
+      "basis": "The failure reproduces at the final checkpoint with its frozen rule and the row documents a CFAST-versus-SimuFire structural model boundary. No case or contract moved.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "cfast_t510_hot_layer_m": {
+      "actual": 1.87,
+      "expected": 1.02438,
+      "tolerance": 0.55,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: post-opening hot_layer_m structural gap: SF=1.87 m vs CFAST=1.02 m; tol=0.55 m. Window upper-half hot-gas outflow is not modelled.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 gap evidence preparer",
+      "basis": "Current P1R8 runtime evidence reproduces this non-gating failure and the check documents the structural SimuFire-versus-CFAST model boundary. The classification does not alter the case or validation contract and remains subject to final independent closure review.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.json",
+          "bytes": 13805,
+          "sha256": "76d46932eb245969d3f43fdc6a0c269c8c391aa12292187bfc80882218d5d247"
+        },
+        {
+          "path": "sim/validation/reports/cfast_r0_window_360.log",
+          "bytes": 193151,
+          "sha256": "5dbd591f641000dcff3ef32693e81f3e624464cbbfa661db5205093875cef99e"
+        },
+        {
+          "path": "sim/validation/cases/cfast_r0_window_360.json",
+          "bytes": 2559,
+          "sha256": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360_compartments.csv",
+          "bytes": 53838,
+          "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40"
+        },
+        {
+          "path": "sim/validation/cfast/r0_hall_window_360.in",
+          "bytes": 2849,
+          "sha256": "b86e8dbe5b938ef05b1faa45569d874e1fd4d92f1d282ab988a628078dee91da"
+        }
+      ]
+    },
+    "confinement_open_close_room_0_final_o2": {
+      "actual": 0.0379965596654311,
+      "expected": 0.065235,
+      "tolerance": 0.02,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: confinement_open_close",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/confinement_open_close.json",
+          "bytes": 14463,
+          "sha256": "68386c30bef06c31a965eb390a21da856d9da7618dbafc98dc3d412c1caf686c"
+        },
+        {
+          "path": "sim/validation/cases/confinement_open_close.json",
+          "bytes": 787,
+          "sha256": "3ebdc2c7f411ec3c767ba24dbb35f38116281cb93634ac8d003c754864bc1cdd"
+        }
+      ]
+    },
+    "flashover_simple_house_room_0_peak_temp_upper_c": {
+      "actual": 558.871968981086,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 600.0,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: flashover_simple_house",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/flashover_simple_house.json",
+          "bytes": 13804,
+          "sha256": "6a2e1d0e8ef02c52757ff82ac87ac24c490fcb0bd44627f5affb3bbeee68a1bc"
+        },
+        {
+          "path": "sim/validation/cases/flashover_simple_house.json",
+          "bytes": 867,
+          "sha256": "6b41ba8b61f12e4fa0f36c162ab5083659b4cfd12a460b6a5581bcfc15a68aab"
+        }
+      ]
+    },
+    "g2_gie_transitional_attack_time_room_0_hrr_below_100_post_attack_s": {
+      "actual": null,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1.0,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: g2_gie_transitional_attack",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Fresh runtime evidence preserves the failed post-attack timing result; the current tactical fire-response model does not satisfy this behavior and no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/g2_gie_transitional_attack.json",
+          "bytes": 14232,
+          "sha256": "9a0c053d3a985dc17703748f8340ffc47b776dbc93fc43156b63c7c49364aa44"
+        },
+        {
+          "path": "sim/validation/cases/g2_gie_transitional_attack.json",
+          "bytes": 1300,
+          "sha256": "59df6a4b4baedee4693e39f7d0586ea90f9d92d8949726954d47c9dd98d870d6"
+        }
+      ]
+    },
+    "g4_gie_delayed_entry_hazard_time_room_1_fed_above_0_1_s": {
+      "actual": 152.166666666666,
+      "expected": 201.5,
+      "tolerance": 10.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Phase 2C: CO is now correctly placed in the upper zone (co_upper_kg = co_kg during fire-active collapse). Lower-zone CO at breathing height is near 0, so FED accumulation is slower and the threshold is reached later than the old well-mixed-style expectation (169 s → 197.75 s).",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/g4_gie_delayed_entry_hazard.json",
+          "bytes": 14404,
+          "sha256": "58608d545f4e3d21ec1b44d9028c78694a946977a6396baf4bb65e57ac30d701"
+        },
+        {
+          "path": "sim/validation/cases/g4_gie_delayed_entry_hazard.json",
+          "bytes": 1011,
+          "sha256": "ec821c4d199e7c49d43a474f31b325f3aaddec78931dfe7fa9b24460841fe019"
+        }
+      ]
+    },
+    "ghanekar_far_hall_co_known_gap": {
+      "actual": 155.416666666667,
+      "expected": 204.0,
+      "tolerance": 45.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Known gap: CO/HCN toxic-gas chemistry is not calibrated to the Ghanekar paper. Provenance (session 26): expected=204 s is the published 3.4 +/- 0.3 min (p.5 Table 2), but the retained +/- 45 s is not traceable (published +/- 18 s), and the 200 ppm crossing is not the published observable, which is an initial-response estimator, not a threshold.",
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "basis": "The check uses a 200 ppm threshold while the published observable is an initial-response estimator, and the retained tolerance is not traceable.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
+          "bytes": 45502,
+          "sha256": "94c4e6ea0e9aad2cf4f12eebc98fcf0263b45484529f23bf17f7326c0aa6c5f4"
+        },
+        {
+          "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
+          "bytes": 2508,
+          "sha256": "94ca541e6394d67ff749e6b388cd761c55a54d181827f6282b7a810b350c8ecb"
+        },
+        {
+          "path": "docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf",
+          "bytes": 4302995,
+          "sha256": "1b2a1b00ee4adecea86771694260aaf8233637e69679b794c8ba1a6b44675030"
+        }
+      ]
+    },
+    "ghanekar_far_hall_o2_response_time_s": {
+      "actual": 232.500000000009,
+      "expected": 198.0,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted session 23, 2026-08-22; reason corrected session 26 against the verified primary source). Fresh runtime: 232.5 s against the retained contract 198 +/- 30 s. Contract retained unchanged for traceability but NOT satisfiable as written: it consumes the bulk room.o2 crossing 20.4 vol%, whereas Ghanekar (p.5 Table 2) reports a time of INITIAL RESPONSE at a 0.9 m probe, defined at p.4 s2.3 as the last intersection of the change-in-concentration with an iterative polynomial linear baseline -- NOT a concentration threshold. The earlier claim that a missing 'detection threshold' blocked requalification was wrong: the article defines an estimator, not a threshold. Published uncertainty is +/- 18 s (3.3 +/- 0.3 min, k=1 sample SD over 10 bedroom experiments); the +/- 30 s here is not traceable to the paper. The 16-23 s end-to-end sampling lag is measured but the article does not state whether published times are corrected for it.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 Ghanekar contract owner",
+      "basis": "The current far-hall O2 response remains outside the retained contract. The published analyser threshold and exact probe equivalence remain unresolved, so this records a visible model/measurement limitation without changing the contract.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
+          "bytes": 45502,
+          "sha256": "94c4e6ea0e9aad2cf4f12eebc98fcf0263b45484529f23bf17f7326c0aa6c5f4"
+        },
+        {
+          "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
+          "bytes": 2508,
+          "sha256": "94ca541e6394d67ff749e6b388cd761c55a54d181827f6282b7a810b350c8ecb"
+        },
+        {
+          "path": "docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf",
+          "bytes": 4302995,
+          "sha256": "1b2a1b00ee4adecea86771694260aaf8233637e69679b794c8ba1a6b44675030"
+        }
+      ]
+    },
+    "ghanekar_flashover_0_9m_known_gap": {
+      "actual": null,
+      "expected": 186.0,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Non-gating empirical flashover-height gap reopened by fresh 2026-06-05 run: origin peak upper temp remains reasonable, but the 0.9 m 600C threshold no longer crosses in the current vertical interpolation (frozen run: metric absent, i.e. never reached; room_0 peak temp_upper is 536.7 C, itself below 600 C). Provenance (session 26): expected=186 s is the published 3.1 +/- 0.3 min (p.4 Table 1) and the observable MATCHES the published criterion T(0.9 m) > 600 C; the retained +/- 30 s tolerance is not traceable to the paper, whose dispersion is +/- 18 s.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8 primary-source reviewer",
+      "basis": "The published T(0.9 m) > 600 C observable is correctly identified and the final runtime never reaches it; the model under-predicts this event.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
+          "bytes": 45502,
+          "sha256": "94c4e6ea0e9aad2cf4f12eebc98fcf0263b45484529f23bf17f7326c0aa6c5f4"
+        },
+        {
+          "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
+          "bytes": 2508,
+          "sha256": "94ca541e6394d67ff749e6b388cd761c55a54d181827f6282b7a810b350c8ecb"
+        },
+        {
+          "path": "docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf",
+          "bytes": 4302995,
+          "sha256": "1b2a1b00ee4adecea86771694260aaf8233637e69679b794c8ba1a6b44675030"
+        }
+      ]
+    },
+    "ghanekar_kitchen_far_hall_idlh_co_s": {
+      "actual": 881.583333333455,
+      "expected": 642.0,
+      "tolerance": 102.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "PROVISIONAL non-gating gap. HISTORICAL DEFECTIVE CONTRACT -- do not read expected=642 s as a CO target. CO IDLH (1200 ppm) IS reached in the far hallway at 866.58 s in the frozen runtime. SPECIES MISATTRIBUTION (corrected session 26 against the primary source): the published 642 +/- 102 s (10.7 +/- 1.7 min, p.7 s3.4) is the time to the FIRST IDLH crossing, which Ghanekar attributes to LOW OXYGEN (decrease > 1.4 vol%) in p.1 Abstract, p.7 s3.4 and p.8 s5 -- it is NOT the CO time. The CO-driven value derives as 16.8 - 2.2 = 14.6 min ~ 876 s, and the frozen 866.58 s is 9.4 s (1.07 %) from it. The earlier note claiming CO was no longer reached was factually wrong and was corrected in session 23; the residual claim that it arrived ~224.6 s late was measured against the wrong quantity and is corrected here. NO corrected tolerance is supplied: the paired-difference dispersion is not derivable because the covariance is unpublished. Source caveats: the paper prints 'CO 1200 ppm (1.2 vol%)' (a unit erratum -- 1200 ppm is 0.12 vol%) and never restates which criterion was applied; and the CO sensor saturated at 5 vol% in Experiments 11, 12 and 18, so published kitchen CO is a lower bound. Observable split retained: this check reads BULK co_ppm (peak 1468 ppm) while FED reads upper-zone CO (peak 1015.9 ppm).",
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "basis": "The 642 s publication value is the first low-oxygen IDLH event, not a CO time; the frozen CO crossing is close to the separately derived CO time.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/ghanekar_kitchen_living_room.json",
+          "bytes": 46323,
+          "sha256": "c81f0f8267a0fa39d6c46857e3e918c90d2c03c110093428c61ffc81ec6248e2"
+        },
+        {
+          "path": "sim/validation/cases/ghanekar_kitchen_living_room.json",
+          "bytes": 2483,
+          "sha256": "a9e70a90abeeb0e215eac6a62d4c7f155eb651be8be9ca47bbf4b050bbd7d5d7"
+        },
+        {
+          "path": "docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf",
+          "bytes": 4302995,
+          "sha256": "1b2a1b00ee4adecea86771694260aaf8233637e69679b794c8ba1a6b44675030"
+        }
+      ]
+    },
+    "ghanekar_kitchen_fire_room_flashover_s": {
+      "actual": 495.333333333291,
+      "expected": 894.0,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Non-gating empirical flashover timing gap. Provenance VERIFIED (session 26): expected 894 +/- 30 s is the published 14.9 +/- 0.5 min (p.4 Table 1), and the tolerance is the published k=1 sample SD -- roughly a 68 % interval, not a 95 % band. Frozen runtime 495.33 s lies ~13 sample SDs below the mean and ~351 s below the fastest observed kitchen test (per-experiment range 846-948 s). This is NOT yet attributable to fire growth: (1) the published event is flashover of the COMBINED kitchen-living room compartment after spread from the counter, whereas this case ignites R3 directly with fire_spread_enabled=false, so the control volumes may differ; (2) this check reads temp_upper_c while the paper uses T(0.9 m) > 600 C, which crosses early by construction, and the sibling bedroom check already uses the correct 0.9 m observable; (3) kitchen t=0 is oil auto-ignition, not burner-on. 894 s must NOT be used as a calibration target until equivalence is settled. Corrected also: an earlier revision of this note said the far-hall O2/FED/CO checks 'remain required and pass' -- false since session 23. After the verified P1R8 refresh, fed_0_3 and fed_1_0 are non-gating passes, idlh_co remains a non-gating failure, and o2_response remains required and passing.",
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8 primary-source reviewer",
+      "basis": "The case and check do not reproduce the published control volume, ignition origin, or 0.9 m flashover observable, so the comparison is not equivalent.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/ghanekar_kitchen_living_room.json",
+          "bytes": 46323,
+          "sha256": "c81f0f8267a0fa39d6c46857e3e918c90d2c03c110093428c61ffc81ec6248e2"
+        },
+        {
+          "path": "sim/validation/cases/ghanekar_kitchen_living_room.json",
+          "bytes": 2483,
+          "sha256": "a9e70a90abeeb0e215eac6a62d4c7f155eb651be8be9ca47bbf4b050bbd7d5d7"
+        },
+        {
+          "path": "docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf",
+          "bytes": 4302995,
+          "sha256": "1b2a1b00ee4adecea86771694260aaf8233637e69679b794c8ba1a6b44675030"
+        }
+      ]
+    },
+    "layer150_tenability_room_0_final_layer_150c_m": {
+      "actual": 0.182266640380375,
+      "expected": 2.254847,
+      "tolerance": 0.2,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: layer150_tenability",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/layer150_tenability.json",
+          "bytes": 13711,
+          "sha256": "f54b6585c92ba26fae347e01ccabb0d9169f01eaa132ee5d95e10add0c1d5c87"
+        },
+        {
+          "path": "sim/validation/cases/layer150_tenability.json",
+          "bytes": 503,
+          "sha256": "e708b7e5c7d508109caaee904d8f5254851b1e8136677f87f778c5c20e5e5f67"
+        }
+      ]
+    },
+    "layer150_tenability_room_1_final_temp_at_1_8m_c": {
+      "actual": 163.646441151234,
+      "expected": 20.036471,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: layer150_tenability",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/layer150_tenability.json",
+          "bytes": 13711,
+          "sha256": "f54b6585c92ba26fae347e01ccabb0d9169f01eaa132ee5d95e10add0c1d5c87"
+        },
+        {
+          "path": "sim/validation/cases/layer150_tenability.json",
+          "bytes": 503,
+          "sha256": "e708b7e5c7d508109caaee904d8f5254851b1e8136677f87f778c5c20e5e5f67"
+        }
+      ]
+    },
+    "layer150_tenability_room_1_min_l150_m": {
+      "actual": 1.17036140774919,
+      "expected": 1.829141,
+      "tolerance": 0.15,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: layer150_tenability",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/layer150_tenability.json",
+          "bytes": 13711,
+          "sha256": "f54b6585c92ba26fae347e01ccabb0d9169f01eaa132ee5d95e10add0c1d5c87"
+        },
+        {
+          "path": "sim/validation/cases/layer150_tenability.json",
+          "bytes": 503,
+          "sha256": "e708b7e5c7d508109caaee904d8f5254851b1e8136677f87f778c5c20e5e5f67"
+        }
+      ]
+    },
+    "living_room_hallway_room_0_final_layer_150c_m": {
+      "actual": 0.245625348729504,
+      "expected": 1.890844,
+      "tolerance": 0.15,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: living_room_hallway",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/living_room_hallway.json",
+          "bytes": 14176,
+          "sha256": "b4f2b71efe89d5723e4d5f9c3e1204c891346a7cf5980f30b223d3c6dc03e1ec"
+        },
+        {
+          "path": "sim/validation/cases/living_room_hallway.json",
+          "bytes": 547,
+          "sha256": "cc849b8f9e06ecbb9a30f4f4c667c97b3fb72251a085f0efb40012367a58ed32"
+        }
+      ]
+    },
+    "living_room_hallway_room_1_final_temp_at_1_8m_c": {
+      "actual": 180.609053782594,
+      "expected": 37.968317,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: living_room_hallway",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/living_room_hallway.json",
+          "bytes": 14176,
+          "sha256": "b4f2b71efe89d5723e4d5f9c3e1204c891346a7cf5980f30b223d3c6dc03e1ec"
+        },
+        {
+          "path": "sim/validation/cases/living_room_hallway.json",
+          "bytes": 547,
+          "sha256": "cc849b8f9e06ecbb9a30f4f4c667c97b3fb72251a085f0efb40012367a58ed32"
+        }
+      ]
+    },
+    "living_room_hallway_room_1_min_l150_m": {
+      "actual": 1.23172175245924,
+      "expected": 1.673466,
+      "tolerance": 0.2,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: living_room_hallway",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/living_room_hallway.json",
+          "bytes": 14176,
+          "sha256": "b4f2b71efe89d5723e4d5f9c3e1204c891346a7cf5980f30b223d3c6dc03e1ec"
+        },
+        {
+          "path": "sim/validation/cases/living_room_hallway.json",
+          "bytes": 547,
+          "sha256": "cc849b8f9e06ecbb9a30f4f4c667c97b3fb72251a085f0efb40012367a58ed32"
+        }
+      ]
+    },
+    "postfire_decay_room_0_final_smoke_kg": {
+      "actual": 0.545749012471612,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.03,
+      "maximum": 0.35,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: postfire_decay",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/postfire_decay.json",
+          "bytes": 14364,
+          "sha256": "a5400a69848c8e7b9ad82f6e5f320d6566052c071b88ca3f41110facba4a3150"
+        },
+        {
+          "path": "sim/validation/cases/postfire_decay.json",
+          "bytes": 656,
+          "sha256": "7fa5dc090cf6e264525c0120e7b9899e506ce064e280ff3fb9e7c542154150a0"
+        }
+      ]
+    },
+    "postfire_decay_room_0_peak_hrr_kw": {
+      "actual": 3441.18465317582,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 800.0,
+      "maximum": 3200.0,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: postfire_decay",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/postfire_decay.json",
+          "bytes": 14364,
+          "sha256": "a5400a69848c8e7b9ad82f6e5f320d6566052c071b88ca3f41110facba4a3150"
+        },
+        {
+          "path": "sim/validation/cases/postfire_decay.json",
+          "bytes": 656,
+          "sha256": "7fa5dc090cf6e264525c0120e7b9899e506ce064e280ff3fb9e7c542154150a0"
+        }
+      ]
+    },
+    "postfire_decay_room_1_final_smoke_kg": {
+      "actual": 0.347792089324562,
+      "expected": 0.101619,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: postfire_decay",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/postfire_decay.json",
+          "bytes": 14364,
+          "sha256": "a5400a69848c8e7b9ad82f6e5f320d6566052c071b88ca3f41110facba4a3150"
+        },
+        {
+          "path": "sim/validation/cases/postfire_decay.json",
+          "bytes": 656,
+          "sha256": "7fa5dc090cf6e264525c0120e7b9899e506ce064e280ff3fb9e7c542154150a0"
+        }
+      ]
+    },
+    "postfire_decay_smoke_deposited_total_kg": {
+      "actual": 0.84170003801672,
+      "expected": 0.278102,
+      "tolerance": 0.022,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: postfire_decay",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/postfire_decay.json",
+          "bytes": 14364,
+          "sha256": "a5400a69848c8e7b9ad82f6e5f320d6566052c071b88ca3f41110facba4a3150"
+        },
+        {
+          "path": "sim/validation/cases/postfire_decay.json",
+          "bytes": 656,
+          "sha256": "7fa5dc090cf6e264525c0120e7b9899e506ce064e280ff3fb9e7c542154150a0"
+        }
+      ]
+    },
+    "secondary_ignition_demo_room_1_max_fuel_objects_flaming_count": {
+      "actual": 0,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1.0,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Al menos 1 objeto en estado FLAMING en pasillo (auto-ignicion confirmada). Observado 2.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Fresh runtime evidence preserves the absence of secondary ignition; the current spread model does not satisfy this behavior and no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/secondary_ignition_demo.json",
+          "bytes": 14649,
+          "sha256": "ef2793b58d4e12eaefa0e1e86d0e1a6706a954db0b67b19bc079fb2897116853"
+        },
+        {
+          "path": "sim/validation/cases/secondary_ignition_demo.json",
+          "bytes": 3790,
+          "sha256": "6e2f02c94312653b11683d60f37afb9f202bd1613d9cbaaef43c2de04eb73eca"
+        }
+      ]
+    },
+    "secondary_ignition_demo_room_1_peak_hrr_kw": {
+      "actual": 0.0,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 50.0,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "El incendio secundario en pasillo debe desarrollarse. Observado 310 kW.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Fresh runtime evidence preserves the absent secondary-fire HRR; the current spread model does not satisfy this behavior and no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/secondary_ignition_demo.json",
+          "bytes": 14649,
+          "sha256": "ef2793b58d4e12eaefa0e1e86d0e1a6706a954db0b67b19bc079fb2897116853"
+        },
+        {
+          "path": "sim/validation/cases/secondary_ignition_demo.json",
+          "bytes": 3790,
+          "sha256": "6e2f02c94312653b11683d60f37afb9f202bd1613d9cbaaef43c2de04eb73eca"
+        }
+      ]
+    },
+    "secondary_ignition_demo_time_room_1_hrr_above_20_s": {
+      "actual": null,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 600.0,
+      "required": false,
+      "pass": false,
+      "note": "El pasillo debe ignitar antes de t=600s. Observado 222s.",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Fresh runtime evidence preserves that the secondary-fire threshold is not reached; the current spread model does not satisfy this behavior and no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/secondary_ignition_demo.json",
+          "bytes": 14649,
+          "sha256": "ef2793b58d4e12eaefa0e1e86d0e1a6706a954db0b67b19bc079fb2897116853"
+        },
+        {
+          "path": "sim/validation/cases/secondary_ignition_demo.json",
+          "bytes": 3790,
+          "sha256": "6e2f02c94312653b11683d60f37afb9f202bd1613d9cbaaef43c2de04eb73eca"
+        }
+      ]
+    },
+    "two_storey_smoke_room_7_final_temp_upper_raw_c": {
+      "actual": 21.2059614631028,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 25.0,
+      "maximum": 250.0,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: two_storey_smoke",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Repeated controlled evidence preserves the remote upper-storey temperature shortfall within the current vertical transport model; no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/two_storey_smoke.json",
+          "bytes": 36104,
+          "sha256": "4dda06fc40ac0c730cd937afa2040ab83ecd37fe861395750fac89388ddfa17b"
+        },
+        {
+          "path": "sim/validation/cases/two_storey_smoke.json",
+          "bytes": 1058,
+          "sha256": "6069a35dcaa964dc91b45d63e0bdc916e83e53a835a6f2ed3073f9047df785e0"
+        }
+      ]
+    },
+    "two_storey_smoke_time_room_7_temp_above_40_s": {
+      "actual": null,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 30.0,
+      "maximum": 280.0,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: two_storey_smoke",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "P1R8-BEHAVIORAL-LIMITATIONS",
+      "basis": "Repeated controlled evidence preserves that the remote upper-storey threshold is not reached within the current vertical transport model; no physical repair is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/two_storey_smoke.json",
+          "bytes": 36104,
+          "sha256": "4dda06fc40ac0c730cd937afa2040ab83ecd37fe861395750fac89388ddfa17b"
+        },
+        {
+          "path": "sim/validation/cases/two_storey_smoke.json",
+          "bytes": 1058,
+          "sha256": "6069a35dcaa964dc91b45d63e0bdc916e83e53a835a6f2ed3073f9047df785e0"
+        }
+      ]
+    },
+    "v3_hallway_fed_exposure_room_0_peak_hrr_kw": {
+      "actual": 3425.03052739485,
+      "expected": 2437.317451,
+      "tolerance": 100.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: v3_hallway_fed_exposure",
+      "disposition": "VERIFIED_MODEL_LIMITATION",
+      "owner": "O2-OWNER-001",
+      "basis": "The row is downstream of the verified legacy open-interior O2 owner mismatch; no physical conformance or runtime authority is claimed.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/v3_hallway_fed_exposure.json",
+          "bytes": 14587,
+          "sha256": "ea11ebe44823c8a546c6081a8fda74e681d3e768538a48763aafc0b986a90f0c"
+        },
+        {
+          "path": "sim/validation/cases/v3_hallway_fed_exposure.json",
+          "bytes": 1121,
+          "sha256": "be0502ad351adaac0824dd958242a608ec59c092b3c2cc02171dba8afb6695ad"
+        }
+      ]
+    },
+    "v7_underventilated_co_peak_time_room_0_co_upper_above_5000_s": {
+      "actual": 139.749999999998,
+      "expected": 121.0,
+      "tolerance": 10.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: v7_underventilated_co_peak",
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8-V7-RELATIONAL-CONTRACT",
+      "basis": "The exact timestamp is an internal regression snapshot, while the declared BV-005 behavior is event ordering; fresh evidence proves CO >=5000 ppm precedes peak HRR.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/v7_underventilated_co_peak.json",
+          "bytes": 8461,
+          "sha256": "7458beafbbcbed4062daf08ad6352468f4a4304ced0d40f16084c7df4a47d573"
+        },
+        {
+          "path": "sim/validation/cases/v7_underventilated_co_peak.json",
+          "bytes": 1049,
+          "sha256": "099040b2f54e99e8bf6428a5e9421fb51f0d40aa336dd6e302b1dff20d41747f"
+        }
+      ]
+    },
+    "v7_underventilated_co_peak_time_room_0_o2_below_15pct_s": {
+      "actual": 166.166666666668,
+      "expected": 156.25,
+      "tolerance": 5.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "Regression baseline: v7_underventilated_co_peak",
+      "disposition": "FALSE_POSITIVE",
+      "owner": "P1R8-V7-RELATIONAL-CONTRACT",
+      "basis": "The exact timestamp is an internal regression snapshot, while the declared BV-005 behavior is event ordering; fresh evidence proves O2 <=15% precedes peak HRR.",
+      "source_artifacts": [
+        {
+          "path": "sim/validation/reports/v7_underventilated_co_peak.json",
+          "bytes": 8461,
+          "sha256": "7458beafbbcbed4062daf08ad6352468f4a4304ced0d40f16084c7df4a47d573"
+        },
+        {
+          "path": "sim/validation/cases/v7_underventilated_co_peak.json",
+          "bytes": 1049,
+          "sha256": "099040b2f54e99e8bf6428a5e9421fb51f0d40aa336dd6e302b1dff20d41747f"
+        }
+      ]
+    }
+  }
+}

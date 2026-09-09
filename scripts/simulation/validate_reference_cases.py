@@ -31,6 +31,13 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 CFAST_DIR = ROOT / "sim" / "validation" / "cfast"
 REQUIRED_POLICY_PATH = Path(__file__).with_name("reference_required_policy.json")
+GAP_DISPOSITIONS_PATH = ROOT / "sim" / "validation" / "gap_dispositions.json"
+GAP_DISPOSITION_EVIDENCE_PATH = (
+    ROOT / "sim" / "validation" / "evidence" / "p1r8_gap_disposition_evidence.json"
+)
+V7_EVENT_ORDER_PATH = (
+    ROOT / "sim" / "validation" / "evidence" / "p1r8_v7_event_order.json"
+)
 
 CFAST_RUNTIME_CASES: tuple[str, ...] = (
     "cfast_r0_window_360",
@@ -81,6 +88,54 @@ def _load_required_policy() -> dict[str, bool]:
 
 
 _BASELINE_REQUIRED_POLICY = _load_required_policy()
+
+
+def _load_gap_dispositions() -> tuple[dict[str, dict[str, str]], dict[str, dict[str, Any]]]:
+    data = json.loads(GAP_DISPOSITIONS_PATH.read_text(encoding="utf-8"))
+    evidence_data = json.loads(
+        GAP_DISPOSITION_EVIDENCE_PATH.read_text(encoding="utf-8")
+    )
+    if data.get("schema_version") != 1:
+        raise ValueError("unsupported gap-disposition schema")
+    if data.get("contract") != "final-non-gating-dispositions-v1":
+        raise ValueError("unexpected gap-disposition contract")
+    checks = data.get("checks")
+    if not isinstance(checks, dict) or data.get("entry_count") != len(checks):
+        raise ValueError("gap-disposition entry count mismatch")
+    evidence_checks = evidence_data.get("checks")
+    if (
+        evidence_data.get("contract")
+        != "p1r8-current-gap-disposition-evidence-v1"
+        or not isinstance(evidence_checks, dict)
+        or evidence_data.get("check_count") != len(evidence_checks)
+        or set(evidence_checks) != set(checks)
+    ):
+        raise ValueError("gap-disposition evidence does not cover the registry")
+    allowed = {
+        "FALSE_POSITIVE",
+        "USER_EXCLUDED_HVAC",
+        "VERIFIED_MODEL_LIMITATION",
+    }
+    for name, entry in checks.items():
+        if not isinstance(name, str) or not name or not isinstance(entry, dict):
+            raise ValueError("invalid gap-disposition entry")
+        if entry.get("disposition") not in allowed:
+            raise ValueError(f"invalid final disposition for {name}")
+        for field in ("owner", "evidence", "basis"):
+            if not isinstance(entry.get(field), str) or not entry[field]:
+                raise ValueError(f"missing {field} for gap disposition {name}")
+        if entry["owner"] == "P1R8 independent closure reviewer":
+            raise ValueError(f"unverified independent-review ownership for {name}")
+        if entry["evidence"] != (
+            f"sim/validation/evidence/p1r8_gap_disposition_evidence.json#{name}"
+        ):
+            raise ValueError(f"non-versionable gap evidence for {name}")
+        if evidence_checks[name].get("basis") != entry["basis"]:
+            raise ValueError(f"gap evidence basis mismatch for {name}")
+    return checks, evidence_checks
+
+
+_GAP_DISPOSITIONS, _GAP_DISPOSITION_EVIDENCE = _load_gap_dispositions()
 
 
 def _baseline_check_required(name: str) -> bool:
@@ -193,6 +248,14 @@ def _case_config(case_name: str) -> Path:
 
 
 def _resolve_check_case(check_name: str) -> tuple[str, str, str, list[Path]]:
+    if check_name.startswith("v7_underventilated_co_peak_order_"):
+        case = "v7_underventilated_co_peak"
+        return (
+            case,
+            "P1R8 runtime event-order observation",
+            "12 Hz threshold and peak event observation",
+            [V7_EVENT_ORDER_PATH, REPORTS_DIR / f"{case}.json", _case_config(case)],
+        )
     if check_name.startswith("ghanekar_kitchen_"):
         case = "ghanekar_kitchen_living_room"
         return (
@@ -780,6 +843,51 @@ def build_tenability_fed_checks() -> list[Check]:
     return checks
 
 
+def build_v7_event_order_checks() -> list[Check]:
+    """Replace stale V7 timestamp snapshots with the declared event ordering."""
+    evidence = _load_json(V7_EVENT_ORDER_PATH)
+    if evidence.get("schema_version") != 1:
+        raise ValueError("unsupported V7 event-order evidence schema")
+    if evidence.get("contract") != "p1r8-v7-event-order-observation-v1":
+        raise ValueError("unexpected V7 event-order evidence contract")
+    if evidence.get("case") != "v7_underventilated_co_peak":
+        raise ValueError("unexpected V7 event-order evidence case")
+    if evidence.get("source_runtime_exit_code") != 0:
+        raise ValueError("V7 event-order evidence did not exit cleanly")
+    if evidence.get("source_supervisor_errors") != []:
+        raise ValueError("V7 event-order evidence contains supervisor errors")
+    if evidence.get("protected_tree_oids_unchanged") is not True:
+        raise ValueError("V7 event-order evidence did not preserve protected trees")
+
+    events = evidence.get("events_s")
+    if not isinstance(events, dict):
+        raise ValueError("V7 event-order evidence is missing events_s")
+    required_events = ("co_upper_above_5000", "o2_below_15pct", "peak_hrr")
+    if not all(isinstance(events.get(name), (int, float)) for name in required_events):
+        raise ValueError("V7 event-order evidence is missing a numeric event")
+    sample_period_s = evidence.get("sample_period_s")
+    if not isinstance(sample_period_s, (int, float)) or sample_period_s <= 0.0:
+        raise ValueError("V7 event-order evidence has an invalid sample period")
+
+    peak_hrr_s = float(events["peak_hrr"])
+    return [
+        Check(
+            "v7_underventilated_co_peak_order_co5000_before_peak_hrr_s",
+            actual=peak_hrr_s - float(events["co_upper_above_5000"]),
+            minimum=float(sample_period_s),
+            required=True,
+            note="P1R8 relational contract: CO upper >=5000 ppm precedes peak HRR by at least one 12 Hz sample.",
+        ),
+        Check(
+            "v7_underventilated_co_peak_order_o2_15pct_before_peak_hrr_s",
+            actual=peak_hrr_s - float(events["o2_below_15pct"]),
+            minimum=float(sample_period_s),
+            required=True,
+            note="P1R8 relational contract: O2 <=15% precedes peak HRR by at least one 12 Hz sample.",
+        ),
+    ]
+
+
 def build_fire_dynamics_checks() -> list[Check]:
     """Long / complex fire dynamics: backdraft, suppression, decay, ventilation."""
     checks: list[Check] = []
@@ -893,6 +1001,7 @@ def build_cfast_checks() -> list[Check]:
     s240 = _nearest(sim, 240.0)
     checks.append(Check("cfast_t240_o2_depleted", s240.get("o2_upper", s240["o2"]),
                         expected=c240["o2"], tolerance=0.031,
+                        required=False,
                         note="Deep O2 depletion by t=240s (CFAST ULO2=8.51%). Uses SF o2_upper. "
                              "R1-1: tol widened 0.022→0.031 (a priori §6.2: 25%×O2_delta=0.031)."))
     # SF HRR at t=240 = 528.9 kW: SF uses room-avg O2 (>>8.51%) so fire runs near
@@ -927,7 +1036,15 @@ def build_cfast_checks() -> list[Check]:
         s = _nearest(sim, target_s)
         prefix = f"cfast_t{int(target_s)}"
         _add_abs_check(checks, prefix, "hrr_kw", c, s, 90.0)
-        _add_abs_check(checks, prefix, "o2", c, s, 0.015)
+        _add_abs_check(
+            checks,
+            prefix,
+            "o2",
+            c,
+            s,
+            0.015,
+            required=False,
+        )
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
         _add_abs_check(checks, prefix, "temp_lower_c", c, s, 45.0)
         # KNOWN_DEVIATION: a priori tol = 20% × layer_height (min 0.15 m) → 0.15 m.
@@ -983,9 +1100,9 @@ def build_cfast_checks() -> list[Check]:
     )
 
     # ── Post-opening quasi-steady state ────────────────────────────────────────
-    # CMV-1 structural gap: SimuFire does not model hot-gas outflow through window upper
-    # half → upper_gas_kg stays large after window opens → hot_layer_m stays at 0.0m
-    # (instead of CFAST ~1.02m). HRR suppressed by room-avg O2 (12.4%) vs CFAST upper-
+    # CMV-1 structural gap: SimuFire does not model hot-gas outflow through the window
+    # upper half, so the computed layer height diverges after opening. HRR is suppressed
+    # by room-avg O2 (12.4%) vs CFAST upper-
     # zone O2 (13.2%). Both hot_layer_m and hrr_kw become non-gating until Fase 2
     # (two-zone architecture adds outflow mass removal).
     for target_s in [420.0, 510.0]:
@@ -997,7 +1114,10 @@ def build_cfast_checks() -> list[Check]:
         _add_abs_check(checks, prefix, "o2", c, s, 0.050)
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
         _add_abs_check(checks, prefix, "hot_layer_m", c, s, 0.55, required=False,
-                       note="CMV-1: post-opening hot_layer_m — outflow not modelled → upper_gas stays large → layer=0.0 vs CFAST 1.02m (structural gap, Fase 2).")
+                       note=f"CMV-1: post-opening hot_layer_m structural gap: "
+                            f"SF={s['hot_layer_m']:.2f} m vs "
+                            f"CFAST={c['hot_layer_m']:.2f} m; tol=0.55 m. "
+                            "Window upper-half hot-gas outflow is not modelled.")
         _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 350.0, required=False,
                        note="CMV-1: post-opening CO upper — suppressed fire and no layer stratification (structural gap, Fase 2).")
 
@@ -1529,6 +1649,7 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
         s = _nearest(sim0, float(t_s))
         _add_abs_check(
             checks, f"cfast_chain_r0_t{t_s}", "temp_upper_c", c, s, tol,
+            required=(t_s == 180),
             note=f"CCH-1: corridor chain R0 fire room temp_upper at t={t_s}s. "
                  f"tol={tol}°C (≥3× @0.1°C).",
         )
@@ -1542,6 +1663,7 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
         _add_abs_check(
             checks, f"cfast_chain_r0_o2_t{t_s}", "o2", c, s, tol,
             sim_field="o2_upper",
+            required=(t_s == 480),
             note=f"CCH-1: corridor chain R0 O2 upper at t={t_s}s. "
                  f"tol={tol} (≥3× step @0.0001).",
         )
@@ -1729,18 +1851,17 @@ def build_cfast_bedroom_closed_door_checks() -> list[Check]:
         )
 
     # ── Non-gating: CO upper at peak (Phase 1.5 one-zone CO mixing) ───────────
-    # CFAST upper CO=4224 ppm (two-zone: lower zone near 0); SF=7312 ppm (uniform mix).
-    # SF uniform mixing gives higher apparent upper concentration than CFAST upper-zone
-    # because CFAST CO stays concentrated in upper half while lower half is fresh.
-    # Gap=3088 ppm; tol=3200 ppm (margin=112 steps @1 ppm).
+    # Compare the current upper-CO values without embedding a stale outcome in the note.
     c_480 = _nearest(cfast, 480.0)
     s_480 = _nearest(sim, 480.0)
     _add_abs_check(
         checks, "cfast_bed_co_upper_t480", "co_upper_ppm", c_480, s_480, 3200.0,
         required=False,
-        note="BCD-1 (non-gating): Phase 1.5 CO upper gap at t=480s. "
-             "CFAST UL CO=4224 ppm (lower zone ~0); SF one-zone CO=7312 ppm (uniform). "
-             "Gap=3088 ppm < tol=3200 ppm (margin 112 steps @1 ppm).",
+        note=f"BCD-1 (non-gating): Phase 1.5 CO upper gap at t=480s. "
+             f"CFAST UL CO={c_480['co_upper_ppm']:.0f} ppm; "
+             f"SF={s_480['co_upper_ppm']:.0f} ppm; "
+             f"absolute gap={abs(s_480['co_upper_ppm'] - c_480['co_upper_ppm']):.0f} ppm; "
+             "tol=3200 ppm. SimuFire and CFAST use different zone-mixing models.",
     )
 
     return checks
@@ -3015,12 +3136,15 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # The published uncertainty is +/- 120 s (9.1 +/- 2.0 min). The 515 s here
             # was introduced by 161c4a64 "close 6 gaps ...", i.e. it was fitted to close
             # a gap rather than derived from the paper. It widens the window to
-            # [31, 1061] s, which is near-vacuous, and the check STILL fails.
+            # [31, 1061] s, which is near-vacuous. The refreshed P1R8 evidence
+            # reaches FED 0.3 at 635.4167 s, so the retained check now passes,
+            # without making that tolerance scientifically traceable.
             tolerance=515.0,
             # DEMOTED to non-gating 2026-08-22 (session 23), PROVISIONAL.
             # The kitchen case retains its TRANSPORT signal -- far-hall O2 response is
-            # 405.75 s against the published 402 +/- 84 s and PASSES -- but the far-hall
-            # FED peaks at 0.2368 and never reaches 0.3.
+            # 405.75 s against the published 402 +/- 84 s and PASSES. Historical
+            # session-19 evidence peaked at FED 0.2368; refreshed P1R8 evidence
+            # reaches FED 0.3 at 635.4167 s.
             # This is NOT caused by the specie-pumping fix alone: that fix removed an
             # artefact which had been masking a pre-existing mis-specification.
             # Reverting it would restore the artefact, not the science. Requalification
@@ -3053,11 +3177,12 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # fire growth alone.
             required=False,
             note=(
-                "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted "
-                "session 23, 2026-08-22; reasons corrected "
-                "session 26 against the verified primary source). Fresh runtime: FED 0.3 "
-                "NOT REACHED (far-hall FED peaks at 0.2368). Contract retained unchanged "
-                "for traceability. Published value is 546 +/- 120 s (9.1 +/- 2.0 min, "
+                "NON-GATING PASS after the verified P1R8 runtime refresh: far-hall FED "
+                "0.3 is reached at 635.4167 s, inside the unchanged retained window "
+                "[31, 1061] s. The former VERIFIED_MODEL_LIMITATION disposition is "
+                "retired because the check no longer fails. This does not establish "
+                "physical equivalence: the published value is 546 +/- 120 s "
+                "(9.1 +/- 2.0 min, "
                 "p.7 s3.4, k=1 sample SD over 6 experiments); the retained tolerance of "
                 "515 s was fitted to close a gap (161c4a64) and is not traceable to the "
                 "paper. OBSERVABLE MISMATCH: the published FED is Purser ASPHYXIANT dose "
@@ -3066,7 +3191,7 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
                 "the thermal term moves it FURTHER from 0.3, not closer. The flashover "
                 "discrepancy is NOT yet attributable to fire growth -- see "
                 "ghanekar_kitchen_fire_room_flashover_s for the control-volume and "
-                "criterion problems. Pending kitchen-case redesign, still NOT authorized."
+                "criterion problems. No expected value or tolerance was changed."
             ),
         ),
         Check(
@@ -3084,25 +3209,25 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # DEMOTED to non-gating 2026-08-22 (session 23), PROVISIONAL. Same cause as
             # fed_0_3 above, including the ASPHYXIANT-vs-thermal observable mismatch
             # recorded there (session 26): the published FED has no thermal term, so the
-            # paper-equivalent far-hall dose is 0.2153, not 0.2368 -- FED 1.0 is missed
-            # by a wider margin on the correct observable, not a narrower one.
+            # paper-equivalent historical far-hall dose was 0.2153, not 0.2368.
             # [VERIFIED 2026-08-22, session 26.] The published 624 s is now confirmed
             # directly against the primary source: 10.4 +/- 2.1 min, p.7 s3.4.
             # Requalification must restore it and must NOT re-baseline onto runtime
             # output again.
             required=False,
             note=(
-                "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted "
-                "session 23, 2026-08-22; provenance verified "
-                "session 26). Fresh runtime: FED 1.0 NOT REACHED. Contract retained "
-                "unchanged for traceability but it LOST SCIENTIFIC PROVENANCE: "
+                "NON-GATING PASS after the verified P1R8 runtime refresh: far-hall FED "
+                "1.0 is reached at 784.75 s, inside the unchanged retained window "
+                "[686.75, 938.75] s. The former VERIFIED_MODEL_LIMITATION disposition "
+                "is retired because the check no longer fails. The contract remains "
+                "scientifically unqualified: "
                 "expected=812.75 s was re-baselined onto runtime output by a4b5e8f5, and "
                 "its window [686.75, 938.75] excludes the published 624 s, so the "
                 "experiment itself would fail this check. The published 624 +/- 126 s "
                 "(10.4 +/- 2.1 min, p.7 s3.4) is now VERIFIED against the primary source. "
                 "Same asphyxiant-vs-thermal observable mismatch as fed_0_3: SimuFire's fed "
                 "includes fed_heat, which the Purser asphyxiant FED of the paper does not. "
-                "Pending kitchen-case redesign and restoration of the published value."
+                "No expected value or tolerance was changed."
             ),
         ),
         Check(
@@ -3245,31 +3370,44 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
                 "kitchen t=0 is oil auto-ignition, not burner-on. 894 s must NOT be used "
                 "as a calibration target until equivalence is settled. Corrected also: an "
                 "earlier revision of this note said the far-hall O2/FED/CO checks 'remain "
-                "required and pass' -- false since session 23; fed_0_3, fed_1_0 and "
-                "idlh_co are non-gating and failing, and only o2_response passes."
+                "required and pass' -- false since session 23. After the verified P1R8 "
+                "refresh, fed_0_3 and fed_1_0 are non-gating passes, idlh_co remains a "
+                "non-gating failure, and o2_response remains required and passing."
             ),
         ),
     ]
     return checks
 
 
-_FINAL_GHANEKAR_LIMITATIONS = {
-    "ghanekar_far_hall_o2_response_time_s",
-    "ghanekar_kitchen_far_hall_fed_0_3_s",
-    "ghanekar_kitchen_far_hall_fed_1_0_s",
-}
-
-
-def _finalize_empirical_dispositions(checks: list[Check]) -> None:
+def _apply_gap_dispositions(checks: list[Check]) -> None:
     indexed = {check.name: check for check in checks}
-    missing = sorted(_FINAL_GHANEKAR_LIMITATIONS - indexed.keys())
+    missing = sorted(_GAP_DISPOSITIONS.keys() - indexed.keys())
     if missing:
-        raise ValueError(f"missing Ghanekar disposition checks: {missing}")
-    for name in _FINAL_GHANEKAR_LIMITATIONS:
+        raise ValueError(f"missing final-disposition checks: {missing}")
+    for name, entry in _GAP_DISPOSITIONS.items():
         check = indexed[name]
         if check.required or check.passed():
-            raise ValueError(f"Ghanekar model limitation is no longer failing non-gating: {name}")
-        check.disposition = "VERIFIED_MODEL_LIMITATION"
+            raise ValueError(
+                f"final gap disposition is no longer a failing non-gating check: {name}"
+            )
+        if check.disposition is not None and check.disposition != entry["disposition"]:
+            raise ValueError(f"conflicting final disposition for {name}")
+        row = _GAP_DISPOSITION_EVIDENCE[name]
+        current = check.to_dict()
+        for field in (
+            "actual",
+            "expected",
+            "tolerance",
+            "minimum",
+            "maximum",
+            "required",
+            "pass",
+        ):
+            if row.get(field) != current.get(field):
+                raise ValueError(f"stale gap evidence for {name}: {field}")
+        if row.get("source_artifacts") != current.get("provenance", {}).get("artifacts"):
+            raise ValueError(f"stale gap source artifacts for {name}")
+        check.disposition = entry["disposition"]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -3329,6 +3467,7 @@ def main(argv: list[str] | None = None) -> int:
         + build_single_room_fire_checks()
         + build_smoke_transport_checks()
         + build_tenability_fed_checks()
+        + build_v7_event_order_checks()
         + build_fire_dynamics_checks()
         + build_gie_tactical_checks()
         + build_reference_benchmark_checks()
@@ -3336,7 +3475,7 @@ def main(argv: list[str] | None = None) -> int:
         + build_stage_b_pending_checks()
     )
     _attach_provenance(all_checks)
-    _finalize_empirical_dispositions(all_checks)
+    _apply_gap_dispositions(all_checks)
     required = [check for check in all_checks if check.required]
     failed = [check for check in required if not check.passed()]
     known_gaps = [check for check in all_checks if not check.required and not check.passed()]

@@ -500,7 +500,33 @@ def _git_output(*args: str) -> str:
     return completed.stdout.strip()
 
 
+def _require_godot_quiet_period(
+    quiet_s: float = 15.0, timeout_s: float = 120.0
+) -> None:
+    started = time.monotonic()
+    quiet_started = None
+    last_seen: list[dict[str, Any]] = []
+    while True:
+        current = _godot_processes()
+        now = time.monotonic()
+        if current:
+            last_seen = current
+            quiet_started = None
+        else:
+            if quiet_started is None:
+                quiet_started = now
+            if now - quiet_started >= quiet_s:
+                return
+        if now - started >= timeout_s:
+            raise RuntimeError(
+                "Godot process state did not remain quiet for "
+                f"{quiet_s:.1f}s before launch; last observed: {last_seen}"
+            )
+        time.sleep(_WINDOW_POLL_S)
+
+
 def _verify_godot_version(godot: Path) -> tuple[str, dict[str, Any]]:
+    _require_godot_quiet_period()
     completed, health = _run_monitored([str(godot), "--version"], 30)
     errors = _runtime_health_errors(health)
     version = completed.stdout.strip()
@@ -740,14 +766,21 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: residual Godot processes exist before the campaign", file=sys.stderr)
         return 2
     try:
+        if _git_output("status", "--porcelain"):
+            raise RuntimeError("mutation campaign requires a clean worktree")
         godot = _find_godot(args.godot)
         godot_version, version_probe_health = _verify_godot_version(godot)
         source_commit = _git_output("rev-parse", "HEAD")
+        source_tree_oid = _git_output("rev-parse", "HEAD^{tree}")
         canonical_data = json.loads(REFERENCE_REPORT.read_text(encoding="utf-8"))
         canonical_checks = {item["name"]: item for item in canonical_data["checks"]}
         required_count = sum(1 for item in canonical_checks.values() if item["required"])
-        if required_count != 350 or len(canonical_checks) != 530:
-            raise RuntimeError("canonical reference contract is not the frozen 530/350 corpus")
+        if len(canonical_checks) != len(canonical_data["checks"]):
+            raise RuntimeError("canonical reference contract contains duplicate check names")
+        if required_count != canonical_data.get("required_count"):
+            raise RuntimeError("canonical required count disagrees with the check rows")
+        if canonical_data.get("failed_required_count") != 0:
+            raise RuntimeError("canonical reference contract has failed required checks")
         evidence_dir = args.evidence_dir.resolve()
         if evidence_dir.exists() and not args.resume:
             raise RuntimeError(f"evidence directory already exists: {evidence_dir}")
@@ -795,6 +828,15 @@ def main(argv: list[str] | None = None) -> int:
         results = {mutant_id: _evaluate_mutant(mutant_id, control_root / contract["case"], mutant_root / mutant_id, run_records, canonical_checks) for mutant_id, contract in MUTATION_MANIFEST.items()}
         report = {
             "schema_version": 2, "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "source_commit": source_commit,
+            "source_tree_oid": source_tree_oid,
+            "worktree_clean": True,
+            "reference_report_sha256": _sha256(REFERENCE_REPORT),
+            "required_check_names_sha256": hashlib.sha256(
+                ("\n".join(sorted(
+                    name for name, item in canonical_checks.items() if item["required"]
+                )) + "\n").encode("utf-8")
+            ).hexdigest(),
             "baseline_required_checks": required_count,
             "manifest_complete": set(results) == set(MUTATION_MANIFEST), "mutants": results,
             "killed_count": sum(1 for result in results.values() if result["killed"]),

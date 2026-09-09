@@ -15,7 +15,7 @@
       "historical_green_commit": "9c07bcdb1fe038e21ba3f6f6222e6c0f51565d0c",
       "review_commit": "be3352208e9ef78407e224400c3e75afa1e2b318",
       "review_artifact": "runs/motor_post_audit_p1_remediation_session89/P1R7_STOP_REPORT.md",
-      "current_report_sha256": "10c1ec859ba2e021249df94fc776ee1841693eaadb4a4c4324ca4e3d3bf19344",
+      "current_report_sha256": "8dc21a48f9009f4b0e0b679368c77addd04f6386a7b7deca64bdd4332e4637e6",
       "reason": "The preserved rule passed on the historical engine but now measures a finite value outside the old range after documented model evolution. Current scientific required checks remain passing."
     },
     "cfast_multi_fuel_couch_tv": {
@@ -34,7 +34,7 @@
       "historical_green_commit": "9c07bcdb1fe038e21ba3f6f6222e6c0f51565d0c",
       "review_commit": "be3352208e9ef78407e224400c3e75afa1e2b318",
       "review_artifact": "runs/motor_post_audit_p1_remediation_session89/P1R7_STOP_REPORT.md",
-      "current_report_sha256": "fe138fcb6d4ac74e167c5008ea83f541ae8100843caf2e48ea30dd84e00b7e4c",
+      "current_report_sha256": "76eca366d5d366511291cc65c7f0b643641698a27b272485afb92c94071c3ef5",
       "reason": "The preserved rules passed on the historical engine but now measure finite values outside the old ranges after documented model evolution. Current scientific required checks remain passing."
     }
   }

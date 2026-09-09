@@ -115,18 +115,21 @@ def test_no_frozen_contract_field_moved_in_the_aggregate():
         assert c["tolerance"] == tolerance, (name, c["tolerance"], tolerance)
 
 
-def test_the_three_demotions_are_still_non_gating_and_still_failing():
+def test_the_three_demotions_are_still_non_gating_with_fresh_outcomes():
     for name in DEMOTED:
         c = _aggregate_check(name)
         assert c["required"] is False, name
-        assert c["pass"] is False, name
+    assert _aggregate_check("ghanekar_far_hall_o2_response_time_s")["pass"] is False
+    for name in ("ghanekar_kitchen_far_hall_fed_0_3_s",
+                 "ghanekar_kitchen_far_hall_fed_1_0_s"):
+        assert _aggregate_check(name)["pass"] is True
 
 
-def test_the_aggregate_counters_are_unchanged():
-    assert AGGREGATE["required_count"] == 350
-    assert AGGREGATE["failed_required_count"] == 6
-    assert AGGREGATE["known_gap_count"] == 74
-    assert len(AGGREGATE["checks"]) == 530
+def test_the_aggregate_counters_include_the_p1r8_final_dispositions():
+    assert AGGREGATE["required_count"] == 346
+    assert AGGREGATE["failed_required_count"] == 0
+    assert AGGREGATE["known_gap_count"] == 78
+    assert len(AGGREGATE["checks"]) == 532
 
 
 def test_no_expected_value_was_rebaselined_onto_runtime():
@@ -272,16 +275,16 @@ def test_the_fed_block_states_the_mismatch_makes_the_gap_worse():
     assert "not closer" in block
 
 
-def test_the_fed_peak_is_not_claimed_comparable_to_the_published_fed():
+def test_the_fed_passes_are_not_claimed_comparable_to_the_published_fed():
     note = _note("ghanekar_kitchen_far_hall_fed_0_3_s")
     assert "OBSERVABLE MISMATCH" in note
-    # Both FED checks stay visibly failing/non-gating with a final P1R5 disposition.
+    # Both checks remain non-gating, but fresh P1R8 evidence now passes them.
     for name in ("ghanekar_kitchen_far_hall_fed_0_3_s",
                  "ghanekar_kitchen_far_hall_fed_1_0_s"):
         c = _aggregate_check(name)
-        assert c["required"] is False and c["pass"] is False
-        assert c["disposition"] == "VERIFIED_MODEL_LIMITATION"
-        assert "VERIFIED MODEL LIMITATION" in c["note"]
+        assert c["required"] is False and c["pass"] is True
+        assert c.get("disposition") is None
+        assert "NON-GATING PASS" in c["note"]
 
 
 def test_the_fed_1_0_published_value_is_verified_not_rebaselined():

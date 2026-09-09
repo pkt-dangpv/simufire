@@ -12,7 +12,7 @@ What they pin:
 * the three Ghanekar checks are demoted to non-gating, and stay demoted;
 * their historical ``expected``/``tolerance`` are preserved byte-for-byte, so the
   demotion cannot be used to smuggle in a re-baseline;
-* the original demotion reason remains recorded and P1R5 gives it a final disposition;
+* the original demotion reason remains recorded and current dispositions stay truthful;
 * the two materially false documentation claims stay corrected;
 * nothing re-baselines an expected value onto runtime output.
 """
@@ -81,11 +81,15 @@ def test_historical_expected_and_tolerance_are_preserved_exactly():
         assert tolerance in block, (name, tolerance)
 
 
-def test_the_demotion_has_a_final_disposition_with_its_original_reason():
-    for name in DEMOTED:
+def test_the_demotion_has_a_current_truthful_disposition():
+    o2 = _check_block("ghanekar_far_hall_o2_response_time_s")
+    assert "VERIFIED MODEL LIMITATION" in o2
+    assert "session 23" in o2
+    for name in ("ghanekar_kitchen_far_hall_fed_0_3_s",
+                 "ghanekar_kitchen_far_hall_fed_1_0_s"):
         block = _check_block(name)
-        assert "VERIFIED MODEL LIMITATION" in block, name
-        assert "session 23" in block, name
+        assert "NON-GATING PASS" in block, name
+        assert "retired because" in block, name
 
 
 def test_the_o2_reason_names_the_observable_and_the_definition():
@@ -126,7 +130,7 @@ def test_the_fed_reasons_name_the_transport_signal_and_the_hazard_gap():
     # ... and the fed_1_0 block must cross-reference fed_0_3 rather than restate it.
     other = _check_block("ghanekar_kitchen_far_hall_fed_1_0_s")
     assert "fed_0_3" in other
-    assert "redesign" in other
+    assert "No expected value or tolerance was changed" in other
 
 
 def test_the_fed_1_0_block_states_it_lost_provenance():
@@ -141,13 +145,11 @@ def test_the_fed_1_0_block_states_it_lost_provenance():
 # The fresh results must stay visible
 # --------------------------------------------------------------------------
 
-def test_the_fresh_failing_results_are_not_hidden():
+def test_the_current_results_are_not_hidden():
     o2 = _check_block("ghanekar_far_hall_o2_response_time_s")
     assert "232.5" in o2, "the failing O2 time must remain on the record"
-    for name in ("ghanekar_kitchen_far_hall_fed_0_3_s",
-                 "ghanekar_kitchen_far_hall_fed_1_0_s"):
-        block = _check_block(name)
-        assert "NOT REACHED" in block, name
+    assert "635.4167" in _check_block("ghanekar_kitchen_far_hall_fed_0_3_s")
+    assert "784.75" in _check_block("ghanekar_kitchen_far_hall_fed_1_0_s")
 
 
 def test_no_expected_value_is_rebaselined_onto_runtime():
@@ -227,19 +229,19 @@ def test_the_stale_calibration_claim_is_annotated_not_deleted():
 def test_inventory_documents_the_new_gap_count():
     m = re.search(r"(\d+)\s+gaps?\s+non-gating", INVENTORY, re.IGNORECASE)
     assert m is not None
-    assert int(m.group(1)) == 74, m.group(1)
+    assert int(m.group(1)) == 78, m.group(1)
 
 
-def test_inventory_reports_zero_disallowed_blockers():
-    assert "0 required failures no permitidos" in INVENTORY
-    assert "Required failures no permitidos (0 checks" in INVENTORY
+def test_inventory_reports_zero_required_failures():
+    assert "0 required failures" in INVENTORY
+    assert "Required failures (0 checks" in INVENTORY
 
 
-def test_inventory_keeps_the_three_visible_with_final_disposition():
+def test_inventory_keeps_the_three_visible_with_current_dispositions():
     for name in DEMOTED:
         assert name in INVENTORY, name
     assert "VERIFIED_MODEL_LIMITATION" in INVENTORY
-    assert "no se presenta como validado" in INVENTORY
+    assert "2 non-gating PASS" in INVENTORY
 
 
 def test_inventory_records_the_published_values_beside_the_retained_ones():
