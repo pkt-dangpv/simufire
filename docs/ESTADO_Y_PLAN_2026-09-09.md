@@ -359,10 +359,25 @@ suelo, y disparar la altura de la fila de fondo).
 Una torre son pocas piezas anchas con bandas, en vez de muchas estrechas con una
 cajita por ventana.
 
-**Lo que queda a la vista y no he tocado**: el color. Los edificios de enfrente
-son casi negros de día (`opposite_facade_day_color`), y ahora que llenan la
-ventana entera se nota mucho más que cuando eran una franja. Es un mando del
-inspector.
+**El color, cerrado el 2026-09-09.** Subir el albedo no hacía nada: el entorno
+del FP tiene `ambient_light_source = 1`, o sea **ambiente desactivado**, así que
+lo que no recibe sol directo se va a negro. Dentro de la vivienda da igual —hay
+luces por todas partes—, pero en la calle dejaba las fachadas en sombra como
+recortes negros. En vez de encender el ambiente global, que cambiaría también el
+interior, el decorado urbano tiene su propio material con una emisión suave de su
+color: el rebote del cielo. Mandos `city_sky_bounce_day` / `city_sky_bounce_night`.
+
+**Y el dato que faltaba (2026-09-09).** Son **dos**: cuántas plantas tiene el
+edificio y en cuál estamos. Hasta ahora el total se deducía —planta + dibujadas—,
+así que el edificio terminaba siempre en el techo de la vivienda y **nunca había
+nada por encima**. Ahora `building_total_floors` es un dato propio, en el editor
+y en el menú, atado al otro por los límites de los dos mandos: el edificio no
+puede tener menos plantas que la planta en la que se vive. La fachada propia sube
+hasta el total y los vecinos lo miden. El resumen del menú lo dice entero: «piso,
+planta 15 de 40».
+
+**Plantas negativas, fuera.** Los dos mandos van de 0 en adelante y lo que venga
+guardado por debajo se sube a 0.
 
 #### 🟡 G-5. El fuego se lee flojo para lo que dice el HUD
 
