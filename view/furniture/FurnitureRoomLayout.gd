@@ -149,19 +149,21 @@ static func _layout_pass(room_size_m: Vector2, doors: Array, specs: Array, cabec
 			continue
 		occupied.append(_rect_of(piece))
 
+	# Se coloca por GRUPOS, no pieza a pieza.
+	#
+	# Antes cada mueble buscaba sitio por su cuenta y por orden de tamano, asi
+	# que cuando le tocaba a la mesilla el armario y el escritorio ya se habian
+	# repartido los costados de la cama: de 23 mesillas del catalogo, 22
+	# acababan lejos de su cama. Ahora, en cuanto una pieza se coloca, se
+	# colocan INMEDIATAMENTE las que van con ella -su mesilla, el resto de la
+	# fila de cocina-, antes de que otra les quite el sitio.
+	var colocadas: Dictionary = {}
 	for index in order:
-		var piece: Dictionary = plan[index]
-		if bool(piece.get("locked", false)):
+		if colocadas.has(index):
 			continue
-		if bool(piece.get("floor", false)):
-			piece["center"] = _clamp_center(room, Vector2(piece["center"]), Vector2(piece["world_size"]))
-			continue
-		piece["cabecero"] = cabecero
-		if bool(piece.get("wall", false)):
-			_place_against_wall(room, piece, occupied, contexto)
-		else:
-			_place_free(room, piece, occupied, blockers)
-		occupied.append(_rect_of(piece))
+		_place_one(room, plan, index, occupied, contexto, cabecero, colocadas)
+		for seguidor in _followers_of(plan, index, colocadas):
+			_place_one(room, plan, seguidor, occupied, contexto, cabecero, colocadas)
 
 	_apply_grammar(room, plan, blockers)
 
@@ -169,6 +171,80 @@ static func _layout_pass(room_size_m: Vector2, doors: Array, specs: Array, cabec
 	for i in range(plan.size()):
 		result.append(_resolved_spec(plan[i]))
 	return result
+
+
+## Coloca una pieza y la da por hecha.
+static func _place_one(
+	room: Rect2, plan: Array, index: int, occupied: Array,
+	contexto: Dictionary, cabecero: bool, colocadas: Dictionary
+) -> void:
+	colocadas[index] = true
+	var piece: Dictionary = plan[index]
+	if bool(piece.get("locked", false)):
+		return
+	if bool(piece.get("floor", false)):
+		piece["center"] = _clamp_center(room, Vector2(piece["center"]), Vector2(piece["world_size"]))
+		return
+	piece["cabecero"] = cabecero
+
+	# Si va con alguien que ya esta puesto, se coloca respecto a el. Es lo que
+	# pone la mesilla al costado de la cama en vez de en la otra punta.
+	var rel: Dictionary = FurnitureRoomGrammar.relation_for(String(piece.get("archetype", "")))
+	if not rel.is_empty():
+		var ancla: int = _placed_anchor(plan, Array(rel.get("anchor", [])), index, colocadas)
+		if ancla >= 0 and _place_related(
+				room, piece, plan[ancla], rel, occupied, _rank_among_siblings(plan, index)):
+			# Ya esta emparejada: la pasada final no vuelve a tocarla. Aplicar la
+			# relacion dos veces la empeoraba -la segunda vez el sitio bueno ya
+			# estaba ocupado por otra pieza y acababa girandola por girarla-.
+			piece["emparejada"] = true
+			occupied.append(_rect_of(piece))
+			return
+
+	if bool(piece.get("wall", false)):
+		_place_against_wall(room, piece, occupied, contexto)
+	else:
+		_place_free(room, piece, occupied, contexto.get("blockers", []))
+	occupied.append(_rect_of(piece))
+
+
+## Quien va detras de esta pieza: las que se agarran a ella y las que comparten
+## su fila. Las de fila salen en el orden del triangulo de trabajo -nevera,
+## mueble, fregadero, fuegos- para que no queden barajadas.
+static func _followers_of(plan: Array, index: int, colocadas: Dictionary) -> Array[int]:
+	var archetype: String = String(Dictionary(plan[index]).get("archetype", ""))
+	var grupo: String = FurnitureRoomGrammar.run_group_for(archetype)
+	var out: Array[int] = []
+	for i in range(plan.size()):
+		if colocadas.has(i) or i == index:
+			continue
+		var otro: Dictionary = plan[i]
+		var arq: String = String(otro.get("archetype", ""))
+		if grupo != "" and FurnitureRoomGrammar.run_group_for(arq) == grupo:
+			out.append(i)
+			continue
+		var rel: Dictionary = FurnitureRoomGrammar.relation_for(arq)
+		if not rel.is_empty() and Array(rel.get("anchor", [])).has(archetype):
+			out.append(i)
+	if grupo != "":
+		out.sort_custom(func(a, b):
+			return FurnitureRoomGrammar.run_order_for(String(Dictionary(plan[a]).get("archetype", ""))) \
+				< FurnitureRoomGrammar.run_order_for(String(Dictionary(plan[b]).get("archetype", ""))))
+	return out
+
+
+## La pareja de una pieza, si ya esta colocada.
+static func _placed_anchor(plan: Array, anchors: Array, self_index: int, colocadas: Dictionary) -> int:
+	for wanted in anchors:
+		for i in range(plan.size()):
+			if i == self_index or not colocadas.has(i):
+				continue
+			var other: Dictionary = plan[i]
+			if bool(other.get("hidden", false)):
+				continue
+			if String(other.get("archetype", "")) == String(wanted):
+				return i
+	return -1
 
 
 ## Bandas libres por delante de los huecos de una sala, en coordenadas locales.
@@ -294,7 +370,15 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 
 ## Que pieza elige sitio antes. Las de muro mandan sobre las exentas, y dentro
 ## de cada grupo la mas grande primero.
+##
+## Con una excepcion: **una fila va antes que nada, y en su orden**. Si primero
+## se coloca el mueble grande de la cocina, se planta en mitad del paramento y
+## la nevera ya no cabe a su lado; con la fila primero, cada pieza se pone a
+## continuacion de la anterior y salen las cuatro seguidas.
 static func _priority(piece: Dictionary) -> float:
+	var archetype: String = String(piece.get("archetype", ""))
+	if FurnitureRoomGrammar.run_group_for(archetype) != "":
+		return 2000.0 - float(FurnitureRoomGrammar.run_order_for(archetype))
 	var size: Vector2 = Vector2(piece["real"])
 	var area: float = size.x * size.y
 	if bool(piece.get("wall", false)):
@@ -303,6 +387,8 @@ static func _priority(piece: Dictionary) -> float:
 
 
 static func _place_against_wall(room: Rect2, piece: Dictionary, occupied: Array, contexto: Dictionary = {}) -> void:
+	if _place_in_run(room, piece, occupied, contexto):
+		return
 	var center: Vector2 = Vector2(piece["center"])
 	var sides: Array[String] = _sides_for(room, piece, center, contexto)
 	for side in sides:
@@ -346,29 +432,71 @@ static func _sides_for(room: Rect2, piece: Dictionary, center: Vector2, contexto
 		sides.sort_custom(func(a, b): return _distance_to_side(room, center, a) < _distance_to_side(room, center, b))
 		return sides
 
-	var grupo: String = FurnitureRoomGrammar.run_group_for(archetype)
-	if grupo != "":
-		var runs: Dictionary = contexto.get("runs", {})
-		if runs.has(grupo):
-			# La fila ya eligio pano: las demas piezas van con ella, y cada una
-			# a su altura -nevera, mueble, fregadero y fuegos, en ese orden-.
-			var side: String = String(runs[grupo])
-			var largo: float = room.size.x if WallSideGeometry.is_horizontal(side) else room.size.y
-			var puesto: int = FurnitureRoomGrammar.run_order_for(archetype)
-			var along: float = largo * (float(mini(puesto, 3)) + 0.5) / 4.0
-			piece["center"] = _center_on_side(room, side, along, Vector2(piece["world_size"]))
-			sides.erase(side)
-			sides.push_front(side)
-			return sides
-		# La primera de la fila elige, y lo apunta para las siguientes.
-		sides = _by_free_length(room, doors)
-		var runs_nuevo: Dictionary = contexto.get("runs", {})
-		runs_nuevo[grupo] = sides[0]
-		contexto["runs"] = runs_nuevo
-		return sides
-
+	# Una fila -la cocina- ya se ha intentado colocar seguida en `_place_in_run`;
+	# si se llega aqui es que no cabia, y entonces vale la regla general.
 	# "longest_free": el pano mas largo sin huecos.
 	return _by_free_length(room, doors)
+
+
+## Coloca una pieza de fila a continuacion de la anterior.
+##
+## Una cocina no es "cuatro muebles contra un muro cualquiera": es una fila
+## seguida, y en el orden del triangulo de trabajo -nevera, mueble, fregadero,
+## fuegos-. Se lleva un cursor por el paramento y cada pieza se pone donde
+## termino la de antes. La primera elige el pano mas largo sin huecos.
+static func _place_in_run(room: Rect2, piece: Dictionary, occupied: Array, contexto: Dictionary) -> bool:
+	var grupo: String = FurnitureRoomGrammar.run_group_for(String(piece.get("archetype", "")))
+	if grupo == "":
+		return false
+	var runs: Dictionary = contexto.get("runs", {})
+	var estado: Dictionary = runs.get(grupo, {})
+	var side: String = String(estado.get("side", ""))
+	if side == "":
+		for candidato in _by_free_length(room, contexto.get("doors", [])):
+			if _run_fits(room, piece, candidato, WALL_MARGIN_M, occupied):
+				side = candidato
+				break
+		if side == "":
+			return false
+		estado = {"side": side, "cursor": WALL_MARGIN_M}
+
+	var horizontal: bool = WallSideGeometry.is_horizontal(side)
+	var largo: float = room.size.x if horizontal else room.size.y
+	var apoyada: Vector2 = _footprint(piece, _rotation_for_side(side))
+	var media: float = (apoyada.x if horizontal else apoyada.y) * 0.5
+	var cursor: float = float(estado.get("cursor", WALL_MARGIN_M))
+	var along: float = cursor + media
+	if along + media > largo - WALL_MARGIN_M:
+		# La fila se ha quedado sin paramento: esta pieza se busca la vida por
+		# su cuenta, pero la fila sigue apuntada para las que vengan detras.
+		contexto["runs"] = _with_run(runs, grupo, estado)
+		return false
+	_apply_side(room, piece, side, along)
+	if _collides(_rect_of(piece), occupied):
+		if not _try_side(room, piece, side, occupied):
+			contexto["runs"] = _with_run(runs, grupo, estado)
+			return false
+		along = _along_of(Vector2(piece["center"]), side)
+	estado["cursor"] = along + media + PIECE_GAP_M
+	contexto["runs"] = _with_run(runs, grupo, estado)
+	return true
+
+
+## Si la primera pieza de la fila cabe en ese paramento.
+static func _run_fits(room: Rect2, piece: Dictionary, side: String, desde: float, occupied: Array) -> bool:
+	var horizontal: bool = WallSideGeometry.is_horizontal(side)
+	var largo: float = room.size.x if horizontal else room.size.y
+	var apoyada: Vector2 = _footprint(piece, _rotation_for_side(side))
+	var ancho: float = apoyada.x if horizontal else apoyada.y
+	if desde + ancho > largo - WALL_MARGIN_M:
+		return false
+	_apply_side(room, piece, side, desde + ancho * 0.5)
+	return not _collides(_rect_of(piece), occupied)
+
+
+static func _with_run(runs: Dictionary, grupo: String, estado: Dictionary) -> Dictionary:
+	runs[grupo] = estado
+	return runs
 
 
 ## Paramentos ordenados por metros libres de hueco, de mas a menos.
@@ -406,6 +534,8 @@ static func _apply_grammar(room: Rect2, plan: Array, blockers: Array) -> void:
 	for i in range(plan.size()):
 		var piece: Dictionary = plan[i]
 		if bool(piece.get("locked", false)) or bool(piece.get("hidden", false)) or bool(piece.get("floor", false)):
+			continue
+		if bool(piece.get("emparejada", false)):
 			continue
 		var rel: Dictionary = FurnitureRoomGrammar.relation_for(String(piece.get("archetype", "")))
 		if rel.is_empty():
@@ -458,10 +588,13 @@ static func _occupancy_excluding(plan: Array, blockers: Array, index: int) -> Ar
 
 
 ## Coloca una pieza respecto a su pareja y la orienta.
+## Devuelve `true` si la ha podido poner en su sitio de verdad. Si devuelve
+## `false` la ha dejado orientada pero donde estaba, y quien llama tiene que
+## colocarla por las bravas.
 static func _place_related(
 	room: Rect2, piece: Dictionary, anchor: Dictionary, rel: Dictionary,
 	occupied: Array, rank: int
-) -> void:
+) -> bool:
 	var relation: String = String(rel.get("relation", "beside"))
 	var gap: float = float(rel.get("gap_m", 0.1))
 	var anchor_center: Vector2 = Vector2(anchor["center"])
@@ -479,11 +612,11 @@ static func _place_related(
 		var pose: Dictionary = _pose_of(piece)
 		piece["center"] = anchor_center
 		if _try_side(room, piece, side, occupied):
-			return
+			return true
 		_restore_pose(piece, pose)
 		_reorient_in_place(room, piece, Vector2(pose["center"]), float(pose["rotation"]),
 			FurnitureRoomGrammar.snap_quarter(anchor_rot + 180.0), occupied)
-		return
+		return false
 
 	var candidatos: Array[Dictionary] = []
 	var media_anchor_f: float = _extent_along(Vector2(anchor["world_size"]), frente) * 0.5
@@ -524,7 +657,7 @@ static func _place_related(
 		piece["center"] = center
 		piece["rotation"] = rot
 		piece["world_size"] = world
-		return
+		return true
 
 	# No cabe donde deberia: se queda donde estaba, pero al menos mirando a su
 	# pareja. Una tele mal colocada que mira al sofa se lee mucho mejor que una
@@ -534,6 +667,7 @@ static func _place_related(
 		deseada = FurnitureRoomGrammar.snap_quarter(
 			FurnitureRoomGrammar.facing_deg(antes_center, anchor_center))
 	_reorient_in_place(room, piece, antes_center, antes_rot, deseada, occupied)
+	return false
 
 
 static func _pose_of(piece: Dictionary) -> Dictionary:

@@ -14,7 +14,9 @@ extends SceneTree
 ##   mesa de centro delante del sofa y cerca
 ##   mesilla       pegada al costado de la cama
 ##   silla         mirando a su mesa o a su escritorio
-##   cocina        nevera, fregadero y fuegos en el MISMO paramento
+##   cocina        nevera, mueble, fregadero y fuegos, seguidos -en L si hace
+##                 falta: una cocina que dobla la esquina es correcta, una con
+##                 la nevera en la otra punta no-
 ##   nada          mirando a un muro que tiene delante a menos de un palmo
 ##
 ##   <godot> --headless --path . --script res://tools/probe_furniture_sense.gd
@@ -90,7 +92,7 @@ func _check_room(etiqueta: String, rect: Rect2, piezas: Array) -> void:
 	if not cama.is_empty():
 		var mesilla: Dictionary = _first(por_arq, ["side_table", "lamp_table"])
 		if not mesilla.is_empty():
-			_count(etiqueta, "mesilla junto a la cama", _beside(cama, mesilla, 1.1))
+			_count(etiqueta, "mesilla junto a la cama", _beside(cama, mesilla))
 
 	for silla in Array(por_arq.get("chair_desk", [])):
 		if not escritorio.is_empty():
@@ -104,7 +106,7 @@ func _check_room(etiqueta: String, rect: Rect2, piezas: Array) -> void:
 		for spec in Array(por_arq.get(arq, [])):
 			cocina.append(spec)
 	if cocina.size() >= 2:
-		_count(etiqueta, "la cocina comparte paramento", _same_wall(rect, cocina))
+		_count(etiqueta, "la cocina va seguida", _chained(cocina))
 
 	for raw in piezas:
 		var spec: Dictionary = raw
@@ -148,21 +150,71 @@ func _looks_at(a: Dictionary, b: Dictionary, cono_deg: float) -> bool:
 
 
 ## `b` esta al costado de `a`, no delante ni detras.
-func _beside(a: Dictionary, b: Dictionary, max_m: float) -> bool:
+##
+## El limite no puede ser una distancia fija: pegada al costado de una cama de
+## matrimonio la mesilla queda a 1,0 m del centro, y pegada al costado de una
+## cama puesta en paralelo al muro, a 1,3 m. Lo que se mide es el hueco que
+## queda ENTRE las dos, que es lo que se ve.
+func _beside(a: Dictionary, b: Dictionary) -> bool:
 	var d: Vector2 = _center(b) - _center(a)
-	if d.length() > max_m:
-		return false
 	var frente: Vector2 = _facing(a)
 	var lado := Vector2(frente.y, -frente.x)
-	return absf(d.normalized().dot(lado)) > 0.6
+	if d.length_squared() < 0.0001:
+		return false
+	if absf(d.normalized().dot(lado)) <= 0.6:
+		return false
+	var media_a: float = _extent(a, lado) * 0.5
+	var media_b: float = _extent(b, lado) * 0.5
+	return absf(d.dot(lado)) - media_a - media_b < 0.45
 
 
-## Todas las piezas comparten el paramento mas cercano.
-func _same_wall(rect: Rect2, piezas: Array) -> bool:
-	var lados: Dictionary = {}
-	for spec in piezas:
-		lados[_nearest_wall(rect, _center(spec))] = true
-	return lados.size() == 1
+## Cuanto ocupa una pieza medida a lo largo de un eje.
+func _extent(spec: Dictionary, axis: Vector2) -> float:
+	var size: Vector2 = _v2(spec.get("size_m", Vector2.ZERO))
+	var world: Vector2 = _world_size_of(size, float(spec.get("rotation_deg", 0.0)))
+	return absf(axis.x) * world.x + absf(axis.y) * world.y
+
+
+func _world_size_of(size: Vector2, rotation_deg: float) -> Vector2:
+	var rot: float = deg_to_rad(rotation_deg)
+	var c: float = absf(cos(rot))
+	var s: float = absf(sin(rot))
+	return Vector2(c * size.x + s * size.y, s * size.x + c * size.y)
+
+
+## Las piezas forman UNA sola fila: cada una toca a la siguiente. Vale que la
+## fila doble la esquina -una cocina en L es una cocina-; lo que no vale es que
+## la nevera este en la otra punta de la sala.
+func _chained(piezas: Array) -> bool:
+	var n: int = piezas.size()
+	var visto: Array[bool] = []
+	for i in range(n):
+		visto.append(false)
+	var cola: Array[int] = [0]
+	visto[0] = true
+	var alcanzados: int = 1
+	while not cola.is_empty():
+		var i: int = cola.pop_back()
+		for j in range(n):
+			if visto[j]:
+				continue
+			if _gap_between(piezas[i], piezas[j]) > 0.45:
+				continue
+			visto[j] = true
+			alcanzados += 1
+			cola.append(j)
+	return alcanzados == n
+
+
+## Hueco libre entre dos piezas, 0 si se tocan.
+func _gap_between(a: Dictionary, b: Dictionary) -> float:
+	var ca: Vector2 = _center(a)
+	var cb: Vector2 = _center(b)
+	var wa: Vector2 = _world_size_of(_v2(a.get("size_m", Vector2.ZERO)), float(a.get("rotation_deg", 0.0)))
+	var wb: Vector2 = _world_size_of(_v2(b.get("size_m", Vector2.ZERO)), float(b.get("rotation_deg", 0.0)))
+	var dx: float = absf(ca.x - cb.x) - (wa.x + wb.x) * 0.5
+	var dy: float = absf(ca.y - cb.y) - (wa.y + wb.y) * 0.5
+	return maxf(maxf(dx, dy), 0.0)
 
 
 ## Una pieza con la cara contra el muro: mira a un paramento que tiene a menos
