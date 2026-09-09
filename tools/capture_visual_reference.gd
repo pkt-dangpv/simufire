@@ -67,6 +67,9 @@ const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 ## puede pasar por linea de comandos con --floor=, para sacar un juego por
 ## planta sin tocar la escena.
 @export var apartment_floor_number: int = 1
+## Plantas del edificio entero. 0 = las minimas que hagan falta. Tambien por
+## linea de comandos, con --total=.
+@export var building_total_floors: int = 0
 
 @export_group("Iluminacion del piso patron")
 ## Mismos valores que scenes/SimulationScene.tscn, para que la captura
@@ -105,6 +108,9 @@ func _run() -> void:
 	var floor_arg: String = _cmdline_value("--floor=", "")
 	if floor_arg != "":
 		apartment_floor_number = int(floor_arg)
+	var total_arg: String = _cmdline_value("--total=", "")
+	if total_arg != "":
+		building_total_floors = int(total_arg)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	print("[capture] destino=%s display=%s" % [_out_dir, DisplayServer.get_name()])
 	if DisplayServer.get_name() == "headless":
@@ -330,6 +336,7 @@ func _make_template() -> Dictionary:
 		"version": 1,
 		"building_type": "apartment",
 		"apartment_floor_number": apartment_floor_number,
+		"building_total_floors": building_total_floors,
 		"outside_temp_c": 18.0,
 		"outside_o2": 0.209,
 		"stop_time_s": 0.0,

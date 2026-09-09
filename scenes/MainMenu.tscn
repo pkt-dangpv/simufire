@@ -232,13 +232,33 @@ theme_override_colors/font_color = Color(1, 0.25, 0, 1)
 text = "PLANTA PISO"
 
 [node name="Spin" type="SpinBox" parent="TweakCenter/TweakPanel/Pad/Rows/ApartmentFloorRow"]
-tooltip_text = "En qué planta del edificio está el piso: 0 es la planta baja y los negativos son sótanos. Cambia lo que se ve por la ventana, no la vivienda."
+tooltip_text = "En qué planta del edificio está la vivienda. 0 es la planta baja. Cambia lo que se ve por la ventana, no la vivienda."
 custom_minimum_size = Vector2(250, 32)
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = -5.0
-max_value = 80.0
+min_value = 0.0
+max_value = 79.0
 value = 1.0
+rounded = true
+
+[node name="TotalFloorsRow" type="HBoxContainer" parent="TweakCenter/TweakPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TotalFloorsLabel" type="Label" parent="TweakCenter/TweakPanel/Pad/Rows/TotalFloorsRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "DE UN TOTAL DE"
+
+[node name="Spin" type="SpinBox" parent="TweakCenter/TweakPanel/Pad/Rows/TotalFloorsRow"]
+tooltip_text = "Cuántas plantas tiene el edificio entero. Las que no se dibujan no arden ni salen en el HUD, pero se ven desde fuera y los edificios de alrededor miden lo mismo."
+custom_minimum_size = Vector2(250, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 80.0
+value = 2.0
 rounded = true
 
 [node name="HvacRow" type="HBoxContainer" parent="TweakCenter/TweakPanel/Pad/Rows"]

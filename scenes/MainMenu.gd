@@ -42,6 +42,7 @@ var _glass_break_option: OptionButton = null
 var _visibility_option: OptionButton = null
 var _building_type_option: OptionButton = null
 var _apartment_floor_spin: SpinBox = null
+var _total_floors_spin: SpinBox = null
 var _preset_ids: Array[String] = []
 var _hvac_modes: Array[String] = ["none", "off", "on"]
 var _lighting_modes: Array[String] = ["Dia", "Noche"]
@@ -127,6 +128,7 @@ func _bind_existing_ui() -> bool:
 
 	_building_type_option = get_node_or_null(TWEAK_ROWS + "BuildingTypeRow/Option") as OptionButton
 	_apartment_floor_spin = get_node_or_null(TWEAK_ROWS + "ApartmentFloorRow/Spin") as SpinBox
+	_total_floors_spin = get_node_or_null(TWEAK_ROWS + "TotalFloorsRow/Spin") as SpinBox
 	_hvac_option = get_node_or_null(TWEAK_ROWS + "HvacRow/Option") as OptionButton
 	_lighting_option = get_node_or_null(TWEAK_ROWS + "LightingRow/Option") as OptionButton
 	_interior_lights_option = get_node_or_null(TWEAK_ROWS + "InteriorLightsRow/Option") as OptionButton
@@ -143,6 +145,7 @@ func _bind_existing_ui() -> bool:
 	_populate_scenario_cards()
 	_populate_building_type_option()
 	_populate_apartment_floor_spin()
+	_populate_total_floors_spin()
 	_populate_hvac_option()
 	_populate_lighting_option()
 	_populate_interior_lights_option()
@@ -154,7 +157,8 @@ func _bind_existing_ui() -> bool:
 	for opt in [_building_type_option, _hvac_option, _lighting_option,
 			_interior_lights_option, _glass_break_option, _visibility_option]:
 		_connect_once((opt as OptionButton).item_selected, _on_any_option_changed)
-	_connect_once(_apartment_floor_spin.value_changed, _on_any_option_changed)
+	_connect_once(_apartment_floor_spin.value_changed, _on_apartment_floor_changed)
+	_connect_once(_total_floors_spin.value_changed, _on_total_floors_changed)
 	_sync_apartment_floor_visibility()
 	_update_summary()
 	return true
@@ -174,7 +178,8 @@ func _localize_texts() -> void:
 	_set_label_text("Center/VBox/ScenarioLabel", _ui_text("main.scenario", "Escenario").to_upper())
 	_set_label_text(TWEAK_ROWS + "TweakTitle", _ui_text("main.tweak_title", "Ajustes de la simulacion").to_upper())
 	_set_label_text(TWEAK_ROWS + "BuildingTypeRow/BuildingTypeLabel", _ui_text("main.building_type", "Exterior").to_upper())
-	_set_label_text(TWEAK_ROWS + "ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta piso").to_upper())
+	_set_label_text(TWEAK_ROWS + "ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta").to_upper())
+	_set_label_text(TWEAK_ROWS + "TotalFloorsRow/TotalFloorsLabel", _ui_text("main.total_floors", "Plantas").to_upper())
 	_set_label_text(TWEAK_ROWS + "HvacRow/HvacLabel", _ui_text("main.hvac", "HVAC").to_upper())
 	_set_label_text(TWEAK_ROWS + "LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
 	_set_label_text(TWEAK_ROWS + "InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
@@ -310,12 +315,13 @@ func _update_summary() -> void:
 				planta = int(round(_apartment_floor_spin.value))
 			# 0 es la baja y los negativos son sotanos: decirlo con numero
 			# ("planta 0", "planta -2") no se entiende de un vistazo.
+			var totales: int = planta + 1
+			if _total_floors_spin != null:
+				totales = maxi(planta + 1, int(round(_total_floors_spin.value)))
 			if planta == 0:
-				partes.append("piso, planta baja")
-			elif planta < 0:
-				partes.append("piso, sotano %d" % absi(planta))
+				partes.append("piso, planta baja de %d" % totales)
 			else:
-				partes.append("piso, planta %d" % planta)
+				partes.append("piso, planta %d de %d" % [planta, totales])
 		else:
 			partes.append("casa unifamiliar")
 
@@ -409,7 +415,38 @@ func _populate_apartment_floor_spin() -> void:
 	if _apartment_floor_spin == null:
 		return
 	var saved: Dictionary = _load_startup_options()
-	_apartment_floor_spin.value = int(saved.get("apartment_floor_number", 1))
+	_apartment_floor_spin.value = maxi(0, int(saved.get("apartment_floor_number", 1)))
+
+
+func _populate_total_floors_spin() -> void:
+	if _total_floors_spin == null:
+		return
+	var saved: Dictionary = _load_startup_options()
+	var planta: int = maxi(0, int(saved.get("apartment_floor_number", 1)))
+	_total_floors_spin.value = maxi(planta + 1, int(saved.get("building_total_floors", planta + 1)))
+	_sync_floor_limits()
+
+
+## Los dos datos no son independientes: el edificio no puede tener menos
+## plantas que la planta en la que se vive. Se cruzan los limites en vez de
+## dejar elegir una combinacion imposible y corregirla despues por detras.
+func _sync_floor_limits() -> void:
+	if _apartment_floor_spin == null or _total_floors_spin == null:
+		return
+	_total_floors_spin.min_value = _apartment_floor_spin.value + 1.0
+	_apartment_floor_spin.max_value = maxf(0.0, _total_floors_spin.max_value - 1.0)
+
+
+func _on_apartment_floor_changed(_value: float) -> void:
+	if _total_floors_spin != null and _total_floors_spin.value < _apartment_floor_spin.value + 1.0:
+		_total_floors_spin.value = _apartment_floor_spin.value + 1.0
+	_sync_floor_limits()
+	_on_any_option_changed(0)
+
+
+func _on_total_floors_changed(_value: float) -> void:
+	_sync_floor_limits()
+	_on_any_option_changed(0)
 
 
 func _on_building_type_selected(_index: int) -> void:
@@ -417,11 +454,13 @@ func _on_building_type_selected(_index: int) -> void:
 
 
 func _sync_apartment_floor_visibility() -> void:
-	if _apartment_floor_spin == null:
-		return
-	var row := _apartment_floor_spin.get_parent() as Control
-	if row != null:
-		row.visible = _building_type_option != null and _building_type_option.selected == 1
+	var es_piso: bool = _building_type_option != null and _building_type_option.selected == 1
+	for spin in [_apartment_floor_spin, _total_floors_spin]:
+		if spin == null:
+			continue
+		var row := (spin as Control).get_parent() as Control
+		if row != null:
+			row.visible = es_piso
 
 
 func _populate_lighting_option() -> void:
@@ -517,7 +556,10 @@ func _save_startup_options() -> void:
 
 	var selected_apartment_floor: int = 1
 	if _apartment_floor_spin != null:
-		selected_apartment_floor = int(round(_apartment_floor_spin.value))
+		selected_apartment_floor = maxi(0, int(round(_apartment_floor_spin.value)))
+	var selected_total_floors: int = selected_apartment_floor + 1
+	if _total_floors_spin != null:
+		selected_total_floors = maxi(selected_apartment_floor + 1, int(round(_total_floors_spin.value)))
 
 	var selected_glass_break_mode: int = 0
 	if _glass_break_option != null:
@@ -536,6 +578,7 @@ func _save_startup_options() -> void:
 		"template_name": selected_template_id,
 		"building_type": selected_building_type,
 		"apartment_floor_number": selected_apartment_floor,
+		"building_total_floors": selected_total_floors,
 		"hvac_mode": selected_hvac_mode,
 		"exterior_lighting_mode": selected_lighting_mode,
 		"interior_lights_on": selected_interior_lights_on,

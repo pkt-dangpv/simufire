@@ -452,7 +452,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## la vivienda sea de una-.
 @export var opposite_facade_height_m: float = 15.0
 @export var opposite_facade_length_m: float = 46.0
-@export var opposite_facade_day_color: Color = Color(0.55, 0.52, 0.48, 1.0)
+@export var opposite_facade_day_color: Color = Color(0.66, 0.65, 0.62, 1.0)
 @export var opposite_facade_night_color: Color = Color(0.13, 0.13, 0.15, 1.0)
 @export var opposite_window_day_color: Color = Color(0.22, 0.26, 0.30, 1.0)
 @export var opposite_window_night_color: Color = Color(0.10, 0.11, 0.13, 1.0)
@@ -535,7 +535,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0, 10, 1) var city_planter_count: int = 4
 @export var city_crossing_enabled: bool = true
 @export var city_bus_stop_enabled: bool = true
-@export var city_back_block_day_color: Color = Color(0.45, 0.47, 0.52, 1.0)
+## Rebote de cielo del decorado urbano. Es lo que impide que una fachada en
+## sombra se lea como una silueta negra: el entorno del FP no tiene luz
+## ambiente, asi que la calle se la pone ella. Subirlo aplana el relieve;
+## bajarlo a cero devuelve las siluetas negras.
+@export_range(0.0, 1.2, 0.01) var city_sky_bounce_day: float = 0.42
+@export_range(0.0, 1.2, 0.01) var city_sky_bounce_night: float = 0.06
+@export var city_back_block_day_color: Color = Color(0.58, 0.59, 0.61, 1.0)
 @export var city_back_block_night_color: Color = Color(0.10, 0.11, 0.15, 1.0)
 @export var city_shopfront_color: Color = Color(0.18, 0.21, 0.24, 1.0)
 @export var city_shop_lit_color: Color = Color(1.0, 0.86, 0.58, 1.0)
@@ -865,6 +871,7 @@ var _rebuilding: bool = false
 var _rebuild_queued: bool = false
 ## Materiales opacos ya creados, indexados por color y ruido (M-3).
 var _material_cache: Dictionary = {}
+var _city_material_cache: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
@@ -3309,7 +3316,7 @@ func _create_city_back_ring(parent: Node3D) -> void:
 	suelo.z = anchor_z.z
 	var lado: float = maxf(240.0, city_backdrop_distance_m * 2.4)
 	_add_oriented_box(parent, "CityGroundPlane", suelo, Vector3(1.0, 0.0, 0.0),
-		lado, 0.30, lado, _mat(sidewalk_color.darkened(0.22), false), false)
+		lado, 0.30, lado, _city_mat(sidewalk_color.darkened(0.22)), false)
 
 	# Todas las orientaciones usan el MISMO ancho: el del lado mas largo. Con el
 	# suyo propio, la fila del lado corto se quedaba corta y dejaba los extremos
@@ -3942,12 +3949,14 @@ func _spawn_city_pieces(
 			continue
 		var color: Color = piece.get("color", Color(0.5, 0.5, 0.5, 1.0))
 		var energy: float = float(piece.get("energy", 0.0))
-		var material: StandardMaterial3D = _mat(
-			color,
-			color.a < 1.0,
-			piece.get("emission", Color(0.0, 0.0, 0.0, 0.0)),
-			energy
-		)
+		# Las piezas sordas -manzanas, retornos, fila de fondo- van con el
+		# material de ciudad; las que traen emision propia (escaparates, farolas)
+		# se la quedan.
+		var material: StandardMaterial3D
+		if energy > 0.0 or color.a < 1.0:
+			material = _mat(color, color.a < 1.0, piece.get("emission", Color(0.0, 0.0, 0.0, 0.0)), energy)
+		else:
+			material = _city_mat(color)
 		_add_oriented_box(
 			parent,
 			"%s_%02d" % [String(piece.get("name", "CityPiece")), index],
@@ -4021,7 +4030,7 @@ func _create_city_module_body(
 		var body_center: Vector3 = frente - normal * (fondo * 0.5)
 		body_center.y = street_y + float(tramo["y0"]) + alto * 0.5
 		_add_oriented_box(parent, "CityFacadeBody_%02d_%02d_%02d" % [index, module_i, i],
-			body_center, tangent, ancho, alto, fondo, _mat(module_color, false), false)
+			body_center, tangent, ancho, alto, fondo, _city_mat(module_color), false)
 		if i > 0:
 			# Losa de remate del tramo de abajo: sin ella el retranqueo es un
 			# escalon de aire.
@@ -4030,7 +4039,7 @@ func _create_city_module_body(
 			_add_oriented_box(parent, "CityFacadeSetback_%02d_%02d_%02d" % [index, module_i, i],
 				losa, tangent, module_w * float(tramos[i - 1]["k"]) + 0.2, 0.24,
 				module_depth * float(tramos[i - 1]["k"]) + 0.2,
-				_mat(module_color.lightened(0.10), false), false)
+				_city_mat(module_color.lightened(0.10)), false)
 
 	# El podio ata el edificio al suelo. Sobresale hacia la calle lo que
 	# sobresale una cornisa -no mas: al otro lado esta la acera-.
@@ -4040,19 +4049,19 @@ func _create_city_module_body(
 		pod_center.y = street_y + podium_h * 0.5
 		_add_oriented_box(parent, "CityFacadePodium_%02d_%02d" % [index, module_i],
 			pod_center, tangent, module_w - 0.06, podium_h, module_depth + 0.44,
-			_mat(module_color.darkened(0.12), false), false)
+			_city_mat(module_color.darkened(0.12)), false)
 		var cap: Vector3 = face_center + normal * (0.22 + overhang * 0.5)
 		cap.y = street_y + podium_h + 0.16
 		_add_oriented_box(parent, "CityFacadePodiumCap_%02d_%02d" % [index, module_i],
 			cap, tangent, module_w - 0.06, 0.30, overhang + 0.55,
-			_mat(module_color.lightened(0.08), false), false)
+			_city_mat(module_color.lightened(0.08)), false)
 	else:
 		# Manzana: el zocalo de siempre.
 		var plinth: Vector3 = face_center + normal * 0.035
 		plinth.y = street_y + 0.42
 		_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i],
 			plinth, tangent, module_w - 0.10, 0.84, 0.07,
-			_mat(module_color.darkened(0.16), false), false)
+			_city_mat(module_color.darkened(0.16)), false)
 
 
 ## Como termina arriba: cornisa de manzana, remate de torre o coronacion con
@@ -4074,14 +4083,14 @@ func _create_city_module_crown(
 	if crown == "cornisa":
 		_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
 			cornice, tangent, ancho + 0.10, 0.22, 0.18,
-			_mat(module_color.lightened(0.10), false), false)
+			_city_mat(module_color.lightened(0.10)), false)
 		return
 
 	# Torre y rascacielos: un antepecho macizo, no una moldura de 22 cm.
 	cornice.y = street_y + module_h - 0.45
 	_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
 		cornice, tangent, ancho + 0.16, 0.90, 0.26,
-		_mat(module_color.lightened(0.12), false), false)
+		_city_mat(module_color.lightened(0.12)), false)
 	if crown != "corona":
 		return
 
@@ -4091,19 +4100,19 @@ func _create_city_module_crown(
 	paso1.y = street_y + module_h + 1.1
 	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_0" % [index, module_i],
 		paso1, tangent, ancho * 0.62, 2.2, ancho * 0.42,
-		_mat(module_color.darkened(0.06), false), false)
+		_city_mat(module_color.darkened(0.06)), false)
 	var paso2: Vector3 = paso1
 	paso2.y = street_y + module_h + 3.4
 	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_1" % [index, module_i],
 		paso2, tangent, ancho * 0.34, 2.4, ancho * 0.24,
-		_mat(module_color.darkened(0.02), false), false)
+		_city_mat(module_color.darkened(0.02)), false)
 	if not bool(tipo.get("antenna", false)):
 		return
 	var mastil: Vector3 = paso2
 	mastil.y = street_y + module_h + 9.5
 	_add_oriented_box(parent, "CityFacadeAntenna_%02d_%02d" % [index, module_i],
 		mastil, tangent, 0.35, 10.0, 0.35,
-		_mat(module_color.darkened(0.30), false), false)
+		_city_mat(module_color.darkened(0.30)), false)
 	var baliza: Vector3 = paso2
 	baliza.y = street_y + module_h + 14.6
 	var rojo := Color(1.0, 0.18, 0.12, 1.0)
@@ -4257,7 +4266,7 @@ func _create_facade_ribbons(
 		antepecho.y = y + pitch * 0.42
 		_add_oriented_box(parent, "CityRibbonSpandrel_%02d_%02d_%02d" % [index, module_index, f],
 			antepecho, tangent, ancho, pitch * 0.36, 0.04,
-			_mat(frame_col.darkened(0.25), false), false)
+			_city_mat(frame_col.darkened(0.25)), false)
 
 
 ## Skyline de fondo: dibujo del usuario si hay textura, o silueta procedural
@@ -4478,7 +4487,10 @@ func _create_own_facade(parent: Node3D) -> void:
 		return
 	var ground_y: float = _exterior_ground_level_m()
 	var span: Dictionary = _building_vertical_span()
-	var top_y: float = float(span.get("max_y", 3.0)) + own_facade_parapet_m
+	# El edificio no termina en el techo de la vivienda: si se ha declarado que
+	# tiene mas plantas, la fachada sigue subiendo. Es la otra mitad del dato de
+	# plantas totales -antes solo existian las de debajo-.
+	var top_y: float = float(span.get("max_y", 3.0)) 		+ BuildingLevels.floors_above_m(building, exterior_storey_pitch_m) 		+ own_facade_parapet_m
 	for key in groups.keys():
 		_create_own_facade_panel(parent, String(key), Dictionary(groups[key]), ground_y, top_y)
 
@@ -4623,9 +4635,15 @@ func _own_facade_band_levels(ground_y: float, top_y: float) -> Array[float]:
 		levels.append(level - 0.12)
 	var pitch: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
 	var implicit_y: float = base_y - pitch
-	while implicit_y > ground_y + 0.60 and levels.size() < 24:
+	while implicit_y > ground_y + 0.60 and levels.size() < 90:
 		levels.append(implicit_y)
 		implicit_y -= pitch
+	# Y las de arriba, si el edificio tiene mas plantas que las dibujadas.
+	var arriba: float = modelled[modelled.size() - 1] if not modelled.is_empty() else base_y
+	arriba += pitch
+	while arriba < top_y - 0.60 and levels.size() < 90:
+		levels.append(arriba)
+		arriba += pitch
 	var unique: Array[float] = []
 	for level in levels:
 		if level <= ground_y + 0.10 or level >= top_y - 0.35:
@@ -7057,6 +7075,38 @@ func _ceiling_material_for_room(room_id: int) -> Material:
 	if ceiling_material_override != null:
 		return ceiling_material_override
 	return _surface_mat(Color(0.76, 0.76, 0.71, 1.0), 3100 + room_id)
+
+
+## Material del decorado urbano: hormigon, no silueta negra.
+##
+## El entorno del FP tiene `ambient_light_source = 1`, o sea **ambiente
+## desactivado**: lo que no recibe el sol directo se va a negro. Dentro de la
+## vivienda da igual -hay luces por todas partes- pero en la calle deja las
+## fachadas en sombra como recortes negros, y subir el albedo no arregla nada
+## porque no hay luz que lo multiplique.
+##
+## En vez de encender el ambiente global -que cambiaria tambien el interior y
+## no es lo que se ha pedido-, el decorado lleva su propia emision suave del
+## color de su albedo. Es el rebote del cielo, que es de donde viene esa luz en
+## una calle de verdad.
+##
+## Se cachea aparte de `_mat` porque `_mat` no guarda los emisivos: los suyos se
+## mutan en caliente (el brillo del fuego) y compartirlos los acoplaria. Estos
+## no se tocan nunca despues de crearse.
+func _city_mat(color: Color) -> StandardMaterial3D:
+	var night: bool = _exterior_is_night()
+	var cache_key: String = "%s|%s" % [color.to_html(true), "n" if night else "d"]
+	if _city_material_cache.has(cache_key):
+		return _city_material_cache[cache_key]
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = material_surface_roughness
+	material.metallic = 0.0
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = city_sky_bounce_night if night else city_sky_bounce_day
+	_city_material_cache[cache_key] = material
+	return material
 
 
 func _mat(

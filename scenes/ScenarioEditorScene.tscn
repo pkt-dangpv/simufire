@@ -478,13 +478,35 @@ theme_override_font_sizes/font_size = 13
 text = "PLANTA PISO"
 
 [node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ApartmentFloorRow" unique_id=1621999601]
-tooltip_text = "En qué planta del edificio está el piso: 0 es la planta baja y los negativos son sótanos. Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
+tooltip_text = "En qué planta del edificio está la vivienda. 0 es la planta baja. Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = -5.0
-max_value = 80.0
+min_value = 0.0
+max_value = 79.0
 value = 1.0
 rounded = true
+
+[node name="TotalFloorsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074011]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TotalFloorsRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/TotalFloorsRow" unique_id=1261591421]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "DE UN TOTAL DE"
+
+[node name="TotalFloorsSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/TotalFloorsRow" unique_id=1621999602]
+tooltip_text = "Cuántas plantas tiene el edificio entero. Las que no se dibujan no arden ni salen en el HUD, pero se ven desde fuera y los edificios de alrededor miden lo mismo."
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 80.0
+value = 2.0
+rounded = true
+suffix = " plantas"
 
 [node name="ElementListTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1790654901]
 visible = false

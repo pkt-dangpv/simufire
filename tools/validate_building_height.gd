@@ -40,6 +40,9 @@ func _run() -> void:
 	var media: Dictionary = await _measure("compact_apartment", 5)
 	var alta: Dictionary = await _measure("compact_apartment", 15)
 	var casa: Dictionary = await _measure("simple_house", 15)
+	# El segundo dato: el edificio tiene 30 plantas aunque solo se dibuje una y
+	# se viva en la 15. Antes el edificio terminaba en el techo de la vivienda.
+	var declarado: Dictionary = await _measure("compact_apartment", 15, 30)
 
 	# 1. La calle cae segun la planta, y cada planta da una cota distinta.
 	# Tolerancia de 5 cm: el suelo exterior se planta unos milimetros por debajo
@@ -74,7 +77,15 @@ func _run() -> void:
 		_failures.append("la fachada de %.1f m tiene %d filas de ventanas y le caben %d" % [
 			alta["vecinos_m"], alta["filas"], filas_esperadas])
 
-	# 4. Una unifamiliar no se eleva por mucho que diga la planta.
+	# 4. Las plantas declaradas mandan sobre las deducidas.
+	if int(declarado["plantas"]) != 30:
+		_failures.append("con 30 plantas declaradas el edificio aparenta %d" % declarado["plantas"])
+	if float(declarado["vecinos_m"]) < 30.0 * float(declarado["pitch_m"]) - 0.05:
+		_failures.append("con 30 plantas declaradas los vecinos solo miden %.1f m" % declarado["vecinos_m"])
+	if float(declarado["encima_m"]) <= 1.0:
+		_failures.append("con 30 plantas declaradas y la vivienda en la 15 no queda edificio por encima (%.1f m)" % declarado["encima_m"])
+
+	# 5. Una unifamiliar no se eleva por mucho que diga la planta.
 	if absf(float(casa["caida_m"])) > 0.05:
 		_failures.append("una unifamiliar en 'planta 15' se eleva %.2f m: la planta solo vale para un piso" % casa["caida_m"])
 
@@ -92,10 +103,11 @@ func _run() -> void:
 
 
 ## Monta el mundo FP de un escenario en una planta y mide lo que se ve.
-func _measure(template_name: String, floor_number: int) -> Dictionary:
+func _measure(template_name: String, floor_number: int, total_floors: int = 0) -> Dictionary:
 	var builder = BuildingTemplateScript.new()
 	var data: Dictionary = builder.create_by_name(template_name)
 	data["apartment_floor_number"] = floor_number
+	data["building_total_floors"] = total_floors
 	var building: BuildingModel = BuildingModelScript.new()
 	building.load_template_data(data)
 
@@ -122,6 +134,7 @@ func _measure(template_name: String, floor_number: int) -> Dictionary:
 		"plantas": BuildingLevels.apparent_total_floors(building),
 		"vecinos_m": fp._neighbour_facade_height_m(),
 		"filas": _window_rows(fp),
+		"encima_m": BuildingLevels.floors_above_m(building, fp.exterior_storey_pitch_m),
 	}
 	host.queue_free()
 	building.free()

@@ -152,28 +152,45 @@ static func floor_to_floor_m(building: BuildingModel, fallback: float) -> float:
 	return maxf(0.1, total / float(levels.size() - 1))
 
 
-## En que planta cae el forjado mas bajo dibujado. 0 = planta baja; negativo =
-## sotano. Una unifamiliar esta siempre a pie de calle.
+## En que planta cae el forjado mas bajo dibujado. 0 = planta baja. Una
+## unifamiliar esta siempre a pie de calle.
 static func base_floor_number(building: BuildingModel) -> int:
 	if building == null:
 		return 0
 	if String(building.building_type).strip_edges().to_lower() != "apartment":
 		return 0
-	return building.apartment_floor_number
+	return maxi(0, building.apartment_floor_number)
 
 
-## Plantas que APARENTA el edificio: las de relleno de debajo mas las
-## dibujadas. Es la cifra que tiene que igualar un vecino para no dejar
-## nuestro bloque suelto en el aire. Un sotano no resta plantas al edificio.
+## Plantas que tiene el edificio. Son DOS datos distintos y aqui se juntan:
+##
+##  - `building_total_floors`, si se ha declarado, manda: se dibujan una o dos
+##    plantas y se dice que el edificio tiene treinta.
+##  - si no se ha declarado (0), se deduce el minimo coherente: las que quedan
+##    debajo segun la planta en la que se vive, mas las dibujadas.
+##
+## El declarado nunca puede quedarse corto: un edificio no puede tener menos
+## plantas que las que hay debajo de la vivienda mas la vivienda.
 static func apparent_total_floors(building: BuildingModel) -> int:
-	return maxi(0, base_floor_number(building)) + drawn_floor_count(building)
+	var minimo: int = base_floor_number(building) + drawn_floor_count(building)
+	if building == null:
+		return minimo
+	return maxi(minimo, building.building_total_floors)
 
 
 ## Cuanto cae la calle por debajo del forjado mas bajo dibujado: una altura de
-## planta por cada planta de relleno. En una unifamiliar, y en la baja, es 0.
-## En un sotano sale NEGATIVO, que es lo correcto: la calle queda por encima.
+## planta por cada planta que hay debajo. En una unifamiliar, y en la baja, 0.
 static func street_drop_m(building: BuildingModel, fallback_floor_height: float) -> float:
 	var relleno: int = base_floor_number(building)
-	if relleno == 0:
+	if relleno <= 0:
 		return 0.0
 	return float(relleno) * floor_to_floor_m(building, fallback_floor_height)
+
+
+## Plantas que quedan POR ENCIMA de lo dibujado. Son las que hacen que, desde la
+## planta 15 de un edificio de 30, todavia haya edificio sobre tu cabeza.
+static func floors_above_m(building: BuildingModel, fallback_floor_height: float) -> float:
+	var encima: int = apparent_total_floors(building) - base_floor_number(building) - drawn_floor_count(building)
+	if encima <= 0:
+		return 0.0
+	return float(encima) * floor_to_floor_m(building, fallback_floor_height)

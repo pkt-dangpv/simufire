@@ -235,6 +235,7 @@ var _floor_status_label: Label
 var _floor_delete_button: Button
 var _building_type_option: OptionButton
 var _apartment_floor_spin: SpinBox
+var _total_floors_spin: SpinBox
 var _element_list: ItemList
 var _element_list_sync_in_progress: bool = false
 var _editor_view_mode: int = EditorViewMode.MODE_2D
@@ -1900,6 +1901,7 @@ func _create_empty_scenario() -> void:
 		"outside_o2": 0.209,
 		"building_type": "single_family",
 		"apartment_floor_number": 1,
+		"building_total_floors": 2,
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
@@ -2022,18 +2024,49 @@ func _on_building_type_selected(index: int) -> void:
 func _sync_apartment_floor_control() -> void:
 	if _apartment_floor_spin == null:
 		return
-	_apartment_floor_spin.value = int(editor_data.get("apartment_floor_number", 1))
+	var planta: int = maxi(0, int(editor_data.get("apartment_floor_number", 1)))
+	_apartment_floor_spin.value = planta
 	var is_apartment: bool = String(editor_data.get("building_type", "single_family")).to_lower() == "apartment"
 	_set_control_row_visible(_apartment_floor_spin, is_apartment)
+	if _total_floors_spin != null:
+		_total_floors_spin.value = maxi(planta + 1, int(editor_data.get("building_total_floors", planta + 1)))
+		_set_control_row_visible(_total_floors_spin, is_apartment)
+		_sync_floor_limits()
+
+
+## Los dos datos estan atados: el edificio no puede tener menos plantas que la
+## planta en la que esta la vivienda. Se cruzan los limites de los dos mandos,
+## que es mas honesto que dejar elegir un imposible y corregirlo por detras.
+func _sync_floor_limits() -> void:
+	if _apartment_floor_spin == null or _total_floors_spin == null:
+		return
+	_total_floors_spin.min_value = _apartment_floor_spin.value + 1.0
+	_apartment_floor_spin.max_value = maxf(0.0, _total_floors_spin.max_value - 1.0)
 
 
 func _on_apartment_floor_changed(value: float) -> void:
-	var next_floor: int = int(round(value))
+	var next_floor: int = maxi(0, int(round(value)))
 	if int(editor_data.get("apartment_floor_number", 1)) == next_floor:
 		return
 	_push_undo_snapshot("apartment_floor")
 	editor_data["apartment_floor_number"] = next_floor
-	_set_status("Planta exterior del piso: %d." % next_floor)
+	var totales: int = maxi(next_floor + 1, int(editor_data.get("building_total_floors", next_floor + 1)))
+	editor_data["building_total_floors"] = totales
+	if _total_floors_spin != null:
+		_total_floors_spin.value = totales
+	_sync_floor_limits()
+	_set_status("La vivienda esta en la planta %d de %d." % [next_floor, totales])
+
+
+func _on_total_floors_changed(value: float) -> void:
+	var planta: int = maxi(0, int(editor_data.get("apartment_floor_number", 1)))
+	var totales: int = maxi(planta + 1, int(round(value)))
+	if int(editor_data.get("building_total_floors", 0)) == totales:
+		return
+	_push_undo_snapshot("building_total_floors")
+	editor_data["building_total_floors"] = totales
+	_sync_floor_limits()
+	_set_status("El edificio tiene %d plantas; la vivienda esta en la %d." % [totales, planta])
 
 
 func _bind_controls_help_block(parent: Control) -> void:
@@ -7604,11 +7637,16 @@ func _bind_building_type_controls() -> void:
 		_populate_building_type_option()
 		if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
 			_building_type_option.item_selected.connect(_on_building_type_selected)
-	_apartment_floor_spin = _bind_spin_row(left_vbox, "ApartmentFloorRow", "ApartmentFloorSpin", -5.0, 80.0, 1.0)
+	_apartment_floor_spin = _bind_spin_row(left_vbox, "ApartmentFloorRow", "ApartmentFloorSpin", 0.0, 79.0, 1.0)
 	if _apartment_floor_spin != null:
 		_apartment_floor_spin.rounded = true
 		if not _apartment_floor_spin.value_changed.is_connected(_on_apartment_floor_changed):
 			_apartment_floor_spin.value_changed.connect(_on_apartment_floor_changed)
+	_total_floors_spin = _bind_spin_row(left_vbox, "TotalFloorsRow", "TotalFloorsSpin", 1.0, 80.0, 1.0)
+	if _total_floors_spin != null:
+		_total_floors_spin.rounded = true
+		if not _total_floors_spin.value_changed.is_connected(_on_total_floors_changed):
+			_total_floors_spin.value_changed.connect(_on_total_floors_changed)
 	_sync_apartment_floor_control()
 
 

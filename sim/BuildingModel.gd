@@ -52,6 +52,14 @@ var rooms: Dictionary = {}
 var openings: Array = []
 var building_type: String = "single_family"
 var apartment_floor_number: int = 1
+## Plantas que tiene el edificio entero. Es un dato APARTE de la planta en la
+## que se vive: se dibujan una o dos plantas y se declara que el edificio tiene
+## treinta. Las que no se dibujan no arden ni salen en el HUD, pero existen
+## para la vista y para que los vecinos midan lo mismo.
+##
+## 0 significa "las que hagan falta": las dibujadas mas las que queden debajo
+## segun la planta. Lo resuelve `BuildingLevels.apparent_total_floors`.
+var building_total_floors: int = 0
 var player_start: Dictionary = {}
 var exterior_walls: Array = []
 var hvac_data: Dictionary = {}
@@ -100,6 +108,8 @@ func _ready() -> void:
 		template_data["building_type"] = String(startup_options.get("building_type", "single_family"))
 	if startup_options.has("apartment_floor_number"):
 		template_data["apartment_floor_number"] = int(startup_options.get("apartment_floor_number", 1))
+	if startup_options.has("building_total_floors"):
+		template_data["building_total_floors"] = int(startup_options.get("building_total_floors", 0))
 	if startup_options.has("interior_lights_on"):
 		template_data["interior_lights_on"] = bool(startup_options.get("interior_lights_on", true))
 	if startup_options.has("exterior_lighting_mode"):
@@ -407,7 +417,8 @@ func _load_from_template(data: Dictionary) -> void:
 	building_type = String(data.get("building_type", "single_family")).to_lower()
 	if building_type != "apartment":
 		building_type = "single_family"
-	apartment_floor_number = int(data.get("apartment_floor_number", 1))
+	apartment_floor_number = maxi(0, int(data.get("apartment_floor_number", 1)))
+	building_total_floors = maxi(0, int(data.get("building_total_floors", 0)))
 	for raw_wall in data.get("exterior_walls", []):
 		if typeof(raw_wall) != TYPE_DICTIONARY:
 			continue
