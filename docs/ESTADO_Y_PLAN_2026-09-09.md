@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-09 · **HEAD:** 08dc041 · **Godot:** 4.7.1 · **Renderer:** `gl_compatibility`
 **Estado:** auditoría cerrada · plan en marcha · **fase 0 completa** (G-3, los dos
-prompts al motor y N-6·N-7) · **fase 1 completa** · **fase 2: parte visual hecha, falta el motor**
+prompts al motor y N-6·N-7) · **fases 1 y 3 completas** · **fase 2: parte visual hecha, falta el motor**
 
 Documento conjunto. La **parte I** es la auditoría del estado actual del diseñador de
 niveles y del aparato gráfico: once hallazgos, todos medidos o mirados hoy sobre el
@@ -881,9 +881,25 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
 - **N-5, parte motor**: prompt para la corrección de la velocidad por altura de
   la apertura. Se puede escribir ya, en la fase 0, para que vaya en paralelo.
 
-### Fase 3 — el mobiliario
-- **G-2**: decidir el material. Primero, porque condiciona lo siguiente.
-- **G-1 + D-2**: envolver los modelos y llenar el catálogo del editor.
+### Fase 3 — el mobiliario — ✅ COMPLETA en lo que no depende del kit
+- ❌ **G-2 y G-1 CANCELADOS** por decisión tuya (2026-09-09): las texturas y las
+  mallas se cambian enteras por un kit nuevo, así que decidir material y
+  envolver los 121 `.glb` sería trabajo tirado.
+- ✅ **La colocación**, que es lo que el kit nuevo no arregla: orientación,
+  parejas (`FurnitureRoomGrammar`), la cama de cabecero y la colocación por
+  grupos. Silla-escritorio 0/14 → 14/14, cocina seguida 0/8 → 5/8, mesa de
+  centro 7/10 → 10/10.
+- ✅ **D-2**: el catálogo del editor pasa de 14 a **38 arquetipos** — ya se puede
+  amueblar un baño y una cocina—. Era un `match` de 250 líneas; ahora es una
+  tabla. Las cifras de fuego de las 24 piezas nuevas son estimaciones de
+  ingeniería escaladas por clase de material, no ensayos, y están dichas como
+  tales en el fichero.
+- ✅ **Piezas colgadas**: `mount_h_m` en la ficha, las dos vistas la respetan, y
+  lo colgado deja el suelo libre debajo (dos piezas solo chocan si comparten
+  sitio en planta **y** franja de aire). El mueble de baño estrena el mecanismo.
+- ⏳ **Pendiente y consciente**: las 7 plantillas que declaran la carga de fuego a
+  granel y se amueblan con atrezo. Decisión tuya del 2026-09-06: se convierten a
+  objetos de verdad cuando el motor esté terminado.
 
 ### Fase 4 — balcones
 - **N-1**, que se apoya en la fachada propia y en el modelo de aperturas, ya
