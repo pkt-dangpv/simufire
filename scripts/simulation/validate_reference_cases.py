@@ -3388,10 +3388,17 @@ def _apply_gap_dispositions(
         raise ValueError(f"missing final-disposition checks: {missing}")
     for name, entry in _GAP_DISPOSITIONS.items():
         check = indexed[name]
-        if check.required or check.passed():
+        if check.required:
             raise ValueError(
                 f"final gap disposition is no longer a failing non-gating check: {name}"
             )
+        if check.passed():
+            if verify_evidence:
+                raise ValueError(
+                    "final gap disposition is no longer a failing non-gating "
+                    f"check: {name}"
+                )
+            continue
         if check.disposition is not None and check.disposition != entry["disposition"]:
             raise ValueError(f"conflicting final disposition for {name}")
         if verify_evidence:

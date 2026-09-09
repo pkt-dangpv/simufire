@@ -121,6 +121,50 @@ def test_gap_evidence_bypass_is_explicit_and_canonical_mode_stays_strict(
     assert check.disposition == "VERIFIED_MODEL_LIMITATION"
 
 
+def test_mutation_overlay_omits_only_non_gating_gaps_that_become_passing(
+    monkeypatch,
+):
+    validator = _load_validator()
+    passing_gap = validator.Check(
+        name="mutation_only_passing_gap",
+        actual=0.5,
+        maximum=1.0,
+        required=False,
+    )
+    monkeypatch.setattr(
+        validator,
+        "_GAP_DISPOSITIONS",
+        {
+            "mutation_only_passing_gap": {
+                "disposition": "VERIFIED_MODEL_LIMITATION"
+            }
+        },
+    )
+    monkeypatch.setattr(
+        validator,
+        "_GAP_DISPOSITION_EVIDENCE",
+        {"mutation_only_passing_gap": passing_gap.to_dict()},
+    )
+
+    with pytest.raises(
+        ValueError, match="no longer a failing non-gating check"
+    ):
+        validator._apply_gap_dispositions([passing_gap])
+
+    validator._apply_gap_dispositions(
+        [passing_gap], verify_evidence=False
+    )
+    assert passing_gap.disposition is None
+
+    passing_gap.required = True
+    with pytest.raises(
+        ValueError, match="no longer a failing non-gating check"
+    ):
+        validator._apply_gap_dispositions(
+            [passing_gap], verify_evidence=False
+        )
+
+
 def test_vacuous_stale_mutation_report_is_rejected():
     auditor = _load_auditor()
     report = json.loads(MUTATION_REPORT.read_text(encoding="utf-8"))
