@@ -49,6 +49,10 @@ const PARAPET_M: float = 1.15
 ## caja, asi que no hay redondeos acumulados: un centimetro sobra.
 const TOL_M: float = 0.01
 
+## Tool.ROOM del editor. Se copia el numero, como hacen los demas guardarrailes
+## que manejan el editor: el enum es suyo y no se exporta.
+const TOOL_ROOM: int = 1
+
 var _failures: Array[String] = []
 
 
@@ -59,6 +63,7 @@ func _ready() -> void:
 func _run() -> void:
 	await get_tree().process_frame
 	_check_serializer()
+	await _check_editor_tool()
 	await _check_geometry()
 	await _check_limits()
 	_finish()
@@ -90,6 +95,65 @@ func _check_serializer() -> void:
 		_fail("el vuelo no se recorta al maximo: %.2f m" % float(recortado.get("balcony_depth_m", 0.0)))
 	if absf(float(recortado.get("balcony_parapet_m", 0.0)) - 0.60) > TOL_M:
 		_fail("el antepecho no se levanta al minimo: %.2f m" % float(recortado.get("balcony_parapet_m", 0.0)))
+
+
+## --- La herramienta del editor ---
+##
+## Una balconera es UNA cosa, no una puerta a la que despues se le marca una
+## casilla: la herramienta la crea entera -exterior, hasta el suelo y con su
+## balcon-. Y se niega en un tabique interior, porque ahi no hay fachada.
+func _check_editor_tool() -> void:
+	var packed := load("res://scenes/ScenarioEditorScene.tscn") as PackedScene
+	var editor: Node = packed.instantiate()
+	add_child(editor)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	editor.editor_data = {
+		"floors": [{"name": FloorNaming.label(0), "level_m": 0.0}],
+		"exterior_walls": [], "room_rect_m": {}, "rooms_data": [],
+		"openings_data": [], "detectors": [], "victims": [],
+		"player_start": {}, "ignition_room_id": -1,
+	}
+	editor.current_floor_index = 0
+	# Dos salas pegadas: la fachada de la primera es exterior, el tabique que
+	# comparten no lo es.
+	editor.current_tool = TOOL_ROOM
+	editor._handle_press(Vector2(0.0, 0.0))
+	editor._handle_release(Vector2(5.0, 4.0))
+	editor.current_tool = TOOL_ROOM
+	editor._handle_press(Vector2(0.0, 4.0))
+	editor._handle_release(Vector2(5.0, 8.0))
+
+	editor._create_balcony_door_at(Vector2(2.5, 0.02))
+	var openings: Array = editor.editor_data.get("openings_data", [])
+	if openings.is_empty():
+		_fail("la herramienta de puerta de balcon no creo nada en una fachada")
+	else:
+		var op: Dictionary = openings[openings.size() - 1]
+		if String(op.get("type", "")) != "door":
+			_fail("la puerta de balcon no se crea como puerta, sino como %s" % String(op.get("type", "")))
+		if absf(float(op.get("sill_m", -1.0))) > TOL_M:
+			_fail("la puerta de balcon no llega al suelo: alfeizar %.2f m" % float(op.get("sill_m", -1.0)))
+		if not bool(op.get("has_balcony", false)):
+			_fail("la puerta de balcon nace sin balcon")
+		if int(op.get("b", 0)) != -1 and int(op.get("a", 0)) != -1:
+			_fail("la puerta de balcon no da al exterior")
+		if float(op.get("height_m", 0.0)) < 1.90:
+			_fail("la puerta de balcon mide %.2f m de alto: no es una balconera" % float(op.get("height_m", 0.0)))
+
+	# En el tabique compartido tiene que negarse.
+	var antes: int = Array(editor.editor_data.get("openings_data", [])).size()
+	editor._create_balcony_door_at(Vector2(2.5, 4.0))
+	if Array(editor.editor_data.get("openings_data", [])).size() != antes:
+		_fail("la herramienta cuelga un balcon de un tabique interior")
+
+	var errores: Array = Serializer.validate_scenario(editor.editor_data)
+	if not errores.is_empty():
+		_fail("el escenario con puerta de balcon no valida: %s" % str(errores))
+
+	remove_child(editor)
+	editor.free()
 
 
 ## --- La geometria y el paso ---

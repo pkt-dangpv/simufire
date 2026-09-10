@@ -1997,7 +1997,7 @@ func _create_opening_panels() -> void:
 				0.045,
 				-1.0
 			)
-		else:
+		elif not _is_balcony_opening(op):
 			asset = _try_build_opening_asset(body, op)
 			if asset != null:
 				mesh.visible = false
@@ -6877,7 +6877,7 @@ func _update_opening_panel(index: int) -> void:
 	var height_m: float = float(info.get("height_m", 2.0))
 	var sill_m: float = float(info.get("sill_m", 0.0))
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-	var panel_thickness: float = closed_door_thickness_m if is_door else 0.045
+	var panel_thickness: float = 0.045 if (not is_door or _is_balcony_opening(op)) else closed_door_thickness_m
 	var size := Vector3(width_m, height_m, panel_thickness)
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
@@ -6954,7 +6954,9 @@ func _update_opening_panel(index: int) -> void:
 	shape.disabled = (not is_door and not (is_window and window_collision_when_closed)) or open_amount > 0.05
 	if light != null:
 		var area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
-		if op.type == OpeningModel.Type.WINDOW:
+		# Por una balconera entra la luz de la CALLE, no la del rellano: es una
+		# puerta, pero da a fachada.
+		if op.type == OpeningModel.Type.WINDOW or _is_balcony_opening(op):
 			light.light_color = _effective_window_light_color()
 			light.light_energy = _effective_window_light_energy() * area_factor * lerpf(0.45, 1.0, open_amount) * smoke_transmission
 			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount) * lerpf(0.72, 1.0, smoke_transmission)
@@ -7066,6 +7068,14 @@ func _door_hinge_side(op: OpeningModel) -> String:
 
 
 func _opening_material(op: OpeningModel) -> StandardMaterial3D:
+	# Una balconera es una puerta acristalada: se abre y se cierra como puerta
+	# -abate, tiene bisagra y su lado de apertura- pero se VE como una ventana.
+	# Pintarla de madera maciza tapaba la calle desde dentro y era justo lo que
+	# distingue una balconera de la puerta de entrada.
+	if _is_balcony_opening(op):
+		if op.open_fraction > 0.5:
+			return _mat(window_glass_open_color, true)
+		return _mat(window_glass_closed_color, true)
 	if op.type == OpeningModel.Type.DOOR:
 		if op.open_fraction > 0.5:
 			return _mat(Color(0.50, 0.34, 0.18, 0.76), true, Color(0.0, 0.0, 0.0, 0.0), 0.0, 5201)

@@ -14,7 +14,10 @@ enum Tool {
 	PLAYER_START,
 	DELETE,
 	DETECTOR,
-	VICTIM
+	VICTIM,
+	## Puerta de balcon (balconera): puerta exterior hasta el suelo, acristalada
+	## y con su balcon puesto. Va al final del enum para no renumerar el resto.
+	BALCONY_DOOR
 }
 
 enum ObjectMouseMode {
@@ -1228,7 +1231,8 @@ func _is_3d_simple_tool(tool_id: int) -> bool:
 		Tool.PLAYER_START,
 		Tool.DELETE,
 		Tool.DETECTOR,
-		Tool.VICTIM
+		Tool.VICTIM,
+		Tool.BALCONY_DOOR
 	]
 
 
@@ -1521,6 +1525,9 @@ func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
 			_sync_editor_3d_after_direct_edit()
 		Tool.WINDOW:
 			_create_window_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.BALCONY_DOOR:
+			_create_balcony_door_at(floor_pos_m)
 			_sync_editor_3d_after_direct_edit()
 		Tool.OBJECT:
 			_create_object_at(floor_pos_m)
@@ -2870,6 +2877,14 @@ func _opening_on_current_floor(opening: Dictionary) -> bool:
 ##
 ## Escape va el ultimo a proposito: el tooltip anuncia la primera tecla de la
 ## lista, y "1" se lee mas rapido que "Escape".
+## Medidas con las que nace una puerta de balcon. Una balconera espanola de dos
+## hojas ronda el metro cuarenta, y llega al suelo: el alfeizar es 0.
+const BALCONY_DOOR_WIDTH_M: float = 1.40
+const BALCONY_DOOR_HEIGHT_M: float = 2.10
+const BALCONY_DEFAULT_DEPTH_M: float = 1.20
+const BALCONY_DEFAULT_PARAPET_M: float = 1.10
+
+
 const TOOL_SHORTCUTS: Dictionary = {
 	KEY_1: Tool.SELECT,
 	KEY_3: Tool.ROOM,
@@ -2877,6 +2892,7 @@ const TOOL_SHORTCUTS: Dictionary = {
 	KEY_5: Tool.STAIRS,
 	KEY_6: Tool.DOOR,
 	KEY_7: Tool.WINDOW,
+	KEY_B: Tool.BALCONY_DOOR,
 	KEY_8: Tool.HOLE,
 	KEY_9: Tool.OBJECT,
 	KEY_0: Tool.DELETE,
@@ -2898,6 +2914,7 @@ const TOOL_NAMES: Dictionary = {
 	Tool.STAIRS: ["editor.tool.stairs", "Escalera"],
 	Tool.DOOR: ["editor.tool.door", "Puerta"],
 	Tool.WINDOW: ["editor.tool.window", "Ventana"],
+	Tool.BALCONY_DOOR: ["editor.tool.balcony_door", "P. balcón"],
 	Tool.HOLE: ["editor.tool.hole", "Hueco"],
 	Tool.OBJECT: ["editor.tool.object", "Objeto"],
 	Tool.DELETE: ["editor.tool.delete", "Borrar"],
@@ -2921,6 +2938,7 @@ const TOOL_ICONS: Dictionary = {
 	Tool.STAIRS: "res://ui/icons/tool_stairs.svg",
 	Tool.DOOR: "res://ui/icons/tool_door.svg",
 	Tool.WINDOW: "res://ui/icons/tool_window.svg",
+	Tool.BALCONY_DOOR: "res://ui/icons/tool_balcony_door.svg",
 	Tool.HOLE: "res://ui/icons/tool_hole.svg",
 	Tool.OBJECT: "res://ui/icons/tool_object.svg",
 	Tool.DELETE: "res://ui/icons/tool_delete.svg",
@@ -3007,6 +3025,8 @@ func _tool_hint(tool_id: int) -> String:
 				return "3D Hueco: pulsa el suelo muy cerca de una pared compartida."
 			Tool.WINDOW:
 				return "3D Ventana: pulsa el suelo muy cerca de una pared exterior."
+			Tool.BALCONY_DOOR:
+				return "3D Puerta de balcón: pulsa el suelo muy cerca de una pared exterior."
 			Tool.OBJECT:
 				return _ui_text("editor.tooltip_3d_object", "3D objeto: pulsa el suelo de una habitación para colocar el combustible elegido.")
 			Tool.IGNITION:
@@ -3034,6 +3054,8 @@ func _tool_hint(tool_id: int) -> String:
 			return "Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho máximo limitado por el paramento." % _current_floor_name()
 		Tool.WINDOW:
 			return "Ventana: pulsa cerca de una pared exterior en %s." % _current_floor_name()
+		Tool.BALCONY_DOOR:
+			return "Puerta de balcón: pulsa una pared exterior en %s. Crea una balconera hasta el suelo con su balcón puesto; al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es." % _current_floor_name()
 		Tool.OBJECT:
 			return "Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
 		Tool.IGNITION:
@@ -3273,6 +3295,8 @@ func _handle_press(pos_m: Vector2) -> void:
 			_create_hole_at(pos_m)
 		Tool.WINDOW:
 			_create_window_at(pos_m)
+		Tool.BALCONY_DOOR:
+			_create_balcony_door_at(pos_m)
 		Tool.OBJECT:
 			_create_object_at(pos_m)
 		Tool.IGNITION:
@@ -5920,6 +5944,42 @@ func _create_window_at(pos_m: Vector2) -> void:
 	queue_redraw()
 
 
+## Puerta de balcon, o balconera: una puerta exterior hasta el suelo con su
+## balcon puesto. Se crea de una vez porque es UNA cosa -nadie pone una
+## balconera y luego decide si le cuelga un balcon-, y porque hacerlo a mano
+## pedia crear una puerta, cambiarle el alfeizar y marcar la casilla.
+##
+## Para el motor es una puerta exterior y nada mas: el hueco que ventila es el
+## de la hoja, y de eso ya se encarga el balance de presiones. Lo que la
+## distingue de la puerta de entrada es que da a la calle -no al portal- y que
+## llega al suelo, y las dos cosas cambian como ventila.
+func _create_balcony_door_at(pos_m: Vector2) -> void:
+	var wall: Dictionary = _find_wall_at(pos_m)
+	if wall.is_empty():
+		_set_status("Pulsa cerca de una pared para crear una puerta de balcón.")
+		return
+
+	var room_id: int = int(wall["room_id"])
+	var offset_m: float = float(wall["offset_m"])
+	var width_m: float = minf(BALCONY_DOOR_WIDTH_M, PlanGeometry.wall_length(_get_room_rect(room_id), String(wall["wall"])))
+	if not _is_wall_exterior(room_id, String(wall["wall"]), offset_m, width_m):
+		_set_status("Pulsa un tramo de pared exterior: un balcón cuelga de la fachada.")
+		return
+
+	_add_opening(room_id, OUTSIDE_ID, "door", String(wall["wall"]), offset_m, width_m, BALCONY_DOOR_HEIGHT_M, 0.0, 0.0)
+	var openings: Array = editor_data.get("openings_data", [])
+	if not openings.is_empty():
+		var op: Dictionary = openings[openings.size() - 1]
+		op["has_balcony"] = true
+		op["balcony_width_m"] = 0.0
+		op["balcony_depth_m"] = BALCONY_DEFAULT_DEPTH_M
+		op["balcony_parapet_m"] = BALCONY_DEFAULT_PARAPET_M
+		openings[openings.size() - 1] = op
+		editor_data["openings_data"] = openings
+	_set_status("Puerta de balcón creada en habitación %d. El balcón se ve, pero no se sale a él." % room_id)
+	queue_redraw()
+
+
 func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: float, width_m: float, height_m: float, sill_m: float, open_fraction: float, record_undo: bool = true) -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	if type_str == "hole":
@@ -7550,6 +7610,7 @@ func _bind_existing_ui() -> bool:
 	var btn_door := _ui_root.get_node_or_null("TopBar/HBox/BtnDoor") as Button
 	var btn_hole := _ui_root.get_node_or_null("TopBar/HBox/BtnHole") as Button
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
+	var btn_balcony_door := _ui_root.get_node_or_null("TopBar/HBox/BtnBalconyDoor") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
 	var btn_player_start := _ui_root.get_node_or_null("TopBar/HBox/BtnPlayerStart") as Button
@@ -7570,6 +7631,8 @@ func _bind_existing_ui() -> bool:
 	btn_door.text = _tool_display_name(Tool.DOOR)
 	btn_hole.text = _tool_display_name(Tool.HOLE)
 	btn_window.text = _tool_display_name(Tool.WINDOW)
+	if btn_balcony_door != null:
+		btn_balcony_door.text = _tool_display_name(Tool.BALCONY_DOOR)
 	btn_object.text = _tool_display_name(Tool.OBJECT)
 	btn_ignite.text = _tool_display_name(Tool.IGNITION)
 	btn_player_start.text = _tool_display_name(Tool.PLAYER_START)
@@ -7587,6 +7650,8 @@ func _bind_existing_ui() -> bool:
 	_register_tool_button(btn_door, Tool.DOOR)
 	_register_tool_button(btn_hole, Tool.HOLE)
 	_register_tool_button(btn_window, Tool.WINDOW)
+	if btn_balcony_door != null:
+		_register_tool_button(btn_balcony_door, Tool.BALCONY_DOOR)
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
 	_register_tool_button(btn_player_start, Tool.PLAYER_START)

@@ -971,6 +971,16 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
   seis mutaciones: quitar la barrera, dar colisión a la losa, ignorar el vuelo
   declarado, quitar el recorte del ancho, descentrar el recorte en vez de
   estrecharlo y quitar el tope de vuelo del dato.
+- ✅ **Puerta de balcón (balconera)** como herramienta propia del editor
+  (tecla **B**, icono propio): crea de una vez la puerta exterior hasta el
+  suelo —1,40 × 2,10 m, alféizar 0— **con su balcón puesto**, y se niega en un
+  tabique interior. Es una cosa, no una puerta a la que después se le marca una
+  casilla. En la vista FP se dibuja **acristalada** —abate como puerta, se ve
+  como ventana— y por ella entra luz de calle, no de rellano: pintada de madera
+  maciza tapaba la calle desde dentro, que es justo lo que distingue una
+  balconera de la puerta de entrada.
+- ✅ **El motor la ve, y ventila por ella según su geometría** (comprobado el
+  2026-09-10 en `sim/core/GasExchangeSystem.gd`): ver §11.
 - ⏳ **Ningún preajuste trae balcón todavía**: la pieza existe y el editor la
   pone, pero para verla hay que declararla. Convertir una ventana de
   `piso_mediterraneo` es una línea de datos, y es decisión tuya.
@@ -1000,5 +1010,38 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
    la calle muy abajo?
 6. ~~**N-4 · Plantas totales**~~ — **decidido: son las dibujadas**, y los
    vecinos las mismas. Hecho el 2026-09-09.
-7. **N-1 · Balcones**: ¿solo en el edificio del jugador, o también en las plantas
-   de arriba y abajo, que es lo que se ve al asomarse?
+7. ~~**N-1 · Balcones**~~ — **decidido: solo en el edificio del jugador**.
+   Hecho el 2026-09-10.
+
+---
+
+## 11. ¿El motor lee la abertura, o la ventilación es fija?
+
+Comprobado el **2026-09-10** en `sim/core/GasExchangeSystem.gd`, a raíz de la
+puerta de balcón. **La lee, y la ventilación sale de su geometría.** No hay
+ningún caudal fijo por sala ni ninguna renovación por hora constante.
+
+Lo que el motor usa de cada abertura:
+
+| qué | dónde | cómo entra |
+|---|---|---|
+| **Área** | `op.width_m * op.height_m * op.open_fraction_smooth` | Es el área efectiva de todos los caudales, con Cd = 0,61. Aparece en el venteo por presión, en la ventilación natural y en el intercambio de especies. |
+| **Alto** | `h^1,5` en la salida por flotabilidad | `Q = 0,61 · w · (2/3) · h^1,5 · √(2g·ΔT/T)`. El alto pesa **más que el ancho**: a igual área, una abertura alta ventila más. |
+| **Alféizar** | `LayerInterfaceModel.get_exterior_opening_hot_outflow_height_m` | La franja de salida caliente es `dintel − max(alféizar, interfaz de capa)`. Una abertura a ras de suelo y una ventana con alféizar de 0,9 m **no ventilan igual aunque midan lo mismo**. |
+| **Alféizar y alto** | `_opening_segment_midpoint_m` | Sitúan las alturas de los tramos de entrada y salida respecto del plano neutro. |
+| **Orientación** | `_compute_wind_dp_pa`, según `op.wall_side` | ΔP de viento con coeficientes de presión tipo Eurocode EN 1991-1-4: barlovento positivo, sotavento negativo. Sin `wall_side` conocido, el viento no actúa. |
+| **Fracción de apertura** | `open_fraction_smooth` | Suavizada, para que abrir una ventana no dé un salto instantáneo de presión. La rotura de cristal la sube por su cuenta. |
+| **Cota de la planta** | `floor_level_z_m` | Efecto chimenea entre plantas. |
+
+**Lo único fijo** es `window_leakage_area_m2 = 0,005 m²`: el área de fuga de una
+abertura **cerrada** —infiltración por el marco—, que es lo correcto, y además
+solo se usa fuera del camino de presión canónico.
+
+**Consecuencia para el balcón**: convertir una ventana en balconera cambia la
+ventilación de verdad y en la dirección esperada. De 1,20 × 1,10 con alféizar
+0,90 (1,32 m²) a 1,40 × 2,10 a ras de suelo (2,94 m²): más del doble de área,
+más alto —y el alto va a la potencia 1,5— y con la franja de salida caliente
+empezando en el suelo en vez de a 0,90 m. **El balcón en sí no entra en el
+modelo de fuego, y no debe**: lo que ventila es el hueco, y lo que hay al otro
+lado —un espacio semiabierto con antepecho— el motor no lo representa.
+

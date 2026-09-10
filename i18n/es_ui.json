@@ -42,6 +42,7 @@
 		"editor.tool.door": "Puerta",
 		"editor.tool.hole": "Hueco",
 		"editor.tool.window": "Ventana",
+		"editor.tool.balcony_door": "P. balcón",
 		"editor.tool.object": "Objeto",
 		"editor.tool.ignition": "Ignición",
 		"editor.tool.player_start": "Inicio FP",

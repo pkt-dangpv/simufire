@@ -201,6 +201,15 @@ theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "VENTANA"
 
+[node name="BtnBalconyDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220301]
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+tooltip_text = "Puerta de balcón: pulsa una pared exterior en R. Crea una balconera hasta el suelo con su balcón puesto; al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "P. BALCÓN"
+
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
