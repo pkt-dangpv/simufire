@@ -354,7 +354,27 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 		opening["open_fraction"] = 1.0
 	if opening.has("is_vertical"):
 		opening["is_vertical"] = bool(opening["is_vertical"])
+	_normalize_balcony(opening)
 	return opening
+
+
+## N-1: el balcon solo existe colgado de una abertura EXTERIOR y no vertical.
+## Un hueco entre dos salas no da a ninguna fachada y uno vertical es un hueco
+## de forjado, asi que ahi el dato se borra en vez de arrastrarse: si la
+## abertura se movio a un tabique interior, el balcon que tenia sobra.
+static func _normalize_balcony(opening: Dictionary) -> void:
+	var exterior: bool = int(opening.get("a", 0)) == -1 or int(opening.get("b", -1)) == -1
+	var vertical: bool = bool(opening.get("is_vertical", false))
+	if not exterior or vertical or not bool(opening.get("has_balcony", false)):
+		opening.erase("has_balcony")
+		opening.erase("balcony_width_m")
+		opening.erase("balcony_depth_m")
+		opening.erase("balcony_parapet_m")
+		return
+	opening["has_balcony"] = true
+	opening["balcony_width_m"] = maxf(0.0, float(opening.get("balcony_width_m", 0.0)))
+	opening["balcony_depth_m"] = clampf(float(opening.get("balcony_depth_m", 1.20)), 0.40, 3.00)
+	opening["balcony_parapet_m"] = clampf(float(opening.get("balcony_parapet_m", 1.10)), 0.60, 1.60)
 
 
 static func rect2_from_data(value: Variant) -> Rect2:

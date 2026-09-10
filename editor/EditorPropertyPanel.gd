@@ -68,6 +68,10 @@ var _opening_offset_spin: SpinBox
 var _opening_open_option: OptionButton
 var _opening_swing_option: OptionButton
 var _opening_hinge_option: OptionButton
+var _opening_balcony_check: CheckBox
+var _opening_balcony_width_spin: SpinBox
+var _opening_balcony_depth_spin: SpinBox
+var _opening_balcony_parapet_spin: SpinBox
 
 # ── Detector ────────────────────────────────────────────────────────────────
 var _detector_props_container: Control
@@ -161,6 +165,12 @@ func _bind_opening() -> void:
 	if _opening_hinge_option != null and _opening_hinge_option.get_item_count() == 0:
 		_opening_hinge_option.add_item("Izquierda", 0)
 		_opening_hinge_option.add_item("Derecha", 1)
+	_opening_balcony_check = _control("OpeningProps/OpeningBalconyRow/OpeningBalconyCheck") as CheckBox
+	_opening_balcony_width_spin = _spin("OpeningProps/OpeningBalconyWidthRow/OpeningBalconyWidthSpin", 0.0, 8.0, 0.05)
+	_opening_balcony_depth_spin = _spin("OpeningProps/OpeningBalconyDepthRow/OpeningBalconyDepthSpin", 0.40, 3.00, 0.05)
+	_opening_balcony_parapet_spin = _spin("OpeningProps/OpeningBalconyParapetRow/OpeningBalconyParapetSpin", 0.60, 1.60, 0.05)
+	if _opening_balcony_check != null and not _opening_balcony_check.toggled.is_connected(_on_balcony_toggled):
+		_opening_balcony_check.toggled.connect(_on_balcony_toggled)
 	_on_pressed(_control("OpeningProps/BtnApplyOpening") as Button, ACTION_OPENING_APPLY)
 
 
@@ -353,6 +363,33 @@ func _fill_opening(state: Dictionary) -> void:
 	if _opening_hinge_option != null:
 		_set_row_visible(_opening_hinge_option, is_door)
 		_opening_hinge_option.select(1 if String(opening.get("hinge_side", "left")).to_lower() == "right" else 0)
+	# N-1: el balcon solo se ofrece donde puede existir -abertura exterior y no
+	# vertical-. Ofrecerlo en un tabique interior seria un mando que no hace
+	# nada, que es peor que no tenerlo.
+	var accepts_balcony: bool = bool(state.get("opening_accepts_balcony", false))
+	var has_balcony: bool = accepts_balcony and bool(opening.get("has_balcony", false))
+	if _opening_balcony_check != null:
+		_set_row_visible(_opening_balcony_check, accepts_balcony)
+		_opening_balcony_check.set_pressed_no_signal(has_balcony)
+	if _opening_balcony_width_spin != null:
+		_opening_balcony_width_spin.value = float(opening.get("balcony_width_m", 0.0))
+	if _opening_balcony_depth_spin != null:
+		_opening_balcony_depth_spin.value = float(opening.get("balcony_depth_m", 1.20))
+	if _opening_balcony_parapet_spin != null:
+		_opening_balcony_parapet_spin.value = float(opening.get("balcony_parapet_m", 1.10))
+	_set_balcony_rows_visible(accepts_balcony and has_balcony)
+
+
+## Las medidas del balcon solo se ensenan cuando hay balcon: tres mandos
+## sueltos debajo de una casilla sin marcar no dicen a que pertenecen.
+func _set_balcony_rows_visible(visible: bool) -> void:
+	_set_row_visible(_opening_balcony_width_spin, visible)
+	_set_row_visible(_opening_balcony_depth_spin, visible)
+	_set_row_visible(_opening_balcony_parapet_spin, visible)
+
+
+func _on_balcony_toggled(pressed: bool) -> void:
+	_set_balcony_rows_visible(pressed)
 
 
 func fill_detector(det: Dictionary) -> void:
@@ -525,7 +562,11 @@ func read_opening() -> Dictionary:
 		"offset_m": _value(_opening_offset_spin),
 		"open_index": _opening_open_option.selected if _opening_open_option != null else 1,
 		"swing_index": _opening_swing_option.selected if _opening_swing_option != null else 0,
-		"hinge_index": _opening_hinge_option.selected if _opening_hinge_option != null else 0
+		"hinge_index": _opening_hinge_option.selected if _opening_hinge_option != null else 0,
+		"has_balcony": _opening_balcony_check.button_pressed if _opening_balcony_check != null else false,
+		"balcony_width_m": _value(_opening_balcony_width_spin),
+		"balcony_depth_m": _value(_opening_balcony_depth_spin),
+		"balcony_parapet_m": _value(_opening_balcony_parapet_spin)
 	}
 
 

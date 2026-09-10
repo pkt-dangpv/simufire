@@ -362,6 +362,25 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 3.0, 0.05) var own_facade_side_margin_m: float = 0.60
 @export_range(0.0, 2.0, 0.05) var own_facade_plinth_height_m: float = 0.65
 @export_range(0.0, 2.0, 0.05) var own_facade_parapet_m: float = 0.55
+
+## N-1, balcones del edificio del jugador. Cuelgan de las aberturas exteriores
+## que los declaren en el editor; los de los edificios de enfrente son otra
+## cosa y los gobierna `city_balconies_enabled`.
+##
+## Decision del usuario del 2026-09-10: **solo en el edificio del jugador**.
+## Las plantas de arriba y abajo de la fachada propia quedan lisas.
+@export var own_balconies_enabled: bool = true:
+	set(value):
+		own_balconies_enabled = value
+		_rebuild_if_live()
+## Canto de la losa en voladizo.
+@export_range(0.08, 0.40, 0.01) var own_balcony_slab_thickness_m: float = 0.18
+## Grueso del antepecho de fabrica.
+@export_range(0.04, 0.30, 0.01) var own_balcony_parapet_thickness_m: float = 0.11
+## Pasamanos: la banda que remata el antepecho. Es lo que le da escala.
+@export_range(0.0, 0.16, 0.01) var own_balcony_handrail_height_m: float = 0.06
+@export var own_balcony_color: Color = Color(0.74, 0.72, 0.68, 1.0)
+@export var own_balcony_handrail_color: Color = Color(0.30, 0.31, 0.32, 1.0)
 ## Separacion entre las lineas de forjado dibujadas en las plantas inferiores
 ## no modeladas (solo aparecen si la vivienda esta elevada sobre la calle).
 ## Altura de una planta. Gobierna tres cosas que TIENEN que cuadrar entre si:
@@ -2250,6 +2269,8 @@ func _collect_landing_footprints() -> void:
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
 			continue
+		if _is_balcony_opening(op):
+			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
 			continue
@@ -2287,6 +2308,12 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	if not show_landing_recess or op == null:
 		return
 	if not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
+		return
+	# El portal es de la puerta de ENTRADA. Una puerta con balcon es una
+	# balconera: detras hay calle, no rellano. Sin esto, el mismo hueco se
+	# comia dos decorados incompatibles, el portal y el balcon, uno dentro del
+	# otro.
+	if _is_balcony_opening(op):
 		return
 	if not _is_apartment_building():
 		_create_single_family_entry_recess(index, op, info)
@@ -3215,8 +3242,16 @@ func _create_exterior_context() -> void:
 				floor_level_m,
 				float(info.get("axis_center", 0.0))
 			)
+			if _is_balcony_opening(op):
+				# La losa del balcon ya es el suelo que hay ahi fuera.
+				has_landing = true
 			if (_is_apartment_building() or op.type == OpeningModel.Type.HOLE) and not has_landing:
 				_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
+
+		# El balcon cuelga del hueco, sea puerta o ventana: una balconera y una
+		# puerta de balcon se dibujan igual por fuera.
+		if own_balconies_enabled and op.has_balcony and op.accepts_balcony():
+			_create_own_balcony(root, index, center, normal, tangent, op, info)
 
 		var key: String = "%d_%d" % [roundi(normal.x * 4.0), roundi(normal.z * 4.0)]
 		if not facades.has(key):
@@ -4634,6 +4669,159 @@ func _create_own_facade_panel(parent: Node3D, key: String, group: Dictionary, gr
 		_add_facade_slab(parent, "OwnFacadeBand_%s_%d" % [key, roundi(level_y * 100.0)], horizontal,
 			center_u, level_y, band_axis_m, span_u, 0.20, band_depth,
 			_mat(exterior_facade_color.darkened(0.10), false))
+
+
+## --- N-1: balcones del edificio del jugador ---
+##
+## Cuelgan de una abertura exterior que los declare en el editor. Tres piezas:
+## la losa en voladizo, el antepecho en U -frente y dos retornos- y el
+## pasamanos que lo remata.
+##
+## **No se puede salir a ellos, y es a proposito.** La puerta del balcon se
+## abre -importa para el fuego: es un hueco a fachada, y el motor lo trata como
+## la puerta que es-, pero el suelo del balcon no tiene colision y el hueco se
+## cierra con un colisionador invisible en el plano de la fachada. Modelar un
+## balcon transitable pide barandilla con colision, borde de losa, y decidir
+## que pasa cuando el jugador se asoma a una vivienda que no esta modelada.
+## Nada de eso aporta al incendio, que es lo que se simula aqui.
+func _create_own_balcony(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	op: OpeningModel,
+	info: Dictionary
+) -> void:
+	var span_m: float = op.balcony_span_m()
+	var flight_m: float = maxf(0.10, op.balcony_depth_m)
+	var parapet_m: float = maxf(0.0, op.balcony_parapet_m)
+	if span_m <= 0.20:
+		return
+
+	var horizontal: bool = absf(tangent.x) >= absf(tangent.z)
+	var outward: Vector3 = -normal.normalized()
+	var width_m: float = float(info.get("width_m", op.width_m))
+	var height_m: float = float(info.get("height_m", op.height_m))
+	var sill_m: float = float(info.get("sill_m", op.sill_m))
+	# El suelo de la vivienda, deducido del centro del hueco: es la cota a la
+	# que tiene que quedar la cara de arriba de la losa.
+	var floor_y: float = center.y - (sill_m + height_m * 0.5)
+	var wall_face_m: float = wall_thickness_m * 0.5
+	# La losa arranca en la cara del muro y pasa por debajo del lienzo de
+	# fachada; si arrancase en el lienzo quedaria una ranura entre los dos.
+	var depth_total_m: float = own_facade_thickness_m + flight_m
+	var origin: Vector3 = Vector3(center.x, floor_y, center.z)
+	var slab_t: float = own_balcony_slab_thickness_m
+	var par_t: float = own_balcony_parapet_thickness_m
+	var mat: StandardMaterial3D = _mat(own_balcony_color, false)
+
+	# Losa en voladizo. Sin colision: es lo que impide salir andando.
+	_add_box(
+		parent,
+		"OwnBalconySlab_%02d" % index,
+		_balcony_size(span_m, slab_t, depth_total_m, horizontal),
+		origin + outward * (wall_face_m + depth_total_m * 0.5) + Vector3.DOWN * (slab_t * 0.5),
+		mat,
+		false
+	)
+
+	if parapet_m > 0.05:
+		# Frente.
+		_add_box(
+			parent,
+			"OwnBalconyParapet_%02d_F" % index,
+			_balcony_size(span_m, parapet_m, par_t, horizontal),
+			origin + outward * (wall_face_m + depth_total_m - par_t * 0.5) + Vector3.UP * (parapet_m * 0.5),
+			mat,
+			false
+		)
+		# Los dos retornos, hasta morir contra la fachada.
+		for side in [-1.0, 1.0]:
+			_add_box(
+				parent,
+				"OwnBalconyParapet_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+				_balcony_size(par_t, parapet_m, depth_total_m, horizontal),
+				origin
+					+ outward * (wall_face_m + depth_total_m * 0.5)
+					+ tangent * (side * (span_m * 0.5 - par_t * 0.5))
+					+ Vector3.UP * (parapet_m * 0.5),
+				mat,
+				false
+			)
+		# Pasamanos: la banda que remata el antepecho. Un antepecho liso de
+		# fabrica no se lee como balcon desde dentro; el remate si.
+		if own_balcony_handrail_height_m > 0.005:
+			var rail_h: float = own_balcony_handrail_height_m
+			var rail_mat: StandardMaterial3D = _mat(own_balcony_handrail_color, false)
+			var rail_top_y: float = floor_y + parapet_m + rail_h * 0.5
+			_add_box(
+				parent,
+				"OwnBalconyHandrail_%02d_F" % index,
+				_balcony_size(span_m + 0.04, rail_h, par_t + 0.05, horizontal),
+				origin + outward * (wall_face_m + depth_total_m - par_t * 0.5) + Vector3.UP * (rail_top_y - floor_y),
+				rail_mat,
+				false
+			)
+			for side in [-1.0, 1.0]:
+				_add_box(
+					parent,
+					"OwnBalconyHandrail_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+					_balcony_size(par_t + 0.05, rail_h, depth_total_m, horizontal),
+					origin
+						+ outward * (wall_face_m + depth_total_m * 0.5)
+						+ tangent * (side * (span_m * 0.5 - par_t * 0.5))
+						+ Vector3.UP * (rail_top_y - floor_y),
+					rail_mat,
+					false
+				)
+
+	_add_balcony_barrier(parent, index, center, outward, width_m, height_m, horizontal)
+
+
+## Cierto si esta abertura lleva balcon Y los balcones estan encendidos. Es la
+## pregunta que hacen el portal y la entrada para apartarse.
+func _is_balcony_opening(op: OpeningModel) -> bool:
+	return own_balconies_enabled and op != null and op.has_balcony and op.accepts_balcony()
+
+
+## Tamano de una caja del balcon en ejes de mundo. `along` corre a lo largo de
+## la fachada, `across` sale de ella; cual es X y cual es Z depende de como este
+## puesto el muro.
+func _balcony_size(along_m: float, height_m: float, across_m: float, horizontal: bool) -> Vector3:
+	if horizontal:
+		return Vector3(along_m, height_m, across_m)
+	return Vector3(across_m, height_m, along_m)
+
+
+## El colisionador invisible que cierra el hueco del balcon. Es lo unico que
+## impide salir: la losa y el antepecho no colisionan. No lleva malla -no se
+## dibuja nada- y se planta en el plano de la fachada, por fuera de la hoja,
+## para que la puerta pueda abrir sin atravesarlo.
+func _add_balcony_barrier(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	outward: Vector3,
+	width_m: float,
+	height_m: float,
+	horizontal: bool
+) -> void:
+	var body := StaticBody3D.new()
+	body.name = "OwnBalconyBarrier_%02d" % index
+	# El cuerpo se planta en el hueco y la forma va en su origen. Al reves -el
+	# cuerpo en el origen del mundo y la forma desplazada- colisiona igual,
+	# pero la posicion del nodo miente, y es lo que se mira al depurar.
+	body.position = center + outward * (wall_thickness_m * 0.5 + 0.05)
+	parent.add_child(body, true)
+	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
+	var box := BoxShape3D.new()
+	# Algo mas ancho y mas alto que el hueco: por el canto de la jamba no se
+	# cuela nadie, pero por la holgura del recorte si.
+	box.size = _balcony_size(width_m + 0.30, height_m + 0.30, 0.10, horizontal)
+	shape.shape = box
+	body.add_child(shape)
 
 
 ## Alturas de las lineas de forjado: las plantas realmente modeladas mas, si
@@ -6998,6 +7186,11 @@ func _place_at_entry() -> void:
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
+			continue
+		# Sin `player_start` se entra por la puerta, y la puerta no es la
+		# balconera: aparecer en un balcon al que no se puede salir seria
+		# aparecer encerrado.
+		if _is_balcony_opening(op):
 			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():

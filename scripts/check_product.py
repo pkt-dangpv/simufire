@@ -365,6 +365,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor load error dialog: " + (diagnostic or "failed"))
 
+    # N-1, balcones del edificio del jugador: se construye lo que se declara,
+    # y al balcon NO se puede salir.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_balconies.tscn",
+        "[validate_balconies] PASS",
+    )
+    rows.append(("Balcones del edificio Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot balconies: " + (diagnostic or "failed"))
+
     # La convencion de plantas -R, R+1, R+2- es la misma en el editor, el
     # serializador, el minimapa y el selector del 2D, y un escenario guardado
     # con la convencion vieja (PB / P1) se relee con la nueva.

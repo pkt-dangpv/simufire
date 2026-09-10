@@ -32,6 +32,20 @@ var swing_direction: String = "in"
 var hinge_side: String = "left"
 var glass_broken: bool = false
 
+# N-1: balcon colgado de esta abertura. Es DECORADO y solo lo mira la vista:
+# la losa no es transitable y el motor no lo lee. Un balcon no cambia el hueco
+# -sigue siendo la misma puerta o ventana, con su ancho, su alto y su alfeizar-,
+# cambia lo que hay al otro lado, y eso el modelo de fuego no lo representa.
+# Solo tiene sentido en una abertura exterior y no vertical.
+var has_balcony: bool = false
+# Ancho de la losa. 0 = se deriva del ancho del hueco (ver `balcony_span_m`).
+var balcony_width_m: float = 0.0
+# Vuelo: cuanto sale la losa de la fachada.
+var balcony_depth_m: float = 1.20
+# Antepecho. 1,10 m es el minimo del CTE DB-SUA 1 para desniveles de mas de
+# 6 m, que es cualquier balcon a partir de la tercera planta.
+var balcony_parapet_m: float = 1.10
+
 # Fracción de apertura efectiva adicional por deformación térmica del marco.
 # Calculada cada paso por GasExchangeSystem según la temp. de la sala adyacente.
 # NO se persiste en JSON; solo aplica a puertas interiores (type == DOOR).
@@ -89,6 +103,20 @@ func lintel_height_m() -> float:
 
 func is_exterior_opening() -> bool:
 	return a == BuildingModel.OUTSIDE_ID or b == BuildingModel.OUTSIDE_ID
+
+
+## Si esta abertura puede llevar balcon colgado. Un hueco entre dos salas no da
+## a ninguna fachada, y uno vertical es un hueco de forjado.
+func accepts_balcony() -> bool:
+	return is_exterior_opening() and not is_vertical
+
+
+## Ancho real de la losa del balcon. Sin dato propio, se saca del hueco: un
+## balcon algo mas ancho que la puerta, que es lo que se construye.
+func balcony_span_m() -> float:
+	if balcony_width_m > 0.05:
+		return balcony_width_m
+	return width_m + 0.80
 
 
 func is_closed() -> bool:

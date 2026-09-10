@@ -286,12 +286,29 @@ static func rooms(canvas: CanvasItem, rooms_view: Array, font: Font, scale_inv: 
 			handles(canvas, room["handles"])
 
 
+## Huella del balcon en planta: losa translucida y el antepecho por los tres
+## lados libres. El cuarto lado es la fachada y ahi no hay antepecho.
+static func balcony(canvas: CanvasItem, corners_px: PackedVector2Array, color: Color) -> void:
+	if corners_px.size() != 4:
+		return
+	canvas.draw_colored_polygon(corners_px, Color(color.r, color.g, color.b, 0.20))
+	canvas.draw_polyline(
+		PackedVector2Array([corners_px[0], corners_px[3], corners_px[2], corners_px[1]]),
+		Color(color.r, color.g, color.b, 0.90),
+		2.0
+	)
+
+
 static func openings(canvas: CanvasItem, openings_view: Array) -> void:
 	for entry in openings_view:
 		var opening: Dictionary = entry
 		if bool(opening.get("vertical", false)):
 			vertical_opening(canvas, opening.get("rect_px", Rect2()), opening.get("color", Color.WHITE))
 			continue
+		# El balcon va DEBAJO de la linea del hueco: es el suelo que cuelga por
+		# fuera, no una pieza mas del paramento.
+		if opening.has("balcony_px"):
+			balcony(canvas, opening["balcony_px"], opening.get("color", Color.WHITE))
 		var a_px: Vector2 = opening.get("a_px", Vector2.ZERO)
 		var b_px: Vector2 = opening.get("b_px", Vector2.ZERO)
 		canvas.draw_line(a_px, b_px, Color(0.04, 0.06, 0.07, 0.95), 8.0)

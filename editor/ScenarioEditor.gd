@@ -5217,6 +5217,7 @@ func _refresh_property_panel() -> void:
 			_get_room_rect(int(opening.get("a", -1))),
 			String(opening.get("wall", "top"))
 		)
+		state["opening_accepts_balcony"] = _opening_accepts_balcony(opening)
 	_props.show(state)
 	_refresh_element_list()
 
@@ -6584,10 +6585,36 @@ func _apply_opening_properties() -> void:
 	if op_type == "door":
 		op["swing_direction"] = "out" if int(fields.get("swing_index", 0)) == 1 else "in"
 		op["hinge_side"] = "right" if int(fields.get("hinge_index", 0)) == 1 else "left"
+	_apply_balcony_fields(op, fields)
 	openings[selected_opening_index] = op
 	editor_data["openings_data"] = openings
 	_set_status("Apertura actualizada.")
 	queue_redraw()
+
+
+## N-1: el balcon cuelga de una abertura EXTERIOR y no vertical. En un tabique
+## interior no hay fachada de la que colgarlo, y un hueco vertical es un hueco
+## de forjado.
+func _opening_accepts_balcony(opening: Dictionary) -> bool:
+	if bool(opening.get("is_vertical", false)):
+		return false
+	return int(opening.get("a", 0)) == OUTSIDE_ID or int(opening.get("b", -1)) == OUTSIDE_ID
+
+
+## Guarda el balcon en la abertura. Sin balcon se BORRAN las medidas en vez de
+## dejarlas dormidas: asi el JSON dice lo que hay, y una abertura que dejo de
+## tener balcon no arrastra un vuelo de 1,20 m que no se usa.
+func _apply_balcony_fields(op: Dictionary, fields: Dictionary) -> void:
+	if not _opening_accepts_balcony(op) or not bool(fields.get("has_balcony", false)):
+		op.erase("has_balcony")
+		op.erase("balcony_width_m")
+		op.erase("balcony_depth_m")
+		op.erase("balcony_parapet_m")
+		return
+	op["has_balcony"] = true
+	op["balcony_width_m"] = maxf(0.0, float(fields.get("balcony_width_m", 0.0)))
+	op["balcony_depth_m"] = clampf(float(fields.get("balcony_depth_m", 1.20)), 0.40, 3.00)
+	op["balcony_parapet_m"] = clampf(float(fields.get("balcony_parapet_m", 1.10)), 0.60, 1.60)
 
 
 func _draw() -> void:
@@ -6796,8 +6823,40 @@ func _plan_openings_view() -> Array:
 			var swing: Dictionary = _door_swing_view(opening, segment_m)
 			if not swing.is_empty():
 				entry["swing"] = swing
+		var balcony_px: PackedVector2Array = _balcony_outline_px(opening, segment_m)
+		if balcony_px.size() == 4:
+			entry["balcony_px"] = balcony_px
 		out.append(entry)
 	return out
+
+
+## N-1: la huella del balcon en planta, para que el editor ensene lo que se va
+## a construir. Es un rectangulo colgado por FUERA del paramento; el editor
+## dibuja la vivienda, y el balcon es lo primero que se sale de ella.
+func _balcony_outline_px(opening: Dictionary, segment_m: PackedVector2Array) -> PackedVector2Array:
+	var empty := PackedVector2Array()
+	if segment_m.size() != 2 or not bool(opening.get("has_balcony", false)):
+		return empty
+	if not _opening_accepts_balcony(opening):
+		return empty
+	var width_m: float = float(opening.get("balcony_width_m", 0.0))
+	if width_m <= 0.05:
+		width_m = float(opening.get("width_m", 0.9)) + 0.80
+	var depth_m: float = maxf(0.10, float(opening.get("balcony_depth_m", 1.20)))
+	var tangent: Vector2 = (segment_m[1] - segment_m[0])
+	if tangent.length() <= 0.001:
+		return empty
+	tangent = tangent.normalized()
+	var outward: Vector2 = -_inside_normal_for_wall_2d(String(opening.get("wall", "top")))
+	var center_m: Vector2 = (segment_m[0] + segment_m[1]) * 0.5
+	var half: Vector2 = tangent * (width_m * 0.5)
+	var flight: Vector2 = outward * depth_m
+	return PackedVector2Array([
+		_m_to_px(center_m - half),
+		_m_to_px(center_m + half),
+		_m_to_px(center_m + half + flight),
+		_m_to_px(center_m - half + flight)
+	])
 
 
 func _door_swing_view(opening: Dictionary, segment_m: PackedVector2Array) -> Dictionary:

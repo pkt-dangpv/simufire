@@ -931,9 +931,33 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
   granel y se amueblan con atrezo. Decisión tuya del 2026-09-06: se convierten a
   objetos de verdad cuando el motor esté terminado.
 
-### Fase 4 — balcones
-- **N-1**, que se apoya en la fachada propia y en el modelo de aperturas, ya
-  tocados en la fase 1.
+### Fase 4 — balcones — ✅ COMPLETA (2026-09-10)
+- ✅ **Decisión tuya del 2026-09-10: solo en el edificio del jugador.** Las
+  plantas de arriba y abajo de la fachada propia quedan lisas.
+- ✅ **El dato**: `has_balcony`, `balcony_width_m`, `balcony_depth_m` y
+  `balcony_parapet_m` colgados de la abertura, y solo de una abertura exterior
+  y no vertical —en un tabique interior no hay fachada de la que colgar nada, y
+  el dato se borra al normalizar en vez de arrastrarse—. El ancho a 0 significa
+  «el del hueco más 0,80 m».
+- ✅ **El editor**: casilla y tres medidas en la ficha de la abertura, que solo
+  aparecen donde el balcón puede existir, y la huella del balcón dibujada en
+  planta —es lo primero que se sale de la vivienda—.
+- ✅ **La vista FP**: losa en voladizo, antepecho en U y pasamanos, colgados a la
+  cota del suelo y por fuera del lienzo de fachada. Todo con `@export`.
+- ✅ **No se puede salir**, que es lo que pediste: la losa y el antepecho no
+  tienen colisión, y el hueco se cierra con un colisionador invisible en el
+  plano de la fachada. Ya existía un `NoExitBoundary` alrededor del edificio,
+  pero va por la **caja** del edificio: una fachada retranqueada deja hueco por
+  delante. La barrera va por el hueco.
+- ✅ **El balcón y el portal no comparten hueco**: el rellano es de la puerta de
+  entrada, así que una puerta con balcón ya no genera portal, ni entrada, ni es
+  el sitio donde aparece el jugador sin `player_start`.
+- ✅ Guardarraíl `tools/validate_balconies.gd` en la suite (48 OK), probado con
+  tres mutaciones: quitar la barrera, dar colisión a la losa e ignorar el vuelo
+  declarado.
+- ⏳ **Ningún preajuste trae balcón todavía**: la pieza existe y el editor la
+  pone, pero para verla hay que declararla. Convertir una ventana de
+  `piso_mediterraneo` es una línea de datos, y es decisión tuya.
 
 ### Fase 5 — patios interiores
 - **N-2**. La más cara, y la que más depende del motor. El prompt se escribe en

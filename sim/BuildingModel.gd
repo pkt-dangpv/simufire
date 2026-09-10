@@ -569,6 +569,18 @@ func _load_from_template(data: Dictionary) -> void:
 		# SF-R7: apertura vertical (hueco suelo/techo entre plantas)
 		if op_data.has("is_vertical"):
 			op.is_vertical = bool(op_data["is_vertical"])
+		# N-1: el balcon es decorado de la vista; el motor no lo mira. Se lee
+		# aqui porque la vista trabaja sobre el BuildingModel, no sobre el JSON.
+		if op_data.has("has_balcony"):
+			op.has_balcony = bool(op_data["has_balcony"])
+		if op_data.has("balcony_width_m"):
+			op.balcony_width_m = maxf(0.0, float(op_data["balcony_width_m"]))
+		if op_data.has("balcony_depth_m"):
+			op.balcony_depth_m = maxf(0.0, float(op_data["balcony_depth_m"]))
+		if op_data.has("balcony_parapet_m"):
+			op.balcony_parapet_m = maxf(0.0, float(op_data["balcony_parapet_m"]))
+		if op.has_balcony and not op.accepts_balcony():
+			op.has_balcony = false
 
 		_normalize_opening_visual_metadata(op)
 		openings.append(op)
