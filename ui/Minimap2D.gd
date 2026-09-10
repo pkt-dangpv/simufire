@@ -289,7 +289,7 @@ func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:
 func _draw_floor_badge() -> void:
 	var text: String = _floor_label_for_level(selected_floor_level_m)
 	if building != null and String(building.building_type).to_lower() == "apartment":
-		text += "  P%d" % building.apartment_floor_number
+		text += "  %s" % FloorNaming.label(building.apartment_floor_number)
 	if ThemeDB.fallback_font != null:
 		draw_string(ThemeDB.fallback_font, Vector2(8.0, 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, maxf(40.0, size.x - 16.0), 11, Color(0.92, 0.96, 0.94, 0.92))
 
@@ -365,6 +365,4 @@ func _update_floor_from_player_start() -> void:
 
 
 func _floor_label_for_level(level_m: float) -> String:
-	if absf(level_m) < 0.05:
-		return "PB"
-	return "P%d" % int(round(level_m / 2.9))
+	return FloorNaming.label_for_level(level_m)

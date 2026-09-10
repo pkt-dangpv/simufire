@@ -365,6 +365,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor load error dialog: " + (diagnostic or "failed"))
 
+    # La convencion de plantas -R, R+1, R+2- es la misma en el editor, el
+    # serializador, el minimapa y el selector del 2D, y un escenario guardado
+    # con la convencion vieja (PB / P1) se relee con la nueva.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_floor_naming.gd",
+        "[validate_floor_naming] PASS",
+    )
+    rows.append(("Nombres de plantas Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot floor naming: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_script(
         "res://tools/validate_main_menu_scene.gd",
         "[validate_main_menu] PASS",

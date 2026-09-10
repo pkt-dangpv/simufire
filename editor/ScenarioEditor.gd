@@ -1986,7 +1986,7 @@ func _apply_history_snapshot(snapshot: Dictionary, message: String) -> void:
 
 func _default_floors() -> Array:
 	return [
-		{"name": "PB", "level_m": 0.0}
+		{"name": FloorNaming.label(0), "level_m": 0.0}
 	]
 
 
@@ -2059,7 +2059,7 @@ func _on_apartment_floor_changed(value: float) -> void:
 	if _total_floors_spin != null:
 		_total_floors_spin.value = totales
 	_sync_floor_limits()
-	_set_status("La vivienda esta en la planta %d de %d." % [next_floor, totales])
+	_set_status("La vivienda esta en %s, de %d plantas." % [FloorNaming.label(next_floor), totales])
 
 
 func _on_total_floors_changed(value: float) -> void:
@@ -2070,7 +2070,7 @@ func _on_total_floors_changed(value: float) -> void:
 	_push_undo_snapshot("building_total_floors")
 	editor_data["building_total_floors"] = totales
 	_sync_floor_limits()
-	_set_status("El edificio tiene %d plantas; la vivienda esta en la %d." % [totales, planta])
+	_set_status("El edificio tiene %d plantas; la vivienda esta en %s." % [totales, FloorNaming.label(planta)])
 
 
 func _bind_controls_help_block(parent: Control) -> void:
@@ -2259,8 +2259,7 @@ func _ensure_floor_data() -> void:
 	normalized.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
 	for i in range(normalized.size()):
 		var floor: Dictionary = normalized[i]
-		if String(floor.get("name", "")).strip_edges() == "":
-			floor["name"] = _default_floor_name(i)
+		floor["name"] = FloorNaming.migrated_name(String(floor.get("name", "")), i)
 		normalized[i] = floor
 	editor_data["floors"] = normalized
 	current_floor_index = clampi(current_floor_index, 0, normalized.size() - 1)
@@ -2274,7 +2273,7 @@ func _add_floor_level_if_missing(floors: Array, level_m: float) -> void:
 
 
 func _default_floor_name(index: int) -> String:
-	return "PB" if index <= 0 else "P%d" % index
+	return FloorNaming.label(index)
 
 
 func _get_floors() -> Array:
@@ -2830,7 +2829,7 @@ func _current_floor_level_m() -> float:
 func _current_floor_name() -> String:
 	var floors: Array = _get_floors()
 	if floors.is_empty():
-		return "PB"
+		return _default_floor_name(0)
 	var floor: Dictionary = floors[clampi(current_floor_index, 0, floors.size() - 1)]
 	return String(floor.get("name", _default_floor_name(current_floor_index)))
 

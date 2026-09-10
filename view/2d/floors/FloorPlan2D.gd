@@ -69,9 +69,7 @@ static func selector_button_rect(index: int, origin_px: Vector2, size_px: Vector
 
 
 static func floor_label(index: int) -> String:
-	if index <= 0:
-		return "PB"
-	return "P%d" % index
+	return FloorNaming.label(index)
 
 
 static func selector_hit_index(local_pos: Vector2, levels: Array[float], origin_px: Vector2, size_px: Vector2, gap_px: float) -> int:

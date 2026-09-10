@@ -277,7 +277,7 @@ static func normalize_floors(raw_floors: Variant, room_levels: Array = []) -> Ar
 			var level_m: float = float(raw.get("level_m", 0.0 if floors.is_empty() else floors.size() * 2.9))
 			if _floor_level_exists(floors, level_m):
 				continue
-			var fallback_name: String = "PB" if floors.is_empty() else "P%d" % floors.size()
+			var fallback_name: String = FloorNaming.label(floors.size())
 			floors.append({
 				"name": String(raw.get("name", fallback_name)),
 				"level_m": level_m
@@ -286,16 +286,15 @@ static func normalize_floors(raw_floors: Variant, room_levels: Array = []) -> Ar
 		var level_m: float = float(raw_level)
 		if not _floor_level_exists(floors, level_m):
 			floors.append({
-				"name": "PB" if floors.is_empty() else "P%d" % floors.size(),
+				"name": FloorNaming.label(floors.size()),
 				"level_m": level_m
 			})
 	if floors.is_empty():
-		floors.append({"name": "PB", "level_m": 0.0})
+		floors.append({"name": FloorNaming.label(0), "level_m": 0.0})
 	floors.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
 	for i in range(floors.size()):
 		var floor: Dictionary = floors[i]
-		if String(floor.get("name", "")).strip_edges() == "":
-			floor["name"] = "PB" if i == 0 else "P%d" % i
+		floor["name"] = FloorNaming.migrated_name(String(floor.get("name", "")), i)
 		floors[i] = floor
 	return floors
 

@@ -232,7 +232,7 @@ theme_override_colors/font_color = Color(1, 0.25, 0, 1)
 text = "PLANTA PISO"
 
 [node name="Spin" type="SpinBox" parent="TweakCenter/TweakPanel/Pad/Rows/ApartmentFloorRow"]
-tooltip_text = "En qué planta del edificio está la vivienda. 0 es la planta baja. Cambia lo que se ve por la ventana, no la vivienda."
+tooltip_text = "En qué planta del edificio está la vivienda. 0 es la rasante (R). Cambia lo que se ve por la ventana, no la vivienda."
 custom_minimum_size = Vector2(250, 32)
 layout_mode = 2
 size_flags_horizontal = 3

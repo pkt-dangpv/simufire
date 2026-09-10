@@ -168,7 +168,7 @@ text = "PASILLO"
 [node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
 custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en PB. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
+tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en R. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
@@ -437,7 +437,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "Editando PB. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: 0."
+text = "Editando R. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: 0."
 autowrap_mode = 3
 
 [node name="BuildingTypeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1147591082]
@@ -478,7 +478,7 @@ theme_override_font_sizes/font_size = 13
 text = "PLANTA PISO"
 
 [node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ApartmentFloorRow" unique_id=1621999601]
-tooltip_text = "En qué planta del edificio está la vivienda. 0 es la planta baja. Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
+tooltip_text = "En qué planta del edificio está la vivienda. 0 es la rasante (R). Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.0
