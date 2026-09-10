@@ -16,6 +16,30 @@ enum Type { DOOR, WINDOW, HOLE }
 const EPSILON: float = 0.001
 const WINDOW_FULL_OPEN_THRESHOLD: float = 0.5
 
+# --- Limites del balcon (N-1) ---
+#
+# Viven aqui porque los usan tres sitios que tienen que decir lo mismo: el
+# serializador al normalizar el dato, el editor al ofrecer los mandos y la
+# vista al construir la losa. Repartidos, bastaba tocar uno para que el editor
+# dejase pedir algo que la vista no construye.
+const BALCONY_MIN_DEPTH_M: float = 0.40
+## Vuelo maximo. Un balcon de vivienda es una losa en voladizo, y a partir de
+## unos dos metros deja de sostenerse como tal: pide vigas de canto, jabalcones
+## o pilares hasta la calle, que es otra cosa y no un balcon. Los balcones
+## espanoles corrientes vuelan entre 0,90 y 1,50 m.
+const BALCONY_MAX_DEPTH_M: float = 2.00
+## Regla de predimensionado del voladizo: el canto de la losa no baja de la
+## decima parte del vuelo. Es lo que impide que un balcon de dos metros se
+## dibuje con el mismo canto de 18 cm que uno de ochenta centimetros y se lea
+## como una plancha de papel.
+const BALCONY_MIN_DEPTH_TO_THICKNESS: float = 10.0
+## Antepecho. El CTE DB-SUA 1 pide 1,10 m por encima de 6 m de desnivel y
+## 0,90 m por debajo; el minimo de aqui deja sitio a los dos casos.
+const BALCONY_MIN_PARAPET_M: float = 0.60
+const BALCONY_MAX_PARAPET_M: float = 1.60
+## Cuanto mas ancha que el hueco es una losa sin ancho declarado.
+const BALCONY_DEFAULT_MARGIN_M: float = 0.80
+
 var a: int            # room id
 var b: int            # room id, o -1 = exterior
 var type: int = Type.DOOR
@@ -40,7 +64,7 @@ var glass_broken: bool = false
 var has_balcony: bool = false
 # Ancho de la losa. 0 = se deriva del ancho del hueco (ver `balcony_span_m`).
 var balcony_width_m: float = 0.0
-# Vuelo: cuanto sale la losa de la fachada.
+# Vuelo: cuanto sale la losa de la fachada. Ver BALCONY_MAX_DEPTH_M.
 var balcony_depth_m: float = 1.20
 # Antepecho. 1,10 m es el minimo del CTE DB-SUA 1 para desniveles de mas de
 # 6 m, que es cualquier balcon a partir de la tercera planta.
@@ -111,12 +135,35 @@ func accepts_balcony() -> bool:
 	return is_exterior_opening() and not is_vertical
 
 
+## Canto que le toca a la losa por su vuelo. Un balcon mas largo pide una losa
+## mas gruesa; con un canto fijo, el vuelo de dos metros se dibuja como una
+## hoja de papel volando.
+func balcony_slab_thickness_m(declared_m: float) -> float:
+	return maxf(declared_m, balcony_depth_m / BALCONY_MIN_DEPTH_TO_THICKNESS)
+
+
+## Recorta el ancho de un balcon para que no se salga de la fachada de la que
+## cuelga, dada en coordenadas del muro (`u_min`, `u_max`).
+##
+## Se estrecha CENTRADO en su hueco, nunca se corre de sitio: un balcon
+## desplazado respecto de su propia puerta no existe, y en cambio un balcon
+## estrecho junto a la esquina del edificio si. La regla vive aqui porque la
+## usan dos sitios que saben cosas distintas -el editor conoce el paramento de
+## la sala, la vista conoce el lienzo entero- y lo que no puede diferir es la
+## regla.
+static func balcony_trimmed_span_m(declared_m: float, axis_center_m: float, u_min: float, u_max: float) -> float:
+	if u_max <= u_min:
+		return declared_m
+	var room_m: float = 2.0 * minf(axis_center_m - u_min, u_max - axis_center_m)
+	return minf(declared_m, maxf(0.0, room_m))
+
+
 ## Ancho real de la losa del balcon. Sin dato propio, se saca del hueco: un
 ## balcon algo mas ancho que la puerta, que es lo que se construye.
 func balcony_span_m() -> float:
 	if balcony_width_m > 0.05:
 		return balcony_width_m
-	return width_m + 0.80
+	return width_m + BALCONY_DEFAULT_MARGIN_M
 
 
 func is_closed() -> bool:

@@ -880,6 +880,11 @@ var _pitch: float = 0.0
 var _stance: int = STANCE_STAND
 var _opening_nodes: Dictionary = {}
 var _landing_recess_keys: Dictionary = {}
+## Lienzos de fachada del propio edificio, por plano de muro. Se calcula una
+## vez por reconstruccion: lo miran el lienzo y los balcones, y recorrer todas
+## las aberturas por cada balcon seria pagarlo dos veces.
+var _own_facade_groups_cache: Dictionary = {}
+var _own_facade_groups_ready: bool = false
 ## Huella de cada rellano del portal, por fachada y planta, calculada ANTES
 ## de construir. Sin esto la respuesta a "aqui hay portal?" dependia del
 ## orden en que se recorren los huecos: el rellano se registra al crear la
@@ -1282,6 +1287,8 @@ func _rebuild_world() -> void:
 	_opening_nodes.clear()
 	_landing_recess_keys.clear()
 	_landing_footprints.clear()
+	_own_facade_groups_cache.clear()
+	_own_facade_groups_ready = false
 	_detector_nodes.clear()
 	_victim_nodes.clear()
 	_furniture_nodes_by_room.clear()
@@ -4538,7 +4545,7 @@ func _exterior_ground_level_m() -> float:
 func _create_own_facade(parent: Node3D) -> void:
 	if not exterior_own_facade_enabled or building == null:
 		return
-	var groups: Dictionary = _own_facade_groups()
+	var groups: Dictionary = _own_facade_groups_cached()
 	if groups.is_empty():
 		return
 	var ground_y: float = _exterior_ground_level_m()
@@ -4554,6 +4561,44 @@ func _create_own_facade(parent: Node3D) -> void:
 ## Agrupa las aberturas exteriores por plano de muro (lado + coordenada del
 ## muro). Cada grupo aporta su extension lateral y sus huecos en coordenadas
 ## (u = eje del muro, v = altura absoluta).
+func _own_facade_groups_cached() -> Dictionary:
+	if not _own_facade_groups_ready:
+		_own_facade_groups_cache = _own_facade_groups()
+		_own_facade_groups_ready = true
+	return _own_facade_groups_cache
+
+
+## Clave de lienzo: un lado y una coordenada de muro. La comparten el lienzo y
+## los balcones, y tiene que ser LA MISMA o el balcon buscaria su fachada en un
+## grupo que no existe y se quedaria sin recortar.
+func _own_facade_key(side: String, plane_m: float) -> String:
+	return "%s_%d" % [side, roundi(plane_m * 100.0)]
+
+
+## Extension del lienzo de fachada al que da esta abertura, en coordenadas del
+## muro (u_min, u_max) y ya con los margenes laterales que el lienzo se da.
+## Vector2.ZERO si la abertura no cae en ningun lienzo.
+func _own_facade_extent_for(room_id: int, side: String) -> Vector2:
+	if side == "" or not _room_rects_cache.has(room_id):
+		return Vector2.ZERO
+	var rect: Rect2 = Rect2(_room_rects_cache[room_id])
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float
+	if horizontal:
+		plane_m = rect.position.y if side == "top" else rect.position.y + rect.size.y
+	else:
+		plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
+	var groups: Dictionary = _own_facade_groups_cached()
+	var key: String = _own_facade_key(side, plane_m)
+	if not groups.has(key):
+		return Vector2.ZERO
+	var group: Dictionary = groups[key]
+	return Vector2(
+		float(group.get("u_min", 0.0)) - own_facade_side_margin_m,
+		float(group.get("u_max", 0.0)) + own_facade_side_margin_m
+	)
+
+
 func _own_facade_groups() -> Dictionary:
 	var groups: Dictionary = {}
 	for index in range(building.get_opening_count()):
@@ -4581,7 +4626,7 @@ func _own_facade_groups() -> Dictionary:
 			plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
 		var u_min: float = rect.position.x if horizontal else rect.position.y
 		var u_max: float = u_min + (rect.size.x if horizontal else rect.size.y)
-		var key: String = "%s_%d" % [side, roundi(plane_m * 100.0)]
+		var key: String = _own_facade_key(side, plane_m)
 		if not groups.has(key):
 			var fresh_holes: Array[Rect2] = []
 			groups[key] = {
@@ -4693,17 +4738,32 @@ func _create_own_balcony(
 	op: OpeningModel,
 	info: Dictionary
 ) -> void:
-	var span_m: float = op.balcony_span_m()
-	var flight_m: float = maxf(0.10, op.balcony_depth_m)
+	var flight_m: float = clampf(
+		op.balcony_depth_m,
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
 	var parapet_m: float = maxf(0.0, op.balcony_parapet_m)
-	if span_m <= 0.20:
-		return
-
 	var horizontal: bool = absf(tangent.x) >= absf(tangent.z)
 	var outward: Vector3 = -normal.normalized()
 	var width_m: float = float(info.get("width_m", op.width_m))
 	var height_m: float = float(info.get("height_m", op.height_m))
 	var sill_m: float = float(info.get("sill_m", op.sill_m))
+
+	# Un balcon no puede pasar de la fachada de la que cuelga, y aqui se conoce
+	# el lienzo ENTERO -no solo el paramento de la sala-, que es la medida
+	# buena. La regla del recorte es comun con el editor.
+	var span_m: float = op.balcony_span_m()
+	var extent: Vector2 = _own_facade_extent_for(
+		int(info.get("room_id", -1)),
+		String(info.get("side_for_%d" % int(info.get("room_id", -1)), ""))
+	)
+	if extent != Vector2.ZERO:
+		span_m = OpeningModel.balcony_trimmed_span_m(
+			span_m, float(info.get("axis_center", 0.0)), extent.x, extent.y
+		)
+	if span_m <= 0.20:
+		return
 	# El suelo de la vivienda, deducido del centro del hueco: es la cota a la
 	# que tiene que quedar la cara de arriba de la losa.
 	var floor_y: float = center.y - (sill_m + height_m * 0.5)
@@ -4712,7 +4772,9 @@ func _create_own_balcony(
 	# fachada; si arrancase en el lienzo quedaria una ranura entre los dos.
 	var depth_total_m: float = own_facade_thickness_m + flight_m
 	var origin: Vector3 = Vector3(center.x, floor_y, center.z)
-	var slab_t: float = own_balcony_slab_thickness_m
+	# El canto sale del vuelo: una losa en voladizo de dos metros con el canto
+	# de una de ochenta se lee como una hoja de papel.
+	var slab_t: float = op.balcony_slab_thickness_m(own_balcony_slab_thickness_m)
 	var par_t: float = own_balcony_parapet_thickness_m
 	var mat: StandardMaterial3D = _mat(own_balcony_color, false)
 

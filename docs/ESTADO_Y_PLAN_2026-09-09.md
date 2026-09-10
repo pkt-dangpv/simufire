@@ -952,9 +952,25 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
 - ✅ **El balcón y el portal no comparten hueco**: el rellano es de la puerta de
   entrada, así que una puerta con balcón ya no genera portal, ni entrada, ni es
   el sitio donde aparece el jugador sin `player_start`.
+- ✅ **Los dos límites**, a petición tuya (2026-09-10):
+  - **El vuelo no puede ser incoherente**. Tope **2,00 m**: un balcón de
+    vivienda es una losa en voladizo, y más allá pide vigas de canto o pilares
+    hasta la calle, que ya no es un balcón. Y el **canto sube con el vuelo**
+    (regla de predimensionado del voladizo, canto ≥ vuelo / 10): con canto fijo,
+    dos metros de balcón se leen como una hoja de papel.
+  - **El ancho no puede pasar de la fachada construida**, y no basta con que no
+    sea más ancho: tiene que **caber**. Junto a la esquina se estrecha
+    —centrado en su hueco, nunca corrido de sitio— para no asomar por el canto
+    del edificio. La regla del recorte vive en `OpeningModel` y la usan los dos
+    sitios que saben cosas distintas: el editor conoce el paramento de su sala,
+    la vista conoce el lienzo entero.
+  - Los topes viven en `OpeningModel` y los leen el serializador, el editor y la
+    vista. Repartidos, bastaba tocar uno para que el editor dejase pedir algo
+    que la vista no construye.
 - ✅ Guardarraíl `tools/validate_balconies.gd` en la suite (48 OK), probado con
-  tres mutaciones: quitar la barrera, dar colisión a la losa e ignorar el vuelo
-  declarado.
+  seis mutaciones: quitar la barrera, dar colisión a la losa, ignorar el vuelo
+  declarado, quitar el recorte del ancho, descentrar el recorte en vez de
+  estrecharlo y quitar el tope de vuelo del dato.
 - ⏳ **Ningún preajuste trae balcón todavía**: la pieza existe y el editor la
   pone, pero para verla hay que declararla. Convertir una ventana de
   `piso_mediterraneo` es una línea de datos, y es decisión tuya.

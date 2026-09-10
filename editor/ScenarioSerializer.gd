@@ -373,8 +373,16 @@ static func _normalize_balcony(opening: Dictionary) -> void:
 		return
 	opening["has_balcony"] = true
 	opening["balcony_width_m"] = maxf(0.0, float(opening.get("balcony_width_m", 0.0)))
-	opening["balcony_depth_m"] = clampf(float(opening.get("balcony_depth_m", 1.20)), 0.40, 3.00)
-	opening["balcony_parapet_m"] = clampf(float(opening.get("balcony_parapet_m", 1.10)), 0.60, 1.60)
+	opening["balcony_depth_m"] = clampf(
+		float(opening.get("balcony_depth_m", 1.20)),
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	opening["balcony_parapet_m"] = clampf(
+		float(opening.get("balcony_parapet_m", 1.10)),
+		OpeningModel.BALCONY_MIN_PARAPET_M,
+		OpeningModel.BALCONY_MAX_PARAPET_M
+	)
 
 
 static func rect2_from_data(value: Variant) -> Rect2:

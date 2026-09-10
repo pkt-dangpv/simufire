@@ -21,6 +21,12 @@ extends Node
 ##     retranqueada deja hueco por delante; la barrera va por el hueco.
 ##  3. **El balcon y el portal no comparten hueco**. El rellano es de la puerta
 ##     de entrada; una puerta con balcon es una balconera y da a la calle.
+##  4. **Los dos limites** que pidio el usuario: el ancho no pasa de la fachada
+##     construida -y no basta con que no sea mas ancho, tiene que CABER: junto
+##     a la esquina se estrecha, centrado en su hueco, para no asomar por el
+##     canto del edificio- y el vuelo no puede ser incoherente. El tope son
+##     2 m, y el canto de la losa sube con el vuelo (regla del voladizo,
+##     canto >= vuelo / 10).
 ##
 ## Y dos que son del dato, no de la geometria: un balcon declarado en un
 ## tabique interior se borra al normalizar, y apagar `own_balconies_enabled`
@@ -54,6 +60,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	_check_serializer()
 	await _check_geometry()
+	await _check_limits()
 	_finish()
 
 
@@ -79,7 +86,7 @@ func _check_serializer() -> void:
 	})
 	if not bool(recortado.get("has_balcony", false)):
 		_fail("un balcon en una abertura exterior no sobrevive a la normalizacion")
-	if absf(float(recortado.get("balcony_depth_m", 0.0)) - 3.0) > TOL_M:
+	if absf(float(recortado.get("balcony_depth_m", 0.0)) - OpeningModel.BALCONY_MAX_DEPTH_M) > TOL_M:
 		_fail("el vuelo no se recorta al maximo: %.2f m" % float(recortado.get("balcony_depth_m", 0.0)))
 	if absf(float(recortado.get("balcony_parapet_m", 0.0)) - 0.60) > TOL_M:
 		_fail("el antepecho no se levanta al minimo: %.2f m" % float(recortado.get("balcony_parapet_m", 0.0)))
@@ -207,10 +214,89 @@ func _check_geometry() -> void:
 	_drop(sin_balcon)
 
 
+## --- Los dos limites: el ancho y el vuelo ---
+##
+## El ancho no puede pasar de la fachada construida, y el vuelo no puede ser
+## incoherente con lo que sostiene una losa en voladizo. Los dos se piden a lo
+## bestia: si el codigo no los recorta, se ve enseguida.
+func _check_limits() -> void:
+	# Ancho absurdo: cuarenta metros de balcon en un piso de diez.
+	var ancho: Dictionary = _scenario_with_balcony(40.0, FLIGHT_M, true)
+	var built: Dictionary = await _build(ancho, true)
+	var fp: FirstPersonController = built.get("fp")
+	if fp == null:
+		return
+	var index: int = int(ancho.get("_balcony_index", 0))
+	var slab: MeshInstance3D = _find_mesh(fp, "OwnBalconySlab_%02d" % index)
+	var barrier: StaticBody3D = _find_node(fp, "OwnBalconyBarrier_%02d" % index) as StaticBody3D
+	if slab == null or barrier == null:
+		_fail("con un ancho absurdo no se construye el balcon en absoluto")
+		_drop(built)
+		return
+	var slab_size: Vector3 = _box_size(slab)
+	var along_m: float = maxf(slab_size.x, slab_size.z)
+	# Cota independiente de lo que se valida: la fachada construida no puede
+	# medir mas que la caja del edificio mas los margenes del lienzo.
+	var techo_m: float = _building_extent_m(built.get("building"), slab_size.x >= slab_size.z) 		+ 2.0 * fp.own_facade_side_margin_m
+	if along_m > techo_m + TOL_M:
+		_fail("el balcon mide %.2f m y la fachada construida no llega a %.2f m" % [along_m, techo_m])
+	if along_m < float(Dictionary(ancho.get("_balcony_opening", {})).get("width_m", 0.9)):
+		_fail("el recorte del ancho se paso de largo: %.2f m para un hueco mas ancho" % along_m)
+	# Y no basta con que no sea mas ANCHO que la fachada: tiene que caber
+	# DENTRO. Un balcon junto a la esquina con el ancho de toda la fachada no
+	# se pasa de ancho y sin embargo asoma por el canto del edificio.
+	#
+	# El mundo FP se centra en la caja del edificio, asi que el borde del
+	# lienzo cae en +-(lado / 2 + margen). Se mide asi, y no preguntandoselo al
+	# codigo que se valida.
+	var along_x: bool = slab_size.x >= slab_size.z
+	var borde_m: float = _building_extent_m(built.get("building"), along_x) * 0.5 		+ fp.own_facade_side_margin_m
+	var centro_m: float = slab.global_position.x if along_x else slab.global_position.z
+	if absf(centro_m) + along_m * 0.5 > borde_m + TOL_M:
+		_fail("el balcon asoma %.2f m por el canto de la fachada" % (absf(centro_m) + along_m * 0.5 - borde_m))
+	_drop(built)
+
+	# Vuelo al maximo: la losa tiene que engordar con el.
+	var hondo: Dictionary = _scenario_with_balcony(SPAN_M, OpeningModel.BALCONY_MAX_DEPTH_M)
+	var built2: Dictionary = await _build(hondo, true)
+	var fp2: FirstPersonController = built2.get("fp")
+	if fp2 == null:
+		return
+	var slab2: MeshInstance3D = _find_mesh(fp2, "OwnBalconySlab_%02d" % int(hondo.get("_balcony_index", 0)))
+	if slab2 == null:
+		_fail("con el vuelo al maximo no se construye la losa")
+		_drop(built2)
+		return
+	var canto_m: float = _box_size(slab2).y
+	var esperado_m: float = maxf(
+		fp2.own_balcony_slab_thickness_m,
+		OpeningModel.BALCONY_MAX_DEPTH_M / OpeningModel.BALCONY_MIN_DEPTH_TO_THICKNESS
+	)
+	if absf(canto_m - esperado_m) > TOL_M:
+		_fail("un balcon de %.2f m de vuelo lleva un canto de %.2f m y le tocan %.2f m" % [
+			OpeningModel.BALCONY_MAX_DEPTH_M, canto_m, esperado_m])
+	_drop(built2)
+
+
+## Lo que mide el edificio a lo largo de un eje. Es la cota de arriba de lo que
+## puede medir una fachada, y se calcula aparte para no preguntarselo al codigo
+## que se esta validando.
+func _building_extent_m(building: BuildingModel, along_x: bool) -> float:
+	if building == null:
+		return 0.0
+	var bounds: Rect2 = Rect2()
+	var first: bool = true
+	for room_id in building.get_room_rects_m().keys():
+		var rect: Rect2 = Rect2(building.get_room_rects_m()[room_id])
+		bounds = rect if first else bounds.merge(rect)
+		first = false
+	return bounds.size.x if along_x else bounds.size.y
+
+
 ## Un piso del catalogo, con su primera ventana exterior convertida en
 ## balconera: puerta hasta el suelo, con balcon. Se elige una ventana porque
 ## la puerta de un piso da al portal, y ahi no hay calle.
-func _scenario_with_balcony() -> Dictionary:
+func _scenario_with_balcony(span_m: float = SPAN_M, flight_m: float = FLIGHT_M, al_canto: bool = false) -> Dictionary:
 	var builder = BuildingTemplateScript.new()
 	var editor_data: Dictionary = Serializer.normalize_editor_data(builder.create_by_name("compact_apartment"))
 	var openings: Array = editor_data.get("openings_data", [])
@@ -225,8 +311,15 @@ func _scenario_with_balcony() -> Dictionary:
 		op["height_m"] = 2.10
 		op["open_fraction"] = 1.0
 		op["has_balcony"] = true
-		op["balcony_width_m"] = SPAN_M
-		op["balcony_depth_m"] = FLIGHT_M
+		op["balcony_width_m"] = span_m
+		op["balcony_depth_m"] = flight_m
+		if al_canto:
+			# Pegada a la esquina: es el caso donde recortar y descentrar dejan
+			# de dar lo mismo. Con la abertura en mitad de su fachada, un
+			# balcon demasiado ancho asoma por los dos lados por igual y un
+			# recorte mal hecho pasa desapercibido.
+			op["offset_m"] = 0.0
+			op["offset_is_fraction"] = false
 		op["balcony_parapet_m"] = PARAPET_M
 		openings[i] = op
 		editor_data["openings_data"] = openings

@@ -167,8 +167,18 @@ func _bind_opening() -> void:
 		_opening_hinge_option.add_item("Derecha", 1)
 	_opening_balcony_check = _control("OpeningProps/OpeningBalconyRow/OpeningBalconyCheck") as CheckBox
 	_opening_balcony_width_spin = _spin("OpeningProps/OpeningBalconyWidthRow/OpeningBalconyWidthSpin", 0.0, 8.0, 0.05)
-	_opening_balcony_depth_spin = _spin("OpeningProps/OpeningBalconyDepthRow/OpeningBalconyDepthSpin", 0.40, 3.00, 0.05)
-	_opening_balcony_parapet_spin = _spin("OpeningProps/OpeningBalconyParapetRow/OpeningBalconyParapetSpin", 0.60, 1.60, 0.05)
+	_opening_balcony_depth_spin = _spin(
+		"OpeningProps/OpeningBalconyDepthRow/OpeningBalconyDepthSpin",
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M,
+		0.05
+	)
+	_opening_balcony_parapet_spin = _spin(
+		"OpeningProps/OpeningBalconyParapetRow/OpeningBalconyParapetSpin",
+		OpeningModel.BALCONY_MIN_PARAPET_M,
+		OpeningModel.BALCONY_MAX_PARAPET_M,
+		0.05
+	)
 	if _opening_balcony_check != null and not _opening_balcony_check.toggled.is_connected(_on_balcony_toggled):
 		_opening_balcony_check.toggled.connect(_on_balcony_toggled)
 	_on_pressed(_control("OpeningProps/BtnApplyOpening") as Button, ACTION_OPENING_APPLY)
@@ -372,6 +382,8 @@ func _fill_opening(state: Dictionary) -> void:
 		_set_row_visible(_opening_balcony_check, accepts_balcony)
 		_opening_balcony_check.set_pressed_no_signal(has_balcony)
 	if _opening_balcony_width_spin != null:
+		# El balcon no puede ser mas ancho que la fachada de la que cuelga.
+		_opening_balcony_width_spin.max_value = float(state.get("opening_balcony_max_width_m", 8.0))
 		_opening_balcony_width_spin.value = float(opening.get("balcony_width_m", 0.0))
 	if _opening_balcony_depth_spin != null:
 		_opening_balcony_depth_spin.value = float(opening.get("balcony_depth_m", 1.20))

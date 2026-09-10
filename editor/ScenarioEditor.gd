@@ -5218,6 +5218,7 @@ func _refresh_property_panel() -> void:
 			String(opening.get("wall", "top"))
 		)
 		state["opening_accepts_balcony"] = _opening_accepts_balcony(opening)
+		state["opening_balcony_max_width_m"] = _max_balcony_width_for_opening(opening)
 	_props.show(state)
 	_refresh_element_list()
 
@@ -6601,6 +6602,18 @@ func _opening_accepts_balcony(opening: Dictionary) -> bool:
 	return int(opening.get("a", 0)) == OUTSIDE_ID or int(opening.get("b", -1)) == OUTSIDE_ID
 
 
+## Lo mas ancho que puede ser un balcon: la fachada de la que cuelga. Aqui se
+## mide la del paramento de SU sala, que es la que el editor conoce sin salir
+## de la abertura; la vista, que ve el lienzo entero, todavia lo recorta mas si
+## la abertura esta cerca de la esquina.
+func _max_balcony_width_for_opening(opening: Dictionary) -> float:
+	var wall_m: float = PlanGeometry.wall_length(
+		_get_room_rect(int(opening.get("a", -1))),
+		String(opening.get("wall", "top"))
+	)
+	return maxf(float(opening.get("width_m", 0.9)), wall_m)
+
+
 ## Guarda el balcon en la abertura. Sin balcon se BORRAN las medidas en vez de
 ## dejarlas dormidas: asi el JSON dice lo que hay, y una abertura que dejo de
 ## tener balcon no arrastra un vuelo de 1,20 m que no se usa.
@@ -6612,9 +6625,21 @@ func _apply_balcony_fields(op: Dictionary, fields: Dictionary) -> void:
 		op.erase("balcony_parapet_m")
 		return
 	op["has_balcony"] = true
-	op["balcony_width_m"] = maxf(0.0, float(fields.get("balcony_width_m", 0.0)))
-	op["balcony_depth_m"] = clampf(float(fields.get("balcony_depth_m", 1.20)), 0.40, 3.00)
-	op["balcony_parapet_m"] = clampf(float(fields.get("balcony_parapet_m", 1.10)), 0.60, 1.60)
+	op["balcony_width_m"] = clampf(
+		float(fields.get("balcony_width_m", 0.0)),
+		0.0,
+		_max_balcony_width_for_opening(op)
+	)
+	op["balcony_depth_m"] = clampf(
+		float(fields.get("balcony_depth_m", 1.20)),
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	op["balcony_parapet_m"] = clampf(
+		float(fields.get("balcony_parapet_m", 1.10)),
+		OpeningModel.BALCONY_MIN_PARAPET_M,
+		OpeningModel.BALCONY_MAX_PARAPET_M
+	)
 
 
 func _draw() -> void:
@@ -6839,16 +6864,36 @@ func _balcony_outline_px(opening: Dictionary, segment_m: PackedVector2Array) -> 
 		return empty
 	if not _opening_accepts_balcony(opening):
 		return empty
-	var width_m: float = float(opening.get("balcony_width_m", 0.0))
-	if width_m <= 0.05:
-		width_m = float(opening.get("width_m", 0.9)) + 0.80
-	var depth_m: float = maxf(0.10, float(opening.get("balcony_depth_m", 1.20)))
-	var tangent: Vector2 = (segment_m[1] - segment_m[0])
+	var tangent: Vector2 = segment_m[1] - segment_m[0]
 	if tangent.length() <= 0.001:
 		return empty
 	tangent = tangent.normalized()
-	var outward: Vector2 = -_inside_normal_for_wall_2d(String(opening.get("wall", "top")))
 	var center_m: Vector2 = (segment_m[0] + segment_m[1]) * 0.5
+
+	var width_m: float = float(opening.get("balcony_width_m", 0.0))
+	if width_m <= 0.05:
+		width_m = float(opening.get("width_m", 0.9)) + OpeningModel.BALCONY_DEFAULT_MARGIN_M
+	# El mismo recorte que hace la vista, con lo que el editor sabe: el
+	# paramento de SU sala. La vista conoce el lienzo entero y puede dejar algo
+	# mas ancho, nunca mas estrecho.
+	var wall: String = String(opening.get("wall", "top"))
+	var rect: Rect2 = _get_room_rect(int(opening.get("a", -1)))
+	var wall_data: Dictionary = _wall_start_dir(rect, wall)
+	width_m = OpeningModel.balcony_trimmed_span_m(
+		width_m,
+		(center_m - Vector2(wall_data["start"])).dot(Vector2(wall_data["dir"])),
+		0.0,
+		PlanGeometry.wall_length(rect, wall)
+	)
+	if width_m <= 0.20:
+		return empty
+
+	var depth_m: float = clampf(
+		float(opening.get("balcony_depth_m", 1.20)),
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	var outward: Vector2 = -_inside_normal_for_wall_2d(wall)
 	var half: Vector2 = tangent * (width_m * 0.5)
 	var flight: Vector2 = outward * depth_m
 	return PackedVector2Array([
