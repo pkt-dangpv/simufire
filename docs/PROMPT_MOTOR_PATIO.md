@@ -68,6 +68,50 @@ tiene que bajar con el tiempo**, y el aire que entra a las viviendas altas tiene
 que traer esa composición. Si el patio se mantiene a 0,209 de O2 pase lo que pase,
 está modelado como «exterior» y no como zona, que es el atajo que hay que evitar.
 
+## MEDIDO el 2026-09-11: el motor ya lo hace, y esto reduce el encargo
+
+Antes de encargar nada se montó a mano un patio de **tres plantas** con lo que el
+motor ya tiene —una zona por planta, encadenadas con `is_vertical` de la
+superficie completa, la boca arriba al exterior sin `wall_side`, y una ventana de
+cada vivienda a su zona-patio— y se corrió 300 s con fuego en la planta baja
+(`scripts/run_scenario.py`). **No hizo falta tocar el motor.**
+
+| lo que el encargo pedía comprobar | resultado |
+|---|---|
+| **el humo sube**, con retardo creciente con la altura | visibilidad < 10 m en Patio P0 a **48 s**, P1 a **62 s**, P2 a **71 s** |
+| **la reentrada** en las viviendas altas | Vivienda P1 a **182 s**, Vivienda P2 a **84 s** |
+| **el patio se empobrece en O₂** (la sexta comprobación) | 0,2090 → **0,1458** en 300 s, monótono |
+| el fuego se ahoga si le falta aire | Vivienda P0 baja a O₂ **0,0009** |
+
+Es decir: **la «zona-patio» que este documento daba por inexistente se puede
+expresar con las piezas que ya hay**. El modelo de zonas, las aperturas
+verticales, el efecto chimenea por `floor_level_z_m` y las aperturas exteriores
+bastan.
+
+### Lo que queda, entonces
+
+**No es del motor, es de la línea visual:**
+
+1. **El editor no sabe dibujar un patio.** No hay herramienta, ni tipo de sala
+   `patio`, ni el encadenado automático entre plantas con su boca arriba. Hoy hay
+   que escribir el JSON a mano, que es como se hizo esta prueba.
+2. **La vista no lo representa como espacio**: en primera persona y en la maqueta
+   el patio es una sala de tipo desconocido, sin su penacho saliendo por la boca.
+
+### Y tres cosas para que las mire la línea del motor
+
+No son conclusiones —no conozco esa parte lo bastante— sino números raros de una
+sola pasada, que conviene que alguien juzgue:
+
+- **Patio P1 marca exactamente 900,0 °C.** Un número redondo clavado huele a
+  tope, no a resultado.
+- **La zona-patio de la planta baja (823 °C) sale más caliente que la propia sala
+  del fuego (580 °C).** Puede ser correcto —recibe la descarga de la capa caliente
+  y tiene mucho menos volumen— pero conviene confirmarlo.
+- **Vivienda P2 ve el humo antes (84 s) que Vivienda P1 (182 s).** Si es el plano
+  neutro, es justo lo que hace interesante al patio y merece quedar explicado; si
+  no, es un síntoma.
+
 ## Qué hay ya, y es bastante
 
 Casi todas las piezas existen:
