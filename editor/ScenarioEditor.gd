@@ -60,6 +60,7 @@ const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
 const Handles = preload("res://editor/EditorHandles.gd")
 const CorridorLayout = preload("res://editor/CorridorLayout.gd")
 const RoomMarkers = preload("res://editor/RoomMarkers.gd")
+const ScenarioWalls = preload("res://editor/ScenarioWalls.gd")
 
 ## Los tres giros de escalera, EN EL ORDEN del desplegable: la posicion es el id
 ## del item. Las etiquetas van aparte y pasan por `tr()`, como el resto de los
@@ -4454,7 +4455,7 @@ func _open_passages_to_circulation(room_id: int) -> Array[int]:
 			continue
 		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
 			continue
-		var shared: Dictionary = _shared_wall_between(room_id, other_id)
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
 		if shared.is_empty():
 			continue
 		var span_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
@@ -4498,7 +4499,7 @@ func _open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: 
 			continue
 		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
 			continue
-		var shared: Dictionary = _shared_wall_between(room_id, other_id)
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
 		if shared.is_empty():
 			continue
 		var width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
@@ -5362,9 +5363,10 @@ func _room_display_name(room: Dictionary, room_id: int) -> String:
 	return "Room %d" % room_id
 
 
+## El rectangulo lo lee ScenarioWalls, que es donde vive la capa de preguntas.
+## Este nombre se queda porque lo llaman cincuenta y nueve sitios.
 func _get_room_rect(room_id: int) -> Rect2:
-	var rects: Dictionary = editor_data.get("room_rect_m", {})
-	return Serializer.rect2_from_data(rects.get(str(room_id), Rect2()))
+	return ScenarioWalls.room_rect(editor_data, room_id)
 
 
 func _room_rotation_deg(room_id: int) -> float:
@@ -5799,7 +5801,7 @@ func _create_door_at(pos_m: Vector2) -> void:
 		_set_status(tr("Selecciona una segunda habitación adyacente."))
 		return
 
-	var connection: Dictionary = _shared_wall_between(pending_door_room_id, room_id)
+	var connection: Dictionary = ScenarioWalls.shared_wall_between(editor_data, pending_door_room_id, room_id)
 	if connection.is_empty():
 		_set_status(tr("Las habitaciones %d y %d no comparten pared.") % [pending_door_room_id, room_id])
 		pending_door_room_id = -1
@@ -6130,7 +6132,7 @@ func _find_shared_wall_at(pos_m: Vector2) -> Dictionary:
 			if not _is_room_on_current_floor(rooms[j]):
 				continue
 			var b_id: int = int(rooms[j].get("id", -1))
-			var shared: Dictionary = _shared_wall_between(a_id, b_id, pos_m)
+			var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, a_id, b_id, pos_m)
 			if not shared.is_empty():
 				return shared
 	return {}
@@ -6150,38 +6152,18 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 		var other_id: int = int(room.get("id", -1))
 		if other_id == room_id:
 			continue
-		var shared: Dictionary = _shared_wall_between(room_id, other_id)
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
 		if shared.is_empty() or String(shared.get("wall", "")) != wall:
 			continue
-		var other_seg: PackedVector2Array = _shared_wall_segment(room_id, other_id, wall)
+		var other_seg: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, other_id, wall)
 		if other_seg.size() == 2 and _segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
 			return false
 	return true
 
 
-func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVector2Array:
-	var rect: Rect2 = _get_room_rect(room_id)
-	var other_rect: Rect2 = _get_room_rect(other_id)
-	match wall:
-		"left", "right":
-			var start_y: float = maxf(rect.position.y, other_rect.position.y)
-			var end_y: float = minf(rect.position.y + rect.size.y, other_rect.position.y + other_rect.size.y)
-			if end_y - start_y < _CONN_MIN_SHARED:
-				return PackedVector2Array()
-			var edge_x: float = rect.position.x if wall == "left" else rect.position.x + rect.size.x
-			return PackedVector2Array([Vector2(edge_x, start_y), Vector2(edge_x, end_y)])
-		"top", "bottom":
-			var start_x: float = maxf(rect.position.x, other_rect.position.x)
-			var end_x: float = minf(rect.position.x + rect.size.x, other_rect.position.x + other_rect.size.x)
-			if end_x - start_x < _CONN_MIN_SHARED:
-				return PackedVector2Array()
-			var edge_y: float = rect.position.y if wall == "top" else rect.position.y + rect.size.y
-			return PackedVector2Array([Vector2(start_x, edge_y), Vector2(end_x, edge_y)])
-	return PackedVector2Array()
-
 
 func _max_opening_width_for_shared(room_id: int, other_id: int, wall: String) -> float:
-	var segment: PackedVector2Array = _shared_wall_segment(room_id, other_id, wall)
+	var segment: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, other_id, wall)
 	if segment.size() != 2:
 		return 0.30
 	return maxf(0.30, segment[0].distance_to(segment[1]) - 0.10)
@@ -6225,83 +6207,6 @@ func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> 
 	return minf(ay_max, by_max) - maxf(ay_min, by_min) > 0.05
 
 
-# ── _shared_wall_between ────────────────────────────────────────────────────
-# Detecta si las habitaciones a_id y b_id comparten (o son adyacentes a) una
-# pared.  Acepta:
-#   • Contacto exacto entre paredes (tolerancia grid)
-#   • Brecha entre paredes de hasta _CONN_GAP_TOL (0.30 m)
-#   • Solapamiento parcial de hasta _CONN_OVERLAP_FRAC × dim_menor
-# Si se pasa click_m, filtra además por proximidad al punto de clic.
-# Devuelve el par de paredes con menor separación; {} si no hay conexión.
-func _shared_wall_between(a_id: int, b_id: int, click_m: Vector2 = Vector2(1.0e20, 1.0e20)) -> Dictionary:
-	if absf(_room_id_floor_level(a_id) - _room_id_floor_level(b_id)) > 0.05:
-		return {}
-	var a: Rect2 = _get_room_rect(a_id)
-	var b: Rect2 = _get_room_rect(b_id)
-	var click_filter: bool = click_m.x < 1.0e19
-	var best: Dictionary = {}
-	var best_gap: float = 1.0e20
-	var min_x: float = minf(a.size.x, b.size.x)
-	var min_y: float = minf(a.size.y, b.size.y)
-
-	# ── A.right ↔ B.left  (A a la izquierda, con brecha o solape) ──
-	var gap_r: float = b.position.x - (a.position.x + a.size.x)
-	if gap_r >= -min_x * _CONN_OVERLAP_FRAC and gap_r <= _CONN_GAP_TOL:
-		var sy: float = maxf(a.position.y, b.position.y)
-		var ey: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if ey - sy >= _CONN_MIN_SHARED:
-			var mid_x: float = (a.position.x + a.size.x + b.position.x) * 0.5
-			if not click_filter or (absf(click_m.x - mid_x) <= _CONN_CLICK_TOL and click_m.y >= sy - 0.10 and click_m.y <= ey + 0.10):
-				var ag: float = absf(gap_r)
-				if ag < best_gap:
-					best_gap = ag
-					var cy: float = clampf(click_m.y if click_filter else (sy + ey) * 0.5, sy, ey)
-					best = {"a": a_id, "b": b_id, "wall": "right", "offset_m": cy - a.position.y}
-
-	# ── A.left ↔ B.right  (A a la derecha, con brecha o solape) ──
-	var gap_l: float = a.position.x - (b.position.x + b.size.x)
-	if gap_l >= -min_x * _CONN_OVERLAP_FRAC and gap_l <= _CONN_GAP_TOL:
-		var sy: float = maxf(a.position.y, b.position.y)
-		var ey: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if ey - sy >= _CONN_MIN_SHARED:
-			var mid_x: float = (a.position.x + b.position.x + b.size.x) * 0.5
-			if not click_filter or (absf(click_m.x - mid_x) <= _CONN_CLICK_TOL and click_m.y >= sy - 0.10 and click_m.y <= ey + 0.10):
-				var ag: float = absf(gap_l)
-				if ag < best_gap:
-					best_gap = ag
-					var cy: float = clampf(click_m.y if click_filter else (sy + ey) * 0.5, sy, ey)
-					best = {"a": a_id, "b": b_id, "wall": "left", "offset_m": cy - a.position.y}
-
-	# ── A.bottom ↔ B.top  (A encima, con brecha o solape) ──
-	var gap_b: float = b.position.y - (a.position.y + a.size.y)
-	if gap_b >= -min_y * _CONN_OVERLAP_FRAC and gap_b <= _CONN_GAP_TOL:
-		var sx: float = maxf(a.position.x, b.position.x)
-		var ex: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if ex - sx >= _CONN_MIN_SHARED:
-			var mid_y: float = (a.position.y + a.size.y + b.position.y) * 0.5
-			if not click_filter or (absf(click_m.y - mid_y) <= _CONN_CLICK_TOL and click_m.x >= sx - 0.10 and click_m.x <= ex + 0.10):
-				var ag: float = absf(gap_b)
-				if ag < best_gap:
-					best_gap = ag
-					var cx: float = clampf(click_m.x if click_filter else (sx + ex) * 0.5, sx, ex)
-					best = {"a": a_id, "b": b_id, "wall": "bottom", "offset_m": cx - a.position.x}
-
-	# ── A.top ↔ B.bottom  (A debajo, con brecha o solape) ──
-	var gap_t: float = a.position.y - (b.position.y + b.size.y)
-	if gap_t >= -min_y * _CONN_OVERLAP_FRAC and gap_t <= _CONN_GAP_TOL:
-		var sx: float = maxf(a.position.x, b.position.x)
-		var ex: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if ex - sx >= _CONN_MIN_SHARED:
-			var mid_y: float = (a.position.y + b.position.y + b.size.y) * 0.5
-			if not click_filter or (absf(click_m.y - mid_y) <= _CONN_CLICK_TOL and click_m.x >= sx - 0.10 and click_m.x <= ex + 0.10):
-				var ag: float = absf(gap_t)
-				if ag < best_gap:
-					best_gap = ag
-					var cx: float = clampf(click_m.x if click_filter else (sx + ex) * 0.5, sx, ex)
-					best = {"a": a_id, "b": b_id, "wall": "top", "offset_m": cx - a.position.x}
-
-	return best
-
 
 func _offset_on_wall(rect: Rect2, wall: String, pos_m: Vector2) -> float:
 	match wall:
@@ -6344,13 +6249,13 @@ func _opening_segment_m(opening: Dictionary) -> PackedVector2Array:
 	var wall: String = String(opening.get("wall", ""))
 	var b_id: int = int(opening.get("b", OUTSIDE_ID))
 	if wall == "":
-		var shared: Dictionary = _shared_wall_between(a_id, b_id)
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, a_id, b_id)
 		wall = String(shared.get("wall", "top"))
 	var width: float = float(opening.get("width_m", 0.9))
 	var offset: float = float(opening.get("offset_m", PlanGeometry.wall_length(rect, wall) * 0.5))
 	if bool(opening.get("offset_is_fraction", true)):
 		if b_id != OUTSIDE_ID:
-			var shared_segment: PackedVector2Array = _shared_wall_segment(a_id, b_id, wall)
+			var shared_segment: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, a_id, b_id, wall)
 			if shared_segment.size() == 2:
 				return _line_segment_from_fraction(shared_segment[0], shared_segment[1], offset, width)
 		offset = PlanGeometry.wall_length(rect, wall) * clampf(offset, 0.0, 1.0)

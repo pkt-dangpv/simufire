@@ -1536,3 +1536,79 @@ La tabla del §19.1 dice por dónde seguir, y no es donde se pensaba:
    48 miembros hacia fuera; hay que partirlo antes en geometría y en mando.
 4. **La vista 3D no**, mientras siga en 78 miembros hacia fuera. Lo que ahí hace
    falta no es mudarla de fichero, es adelgazar lo que le pide al editor.
+
+---
+
+## 20. D-1, quinto corte: la capa de preguntas (2026-09-11)
+
+Los cuatro cortes del §19 fueron de duplicación y apenas movieron la anchura: 437
+funciones antes, 435 después. Para saber por dónde cortar de verdad hacía falta
+otra medida, y ésta cambia el planteamiento.
+
+### 20.1 El bloque grande no es un tema: es una capa
+
+Se clasificaron las 431 funciones del fichero por **lo que hacen con el
+escenario**, no por el tema del que hablan:
+
+| | funciones | líneas |
+|---|---:|---:|
+| **preguntas puras** — leen `editor_data`, no escriben, no tocan escena ni selección | **58** | **1036** |
+| mutan el escenario | 66 | 1798 |
+| leen el escenario pero tocan UI o estado de interacción | 29 | 738 |
+
+**Las 58 preguntas puras son el bloque grande que de verdad se puede sacar.** No
+lo son «escaleras» ni «aperturas»: esos son temas, y sus funciones están
+entretejidas con el estado del editor —de las 22 de escalera, todas menos dos
+tocan `editor_data`, la selección o el panel—. Cortar por tema obliga a arrastrar
+el estado; cortar por capa, no.
+
+Esto corrige otra vez al §19.1: allí se midió el **acoplamiento por tema** y salió
+que los pasillos eran el bloque más limpio. Era verdad y el corte valió, pero la
+pregunta estaba mal hecha. La que sirve es: *¿esta función pregunta, o manda?*
+
+### 20.2 El corte: las paredes
+
+`editor/ScenarioWalls.gd`. Estático y puro: recibe el diccionario del escenario,
+no lo guarda y no lo toca. Se lleva `shared_wall_between`, `shared_wall_segment`
+y los tres accesores básicos —`room_rect`, `room_by_id`, `room_level_m`— que son
+la cabeza de puente para los cortes siguientes.
+
+**Y de paso colapsa la función más larga del fichero.** `_shared_wall_between`
+eran **70 líneas con cuatro bloques casi idénticos**, uno por par de paredes
+enfrentadas (derecha↔izquierda, izquierda↔derecha, abajo↔arriba, arriba↔abajo),
+que solo se diferenciaban en el eje y en el signo. Cuatro copias de la misma
+regla es como se acaba con una puerta que se puede poner entre dos salas por un
+lado y no por el otro. Ahora son **cuatro entradas de una tabla** y una sola
+regla que las recorre.
+
+Verificado comparando con la fórmula vieja, copiada tal cual, sobre **2187 pares
+de salas** —tres anchos × tres fondos × nueve desplazamientos en cada eje × tres
+situaciones de clic—: 535 de ellos con conexión, 281 de esos con filtro de clic
+activo, y **los 2187 idénticos**, hasta el micrómetro en el desplazamiento. Más
+el caso que no puede fallar nunca: dos salas en plantas distintas no comparten
+pared.
+
+### 20.3 El precio
+
+| | antes | ahora |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 8449 líneas | **8354** |
+| funciones en esa clase | 431 | 429 |
+| funciones de más de 60 líneas | 15 | **14** |
+| preguntas puras que quedan dentro | 58 (1036 ln) | 56 (946 ln) |
+
+Noventa y cinco líneas y la función más larga del fichero. Y, más importante que
+el número: **la capa tiene sitio**. El siguiente corte no necesita inventar dónde
+va, solo mudarse.
+
+### 20.4 Lo que queda de D-1, por dónde
+
+Las 56 preguntas puras que siguen dentro, las más gordas primero:
+`_snap_rect_to_adjacent_rooms` (60), `_plan_ghost_view` (49),
+`_open_passages_to_neighbours` (48), `_balcony_outline_px` (46),
+`_open_passages_to_circulation` (44), `_corridor_seams_px` (34).
+
+Un aviso para quien siga: las que acaban en `_view` o en `_px` **no son
+preguntas puras del todo** —convierten a píxeles, y eso necesita el zoom y la
+cámara—. La capa que se está sacando es la de metros; el paso a píxeles se queda
+en el editor, que es quien sabe cómo se está mirando el plano.
