@@ -231,6 +231,11 @@ static func plan(canvas: CanvasItem, view: Dictionary) -> void:
 	player_start(canvas, view.get("player_start", {}))
 	detectors(canvas, view.get("detectors", []))
 	victims(canvas, view.get("victims", []))
+	# La ficha de la sala -nombre, medidas y superficie- va LA ULTIMA, encima
+	# de todo. Se dibujaba con la sala, o sea antes que los muebles, y en un
+	# salon amueblado el sofa se comia el nombre y las medidas: el dato que
+	# mas se consulta era el mas tapado (D-3).
+	room_labels(canvas, view.get("rooms", []), font, scale_inv)
 
 
 ## La planta de abajo, apagada: sirve para alinear lo que se dibuja encima.
@@ -267,23 +272,49 @@ static func rooms(canvas: CanvasItem, rooms_view: Array, font: Font, scale_inv: 
 			canvas.draw_rect(rect_px, outline, false, 2.0)
 		var is_corridor: bool = bool(room.get("is_corridor", false))
 		var is_stair: bool = bool(room.get("is_stair", false))
+		# Borrar la junta entre tramos del mismo pasillo: se repinta encima del
+		# contorno con el relleno, y la U se lee como una U y no como tres
+		# cajas pegadas. Van antes de las guias para no taparlas.
+		for raw_seam in room.get("seams_px", []):
+			var seam: Array = raw_seam
+			if seam.size() == 2:
+				canvas.draw_line(seam[0], seam[1], fill, 3.0)
 		if is_corridor:
 			corridor_room_guides(canvas, rect_px)
 		if is_stair:
 			stair_room_guides(canvas, rect_px, room.get("stair_dir", Vector2.DOWN), float(room.get("turn_degrees", 0.0)))
 		if is_corridor or is_stair:
 			narrow_room_dimension_labels(canvas, room.get("rect_m", Rect2()), rect_px, is_stair)
-		var label_width_px: float = float(room.get("label_width_px", 40.0))
-		screen_string(canvas, font, scale_inv, rect_px.position, Vector2(8.0, 18.0),
-			String(room.get("name", "")), label_width_px, 13, room.get("name_color", Color.WHITE))
-		if rect_px.size.y >= 36.0:
-			screen_string(canvas, font, scale_inv, rect_px.position, Vector2(8.0, 32.0),
-				String(room.get("dim_text", "")), label_width_px, 11, room.get("dim_color", Color.WHITE))
-		if rect_px.size.y >= 52.0:
-			screen_string(canvas, font, scale_inv, rect_px.position, Vector2(8.0, 46.0),
-				String(room.get("area_text", "")), label_width_px, 11, room.get("area_color", Color.WHITE))
 		if room.has("handles"):
 			handles(canvas, room["handles"])
+
+
+## Las fichas de las salas, en una pasada aparte y por encima del mobiliario.
+##
+## Van al final a proposito (D-3): dibujadas con la sala caian debajo de los
+## muebles, y en un salon amueblado el nombre y las medidas quedaban tapados
+## por el sofa.
+static func room_labels(canvas: CanvasItem, rooms_view: Array, font: Font, scale_inv: float) -> void:
+	for entry in rooms_view:
+		var room: Dictionary = entry
+		var rect_px: Rect2 = room.get("rect_px", Rect2())
+		var points_px: PackedVector2Array = room.get("points_px", PackedVector2Array())
+		var label_width_px: float = float(room.get("label_width_px", 40.0))
+		# La ficha se colgaba de `rect_px.position`, la esquina del rectangulo
+		# SIN girar. Al girar la sala el poligono se movia y la ficha se
+		# quedaba fuera. En una sala girada se ancla en su CENTRO, que si gira
+		# con ella, y se centra el texto.
+		var rotated: bool = points_px.size() == 4
+		var anchor_px: Vector2 = Vector2(room.get("label_center_px", rect_px.get_center())) if rotated else rect_px.position
+		var min_side_px: float = minf(rect_px.size.x, rect_px.size.y) if not rotated else float(room.get("label_min_side_px", rect_px.size.y))
+		room_label_line(canvas, font, scale_inv, anchor_px, 18.0 if not rotated else -8.0,
+			String(room.get("name", "")), label_width_px, 13, room.get("name_color", Color.WHITE), rotated)
+		if rect_px.size.y >= 36.0 or (rotated and min_side_px >= 36.0):
+			room_label_line(canvas, font, scale_inv, anchor_px, 32.0 if not rotated else 6.0,
+				String(room.get("dim_text", "")), label_width_px, 11, room.get("dim_color", Color.WHITE), rotated)
+		if rect_px.size.y >= 52.0 or (rotated and min_side_px >= 52.0):
+			room_label_line(canvas, font, scale_inv, anchor_px, 46.0 if not rotated else 20.0,
+				String(room.get("area_text", "")), label_width_px, 11, room.get("area_color", Color.WHITE), rotated)
 
 
 ## Huella del balcon en planta: losa translucida y el antepecho por los tres
@@ -391,6 +422,29 @@ static func handles(canvas: CanvasItem, handles_view: Dictionary) -> void:
 
 ## Un cartel que no crece ni encoge con el zoom: se dibuja en coordenadas de
 ## pantalla, anclado a un punto del plano.
+## Una linea de la ficha de la sala. `centered` la centra sobre el ancla en vez
+## de arrancar en ella, que es lo que hace falta cuando el ancla es el centro
+## de la sala y no su esquina.
+static func room_label_line(
+	canvas: CanvasItem,
+	font: Font,
+	scale_inv: float,
+	anchor_px: Vector2,
+	y_offset_px: float,
+	text: String,
+	max_width_px: float,
+	font_size: int,
+	color: Color,
+	centered: bool
+) -> void:
+	if font == null or text == "":
+		return
+	var x_offset_px: float = 8.0
+	if centered:
+		x_offset_px = -font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, max_width_px, font_size).x * 0.5
+	screen_string(canvas, font, scale_inv, anchor_px, Vector2(x_offset_px, y_offset_px), text, max_width_px, font_size, color)
+
+
 static func screen_string(canvas: CanvasItem, font: Font, scale_inv: float, anchor_px: Vector2, offset_px: Vector2, text: String, max_width_px: float, font_size: int, color: Color) -> void:
 	if font == null or text == "":
 		return

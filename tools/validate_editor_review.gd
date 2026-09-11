@@ -60,7 +60,7 @@ func _run() -> void:
 	_expect_warning(_orphan_floor_scenario(), "no está comunicada", "con una planta sin comunicar")
 
 	# 3. Arrancar pasa por la revisión.
-	_editor.editor_data = _draw_flat(true, true, false, true)
+	_editor.adopt_scenario_data(_draw_flat(true, true, false, true))
 	_editor._run_simulation_pressed()
 	_expect(_dialog_visible(), "arrancar con avisos no enseña la revisión")
 	_expect(not FileAccess.file_exists(_editor.RUNTIME_EXPORT_PATH) or true, "")
@@ -71,17 +71,17 @@ func _run() -> void:
 	# 4. Y con un escenario limpio no molesta: se exporta y se cambia de escena.
 	#    Aquí solo se comprueba que NO sale el cuadro; el cambio de escena lo
 	#    prueba validate_editor_to_sim_flow.
-	_editor.editor_data = _draw_flat(true, true, true, true)
+	_editor.adopt_scenario_data(_draw_flat(true, true, true, true))
 	_expect(Review.review(_editor.editor_data).is_empty(), "el piso limpio ha dejado de estar limpio")
 
 	# 5. La revisión a mano, desde el botón: con avisos abre, sin avisos lo dice
 	#    en la línea de estado y no interrumpe.
-	_editor.editor_data = _draw_flat(true, true, false, true)
+	_editor.adopt_scenario_data(_draw_flat(true, true, false, true))
 	_editor._review_scenario_pressed()
 	_expect(_dialog_visible(), "el botón Revisar no enseña nada teniendo avisos")
 	if dialog != null:
 		dialog.hide()
-	_editor.editor_data = _draw_flat(true, true, true, true)
+	_editor.adopt_scenario_data(_draw_flat(true, true, true, true))
 	_editor._review_scenario_pressed()
 	_expect(not _dialog_visible(), "el botón Revisar interrumpe aunque no haya nada que decir")
 	var status: String = _editor._status_label.text if _editor._status_label != null else ""
@@ -98,13 +98,12 @@ func _run() -> void:
 ## Un piso dibujado con las herramientas, con interruptores para quitarle cada
 ## cosa y comprobar que salta su aviso.
 func _draw_flat(with_window: bool, with_stairs: bool, with_ignition: bool, with_start: bool) -> Dictionary:
-	_editor.editor_data = {
+	_editor.adopt_scenario_data({
 		"floors": [{"name": "PB", "level_m": 0.0}],
 		"exterior_walls": [], "room_rect_m": {}, "rooms_data": [],
 		"openings_data": [], "detectors": [], "victims": [],
 		"player_start": {}, "ignition_room_id": -1
-	}
-	_editor.current_floor_index = 0
+	}, 0)
 	_draw(TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.0))
 	_draw(TOOL_ROOM, Vector2(0.0, 4.2), Vector2(4.0, 7.2))
 	_draw(TOOL_CORRIDOR, Vector2(0.2, 3.0), Vector2(3.8, 3.0))

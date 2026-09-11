@@ -413,3 +413,111 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 text = "LISTO"
+
+[node name="TopRightRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -318.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = 46.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="LocaleOption" type="OptionButton" parent="TopRightRow"]
+custom_minimum_size = Vector2(132, 32)
+tooltip_text = "Idioma de la interfaz. Se guarda: la próxima vez arranca en el que elijas."
+layout_mode = 2
+
+[node name="BtnSettings" type="Button" parent="TopRightRow"]
+custom_minimum_size = Vector2(162, 32)
+tooltip_text = "Idioma y calidad gráfica. Lo que se elija aquí se recuerda entre sesiones."
+layout_mode = 2
+text = "⚙ CONFIGURACIÓN"
+
+[node name="SettingsDim" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0.01, 0.01, 0.82)
+
+[node name="SettingsCenter" type="CenterContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SettingsPanel" type="PanelContainer" parent="SettingsCenter"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tweak")
+
+[node name="Pad" type="MarginContainer" parent="SettingsCenter/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 14
+
+[node name="Rows" type="VBoxContainer" parent="SettingsCenter/SettingsPanel/Pad"]
+custom_minimum_size = Vector2(430, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SettingsTitle" type="Label" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("1_2wh52")
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "CONFIGURACIÓN"
+
+[node name="LanguageRow" type="HBoxContainer" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LanguageLabel" type="Label" parent="SettingsCenter/SettingsPanel/Pad/Rows/LanguageRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "IDIOMA"
+
+[node name="Option" type="OptionButton" parent="SettingsCenter/SettingsPanel/Pad/Rows/LanguageRow"]
+tooltip_text = "Idioma de toda la interfaz. Se aplica al momento y queda guardado como el idioma de arranque."
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QualityRow" type="HBoxContainer" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QualityLabel" type="Label" parent="SettingsCenter/SettingsPanel/Pad/Rows/QualityRow"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "CALIDAD GRÁFICA"
+
+[node name="Option" type="OptionButton" parent="SettingsCenter/SettingsPanel/Pad/Rows/QualityRow"]
+tooltip_text = "Sombras, suavizado, resolución de render y densidad de la calle, en un solo mando. Bajarlo da fotogramas en una máquina justa; no cambia nada de la física."
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QualityHint" type="Label" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+layout_mode = 2
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 12
+text = "La calidad solo cambia lo que se ve. El fuego, el humo y las medidas son los mismos en los tres niveles."
+
+[node name="SettingsSeparator" type="HSeparator" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+layout_mode = 2
+
+[node name="BtnSettingsClose" type="Button" parent="SettingsCenter/SettingsPanel/Pad/Rows"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "LISTO"
+

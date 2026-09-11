@@ -259,7 +259,7 @@ func _validate_serializer_turn_mode(case_name: String, ctx: Dictionary) -> void:
 
 func _validate_editor_vertical_opening(case_name: String, ctx: Dictionary) -> void:
 	var editor: ScenarioEditor = ScenarioEditorScript.new()
-	editor.editor_data = Dictionary(ctx["template"]).duplicate(true)
+	editor.adopt_scenario_data(Dictionary(ctx["template"]).duplicate(true))
 	var opening: Dictionary = editor.editor_data["openings_data"][0]
 	var hole: Rect2 = editor.call("_vertical_opening_rect", opening)
 	var rect: Rect2 = ctx["rect"]

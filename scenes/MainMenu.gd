@@ -25,6 +25,12 @@ const ScenarioCardScene = preload("res://ui/ScenarioCard.tscn")
 ## Los ocho mandos viven detras de "Retocar", en un panel modal aparte del VBox
 ## de la portada. El camino se escribe una vez.
 const TWEAK_ROWS: String = "TweakCenter/TweakPanel/Pad/Rows/"
+## La configuracion del PROGRAMA -idioma y calidad- vive en su propio panel
+## modal, aparte de los ajustes de la SIMULACION: una es de la maquina y de
+## quien la usa, la otra del caso que se simula.
+const SETTINGS_ROWS: String = "SettingsCenter/SettingsPanel/Pad/Rows/"
+const AppSettingsScript = preload("res://ui/AppSettings.gd")
+const GraphicsQualityScript = preload("res://ui/GraphicsQuality.gd")
 
 var _template_builder = BuildingTemplateScript.new()
 ## La lista de escenarios sustituye al desplegable de plantilla: la portada
@@ -36,6 +42,11 @@ var _selected_preset_index: int = 0
 var _summary_label: Label = null
 var _tweak_dim: Control = null
 var _tweak_center: Control = null
+var _settings_dim: Control = null
+var _settings_center: Control = null
+var _locale_option: OptionButton = null
+var _settings_locale_option: OptionButton = null
+var _quality_option: OptionButton = null
 var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
 var _interior_lights_option: OptionButton = null
@@ -59,6 +70,7 @@ func _ready() -> void:
 		_open_validation_scene_next_frame()
 		return
 	_fit_window_to_screen()
+	GraphicsQualityScript.apply_to_viewport(get_viewport(), AppSettingsScript.quality())
 	RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
 	if not _bind_existing_ui():
 		push_error("MainMenu: faltan nodos en MainMenu.tscn — la escena es la fuente de verdad de este menu")
@@ -147,6 +159,7 @@ func _bind_existing_ui() -> bool:
 	_tweak_dim.visible = false
 	_tweak_center.visible = false
 
+	_bind_settings_panel()
 	_populate_scenario_cards()
 	_populate_building_type_option()
 	_populate_apartment_floor_spin()
@@ -170,6 +183,100 @@ func _bind_existing_ui() -> bool:
 	_sync_apartment_floor_visibility()
 	_update_summary()
 	return true
+
+
+## Idioma y calidad: el selector rapido de la esquina y el panel completo.
+##
+## Los dos selectores de idioma mandan a lo mismo, asi que se sincronizan entre
+## si: cambiar en uno y que el otro siga diciendo lo de antes seria mentir.
+func _bind_settings_panel() -> void:
+	_settings_dim = get_node_or_null("SettingsDim") as Control
+	_settings_center = get_node_or_null("SettingsCenter") as Control
+	_locale_option = get_node_or_null("TopRightRow/LocaleOption") as OptionButton
+	_settings_locale_option = get_node_or_null(SETTINGS_ROWS + "LanguageRow/Option") as OptionButton
+	_quality_option = get_node_or_null(SETTINGS_ROWS + "QualityRow/Option") as OptionButton
+	var btn_settings := get_node_or_null("TopRightRow/BtnSettings") as Button
+	var btn_close := get_node_or_null(SETTINGS_ROWS + "BtnSettingsClose") as Button
+	if _settings_dim == null or _settings_center == null:
+		push_error("MainMenu: falta el panel de configuracion en MainMenu.tscn")
+		return
+	# Como el de Retocar: la escena lo guarda visible para poder componerlo, y
+	# lo esconde el codigo.
+	_settings_dim.visible = false
+	_settings_center.visible = false
+
+	for option in [_locale_option, _settings_locale_option]:
+		if option == null:
+			continue
+		option.clear()
+		for entry in UILocalizationScript.AVAILABLE_LOCALES:
+			option.add_item(String(entry.get("name", "?")))
+		option.select(UILocalizationScript.locale_index(UILocalizationScript.current_locale()))
+		_connect_once(option.item_selected, _on_locale_selected)
+
+	if _quality_option != null:
+		_quality_option.clear()
+		for level in AppSettingsScript.QUALITY_ORDER:
+			_quality_option.add_item(AppSettingsScript.quality_label(level))
+		_quality_option.select(AppSettingsScript.QUALITY_ORDER.find(AppSettingsScript.quality()))
+		_connect_once(_quality_option.item_selected, _on_quality_selected)
+
+	if btn_settings != null:
+		_connect_once(btn_settings.pressed, _on_settings_pressed)
+	if btn_close != null:
+		_connect_once(btn_close.pressed, _on_settings_close_pressed)
+
+
+func _on_locale_selected(index: int) -> void:
+	var locales: Array[Dictionary] = UILocalizationScript.AVAILABLE_LOCALES
+	if index < 0 or index >= locales.size():
+		return
+	UILocalizationScript.set_locale(String(locales[index].get("code", "es")))
+	for option in [_locale_option, _settings_locale_option]:
+		if option != null and option.selected != index:
+			option.select(index)
+	# El resumen de la portada se arma en codigo: hay que rehacerlo a mano.
+	_update_summary()
+
+
+func _on_quality_selected(index: int) -> void:
+	if index < 0 or index >= AppSettingsScript.QUALITY_ORDER.size():
+		return
+	AppSettingsScript.set_quality(AppSettingsScript.QUALITY_ORDER[index])
+	GraphicsQualityScript.apply_to_viewport(get_viewport(), AppSettingsScript.quality())
+
+
+func _on_settings_pressed() -> void:
+	_set_settings_shown(true)
+
+
+func _on_settings_close_pressed() -> void:
+	_set_settings_shown(false)
+
+
+func _set_settings_shown(shown: bool) -> void:
+	if _settings_dim != null:
+		_settings_dim.visible = shown
+	if _settings_center != null:
+		_settings_center.visible = shown
+	if not shown:
+		return
+	# Al abrir se releen los dos mandos del idioma y el de la calidad: si algo
+	# los cambio por otro camino, el panel tiene que decir la verdad.
+	_sync_settings_controls()
+	if _settings_locale_option != null:
+		_settings_locale_option.grab_focus()
+
+
+func _sync_settings_controls() -> void:
+	var locale_index: int = UILocalizationScript.locale_index(UILocalizationScript.current_locale())
+	for option in [_locale_option, _settings_locale_option]:
+		if option != null and option.selected != locale_index:
+			option.select(locale_index)
+	if _quality_option != null:
+		var quality_index: int = AppSettingsScript.QUALITY_ORDER.find(AppSettingsScript.quality())
+		if quality_index >= 0 and _quality_option.selected != quality_index:
+			_quality_option.select(quality_index)
 
 
 func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
@@ -328,10 +435,11 @@ func _update_summary() -> void:
 			var totales: int = planta + 1
 			if _total_floors_spin != null:
 				totales = maxi(planta + 1, int(round(_total_floors_spin.value)))
-			if planta == 0:
-				partes.append("piso, planta baja de %d" % totales)
-			else:
-				partes.append("piso, planta %d de %d" % [planta, totales])
+			# La convencion es la del 2026-09-10: la rasante es R y encima
+			# R+1, R+2. El resumen decia «planta 15 de 20» y el resto del
+			# programa «R+15»; dos formas de decir lo mismo en la misma
+			# pantalla es una de mas.
+			partes.append(tr("piso, %s de %d plantas") % [FloorNaming.label(planta), totales])
 		else:
 			partes.append("casa unifamiliar")
 

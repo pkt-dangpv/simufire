@@ -29,8 +29,7 @@ func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 5:
 		return false
-	_editor.editor_data = _scenario()
-	_editor.current_floor_index = 0
+	_editor.adopt_scenario_data(_scenario(), 0)
 
 	var out: PackedStringArray = PackedStringArray()
 	_snapshot("sin seleccion", func(): _editor._clear_selection(), out)

@@ -41,6 +41,48 @@ if hasattr(sys.stdout, "reconfigure"):
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Godot no devuelve codigo de error cuando un script del que depende la
+# comprobacion no compila: la comprobacion arranca, sus `new()` devuelven null,
+# nadie apunta un fallo y el guardarrail imprime su PASS **sin haber mirado
+# nada**. Cazado el 2026-09-11 en validate_landing_surfaces, y vale para las 49.
+#
+# Por eso el token de exito no basta: si en la salida hay un fallo de
+# compilacion, la comprobacion no cuenta como pasada aunque lo diga.
+_COMPILE_FAILURE_MARKERS = (
+    "Parse Error:",
+    "Compile Error:",
+    "Failed to compile depended scripts",
+    "Compilation failed",
+    "Failed to load script",
+)
+
+
+def _compile_failure(output: str) -> str:
+    for marker in _COMPILE_FAILURE_MARKERS:
+        if marker in output:
+            for line in output.splitlines():
+                if marker in line:
+                    return line.strip()
+            return marker
+    return ""
+
+
+def _run_python_script(script_path: Path, success_token: str) -> tuple[int, int, int, str]:
+    """
+    Run a plain Python check script and look for its success token.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO_ROOT),
+    )
+    combined = (result.stdout or "") + (result.stderr or "")
+    passed = result.returncode == 0 and success_token in combined
+    return result.returncode, 1, 0 if passed else 1, "" if passed else combined.strip()
+
+
 def _run_test(module_path: Path) -> tuple[int, int, int]:
     """
     Run a stdlib unittest module as a subprocess.
@@ -85,7 +127,18 @@ def _find_godot() -> Path | None:
     return None
 
 
-def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
+# Limite por defecto de las comprobaciones de Godot.
+#
+# Estaba en 60 s, y en esta maquina las mas pesadas tardan mas: medido el
+# 2026-09-11, `validate_landing_surfaces` ~130 s y `validate_furniture_layout`
+# ~101 s, y **lo mismo con el codigo de HEAD que con el actual**, asi que no era
+# una regresion: el limite estaba mal puesto. Un limite generoso solo cuesta
+# tiempo cuando algo se cuelga de verdad; uno corto convierte una comprobacion
+# lenta en un fallo que no existe.
+_GODOT_TIMEOUT_S: int = 300
+
+
+def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = _GODOT_TIMEOUT_S) -> tuple[int, int, int, str]:
     """
     Run a small Godot headless product check scene.
     Returns (exit_code, checks_run, failures, diagnostic).
@@ -94,26 +147,37 @@ def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = 60) -
     if godot is None:
         return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
 
-    result = subprocess.run(
-        [
-            str(godot),
-            "--headless",
-            "--path",
-            str(_REPO_ROOT),
-            scene_path,
-        ],
-        capture_output=True,
-        text=True,
-        cwd=str(_REPO_ROOT),
-        timeout=timeout_s,
-    )
+    # Un limite superado es UNA comprobacion fallida, no el final de la suite.
+    # Antes reventaba con un TimeoutExpired sin capturar y se perdian los
+    # resultados de todas las demas.
+    try:
+        result = subprocess.run(
+            [
+                str(godot),
+                "--headless",
+                "--path",
+                str(_REPO_ROOT),
+                scene_path,
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(_REPO_ROOT),
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        return 1, 1, 1, "se paso del limite de %d s (%s)" % (timeout_s, scene_path)
     combined = (result.stdout or "") + (result.stderr or "")
-    passed = result.returncode == 0 and success_token in combined
-    diagnostic = "" if passed else combined.strip()
+    broken = _compile_failure(combined)
+    passed = result.returncode == 0 and success_token in combined and not broken
+    diagnostic = ""
+    if broken:
+        diagnostic = "un script no compila, asi que el PASS no vale: " + broken
+    elif not passed:
+        diagnostic = combined.strip()
     return result.returncode, 1, 0 if passed else 1, diagnostic
 
 
-def _run_godot_script(script_path: str, success_token: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
+def _run_godot_script(script_path: str, success_token: str, timeout_s: int = _GODOT_TIMEOUT_S) -> tuple[int, int, int, str]:
     """
     Run a headless Godot SceneTree script (--script) product check.
     Returns (exit_code, checks_run, failures, diagnostic).
@@ -122,23 +186,31 @@ def _run_godot_script(script_path: str, success_token: str, timeout_s: int = 60)
     if godot is None:
         return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
 
-    result = subprocess.run(
-        [
-            str(godot),
-            "--headless",
-            "--path",
-            str(_REPO_ROOT),
-            "--script",
-            script_path,
-        ],
-        capture_output=True,
-        text=True,
-        cwd=str(_REPO_ROOT),
-        timeout=timeout_s,
-    )
+    try:
+        result = subprocess.run(
+            [
+                str(godot),
+                "--headless",
+                "--path",
+                str(_REPO_ROOT),
+                "--script",
+                script_path,
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(_REPO_ROOT),
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired:
+        return 1, 1, 1, "se paso del limite de %d s (%s)" % (timeout_s, script_path)
     combined = (result.stdout or "") + (result.stderr or "")
-    passed = result.returncode == 0 and success_token in combined
-    diagnostic = "" if passed else combined.strip()
+    broken = _compile_failure(combined)
+    passed = result.returncode == 0 and success_token in combined and not broken
+    diagnostic = ""
+    if broken:
+        diagnostic = "un script no compila, asi que el PASS no vale: " + broken
+    elif not passed:
+        diagnostic = combined.strip()
     return result.returncode, 1, 0 if passed else 1, diagnostic
 
 
@@ -221,6 +293,16 @@ def main() -> int:
         if rc != 0:
             diagnostics.append(command)
 
+    # Estilo y salud del GDScript de la linea visual: codigo muerto, parametros
+    # sin tipo, trazas olvidadas. Cada regla se puso tras encontrar su fallo.
+    rc, count, fails, diagnostic = _run_python_script(
+        _REPO_ROOT / "scripts" / "check_gdscript_style.py",
+        "[check_gdscript_style] PASS",
+    )
+    rows.append(("Estilo del GDScript visual", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("python scripts/check_gdscript_style.py --detail")
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_stairs_geometry.tscn",
         "STAIR GEOMETRY VALIDATION PASS",
@@ -269,6 +351,9 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot altura del edificio: " + (diagnostic or "failed"))
 
+    # La comprobacion mas cara de la suite: monta el mundo FP siete veces y lanza
+    # 2448 rayos en cada una (~130 s medidos el 2026-09-11). Le vale el limite
+    # general; queda anotado para que nadie lo baje sin medir.
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_landing_surfaces.tscn",
         "LANDING SURFACES VALIDATION PASS",
@@ -364,6 +449,57 @@ def main() -> int:
     rows.append(("Editor load error dialog Godot", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor load error dialog: " + (diagnostic or "failed"))
+
+    # Vista previa 3D del catalogo de mobiliario: cada pieza se puede
+    # previsualizar y la ficha dice lo que se esta viendo.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_object_preview.gd",
+        "[validate_object_preview] PASS",
+    )
+    rows.append(("Vista previa del catalogo Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot object preview: " + (diagnostic or "failed"))
+
+    # Idioma de la interfaz y configuracion del programa: el castellano se ve
+    # en castellano, el ingles en ingles, y lo elegido se guarda.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_localization.gd",
+        "[validate_localization] PASS",
+    )
+    rows.append(("Idioma y configuracion Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot localization: " + (diagnostic or "failed"))
+
+    # Pasillos: una U son tramos que se leen como un pasillo, se unen solos y
+    # ese paso se puede convertir en puerta. Y la forma se puede forzar.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_corridors.gd",
+        "[validate_corridors] PASS",
+    )
+    rows.append(("Pasillos y tipo de abertura Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot corridors: " + (diagnostic or "failed"))
+
+    # Comportamiento del editor al colocar: vuelta a Seleccion, balcon
+    # dibujado y la ficha de la sala pegada a la sala al girarla.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_editor_interaction.gd",
+        "[validate_editor_interaction] PASS",
+    )
+    rows.append(("Comportamiento del editor Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor interaction: " + (diagnostic or "failed"))
+
+    # D-6: las sondas montan el escenario por el camino real. El editor tiene
+    # un solo sitio donde se adopta un escenario, y nadie inyecta el
+    # diccionario a mano: si lo hace, las fotos y las medidas mienten.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_probe_paths.gd",
+        "[validate_probe_paths] PASS",
+    )
+    rows.append(("Sondas por el camino real Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot probe paths: " + (diagnostic or "failed"))
 
     # N-1, balcones del edificio del jugador: se construye lo que se declara,
     # y al balcon NO se puede salir.

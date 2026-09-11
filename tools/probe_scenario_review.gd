@@ -97,13 +97,12 @@ func _repo_scenarios() -> PackedStringArray:
 ## Un piso dibujado con las herramientas, con interruptores para quitarle cada
 ## cosa y ver si el aviso correspondiente salta.
 func _drawn_scenario(with_window: bool, with_stairs: bool, with_ignition: bool, with_start: bool) -> Dictionary:
-	_editor.editor_data = {
+	_editor.adopt_scenario_data({
 		"floors": [{"name": "PB", "level_m": 0.0}],
 		"exterior_walls": [], "room_rect_m": {}, "rooms_data": [],
 		"openings_data": [], "detectors": [], "victims": [],
 		"player_start": {}, "ignition_room_id": -1
-	}
-	_editor.current_floor_index = 0
+	}, 0)
 	_draw(TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.0))
 	_draw(TOOL_ROOM, Vector2(0.0, 4.2), Vector2(4.0, 7.2))
 	_draw(TOOL_CORRIDOR, Vector2(0.2, 3.0), Vector2(3.8, 3.0))

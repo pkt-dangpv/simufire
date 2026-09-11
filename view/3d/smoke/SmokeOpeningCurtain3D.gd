@@ -1,6 +1,7 @@
 extends RefCounted
 
 const SmokeBridgeMesh := preload("res://view/3d/smoke/SmokeBridgeMesh.gd")
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
 
 const DEFAULT_SMOKE_COLOR := Color(0.38, 0.40, 0.42, 0.20)
 const DEFAULT_HOT_OUTFLOW_COLOR := Color(1.0, 0.46, 0.16, 0.24)
@@ -239,7 +240,7 @@ static func _update_horizontal(
 			},
 			clampf(curtain_alpha * 0.52, 0.035, 0.38)
 		)
-		curtain.position = _to_world(
+		curtain.position = MeshFactory.to_world(
 			Vector3(
 				pos3.x + curtain_shift.x,
 				float(context.get("floor_level_m", 0.0)) + curtain_center_y,
@@ -407,7 +408,7 @@ static func _update_lower_inflow(
 		},
 		clampf(inflow_alpha * 0.50, 0.010, 0.055)
 	)
-	inflow.position = _to_world(
+	inflow.position = MeshFactory.to_world(
 		Vector3(pos3.x, float(context.get("floor_level_m", 0.0)) + inflow_center_y, pos3.z),
 		meters_to_units,
 		Vector2(context.get("origin_offset_m", Vector2.ZERO))
@@ -499,7 +500,7 @@ static func _update_vertical(
 		},
 		clampf(curtain_alpha * 0.52, 0.035, 0.40)
 	)
-	curtain.position = _to_world(
+	curtain.position = MeshFactory.to_world(
 		Vector3(pos3.x, center_abs_y_m, pos3.z),
 		meters_to_units,
 		Vector2(context.get("origin_offset_m", Vector2.ZERO))
@@ -721,7 +722,7 @@ static func _update_exterior_plume(
 	else:
 		plume_pos.z += stand_off_m + lean_offset_m
 		plume.rotation = Vector3(lean_rad, 0.0, 0.0)
-	plume.position = _to_world(plume_pos, meters_to_units, Vector2(context.get("origin_offset_m", Vector2.ZERO)))
+	plume.position = MeshFactory.to_world(plume_pos, meters_to_units, Vector2(context.get("origin_offset_m", Vector2.ZERO)))
 
 
 static func _horizontal_neutral_plane_m(
@@ -806,11 +807,6 @@ static func _curtain_color(context: Dictionary, fire_context_t: float) -> Color:
 	return base.lerp(hot, clampf(fire_context_t * tint, 0.0, tint))
 
 
-static func _outflow_color(context: Dictionary, fire_context_t: float) -> Color:
-	var base := Color(context.get("smoke_color", DEFAULT_SMOKE_COLOR))
-	var hot := Color(context.get("hot_smoke_outflow_color", DEFAULT_HOT_OUTFLOW_COLOR))
-	return base.lerp(hot, clampf(fire_context_t * 0.48, 0.0, 0.58))
-
 
 ## Color del penacho exterior: el del humo de la sala, con un sesgo caliente
 ## pequeno y ajustable. Es humo de la misma habitacion, no una llamarada.
@@ -871,10 +867,3 @@ static func _apply_smoke_material(
 	if material != null:
 		material.albedo_color = Color(smoke_color.r, smoke_color.g, smoke_color.b, fallback_alpha)
 
-
-static func _to_world(meters: Vector3, meters_to_units: float, origin_offset_m: Vector2) -> Vector3:
-	return Vector3(
-		(meters.x + origin_offset_m.x) * meters_to_units,
-		meters.y * meters_to_units,
-		(meters.z + origin_offset_m.y) * meters_to_units
-	)

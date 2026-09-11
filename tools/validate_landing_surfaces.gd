@@ -78,6 +78,10 @@ const LEAK_DISTANCE_M: float = 12.0
 const VERBOSE: bool = false
 
 var _failures: Array[String] = []
+## Cuantos casos se han llegado a medir de verdad. Sin esto, un fallo al
+## construir -por ejemplo un script que no compila- deja `_failures` vacio y la
+## comprobacion dice PASS sin haber mirado nada. Cazado el 2026-09-11.
+var _cases_measured: int = 0
 ## Caso en curso, para que un fallo diga de que escenario viene.
 var _case: String = ""
 
@@ -94,8 +98,15 @@ func _run() -> void:
 		await _run_case(case)
 
 	print("")
+	# PASS solo si ADEMAS se ha medido todo lo que habia que medir. Un guardarrail
+	# que aprueba sin haber mirado es peor que no tenerlo: parece una red.
+	if _cases_measured != CASES.size():
+		_failures.append(
+			"solo se midieron %d de los %d casos: algo impidio montar el mundo (¿un script que no compila?)"
+			% [_cases_measured, CASES.size()]
+		)
 	if _failures.is_empty():
-		print("LANDING SURFACES VALIDATION PASS")
+		print("LANDING SURFACES VALIDATION PASS (%d casos)" % _cases_measured)
 		get_tree().quit(0)
 		return
 	push_error("LANDING SURFACES VALIDATION FAILED")
@@ -130,6 +141,11 @@ func _run_case(case: Dictionary) -> void:
 	get_tree().root.add_child(host)
 
 	var fp: FirstPersonController = FirstPersonControllerScript.new()
+	if fp == null:
+		_failures.append("%s: no se pudo instanciar FirstPersonController" % _case)
+		host.free()
+		building.free()
+		return
 	fp.name = "PortalFP"
 	for knob in knobs.keys():
 		fp.set(String(knob), knobs[knob])
@@ -158,6 +174,7 @@ func _run_case(case: Dictionary) -> void:
 		return
 	print("volumen del rellano: pos=%s  size=%s" % [_v(landing.position), _v(landing.size)])
 
+	_cases_measured += 1
 	_report_landing_floor(landing)
 	_report_landing_ceiling()
 	_report_stacked_walls()

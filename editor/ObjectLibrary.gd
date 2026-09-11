@@ -190,6 +190,22 @@ static func size_m(kind: String) -> Vector2:
 	return Vector2(float(fila.get("x", 1.0)), float(fila.get("y", 1.0)))
 
 
+## El arquetipo visual de una pieza, sin fabricarla. Lo usa la vista previa del
+## catalogo, que ensena el modelo antes de colocar nada.
+static func visual_archetype(kind: String) -> String:
+	var fila: Dictionary = CATALOG.get(kind, {})
+	return String(fila.get("arquetipo", ""))
+
+
+## A que altura del suelo arranca la pieza. OJO: la columna `alto` de la tabla
+## es la ELEVACION -0 en un sofa, 0,95 en un mueble de bano colgado-, no lo que
+## mide de arriba abajo. La altura de verdad la sabe `FurnitureDimensions`, que
+## es quien dibuja.
+static func elevation_m(kind: String) -> float:
+	var fila: Dictionary = CATALOG.get(kind, {})
+	return float(fila.get("alto", 0.0))
+
+
 static func create_object(kind: String, id: String, room_id: int, position_m: Vector2) -> Dictionary:
 	var base: Dictionary = _base_object(id, room_id, position_m)
 	var fila: Dictionary = CATALOG.get(kind, {})

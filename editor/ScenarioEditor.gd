@@ -1,6 +1,7 @@
 extends Node2D
 class_name ScenarioEditor
 
+
 enum Tool {
 	SELECT,
 	ROOM,
@@ -56,6 +57,19 @@ const Serializer = preload("res://editor/ScenarioSerializer.gd")
 ## El panel de propiedades del lado derecho, en su modulo: 53 mandos y el
 ## reparto de lo que enseña cada uno (E-12).
 const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
+const Handles = preload("res://editor/EditorHandles.gd")
+const CorridorLayout = preload("res://editor/CorridorLayout.gd")
+const RoomMarkers = preload("res://editor/RoomMarkers.gd")
+
+## Los tres giros de escalera, EN EL ORDEN del desplegable: la posicion es el id
+## del item. Las etiquetas van aparte y pasan por `tr()`, como el resto de los
+## textos que se arman en codigo.
+const STAIR_TURN_MODES: Array[String] = [
+	StairPlanRules.MODE_AUTO,
+	StairPlanRules.MODE_STRAIGHT,
+	StairPlanRules.MODE_SWITCHBACK,
+]
+const STAIR_TURN_LABELS: Array[String] = ["Auto", "Recta", "180°"]
 ## Las reglas de escalera del editor -el vocabulario de giros y lo que se deduce
 ## de un arrastre- en su modulo (E-12). Las MEDIDAS del tramo no estan ahi: son
 ## las de view/geometry/StairPlanRules.gd, que ya comparten el mundo FP y el visor
@@ -73,6 +87,13 @@ const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+const EditorPreview3DScript = preload("res://editor/EditorPreview3D.gd")
+const EditorObjectCatalogScript = preload("res://editor/EditorObjectCatalog.gd")
+## El valor vive en el modulo; el editor lo reexpone porque el guardarrail del
+## 3D en vivo lo lee por aqui desde antes del traslado (D-1).
+const PREVIEW_3D_MIN_SIZE_PX := EditorPreview3DScript.MIN_SIZE_PX
+const FurnitureDimensionsScript = preload("res://view/furniture/FurnitureDimensions.gd")
+const FurnitureAssetLoaderScript = preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
 const EDITOR_FONT_SIZE_BODY: int = 13
@@ -218,17 +239,28 @@ var _unsaved_changes: bool = false
 var _ui_root: Control
 var _status_label: Label
 var _path_edit: LineEdit
-var _object_catalog: ItemList
+## El catalogo de mobiliario, en su propio modulo (D-1).
+var _catalog = null
+## La lista, que el resto del editor sigue usando por su nombre de siempre.
+var _object_catalog: ItemList = null
 ## La pieza que se lleva en la mano mientras se arrastra desde el catálogo, y
 ## dónde está el ratón. Vacío quiere decir que no se está arrastrando nada.
 var _catalog_drag_kind: String = ""
 var _catalog_drag_screen: Vector2 = Vector2.ZERO
 ## El panel del 3D en vivo, mientras se arrastra: "" quieto, "move" cambiando de
 ## sitio, "resize" cambiando de tamaño.
-var _preview_3d_panel_drag: String = ""
-var _preview_3d_panel_drag_mouse: Vector2 = Vector2.ZERO
-var _preview_3d_panel_drag_rect := Rect2()
 var _tool_buttons: Dictionary = {}
+var _scale_label: Label = null
+var _scale_rule: ColorRect = null
+## Arrastre del plano con el boton izquierdo sobre cuadricula vacia.
+var _is_grid_panning: bool = false
+## Forma que el usuario ha PEDIDO para el pasillo que esta dibujando: "" es
+## «la que salga», y `L` o `recto` mandan sobre el umbral.
+##
+## El umbral decidia a escondidas: un arrastre en diagonal moderada caia en
+## `abs_dy < ancho * 0.60` y salia recto sin avisar, que es justo lo que hacia
+## imposible dibujar un giro a proposito.
+var _corridor_forced_mode: String = ""
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
 var _interior_lights_check: CheckBox
@@ -262,21 +294,27 @@ const PREVIEW_3D_DELAY_S: float = 0.25
 ##
 ## Medido en el piso de referencia (tools/probe_editor_3d_cost.gd): rehacerlo
 ## entero cuesta 79 ms, sin muebles 18 y recolocar sin rehacer 15. Un fotograma a
-## 60 Hz son 16,7, asi que 30 veces por segundo es lo que cabe sin que el plano
-## se note pesado. Al soltar se rehace entero, ya con los muebles.
-const PREVIEW_3D_FOLLOW_MS: int = 33
 ## Lo alto que se dibuja la pieza que se lleva en la mano, en la vista 3D.
 const CATALOG_GHOST_HEIGHT_M: float = 0.80
-## Lo mas pequeño que se puede dejar el panel del 3D en vivo sin que deje de
-## servir para mirar.
-const PREVIEW_3D_MIN_SIZE_PX := Vector2(240.0, 180.0)
-var _preview_3d_panel: PanelContainer
-var _preview_3d_viewport: SubViewport
-var _preview_3d_camera: Camera3D
-var _preview_3d_toggle: Button
-var _preview_3d_enabled: bool = false
-var _preview_3d_delay_s: float = 0.0
-var _preview_3d_last_follow_msec: int = 0
+## El panel del 3D en vivo, en su propio modulo (D-1).
+var _preview3d = null
+## Lo que las sondas y los guardarrailes leen por su nombre de siempre.
+var _preview_3d_enabled: bool:
+	get:
+		return _preview3d != null and _preview3d.enabled
+var _preview_3d_panel: PanelContainer:
+	get:
+		return _preview3d.panel if _preview3d != null else null
+var _preview_3d_viewport: SubViewport:
+	get:
+		return _preview3d.viewport if _preview3d != null else null
+var _preview_3d_camera: Camera3D:
+	get:
+		return _preview3d.camera if _preview3d != null else null
+## Camara del visor en coordenadas esfericas alrededor del edificio. Antes se
+## le copiaba la matriz a la camara del visor 3D grande, que en modo 2D no se
+## mueve nunca: por eso «Encuadrar» parecia no hacer nada -copiaba siempre lo
+## mismo- y por eso no habia forma de girar ni acercarse.
 var _editor_3d_drag_active: bool = false
 var _help_toggle_button: Button
 var _help_panel: PanelContainer
@@ -507,24 +545,6 @@ func _normalize_editor_panel_readability() -> void:
 		top_bar.custom_minimum_size.y = editor_top_bar_height_px - 8.0
 
 
-func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = bg
-	box.border_color = border
-	box.border_width_left = border_width
-	box.border_width_top = border_width
-	box.border_width_right = border_width
-	box.border_width_bottom = border_width
-	box.corner_radius_top_left = radius
-	box.corner_radius_top_right = radius
-	box.corner_radius_bottom_right = radius
-	box.corner_radius_bottom_left = radius
-	box.content_margin_left = margin.x
-	box.content_margin_right = margin.x
-	box.content_margin_top = margin.y
-	box.content_margin_bottom = margin.y
-	return box
-
 
 func _ensure_editor_branding() -> void:
 	# BrandHeader/Logo/EditorModeLabel viven en ScenarioEditorScene.tscn;
@@ -593,11 +613,11 @@ func _sync_left_tab_buttons() -> void:
 func _left_tab_tooltip(tab_id: int) -> String:
 	match tab_id:
 		EditorLeftTab.TOOLS:
-			return "Dibujo: herramientas de creación y edición sobre el plano."
+			return tr("Escenario: la planta, el edificio, el entorno y las opciones de la herramienta activa.")
 		EditorLeftTab.SELECTION:
-			return "Lista: selecciona salas, objetos, aperturas, detectores, víctimas e inicio FP cuando se solapan."
+			return tr("Lista: todo lo que hay en la planta, agrupado por tipo. Sirve para seleccionar algo que quede tapado en el plano.")
 		EditorLeftTab.SCENARIO:
-			return "Archivo: guardar, cargar, plantillas, tiempo, luces, tipo de edificio y HVAC."
+			return tr("Archivo: guardar, cargar, plantillas, duración, luces y climatización.")
 	return ""
 
 
@@ -608,18 +628,33 @@ func _sync_left_editor_tab_visibility() -> void:
 	var selection_visible: bool = _active_left_tab == EditorLeftTab.SELECTION
 	var scenario_visible: bool = _active_left_tab == EditorLeftTab.SCENARIO
 
+	# Cada control pertenece a UNA pestana. Lo que no estaba en ninguna lista
+	# se quedaba visible en las tres: el viento, las plantas totales, el 3D en
+	# vivo y la ayuda del editor salian en «lista» y en «archivo» tambien.
 	_set_left_paths_visible([
 		"ViewModeRow",
 		"FloorSection",
+		"BuildingSectionLabel",
+		"BuildingTypeRow",
+		"ApartmentFloorRow",
+		"TotalFloorsRow",
+		"EnvironmentSectionLabel",
+		"WindDirRow",
+		"WindSpeedRow",
 		"ObjectLabel",
+		"ObjectPreview",
 		"ObjectToolLabel",
 		"ObjectToolSection",
 		"ObjectTypeOption",
 		"CorridorSectionLabel",
 		"CorridorWidthRow",
 		"CorridorWidthSpin",
+		"StairToolSection",
 		"OpeningToolSection",
-		"HoverHelpRow"
+		"HelpSectionLabel",
+		"HoverHelpRow",
+		"Preview3DToggle",
+		"ControlsHelpToggle"
 	], tools_visible)
 	_set_left_paths_visible([
 		"ElementListTitle",
@@ -630,17 +665,19 @@ func _sync_left_editor_tab_visibility() -> void:
 		"BtnSave",
 		"BtnLoad",
 		"BtnExportRuntime",
+		"ScenarioLabel",
+		"ScenarioOption",
+		"BtnLoadScenario",
 		"StopTimeLabel",
 		"StopTimeSpin",
 		"LightingRow",
-		"BuildingTypeRow",
-		"ApartmentFloorRow",
-		"ScenarioLabel",
-		"HVACRow",
-		"ScenarioOption",
-		"BtnLoadScenario"
+		"HVACRow"
 	], scenario_visible)
 	_set_left_paths_visible(["SeparatorA", "SeparatorB"], false)
+	# El panel de ayuda solo se abre desde su boton, y su boton solo esta en
+	# la pestana del escenario: al cambiar de pestana se cierra con el.
+	if not tools_visible:
+		_set_left_path_visible("ControlsHelpPanel", false)
 	if _status_label != null:
 		_status_label.visible = true
 		_status_label.custom_minimum_size = Vector2(0.0, 54.0)
@@ -861,7 +898,7 @@ func _sync_editor_runtime_views(rebuild_fp: bool = true) -> void:
 	if not _ignition_room_is_valid(runtime_template):
 		runtime_template.erase("ignition_room_id")
 	if not _editor_building_model.load_template_data(runtime_template, true):
-		_set_status("La vista 3D no se pudo actualizar: revisa el escenario.")
+		_set_status(tr("La vista 3D no se pudo actualizar: revisa el escenario."))
 		return
 	if _editor_visualizer_3d != null:
 		_editor_visualizer_3d.building = _editor_building_model
@@ -888,7 +925,8 @@ func _ignition_room_is_valid(runtime_template: Dictionary) -> bool:
 
 func _mark_editor_runtime_dirty() -> void:
 	_editor_runtime_dirty = true
-	_preview_3d_delay_s = PREVIEW_3D_DELAY_S
+	if _preview3d != null:
+		_preview3d.schedule_rebuild()
 
 
 func _lock_all_object_visual_poses() -> void:
@@ -940,10 +978,10 @@ func _sync_editor_visualizer_selection() -> void:
 		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 		_editor_visualizer_3d.select_object(selected_object_room_id, String(obj.get("id", "")))
 	elif selected_detector_index >= 0:
-		var detector_id: String = _detector_id_for_index(selected_detector_index)
+		var detector_id: String = _marker_id_for_index("detectors", selected_detector_index)
 		_editor_visualizer_3d.select_detector(detector_id)
 	elif selected_victim_index >= 0:
-		var victim_id: String = _victim_id_for_index(selected_victim_index)
+		var victim_id: String = _marker_id_for_index("victims", selected_victim_index)
 		_editor_visualizer_3d.select_victim(victim_id)
 	elif selected_player_start_room_id >= 0 and _editor_visualizer_3d.has_method("select_player_start"):
 		_editor_visualizer_3d.select_player_start()
@@ -951,172 +989,37 @@ func _sync_editor_visualizer_selection() -> void:
 		_editor_visualizer_3d.clear_selection()
 
 
-## Enlaza el panel del 3D en vivo, que vive en la escena.
+## Enlaza la regla de la esquina, que vive en la escena.
+func _bind_scale_bar() -> void:
+	_scale_label = _get_ui_node("ScaleBar/ScaleLabel") as Label
+	_scale_rule = _get_ui_node("ScaleBar/ScaleRule") as ColorRect
+	_update_scale_bar()
+
+
+## El «3D en vivo» vive en `editor/EditorPreview3D.gd` (D-1). Aqui solo quedan
+## los puentes: lo que el panel necesita del editor y lo que el resto del
+## editor le pide al panel.
 func _bind_preview_3d() -> void:
-	_preview_3d_panel = _get_ui_node("Preview3DPanel") as PanelContainer
-	_preview_3d_viewport = _get_ui_node("Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport") as SubViewport
-	_preview_3d_camera = _get_ui_node("Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport/Preview3DCamera") as Camera3D
-	_preview_3d_toggle = _get_left_node("Preview3DToggle") as Button
-	if _preview_3d_toggle != null:
-		_preview_3d_toggle.toggle_mode = true
-		if not _preview_3d_toggle.toggled.is_connected(_on_preview_3d_toggled):
-			_preview_3d_toggle.toggled.connect(_on_preview_3d_toggled)
-	# La barra del titulo mueve el panel y la esquina lo agranda. Era de tamaño y
-	# sitio fijos: servia para vigilar de reojo, no para trabajar mirandolo.
-	var header := _get_ui_node("Preview3DPanel/VBox/HeaderRow") as Control
-	if header != null:
-		header.mouse_filter = Control.MOUSE_FILTER_STOP
-		header.mouse_default_cursor_shape = Control.CURSOR_MOVE
-		header.tooltip_text = "Arrastra esta barra para llevarte la vista 3D a otra esquina."
-		if not header.gui_input.is_connected(_on_preview_3d_header_gui_input):
-			header.gui_input.connect(_on_preview_3d_header_gui_input)
-	var grip := _get_ui_node("Preview3DPanel/VBox/Preview3DFooter/Preview3DResizeGrip") as Button
-	if grip != null and not grip.gui_input.is_connected(_on_preview_3d_grip_gui_input):
-		grip.gui_input.connect(_on_preview_3d_grip_gui_input)
-	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DFrame") as Button, _frame_preview_3d)
-	_connect_button(_get_ui_node("Preview3DPanel/VBox/HeaderRow/BtnPreview3DClose") as Button, _close_preview_3d)
-	_set_preview_3d_enabled(false)
+	_preview3d = EditorPreview3DScript.new()
+	_preview3d.setup(self)
 
 
-func _on_preview_3d_toggled(pressed: bool) -> void:
-	_set_preview_3d_enabled(pressed)
+## Lo que el panel del 3D en vivo necesita del editor: el mundo compartido.
+func _restore_world_3d_for_view_mode() -> void:
+	var use_3d: bool = _editor_view_mode == EditorViewMode.MODE_3D
+	var use_fp: bool = _editor_view_mode == EditorViewMode.MODE_FP
+	if _editor_world_3d != null:
+		_editor_world_3d.visible = use_3d or use_fp
+	if _editor_visualizer_3d != null:
+		_editor_visualizer_3d.set_active(use_3d or use_fp, use_3d, use_3d, use_fp)
 
 
-# ── Mover y agrandar el panel del 3D en vivo ────────────────────────────────
-func _on_preview_3d_header_gui_input(event: InputEvent) -> void:
-	_begin_preview_3d_panel_drag(event, "move")
-
-
-func _on_preview_3d_grip_gui_input(event: InputEvent) -> void:
-	_begin_preview_3d_panel_drag(event, "resize")
-
-
-func _begin_preview_3d_panel_drag(event: InputEvent, mode: String) -> void:
-	if _preview_3d_panel == null or not (event is InputEventMouseButton):
-		return
-	var mouse_event: InputEventMouseButton = event
-	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
-		return
-	_preview_3d_panel_drag = mode
-	_preview_3d_panel_drag_mouse = get_viewport().get_mouse_position()
-	_preview_3d_panel_drag_rect = Rect2(_preview_3d_panel.position, _preview_3d_panel.size)
-
-
-## Cierto si el evento era para mover o agrandar el panel.
-func _handle_preview_3d_panel_drag(event: InputEvent) -> bool:
-	if _preview_3d_panel_drag == "" or _preview_3d_panel == null:
-		return false
-	if event is InputEventMouseMotion:
-		var delta: Vector2 = (event as InputEventMouseMotion).position - _preview_3d_panel_drag_mouse
-		if _preview_3d_panel_drag == "move":
-			_place_preview_3d_panel(_preview_3d_panel_drag_rect.position + delta, _preview_3d_panel_drag_rect.size)
-		else:
-			_place_preview_3d_panel(_preview_3d_panel_drag_rect.position, _preview_3d_panel_drag_rect.size + delta)
-		return true
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT and not mouse_event.pressed:
-			_preview_3d_panel_drag = ""
-			return true
-	return false
-
-
-## Deja el panel donde se pide, sin que se salga de la pantalla ni se quede tan
-## pequeño que no se vea nada. Se ancla arriba-izquierda: con el anclaje de
-## esquina que traia, mover y redimensionar peleaban entre si.
-func _place_preview_3d_panel(position: Vector2, size: Vector2) -> void:
-	var screen: Vector2 = get_viewport().get_visible_rect().size
-	var clamped_size := Vector2(
-		clampf(size.x, PREVIEW_3D_MIN_SIZE_PX.x, screen.x),
-		clampf(size.y, PREVIEW_3D_MIN_SIZE_PX.y, screen.y))
-	var clamped_position := Vector2(
-		clampf(position.x, 0.0, maxf(0.0, screen.x - clamped_size.x)),
-		clampf(position.y, 0.0, maxf(0.0, screen.y - clamped_size.y)))
-	_preview_3d_panel.set_anchors_preset(Control.PRESET_TOP_LEFT, false)
-	_preview_3d_panel.offset_left = clamped_position.x
-	_preview_3d_panel.offset_top = clamped_position.y
-	_preview_3d_panel.offset_right = clamped_position.x + clamped_size.x
-	_preview_3d_panel.offset_bottom = clamped_position.y + clamped_size.y
-	_preview_3d_panel.size = clamped_size
-
-
-func _close_preview_3d() -> void:
-	_set_preview_3d_enabled(false)
-
-
-## Enciende o apaga el panel.
-##
-## El truco para que el mismo mundo 3D se vea dentro del editor 2D: el
-## SubViewport comparte el World3D de la ventana y trae SU PROPIA camara, asi que
-## la del visor puede quedarse apagada. Con el visor visible pero sin camara
-## activa, el mundo no se cuela detras del plano y si aparece en el panel.
-func _set_preview_3d_enabled(enabled: bool) -> void:
-	_preview_3d_enabled = enabled
-	if _preview_3d_panel != null:
-		_preview_3d_panel.visible = enabled
-	if _preview_3d_toggle != null and _preview_3d_toggle.button_pressed != enabled:
-		_preview_3d_toggle.set_pressed_no_signal(enabled)
-	if not enabled:
-		# Se devuelve el mundo al estado que le toca por el modo de vista.
-		var use_3d: bool = _editor_view_mode == EditorViewMode.MODE_3D
-		var use_fp: bool = _editor_view_mode == EditorViewMode.MODE_FP
-		if _editor_world_3d != null:
-			_editor_world_3d.visible = use_3d or use_fp
-		if _editor_visualizer_3d != null:
-			_editor_visualizer_3d.set_active(use_3d or use_fp, use_3d, use_3d, use_fp)
-		return
-	_ensure_editor_3d_nodes()
-	if _preview_3d_viewport != null:
-		_preview_3d_viewport.world_3d = get_viewport().world_3d
+func _show_world_3d_for_preview() -> void:
 	if _editor_world_3d != null:
 		_editor_world_3d.visible = true
 	if _editor_visualizer_3d != null:
 		# Visible, pero sin robar la camara de la ventana principal.
 		_editor_visualizer_3d.set_active(true, false, false, false)
-	_sync_editor_runtime_views(false)
-	_frame_preview_3d()
-	_set_status("3D en vivo encendido: se rehace solo al soltar cada cambio.")
-
-
-## Rehace el panel cuando se deja de mover. Cada cambio reinicia la cuenta, asi
-## que arrastrar una sala entera cuesta UNA reconstruccion, no una por fotograma.
-func _refresh_preview_3d(delta: float) -> void:
-	if not _preview_3d_enabled or not _editor_runtime_dirty:
-		return
-	_preview_3d_delay_s -= delta
-	if _preview_3d_delay_s > 0.0:
-		return
-	_sync_editor_runtime_views(false)
-	_frame_preview_3d()
-
-
-## El 3D sigue al raton mientras se arrastra, por el camino barato que toque.
-##
-## Moviendo un mueble no hacen falta paredes nuevas: basta recargar el modelo y
-## dejar que el visor recoloque las piezas que ya existen (11 ms). Moviendo
-## paredes hay que rehacer la caja, y desde que los muebles sobreviven a la
-## reconstruccion -Visualizer3D._harvest_fuel_object_nodes()- eso cuesta 13 ms en
-## vez de 47: cabe en un fotograma CON los muebles puestos.
-##
-## Antes se apagaban para que saliera barato, y el efecto era el que se veia:
-## arrastrabas una habitacion y sus muebles desaparecian hasta soltar. Ahora la
-## siguen, porque su sitio se guarda en coordenadas de la sala y al moverla se
-## mueven con ella.
-##
-## La camara no se reencuadra aqui a proposito: saltaria en cada paso. Queda
-## marcado como pendiente para que al soltar se reencuadre una vez.
-func _preview_3d_follow_drag() -> void:
-	if not _preview_3d_enabled or _editor_visualizer_3d == null:
-		return
-	var now_msec: int = Time.get_ticks_msec()
-	if now_msec - _preview_3d_last_follow_msec < PREVIEW_3D_FOLLOW_MS:
-		return
-	_preview_3d_last_follow_msec = now_msec
-	if drag == Drag.OBJECT:
-		_preview_3d_restate()
-		return
-	_sync_editor_runtime_views(false)
-	_mark_editor_runtime_dirty()
 
 
 ## Recoloca lo que ya existe sin volver a construir nada: el visor mueve sus
@@ -1132,17 +1035,59 @@ func _preview_3d_restate() -> void:
 	_editor_visualizer_3d.set_state({})
 
 
-## La camara del panel copia la del visor 3D, que ya sabe encuadrar el edificio.
-## Asi el panel enseña lo mismo que veras al pasar a 3D, sin duplicar el calculo.
+## La caja que ocupan las salas de la planta que se esta editando. La usa el
+## panel para encuadrar.
+func _current_floor_bounds_m() -> Rect2:
+	var bounds := Rect2()
+	var first: bool = true
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		if not _is_room_on_current_floor(room):
+			continue
+		var rect: Rect2 = _get_room_rect(int(room.get("id", -1)))
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		bounds = rect if first else bounds.merge(rect)
+		first = false
+	return bounds
+
+
+# ── Puentes hacia el panel ─────────────────────────────────────────────────
+#
+# Los guardarrailes y las sondas llaman por estos nombres desde antes de sacar
+# el modulo. Se conservan a proposito: son la red que hace seguro el traslado,
+# y cambiarlos a la vez que se mueve el codigo seria quitarse la red.
+
+func _set_preview_3d_enabled(enabled: bool) -> void:
+	if _preview3d != null:
+		_preview3d.set_enabled(enabled)
+
+
+
 func _frame_preview_3d() -> void:
-	if _preview_3d_camera == null or _editor_visualizer_3d == null:
-		return
-	var source := _editor_visualizer_3d.get_node_or_null("CameraRig/Camera3D") as Camera3D
-	if source == null:
-		return
-	_preview_3d_camera.global_transform = source.global_transform
-	_preview_3d_camera.fov = source.fov
-	_preview_3d_camera.current = true
+	if _preview3d != null:
+		_preview3d.frame()
+
+
+func _refresh_preview_3d(delta: float) -> void:
+	if _preview3d != null:
+		_preview3d.refresh(delta)
+
+
+func _preview_3d_follow_drag() -> void:
+	if _preview3d != null:
+		_preview3d.follow_drag(drag == Drag.OBJECT)
+
+
+func _handle_preview_3d_panel_drag(event: InputEvent) -> bool:
+	return _preview3d != null and _preview3d.handle_panel_drag(event)
+
+
+func _place_preview_3d_panel(position: Vector2, size: Vector2) -> void:
+	if _preview3d != null:
+		_preview3d.place(position, size)
 
 
 func _set_editor_view_mode(mode: int, force: bool = false) -> void:
@@ -1181,11 +1126,11 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	_update_tool_buttons_enabled()
 	_sync_tool_option_visibility()
 	if use_2d:
-		_set_status("Modo 2D: editor clásico activo.")
+		_set_status(tr("Modo 2D: editor clásico activo."))
 	elif use_3d:
-		_set_status("Modo 3D: dibuja arrastrando sobre el suelo, igual que en planta.")
+		_set_status(tr("Modo 3D: dibuja arrastrando sobre el suelo, igual que en planta."))
 	else:
-		_set_status("Modo FP: inspeccion activa. Pulsa Esc para volver a 2D.")
+		_set_status(tr("Modo FP: inspeccion activa. Pulsa Esc para volver a 2D."))
 	queue_redraw()
 
 
@@ -1289,7 +1234,7 @@ func _on_editor_3d_room_clicked(room_id: int) -> void:
 	if _editor_view_mode != EditorViewMode.MODE_3D:
 		return
 	if current_tool == Tool.DELETE:
-		_set_status("El borrado de geometría de salas se mantiene en 2D.")
+		_set_status(tr("El borrado de geometría de salas se mantiene en 2D."))
 		return
 	if current_tool != Tool.SELECT:
 		return
@@ -1297,7 +1242,7 @@ func _on_editor_3d_room_clicked(room_id: int) -> void:
 		_select_room(room_id)
 	else:
 		_clear_selection()
-		_set_status("Sin selección.")
+		_set_status(tr("Sin selección."))
 
 
 func _on_editor_3d_opening_clicked(opening_index: int, _screen_pos: Vector2) -> void:
@@ -1335,7 +1280,7 @@ func _on_editor_3d_object_clicked(room_id: int, object_id: String) -> void:
 func _on_editor_3d_detector_clicked(detector_id: String) -> void:
 	if _editor_view_mode != EditorViewMode.MODE_3D:
 		return
-	var detector_index: int = _detector_index_for_id(detector_id)
+	var detector_index: int = _marker_index_for_id("detectors", detector_id)
 	if detector_index < 0:
 		return
 	if current_tool == Tool.DELETE:
@@ -1349,7 +1294,7 @@ func _on_editor_3d_detector_clicked(detector_id: String) -> void:
 func _on_editor_3d_victim_clicked(victim_id: String) -> void:
 	if _editor_view_mode != EditorViewMode.MODE_3D:
 		return
-	var victim_index: int = _victim_index_for_id(victim_id)
+	var victim_index: int = _marker_index_for_id("victims", victim_id)
 	if victim_index < 0:
 		return
 	if current_tool == Tool.DELETE:
@@ -1450,17 +1395,17 @@ func _flat_drag_hint(rect: Rect2) -> String:
 ## plano donde pintarla, y escribir a ciegas no es escribir: se dice aqui.
 func _show_typed_measure_in_status() -> void:
 	if _typed_measure == "":
-		_set_status("Escribe la medida y pulsa Intro. Escape la borra.")
+		_set_status(tr("Escribe la medida y pulsa Intro. Escape la borra."))
 		return
 	var values: PackedFloat32Array = _parse_typed_measure()
 	var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, _drag_end_point())
 	if current_tool == Tool.CORRIDOR_L:
-		_set_status("Medida: %s m de largo. Intro para crear." % _typed_measure)
+		_set_status(tr("Medida: %s m de largo. Intro para crear.") % _typed_measure)
 		return
 	if values.size() > 1:
-		_set_status("Medida: %s → %.2f × %.2f m. Intro para crear." % [_typed_measure, rect.size.x, rect.size.y])
+		_set_status(tr("Medida: %s → %.2f × %.2f m. Intro para crear.") % [_typed_measure, rect.size.x, rect.size.y])
 		return
-	_set_status("Medida: %s m de ancho; escribe ;alto o pulsa Intro." % _typed_measure)
+	_set_status(tr("Medida: %s m de ancho; escribe ;alto o pulsa Intro.") % _typed_measure)
 
 
 ## Las cuatro que trazan geometria arrastrando.
@@ -1516,6 +1461,7 @@ func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
 		return
 	if room_id < 0:
 		return
+	var count_before: int = _scenario_element_count()
 	match current_tool:
 		Tool.DOOR:
 			_create_door_at(floor_pos_m)
@@ -1542,9 +1488,10 @@ func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
 			_create_player_start_at(floor_pos_m)
 			_sync_editor_3d_after_direct_edit()
 		Tool.IGNITION:
-			_set_status("Ignición 3D: pulsa directamente sobre un objeto combustible.")
+			_set_status(tr("Ignición 3D: pulsa directamente sobre un objeto combustible."))
 		Tool.DELETE:
-			_set_status("Borrado 3D: pulsa una apertura, objeto, detector, víctima o inicio FP.")
+			_set_status(tr("Borrado 3D: pulsa una apertura, objeto, detector, víctima o inicio FP."))
+	_auto_return_to_select(count_before)
 
 
 func _on_editor_3d_element_drag_started(kind: String) -> void:
@@ -1577,10 +1524,10 @@ func _on_editor_3d_detector_dragged(detector_id: String, floor_pos_m: Vector2) -
 		return
 	if current_tool != Tool.SELECT:
 		return
-	var detector_index: int = _detector_index_for_id(detector_id)
+	var detector_index: int = _marker_index_for_id("detectors", detector_id)
 	if detector_index < 0:
 		return
-	_move_detector_to(detector_index, floor_pos_m)
+	_move_marker_to("detectors", detector_index, floor_pos_m)
 	selected_detector_index = detector_index
 	_sync_detector_property_fields(Dictionary(Array(editor_data.get("detectors", []))[detector_index]))
 	queue_redraw()
@@ -1591,10 +1538,10 @@ func _on_editor_3d_victim_dragged(victim_id: String, floor_pos_m: Vector2) -> vo
 		return
 	if current_tool != Tool.SELECT:
 		return
-	var victim_index: int = _victim_index_for_id(victim_id)
+	var victim_index: int = _marker_index_for_id("victims", victim_id)
 	if victim_index < 0:
 		return
-	_move_victim_to(victim_index, floor_pos_m)
+	_move_marker_to("victims", victim_index, floor_pos_m)
 	selected_victim_index = victim_index
 	_sync_victim_property_fields(Dictionary(Array(editor_data.get("victims", []))[victim_index]))
 	queue_redraw()
@@ -1621,15 +1568,15 @@ func _on_editor_3d_element_drag_ended(kind: String) -> void:
 	_refresh_property_panel()
 	match kind:
 		"object":
-			_set_status("Objeto movido en 3D.")
+			_set_status(tr("Objeto movido en 3D."))
 		"detector":
-			_set_status("Detector movido en 3D.")
+			_set_status(tr("Detector movido en 3D."))
 		"victim":
-			_set_status("Víctima movida en 3D.")
+			_set_status(tr("Víctima movida en 3D."))
 		"player_start":
-			_set_status("Inicio FP movido en 3D.")
+			_set_status(tr("Inicio FP movido en 3D."))
 		_:
-			_set_status("Elemento movido en 3D.")
+			_set_status(tr("Elemento movido en 3D."))
 	queue_redraw()
 
 
@@ -1654,46 +1601,24 @@ func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vec
 	_set_object_position(room_id, object_index, local_pos, visual_pose_locked)
 
 
-func _move_detector_to(detector_index: int, world_pos_m: Vector2) -> void:
-	var dets: Array = editor_data.get("detectors", [])
-	if detector_index < 0 or detector_index >= dets.size() or typeof(dets[detector_index]) != TYPE_DICTIONARY:
+## Mover un marcador: cae en la sala que hay debajo, y si no hay ninguna se
+## queda en la suya. Era la misma funcion escrita dos veces, letra por letra.
+func _move_marker_to(list_key: String, index: int, world_pos_m: Vector2) -> void:
+	var list: Array = editor_data.get(list_key, [])
+	if index < 0 or index >= list.size() or typeof(list[index]) != TYPE_DICTIONARY:
 		return
-	var det: Dictionary = dets[detector_index]
+	var marker: Dictionary = list[index]
 	var room_id: int = _find_room_at(world_pos_m)
 	if room_id < 0:
-		room_id = int(det.get("room_id", -1))
+		room_id = int(marker.get("room_id", -1))
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return
 	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
 	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
 	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
-	det["room_id"] = room_id
-	det["x_m"] = local_pos.x
-	det["y_m"] = local_pos.y
-	dets[detector_index] = det
-	editor_data["detectors"] = dets
-
-
-func _move_victim_to(victim_index: int, world_pos_m: Vector2) -> void:
-	var vics: Array = editor_data.get("victims", [])
-	if victim_index < 0 or victim_index >= vics.size() or typeof(vics[victim_index]) != TYPE_DICTIONARY:
-		return
-	var vic: Dictionary = vics[victim_index]
-	var room_id: int = _find_room_at(world_pos_m)
-	if room_id < 0:
-		room_id = int(vic.get("room_id", -1))
-	var room_rect: Rect2 = _get_room_rect(room_id)
-	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
-		return
-	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
-	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
-	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
-	vic["room_id"] = room_id
-	vic["x_m"] = local_pos.x
-	vic["y_m"] = local_pos.y
-	vics[victim_index] = vic
-	editor_data["victims"] = vics
+	list[index] = RoomMarkers.placed(marker, room_id, local_pos)
+	editor_data[list_key] = list
 
 
 func _move_player_start_to(world_pos_m: Vector2) -> void:
@@ -1734,34 +1659,14 @@ func _object_index_for_id(room_id: int, object_id: String) -> int:
 	return -1
 
 
-func _detector_index_for_id(detector_id: String) -> int:
-	var detectors: Array = editor_data.get("detectors", [])
-	for i in range(detectors.size()):
-		if typeof(detectors[i]) == TYPE_DICTIONARY and String(Dictionary(detectors[i]).get("id", "")) == detector_id:
-			return i
-	return -1
+## Detectores y victimas son la misma forma de dato, asi que se buscan igual: lo
+## unico que cambia es de que lista. Antes eran cuatro funciones identicas.
+func _marker_index_for_id(list_key: String, marker_id: String) -> int:
+	return RoomMarkers.index_for_id(Array(editor_data.get(list_key, [])), marker_id)
 
 
-func _victim_index_for_id(victim_id: String) -> int:
-	var victims: Array = editor_data.get("victims", [])
-	for i in range(victims.size()):
-		if typeof(victims[i]) == TYPE_DICTIONARY and String(Dictionary(victims[i]).get("id", "")) == victim_id:
-			return i
-	return -1
-
-
-func _detector_id_for_index(index: int) -> String:
-	var detectors: Array = editor_data.get("detectors", [])
-	if index < 0 or index >= detectors.size() or typeof(detectors[index]) != TYPE_DICTIONARY:
-		return ""
-	return String(Dictionary(detectors[index]).get("id", ""))
-
-
-func _victim_id_for_index(index: int) -> String:
-	var victims: Array = editor_data.get("victims", [])
-	if index < 0 or index >= victims.size() or typeof(victims[index]) != TYPE_DICTIONARY:
-		return ""
-	return String(Dictionary(victims[index]).get("id", ""))
+func _marker_id_for_index(list_key: String, index: int) -> String:
+	return RoomMarkers.id_for_index(Array(editor_data.get(list_key, [])), index)
 
 
 func _find_left_vbox() -> VBoxContainer:
@@ -1802,17 +1707,6 @@ func _set_node_visible(path: String, visible: bool) -> void:
 		node.visible = visible
 
 
-## Una casilla vive dentro de su fila con la etiqueta al lado: esconder la
-## casilla sola dejaria la etiqueta huerfana.
-func _set_control_row_visible(control: Control, visible: bool) -> void:
-	if control == null:
-		return
-	var parent := control.get_parent() as Control
-	if parent != null and parent is HBoxContainer:
-		parent.visible = visible
-	else:
-		control.visible = visible
-
 
 func _stair_turn_mode_from_option(option: OptionButton) -> String:
 	if option == null:
@@ -1836,7 +1730,7 @@ func _get_ui_node(path: String) -> Node:
 
 func _style_editor_controls(node: Node) -> void:
 	if node is PanelContainer:
-		(node as PanelContainer).add_theme_stylebox_override("panel", _stylebox(UI_PANEL, UI_BORDER, 1, 0, Vector2(12.0, 12.0)))
+		(node as PanelContainer).add_theme_stylebox_override("panel", SimuFireTheme.stylebox(UI_PANEL, UI_BORDER, 1, 0, Vector2(12.0, 12.0)))
 	if node is Label:
 		var label := node as Label
 		label.add_theme_font_override("font", _editor_font)
@@ -1900,6 +1794,11 @@ func _is_heading_label(label: Label) -> bool:
 	var n: String = label.name.to_lower()
 	if n == "editormodelabel":
 		return false
+	# `sectionlabel` es la convencion de las cabeceras nuevas del panel
+	# izquierdo (EDIFICIO, ENTORNO, AYUDA Y VISTA): sin esto se pintaban del
+	# gris del texto corriente y no se leian como cabeceras.
+	if n.ends_with("sectionlabel"):
+		return true
 	return n.ends_with("title") or n == "objectlabel" or n == "scenariolabel" or n == "stoptimelabel"
 
 
@@ -1946,7 +1845,7 @@ func _push_undo_snapshot(_label: String = "") -> void:
 
 func _undo_last_action() -> void:
 	if _undo_stack.is_empty():
-		_set_status("No hay acciones para deshacer.")
+		_set_status(tr("No hay acciones para deshacer."))
 		return
 	var snapshot: Dictionary = _undo_stack.pop_back()
 	_redo_stack.append(editor_data.duplicate(true))
@@ -1962,7 +1861,7 @@ func _undo_last_action() -> void:
 ## trabajo sin remedio.
 func _redo_last_action() -> void:
 	if _redo_stack.is_empty():
-		_set_status("No hay acciones para rehacer.")
+		_set_status(tr("No hay acciones para rehacer."))
 		return
 	var snapshot: Dictionary = _redo_stack.pop_back()
 	_undo_stack.append(editor_data.duplicate(true))
@@ -1975,18 +1874,9 @@ func _redo_last_action() -> void:
 ## rehacer para que no se separen al tocar uno de los dos.
 func _apply_history_snapshot(snapshot: Dictionary, message: String) -> void:
 	_unsaved_changes = true
-	editor_data = Serializer.normalize_editor_data(snapshot.duplicate(true))
-	_ensure_floor_data()
-	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
-	pending_door_room_id = -1
-	drag = Drag.NONE
-	object_mouse_mode = ObjectMouseMode.NONE
-	_sync_floor_controls()
-	_sync_hvac_option_from_data()
-	_sync_lighting_controls_from_data()
-	_sync_building_type_option_from_data()
-	_clear_selection()
-	_mark_editor_runtime_dirty()
+	# Sin vaciar el historial -es justo lo que se esta recorriendo- y sin
+	# bloquear poses: la instantanea se restaura tal cual.
+	adopt_scenario_data(snapshot.duplicate(true), current_floor_index, false)
 	_set_status(message)
 	queue_redraw()
 
@@ -2029,7 +1919,7 @@ func _on_building_type_selected(index: int) -> void:
 	_push_undo_snapshot("building_type")
 	editor_data["building_type"] = new_type
 	_sync_apartment_floor_control()
-	_set_status("Exterior configurado como %s." % ("piso" if index == 1 else "casa unifamiliar"))
+	_set_status(tr("Exterior configurado como %s.") % ("piso" if index == 1 else "casa unifamiliar"))
 
 
 func _sync_apartment_floor_control() -> void:
@@ -2038,10 +1928,10 @@ func _sync_apartment_floor_control() -> void:
 	var planta: int = maxi(0, int(editor_data.get("apartment_floor_number", 1)))
 	_apartment_floor_spin.value = planta
 	var is_apartment: bool = String(editor_data.get("building_type", "single_family")).to_lower() == "apartment"
-	_set_control_row_visible(_apartment_floor_spin, is_apartment)
+	PropertyPanelScript.set_row_visible(_apartment_floor_spin, is_apartment)
 	if _total_floors_spin != null:
 		_total_floors_spin.value = maxi(planta + 1, int(editor_data.get("building_total_floors", planta + 1)))
-		_set_control_row_visible(_total_floors_spin, is_apartment)
+		PropertyPanelScript.set_row_visible(_total_floors_spin, is_apartment)
 		_sync_floor_limits()
 
 
@@ -2066,7 +1956,7 @@ func _on_apartment_floor_changed(value: float) -> void:
 	if _total_floors_spin != null:
 		_total_floors_spin.value = totales
 	_sync_floor_limits()
-	_set_status("La vivienda esta en %s, de %d plantas." % [FloorNaming.label(next_floor), totales])
+	_set_status(tr("La vivienda esta en %s, de %d plantas.") % [FloorNaming.label(next_floor), totales])
 
 
 func _on_total_floors_changed(value: float) -> void:
@@ -2077,7 +1967,7 @@ func _on_total_floors_changed(value: float) -> void:
 	_push_undo_snapshot("building_total_floors")
 	editor_data["building_total_floors"] = totales
 	_sync_floor_limits()
-	_set_status("El edificio tiene %d plantas; la vivienda esta en %s." % [totales, FloorNaming.label(planta)])
+	_set_status(tr("El edificio tiene %d plantas; la vivienda esta en %s.") % [totales, FloorNaming.label(planta)])
 
 
 func _bind_controls_help_block(parent: Control) -> void:
@@ -2320,103 +2210,183 @@ func _update_floor_status() -> void:
 	]
 
 
+## La lista de la planta, AGRUPADA por tipo.
+##
+## Antes era un volcado seguido -salas, sus objetos, aperturas, detectores,
+## victimas e inicio- y en un piso amueblado eso son cincuenta filas sin un
+## solo asidero. Ahora cada grupo lleva su cabecera con la cuenta, las salas se
+## separan en estancias, pasillos y escaleras, y los grupos vacios no aparecen.
+##
+## Las cabeceras son filas deshabilitadas: se ven, no se pueden seleccionar y
+## no estorban a la seleccion cruzada con el plano.
 func _refresh_element_list() -> void:
 	if _element_list == null:
 		return
 	_element_list_sync_in_progress = true
 	_element_list.clear()
-	var selected_item_index: int = -1
-	var row_index: int = 0
+
+	var estancias: Array = []
+	var pasillos: Array = []
+	var escaleras: Array = []
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
 		var room_dict: Dictionary = room
 		if not _is_room_on_current_floor(room_dict):
 			continue
-		var room_id: int = int(room_dict.get("id", -1))
-		var room_label: String = "%s  R%d  %s" % [_element_type_label_for_room(room_dict), room_id, _room_display_name(room_dict, room_id)]
-		_element_list.add_item(room_label)
-		_element_list.set_item_metadata(row_index, {"type": "room", "room_id": room_id})
-		if selected_room_id == room_id:
-			selected_item_index = row_index
-		row_index += 1
+		var destino: Array = estancias
+		if StairPlanRules.is_stair_room(room_dict):
+			destino = escaleras
+		elif _is_corridor_room(room_dict):
+			destino = pasillos
+		destino.append_array(_element_rows_for_room(room_dict))
 
-		var objects: Array = room_dict.get("fuel_objects", [])
-		for obj_index in range(objects.size()):
-			if typeof(objects[obj_index]) != TYPE_DICTIONARY:
-				continue
-			var obj: Dictionary = objects[obj_index]
-			_element_list.add_item("  Objeto  %s" % String(obj.get("name", obj.get("kind", "obj"))))
-			_element_list.set_item_metadata(row_index, {"type": "object", "room_id": room_id, "object_index": obj_index})
-			if selected_object_room_id == room_id and selected_object_index == obj_index:
-				selected_item_index = row_index
-			row_index += 1
-
-	for i in range(Array(editor_data.get("openings_data", [])).size()):
-		var openings: Array = editor_data.get("openings_data", [])
+	var aperturas: Array = []
+	var openings: Array = editor_data.get("openings_data", [])
+	for i in range(openings.size()):
 		if typeof(openings[i]) != TYPE_DICTIONARY:
 			continue
 		var opening: Dictionary = openings[i]
 		if not _opening_on_current_floor(opening):
 			continue
-		_element_list.add_item(_element_label_for_opening(opening, i))
-		_element_list.set_item_metadata(row_index, {"type": "opening", "opening_index": i})
-		if selected_opening_index == i:
-			selected_item_index = row_index
-		row_index += 1
+		aperturas.append({
+			"text": _element_label_for_opening(opening, i),
+			"meta": {"type": "opening", "opening_index": i}
+		})
 
-	for i in range(Array(editor_data.get("detectors", [])).size()):
-		var dets: Array = editor_data.get("detectors", [])
+	var detectores: Array = []
+	var dets: Array = editor_data.get("detectors", [])
+	for i in range(dets.size()):
 		if typeof(dets[i]) != TYPE_DICTIONARY:
 			continue
 		var det: Dictionary = dets[i]
-		var room_id: int = int(det.get("room_id", -1))
-		if not _is_room_on_current_floor(_get_room(room_id)):
+		var det_room_id: int = int(det.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(det_room_id)):
 			continue
-		_element_list.add_item("Detector  %s  R%d" % [String(det.get("id", str(i))), room_id])
-		_element_list.set_item_metadata(row_index, {"type": "detector", "detector_index": i})
-		if selected_detector_index == i:
-			selected_item_index = row_index
-		row_index += 1
+		detectores.append({
+			"text": "Detector  %s  R%d" % [String(det.get("id", str(i))), det_room_id],
+			"meta": {"type": "detector", "detector_index": i}
+		})
 
-	for i in range(Array(editor_data.get("victims", [])).size()):
-		var vics: Array = editor_data.get("victims", [])
+	var victimas: Array = []
+	var vics: Array = editor_data.get("victims", [])
+	for i in range(vics.size()):
 		if typeof(vics[i]) != TYPE_DICTIONARY:
 			continue
 		var vic: Dictionary = vics[i]
-		var room_id: int = int(vic.get("room_id", -1))
-		if not _is_room_on_current_floor(_get_room(room_id)):
+		var vic_room_id: int = int(vic.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(vic_room_id)):
 			continue
-		_element_list.add_item("Víctima  %s  R%d" % [String(vic.get("name", vic.get("id", str(i)))), room_id])
-		_element_list.set_item_metadata(row_index, {"type": "victim", "victim_index": i})
-		if selected_victim_index == i:
-			selected_item_index = row_index
-		row_index += 1
+		victimas.append({
+			"text": "Víctima  %s  R%d" % [String(vic.get("name", vic.get("id", str(i)))), vic_room_id],
+			"meta": {"type": "victim", "victim_index": i}
+		})
 
-	var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
+	var inicio: Array = []
+	var start_raw: Variant = editor_data.get("player_start", {})
+	var start: Dictionary = start_raw if typeof(start_raw) == TYPE_DICTIONARY else {}
 	if not start.is_empty():
 		var start_room_id: int = int(start.get("room_id", -1))
 		if _is_room_on_current_floor(_get_room(start_room_id)):
-			_element_list.add_item("Inicio FP  R%d" % start_room_id)
-			_element_list.set_item_metadata(row_index, {"type": "player_start", "room_id": start_room_id})
-			if selected_player_start_room_id == start_room_id:
-				selected_item_index = row_index
-			row_index += 1
+			inicio.append({
+				"text": "Inicio FP  R%d" % start_room_id,
+				"meta": {"type": "player_start", "room_id": start_room_id}
+			})
 
-	if row_index == 0:
+	var total: int = 0
+	for grupo in [
+		["ESTANCIAS", estancias],
+		["PASILLOS", pasillos],
+		["ESCALERAS", escaleras],
+		["APERTURAS", aperturas],
+		["DETECTORES", detectores],
+		["VÍCTIMAS", victimas],
+		["INICIO FP", inicio],
+	]:
+		var filas: Array = grupo[1]
+		if filas.is_empty():
+			continue
+		total += _add_element_group(String(grupo[0]), filas)
+
+	if total == 0:
 		_element_list.add_item("Sin elementos en %s" % _current_floor_name())
 		_element_list.set_item_disabled(0, true)
-	elif selected_item_index >= 0:
-		_element_list.select(selected_item_index)
 	_element_list_sync_in_progress = false
+
+
+## Una sala y, sangrados debajo, sus objetos.
+func _element_rows_for_room(room: Dictionary) -> Array:
+	var room_id: int = int(room.get("id", -1))
+	var rows: Array = [{
+		"text": "%s  R%d  %s" % [
+			_element_type_label_for_room(room), room_id, _room_display_name(room, room_id)
+		],
+		"meta": {"type": "room", "room_id": room_id}
+	}]
+	var objects: Array = room.get("fuel_objects", [])
+	for obj_index in range(objects.size()):
+		if typeof(objects[obj_index]) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = objects[obj_index]
+		rows.append({
+			"text": "    %s" % String(obj.get("name", obj.get("kind", "obj"))),
+			"meta": {"type": "object", "room_id": room_id, "object_index": obj_index},
+			"nested": true
+		})
+	return rows
+
+
+## Cabecera del grupo mas sus filas. Devuelve cuantas filas SELECCIONABLES ha
+## puesto, que es lo que decide si la planta esta vacia.
+func _add_element_group(title: String, rows: Array) -> int:
+	# La cuenta es de ELEMENTOS del grupo, no de filas: los objetos cuelgan
+	# sangrados de su sala y decir "estancias (3)" cuando hay dos salas y un
+	# sofa es peor que no decir nada.
+	var count: int = 0
+	for raw in rows:
+		if not bool(Dictionary(raw).get("nested", false)):
+			count += 1
+	var header_index: int = _element_list.add_item("── %s (%d)" % [title, count])
+	_element_list.set_item_disabled(header_index, true)
+	_element_list.set_item_selectable(header_index, false)
+	_element_list.set_item_custom_fg_color(header_index, UI_TEXT_MUTED)
+	for raw_row in rows:
+		var row: Dictionary = raw_row
+		var index: int = _element_list.add_item(String(row.get("text", "")))
+		var meta: Dictionary = row.get("meta", {})
+		_element_list.set_item_metadata(index, meta)
+		if _element_row_is_selected(meta):
+			_element_list.select(index)
+	return rows.size()
+
+
+## Si esta fila es la que esta seleccionada ahora mismo en el plano.
+func _element_row_is_selected(meta: Dictionary) -> bool:
+	match String(meta.get("type", "")):
+		"room":
+			return selected_room_id == int(meta.get("room_id", -1))
+		"object":
+			return (
+				selected_object_room_id == int(meta.get("room_id", -1))
+				and selected_object_index == int(meta.get("object_index", -1))
+			)
+		"opening":
+			return selected_opening_index == int(meta.get("opening_index", -1))
+		"detector":
+			return selected_detector_index == int(meta.get("detector_index", -1))
+		"victim":
+			return selected_victim_index == int(meta.get("victim_index", -1))
+		"player_start":
+			return selected_player_start_room_id == int(meta.get("room_id", -1))
+	return false
 
 
 func _element_type_label_for_room(room: Dictionary) -> String:
 	if StairPlanRules.is_stair_room(room):
-		return "Escalera"
+		return tr("Escalera")
 	if _is_corridor_room(room):
-		return "Pasillo"
-	return "Estancia"
+		return tr("Pasillo")
+	return tr("Estancia")
 
 
 func _element_label_for_opening(opening: Dictionary, index: int) -> String:
@@ -2461,7 +2431,7 @@ func _on_floor_selected(index: int) -> void:
 	pending_door_room_id = -1
 	_clear_selection()
 	_sync_floor_controls()
-	_set_status("Planta activa: %s." % _current_floor_name())
+	_set_status(tr("Planta activa: %s.") % _current_floor_name())
 	queue_redraw()
 
 
@@ -2512,9 +2482,9 @@ func _create_floor(copy_contents: bool) -> int:
 	_clear_selection()
 	_sync_floor_controls()
 	if copied.is_empty():
-		_set_status("Nueva planta creada: %s." % _current_floor_name())
+		_set_status(tr("Nueva planta creada: %s.") % _current_floor_name())
 	else:
-		_set_status("Nueva planta creada: %s, copiada de %s (%s)." % [
+		_set_status(tr("Nueva planta creada: %s, copiada de %s (%s).") % [
 			_current_floor_name(), _floor_name_for_level(source_level_m), _copy_summary_text(copied)])
 	_mark_editor_runtime_dirty()
 	queue_redraw()
@@ -2736,7 +2706,7 @@ func _copy_detectors_for_map(id_map: Dictionary) -> int:
 func _delete_floor_pressed() -> void:
 	var floors: Array = _get_floors()
 	if floors.size() <= 1:
-		_set_status("No se puede borrar la unica planta.")
+		_set_status(tr("No se puede borrar la unica planta."))
 		return
 	if current_floor_index < 0 or current_floor_index >= floors.size():
 		return
@@ -2786,7 +2756,7 @@ func _delete_floor_pressed() -> void:
 	_clear_selection()
 	_ensure_floor_data()
 	_sync_floor_controls()
-	_set_status("Planta %s eliminada." % String(floor.get("name", "")))
+	_set_status(tr("Planta %s eliminada.") % String(floor.get("name", "")))
 	queue_redraw()
 
 
@@ -2993,16 +2963,53 @@ func _keyboard_is_typing() -> bool:
 	return focus_owner is LineEdit or focus_owner is TextEdit or focus_owner is SpinBox
 
 
-func _set_tool(tool_id: int) -> void:
+## Cuantos elementos tiene la planta ahora mismo. No es un dato del escenario:
+## es la forma de saber si una herramienta acaba de crear algo sin obligar a
+## cada `_create_*_at` a declararlo.
+func _scenario_element_count() -> int:
+	var total: int = 0
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		total += 1
+		total += Array(Dictionary(raw_room).get("fuel_objects", [])).size()
+	total += Array(editor_data.get("openings_data", [])).size()
+	total += Array(editor_data.get("detectors", [])).size()
+	total += Array(editor_data.get("victims", [])).size()
+	if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY and not Dictionary(editor_data.get("player_start", {})).is_empty():
+		total += 1
+	return total
+
+
+## Colocada una cosa, se vuelve a Seleccion.
+##
+## Peticion del usuario: la herramienta se quedaba activa y el siguiente clic
+## ponia otra ventana sin querer. Ahora cada elemento colocado devuelve el raton
+## a Seleccion, que es donde se quiere estar para mirar lo que se acaba de
+## poner. Solo cuando SE HA CREADO algo: si el clic no valia -una ventana en un
+## tabique interior- la herramienta sigue puesta para volver a intentarlo.
+##
+## El mensaje de estado se conserva: dice lo que se acaba de crear, y es mas
+## util que el recordatorio de la herramienta.
+func _auto_return_to_select(count_before: int) -> void:
+	if current_tool == Tool.SELECT:
+		return
+	if _scenario_element_count() <= count_before:
+		return
+	_set_tool(Tool.SELECT, true)
+
+
+func _set_tool(tool_id: int, keep_status: bool = false) -> void:
 	if not _tool_available_in_current_mode(tool_id):
-		_set_status("En primera persona solo se mira: vuelve a 2D o a 3D para editar.")
+		_set_status(tr("En primera persona solo se mira: vuelve a 2D o a 3D para editar."))
 		_sync_tool_button_states()
 		return
 	current_tool = tool_id
 	pending_door_room_id = -1
 	_sync_tool_button_states()
 	_clear_drag()
-	_set_status(_tool_hint(current_tool))
+	if not keep_status:
+		_set_status(_tool_hint(current_tool))
 	_sync_tool_option_visibility()
 	_update_editor_visualizer_drag_mode()
 	# Resaltar el control de ancho de pasillo solo cuando la herramienta pasillo esta activa
@@ -3020,54 +3027,54 @@ func _tool_hint(tool_id: int) -> String:
 			Tool.SELECT:
 				return _ui_text("editor.tooltip_3d_select", "3D seleccionar: selecciona y arrastra objetos, detectores, víctimas o inicio FP. Botón derecho orbita.")
 			Tool.DOOR:
-				return "3D Puerta: pulsa el suelo muy cerca de una pared compartida o exterior."
+				return tr("3D Puerta: pulsa el suelo muy cerca de una pared compartida o exterior.")
 			Tool.HOLE:
-				return "3D Hueco: pulsa el suelo muy cerca de una pared compartida."
+				return tr("3D Hueco: pulsa el suelo muy cerca de una pared compartida.")
 			Tool.WINDOW:
-				return "3D Ventana: pulsa el suelo muy cerca de una pared exterior."
+				return tr("3D Ventana: pulsa el suelo muy cerca de una pared exterior.")
 			Tool.BALCONY_DOOR:
-				return "3D Puerta de balcón: pulsa el suelo muy cerca de una pared exterior."
+				return tr("3D Puerta de balcón: pulsa el suelo muy cerca de una pared exterior.")
 			Tool.OBJECT:
 				return _ui_text("editor.tooltip_3d_object", "3D objeto: pulsa el suelo de una habitación para colocar el combustible elegido.")
 			Tool.IGNITION:
-				return "3D Ignición: pulsa directamente sobre un objeto combustible."
+				return tr("3D Ignición: pulsa directamente sobre un objeto combustible.")
 			Tool.PLAYER_START:
-				return "3D Inicio FP: pulsa el suelo de una habitación para colocar la aparición."
+				return tr("3D Inicio FP: pulsa el suelo de una habitación para colocar la aparición.")
 			Tool.DELETE:
-				return "3D Borrar: pulsa lo que quieras quitar; con una sala o un muro seleccionado, Supr también los borra."
+				return tr("3D Borrar: pulsa lo que quieras quitar; con una sala o un muro seleccionado, Supr también los borra.")
 			Tool.DETECTOR:
-				return "3D Detector: pulsa el suelo de una habitación para colocar un detector."
+				return tr("3D Detector: pulsa el suelo de una habitación para colocar un detector.")
 			Tool.VICTIM:
-				return "3D Víctima: pulsa el suelo de una habitación para marcar una víctima."
+				return tr("3D Víctima: pulsa el suelo de una habitación para marcar una víctima.")
 	match tool_id:
 		Tool.SELECT:
-			return "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
+			return tr("Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones.")
 		Tool.ROOM:
-			return "Estancia: arrastra para crear una estancia en %s. Sin soltar, escribe la medida (4;3) e Intro para que sea exacta." % _current_floor_name()
+			return tr("Estancia: arrastra para crear una estancia en %s. Sin soltar, escribe la medida (4;3) e Intro para que sea exacta.") % _current_floor_name()
 		Tool.CORRIDOR_L:
-			return "Pasillo: arrastra un tramo del ancho elegido (%.2f m). Se conecta solo con todo lo que toca. Dibuja tramos pegados para giros, U o rellanos; un clic sin arrastrar hace un descansillo cuadrado." % corridor_width_m
+			return tr("Pasillo: arrastra un tramo del ancho elegido (%.2f m). Se conecta solo con todo lo que toca. Dibuja tramos pegados para giros, U o rellanos; un clic sin arrastrar hace un descansillo cuadrado.") % corridor_width_m
 		Tool.STAIRS:
-			return "Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados." % [StairPlanRules.turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
+			return tr("Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados.") % [StairPlanRules.turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
 		Tool.DOOR:
-			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
+			return tr("Puerta: pulsa una pared compartida o exterior en %s para crear puerta.") % _current_floor_name()
 		Tool.HOLE:
-			return "Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho máximo limitado por el paramento." % _current_floor_name()
+			return tr("Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho máximo limitado por el paramento.") % _current_floor_name()
 		Tool.WINDOW:
-			return "Ventana: pulsa cerca de una pared exterior en %s." % _current_floor_name()
+			return tr("Ventana: pulsa cerca de una pared exterior en %s.") % _current_floor_name()
 		Tool.BALCONY_DOOR:
-			return "Puerta de balcón: pulsa una pared exterior en %s. Crea una balconera hasta el suelo con su balcón puesto; al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es." % _current_floor_name()
+			return tr("Puerta de balcón: arrastra sobre una pared exterior de %s —a lo largo del muro el ancho del balcón, hacia fuera el vuelo, máximo %.2f m—. Un clic sin arrastrar la crea de medidas corrientes. Al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es.") % [_current_floor_name(), OpeningModel.BALCONY_MAX_DEPTH_M]
 		Tool.OBJECT:
-			return "Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
+			return tr("Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido.") % _current_floor_name()
 		Tool.IGNITION:
-			return "Ignición: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
+			return tr("Ignición: pulsa un objeto de %s para marcarlo como foco inicial.") % _current_floor_name()
 		Tool.PLAYER_START:
-			return "Inicio FP: pulsa dentro de una estancia de %s para colocar donde aparece el jugador." % _current_floor_name()
+			return tr("Inicio FP: pulsa dentro de una estancia de %s para colocar donde aparece el jugador.") % _current_floor_name()
 		Tool.DELETE:
-			return "Borrar: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
+			return tr("Borrar: elimina objeto, apertura o estancia bajo el cursor en %s.") % _current_floor_name()
 		Tool.DETECTOR:
-			return "Detector: pulsa dentro de una habitación de %s para colocar un detector de humo, calor o CO." % _current_floor_name()
+			return tr("Detector: pulsa dentro de una habitación de %s para colocar un detector de humo, calor o CO.") % _current_floor_name()
 		Tool.VICTIM:
-			return "Víctima: pulsa dentro de una habitación de %s para marcar la posición de una víctima." % _current_floor_name()
+			return tr("Víctima: pulsa dentro de una habitación de %s para marcar la posición de una víctima.") % _current_floor_name()
 	return ""
 
 
@@ -3077,14 +3084,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _editor_view_mode != EditorViewMode.MODE_2D:
 		return
-	# Zoom con rueda y desplazamiento con botón central
+	# Zoom con rueda y desplazamiento con boton central o arrastrando el plano
 	if event is InputEventMouseButton:
+		# La rueda solo hace zoom sobre la CUADRICULA. Un panel lateral se
+		# traga la rueda mientras le queda scroll, pero al llegar al final deja
+		# de tragarsela y la rueda caia aqui: se terminaba de bajar una lista y
+		# el plano se ponia a hacer zoom solo.
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			if _is_pointer_over_ui():
+				return
 			_zoom_at_mouse(ZOOM_IN_FACTOR)
 			get_viewport().set_input_as_handled()
 			return
 
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			if _is_pointer_over_ui():
+				return
 			_zoom_at_mouse(ZOOM_OUT_FACTOR)
 			get_viewport().set_input_as_handled()
 			return
@@ -3095,14 +3110,38 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
+		# Si se suelta el boton sobre un panel, el camino normal no se entera y
+		# el plano se quedaria pegado al raton.
+		if event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_is_grid_panning = false
+
 	if event is InputEventMouseMotion and is_middle_panning:
-		var mouse_delta: Vector2 = event.position - last_mouse_pos
-		camera.global_position -= mouse_delta / camera.zoom.x
+		_pan_camera_by_screen_delta(event.position - last_mouse_pos)
+		last_mouse_pos = event.position
+		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventMouseMotion and _is_grid_panning:
+		_pan_camera_by_screen_delta(event.position - last_mouse_pos)
 		last_mouse_pos = event.position
 		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		# Dibujando un pasillo, L fuerza el giro y R el tramo recto. El umbral
+		# que decide la forma no es adivinable a ojo, y sin esto un giro solo
+		# sale si el gesto es lo bastante diagonal.
+		if drag == Drag.ROOM_RECT and current_tool == Tool.CORRIDOR_L:
+			if event.keycode == KEY_L:
+				_corridor_forced_mode = "" if _corridor_forced_mode == "l" else "l"
+				queue_redraw()
+				get_viewport().set_input_as_handled()
+				return
+			if event.keycode == KEY_R:
+				_corridor_forced_mode = "" if _corridor_forced_mode == "recto" else "recto"
+				queue_redraw()
+				get_viewport().set_input_as_handled()
+				return
 		# Mientras se arrastra, el teclado escribe medidas. Va antes que los
 		# atajos de herramienta porque comparten los digitos.
 		if _measure_input_active() and _handle_measure_key(event):
@@ -3182,10 +3221,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var pos_m: Vector2 = _screen_to_m_for_tool(mouse_event.position)
+	var count_before: int = _scenario_element_count()
 	if mouse_event.pressed:
 		_handle_press(pos_m)
 	else:
 		_handle_release(pos_m)
+	_auto_return_to_select(count_before)
 
 
 func _handle_3d_editor_input(event: InputEvent) -> void:
@@ -3229,7 +3270,7 @@ func _delete_selected_3d_simple() -> void:
 		_delete_selected()
 		_sync_editor_3d_after_direct_edit()
 		return
-	_set_status("No hay ninguna apertura ni elemento simple seleccionado para borrar.")
+	_set_status(tr("No hay ninguna apertura ni elemento simple seleccionado para borrar."))
 
 
 func _input(event: InputEvent) -> void:
@@ -3261,7 +3302,11 @@ func _is_arrow_key(keycode: int) -> bool:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS:
+		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS, Tool.BALCONY_DOOR:
+			# La balconera se dibuja como una sala: lo que se arrastra a lo
+			# largo de la fachada es el ANCHO del balcon y lo perpendicular es
+			# el vuelo. Un clic sin arrastrar sigue dando la balconera de
+			# medidas corrientes.
 			drag = Drag.ROOM_RECT
 			drag_start_m = pos_m
 			drag_current_m = pos_m
@@ -3288,7 +3333,14 @@ func _handle_press(pos_m: Vector2) -> void:
 				if not selected_room.is_empty() and PlanGeometry.rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
 					_begin_room_mouse_edit(ObjectMouseMode.MOVE, pos_m)
 					return
+			# Pinchar en cuadricula vacia deselecciona Y engancha el plano: es
+			# lo que espera cualquiera que haya usado un editor de planos, y
+			# hasta ahora solo se podia mover con las flechas o con el boton
+			# central, que en un portatil no existe.
 			_select_at(pos_m)
+			if not _has_any_selection():
+				_is_grid_panning = true
+				last_mouse_pos = get_viewport().get_mouse_position()
 		Tool.DOOR:
 			_create_door_at(pos_m)
 		Tool.HOLE:
@@ -3312,17 +3364,20 @@ func _handle_press(pos_m: Vector2) -> void:
 
 
 func _handle_release(pos_m: Vector2) -> void:
+	if _is_grid_panning:
+		_is_grid_panning = false
+		return
 	if drag == Drag.ROOM_GEOMETRY:
 		var completed_mode: int = room_mouse_mode
 		drag = Drag.NONE
 		room_mouse_mode = ObjectMouseMode.NONE
 		room_drag_cursor_offset_m = Vector2.ZERO
 		if completed_mode == ObjectMouseMode.ROTATE:
-			_set_status("Ángulo de la habitación actualizado.")
+			_set_status(tr("Ángulo de la habitación actualizado."))
 		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
-			_set_status("Tamaño de la habitación actualizado.")
+			_set_status(tr("Tamaño de la habitación actualizado."))
 		else:
-			_set_status("Habitación movida.")
+			_set_status(tr("Habitación movida."))
 		_refresh_element_list()
 		queue_redraw()
 		return
@@ -3333,15 +3388,20 @@ func _handle_release(pos_m: Vector2) -> void:
 		object_mouse_mode = ObjectMouseMode.NONE
 		drag_object_cursor_offset_m = Vector2.ZERO
 		if completed_mode == ObjectMouseMode.ROTATE:
-			_set_status("Rotacion del objeto actualizada.")
+			_set_status(tr("Rotacion del objeto actualizada."))
 		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
-			_set_status("Tamaño del objeto actualizado.")
+			_set_status(tr("Tamaño del objeto actualizado."))
 		else:
-			_set_status("Objeto movido.")
+			_set_status(tr("Objeto movido."))
 		queue_redraw()
 		return
 
-	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L and current_tool != Tool.STAIRS) or drag != Drag.ROOM_RECT:
+	if (
+		current_tool != Tool.ROOM
+		and current_tool != Tool.CORRIDOR_L
+		and current_tool != Tool.STAIRS
+		and current_tool != Tool.BALCONY_DOOR
+	) or drag != Drag.ROOM_RECT:
 		return
 
 	drag_current_m = pos_m
@@ -3350,6 +3410,11 @@ func _handle_release(pos_m: Vector2) -> void:
 	var rect: Rect2 = PlanGeometry.normalized_rect(start_m, end_m)
 	var typed_measure: bool = _measure_was_typed
 	_clear_drag()
+
+	if current_tool == Tool.BALCONY_DOOR:
+		_create_balcony_door_from_drag(start_m, end_m)
+		queue_redraw()
+		return
 
 	if current_tool == Tool.CORRIDOR_L:
 		_push_undo_snapshot("create_corridor")
@@ -3362,7 +3427,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		var stair_long_m: float = StairGeometry.long_span_m(rect, stair_dir)
 		var stair_cross_m: float = StairGeometry.cross_span_m(rect, stair_dir)
 		if stair_long_m < GRID_M * 5.0 or stair_cross_m < GRID_M * 3.0:
-			_set_status("La escalera es demasiado pequeña (%.2f × %.2f m): al menos %.2f m de largo y %.2f m de ancho.%s" % [
+			_set_status(tr("La escalera es demasiado pequeña (%.2f × %.2f m): al menos %.2f m de largo y %.2f m de ancho.%s") % [
 				stair_long_m, stair_cross_m, GRID_M * 5.0, GRID_M * 3.0, _flat_drag_hint(rect)])
 			queue_redraw()
 			return
@@ -3372,7 +3437,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	if rect.size.x < GRID_M or rect.size.y < GRID_M:
-		_set_status("La habitación es demasiado pequeña (%.2f × %.2f m).%s" % [
+		_set_status(tr("La habitación es demasiado pequeña (%.2f × %.2f m).%s") % [
 			rect.size.x, rect.size.y, _flat_drag_hint(rect)])
 		queue_redraw()
 		return
@@ -3388,9 +3453,9 @@ func _handle_release(pos_m: Vector2) -> void:
 	_select_room(room_id)
 	var circulation_text: String = "" if circulation.is_empty() else ", conectada al pasillo o escalera que toca"
 	if typed_measure:
-		_set_status("Habitación %d creada, %.2f × %.2f m exactos%s." % [room_id, rect.size.x, rect.size.y, circulation_text])
+		_set_status(tr("Habitación %d creada, %.2f × %.2f m exactos%s.") % [room_id, rect.size.x, rect.size.y, circulation_text])
 	else:
-		_set_status("Habitación %d creada%s. Puedes escribir la medida mientras arrastras: 4;3 e Intro." % [room_id, circulation_text])
+		_set_status(tr("Habitación %d creada%s. Puedes escribir la medida mientras arrastras: 4;3 e Intro.") % [room_id, circulation_text])
 	queue_redraw()
 
 
@@ -3631,10 +3696,10 @@ func _payload_label(payload: Dictionary) -> String:
 func _copy_selection() -> void:
 	var payload: Dictionary = _selection_payload()
 	if payload.is_empty():
-		_set_status("Copiar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima.")
+		_set_status(tr("Copiar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima."))
 		return
 	_clipboard = payload
-	_set_status("Copiada la %s. Ctrl+V la pega donde esté el cursor." % _payload_label(payload))
+	_set_status(tr("Copiada la %s. Ctrl+V la pega donde esté el cursor.") % _payload_label(payload))
 
 
 func _paste_clipboard() -> void:
@@ -3643,7 +3708,7 @@ func _paste_clipboard() -> void:
 
 func _paste_clipboard_at(pos_m: Vector2) -> void:
 	if _clipboard.is_empty():
-		_set_status("No hay nada copiado. Ctrl+C copia lo que esté seleccionado.")
+		_set_status(tr("No hay nada copiado. Ctrl+C copia lo que esté seleccionado."))
 		return
 	_insert_payload(_clipboard, pos_m, false)
 
@@ -3653,7 +3718,7 @@ func _paste_clipboard_at(pos_m: Vector2) -> void:
 func _duplicate_selection() -> void:
 	var payload: Dictionary = _selection_payload()
 	if payload.is_empty():
-		_set_status("Duplicar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima.")
+		_set_status(tr("Duplicar necesita algo seleccionado: una habitación, un objeto, un detector o una víctima."))
 		return
 	_insert_payload(payload, Vector2.ZERO, true)
 
@@ -3670,7 +3735,7 @@ func _insert_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
 		"victim":
 			_insert_point_payload(payload, "victim", "victims", pos_m, beside)
 		_:
-			_set_status("Eso no se puede pegar.")
+			_set_status(tr("Eso no se puede pegar."))
 
 
 ## La copia cae en la planta que se esta editando, no en la del original: es lo
@@ -3678,7 +3743,7 @@ func _insert_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
 func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
 	var source_rect: Rect2 = Serializer.rect2_from_data(payload.get("rect", {}))
 	if source_rect.size.x <= 0.0 or source_rect.size.y <= 0.0:
-		_set_status("La habitación copiada no tiene geometría válida.")
+		_set_status(tr("La habitación copiada no tiene geometría válida."))
 		return
 	var rect := source_rect
 	if beside:
@@ -3732,7 +3797,7 @@ func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> 
 
 	_update_floor_status()
 	_select_room(new_id)
-	_set_status("Copiada como «%s» en %s, con %d objetos, %d detectores y %d víctimas. Las puertas y ventanas no se copian." % [
+	_set_status(tr("Copiada como «%s» en %s, con %d objetos, %d detectores y %d víctimas. Las puertas y ventanas no se copian.") % [
 		String(room.get("name", "")),
 		_current_floor_name(),
 		objects.size(),
@@ -3761,7 +3826,7 @@ func _next_object_id_including(pending: Array) -> String:
 func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
 	var room_id: int = int(payload.get("room_id", -1)) if beside else _find_room_at(pos_m)
 	if room_id < 0 or _get_room(room_id).is_empty():
-		_set_status("Pega el objeto dentro de una habitación de %s." % _current_floor_name())
+		_set_status(tr("Pega el objeto dentro de una habitación de %s.") % _current_floor_name())
 		return
 	var rect: Rect2 = _get_room_rect(room_id)
 	var obj: Dictionary = Dictionary(payload.get("object", {})).duplicate(true)
@@ -3781,7 +3846,7 @@ func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -
 	obj["visual_pose_locked"] = true
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
-	_set_status("Objeto %s copiado en la habitación %d." % [String(obj.get("id", "")), room_id])
+	_set_status(tr("Objeto %s copiado en la habitación %d.") % [String(obj.get("id", "")), room_id])
 	queue_redraw()
 
 
@@ -3791,7 +3856,7 @@ func _insert_point_payload(payload: Dictionary, kind: String, list_key: String, 
 	var item: Dictionary = Dictionary(payload.get(kind, {})).duplicate(true)
 	var room_id: int = int(item.get("room_id", -1)) if beside else _find_room_at(pos_m)
 	if room_id < 0 or _get_room(room_id).is_empty():
-		_set_status("Pega el elemento dentro de una habitación de %s." % _current_floor_name())
+		_set_status(tr("Pega el elemento dentro de una habitación de %s.") % _current_floor_name())
 		return
 	var rect: Rect2 = _get_room_rect(room_id)
 	var local: Vector2
@@ -3815,10 +3880,10 @@ func _insert_point_payload(payload: Dictionary, kind: String, list_key: String, 
 	editor_data[list_key] = items
 	if kind == "detector":
 		_select_detector(items.size() - 1)
-		_set_status("Detector %s copiado en la habitación %d." % [String(item.get("id", "")), room_id])
+		_set_status(tr("Detector %s copiado en la habitación %d.") % [String(item.get("id", "")), room_id])
 	else:
 		_select_victim(items.size() - 1)
-		_set_status("Víctima %s copiada en la habitación %d." % [String(item.get("name", "")), room_id])
+		_set_status(tr("Víctima %s copiada en la habitación %d.") % [String(item.get("name", "")), room_id])
 	queue_redraw()
 
 
@@ -3877,7 +3942,7 @@ func _set_player_start_at(room_id: int, world_pos_m: Vector2) -> void:
 		"yaw_deg": 0.0
 	}
 	_select_room(room_id)
-	_set_status("Punto de inicio del jugador definido en %s." % _room_display_name(room, room_id))
+	_set_status(tr("Punto de inicio del jugador definido en %s.") % _room_display_name(room, room_id))
 	_refresh_element_list()
 	queue_redraw()
 
@@ -3885,7 +3950,7 @@ func _set_player_start_at(room_id: int, world_pos_m: Vector2) -> void:
 func _create_player_start_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una estancia de la planta activa para colocar el inicio FP.")
+		_set_status(tr("Pulsa dentro de una estancia de la planta activa para colocar el inicio FP."))
 		return
 	_set_player_start_at(room_id, pos_m)
 
@@ -3960,7 +4025,7 @@ func _handle_measure_key(event: InputEventKey) -> bool:
 		if _typed_measure == "":
 			return false
 		_typed_measure = ""
-		_set_status("Medida borrada. Sigue arrastrando o escribe otra.")
+		_set_status(tr("Medida borrada. Sigue arrastrando o escribe otra."))
 		queue_redraw()
 		return true
 	var typed: String = char(event.unicode) if event.unicode > 0 else ""
@@ -4022,7 +4087,7 @@ func _drag_end_point() -> Vector2:
 func _commit_typed_measure() -> void:
 	var values: PackedFloat32Array = _parse_typed_measure()
 	if values.is_empty() or values[0] <= 0.0:
-		_set_status("No entiendo esa medida. Escribe por ejemplo 4;3 y pulsa Intro.")
+		_set_status(tr("No entiendo esa medida. Escribe por ejemplo 4;3 y pulsa Intro."))
 		_typed_measure = ""
 		queue_redraw()
 		return
@@ -4038,6 +4103,7 @@ func _commit_typed_measure() -> void:
 
 func _clear_drag() -> void:
 	drag = Drag.NONE
+	_corridor_forced_mode = ""
 	_typed_measure = ""
 	_measure_was_typed = false
 	room_mouse_mode = ObjectMouseMode.NONE
@@ -4131,21 +4197,21 @@ func _set_room_rect(room_id: int, rect: Rect2) -> void:
 
 
 func _set_room_rotation(room_id: int, rotation_deg: float) -> void:
-	var rooms: Array = editor_data.get("rooms_data", [])
-	var stair_dir: Vector2 = StairPlanRules.direction_from_rotation(rotation_deg)
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
-			continue
-		var room: Dictionary = rooms[i]
-		room["rotation_deg"] = rotation_deg
-		if StairPlanRules.is_stair_room(room):
-			room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
-		rooms[i] = room
-		editor_data["rooms_data"] = rooms
-		if StairPlanRules.is_stair_room(room):
-			_apply_stair_rotation_to_linked_rooms(room_id, rotation_deg, stair_dir)
-			_sync_vertical_stair_openings(room_id)
+	var room: Dictionary = _get_room(room_id)
+	if room.is_empty():
 		return
+	var is_stair: bool = StairPlanRules.is_stair_room(room)
+	var stair_dir: Vector2 = StairPlanRules.direction_from_rotation(rotation_deg)
+	var fields: Dictionary = {"rotation_deg": rotation_deg}
+	if is_stair:
+		fields["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
+	if not _update_room_fields(room_id, fields):
+		return
+	# Girar una escalera gira TODOS sus tramos: los de arriba y los de abajo son
+	# la misma escalera, y el hueco del forjado tiene que seguirlos.
+	if is_stair:
+		_apply_stair_rotation_to_linked_rooms(room_id, rotation_deg, stair_dir)
+		_sync_vertical_stair_openings(room_id)
 
 
 func _sync_room_geometry_fields(room_id: int) -> void:
@@ -4203,7 +4269,7 @@ func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
 	var current_obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 	if current_obj.is_empty():
 		return
-	var local_mouse: Vector2 = _world_to_object_local(pos_m, object_drag_start_center_m, object_drag_start_rotation_deg)
+	var local_mouse: Vector2 = PlanGeometry.world_to_object_local(pos_m, object_drag_start_center_m, object_drag_start_rotation_deg)
 	var new_size: Vector2 = object_drag_start_size_m
 	var center_shift_local := Vector2.ZERO
 	if object_mouse_mode == ObjectMouseMode.RESIZE_WIDTH:
@@ -4361,11 +4427,11 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	_sync_floor_controls()
 	var shape_text: String = "dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
 	if access_room_id >= 0 and not upper_access.is_empty():
-		_set_status("Escalera creada: %s, con paso abierto abajo (habitación %d) y arriba (habitación %d)." % [shape_text, access_room_id, upper_access[0]])
+		_set_status(tr("Escalera creada: %s, con paso abierto abajo (habitación %d) y arriba (habitación %d).") % [shape_text, access_room_id, upper_access[0]])
 	elif access_room_id >= 0:
-		_set_status("Escalera creada: %s, con paso abierto a la habitación %d. Arriba todavía no toca nada: las salas que dibujes pegadas a ella se conectarán solas." % [shape_text, access_room_id])
+		_set_status(tr("Escalera creada: %s, con paso abierto a la habitación %d. Arriba todavía no toca nada: las salas que dibujes pegadas a ella se conectarán solas.") % [shape_text, access_room_id])
 	else:
-		_set_status("Escalera creada: %s. No toca ninguna habitación, así que NO tiene acceso: dibújala pegada a una sala o añádele una puerta." % shape_text)
+		_set_status(tr("Escalera creada: %s. No toca ninguna habitación, así que NO tiene acceso: dibújala pegada a una sala o añádele una puerta.") % shape_text)
 
 
 ## Engancha una sala recien dibujada a los pasillos y escaleras que toca.
@@ -4467,78 +4533,45 @@ func _open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: 
 
 
 func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
-			continue
-		var room: Dictionary = rooms[i]
-		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
+	var fields: Dictionary = {
+		"stair_run_direction_m": Serializer.vector_to_data(stair_dir),
 		# El hueco de escalera nace CON paredes. Sin ellas, en primera persona el
 		# descansillo es una repisa en el vacio: un paso de lado y te caes al
 		# piso de abajo. El paso a la sala se abre aparte, con su hueco.
-		room["stair_has_walls"] = true
-		room["stair_has_railings"] = true
-		room["stair_turn_degrees"] = turn_degrees
-		if not room.has("stair_turn_mode"):
-			room["stair_turn_mode"] = StairPlanRules.turn_mode_from_degrees(turn_degrees)
-		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
-		room["rotation_deg"] = PlanGeometry.normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
-		rooms[i] = room
-		editor_data["rooms_data"] = rooms
-		return
+		"stair_has_walls": true,
+		"stair_has_railings": true,
+		"stair_turn_degrees": turn_degrees,
+		"stair_flight_count": 2 if turn_degrees >= 179.0 else 1,
+		"rotation_deg": PlanGeometry.normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0),
+	}
+	# El modo de giro solo se pone si la sala no traia uno: es una eleccion del
+	# usuario y los valores por defecto no la pisan.
+	if not _get_room(room_id).has("stair_turn_mode"):
+		fields["stair_turn_mode"] = StairPlanRules.turn_mode_from_degrees(turn_degrees)
+	_update_room_fields(room_id, fields)
 
 
 func _selected_stair_tool_turn_mode() -> String:
 	return _stair_turn_mode_from_option(_stair_tool_turn_option)
 
 
-func _select_stair_turn_option(option: OptionButton, mode: String) -> void:
-	if option == null:
-		return
-	_populate_stair_turn_options(option)
-	var target_id: int = 0
-	match StairPlanRules.normalized_turn_mode(mode):
-		StairPlanRules.MODE_STRAIGHT:
-			target_id = 1
-		StairPlanRules.MODE_SWITCHBACK:
-			target_id = 2
-	for i in range(option.get_item_count()):
-		if option.get_item_id(i) == target_id:
-			option.select(i)
-			return
-
 
 func _populate_stair_turn_options(option: OptionButton) -> void:
 	if option == null or option.get_item_count() > 0:
 		return
-	option.add_item("Auto", 0)
-	option.add_item("Recta", 1)
-	option.add_item("180°", 2)
+	for item_id in range(STAIR_TURN_MODES.size()):
+		option.add_item(tr(STAIR_TURN_LABELS[item_id]), item_id)
 
 
 func _set_stair_turn_mode_for_room(room_id: int, mode: String) -> void:
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
-			continue
-		var room: Dictionary = rooms[i]
-		room["stair_turn_mode"] = StairPlanRules.normalized_turn_mode(mode)
-		rooms[i] = room
-		editor_data["rooms_data"] = rooms
-		return
+	_update_room_fields(room_id, {"stair_turn_mode": StairPlanRules.normalized_turn_mode(mode)})
 
 
 func _set_stair_turn_degrees_for_room(room_id: int, turn_degrees: float) -> void:
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
-			continue
-		var room: Dictionary = rooms[i]
-		room["stair_turn_degrees"] = turn_degrees
-		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
-		rooms[i] = room
-		editor_data["rooms_data"] = rooms
-		return
+	_update_room_fields(room_id, {
+		"stair_turn_degrees": turn_degrees,
+		"stair_flight_count": 2 if turn_degrees >= 179.0 else 1,
+	})
 
 
 func _next_floor_index_above(level_m: float) -> int:
@@ -4732,11 +4765,16 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 
 	var rects: Array = layout.get("rects", [])
 	if rects.is_empty():
-		_set_status("El pasillo no tiene tamaño suficiente.")
+		_set_status(tr("El pasillo no tiene tamaño suficiente."))
 		return
 
 	var base_id: int = _next_room_id()
-	var base_name: String = "Pasillo %d" % base_id
+	# Un tramo pegado a un pasillo que ya existe ES ese pasillo, no otro. Cada
+	# arrastre creaba «Pasillo 3», «Pasillo 5», «Pasillo 7» y una U se leia
+	# como tres pasillos distintos. Siguen siendo salas separadas -el motor es
+	# un modelo de zonas y el humo tarda en recorrer un pasillo, que es
+	# justamente lo que un pasillo aporta-, pero se llaman igual.
+	var base_name: String = _adopted_corridor_name(layout.get("rects", []), "Pasillo %d" % base_id)
 	var mode: String = String(layout.get("mode", "straight"))
 	var pieces: Array[int] = []
 	for index in range(rects.size()):
@@ -4744,9 +4782,11 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 		if piece_rect.size.x < GRID_M or piece_rect.size.y < GRID_M:
 			continue
 		var piece_name: String = base_name if rects.size() == 1 else "%s tramo %s" % [base_name, "AB"[index]]
+		if rects.size() > 1 and index == 0 and _corridor_pieces_named(base_name) > 0:
+			piece_name = base_name
 		pieces.append(_create_room(_snap_rect_to_adjacent_rooms(piece_rect), piece_name, "corridor"))
 	if pieces.is_empty():
-		_set_status("Ese tramo cae entero dentro de otra habitación: no hay nada que crear.")
+		_set_status(tr("Ese tramo cae entero dentro de otra habitación: no hay nada que crear."))
 		return
 
 	# Un pasillo existe para conectar: se abre paso con TODO lo que toca, incluidos
@@ -4761,9 +4801,53 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	_select_room(pieces[0])
 	var shape_text: String = "tramo recto de %.2f m" % float(layout.get("length_m", 0.0)) if mode == "straight" else "dos tramos en L"
 	if connected.is_empty():
-		_set_status("%s creado (%s). No toca ninguna habitación: dibuja el siguiente tramo pegado a él o añade una puerta." % [base_name, shape_text])
+		_set_status(tr("%s creado (%s). No toca ninguna habitación: dibuja el siguiente tramo pegado a él o añade una puerta.") % [base_name, shape_text])
 	else:
-		_set_status("%s creado (%s), con paso abierto a %d habitación(es). Dibuja tramos pegados para hacer giros, U o descansillos." % [base_name, shape_text, connected.size()])
+		_set_status(tr("%s creado (%s), con paso abierto a %d habitación(es). Dibuja tramos pegados para hacer giros, U o descansillos.") % [base_name, shape_text, connected.size()])
+
+
+## Si los tramos que se van a crear tocan un pasillo que ya existe, se toma su
+## nombre. Se mira el pasillo con el que mas pared comparten: pegado a dos
+## pasillos distintos, el tramo pertenece al que continua.
+func _adopted_corridor_name(rects: Array, fallback: String) -> String:
+	var level_m: float = _current_floor_level_m()
+	var mejor_nombre: String = ""
+	var mejor_solape: float = 0.0
+	for raw_rect in rects:
+		var rect: Rect2 = Rect2(raw_rect).grow(0.06)
+		for raw_room in editor_data.get("rooms_data", []):
+			if typeof(raw_room) != TYPE_DICTIONARY:
+				continue
+			var room: Dictionary = raw_room
+			if not _is_corridor_room(room):
+				continue
+			var room_id: int = int(room.get("id", -1))
+			if room_id < 0 or absf(_room_id_floor_level(room_id) - level_m) >= 0.05:
+				continue
+			var overlap: Rect2 = rect.intersection(_get_room_rect(room_id))
+			var contacto: float = maxf(overlap.size.x, overlap.size.y)
+			if overlap.size.x <= 0.0 or overlap.size.y <= 0.0 or contacto <= mejor_solape:
+				continue
+			mejor_solape = contacto
+			mejor_nombre = _corridor_base_name(String(room.get("name", "")))
+	return mejor_nombre if mejor_nombre != "" else fallback
+
+
+## «Pasillo 3 tramo B» -> «Pasillo 3». El nombre del pasillo, sin el tramo.
+func _corridor_base_name(name: String) -> String:
+	var cut: int = name.find(" tramo ")
+	return name.substr(0, cut) if cut > 0 else name
+
+
+func _corridor_pieces_named(base_name: String) -> int:
+	var total: int = 0
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		if _is_corridor_room(room) and _corridor_base_name(String(room.get("name", ""))) == base_name:
+			total += 1
+	return total
 
 
 func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) -> Rect2:
@@ -4823,240 +4907,42 @@ func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) 
 ##
 ## Se arregla antes de recortar, moviendo el tramo de lado: nunca a lo largo, que
 ## eso sigue siendo cosa de _trim_corridor_rect().
+## Los rectangulos que las reglas del pasillo tienen que esquivar, ya filtrados
+## por planta. CorridorLayout es geometria pura y no conoce `editor_data`: esto
+## es la frontera entre las dos cosas.
+func _corridor_obstacles() -> Dictionary:
+	var level_m: float = _current_floor_level_m()
+	var rooms: Array = []
+	var corridors: Array = []
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		var room_id: int = int(room.get("id", -1))
+		if room_id < 0 or absf(_room_id_floor_level(room_id) - level_m) >= 0.05:
+			continue
+		var rect: Rect2 = _get_room_rect(room_id)
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		rooms.append(rect)
+		if _is_corridor_room(room):
+			corridors.append(rect)
+	return {"rooms": rooms, "corridors": corridors}
+
+
 func _fit_corridor_piece(rect: Rect2, start_m: Vector2, end_m: Vector2) -> Rect2:
-	var along_x: bool = rect.size.x >= rect.size.y
-	return _slide_corridor_out_of_rooms(_align_corridor_corner(rect, along_x, start_m, end_m), along_x)
+	var obstacles: Dictionary = _corridor_obstacles()
+	return CorridorLayout.fit_piece(rect, start_m, end_m, obstacles["corridors"], obstacles["rooms"], GRID_M)
 
 
-## El lado corto del tramo, como intervalo: es lo unico que estas dos reglas
-## mueven.
-func _corridor_cross_interval(rect: Rect2, along_x: bool) -> Vector2:
-	return Vector2(rect.position.y, rect.end.y) if along_x else Vector2(rect.position.x, rect.end.x)
-
-
-func _corridor_with_cross_interval(rect: Rect2, along_x: bool, lo: float, hi: float) -> Rect2:
-	if along_x:
-		return Rect2(rect.position.x, lo, rect.size.x, hi - lo)
-	return Rect2(lo, rect.position.y, hi - lo, rect.size.y)
-
-
-## El codo: el tramo nuevo se mete dentro del pasillo que continua.
-##
-## Solo se aplica al pasillo donde empieza o acaba el trazo -ahi es donde el
-## usuario esta girando- y solo si el desplazamiento es menor que un ancho: mas
-## lejos que eso ya no es su esquina, es otro pasillo cualquiera.
-func _align_corridor_corner(rect: Rect2, along_x: bool, start_m: Vector2, end_m: Vector2) -> Rect2:
-	var level_m: float = _current_floor_level_m()
-	var band: Vector2 = _corridor_cross_interval(rect, along_x)
-	var width_m: float = band.y - band.x
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var other: Dictionary = room
-		if not _is_corridor_room(other):
-			continue
-		var other_id: int = int(other.get("id", -1))
-		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
-			continue
-		var other_rect: Rect2 = _get_room_rect(other_id)
-		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
-			continue
-		var reach: Rect2 = other_rect.grow(GRID_M)
-		if not (reach.has_point(start_m) or reach.has_point(end_m)):
-			continue
-		var host: Vector2 = _corridor_cross_interval(other_rect, along_x)
-		# Si el tramo no cabe de ancho dentro del otro, no hay codo que cuadrar.
-		if host.y - host.x < width_m - 0.001:
-			continue
-		var lo: float = clampf(band.x, host.x, host.y - width_m)
-		if absf(lo - band.x) > width_m + 0.001:
-			continue
-		band = Vector2(lo, lo + width_m)
-	return _corridor_with_cross_interval(rect, along_x, band.x, band.y)
-
-
-## El hueco: si el tramo pisa de lado a lado una habitacion, se corre al hueco
-## libre que tiene al lado en vez de recortarse hasta desaparecer.
-##
-## Lo que distingue "estorbo lateral" de "el tramo del que vengo" es cuanto del
-## largo pisa: el pasillo anterior toca una PUNTA -y eso lo recorta el recorte-,
-## mientras que la habitacion por cuya junta estas dibujando cruza el tramo
-## entero.
-func _slide_corridor_out_of_rooms(rect: Rect2, along_x: bool) -> Rect2:
-	var level_m: float = _current_floor_level_m()
-	var band: Vector2 = _corridor_cross_interval(rect, along_x)
-	var width_m: float = band.y - band.x
-	var run_lo: float = rect.position.x if along_x else rect.position.y
-	var run_hi: float = rect.end.x if along_x else rect.end.y
-	var run_span: float = maxf(0.001, run_hi - run_lo)
-	var centre: float = (band.x + band.y) * 0.5
-	var free_lo: float = -INF
-	var free_hi: float = INF
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var other_id: int = int(Dictionary(room).get("id", -1))
-		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
-			continue
-		var other_rect: Rect2 = _get_room_rect(other_id)
-		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
-			continue
-		var other_run_lo: float = other_rect.position.x if along_x else other_rect.position.y
-		var other_run_hi: float = other_rect.end.x if along_x else other_rect.end.y
-		if minf(run_hi, other_run_hi) - maxf(run_lo, other_run_lo) < run_span * 0.80:
-			continue
-		var other_cross: Vector2 = _corridor_cross_interval(other_rect, along_x)
-		if other_cross.y <= centre + 0.001:
-			free_lo = maxf(free_lo, other_cross.y)
-		elif other_cross.x >= centre - 0.001:
-			free_hi = minf(free_hi, other_cross.x)
-		else:
-			# El eje cae DENTRO de una habitacion: ahi no hay hueco al lado, y
-			# mover el pasillo seria inventarse otro sitio.
-			return rect
-	if free_lo == -INF and free_hi == INF:
-		return rect
-	var lo: float = free_lo if free_lo != -INF else band.x
-	var hi: float = free_hi if free_hi != INF else band.y
-	var gap_m: float = hi - lo
-	if free_lo != -INF and free_hi != INF and gap_m < width_m - 0.001:
-		# El hueco es mas estrecho que el pasillo configurado: se estrecha el
-		# pasillo, que es lo que el usuario esta dibujando. Por debajo de 60 cm
-		# ya no es un paso y se deja como estaba.
-		if gap_m < 0.60:
-			return rect
-		return _corridor_with_cross_interval(rect, along_x, lo, hi)
-	var start_lo: float = band.x
-	if free_lo != -INF:
-		start_lo = maxf(start_lo, free_lo)
-	if free_hi != INF:
-		start_lo = minf(start_lo, free_hi - width_m)
-	return _corridor_with_cross_interval(rect, along_x, start_lo, start_lo + width_m)
-
-
-## Recorta un tramo de pasillo por donde pisa lo que ya existe.
-##
-## Dibujando en L, el segundo tramo se empieza donde acabo el primero, asi que lo
-## normal es que SOLAPE con el en el codo. Dos salas solapadas son dos zonas que
-## se reparten el mismo aire: el modelo las contaria dos veces. Se recorta el
-## trozo invadido y las dos piezas quedan a tope, que es lo que hace que despues
-## se puedan unir con un hueco.
 func _trim_corridor_rect(rect: Rect2) -> Rect2:
-	var level_m: float = _current_floor_level_m()
-	var trimmed: Rect2 = rect
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var other: Dictionary = room
-		var other_id: int = int(other.get("id", -1))
-		if other_id < 0 or absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
-			continue
-		var other_rect: Rect2 = _get_room_rect(other_id)
-		if other_rect.size.x <= 0.0 or other_rect.size.y <= 0.0:
-			continue
-		var overlap: Rect2 = trimmed.intersection(other_rect)
-		if overlap.size.x <= GRID_M * 0.5 or overlap.size.y <= GRID_M * 0.5:
-			continue
-		# Se recorta por el eje largo del tramo: es el que se puede acortar sin
-		# cambiar el ancho del pasillo.
-		if trimmed.size.x >= trimmed.size.y:
-			if absf(overlap.position.x - trimmed.position.x) < 0.001:
-				var cut_start: float = overlap.end.x
-				trimmed = Rect2(Vector2(cut_start, trimmed.position.y), Vector2(maxf(0.0, trimmed.end.x - cut_start), trimmed.size.y))
-			elif absf(overlap.end.x - trimmed.end.x) < 0.001:
-				trimmed = Rect2(trimmed.position, Vector2(maxf(0.0, overlap.position.x - trimmed.position.x), trimmed.size.y))
-		else:
-			if absf(overlap.position.y - trimmed.position.y) < 0.001:
-				var cut_top: float = overlap.end.y
-				trimmed = Rect2(Vector2(trimmed.position.x, cut_top), Vector2(trimmed.size.x, maxf(0.0, trimmed.end.y - cut_top)))
-			elif absf(overlap.end.y - trimmed.end.y) < 0.001:
-				trimmed = Rect2(trimmed.position, Vector2(trimmed.size.x, maxf(0.0, overlap.position.y - trimmed.position.y)))
-	return trimmed
+	return CorridorLayout.trim(rect, _corridor_obstacles()["rooms"], GRID_M)
 
 
 func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
-	var dx: float = end_m.x - start_m.x
-	var dy: float = end_m.y - start_m.y
-	var width_m: float = maxf(GRID_M, corridor_width_m)
-	var abs_dx: float = absf(dx)
-	var abs_dy: float = absf(dy)
-	# Un clic sin arrastre es una pieza cuadrada del ancho del pasillo: eso es un
-	# descansillo, y antes era un error. Componiendo piezas salen los giros, las
-	# U y los rellanos, que es como se hacen los pasillos de verdad.
-	if abs_dx < GRID_M and abs_dy < GRID_M:
-		return {
-			"mode": "straight",
-			"orientation": "square",
-			"rects": [Rect2(start_m - Vector2(width_m, width_m) * 0.5, Vector2(width_m, width_m))],
-			"length_m": width_m
-		}
-
-	if abs_dx >= maxf(width_m * 1.25, abs_dy * 2.0) or abs_dy < width_m * 0.60:
-		# Mas corto que ancho: se queda cuadrado, que sigue siendo una pieza util.
-		var length_x: float = maxf(abs_dx, width_m)
-		var y_center: float = start_m.y
-		var x_min: float = minf(start_m.x, end_m.x)
-		return {
-			"mode": "straight",
-			"orientation": "horizontal",
-			"rects": [Rect2(Vector2(x_min, y_center - width_m * 0.5), Vector2(length_x, width_m))],
-			"length_m": length_x
-		}
-
-	if abs_dy >= maxf(width_m * 1.25, abs_dx * 2.0) or abs_dx < width_m * 0.60:
-		var length_y: float = maxf(abs_dy, width_m)
-		var x_center: float = start_m.x
-		var y_min: float = minf(start_m.y, end_m.y)
-		return {
-			"mode": "straight",
-			"orientation": "vertical",
-			"rects": [Rect2(Vector2(x_center - width_m * 0.5, y_min), Vector2(width_m, length_y))],
-			"length_m": length_y
-		}
-
-	# Si un brazo no da para giro, no se rechaza el gesto: sale el tramo recto del
-	# eje que manda, y el giro se hace dibujando otra pieza pegada.
-	if abs_dx < width_m * 1.5 or abs_dy < width_m * 1.5:
-		var along_x: bool = abs_dx >= abs_dy
-		var straight_length: float = maxf(abs_dx if along_x else abs_dy, width_m)
-		var rect_straight: Rect2
-		if along_x:
-			rect_straight = Rect2(Vector2(minf(start_m.x, end_m.x), start_m.y - width_m * 0.5), Vector2(straight_length, width_m))
-		else:
-			rect_straight = Rect2(Vector2(start_m.x - width_m * 0.5, minf(start_m.y, end_m.y)), Vector2(width_m, straight_length))
-		return {
-			"mode": "straight",
-			"orientation": "horizontal" if along_x else "vertical",
-			"rects": [rect_straight],
-			"length_m": straight_length
-		}
-
-	var sx: float = 1.0 if dx >= 0.0 else -1.0
-	var sy: float = 1.0 if dy >= 0.0 else -1.0
-	var corner_x: float = end_m.x
-	var h_a: Vector2 = start_m
-	var h_b: Vector2 = Vector2(corner_x, start_m.y + sy * width_m)
-	var v_a: Vector2 = Vector2(corner_x - sx * width_m, start_m.y + sy * width_m)
-	var v_b: Vector2 = end_m
-
-	var horizontal_rect: Rect2 = PlanGeometry.normalized_rect(h_a, h_b)
-	var vertical_rect: Rect2 = PlanGeometry.normalized_rect(v_a, v_b)
-	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
-			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
-		return {
-			"mode": "straight",
-			"orientation": "horizontal",
-			"rects": [Rect2(Vector2(minf(start_m.x, end_m.x), start_m.y - width_m * 0.5), Vector2(maxf(abs_dx, width_m), width_m))],
-			"length_m": maxf(abs_dx, width_m)
-		}
-
-	return {
-		"mode": "l",
-		"orientation": "horizontal_first",
-		"rects": [horizontal_rect, vertical_rect],
-		"corner_m": Vector2(corner_x, start_m.y),
-		"length_m": horizontal_rect.size.x + vertical_rect.size.y
-	}
+	return CorridorLayout.layout(
+		start_m, end_m, maxf(GRID_M, corridor_width_m), _corridor_forced_mode, GRID_M
+	)
 
 
 func _next_room_id() -> int:
@@ -5119,8 +5005,21 @@ func _select_at(pos_m: Vector2) -> void:
 		_select_room(room_id)
 	else:
 		_clear_selection()
-		_set_status("Sin selección.")
+		_set_status(tr("Sin selección."))
 	queue_redraw()
+
+
+## Si hay algo seleccionado, sea lo que sea. Lo usa el arrastre del plano para
+## no engancharse cuando el clic si ha cogido algo.
+func _has_any_selection() -> bool:
+	return (
+		selected_room_id >= 0
+		or selected_opening_index >= 0
+		or selected_object_index >= 0
+		or selected_detector_index >= 0
+		or selected_victim_index >= 0
+		or selected_player_start_room_id >= 0
+	)
 
 
 func _has_non_room_selection_hit_at(pos_m: Vector2) -> bool:
@@ -5141,7 +5040,7 @@ func _select_room(room_id: int) -> void:
 	selected_player_start_room_id = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
-	_set_status("Habitación %d seleccionada. Ajusta X/Y, ancho, fondo y ángulo en Propiedades." % room_id)
+	_set_status(tr("Habitación %d seleccionada. Ajusta X/Y, ancho, fondo y ángulo en Propiedades.") % room_id)
 	queue_redraw()
 
 
@@ -5156,7 +5055,7 @@ func _select_opening(index: int) -> void:
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var opening: Dictionary = Array(editor_data.get("openings_data", []))[index]
-	_set_status("Seleccionada apertura %d (%s)." % [index, String(opening.get("type", "door"))])
+	_set_status(tr("Seleccionada apertura %d (%s).") % [index, String(opening.get("type", "door"))])
 	queue_redraw()
 
 
@@ -5171,7 +5070,7 @@ func _select_object(room_id: int, object_index: int) -> void:
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
 	var obj: Dictionary = _get_object(room_id, object_index)
-	_set_status("Seleccionado objeto %s." % String(obj.get("name", obj.get("id", ""))))
+	_set_status(tr("Seleccionado objeto %s.") % String(obj.get("name", obj.get("id", ""))))
 	queue_redraw()
 
 
@@ -5197,7 +5096,7 @@ func _select_player_start(room_id: int) -> void:
 	selected_player_start_room_id = room_id
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
-	_set_status("Inicio FP seleccionado. Arrástralo en 3D para cambiar el punto de aparición.")
+	_set_status(tr("Inicio FP seleccionado. Arrástralo en 3D para cambiar el punto de aparición."))
 	queue_redraw()
 
 
@@ -5274,22 +5173,22 @@ func _on_property_panel_action(action: String) -> void:
 			_apply_victim_properties()
 		PropertyPanelScript.ACTION_DELETE_SELECTED:
 			_delete_selected()
+## El desplegable de giro de escalera, con **la posicion en la tabla como id del
+## item**. El mismo mapa estaba escrito tres veces -poblar el desplegable, ida y
+## vuelta- y una cuarta en un `_select_stair_turn_option` que ya nadie llamaba.
+## Tres copias de un mapa de tres entradas es como se acaba con un desplegable
+## que dice una cosa y guarda otra.
 func _stair_turn_item_id_for_mode(mode: String) -> int:
-	match StairPlanRules.normalized_turn_mode(mode):
-		StairPlanRules.MODE_STRAIGHT:
-			return 1
-		StairPlanRules.MODE_SWITCHBACK:
-			return 2
-	return 0
+	var index: int = STAIR_TURN_MODES.find(StairPlanRules.normalized_turn_mode(mode))
+	return index if index >= 0 else 0
 
 
 func _stair_turn_mode_from_item_id(item_id: int) -> String:
-	match item_id:
-		1:
-			return StairPlanRules.MODE_STRAIGHT
-		2:
-			return StairPlanRules.MODE_SWITCHBACK
-	return StairPlanRules.MODE_AUTO
+	if item_id < 0 or item_id >= STAIR_TURN_MODES.size():
+		return StairPlanRules.MODE_AUTO
+	return STAIR_TURN_MODES[item_id]
+
+
 func _opening_type_label_text(opening: Dictionary) -> String:
 	var op_type: String = String(opening.get("type", "door"))
 	var type_label: String = "Puerta"
@@ -5315,9 +5214,6 @@ func _sync_object_property_fields(obj: Dictionary) -> void:
 		pos = PlanGeometry.object_visual_min_from_local_pos(size_m, pos, float(obj.get("rotation_deg", 0.0)))
 	_props.fill_object(obj, pos, size_m, PlanGeometry.normalize_degrees_signed(float(obj.get("rotation_deg", 0.0))))
 
-
-func _update_stair_angle_label(room_id: int, room: Dictionary) -> void:
-	_props.set_stair_angle_text(_stair_angle_text(room_id, room))
 
 
 ## La linea que resume la escalera: pendiente, tramos y hacia donde sube. Cadena
@@ -5368,7 +5264,7 @@ func _stair_rise_for_room(room_id: int, room: Dictionary) -> float:
 
 func _apply_room_properties() -> void:
 	if selected_room_id < 0:
-		_set_status("Selecciona una habitación antes de aplicar propiedades.")
+		_set_status(tr("Selecciona una habitación antes de aplicar propiedades."))
 		return
 
 	var fields: Dictionary = _props.read_room()
@@ -5408,7 +5304,7 @@ func _apply_room_properties() -> void:
 				_set_stair_turn_degrees_for_room(linked_id, turn_degrees)
 			_apply_stair_rotation_to_linked_rooms(selected_room_id, float(room.get("rotation_deg", 0.0)), stair_dir)
 			_sync_vertical_stair_openings(selected_room_id)
-		_set_status("Propiedades de habitación %d actualizadas." % selected_room_id)
+		_set_status(tr("Propiedades de habitación %d actualizadas.") % selected_room_id)
 		_refresh_element_list()
 		queue_redraw()
 		return
@@ -5419,6 +5315,38 @@ func _get_room(room_id: int) -> Dictionary:
 		if typeof(room) == TYPE_DICTIONARY and int(room.get("id", -1)) == room_id:
 			return room
 	return {}
+
+
+## Cambiar campos de una sala por su id. Devuelve si la encontro.
+##
+## El patron -recorrer `rooms_data`, comparar el id, tocar el diccionario y
+## volver a escribirlo- estaba OCHO veces en este fichero, y la escritura de
+## vuelta diecinueve.
+##
+## Un apunte que conviene tener escrito: en GDScript un `Dictionary` es una
+## **referencia**, asi que el `rooms[i] = room` del final no copia nada -la sala
+## ya quedo cambiada en su sitio-. Se conserva aqui, una sola vez, porque hace
+## visible que esto guarda; repetido ocho veces solo hacia parecer que cada
+## copia hacia algo distinto.
+func _update_room_fields(room_id: int, fields: Dictionary) -> bool:
+	var index: int = _room_index_for_id(room_id)
+	if index < 0:
+		return false
+	var rooms: Array = editor_data.get("rooms_data", [])
+	var room: Dictionary = rooms[index]
+	for key in fields:
+		room[key] = fields[key]
+	rooms[index] = room
+	editor_data["rooms_data"] = rooms
+	return true
+
+
+func _room_index_for_id(room_id: int) -> int:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) == TYPE_DICTIONARY and int(Dictionary(rooms[i]).get("id", -1)) == room_id:
+			return i
+	return -1
 
 
 func _is_corridor_room(room: Dictionary) -> bool:
@@ -5466,52 +5394,47 @@ func _find_room_at(pos_m: Vector2) -> int:
 	return -1
 
 
-func _world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
-	return Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - center_m)
-
-
 func _object_contains_point(room_rect: Rect2, obj: Dictionary, pos_m: Vector2) -> bool:
-	var size: Vector2 = PlanGeometry.object_size_m(obj)
-	var local: Vector2 = _world_to_object_local(pos_m, PlanGeometry.object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0)))
-	var hit_padding_m: float = maxf(0.05, 8.0 / pixels_per_meter)
-	return absf(local.x) <= size.x * 0.5 + hit_padding_m and absf(local.y) <= size.y * 0.5 + hit_padding_m
+	return PlanGeometry.object_has_point(room_rect, obj, pos_m, maxf(0.05, 8.0 / pixels_per_meter))
 
 
-func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> Dictionary:
-	var size: Vector2 = PlanGeometry.object_size_m(obj)
-	var center: Vector2 = PlanGeometry.object_world_center(room_rect, obj)
-	var rot := PlanGeometry.object_transform(float(obj.get("rotation_deg", 0.0)))
-	return {
-		ObjectMouseMode.RESIZE_WIDTH: center + rot * Vector2(size.x * 0.5, 0.0),
-		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, size.y * 0.5),
-		ObjectMouseMode.ROTATE: center + rot * Vector2(0.0, -size.y * 0.5 - OBJECT_ROTATE_HANDLE_OFFSET_M)
-	}
+## La traduccion entre el orden de EditorHandles y el enum del editor, en UN
+## sitio. Es lo unico que hay que mirar si algun dia cambia el enum.
+const HANDLE_MODES: Array[int] = [
+	ObjectMouseMode.RESIZE_WIDTH,
+	ObjectMouseMode.RESIZE_LENGTH,
+	ObjectMouseMode.ROTATE,
+]
 
 
-func _room_handle_points_m(room_id: int) -> Dictionary:
+## Una sala es una caja girada; un objeto tambien. Lo unico que cambia entre los
+## dos es de donde salen el centro, el tamaño y el angulo, asi que eso es lo
+## unico que queda aqui: los tiradores los pone EditorHandles.
+func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> PackedVector2Array:
+	return Handles.points_m(
+		PlanGeometry.object_world_center(room_rect, obj),
+		PlanGeometry.object_size_m(obj),
+		float(obj.get("rotation_deg", 0.0)),
+		OBJECT_ROTATE_HANDLE_OFFSET_M
+	)
+
+
+func _room_handle_points_m(room_id: int) -> PackedVector2Array:
 	var rect: Rect2 = _get_room_rect(room_id)
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-		return {}
-	var center: Vector2 = rect.get_center()
-	var rot := Transform2D(deg_to_rad(_room_rotation_deg(room_id)), Vector2.ZERO)
-	return {
-		ObjectMouseMode.RESIZE_WIDTH: center + rot * Vector2(rect.size.x * 0.5, 0.0),
-		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, rect.size.y * 0.5),
-		ObjectMouseMode.ROTATE: center + rot * Vector2(0.0, -rect.size.y * 0.5 - OBJECT_ROTATE_HANDLE_OFFSET_M)
-	}
+	return Handles.points_m(
+		rect.get_center(), rect.size, _room_rotation_deg(room_id), OBJECT_ROTATE_HANDLE_OFFSET_M
+	)
+
+
+func _handle_mode_at(points: PackedVector2Array, pos_m: Vector2) -> int:
+	var index: int = Handles.index_at(points, pos_m, OBJECT_HANDLE_HIT_RADIUS_M)
+	return ObjectMouseMode.NONE if index == Handles.NONE else HANDLE_MODES[index]
 
 
 func _find_selected_room_handle_at(pos_m: Vector2) -> int:
 	if selected_room_id < 0:
 		return ObjectMouseMode.NONE
-	var handles: Dictionary = _room_handle_points_m(selected_room_id)
-	for mode in [ObjectMouseMode.ROTATE, ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if not handles.has(mode):
-			continue
-		var hp: Vector2 = Vector2(handles[mode])
-		if pos_m.distance_to(hp) <= OBJECT_HANDLE_HIT_RADIUS_M:
-			return mode
-	return ObjectMouseMode.NONE
+	return _handle_mode_at(_room_handle_points_m(selected_room_id), pos_m)
 
 
 func _find_selected_object_handle_at(pos_m: Vector2) -> int:
@@ -5520,14 +5443,7 @@ func _find_selected_object_handle_at(pos_m: Vector2) -> int:
 	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		return ObjectMouseMode.NONE
-	var handles: Dictionary = _object_handle_points_m(_get_room_rect(selected_object_room_id), obj)
-	for mode in [ObjectMouseMode.ROTATE, ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if not handles.has(mode):
-			continue
-		var hp: Vector2 = Vector2(handles[mode])
-		if pos_m.distance_to(hp) <= OBJECT_HANDLE_HIT_RADIUS_M:
-			return mode
-	return ObjectMouseMode.NONE
+	return _handle_mode_at(_object_handle_points_m(_get_room_rect(selected_object_room_id), obj), pos_m)
 
 
 func _find_object_at(pos_m: Vector2) -> Dictionary:
@@ -5573,7 +5489,7 @@ func _find_opening_at(pos_m: Vector2) -> int:
 func _create_object_at(pos_m: Vector2, kind_override: String = "") -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Suelta la pieza dentro de una habitación: el mobiliario vive en una sala.")
+		_set_status(tr("Suelta la pieza dentro de una habitación: el mobiliario vive en una sala."))
 		return
 
 	var kind: String = kind_override if kind_override != "" else _selected_object_kind()
@@ -5616,20 +5532,20 @@ func _add_object_to_room(room_id: int, obj: Dictionary) -> void:
 ## D detector, V víctima.
 func _hand_over_to_selection(what: String) -> void:
 	_set_tool(Tool.SELECT)
-	_set_status("%s. Ya se puede arrastrar; pulsa su tecla para colocar otro." % what)
+	_set_status(tr("%s. Ya se puede arrastrar; pulsa su tecla para colocar otro.") % what)
 
 
 func _mark_ignition_at(pos_m: Vector2) -> void:
 	var hit: Dictionary = _find_object_at(pos_m)
 	if hit.is_empty():
-		_set_status("Pulsa sobre un objeto combustible para marcar el foco inicial.")
+		_set_status(tr("Pulsa sobre un objeto combustible para marcar el foco inicial."))
 		return
 	_mark_object_as_ignition(int(hit["room_id"]), int(hit["object_index"]))
 
 
 func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
 	if _get_object(target_room_id, target_index).is_empty():
-		_set_status("Selecciona un objeto combustible para marcar el foco inicial.")
+		_set_status(tr("Selecciona un objeto combustible para marcar el foco inicial."))
 		return
 	_push_undo_snapshot("mark_ignition")
 	var rooms: Array = editor_data.get("rooms_data", [])
@@ -5649,7 +5565,7 @@ func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
 	editor_data["rooms_data"] = rooms
 	editor_data["ignition_room_id"] = target_room_id
 	_select_object(target_room_id, target_index)
-	_set_status("Foco inicial marcado.")
+	_set_status(tr("Foco inicial marcado."))
 	queue_redraw()
 
 
@@ -5672,7 +5588,7 @@ func _taken_ids(list_key: String) -> Dictionary:
 func _create_detector_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitación para colocar un detector.")
+		_set_status(tr("Pulsa dentro de una habitación para colocar un detector."))
 		return
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var local_pos: Vector2 = pos_m - room_rect.position
@@ -5698,7 +5614,7 @@ func _create_detector_at(pos_m: Vector2) -> void:
 func _create_victim_at(pos_m: Vector2) -> void:
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa dentro de una habitación para colocar una víctima.")
+		_set_status(tr("Pulsa dentro de una habitación para colocar una víctima."))
 		return
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var local_pos: Vector2 = pos_m - room_rect.position
@@ -5722,42 +5638,41 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	queue_redraw()
 
 
+## La esquina de cada sala de ESTA planta, que es donde se puede pinchar. Sale
+## una vez y la usan la busqueda y las dos vistas del plano.
+func _room_origins_on_floor() -> Dictionary:
+	var origins: Dictionary = {}
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		if not _is_room_on_current_floor(room):
+			continue
+		var room_id: int = int(room.get("id", -1))
+		var rect: Rect2 = _get_room_rect(room_id)
+		if rect.size == Vector2.ZERO:
+			continue
+		origins[room_id] = rect.position
+	return origins
+
+
+## El radio de acierto va en pixeles y se pasa a metros con el zoom: de cerca se
+## pincha fino y de lejos se sigue pudiendo acertar.
+func _find_marker_at(list_key: String, pos_m: Vector2, min_radius_m: float, radius_px: float) -> int:
+	return RoomMarkers.find_at(
+		Array(editor_data.get(list_key, [])),
+		pos_m,
+		maxf(min_radius_m, radius_px / pixels_per_meter),
+		_room_origins_on_floor()
+	)
+
+
 func _find_detector_at(pos_m: Vector2) -> int:
-	var dets: Array = editor_data.get("detectors", [])
-	var hit_radius_m: float = maxf(0.28, 14.0 / pixels_per_meter)
-	for i in range(dets.size()):
-		if typeof(dets[i]) != TYPE_DICTIONARY:
-			continue
-		var det: Dictionary = dets[i]
-		var room_id: int = int(det.get("room_id", -1))
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		if room_rect.size == Vector2.ZERO:
-			continue
-		if not _is_room_on_current_floor(_get_room(room_id)):
-			continue
-		var world_pos: Vector2 = room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))
-		if pos_m.distance_to(world_pos) <= hit_radius_m:
-			return i
-	return -1
+	return _find_marker_at("detectors", pos_m, 0.28, 14.0)
 
 
 func _find_victim_at(pos_m: Vector2) -> int:
-	var vics: Array = editor_data.get("victims", [])
-	var hit_radius_m: float = maxf(0.30, 16.0 / pixels_per_meter)
-	for i in range(vics.size()):
-		if typeof(vics[i]) != TYPE_DICTIONARY:
-			continue
-		var vic: Dictionary = vics[i]
-		var room_id: int = int(vic.get("room_id", -1))
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		if room_rect.size == Vector2.ZERO:
-			continue
-		if not _is_room_on_current_floor(_get_room(room_id)):
-			continue
-		var world_pos: Vector2 = room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))
-		if pos_m.distance_to(world_pos) <= hit_radius_m:
-			return i
-	return -1
+	return _find_marker_at("victims", pos_m, 0.30, 16.0)
 
 
 func _select_detector(index: int) -> void:
@@ -5773,7 +5688,7 @@ func _select_detector(index: int) -> void:
 	var dets: Array = editor_data.get("detectors", [])
 	if index >= 0 and index < dets.size():
 		var det: Dictionary = dets[index]
-		_set_status("Detector %s seleccionado." % String(det.get("id", str(index))))
+		_set_status(tr("Detector %s seleccionado.") % String(det.get("id", str(index))))
 	queue_redraw()
 
 
@@ -5790,13 +5705,13 @@ func _select_victim(index: int) -> void:
 	var vics: Array = editor_data.get("victims", [])
 	if index >= 0 and index < vics.size():
 		var vic: Dictionary = vics[index]
-		_set_status("Víctima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
+		_set_status(tr("Víctima %s seleccionada.") % String(vic.get("name", vic.get("id", str(index)))))
 	queue_redraw()
 
 
 func _apply_detector_properties() -> void:
 	if selected_detector_index < 0:
-		_set_status("Selecciona un detector antes de aplicar propiedades.")
+		_set_status(tr("Selecciona un detector antes de aplicar propiedades."))
 		return
 	var dets: Array = editor_data.get("detectors", [])
 	if selected_detector_index >= dets.size():
@@ -5813,13 +5728,13 @@ func _apply_detector_properties() -> void:
 	det["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.y))
 	dets[selected_detector_index] = det
 	editor_data["detectors"] = dets
-	_set_status("Propiedades del detector actualizadas.")
+	_set_status(tr("Propiedades del detector actualizadas."))
 	queue_redraw()
 
 
 func _apply_victim_properties() -> void:
 	if selected_victim_index < 0:
-		_set_status("Selecciona una víctima antes de aplicar propiedades.")
+		_set_status(tr("Selecciona una víctima antes de aplicar propiedades."))
 		return
 	var vics: Array = editor_data.get("victims", [])
 	if selected_victim_index >= vics.size():
@@ -5834,7 +5749,7 @@ func _apply_victim_properties() -> void:
 	vic["height_m"] = float(fields.get("height_m", 0.9))
 	vics[selected_victim_index] = vic
 	editor_data["victims"] = vics
-	_set_status("Propiedades de la víctima actualizadas.")
+	_set_status(tr("Propiedades de la víctima actualizadas."))
 	queue_redraw()
 
 
@@ -5843,7 +5758,7 @@ func _create_door_at(pos_m: Vector2) -> void:
 	if not shared.is_empty():
 		var door_width_m: float = minf(0.9, _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"])))
 		_add_opening(int(shared["a"]), int(shared["b"]), "door", String(shared["wall"]), float(shared["offset_m"]), door_width_m, 2.05, 0.0, 1.0)
-		_set_status("Puerta creada entre habitaciones %d y %d." % [int(shared["a"]), int(shared["b"])])
+		_set_status(tr("Puerta creada entre habitaciones %d y %d.") % [int(shared["a"]), int(shared["b"])])
 		queue_redraw()
 		return
 
@@ -5866,27 +5781,27 @@ func _create_door_at(pos_m: Vector2) -> void:
 			0.0,
 			1.0
 		)
-		_set_status("Puerta exterior creada en habitación %d." % int(exterior_wall["room_id"]))
+		_set_status(tr("Puerta exterior creada en habitación %d.") % int(exterior_wall["room_id"]))
 		queue_redraw()
 		return
 
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa una pared compartida, una pared exterior o una habitación.")
+		_set_status(tr("Pulsa una pared compartida, una pared exterior o una habitación."))
 		return
 
 	if pending_door_room_id < 0:
 		pending_door_room_id = room_id
-		_set_status("Primera habitación %d seleccionada para puerta." % room_id)
+		_set_status(tr("Primera habitación %d seleccionada para puerta.") % room_id)
 		return
 
 	if pending_door_room_id == room_id:
-		_set_status("Selecciona una segunda habitación adyacente.")
+		_set_status(tr("Selecciona una segunda habitación adyacente."))
 		return
 
 	var connection: Dictionary = _shared_wall_between(pending_door_room_id, room_id)
 	if connection.is_empty():
-		_set_status("Las habitaciones %d y %d no comparten pared." % [pending_door_room_id, room_id])
+		_set_status(tr("Las habitaciones %d y %d no comparten pared.") % [pending_door_room_id, room_id])
 		pending_door_room_id = -1
 		return
 
@@ -5901,7 +5816,7 @@ func _create_door_at(pos_m: Vector2) -> void:
 		0.0,
 		1.0
 	)
-	_set_status("Puerta creada entre habitaciones %d y %d." % [pending_door_room_id, room_id])
+	_set_status(tr("Puerta creada entre habitaciones %d y %d.") % [pending_door_room_id, room_id])
 	pending_door_room_id = -1
 	queue_redraw()
 
@@ -5909,7 +5824,7 @@ func _create_door_at(pos_m: Vector2) -> void:
 func _create_hole_at(pos_m: Vector2) -> void:
 	var shared: Dictionary = _find_shared_wall_at(pos_m)
 	if shared.is_empty():
-		_set_status("El hueco debe colocarse en un paramento compartido entre dos habitaciones.")
+		_set_status(tr("El hueco debe colocarse en un paramento compartido entre dos habitaciones."))
 		return
 	var max_width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
 	var width_m: float = clampf(opening_tool_width_m, 0.30, max_width_m)
@@ -5924,23 +5839,23 @@ func _create_hole_at(pos_m: Vector2) -> void:
 		0.0,
 		1.0
 	)
-	_set_status("Hueco de %.2f m creado entre habitaciones %d y %d." % [width_m, int(shared["a"]), int(shared["b"])])
+	_set_status(tr("Hueco de %.2f m creado entre habitaciones %d y %d.") % [width_m, int(shared["a"]), int(shared["b"])])
 	queue_redraw()
 
 
 func _create_window_at(pos_m: Vector2) -> void:
 	var wall: Dictionary = _find_wall_at(pos_m)
 	if wall.is_empty():
-		_set_status("Pulsa cerca de una pared para crear una ventana.")
+		_set_status(tr("Pulsa cerca de una pared para crear una ventana."))
 		return
 
 	var window_width_m: float = 1.2
 	if not _is_wall_exterior(int(wall["room_id"]), String(wall["wall"]), float(wall["offset_m"]), window_width_m):
-		_set_status("Pulsa un tramo de pared exterior para crear una ventana.")
+		_set_status(tr("Pulsa un tramo de pared exterior para crear una ventana."))
 		return
 
 	_add_opening(int(wall["room_id"]), OUTSIDE_ID, "window", String(wall["wall"]), float(wall["offset_m"]), window_width_m, 1.1, 0.9, 1.0)
-	_set_status("Ventana exterior creada en habitación %d." % int(wall["room_id"]))
+	_set_status(tr("Ventana exterior creada en habitación %d.") % int(wall["room_id"]))
 	queue_redraw()
 
 
@@ -5953,17 +5868,82 @@ func _create_window_at(pos_m: Vector2) -> void:
 ## de la hoja, y de eso ya se encarga el balance de presiones. Lo que la
 ## distingue de la puerta de entrada es que da a la calle -no al portal- y que
 ## llega al suelo, y las dos cosas cambian como ventila.
+## La balconera dibujada: se arrastra sobre la fachada y el rectangulo dice las
+## dos medidas del balcon.
+##
+## A lo LARGO del muro va el ancho de la losa; PERPENDICULAR, el vuelo, que se
+## recorta al maximo que sostiene un voladizo. La puerta se queda en su medida
+## de balconera, o mas estrecha si el balcon lo es.
+##
+## Un arrastre corto -o un clic- cae en la balconera de medidas corrientes: no
+## se pide precision para lo normal.
+func _create_balcony_door_from_drag(start_m: Vector2, end_m: Vector2) -> void:
+	var wall: Dictionary = _find_wall_at(start_m)
+	if wall.is_empty():
+		_set_status(tr("Empieza el arrastre pegado a una pared exterior para dibujar un balcón."))
+		return
+	var horizontal: bool = String(wall["wall"]) == "top" or String(wall["wall"]) == "bottom"
+	var along_m: float = absf(end_m.x - start_m.x) if horizontal else absf(end_m.y - start_m.y)
+	var across_m: float = absf(end_m.y - start_m.y) if horizontal else absf(end_m.x - start_m.x)
+	if along_m < BALCONY_DOOR_WIDTH_M * 0.5:
+		_create_balcony_door_at(start_m)
+		return
+
+	var room_id: int = int(wall["room_id"])
+	var wall_name: String = String(wall["wall"])
+	var wall_length_m: float = PlanGeometry.wall_length(_get_room_rect(room_id), wall_name)
+	var balcony_width_m: float = minf(along_m, wall_length_m)
+	var door_width_m: float = minf(BALCONY_DOOR_WIDTH_M, balcony_width_m)
+	var depth_m: float = clampf(
+		across_m if across_m > 0.05 else BALCONY_DEFAULT_DEPTH_M,
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	# El hueco se centra en el trozo arrastrado, no donde empezo el arrastre.
+	var center_along: float = (start_m.x + end_m.x) * 0.5 if horizontal else (start_m.y + end_m.y) * 0.5
+	var offset_m: float = _wall_offset_for_point(room_id, wall_name, center_along, horizontal)
+	if not _is_wall_exterior(room_id, wall_name, offset_m, door_width_m):
+		_set_status(tr("Un balcón cuelga de la fachada: arrastra sobre un tramo de pared exterior."))
+		return
+
+	_add_opening(room_id, OUTSIDE_ID, "door", wall_name, offset_m, door_width_m, BALCONY_DOOR_HEIGHT_M, 0.0, 0.0)
+	var openings: Array = editor_data.get("openings_data", [])
+	if not openings.is_empty():
+		var op: Dictionary = openings[openings.size() - 1]
+		op["has_balcony"] = true
+		op["balcony_width_m"] = balcony_width_m
+		op["balcony_depth_m"] = depth_m
+		op["balcony_parapet_m"] = BALCONY_DEFAULT_PARAPET_M
+		openings[openings.size() - 1] = op
+		editor_data["openings_data"] = openings
+	var recortado: String = "" if across_m <= OpeningModel.BALCONY_MAX_DEPTH_M else " (el vuelo se recortó al máximo de %.2f m)" % OpeningModel.BALCONY_MAX_DEPTH_M
+	_set_status(tr("Balcón de %.2f m de ancho y %.2f m de vuelo en la habitación %d.%s") % [
+		balcony_width_m, depth_m, room_id, recortado])
+	queue_redraw()
+
+
+## Coordenada a lo largo del muro, medida desde su arranque, de un punto del
+## plano. Es lo que espera `offset_m` de una abertura.
+func _wall_offset_for_point(room_id: int, wall_name: String, coord_m: float, horizontal: bool) -> float:
+	var rect: Rect2 = _get_room_rect(room_id)
+	var wall_data: Dictionary = _wall_start_dir(rect, wall_name)
+	var start: Vector2 = wall_data["start"]
+	var dir: Vector2 = wall_data["dir"]
+	var point := Vector2(coord_m, start.y) if horizontal else Vector2(start.x, coord_m)
+	return clampf((point - start).dot(dir), 0.0, PlanGeometry.wall_length(rect, wall_name))
+
+
 func _create_balcony_door_at(pos_m: Vector2) -> void:
 	var wall: Dictionary = _find_wall_at(pos_m)
 	if wall.is_empty():
-		_set_status("Pulsa cerca de una pared para crear una puerta de balcón.")
+		_set_status(tr("Pulsa cerca de una pared para crear una puerta de balcón."))
 		return
 
 	var room_id: int = int(wall["room_id"])
 	var offset_m: float = float(wall["offset_m"])
 	var width_m: float = minf(BALCONY_DOOR_WIDTH_M, PlanGeometry.wall_length(_get_room_rect(room_id), String(wall["wall"])))
 	if not _is_wall_exterior(room_id, String(wall["wall"]), offset_m, width_m):
-		_set_status("Pulsa un tramo de pared exterior: un balcón cuelga de la fachada.")
+		_set_status(tr("Pulsa un tramo de pared exterior: un balcón cuelga de la fachada."))
 		return
 
 	_add_opening(room_id, OUTSIDE_ID, "door", String(wall["wall"]), offset_m, width_m, BALCONY_DOOR_HEIGHT_M, 0.0, 0.0)
@@ -5976,7 +5956,7 @@ func _create_balcony_door_at(pos_m: Vector2) -> void:
 		op["balcony_parapet_m"] = BALCONY_DEFAULT_PARAPET_M
 		openings[openings.size() - 1] = op
 		editor_data["openings_data"] = openings
-	_set_status("Puerta de balcón creada en habitación %d. El balcón se ve, pero no se sale a él." % room_id)
+	_set_status(tr("Puerta de balcón creada en habitación %d. El balcón se ve, pero no se sale a él.") % room_id)
 	queue_redraw()
 
 
@@ -6014,13 +5994,13 @@ func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: floa
 func _delete_opening(opening_index: int) -> bool:
 	var openings: Array = editor_data.get("openings_data", [])
 	if opening_index < 0 or opening_index >= openings.size():
-		_set_status("No se encontro la apertura para borrar.")
+		_set_status(tr("No se encontro la apertura para borrar."))
 		return false
 	_push_undo_snapshot("delete_opening")
 	openings.remove_at(opening_index)
 	editor_data["openings_data"] = openings
 	_clear_selection()
-	_set_status("Apertura eliminada.")
+	_set_status(tr("Apertura eliminada."))
 	queue_redraw()
 	return true
 
@@ -6053,7 +6033,7 @@ func _delete_at(pos_m: Vector2) -> void:
 		_delete_room(room_id)
 		return
 
-	_set_status("No hay nada que eliminar bajo el cursor.")
+	_set_status(tr("No hay nada que eliminar bajo el cursor."))
 
 
 func _delete_object(room_id: int, object_index: int) -> void:
@@ -6072,7 +6052,7 @@ func _delete_object(room_id: int, object_index: int) -> void:
 			rooms[i] = room
 			editor_data["rooms_data"] = rooms
 			_clear_selection()
-			_set_status("Objeto eliminado.")
+			_set_status(tr("Objeto eliminado."))
 			queue_redraw()
 		return
 
@@ -6111,7 +6091,7 @@ func _delete_room(room_id: int) -> void:
 		editor_data[list_key] = items
 
 	_clear_selection()
-	_set_status("Habitación %d eliminada." % room_id)
+	_set_status(tr("Habitación %d eliminada.") % room_id)
 	_update_floor_status()
 	queue_redraw()
 
@@ -6427,7 +6407,7 @@ func _on_load_dialog_file_selected(path: String) -> void:
 func _save_to_path(path: String) -> void:
 	var clean_path: String = path.strip_edges()
 	if clean_path == "":
-		_set_status("Elige un archivo para guardar la plantilla.")
+		_set_status(tr("Elige un archivo para guardar la plantilla."))
 		return
 	if not clean_path.get_file().contains("."):
 		clean_path += ".json"
@@ -6439,9 +6419,9 @@ func _save_to_path(path: String) -> void:
 		_path_edit.text = clean_path
 	if Serializer.save_scenario(clean_path, editor_data):
 		_unsaved_changes = false
-		_set_status("Plantilla guardada en %s." % clean_path)
+		_set_status(tr("Plantilla guardada en %s.") % clean_path)
 	else:
-		_set_status("No se pudo guardar la plantilla.")
+		_set_status(tr("No se pudo guardar la plantilla."))
 
 
 func _show_load_error(message: String, path: String = "") -> void:
@@ -6452,10 +6432,67 @@ func _show_load_error(message: String, path: String = "") -> void:
 		_set_status(message.get_slice("\n", 0))
 
 
+## Adoptar un escenario ya parseado: TODO lo que el editor tiene que hacer para
+## quedar coherente con datos nuevos.
+##
+## Existe por D-6. La sonda `capture_editor_plan.gd` montaba sus fotos asignando
+## `editor_data` y la planta a mano y saltandose `_sync_floor_controls()`: las
+## capturas salian con «Salas: 0» habiendo tres, y con el mensaje de estado de
+## otra accion mientras se arrastraba una sala. Estuve a punto de dar el contador
+## por roto, y no lo estaba. **Una sonda que miente en un detalle obliga a
+## verificar todo lo que enseña**, que es justo lo contrario de para lo que esta.
+##
+## Al escribir esto aparecio lo de debajo, que es lo de siempre: la secuencia
+## estaba **tres veces** en este fichero -cargar por ruta, cargar de la lista y
+## aplicar una instantanea del historial- y las tres copias habian divergido.
+##
+##   - Cargar de la lista NO sincronizaba la casilla de luces ni vaciaba el
+##     historial: se cargaba un escenario y la casilla seguia enseñando el valor
+##     del anterior, y un Ctrl+Z se metia en el escenario de antes.
+##   - Ninguna de las dos cargas cancelaba el arrastre en curso ni la puerta
+##     pendiente: cargar a mitad de un gesto dejaba el gesto vivo sobre datos que
+##     ya no eran los suyos.
+##   - Aplicar una instantanea no bloqueaba la pose visual de los objetos ni
+##     sincronizaba el tiempo de parada.
+##
+## Ahora la secuencia esta una vez. Lo que NO entra aqui es vaciar el historial,
+## porque deshacer y rehacer tienen que poder llamar a esto sin borrarse a si
+## mismos: eso se queda en quien carga.
+##
+## Es publica a proposito: las sondas y los guardarrailes llaman aqui, y asi el
+## camino de la sonda **es** el camino real en vez de una copia suya que se
+## queda atras a la primera.
+## `lock_object_poses` distingue **adoptar** de **restaurar**, y no es un matiz:
+## bloquear la pose visual dice «esto lo coloco quien escribio el fichero, no lo
+## recoloques», que es lo correcto al traer datos de fuera. Una instantanea del
+## historial NO viene de fuera: es un estado propio de esta sesion y deshacer
+## tiene que devolverlo **tal cual**, sin añadirle banderas que no tenia.
+func adopt_scenario_data(data: Dictionary, floor_index: int = 0, lock_object_poses: bool = true) -> void:
+	editor_data = Serializer.normalize_editor_data(data)
+	if lock_object_poses:
+		_lock_all_object_visual_poses()
+	_ensure_floor_data()
+	current_floor_index = clampi(floor_index, 0, maxi(_get_floors().size() - 1, 0))
+	# Un gesto a medias no sobrevive a un cambio de escenario: sus indices son
+	# de los datos viejos.
+	pending_door_room_id = -1
+	drag = Drag.NONE
+	object_mouse_mode = ObjectMouseMode.NONE
+	if _stop_time_spin != null:
+		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+	_sync_floor_controls()
+	_sync_hvac_option_from_data()
+	_sync_lighting_controls_from_data()
+	_sync_building_type_option_from_data()
+	_clear_selection()
+	_mark_editor_runtime_dirty()
+	queue_redraw()
+
+
 func _load_from_path(path: String) -> void:
 	var clean_path: String = path.strip_edges()
 	if clean_path == "":
-		_set_status("Elige un archivo .json para cargar.")
+		_set_status(tr("Elige un archivo .json para cargar."))
 		return
 	if not FileAccess.file_exists(clean_path):
 		_show_load_error("Archivo no encontrado.", clean_path)
@@ -6471,23 +6508,16 @@ func _load_from_path(path: String) -> void:
 			error_msg += "\n\u2022 " + str(e)
 		_show_load_error(error_msg, clean_path)
 		return
-	editor_data = loaded
-	_lock_all_object_visual_poses()
+	adopt_scenario_data(loaded, current_floor_index)
+	# El historial es del escenario que se acaba de dejar: deshacer aqui saltaria
+	# de un escenario a otro. Fuera de adopt_scenario_data a proposito, que
+	# deshacer y rehacer tambien la llaman.
 	_undo_stack.clear()
-	_ensure_floor_data()
-	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
-	if _stop_time_spin != null:
-		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
-	_sync_floor_controls()
-	_sync_hvac_option_from_data()
-	_sync_lighting_controls_from_data()
-	_sync_building_type_option_from_data()
-	_clear_selection()
-	_mark_editor_runtime_dirty()
+	_redo_stack.clear()
 	if _path_edit != null:
 		_path_edit.text = clean_path
 	_unsaved_changes = false
-	_set_status("Plantilla cargada desde %s." % clean_path)
+	_set_status(tr("Plantilla cargada desde %s.") % clean_path)
 	queue_redraw()
 
 
@@ -6527,19 +6557,19 @@ func _export_runtime_pressed() -> void:
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
 	var runtime_rooms: Array = runtime_template.get("rooms_data", [])
 	if runtime_rooms.is_empty():
-		_set_status("No se exporta: el escenario no tiene habitaciones.")
+		_set_status(tr("No se exporta: el escenario no tiene habitaciones."))
 		return
 	if Serializer.save_runtime_template(RUNTIME_EXPORT_PATH, editor_data):
-		_set_status("Template runtime exportado en %s." % RUNTIME_EXPORT_PATH)
+		_set_status(tr("Template runtime exportado en %s.") % RUNTIME_EXPORT_PATH)
 	else:
-		_set_status("No se pudo exportar el template runtime.")
+		_set_status(tr("No se pudo exportar el template runtime."))
 
 
 func _delete_selected_room() -> void:
 	if selected_room_id >= 0:
 		_delete_room(selected_room_id)
 	else:
-		_set_status("Selecciona primero una habitación.")
+		_set_status(tr("Selecciona primero una habitación."))
 
 
 func _delete_selected() -> void:
@@ -6550,7 +6580,7 @@ func _delete_selected() -> void:
 			dets.remove_at(selected_detector_index)
 			editor_data["detectors"] = dets
 		_clear_selection()
-		_set_status("Detector eliminado.")
+		_set_status(tr("Detector eliminado."))
 		queue_redraw()
 		return
 	elif selected_victim_index >= 0:
@@ -6560,14 +6590,14 @@ func _delete_selected() -> void:
 			vics.remove_at(selected_victim_index)
 			editor_data["victims"] = vics
 		_clear_selection()
-		_set_status("Víctima eliminada.")
+		_set_status(tr("Víctima eliminada."))
 		queue_redraw()
 		return
 	elif selected_player_start_room_id >= 0:
 		_push_undo_snapshot("delete_player_start")
 		editor_data["player_start"] = {}
 		_clear_selection()
-		_set_status("Inicio FP eliminado.")
+		_set_status(tr("Inicio FP eliminado."))
 		queue_redraw()
 		return
 	elif selected_object_room_id >= 0 and selected_object_index >= 0:
@@ -6580,7 +6610,7 @@ func _delete_selected() -> void:
 
 func _apply_object_properties() -> void:
 	if selected_object_room_id < 0 or selected_object_index < 0:
-		_set_status("Selecciona un objeto antes de aplicar propiedades.")
+		_set_status(tr("Selecciona un objeto antes de aplicar propiedades."))
 		return
 	var fields: Dictionary = _props.read_object()
 	var rooms: Array = editor_data.get("rooms_data", [])
@@ -6616,14 +6646,14 @@ func _apply_object_properties() -> void:
 		room["fuel_objects"] = objects
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
-		_set_status("Propiedades del objeto actualizadas.")
+		_set_status(tr("Propiedades del objeto actualizadas."))
 		queue_redraw()
 		return
 
 
 func _apply_opening_properties() -> void:
 	if selected_opening_index < 0:
-		_set_status("Selecciona una puerta o ventana primero.")
+		_set_status(tr("Selecciona una puerta o ventana primero."))
 		return
 	var openings: Array = editor_data.get("openings_data", [])
 	if selected_opening_index >= openings.size():
@@ -6632,6 +6662,22 @@ func _apply_opening_properties() -> void:
 	_push_undo_snapshot("edit_opening")
 	var op: Dictionary = openings[selected_opening_index]
 	var op_type: String = String(op.get("type", "door"))
+	# El tipo se puede cambiar. Es lo que convierte en puerta el paso que se
+	# abre solo entre dos tramos de pasillo, y no habia forma de hacerlo: la
+	# ficha ensenaba el tipo y no dejaba tocarlo.
+	var wanted_type: String = String(fields.get("type", ""))
+	if wanted_type != "" and wanted_type != op_type and not bool(op.get("is_vertical", false)):
+		# Una ventana cuelga de fachada; un hueco a la calle no existe.
+		if wanted_type == "window" and int(op.get("b", OUTSIDE_ID)) != OUTSIDE_ID and int(op.get("a", -1)) != OUTSIDE_ID:
+			_set_status(tr("Una ventana da al exterior: en un tabique interior solo cabe puerta o hueco."))
+		else:
+			op["type"] = wanted_type
+			op_type = wanted_type
+			if wanted_type == "hole":
+				op["sill_m"] = 0.0
+				op["open_fraction"] = 1.0
+			elif wanted_type == "window" and float(op.get("sill_m", 0.0)) <= 0.01:
+				op["sill_m"] = 0.90
 	op["width_m"] = minf(float(fields.get("width_m", 0.9)), _max_width_for_opening(op))
 	op["height_m"] = float(fields.get("height_m", 2.0))
 	if not bool(op.get("is_vertical", false)):
@@ -6649,7 +6695,7 @@ func _apply_opening_properties() -> void:
 	_apply_balcony_fields(op, fields)
 	openings[selected_opening_index] = op
 	editor_data["openings_data"] = openings
-	_set_status("Apertura actualizada.")
+	_set_status(tr("Apertura actualizada."))
 	queue_redraw()
 
 
@@ -6849,24 +6895,74 @@ func _plan_rooms_view() -> Array:
 			for point_m in PlanGeometry.rotated_rect_points_m(rect, rotation_deg):
 				points_px.append(_m_to_px(point_m))
 			entry["points_px"] = points_px
+			# El centro de un rectangulo girado es el mismo que sin girar: es
+			# el ancla estable para la ficha de la sala.
+			entry["label_center_px"] = _m_to_px(rect.get_center())
+			entry["label_min_side_px"] = _screen_width_px(minf(rect_px.size.x, rect_px.size.y))
 		if selected:
 			entry["handles"] = _room_handles_view(room_id)
+		# La junta entre dos tramos del MISMO pasillo no es un tabique: es el
+		# sitio por donde se pasa. Dibujarla partia una U en tres cajas.
+		if is_corridor and absf(rotation_deg) <= 0.001:
+			var seams: Array = _corridor_seams_px(room_dict, rect)
+			if not seams.is_empty():
+				entry["seams_px"] = seams
 		out.append(entry)
 	return out
 
 
+## Los tramos de pared que este tramo de pasillo comparte con otro tramo del
+## mismo pasillo, en pixeles. Se repintan del color del relleno para borrar la
+## linea de tabique que no existe.
+func _corridor_seams_px(room: Dictionary, rect: Rect2) -> Array:
+	var base_name: String = _corridor_base_name(String(room.get("name", "")))
+	var level_m: float = _room_id_floor_level(int(room.get("id", -1)))
+	var seams: Array = []
+	for raw_other in editor_data.get("rooms_data", []):
+		if typeof(raw_other) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = raw_other
+		var other_id: int = int(other.get("id", -1))
+		if other_id == int(room.get("id", -1)) or other_id < 0:
+			continue
+		if not _is_corridor_room(other):
+			continue
+		if _corridor_base_name(String(other.get("name", ""))) != base_name:
+			continue
+		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
+			continue
+		if absf(float(other.get("rotation_deg", 0.0))) > 0.001:
+			continue
+		var other_rect: Rect2 = _get_room_rect(other_id)
+		var overlap: Rect2 = rect.grow(0.02).intersection(other_rect.grow(0.02))
+		if overlap.size.x <= 0.0 or overlap.size.y <= 0.0:
+			continue
+		# La junta es el lado por el que se tocan: el eje en el que el solape
+		# es una raja y no una superficie.
+		if overlap.size.x < 0.09 and overlap.size.y >= GRID_M:
+			var x: float = overlap.get_center().x
+			seams.append([_m_to_px(Vector2(x, overlap.position.y)), _m_to_px(Vector2(x, overlap.end.y))])
+		elif overlap.size.y < 0.09 and overlap.size.x >= GRID_M:
+			var y: float = overlap.get_center().y
+			seams.append([_m_to_px(Vector2(overlap.position.x, y)), _m_to_px(Vector2(overlap.end.x, y))])
+	return seams
+
+
 func _room_handles_view(room_id: int) -> Dictionary:
-	var handle_points: Dictionary = _room_handle_points_m(room_id)
-	if handle_points.is_empty():
+	return _handles_view(_get_room_rect(room_id).get_center(), _room_handle_points_m(room_id))
+
+
+## Los tiradores, en pixeles y listos para pintar. La comparten la sala y el
+## objeto: la tercera copia que tenian era esta.
+func _handles_view(center_m: Vector2, points: PackedVector2Array) -> Dictionary:
+	if points.is_empty():
 		return {}
-	var center_m: Vector2 = _get_room_rect(room_id).get_center()
 	var resize_pxs := PackedVector2Array()
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if handle_points.has(mode):
-			resize_pxs.append(_m_to_px(Vector2(handle_points[mode])))
+	resize_pxs.append(_m_to_px(points[Handles.RESIZE_WIDTH]))
+	resize_pxs.append(_m_to_px(points[Handles.RESIZE_LENGTH]))
 	return {
 		"center_px": _m_to_px(center_m),
-		"rotate_px": _m_to_px(Vector2(handle_points.get(ObjectMouseMode.ROTATE, center_m))),
+		"rotate_px": _m_to_px(points[Handles.ROTATE]),
 		"resize_pxs": resize_pxs,
 		"radius_px": object_handle_radius_px
 	}
@@ -7028,18 +7124,10 @@ func _plan_objects_view() -> Array:
 
 
 func _object_handles_view(room_rect: Rect2, obj: Dictionary) -> Dictionary:
-	var handle_points: Dictionary = _object_handle_points_m(room_rect, obj)
-	var center_m: Vector2 = PlanGeometry.object_world_center(room_rect, obj)
-	var resize_pxs := PackedVector2Array()
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
-		if handle_points.has(mode):
-			resize_pxs.append(_m_to_px(Vector2(handle_points[mode])))
-	return {
-		"center_px": _m_to_px(center_m),
-		"rotate_px": _m_to_px(Vector2(handle_points.get(ObjectMouseMode.ROTATE, center_m))),
-		"resize_pxs": resize_pxs,
-		"radius_px": object_handle_radius_px
-	}
+	return _handles_view(
+		PlanGeometry.object_world_center(room_rect, obj),
+		_object_handle_points_m(room_rect, obj)
+	)
 
 
 func _plan_player_start_view() -> Dictionary:
@@ -7063,21 +7151,34 @@ func _plan_player_start_view() -> Dictionary:
 
 ## Cada tipo de detector tiene su color y su inicial: humo, calor y CO no se
 ## distinguen por la forma, que es la misma.
+## Los marcadores de esta planta, con su posicion ya en pixeles y sin estilo:
+## el estilo lo pone cada vista, porque es lo unico que de verdad las separa.
+func _marker_points_view(list_key: String, selected_index: int) -> Array:
+	var origins: Dictionary = _room_origins_on_floor()
+	var out: Array = []
+	var list: Array = editor_data.get(list_key, [])
+	for i in range(list.size()):
+		if typeof(list[i]) != TYPE_DICTIONARY:
+			continue
+		var marker: Dictionary = list[i]
+		var room_id: int = int(marker.get("room_id", -1))
+		if not origins.has(room_id):
+			continue
+		out.append({
+			"marker": marker,
+			"px": _m_to_px(RoomMarkers.world_position(Vector2(origins[room_id]), marker)),
+			"selected": i == selected_index,
+		})
+	return out
+
+
 func _plan_detectors_view() -> Array:
 	var out: Array = []
-	var dets: Array = editor_data.get("detectors", [])
-	for i in range(dets.size()):
-		if typeof(dets[i]) != TYPE_DICTIONARY:
-			continue
-		var det: Dictionary = dets[i]
-		var room_id: int = int(det.get("room_id", -1))
-		if not _is_room_on_current_floor(_get_room(room_id)):
-			continue
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		var det_type: String = String(det.get("type", "smoke"))
-		var selected: bool = i == selected_detector_index
+	for entry in _marker_points_view("detectors", selected_detector_index):
+		var det_type: String = String(Dictionary(entry["marker"]).get("type", "smoke"))
+		var selected: bool = bool(entry["selected"])
 		out.append({
-			"px": _m_to_px(room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))),
+			"px": entry["px"],
 			"radius": 10.0 if selected else 8.0,
 			"color": _detector_smoke_color if det_type == "smoke" else (_detector_heat_color if det_type == "heat" else _detector_co_color),
 			"label": "S" if det_type == "smoke" else ("H" if det_type == "heat" else "C"),
@@ -7088,21 +7189,12 @@ func _plan_detectors_view() -> Array:
 
 func _plan_victims_view() -> Array:
 	var out: Array = []
-	var vics: Array = editor_data.get("victims", [])
-	for i in range(vics.size()):
-		if typeof(vics[i]) != TYPE_DICTIONARY:
-			continue
-		var vic: Dictionary = vics[i]
-		var room_id: int = int(vic.get("room_id", -1))
-		if not _is_room_on_current_floor(_get_room(room_id)):
-			continue
-		var room_rect: Rect2 = _get_room_rect(room_id)
-		var selected: bool = i == selected_victim_index
+	for entry in _marker_points_view("victims", selected_victim_index):
 		out.append({
-			"px": _m_to_px(room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))),
-			"radius": 9.0 if selected else 7.0,
+			"px": entry["px"],
+			"radius": 9.0 if bool(entry["selected"]) else 7.0,
 			"color": _victim_color,
-			"selected": selected
+			"selected": bool(entry["selected"])
 		})
 	return out
 
@@ -7126,6 +7218,48 @@ func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, m
 ## Lo que se esta arrastrando ahora mismo: el muro, la sala, la escalera o el
 ## pasillo en curso. Vive aqui y no en EditorDraw2D porque no es el plano, es
 ## el estado de la interaccion.
+## Lo que se ve mientras se dibuja un balcon: la losa con el vuelo YA recortado
+## al maximo, para que el tope se vea en el sitio en vez de enterarse al soltar.
+func _draw_balcony_drag_preview(end_m: Vector2) -> void:
+	var wall: Dictionary = _find_wall_at(drag_start_m)
+	if wall.is_empty():
+		return
+	var horizontal: bool = String(wall["wall"]) == "top" or String(wall["wall"]) == "bottom"
+	var along_m: float = absf(end_m.x - drag_start_m.x) if horizontal else absf(end_m.y - drag_start_m.y)
+	var across_raw_m: float = absf(end_m.y - drag_start_m.y) if horizontal else absf(end_m.x - drag_start_m.x)
+	if along_m < 0.05:
+		return
+	var across_m: float = clampf(
+		across_raw_m,
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	var sign_across: float = signf((end_m.y - drag_start_m.y) if horizontal else (end_m.x - drag_start_m.x))
+	if absf(sign_across) < 0.5:
+		sign_across = 1.0
+	var min_along: float = minf(drag_start_m.x, end_m.x) if horizontal else minf(drag_start_m.y, end_m.y)
+	var rect_m: Rect2
+	if horizontal:
+		var y0: float = drag_start_m.y if sign_across > 0.0 else drag_start_m.y - across_m
+		rect_m = Rect2(min_along, y0, along_m, across_m)
+	else:
+		var x0: float = drag_start_m.x if sign_across > 0.0 else drag_start_m.x - across_m
+		rect_m = Rect2(x0, min_along, across_m, along_m)
+	var rect_px: Rect2 = _rect_to_px(rect_m)
+	var recortado: bool = across_raw_m > OpeningModel.BALCONY_MAX_DEPTH_M
+	var color: Color = Color(1.0, 0.55, 0.18, 0.95) if recortado else Color(0.55, 0.90, 1.0, 0.90)
+	draw_rect(rect_px, Color(color.r, color.g, color.b, 0.18), true)
+	draw_rect(rect_px, color, false, 2.0)
+	_draw_screen_string(
+		rect_px.position,
+		Vector2(6.0, -8.0),
+		"Balcón %.2f × %.2f m%s" % [along_m, across_m, "  (vuelo al máximo)" if recortado else ""],
+		240.0,
+		11,
+		color
+	)
+
+
 func _draw_drag_preview() -> void:
 	# Lo que se ve mientras se escribe una medida es ya el resultado: el mismo
 	# punto final que usara Intro.
@@ -7133,6 +7267,9 @@ func _draw_drag_preview() -> void:
 	if drag == Drag.ROOM_RECT:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
+			return
+		if current_tool == Tool.BALCONY_DOOR:
+			_draw_balcony_drag_preview(preview_end_m)
 			return
 		var rect: Rect2 = PlanGeometry.normalized_rect(drag_start_m, preview_end_m)
 		var rect_px: Rect2 = _rect_to_px(rect)
@@ -7329,6 +7466,28 @@ func _draw_corridor_drag_preview() -> void:
 		draw_circle(corner_px, 4.0, _corridor_path_color)
 	else:
 		draw_line(start_px, end_px, _corridor_path_color, 3.0)
+	# Decir QUE va a salir mientras se dibuja. El umbral que elige entre recto
+	# y giro no es adivinable a ojo, y enterarse al soltar es tarde.
+	var forma: String = tr("en L") if mode == "l" else tr("recto")
+	var forzada: bool = _corridor_forced_mode != ""
+	# Pedir L y que salga recto tiene una razon: un brazo mas corto que el
+	# ancho del pasillo no es un brazo. Decirlo, o parece que la tecla no va.
+	var l_imposible: bool = _corridor_forced_mode == "l" and mode != "l"
+	var apunte: String = tr("L gira · R recto")
+	if l_imposible:
+		apunte = tr("el brazo corto no da para giro: alarga el gesto")
+	elif forzada:
+		apunte = tr("misma tecla para soltarlo")
+	_draw_screen_string(
+		end_px,
+		Vector2(10.0, 20.0),
+		"%s%s  ·  %s" % [forma, tr("  (forzado)") if forzada and not l_imposible else "", apunte],
+		300.0,
+		11,
+		Color(1.0, 0.46, 0.26, 0.95) if l_imposible else (
+			Color(1.0, 0.72, 0.30, 0.95) if forzada else Color(0.72, 0.90, 1.0, 0.90)
+		)
+	)
 	draw_circle(start_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
 	draw_circle(end_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
 
@@ -7440,7 +7599,7 @@ func _load_scenario_pressed() -> void:
 		return
 	var idx: int = _scenario_option.selected
 	if idx < 0 or idx >= _scenario_paths.size():
-		_set_status("Selecciona un escenario de la lista.")
+		_set_status(tr("Selecciona un escenario de la lista."))
 		return
 	var path: String = _scenario_paths[idx]
 	var loaded: Dictionary = {}
@@ -7462,19 +7621,10 @@ func _load_scenario_pressed() -> void:
 			error_msg += "\n\u2022 " + str(e)
 		_show_load_error(error_msg, path)
 		return
-	editor_data = normalized
-	_lock_all_object_visual_poses()
-	_ensure_floor_data()
-	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
-	if _stop_time_spin != null:
-		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
-	_sync_floor_controls()
-	_sync_hvac_option_from_data()
-	_sync_building_type_option_from_data()
-	_clear_selection()
-	_mark_editor_runtime_dirty()
-	_set_status("Escenario cargado: %s" % path.get_file())
-	queue_redraw()
+	adopt_scenario_data(normalized, current_floor_index)
+	_undo_stack.clear()
+	_redo_stack.clear()
+	_set_status(tr("Escenario cargado: %s") % path.get_file())
 
 
 func _run_simulation_pressed() -> void:
@@ -7499,9 +7649,9 @@ func _run_simulation_pressed() -> void:
 		_show_review_dialog(true)
 		return
 	if not Serializer.save_runtime_template(RUNTIME_EXPORT_PATH, editor_data):
-		_set_status("Error al exportar el template runtime.")
+		_set_status(tr("Error al exportar el template runtime."))
 		return
-	_set_status("Iniciando simulación...")
+	_set_status(tr("Iniciando simulación..."))
 	get_tree().change_scene_to_file(MAIN_SCENE_PATH)
 
 
@@ -7512,7 +7662,7 @@ func _run_simulation_pressed() -> void:
 func _review_scenario_pressed() -> void:
 	_ensure_floor_data()
 	if ScenarioReview.review(editor_data).is_empty():
-		_set_status("Revisión: el escenario no tiene ningún aviso.")
+		_set_status(tr("Revisión: el escenario no tiene ningún aviso."))
 		return
 	_show_review_dialog(false)
 
@@ -7525,7 +7675,7 @@ func _show_review_dialog(before_running: bool) -> void:
 	if dialog == null:
 		push_warning("Falta ScenarioReviewDialog en ScenarioEditorScene.tscn")
 		# Sin cuadro no se traga la revisión: se dice en la línea de estado.
-		_set_status("Revisión: %d aviso(s). %s" % [warnings.size(), String(warnings[0].get("text", ""))])
+		_set_status(tr("Revisión: %d aviso(s). %s") % [warnings.size(), String(warnings[0].get("text", ""))])
 		return
 	var lines: PackedStringArray = PackedStringArray()
 	for warning in warnings:
@@ -7661,7 +7811,6 @@ func _bind_existing_ui() -> bool:
 	if btn_victim != null:
 		_register_tool_button(btn_victim, Tool.VICTIM)
 
-	_object_catalog = _get_left_node("ObjectCatalog") as ItemList
 	_path_edit = _get_left_node("PathEdit") as LineEdit
 	_scenario_option = _get_left_node("ScenarioOption") as OptionButton
 	_hvac_option = _get_left_node("HVACRow/HVACOption") as OptionButton
@@ -7686,6 +7835,9 @@ func _bind_existing_ui() -> bool:
 		_props.action_requested.connect(_on_property_panel_action)
 	_populate_stair_turn_options(_props.stair_turn_option())
 
+	# El catalogo se enlaza ANTES de comprobarlo: es su modulo quien encuentra
+	# la lista en la escena (D-1).
+	_bind_object_preview()
 	if _object_catalog == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false
 	if not props_ok:
@@ -7703,6 +7855,7 @@ func _bind_existing_ui() -> bool:
 	_bind_element_list()
 	_bind_controls_help()
 	_bind_preview_3d()
+	_bind_scale_bar()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
 
@@ -7792,9 +7945,6 @@ func _bind_spin_row(parent: Control, row_name: String, spin_name: String, min_va
 	return spin
 
 
-func _bind_check_row(parent: Control, row_name: String, check_name: String) -> CheckBox:
-	return _scene_control(parent, "%s/%s" % [row_name, check_name]) as CheckBox
-
 
 func _bind_option_row(parent: Control, row_name: String, option_name: String) -> OptionButton:
 	return _scene_control(parent, "%s/%s" % [row_name, option_name]) as OptionButton
@@ -7854,9 +8004,9 @@ func _on_wind_speed_changed(value: float) -> void:
 	editor_data["wind_speed_m_s"] = next
 	var rumbo: float = float(editor_data.get("wind_direction_deg", 0.0))
 	if next <= 0.05:
-		_set_status("Sin viento.")
+		_set_status(tr("Sin viento."))
 	else:
-		_set_status("Viento %s del %s." % [WindRose.speed_text(next), WindRose.short_name(rumbo)])
+		_set_status(tr("Viento %s del %s.") % [WindRose.speed_text(next), WindRose.short_name(rumbo)])
 
 
 func _on_wind_direction_selected(index: int) -> void:
@@ -7867,9 +8017,9 @@ func _on_wind_direction_selected(index: int) -> void:
 	editor_data["wind_direction_deg"] = next
 	var v: float = float(editor_data.get("wind_speed_m_s", 0.0))
 	if v <= 0.05:
-		_set_status("Viento del %s, pero la velocidad esta a 0." % WindRose.short_name(next))
+		_set_status(tr("Viento del %s, pero la velocidad esta a 0.") % WindRose.short_name(next))
 	else:
-		_set_status("Viento %s del %s." % [WindRose.speed_text(v), WindRose.short_name(next)])
+		_set_status(tr("Viento %s del %s.") % [WindRose.speed_text(v), WindRose.short_name(next)])
 
 
 func _bind_element_list() -> void:
@@ -7913,31 +8063,32 @@ func _bind_floor_controls() -> void:
 
 ## El catálogo: cada pieza con su nombre en castellano y su medida, que es lo que
 ## hace falta para elegir. El identificador interno viaja en la metadata.
+## El catalogo de mobiliario vive en `editor/EditorObjectCatalog.gd` (D-1).
+## Aqui quedan los puentes: lo que el resto del editor le pide.
 func _populate_object_type_option() -> void:
-	if _object_catalog == null:
-		return
-	_object_catalog.clear()
-	for kind in ObjectLibraryScript.get_object_kinds():
-		var size_m: Vector2 = ObjectLibraryScript.size_m(kind)
-		var index: int = _object_catalog.add_item("%s  ·  %.2f × %.2f m" % [
-			ObjectLibraryScript.display_name(kind), size_m.x, size_m.y])
-		_object_catalog.set_item_metadata(index, kind)
-		_object_catalog.set_item_tooltip(index, "Arrastra %s al plano, o selecciónalo y pulsa dentro de una habitación." % ObjectLibraryScript.display_name(kind))
-	if _object_catalog.item_count > 0:
-		_object_catalog.select(0)
-	if not _object_catalog.gui_input.is_connected(_on_object_catalog_gui_input):
-		_object_catalog.gui_input.connect(_on_object_catalog_gui_input)
+	_catalog.populate(_on_object_catalog_gui_input)
+
+
+func _bind_object_preview() -> void:
+	_catalog = EditorObjectCatalogScript.new()
+	_catalog.setup(self)
+	_object_catalog = _catalog.list
 
 
 ## La pieza elegida en el catálogo.
 func _selected_object_kind() -> String:
-	if _object_catalog == null:
-		return "sofa"
-	var selected: PackedInt32Array = _object_catalog.get_selected_items()
-	if selected.is_empty():
-		return "sofa"
-	var meta: Variant = _object_catalog.get_item_metadata(selected[0])
-	return String(meta) if meta != null else "sofa"
+	return _catalog.selected_kind() if _catalog != null else "sofa"
+
+
+## Desplaza el panel izquierdo hasta dejar un control a la vista.
+func _scroll_left_panel_to(control: Control) -> void:
+	if control == null or not is_instance_valid(control) or not control.visible:
+		return
+	if _ui_root == null:
+		return
+	var scroll := _ui_root.get_node_or_null("LeftPanel/Scroll") as ScrollContainer
+	if scroll != null:
+		scroll.ensure_control_visible(control)
 
 
 # ── Arrastrar una pieza del catálogo al plano ───────────────────────────────
@@ -7958,7 +8109,7 @@ func _on_object_catalog_gui_input(event: InputEvent) -> void:
 	_object_catalog.select(index)
 	_catalog_drag_kind = String(_object_catalog.get_item_metadata(index))
 	_catalog_drag_screen = get_viewport().get_mouse_position()
-	_set_status("Suelta %s dentro de una habitación." % ObjectLibraryScript.display_name(_catalog_drag_kind))
+	_set_status(tr("Suelta %s dentro de una habitación.") % ObjectLibraryScript.display_name(_catalog_drag_kind))
 	queue_redraw()
 
 
@@ -8076,26 +8227,28 @@ func _sync_tool_option_visibility() -> void:
 	_set_node_visible("LeftPanel/Scroll/VBox/ObjectToolLabel", object_visible)
 	_set_node_visible("LeftPanel/Scroll/VBox/ObjectTypeOption", object_visible)
 	if _object_catalog != null:
-		_set_control_row_visible(_object_catalog, object_visible)
+		PropertyPanelScript.set_row_visible(_object_catalog, object_visible)
+	if _catalog != null:
+		_catalog.set_preview_visible(object_visible)
 	var object_section := _get_left_node("ObjectToolSection") as Control
 	if object_section != null:
 		object_section.visible = object_visible
 	_set_node_visible("LeftPanel/Scroll/VBox/CorridorSectionLabel", corridor_visible)
 	_set_node_visible("LeftPanel/Scroll/VBox/CorridorWidthSpin", corridor_visible)
 	if _corridor_width_spin != null:
-		_set_control_row_visible(_corridor_width_spin, corridor_visible)
+		PropertyPanelScript.set_row_visible(_corridor_width_spin, corridor_visible)
 	var corridor_row := _get_left_node("CorridorWidthRow") as Control
 	if corridor_row != null:
 		corridor_row.visible = corridor_visible
 	if _stair_tool_section != null:
 		_stair_tool_section.visible = stair_visible
 	if _stair_tool_turn_option != null:
-		_set_control_row_visible(_stair_tool_turn_option, stair_visible)
+		PropertyPanelScript.set_row_visible(_stair_tool_turn_option, stair_visible)
 	if _opening_tool_section != null:
 		_opening_tool_section.visible = opening_visible
 	if _opening_tool_width_spin != null:
 		_opening_tool_width_spin.visible = current_tool == Tool.HOLE
-		_set_control_row_visible(_opening_tool_width_spin, current_tool == Tool.HOLE)
+		PropertyPanelScript.set_row_visible(_opening_tool_width_spin, current_tool == Tool.HOLE)
 
 
 func _bind_corridor_width_control() -> void:
@@ -8219,6 +8372,51 @@ func _zoom_at_mouse(factor: float) -> void:
 
 	var mouse_world_after := camera.get_global_mouse_position()
 	camera.global_position += mouse_world_before - mouse_world_after
+	_update_scale_bar()
+
+
+## Mueve el plano lo que se ha arrastrado en pantalla. Lo comparten el boton
+## central y el arrastre del plano con el boton izquierdo.
+func _pan_camera_by_screen_delta(delta_px: Vector2) -> void:
+	if camera == null:
+		return
+	camera.global_position -= delta_px / maxf(0.05, camera.zoom.x)
+
+
+## Distancias "redondas" para la barra de escala. Se elige la que mas se acerca
+## a `SCALE_BAR_TARGET_PX` en pantalla: una regla de 2 m que a un zoom mide tres
+## pixeles y a otro mil no sirve para medir nada.
+const SCALE_BAR_NICE_M: Array[float] = [0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0]
+const SCALE_BAR_TARGET_PX: float = 140.0
+
+
+## La regla de la esquina: cuanto mide en pantalla una distancia conocida, y
+## cuanto vale un cuadro de la rejilla. Sin esto, con zoom no se sabe si lo que
+## se esta dibujando son tres metros o treinta.
+func _update_scale_bar() -> void:
+	if _scale_rule == null or _scale_label == null or camera == null:
+		return
+	var px_per_m: float = pixels_per_meter * maxf(0.05, camera.zoom.x)
+	var best_m: float = SCALE_BAR_NICE_M[0]
+	var best_err: float = INF
+	for candidate in SCALE_BAR_NICE_M:
+		var err: float = absf(float(candidate) * px_per_m - SCALE_BAR_TARGET_PX)
+		if err < best_err:
+			best_err = err
+			best_m = float(candidate)
+	_scale_rule.custom_minimum_size = Vector2(maxf(8.0, best_m * px_per_m), 5.0)
+	_scale_rule.size = _scale_rule.custom_minimum_size
+	_scale_label.text = "%s  ·  rejilla %s  ·  %.0f%%" % [
+		_format_metres(best_m),
+		_format_metres(GRID_M),
+		camera.zoom.x * 100.0
+	]
+
+
+func _format_metres(value_m: float) -> String:
+	if value_m >= 1.0:
+		return "%s m" % String.num(value_m, 0 if absf(value_m - roundf(value_m)) < 0.001 else 2)
+	return "%d cm" % roundi(value_m * 100.0)
 
 #moviemiento con las flechas
 func _physics_process(delta: float) -> void:

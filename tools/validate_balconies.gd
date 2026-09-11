@@ -109,13 +109,12 @@ func _check_editor_tool() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	editor.editor_data = {
+	editor.adopt_scenario_data({
 		"floors": [{"name": FloorNaming.label(0), "level_m": 0.0}],
 		"exterior_walls": [], "room_rect_m": {}, "rooms_data": [],
 		"openings_data": [], "detectors": [], "victims": [],
 		"player_start": {}, "ignition_room_id": -1,
-	}
-	editor.current_floor_index = 0
+	}, 0)
 	# Dos salas pegadas: la fachada de la primera es exterior, el tabique que
 	# comparten no lo es.
 	editor.current_tool = TOOL_ROOM

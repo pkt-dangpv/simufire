@@ -1,6 +1,8 @@
 extends RefCounted
 class_name ScenarioSerializer
 
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+
 const DEFAULT_VERSION: int = 1
 
 
@@ -403,17 +405,11 @@ static func rect2_from_data(value: Variant) -> Rect2:
 	return Rect2()
 
 
+## El formato lo lee `sim/ScenarioValues`, que es el unico sitio donde esta
+## escrito. Esta funcion se queda porque es API publica del serializador y la
+## llaman doce sitios; lo que ya no tiene es una segunda copia de la regla.
 static func vector2_from_data(value: Variant) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return Vector2.ZERO
+	return ScenarioValues.to_vector2(value)
 
 
 static func rect_to_data(rect: Rect2) -> Dictionary:

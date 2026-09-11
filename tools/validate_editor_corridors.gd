@@ -103,13 +103,12 @@ func _run() -> void:
 
 # ── Utiles ──────────────────────────────────────────────────────────────────
 func _reset() -> void:
-	_editor.editor_data = {
+	_editor.adopt_scenario_data({
 		"floors": [{"name": "PB", "level_m": 0.0}],
 		"exterior_walls": [], "room_rect_m": {}, "rooms_data": [],
 		"openings_data": [], "detectors": [], "victims": [],
 		"player_start": {}, "ignition_room_id": -1
-	}
-	_editor.current_floor_index = 0
+	}, 0)
 
 
 func _draw(tool_id: int, from_m: Vector2, to_m: Vector2) -> void:

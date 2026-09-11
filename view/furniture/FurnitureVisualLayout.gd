@@ -32,7 +32,7 @@ const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVis
 ## declaran su carga de fuego a granel y sus habitaciones se recorren vacias.
 ## El atrezo no arde ni existe para el modelo; el dia que esas plantillas traigan
 ## objetos de verdad, la sala llega con `fuel_objects` y el atrezo no se genera.
-static func normalize_room(building, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool = true) -> Array:
+static func normalize_room(building: BuildingModel, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool = true) -> Array:
 	var specs: Array = []
 	for raw in raw_objects:
 		if typeof(raw) != TYPE_DICTIONARY:
@@ -62,7 +62,7 @@ static func normalize_room(building, room_id: int, rect: Rect2, raw_objects: Arr
 	return visible
 
 
-static func _props_for_room(building, room_id: int, rect: Rect2) -> Array:
+static func _props_for_room(building: BuildingModel, room_id: int, rect: Rect2) -> Array:
 	var room: RoomModel = building.get_room(room_id)
 	if room == null:
 		return []

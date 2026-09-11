@@ -20,6 +20,9 @@ const ACTION_ROOM_APPLY: String = "room_apply"
 const ACTION_ROOM_DELETE: String = "room_delete"
 const ACTION_OBJECT_APPLY: String = "object_apply"
 const ACTION_OPENING_APPLY: String = "opening_apply"
+## Orden de los tipos en el desplegable de la ficha de la abertura. Tiene que
+## coincidir con los `popup/item_N` de la escena.
+const OPENING_TYPES: Array[String] = ["door", "window", "hole"]
 const ACTION_DETECTOR_APPLY: String = "detector_apply"
 const ACTION_VICTIM_APPLY: String = "victim_apply"
 ## Borrar objeto, apertura, detector, victima o muro: el editor ya sabe cual esta
@@ -61,6 +64,7 @@ var _obj_hrr_spin: SpinBox
 # ── Apertura ────────────────────────────────────────────────────────────────
 var _opening_props_container: Control
 var _opening_type_label: Label
+var _opening_type_option: OptionButton
 var _opening_width_spin: SpinBox
 var _opening_height_spin: SpinBox
 var _opening_sill_spin: SpinBox
@@ -149,6 +153,7 @@ func _bind_object() -> void:
 func _bind_opening() -> void:
 	_opening_props_container = _control("OpeningProps")
 	_opening_type_label = _control("OpeningProps/OpeningTypeLabel") as Label
+	_opening_type_option = _control("OpeningProps/OpeningTypeRow/OpeningTypeOption") as OptionButton
 	_opening_width_spin = _control("OpeningProps/OpeningWidthSpin") as SpinBox
 	_opening_height_spin = _control("OpeningProps/OpeningHeightSpin") as SpinBox
 	_opening_sill_spin = _control("OpeningProps/OpeningSillSpin") as SpinBox
@@ -350,6 +355,12 @@ func _fill_opening(state: Dictionary) -> void:
 	var is_vertical: bool = bool(opening.get("is_vertical", false))
 	if _opening_type_label != null:
 		_opening_type_label.text = type_label
+	# El tipo se puede cambiar: un paso sin puerta entre dos tramos de pasillo
+	# se convierte en puerta desde aqui. En un hueco VERTICAL no, que es un
+	# hueco de forjado y no admite hoja.
+	if _opening_type_option != null:
+		set_row_visible(_opening_type_option, not is_vertical)
+		_opening_type_option.select(OPENING_TYPES.find(op_type) if OPENING_TYPES.has(op_type) else 0)
 	_opening_width_spin.max_value = max_width_m
 	_opening_width_spin.value = float(opening.get("width_m", 0.9))
 	if _opening_height_spin != null:
@@ -368,10 +379,10 @@ func _fill_opening(state: Dictionary) -> void:
 	# Abre hacia y bisagra solo tienen sentido en una puerta de verdad.
 	var is_door: bool = op_type == "door" and not is_vertical
 	if _opening_swing_option != null:
-		_set_row_visible(_opening_swing_option, is_door)
+		set_row_visible(_opening_swing_option, is_door)
 		_opening_swing_option.select(1 if String(opening.get("swing_direction", "in")).to_lower() == "out" else 0)
 	if _opening_hinge_option != null:
-		_set_row_visible(_opening_hinge_option, is_door)
+		set_row_visible(_opening_hinge_option, is_door)
 		_opening_hinge_option.select(1 if String(opening.get("hinge_side", "left")).to_lower() == "right" else 0)
 	# N-1: el balcon solo se ofrece donde puede existir -abertura exterior y no
 	# vertical-. Ofrecerlo en un tabique interior seria un mando que no hace
@@ -379,7 +390,7 @@ func _fill_opening(state: Dictionary) -> void:
 	var accepts_balcony: bool = bool(state.get("opening_accepts_balcony", false))
 	var has_balcony: bool = accepts_balcony and bool(opening.get("has_balcony", false))
 	if _opening_balcony_check != null:
-		_set_row_visible(_opening_balcony_check, accepts_balcony)
+		set_row_visible(_opening_balcony_check, accepts_balcony)
 		_opening_balcony_check.set_pressed_no_signal(has_balcony)
 	if _opening_balcony_width_spin != null:
 		# El balcon no puede ser mas ancho que la fachada de la que cuelga.
@@ -395,9 +406,9 @@ func _fill_opening(state: Dictionary) -> void:
 ## Las medidas del balcon solo se ensenan cuando hay balcon: tres mandos
 ## sueltos debajo de una casilla sin marcar no dicen a que pertenecen.
 func _set_balcony_rows_visible(visible: bool) -> void:
-	_set_row_visible(_opening_balcony_width_spin, visible)
-	_set_row_visible(_opening_balcony_depth_spin, visible)
-	_set_row_visible(_opening_balcony_parapet_spin, visible)
+	set_row_visible(_opening_balcony_width_spin, visible)
+	set_row_visible(_opening_balcony_depth_spin, visible)
+	set_row_visible(_opening_balcony_parapet_spin, visible)
 
 
 func _on_balcony_toggled(pressed: bool) -> void:
@@ -489,19 +500,19 @@ func _set_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detec
 		"BtnApplyRoom", "BtnDeleteRoom", "SeparatorB"
 	]:
 		_set_node_visible(node_name, has_room)
-	_set_row_visible(_name_edit, has_room)
-	_set_row_visible(_kind_edit, has_room)
-	_set_row_visible(_room_x_spin, has_room)
-	_set_row_visible(_room_y_spin, has_room)
-	_set_row_visible(_room_width_spin, has_room)
-	_set_row_visible(_room_depth_spin, has_room)
-	_set_row_visible(_room_rotation_spin, has_room)
-	_set_row_visible(_height_spin, has_room)
-	_set_row_visible(_fuel_spin, has_room)
-	_set_row_visible(_hrr_spin, has_room)
-	_set_row_visible(_stair_turn_option, has_room and is_stair)
-	_set_row_visible(_stair_walls_check, has_room and is_stair)
-	_set_row_visible(_stair_railings_check, has_room and is_stair)
+	set_row_visible(_name_edit, has_room)
+	set_row_visible(_kind_edit, has_room)
+	set_row_visible(_room_x_spin, has_room)
+	set_row_visible(_room_y_spin, has_room)
+	set_row_visible(_room_width_spin, has_room)
+	set_row_visible(_room_depth_spin, has_room)
+	set_row_visible(_room_rotation_spin, has_room)
+	set_row_visible(_height_spin, has_room)
+	set_row_visible(_fuel_spin, has_room)
+	set_row_visible(_hrr_spin, has_room)
+	set_row_visible(_stair_turn_option, has_room and is_stair)
+	set_row_visible(_stair_walls_check, has_room and is_stair)
+	set_row_visible(_stair_railings_check, has_room and is_stair)
 	if _room_apply_button != null:
 		_room_apply_button.visible = has_room
 	if _room_delete_button != null:
@@ -575,6 +586,11 @@ func read_opening() -> Dictionary:
 		"open_index": _opening_open_option.selected if _opening_open_option != null else 1,
 		"swing_index": _opening_swing_option.selected if _opening_swing_option != null else 0,
 		"hinge_index": _opening_hinge_option.selected if _opening_hinge_option != null else 0,
+		"type": OPENING_TYPES[_opening_type_option.selected] if (
+			_opening_type_option != null
+			and _opening_type_option.selected >= 0
+			and _opening_type_option.selected < OPENING_TYPES.size()
+		) else "",
 		"has_balcony": _opening_balcony_check.button_pressed if _opening_balcony_check != null else false,
 		"balcony_width_m": _value(_opening_balcony_width_spin),
 		"balcony_depth_m": _value(_opening_balcony_depth_spin),
@@ -649,7 +665,12 @@ func _set_node_visible(path: String, visible: bool) -> void:
 
 ## Una casilla vive dentro de su fila con la etiqueta al lado: esconder la
 ## casilla sola dejaria la etiqueta huerfana.
-func _set_row_visible(control: Control, visible: bool) -> void:
+## Enseñar u ocultar una fila: **se oculta la caja, no el mando**, o la fila deja
+## un hueco con su etiqueta suelta.
+##
+## Publica y estatica porque es la misma regla que usa `ScenarioEditor` para sus
+## propias filas, y estaba escrita alli tambien, letra por letra.
+static func set_row_visible(control: Control, visible: bool) -> void:
 	if control == null:
 		return
 	var parent := control.get_parent() as Control

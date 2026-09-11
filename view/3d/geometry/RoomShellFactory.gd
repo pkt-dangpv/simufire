@@ -1,5 +1,7 @@
 extends RefCounted
 
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
+
 
 static func create_room_shell(
 	rooms_root: Node3D,
@@ -23,14 +25,14 @@ static func create_room_shell(
 	var label_color: Color = settings.get("label_color", Color(1.0, 0.96, 0.84, 1.0))
 
 	var room_node := Node3D.new()
-	room_node.name = "Room_%02d_%s" % [room_id, _safe_name(room_name)]
+	room_node.name = "Room_%02d_%s" % [room_id, MeshFactory.safe_node_name(room_name, "room")]
 	if rooms_root != null:
 		rooms_root.add_child(room_node)
 
-	var floor := _create_box(
+	var floor := MeshFactory.box(
 		"Floor",
 		Vector3(rect_m.size.x, floor_thickness_m, rect_m.size.y) * meters_to_units,
-		_make_material(floor_color, false)
+		MeshFactory.material(floor_color, false)
 	)
 	floor.position = _room_center(rect_m, -floor_thickness_m * 0.5, origin_offset_m, meters_to_units)
 	floor.position.y += floor_level_m * meters_to_units
@@ -112,30 +114,11 @@ static func _add_wall(
 	floor_level_m: float
 ) -> MeshInstance3D:
 	var room_height_m: float = size_m.y
-	var wall := _create_box(wall_name, size_m * meters_to_units, _make_material(wall_color, true))
+	var wall := MeshFactory.box(wall_name, size_m * meters_to_units, MeshFactory.material(wall_color, true))
 	wall.position = _to_world(Vector3(pos_m.x, floor_level_m + room_height_m * 0.5, pos_m.y), origin_offset_m, meters_to_units)
 	parent.add_child(wall)
 	return wall
 
-
-static func _create_box(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var node := MeshInstance3D.new()
-	node.name = node_name
-	node.mesh = mesh
-	node.material_override = material
-	return node
-
-
-static func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.94
-	material.metallic = 0.0
-	if transparent or color.a < 1.0:
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return material
 
 
 static func _room_center(rect_m: Rect2, y_m: float, origin_offset_m: Vector2, meters_to_units: float) -> Vector3:
@@ -150,12 +133,3 @@ static func _to_world(pos_m: Vector3, origin_offset_m: Vector2, meters_to_units:
 		(pos_m.z + origin_offset_m.y) * meters_to_units
 	)
 
-
-static func _safe_name(value: String) -> String:
-	var result: String = value.strip_edges()
-	if result == "":
-		return "room"
-	result = result.replace(" ", "_")
-	result = result.replace("/", "_")
-	result = result.replace("\\", "_")
-	return result

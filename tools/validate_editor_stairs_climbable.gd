@@ -54,8 +54,7 @@ func _run() -> void:
 
 	# 1. Se dibuja como se dibuja: una sala, una escalera pegada a ella, y un
 	#    objeto encendido para que el escenario sea exportable.
-	editor.editor_data = _blank_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_blank_scenario(), 0)
 	editor.current_tool = TOOL_ROOM
 	editor._handle_press(Vector2(0.0, 0.0))
 	editor._handle_release(Vector2(4.0, 3.0))
@@ -152,8 +151,7 @@ func _check_chaining() -> void:
 	add_child(editor)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	editor.editor_data = _blank_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_blank_scenario(), 0)
 	_draw(editor, TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.4))
 	_draw(editor, TOOL_STAIRS, Vector2(4.0, 0.0), Vector2(6.4, 3.4))
 	editor.current_floor_index = 1

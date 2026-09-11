@@ -34,6 +34,7 @@ const FurnitureRoomGrammar := preload("res://view/furniture/FurnitureRoomGrammar
 const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
 const WallSideGeometry := preload("res://view/geometry/WallSideGeometry.gd")
 const OpeningPlacement := preload("res://view/geometry/OpeningPlacement.gd")
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
 
 ## Separacion minima de una pieza al paramento. No es estetica: los rodapies y
 ## los marcos ocupan, y una pieza pegada al milimetro se ve atravesando el muro
@@ -99,9 +100,9 @@ static func _has_overlap(placed: Array) -> bool:
 			continue
 		if FurnitureDimensions.is_floor_level(String(spec.get("visual_archetype", ""))):
 			continue
-		var size: Vector2 = _to_vector2(spec.get("size_m", Vector2.ZERO))
+		var size: Vector2 = ScenarioValues.to_vector2(spec.get("size_m", Vector2.ZERO))
 		var world: Vector2 = _world_size(size, float(spec.get("rotation_deg", 0.0)))
-		var center: Vector2 = _to_vector2(spec.get("position_m", Vector2.ZERO)) + size * 0.5
+		var center: Vector2 = ScenarioValues.to_vector2(spec.get("position_m", Vector2.ZERO)) + size * 0.5
 		# Una pieza colgada puede estar encima de otra: el lavabo va debajo del
 		# armario. Se queda fuera de esta cuenta, y el resto se mira en planta,
 		# igual que lo mira el guardarrail.
@@ -203,7 +204,7 @@ static func _place_one(
 	# pone la mesilla al costado de la cama en vez de en la otra punta.
 	var rel: Dictionary = FurnitureRoomGrammar.relation_for(String(piece.get("archetype", "")))
 	if not rel.is_empty():
-		var ancla: int = _placed_anchor(plan, Array(rel.get("anchor", [])), index, colocadas)
+		var ancla: int = _find_anchor(plan, Array(rel.get("anchor", [])), index, colocadas)
 		if ancla >= 0 and _place_related(
 				room, piece, plan[ancla], rel, occupied, _rank_among_siblings(plan, index)):
 			# Ya esta emparejada: la pasada final no vuelve a tocarla. Aplicar la
@@ -245,25 +246,12 @@ static func _followers_of(plan: Array, index: int, colocadas: Dictionary) -> Arr
 	return out
 
 
-## La pareja de una pieza, si ya esta colocada.
-static func _placed_anchor(plan: Array, anchors: Array, self_index: int, colocadas: Dictionary) -> int:
-	for wanted in anchors:
-		for i in range(plan.size()):
-			if i == self_index or not colocadas.has(i):
-				continue
-			var other: Dictionary = plan[i]
-			if bool(other.get("hidden", false)):
-				continue
-			if String(other.get("archetype", "")) == String(wanted):
-				return i
-	return -1
-
 
 ## Bandas libres por delante de los huecos de una sala, en coordenadas locales.
 ##
 ## La aritmetica de donde cae un hueco sobre su paramento no se repite aqui:
 ## sale de los mismos modulos que usan las dos vistas para dibujarlos.
-static func doors_for_room(building, room_id: int, rect: Rect2) -> Array:
+static func doors_for_room(building: BuildingModel, room_id: int, rect: Rect2) -> Array:
 	var doors: Array = []
 	if building == null:
 		return doors
@@ -328,7 +316,7 @@ static func _side_origin(rect: Rect2, side: String) -> float:
 
 static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) -> Dictionary:
 	var archetype: String = String(spec.get("visual_archetype", spec.get("kind", "")))
-	var slot: Vector2 = _to_vector2(spec.get("size_m", Vector2(0.5, 0.5)))
+	var slot: Vector2 = ScenarioValues.to_vector2(spec.get("size_m", Vector2(0.5, 0.5)))
 	slot.x = maxf(0.05, slot.x)
 	slot.y = maxf(0.05, slot.y)
 	# Se pide la caja en su orientacion canonica -el largo sobre la x- porque
@@ -343,7 +331,7 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 	var size := Vector2(target.x, target.z)
 	var achieved: Vector3 = FurnitureAssetLoader.resolved_size_m(archetype, target)
 	var real: Vector2 = size if achieved == Vector3.ZERO else Vector2(achieved.x, achieved.z)
-	var requested_center: Vector2 = _to_vector2(spec.get("position_m", Vector2.ZERO)) + slot * 0.5
+	var requested_center: Vector2 = ScenarioValues.to_vector2(spec.get("position_m", Vector2.ZERO)) + slot * 0.5
 	# Una ficha sin posicion no dice nada: se parte del centro de la sala.
 	if requested_center.length_squared() <= 0.000001:
 		requested_center = room.size * 0.5
@@ -522,18 +510,6 @@ static func _by_free_length(room: Rect2, doors: Array) -> Array[String]:
 	return sides
 
 
-## Centro que tendria una pieza pegada a `side` a la distancia `along`.
-static func _center_on_side(room: Rect2, side: String, along: float, world: Vector2) -> Vector2:
-	if WallSideGeometry.is_horizontal(side):
-		var y: float = WALL_MARGIN_M + world.y * 0.5
-		if side == "bottom":
-			y = room.size.y - y
-		return Vector2(along, y)
-	var x: float = WALL_MARGIN_M + world.x * 0.5
-	if side == "right":
-		x = room.size.x - x
-	return Vector2(x, along)
-
 
 # ============================================================
 # GRAMATICA: que va con que, y mirando a donde
@@ -563,10 +539,18 @@ static func _apply_grammar(room: Rect2, plan: Array, blockers: Array) -> void:
 
 ## La pieza a la que se agarra: la primera de la lista de preferencia que este
 ## en la sala y colocada.
-static func _find_anchor(plan: Array, anchors: Array, self_index: int) -> int:
+## La pieza a la que esta se arrima: la primera del plan cuyo arquetipo este en
+## `anchors`.
+##
+## `already_placed` es la diferencia entre las dos versiones que habia: cuando se
+## pasa, solo valen las piezas YA colocadas -en la segunda pasada, arrimarse a
+## una que todavia no tiene sitio es arrimarse a nada-. Sin el, vale cualquiera.
+static func _find_anchor(plan: Array, anchors: Array, self_index: int, already_placed: Variant = null) -> int:
 	for wanted in anchors:
 		for i in range(plan.size()):
 			if i == self_index:
+				continue
+			if already_placed != null and not (already_placed as Dictionary).has(i):
 				continue
 			var other: Dictionary = plan[i]
 			if bool(other.get("hidden", false)):
@@ -1078,15 +1062,3 @@ static func _resolved_spec(piece: Dictionary) -> Dictionary:
 	spec["visual_pose_locked"] = true
 	return spec
 
-
-static func _to_vector2(value: Variant) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return Vector2.ZERO

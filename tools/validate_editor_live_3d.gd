@@ -40,8 +40,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	editor.editor_data = _one_room_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_one_room_scenario(), 0)
 	editor._set_preview_3d_enabled(true)
 	await get_tree().physics_frame
 	_expect(editor._preview_3d_enabled, "el panel del 3D en vivo no se enciende")

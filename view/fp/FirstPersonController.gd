@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name FirstPersonController
 
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
+
 signal exit_requested
 signal opening_changed
 
@@ -26,6 +28,8 @@ const FPStreetGrid := preload("res://view/fp/FPStreetGrid.gd")
 ## Shader de las superficies construidas por codigo: ruido en metros y
 ## oclusion de contacto en las aristas (M-2).
 const FPSurfaceShader: Shader = preload("res://view/fp/fp_surface.gdshader")
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
 const OUTSIDE_ID: int = -1
 ## Perfiles de ruido de superficie: paramentos frente a suelos y rodapies,
 ## que admiten una capa de suciedad mas marcada y de grano mas grande.
@@ -52,7 +56,30 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var person_height_m: float = 1.80
 @export var crouch_height_m: float = 1.05
 @export var prone_height_m: float = 0.36
-@export var stand_speed_m_s: float = 2.25
+## Campo de vision HORIZONTAL de la camara, en grados.
+##
+## Estaba clavado a 75 en el codigo, y ese 75 era el VERTICAL: Godot mide el
+## `fov` sobre el eje que no fija `keep_aspect`, y por defecto fija el alto.
+## A 16:9 eso son **107,5 grados horizontales**, un gran angular de 14 mm. Con
+## esa apertura cada pared cae mas lejos y mas pequena de lo que le toca, y una
+## vivienda entera se lee como una maqueta: es la sensacion de "esto es mas
+## pequeno de lo que dice el plano".
+##
+## Aqui se declara el HORIZONTAL y se fija `keep_aspect` al ancho, para que el
+## valor signifique lo mismo en cualquier ventana. 90 grados es el estandar de
+## primera persona; por debajo de 75 se gana realismo arquitectonico y se pierde
+## vision periferica, que en un incendio importa.
+@export_range(50.0, 120.0, 1.0) var fp_camera_fov_h_deg: float = 75.0:
+	set(value):
+		fp_camera_fov_h_deg = value
+		_apply_camera_fov()
+## Velocidad de marcha de pie.
+##
+## Una persona pasea a 1,3-1,4 m/s y va con paso vivo a 1,7. Estaba en 2,25, con
+## lo que un salon de 5 m se cruzaba en 2,2 s en vez de 3,7: la casa se recorre
+## en dos zancadas y se percibe pequena. La velocidad es la otra mitad de la
+## sensacion de tamano, junto con el campo de vision.
+@export var stand_speed_m_s: float = 1.40
 @export var crouch_speed_m_s: float = 1.15
 @export var prone_speed_m_s: float = 0.42
 @export var mouse_sensitivity: float = 0.0022
@@ -381,6 +408,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 0.16, 0.01) var own_balcony_handrail_height_m: float = 0.06
 @export var own_balcony_color: Color = Color(0.74, 0.72, 0.68, 1.0)
 @export var own_balcony_handrail_color: Color = Color(0.30, 0.31, 0.32, 1.0)
+## Rebote de cielo de NUESTRA fachada, el mismo mecanismo que `city_sky_bounce_*`
+## y por la misma razon: el entorno del FP tiene la luz ambiente DESACTIVADA, asi
+## que lo que no recibe sol directo se va a negro. La calle ya se lo puso el
+## 2026-09-09 y nuestro edificio se quedo fuera: visto desde la acera, la
+## fachada propia era una silueta negra entre vecinos grises, y el balcon con
+## ella. Bajarlo a cero devuelve la silueta.
+@export_range(0.0, 1.2, 0.01) var own_facade_sky_bounce_day: float = 0.42
+@export_range(0.0, 1.2, 0.01) var own_facade_sky_bounce_night: float = 0.06
 ## Separacion entre las lineas de forjado dibujadas en las plantas inferiores
 ## no modeladas (solo aparecen si la vivienda esta elevada sobre la calle).
 ## Altura de una planta. Gobierna tres cosas que TIENEN que cuadrar entre si:
@@ -1169,8 +1204,8 @@ func _create_player_nodes() -> void:
 
 	_camera = Camera3D.new()
 	_camera.name = "FirstPersonCamera"
-	_camera.fov = 75.0
 	_camera.near = 0.03
+	_apply_camera_fov()
 	# Niebla de visibilidad + cielo: entorno propio de la camara FP (duplicado
 	# del .tres para no mutar el recurso compartido).
 	_fog_env = FPCameraEnvironmentRes.duplicate(true) as Environment
@@ -1308,7 +1343,7 @@ func _rebuild_world() -> void:
 	if rects.is_empty():
 		return
 
-	_bounds_m = _compute_bounds(rects)
+	_bounds_m = ViewScenarioRead.bounds_of_rects(rects)
 	_origin_offset_m = -(_bounds_m.position + _bounds_m.size * 0.5)
 
 	_create_floors(rects)
@@ -1546,7 +1581,7 @@ func _add_wall_piece(
 func _facade_material() -> StandardMaterial3D:
 	if exterior_facade_material_override != null:
 		return exterior_facade_material_override
-	return _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
+	return _own_exterior_mat(exterior_facade_color, 2600)
 
 
 ## Chapa fina con material de fachada sobre la cara exterior de un tabique
@@ -4653,7 +4688,11 @@ func _own_facade_groups() -> Dictionary:
 			height_m + margin * 2.0
 		))
 		group["holes"] = holes
-		if op.type == OpeningModel.Type.WINDOW:
+		# Cuenta los huecos por los que se MIRA: ventanas y balconeras. El
+		# lienzo solo se levanta donde los hay, y una fachada con balconera y
+		# sin ventana se quedaba sin lienzo: el balcon colgaba delante del
+		# canto del forjado y del vacio hasta la calle.
+		if op.type == OpeningModel.Type.WINDOW or _is_balcony_opening(op):
 			group["windows"] = int(group["windows"]) + 1
 		groups[key] = group
 	return groups
@@ -4706,14 +4745,14 @@ func _create_own_facade_panel(parent: Node3D, key: String, group: Dictionary, gr
 		_add_facade_slab(parent, "OwnFacadePlinth_%s" % key, horizontal, center_u,
 			ground_y + own_facade_plinth_height_m * 0.5, band_axis_m,
 			span_u, own_facade_plinth_height_m, band_depth,
-			_mat(exterior_facade_color.darkened(0.20), false))
+			_own_exterior_mat(exterior_facade_color.darkened(0.20), 2601))
 	_add_facade_slab(parent, "OwnFacadeCornice_%s" % key, horizontal, center_u,
 		top_y - 0.13, band_axis_m, span_u + 0.20, 0.26, band_depth + 0.06,
-		_mat(exterior_facade_color.lightened(0.10), false))
+		_own_exterior_mat(exterior_facade_color.lightened(0.10), 2602))
 	for level_y in _own_facade_band_levels(ground_y, top_y):
 		_add_facade_slab(parent, "OwnFacadeBand_%s_%d" % [key, roundi(level_y * 100.0)], horizontal,
 			center_u, level_y, band_axis_m, span_u, 0.20, band_depth,
-			_mat(exterior_facade_color.darkened(0.10), false))
+			_own_exterior_mat(exterior_facade_color.darkened(0.10), 2603))
 
 
 ## --- N-1: balcones del edificio del jugador ---
@@ -4776,7 +4815,7 @@ func _create_own_balcony(
 	# de una de ochenta se lee como una hoja de papel.
 	var slab_t: float = op.balcony_slab_thickness_m(own_balcony_slab_thickness_m)
 	var par_t: float = own_balcony_parapet_thickness_m
-	var mat: StandardMaterial3D = _mat(own_balcony_color, false)
+	var mat: StandardMaterial3D = _own_exterior_mat(own_balcony_color, 2610)
 
 	# Losa en voladizo. Sin colision: es lo que impide salir andando.
 	_add_box(
@@ -4815,7 +4854,7 @@ func _create_own_balcony(
 		# fabrica no se lee como balcon desde dentro; el remate si.
 		if own_balcony_handrail_height_m > 0.005:
 			var rail_h: float = own_balcony_handrail_height_m
-			var rail_mat: StandardMaterial3D = _mat(own_balcony_handrail_color, false)
+			var rail_mat: StandardMaterial3D = _own_exterior_mat(own_balcony_handrail_color, 2611)
 			var rail_top_y: float = floor_y + parapet_m + rail_h * 0.5
 			_add_box(
 				parent,
@@ -5145,10 +5184,10 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		var obj_id: String = String(obj.get("id", ""))
 		if obj_id == "" or obj_id.begins_with("room_proxy_"):
 			continue
-		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+		var size_m: Vector2 = ScenarioValues.to_vector2(obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 		size_m.x = maxf(0.05, size_m.x)
 		size_m.y = maxf(0.05, size_m.y)
-		var position_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
+		var position_m: Vector2 = ScenarioValues.to_vector2(obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
 		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
 		var visual_center_m: Vector2 = position_m + size_m * 0.5
 		var visual_size_m: Vector2 = size_m
@@ -5230,58 +5269,17 @@ func _build_static_fp_room_state(room_id: int) -> Dictionary:
 		"kind": room.kind,
 		"height_m": room.height_m,
 		"floor_level_z_m": room.floor_level_z_m,
-		"fuel_objects": _build_static_fp_fuel_object_snapshots(room),
+		# `true`: en primera persona un `room_proxy_` no se dibuja, que es lo que
+		# hacia la version propia que habia aqui.
+		"fuel_objects": ViewScenarioRead.fuel_object_snapshots(room, true),
 	}
 
 
-func _build_static_fp_fuel_object_snapshots(room: RoomModel) -> Array:
-	var snapshots: Array = []
-	if room == null:
-		return snapshots
-	for obj in room.fuel_objects:
-		if obj == null:
-			continue
-		if String(obj.id).begins_with("room_proxy_"):
-			continue
-		snapshots.append({
-			"id": String(obj.id),
-			"name": String(obj.name),
-			"kind": String(obj.kind),
-			"room_id": int(obj.room_id),
-			"position_m": obj.position_m,
-			"size_m": obj.size_m,
-			"rotation_deg": float(obj.rotation_deg),
-			"visual_pose_locked": bool(obj.visual_pose_locked),
-			"elevation_m": float(obj.elevation_m),
-			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
-			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
-			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
-			"hrr_kw": maxf(0.0, obj.hrr_kw),
-			"state": _fp_fuel_object_state_name(int(obj.state)),
-			"is_primary_ignition_source": bool(obj.is_primary_ignition_source),
-		})
-	return snapshots
-
-
-func _fp_fuel_object_state_name(state_id: int) -> String:
-	match state_id:
-		FuelObjectModel.State.HEATING:
-			return "heating"
-		FuelObjectModel.State.PYROLYZING:
-			return "pyrolyzing"
-		FuelObjectModel.State.FLAMING:
-			return "flaming"
-		FuelObjectModel.State.DECAYING:
-			return "decaying"
-		FuelObjectModel.State.BURNED_OUT:
-			return "burned_out"
-		_:
-			return "cold"
 
 
 func _create_fp_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:
 	var node := Node3D.new()
-	node.name = "FuelObj_" + _safe_node_name(obj_id)
+	node.name = "FuelObj_" + MeshFactory.safe_node_name(obj_id, "marker")
 	_rebuild_fp_fuel_object_shape(node, kind_name, size_m)
 	return node
 
@@ -5517,7 +5515,7 @@ func _fp_fire_visual_hrr_kw(room_state: Dictionary) -> float:
 	var regime: String = String(room_state.get("combustion_regime", ""))
 	if bool(room_state.get("fire_latent_active", false)) or regime == "ILV_LATENT":
 		return minf(hrr_kw, fp_fire_min_visible_hrr_kw * 0.75)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
 		if o2_upper < 0.05:
 			return hrr_kw * clampf(o2_upper / 0.05, 0.05, 0.35)
@@ -5536,8 +5534,8 @@ func _fp_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Dictionar
 		return {}
 
 	item["fire_anchor_id"] = String(best_obj.get("id", ""))
-	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
-	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+	var pos_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
+	var size_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 	size_m.x = maxf(0.05, size_m.x)
 	size_m.y = maxf(0.05, size_m.y)
 	var local_center: Vector2 = pos_m + size_m * 0.5
@@ -5703,7 +5701,7 @@ func _create_safety_markers(rects: Dictionary) -> void:
 
 func _create_fp_detector_marker(detector_id: String) -> Node3D:
 	var root := Node3D.new()
-	root.name = "Detector_" + _safe_node_name(detector_id)
+	root.name = "Detector_" + MeshFactory.safe_node_name(detector_id, "marker")
 	root.set_meta("detector_id", detector_id)
 	root.set_meta("alarm_triggered", false)
 	root.set_meta("alarm_active", false)
@@ -5773,7 +5771,7 @@ func _build_detector_alarm_stream() -> AudioStreamWAV:
 
 func _create_fp_victim_marker(victim_id: String) -> Node3D:
 	var root := Node3D.new()
-	root.name = "Victim_" + _safe_node_name(victim_id)
+	root.name = "Victim_" + MeshFactory.safe_node_name(victim_id, "marker")
 	var mat := _mat(fp_victim_color, false)
 	var body := _create_fp_human_limb_mesh("MarkerMesh", 0.16, 0.70, mat)
 	body.rotation_degrees.x = 90.0
@@ -5818,18 +5816,10 @@ func _create_fp_human_limb_mesh(node_name: String, radius_m: float, length_m: fl
 
 
 func _safety_world_position(data: Dictionary, rect: Rect2, room: RoomModel, y_m: float) -> Vector3:
-	var local_pos: Vector2 = _safety_local_position(data, rect)
+	var local_pos: Vector2 = ViewScenarioRead.safety_local_position(data, rect)
 	var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 	return _to_world(Vector3(rect.position.x + local_pos.x, y_m, rect.position.y + local_pos.y), floor_level_m)
 
-
-func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
-	if data.has("x_m") and data.has("y_m"):
-		return Vector2(
-			clampf(float(data.get("x_m", rect.size.x * 0.5)), 0.0, rect.size.x),
-			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
-		)
-	return rect.size * 0.5
 
 
 func _room_height(room: RoomModel) -> float:
@@ -5837,7 +5827,7 @@ func _room_height(room: RoomModel) -> float:
 
 
 func _update_safety_marker_states() -> void:
-	var detector_states: Dictionary = _state_records_by_id(Array(_state.get("detectors", [])))
+	var detector_states: Dictionary = ViewScenarioRead.records_by_id(Array(_state.get("detectors", [])))
 	for det_id in _detector_nodes.keys():
 		var node := _detector_nodes[det_id] as Node3D
 		if node == null:
@@ -5848,7 +5838,7 @@ func _update_safety_marker_states() -> void:
 		_set_marker_material(node, fp_detector_triggered_color if triggered else fp_detector_color)
 		_sync_detector_alarm(node, triggered)
 
-	var victim_states: Dictionary = _state_records_by_id(Array(_state.get("victims", [])))
+	var victim_states: Dictionary = ViewScenarioRead.records_by_id(Array(_state.get("victims", [])))
 	for vic_id in _victim_nodes.keys():
 		var node := _victim_nodes[vic_id] as Node3D
 		if node == null:
@@ -5865,17 +5855,6 @@ func _update_safety_marker_states() -> void:
 			vic_color = fp_victim_color
 		_set_marker_material(node, vic_color)
 
-
-func _state_records_by_id(records: Array) -> Dictionary:
-	var result: Dictionary = {}
-	for raw_record in records:
-		if typeof(raw_record) != TYPE_DICTIONARY:
-			continue
-		var record: Dictionary = raw_record
-		var id_text: String = String(record.get("id", ""))
-		if id_text != "":
-			result[id_text] = record
-	return result
 
 
 func _set_marker_material(root: Node3D, color: Color) -> void:
@@ -6083,16 +6062,6 @@ func _add_local_box(parent: Node3D, node_name: String, center_m: Vector3, size_m
 		parent.add_child(shape)
 	return mesh
 
-
-func _safe_node_name(value: String) -> String:
-	var result: String = value.strip_edges()
-	if result == "":
-		return "marker"
-	result = result.replace(" ", "_")
-	result = result.replace("/", "_")
-	result = result.replace("\\", "_")
-	result = result.replace(":", "_")
-	return result
 
 
 func _create_outer_boundary() -> void:
@@ -6451,7 +6420,7 @@ func _hud_combustion_regime_alert(room_state: Dictionary, hrr_kw: float) -> Stri
 	var o2_upper_vol_pct: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209))) * 100.0
 	if hrr_kw > 0.5 and o2_upper_vol_pct < 5.0:
 		return "ILV CRIT"
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		return "ILV"
 	match regime:
 		"FUEL_CONTROLLED", "FULLY_DEVELOPED":
@@ -6459,16 +6428,6 @@ func _hud_combustion_regime_alert(room_state: Dictionary, hrr_kw: float) -> Stri
 		_:
 			return "--"
 
-
-func _hud_is_ventilation_limited_regime(regime: String) -> bool:
-	return regime in [
-		"VENTILATION_STRESSED",
-		"VENTILATION_CONTROLLED_BURNING",
-		"VENTILATION_INDUCED_GROWTH",
-		"ILV_LATENT",
-		"BACKDRAFT_RISK",
-		"BACKDRAFT_EVENT",
-	]
 
 
 func _hud_eye_height_m() -> float:
@@ -6619,9 +6578,6 @@ func get_player_marker_state() -> Dictionary:
 	}
 
 
-func _next_opening_fraction(current: float) -> float:
-	return FPOpeningInteraction.next_fraction(current, OPENING_FRACTION_STEPS)
-
 
 func _begin_opening_hold() -> void:
 	if building == null:
@@ -6720,21 +6676,6 @@ func _apply_opening_fraction(opening_index: int, next_frac: float) -> void:
 	_update_prompt()
 
 
-func _interact_with_nearest_opening() -> void:
-	if building == null:
-		return
-	if _nearest_opening_index < 0:
-		_nearest_opening_index = _find_nearest_opening()
-	if _nearest_opening_index < 0:
-		return
-	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
-	if op == null:
-		return
-	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
-		return
-	var next_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
-	_apply_opening_fraction(_nearest_opening_index, next_frac)
-
 
 func _sync_opening_panels() -> void:
 	if building == null:
@@ -6798,6 +6739,17 @@ func _apply_stance(immediate: bool) -> void:
 		_camera_y_target = target_y
 		if immediate:
 			_camera.position.y = target_y
+
+
+## Fija el campo de vision en HORIZONTAL. `KEEP_WIDTH` hace que `fov` sea el
+## angulo horizontal, y no el vertical del que tira Godot por defecto: asi el
+## numero significa lo mismo en una ventana 16:9 y en una 21:9, y la sensacion
+## de tamano no cambia al redimensionar.
+func _apply_camera_fov() -> void:
+	if _camera == null:
+		return
+	_camera.keep_aspect = Camera3D.KEEP_WIDTH
+	_camera.fov = clampf(fp_camera_fov_h_deg, 30.0, 150.0)
 
 
 func _current_height() -> float:
@@ -7018,7 +6970,7 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 		0.0,
 		1.0
 	)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		blocked = maxf(blocked, 0.78)
 		if o2_upper < 0.05 and hrr_kw > 0.5:
 			blocked = maxf(blocked, 0.97)
@@ -7048,7 +7000,7 @@ func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
 	var visibility_block: float = clampf((12.0 - visibility_m) / 12.0, 0.0, 1.0)
 	var layer_block: float = clampf((height_m - layer_m) / maxf(0.1, height_m), 0.0, 1.0)
 	var blocked: float = maxf(visibility_block * 0.72, layer_block * 0.48)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		blocked = maxf(blocked, 0.74)
 		if o2_upper < 0.05 and hrr_kw > 0.5:
 			blocked = maxf(blocked, 0.94)
@@ -7223,9 +7175,6 @@ func _opening_info_on_side(
 	}
 
 
-func _shared_side(a: Rect2, b: Rect2) -> String:
-	return String(_shared_side_data(a, b).get("side", ""))
-
 
 func _shared_side_data(a: Rect2, b: Rect2) -> Dictionary:
 	return WallSideGeometry.shared_side(a, b)
@@ -7299,18 +7248,6 @@ func _inside_normal_for_side(side: String) -> Vector3:
 	return WallSideGeometry.inward_normal_3d(side)
 
 
-func _compute_bounds(rects: Dictionary) -> Rect2:
-	var first: bool = true
-	var bounds := Rect2()
-	for value in rects.values():
-		var rect := Rect2(value)
-		if first:
-			bounds = rect
-			first = false
-		else:
-			bounds = bounds.merge(rect)
-	return bounds
-
 
 func _building_vertical_span() -> Dictionary:
 	var min_y: float = 0.0
@@ -7325,18 +7262,6 @@ func _building_vertical_span() -> Dictionary:
 		max_y = maxf(max_y, room.floor_level_z_m + room.height_m)
 	return {"min_y": min_y, "max_y": max_y}
 
-
-func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return fallback
 
 
 func _get_room_floor_level(room_id: int) -> float:
@@ -7417,6 +7342,23 @@ func _ceiling_material_for_room(room_id: int) -> Material:
 ## Se cachea aparte de `_mat` porque `_mat` no guarda los emisivos: los suyos se
 ## mutan en caliente (el brillo del fuego) y compartirlos los acoplaria. Estos
 ## no se tocan nunca despues de crearse.
+## Material de una superficie exterior de NUESTRO edificio: como `_city_mat`
+## -albedo mas emision suave del propio color, que hace de rebote de cielo-
+## pero conservando el ruido de superficie, que la fachada propia si tiene
+## porque se mira de cerca.
+func _own_exterior_mat(color: Color, noise_seed: int) -> StandardMaterial3D:
+	var night: bool = _exterior_is_night()
+	var bounce: float = own_facade_sky_bounce_night if night else own_facade_sky_bounce_day
+	if bounce <= 0.0:
+		return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, noise_seed)
+	var cache_key: String = "own|%s|%d|%s" % [color.to_html(true), noise_seed, "n" if night else "d"]
+	if _city_material_cache.has(cache_key):
+		return _city_material_cache[cache_key]
+	var material: StandardMaterial3D = _mat(color, false, color, bounce, noise_seed)
+	_city_material_cache[cache_key] = material
+	return material
+
+
 func _city_mat(color: Color) -> StandardMaterial3D:
 	var night: bool = _exterior_is_night()
 	var cache_key: String = "%s|%s" % [color.to_html(true), "n" if night else "d"]

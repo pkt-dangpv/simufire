@@ -12,7 +12,12 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/probe_editor_3d_cost.gd
 
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
-const SAMPLES: int = 12
+const SAMPLES: int = 24
+## Pasadas de calentamiento que se tiran: la primera construye nodos que despues
+## ya existen, y las siguientes todavia arrastran su reserva de memoria.
+const WARMUP: int = 3
+## Umbral de un fotograma a 60 Hz.
+const FRAME_MS: float = 16.7
 
 var _editor: Node = null
 var _frames: int = 0
@@ -30,8 +35,7 @@ func _process(_delta: float) -> bool:
 		return false
 
 	var data: Dictionary = _load_reference()
-	_editor.editor_data = data
-	_editor.current_floor_index = 0
+	_editor.adopt_scenario_data(data, 0)
 	print("escenario: %d salas, %d aperturas, %d objetos" % [
 		Array(data.get("rooms_data", [])).size(),
 		Array(data.get("openings_data", [])).size(),
@@ -73,28 +77,92 @@ func _process(_delta: float) -> bool:
 
 	# Primera pasada aparte: incluye construir nodos que luego ya existen.
 	var first_us: int = _time_sync()
-	var total_us: int = 0
-	var worst_us: int = 0
-	for i in range(SAMPLES):
-		var us: int = _time_sync()
-		total_us += us
-		worst_us = maxi(worst_us, us)
-	var mean_ms: float = float(total_us) / float(SAMPLES) / 1000.0
-	print("rehacer la vista 3D: primera %.1f ms, media %.1f ms, peor %.1f ms" % [
-		first_us / 1000.0, mean_ms, worst_us / 1000.0
-	])
+	var band: Dictionary = _measure(SAMPLES)
+	print("rehacer la vista 3D: primera %.1f ms, %s" % [first_us / 1000.0, _band_text(band)])
 	print("un fotograma a 60 Hz son 16,7 ms")
-	if mean_ms <= 16.0:
-		print("-> cabe en un fotograma: se puede rehacer mientras se arrastra")
-	elif mean_ms <= 120.0:
-		print("-> no cabe en un fotograma, pero si en una pausa corta: rehacer al soltar y con retardo mientras se arrastra")
-	else:
-		print("-> demasiado caro para el tiempo real: haria falta actualizacion incremental")
+	_verdict(band)
 	_measure_scaling()
 	_measure_contents()
 	_measure_drag_paths()
 	quit(0)
 	return true
+
+
+## ── D-6: medir sin mentir ────────────────────────────────────────────────────
+##
+## Esta sonda daba **la media de 12 pasadas** y de ahi sacaba un veredicto
+## tajante: «cabe / no cabe en un fotograma». La auditoria del 2026-09-09 la
+## pillo: cuatro pasadas sobre LA MISMA configuracion dieron 17,5 · 21,9 · 23,6 ·
+## 25,4 ms, y esa misma mañana 13,5. Casi **8 ms de dispersion, mas que el efecto
+## que se pretendia medir**, y el veredicto salia de una sola pasada.
+##
+## Dos cosas estaban mal, y son distintas:
+##
+##  1. **La media no aguanta esta distribucion.** Un paron del recolector o del
+##     sistema mete una muestra de 60 ms y arrastra la media entera. La mediana
+##     no se entera. Aqui se reporta **mediana con banda p10-p90**, que es la
+##     forma de la dispersion, no un numero solo.
+##  2. **El veredicto no puede ser mas preciso que la medida.** Ahora solo se da
+##     si **toda la banda** cae del mismo lado del fotograma; si la banda cruza
+##     los 16,7 ms, la sonda lo dice y no decide. Es exactamente lo que la
+##     auditoria reprochaba.
+func _measure(count: int) -> Dictionary:
+	for i in range(WARMUP):
+		_time_sync()
+	var samples: Array[int] = []
+	for i in range(count):
+		samples.append(_time_sync())
+	samples.sort()
+	return {
+		"min_ms": samples[0] / 1000.0,
+		"p10_ms": _percentile_ms(samples, 0.10),
+		"median_ms": _percentile_ms(samples, 0.50),
+		"p90_ms": _percentile_ms(samples, 0.90),
+		"max_ms": samples[samples.size() - 1] / 1000.0,
+		"n": samples.size(),
+	}
+
+
+func _percentile_ms(sorted_us: Array[int], q: float) -> float:
+	if sorted_us.is_empty():
+		return 0.0
+	var index: int = clampi(int(round(q * float(sorted_us.size() - 1))), 0, sorted_us.size() - 1)
+	return sorted_us[index] / 1000.0
+
+
+func _band_text(band: Dictionary) -> String:
+	return "mediana %.1f ms (p10-p90 %.1f-%.1f, peor %.1f, n=%d)" % [
+		band["median_ms"], band["p10_ms"], band["p90_ms"], band["max_ms"], band["n"]
+	]
+
+
+## El veredicto, solo cuando la medida lo sostiene.
+func _verdict(band: Dictionary) -> void:
+	var low: float = float(band["p10_ms"])
+	var high: float = float(band["p90_ms"])
+	if low <= FRAME_MS and high > FRAME_MS:
+		print("-> la banda cruza el fotograma (%.1f-%.1f ms): ESTA MEDIDA NO DECIDE." % [low, high])
+		print("   Para decidir hace falta bajar la dispersion, no repetir la sonda hasta que salga el numero que gusta.")
+		return
+	if high <= FRAME_MS:
+		print("-> cabe en un fotograma en toda la banda: se puede rehacer mientras se arrastra")
+	elif float(band["median_ms"]) <= 120.0:
+		print("-> no cabe en un fotograma, pero si en una pausa corta: rehacer al soltar y con retardo mientras se arrastra")
+	else:
+		print("-> demasiado caro para el tiempo real: haria falta actualizacion incremental")
+
+
+## Comparar dos configuraciones: la diferencia solo se afirma si las bandas no
+## se solapan. Es lo que salva la *forma* -el coste crece con las salas- de la
+## misma trampa que se llevo por delante la cifra absoluta.
+func _compare_text(previous: Dictionary, current: Dictionary) -> String:
+	if previous.is_empty():
+		return ""
+	var delta: float = float(current["median_ms"]) - float(previous["median_ms"])
+	var overlap: bool = float(current["p10_ms"]) <= float(previous["p90_ms"])
+	if overlap:
+		return "  (%+.1f ms, dentro del ruido)" % delta
+	return "  (%+.1f ms)" % delta
 
 
 ## El coste, sala a sala: con esto se sabe si rehacer UNA sala sale a cuenta.
@@ -105,18 +173,12 @@ func _process(_delta: float) -> bool:
 func _measure_scaling() -> void:
 	print("")
 	print("coste por tamaño del piso:")
-	var previous_ms: float = 0.0
+	var previous: Dictionary = {}
 	for room_count in [1, 2, 4, 8, 16]:
-		_editor.editor_data = _grid_scenario(room_count)
-		var us: int = 0
-		for i in range(4):
-			us += _time_sync()
-		var ms: float = float(us) / 4.0 / 1000.0
-		var delta_text: String = ""
-		if previous_ms > 0.0:
-			delta_text = "  (+%.1f ms respecto al anterior)" % (ms - previous_ms)
-		print("  %2d salas: %6.1f ms%s" % [room_count, ms, delta_text])
-		previous_ms = ms
+		_editor.adopt_scenario_data(_grid_scenario(room_count))
+		var band: Dictionary = _measure(8)
+		print("  %2d salas: %s%s" % [room_count, _band_text(band), _compare_text(previous, band)])
+		previous = band
 
 
 ## Los dos caminos que hacen falta para que el 3D siga al raton:
@@ -127,29 +189,42 @@ func _measure_scaling() -> void:
 func _measure_drag_paths() -> void:
 	print("")
 	print("caminos para seguir al raton (piso de referencia):")
-	_editor.editor_data = _load_reference()
+	_editor.adopt_scenario_data(_load_reference())
 	var viz: Node = _editor._editor_visualizer_3d
 	_time_sync()
 
 	viz.show_fuel_objects_3d = false
-	var us_walls: int = 0
-	for i in range(6):
-		us_walls += _time_sync()
-	print("  rehacer sin muebles:      %6.1f ms" % (float(us_walls) / 6.0 / 1000.0))
+	var walls: Dictionary = _measure(8)
+	print("  rehacer sin muebles:   %s" % _band_text(walls))
 	viz.show_fuel_objects_3d = true
 
-	var us_state: int = 0
-	for i in range(6):
-		var start_us: int = Time.get_ticks_usec()
-		var runtime: Dictionary = Serializer.to_runtime_template(_editor.editor_data)
-		_editor._editor_building_model.load_template_data(runtime, true)
-		viz.set_state({})
-		us_state += Time.get_ticks_usec() - start_us
-	print("  recolocar sin rehacer:    %6.1f ms" % (float(us_state) / 6.0 / 1000.0))
-	var us_full: int = 0
-	for i in range(4):
-		us_full += _time_sync()
-	print("  rehacer entero (hoy):     %6.1f ms" % (float(us_full) / 4.0 / 1000.0))
+	# Este camino no es _time_sync(): no rehace la malla, recoloca lo que ya
+	# existe. Se mide aparte y con el mismo trato estadistico.
+	for i in range(WARMUP):
+		_relocate_once()
+	var relocate: Array[int] = []
+	for i in range(8):
+		relocate.append(_relocate_once())
+	relocate.sort()
+	var relocate_band: Dictionary = {
+		"min_ms": relocate[0] / 1000.0,
+		"p10_ms": _percentile_ms(relocate, 0.10),
+		"median_ms": _percentile_ms(relocate, 0.50),
+		"p90_ms": _percentile_ms(relocate, 0.90),
+		"max_ms": relocate[relocate.size() - 1] / 1000.0,
+		"n": relocate.size(),
+	}
+	print("  recolocar sin rehacer: %s" % _band_text(relocate_band))
+	var full: Dictionary = _measure(8)
+	print("  rehacer entero (hoy):  %s%s" % [_band_text(full), _compare_text(walls, full)])
+
+
+func _relocate_once() -> int:
+	var start_us: int = Time.get_ticks_usec()
+	var runtime: Dictionary = Serializer.to_runtime_template(_editor.editor_data)
+	_editor._editor_building_model.load_template_data(runtime, true)
+	_editor._editor_visualizer_3d.set_state({})
+	return Time.get_ticks_usec() - start_us
 
 
 ## Y ahora la otra pregunta: si las salas cuestan 2 ms, ¿de donde salen los 80 ms
@@ -157,18 +232,18 @@ func _measure_drag_paths() -> void:
 func _measure_contents() -> void:
 	print("")
 	print("coste del contenido (4 salas fijas):")
+	var previous: Dictionary = {}
 	for objects_per_room in [0, 1, 3, 6]:
-		_editor.editor_data = _grid_scenario(4, objects_per_room, 0)
-		var us: int = 0
-		for i in range(4):
-			us += _time_sync()
-		print("  %d objetos por sala: %6.1f ms" % [objects_per_room, float(us) / 4.0 / 1000.0])
+		_editor.adopt_scenario_data(_grid_scenario(4, objects_per_room, 0))
+		var band: Dictionary = _measure(8)
+		print("  %d objetos por sala: %s%s" % [objects_per_room, _band_text(band), _compare_text(previous, band)])
+		previous = band
+	previous = {}
 	for openings in [0, 3, 6]:
-		_editor.editor_data = _grid_scenario(4, 0, openings)
-		var us2: int = 0
-		for i in range(4):
-			us2 += _time_sync()
-		print("  %d aperturas:        %6.1f ms" % [openings, float(us2) / 4.0 / 1000.0])
+		_editor.adopt_scenario_data(_grid_scenario(4, 0, openings))
+		var band2: Dictionary = _measure(8)
+		print("  %d aperturas:        %s%s" % [openings, _band_text(band2), _compare_text(previous, band2)])
+		previous = band2
 
 
 ## Un piso de cajas en fila: lo que importa es el numero de salas, no su forma.

@@ -36,8 +36,7 @@ func _process(_delta: float) -> bool:
 	if _frames < 5:
 		return false
 
-	_editor.editor_data = _blank_scenario()
-	_editor.current_floor_index = 0
+	_editor.adopt_scenario_data(_blank_scenario(), 0)
 
 	print("--- planta baja: salón y escalera")
 	_draw(TOOL_ROOM, Vector2(0.0, 0.0), Vector2(4.0, 3.4))

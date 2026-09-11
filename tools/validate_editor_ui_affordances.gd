@@ -235,7 +235,7 @@ func _run_checks() -> void:
 ## y mira que ha salido. Es la unica regla que toca los datos del editor, y lo
 ## hace sobre la instancia headless: no se guarda nada.
 func _check_duplicate_room() -> void:
-	_editor.editor_data = {
+	_editor.adopt_scenario_data({
 		"floors": [{"name": "PB", "level_m": 0.0}],
 		"exterior_walls": [],
 		"room_rect_m": {"7": {"x": 0.0, "y": 0.0, "w": 4.0, "h": 3.0}},
@@ -260,8 +260,7 @@ func _check_duplicate_room() -> void:
 		"victims": [{"id": "vic_001", "room_id": 7, "name": "Víctima 1", "x_m": 2.0, "y_m": 1.0, "height_m": 0.9}],
 		"player_start": {},
 		"ignition_room_id": 7
-	}
-	_editor.current_floor_index = 0
+	}, 0)
 	_editor._select_room(7)
 	_editor._duplicate_selection()
 

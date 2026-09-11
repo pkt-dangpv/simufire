@@ -2,6 +2,7 @@ extends RefCounted
 
 const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
 const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
 
 
 ## Construye la pieza a su tamano real y deja anotado en el nodo lo que ocupa
@@ -240,7 +241,7 @@ static func _build_pool_shape(parent: Node3D, size_m: Vector2, meters_to_units: 
 	mesh.bottom_radius = 0.5
 	mesh.height = 1.0
 	mesh.radial_segments = 36
-	var mat := _make_material(Color(0.18, 0.12, 0.08, 0.78), true)
+	var mat := MeshFactory.material(Color(0.18, 0.12, 0.08, 0.78), true)
 	mat.roughness = 0.42
 	var puddle := MeshInstance3D.new()
 	puddle.name = "FuelPuddle"
@@ -300,7 +301,7 @@ static func _add_box(
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = mesh
-	node.material_override = _make_material(color, false)
+	node.material_override = MeshFactory.material(color, false)
 	node.position = center_m * meters_to_units
 	node.set_meta("base_color", color)
 	parent.add_child(node)
@@ -323,7 +324,7 @@ static func _add_ellipsoid(
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = sphere
-	node.material_override = _make_material(color, false)
+	node.material_override = MeshFactory.material(color, false)
 	node.position = center_m * meters_to_units
 	node.scale = size_m * meters_to_units
 	node.set_meta("base_color", color)
@@ -347,7 +348,7 @@ static func _add_cylinder(
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = cylinder
-	node.material_override = _make_material(color, false)
+	node.material_override = MeshFactory.material(color, false)
 	node.position = center_m * meters_to_units
 	node.scale = size_m * meters_to_units
 	node.set_meta("base_color", color)
@@ -361,7 +362,7 @@ static func _add_heat_glow(parent: Node3D, size_m: Vector2, meters_to_units: flo
 	mesh.bottom_radius = 0.5
 	mesh.height = 1.0
 	mesh.radial_segments = 32
-	var mat := _make_material(Color(1.0, 0.32, 0.08, 0.0), true)
+	var mat := MeshFactory.material(Color(1.0, 0.32, 0.08, 0.0), true)
 	mat.emission_enabled = true
 	mat.emission = Color(1.0, 0.26, 0.06, 1.0)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -375,12 +376,3 @@ static func _add_heat_glow(parent: Node3D, size_m: Vector2, meters_to_units: flo
 	glow.scale = Vector3(maxf(0.1, size_m.x), 0.018, maxf(0.1, size_m.y)) * meters_to_units
 	parent.add_child(glow)
 
-
-static func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.94
-	material.metallic = 0.0
-	if transparent or color.a < 1.0:
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return material

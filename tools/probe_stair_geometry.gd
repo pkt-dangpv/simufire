@@ -161,11 +161,11 @@ func _slope(rect: Rect2, dir: Vector2, turn_degrees: float, rise_m: float) -> fl
 			"stair_run_direction_m": {"x": dir.x, "y": dir.y},
 			"floor_level_z_m": 0.0
 		}
-		_editor.editor_data = {
+		_editor.adopt_scenario_data({
 			"floors": [{"name": "PB", "level_m": 0.0}, {"name": "P1", "level_m": rise_m}],
 			"rooms_data": [], "room_rect_m": {}, "openings_data": [],
 			"detectors": [], "victims": [], "exterior_walls": [], "player_start": {}
-		}
+		})
 		return _editor._stair_slope_angle_deg(-1, room, rect)
 	return _module.slope_angle_deg(rect, dir, turn_degrees, rise_m)
 

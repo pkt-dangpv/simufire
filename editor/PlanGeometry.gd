@@ -162,3 +162,18 @@ static func clamp_object_local_pos_for_rotation(room_rect: Rect2, size_m: Vector
 		elif max_center.y - center.y <= OBJECT_WALL_SNAP_M:
 			center.y = max_center.y
 	return center - clamped_size * 0.5
+
+## Un punto del plano, visto desde el objeto: centrado en el y sin su giro. Con
+## eso, «¿esta dentro?» es comparar contra medias medidas y ya.
+static func world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
+	return Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - center_m)
+
+
+## Si el punto cae dentro del objeto ya girado. El margen va aparte porque
+## depende del zoom: pinchar una silla a 20 px/m y a 200 no es lo mismo.
+static func object_has_point(room_rect: Rect2, obj: Dictionary, pos_m: Vector2, hit_padding_m: float) -> bool:
+	var size: Vector2 = object_size_m(obj)
+	var local: Vector2 = world_to_object_local(
+		pos_m, object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0))
+	)
+	return absf(local.x) <= size.x * 0.5 + hit_padding_m and absf(local.y) <= size.y * 0.5 + hit_padding_m

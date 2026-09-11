@@ -51,7 +51,7 @@ static func compute(
 	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.04, 1.0, optical_block)
 	var heat_tint: float = clampf((upper_temp_c - 80.0) / 420.0, 0.0, 1.0)
 	var ilv_t: float = 0.0
-	if _is_ventilation_limited_regime(regime):
+	if is_ventilation_limited_regime(regime):
 		ilv_t = maxf(ilv_t, 0.55)
 		if o2_upper < 0.05 and hrr_kw > 0.5:
 			ilv_t = 1.0
@@ -108,7 +108,13 @@ static func format_visibility(visibility_m: float, clear_visibility_m: float) ->
 	return "Vis FP %.0fm" % v
 
 
-static func _is_ventilation_limited_regime(regime: String) -> bool:
+## Los regimenes en los que el fuego esta limitado por la ventilacion.
+##
+## Publica y en un solo sitio a proposito: esta misma lista estaba tambien en
+## `FirstPersonController`, y son el HUD y la capa de visibilidad quienes la
+## consultan. Si el motor añade un regimen y solo se actualiza una copia, el HUD
+## dice una cosa y lo que se ve dice otra, sin que nada falle.
+static func is_ventilation_limited_regime(regime: String) -> bool:
 	return regime in [
 		"VENTILATION_STRESSED",
 		"VENTILATION_CONTROLLED_BURNING",

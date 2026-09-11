@@ -76,8 +76,7 @@ func _setup() -> void:
 	# capturas del mismo plano.
 	_editor._hover_help_enabled = false
 	_editor._reset_hover_help()
-	_editor.editor_data = _scenario()
-	_editor.current_floor_index = 0
+	_editor.adopt_scenario_data(_scenario(), 0)
 	var camera: Camera2D = _editor.get_node_or_null("World/Camera2D")
 	if camera != null:
 		camera.global_position = CAMERA_POS

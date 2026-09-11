@@ -168,8 +168,7 @@ func _process(_delta: float) -> bool:
 
 ## Un gesto: herramienta, y la secuencia pulsar / mover / soltar en metros.
 func _gesture(label: String, tool_id: int, steps: Array) -> void:
-	_editor.editor_data = _scenario()
-	_editor.current_floor_index = 0
+	_editor.adopt_scenario_data(_scenario(), 0)
 	_editor._clear_selection()
 	_editor._clear_drag()
 	_editor.current_tool = tool_id

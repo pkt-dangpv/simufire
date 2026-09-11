@@ -6,6 +6,7 @@ const FloorPlan2D := preload("res://view/2d/floors/FloorPlan2D.gd")
 const RoomLabelLayout2D := preload("res://view/2d/rooms/RoomLabelLayout2D.gd")
 const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
+const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
 
 ## ============================================================
 ## VISUALIZER
@@ -1020,7 +1021,7 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 	if building == null:
 		return
 	if show_detector_markers:
-		var detector_states: Dictionary = _state_records_by_id(Array(state.get("detectors", [])))
+		var detector_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("detectors", [])))
 		for raw_det in building.detectors:
 			if typeof(raw_det) != TYPE_DICTIONARY:
 				continue
@@ -1033,7 +1034,7 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 			draw_circle(px, 9.0, Color(0.0, 0.0, 0.0, 0.72))
 			draw_circle(px, 6.5, detector_triggered_color if triggered else detector_marker_color)
 	if show_victim_markers:
-		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
+		var victim_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("victims", [])))
 		for raw_vic in building.victims:
 			if typeof(raw_vic) != TYPE_DICTIONARY:
 				continue
@@ -1053,17 +1054,6 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 			draw_colored_polygon(pts, victim_incapacitated_color if incapacitated else victim_marker_color)
 			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.0, 0.0, 0.0, 0.75), 1.3)
 
-
-func _state_records_by_id(records: Array) -> Dictionary:
-	var result: Dictionary = {}
-	for raw_record in records:
-		if typeof(raw_record) != TYPE_DICTIONARY:
-			continue
-		var record: Dictionary = raw_record
-		var id_text: String = String(record.get("id", ""))
-		if id_text != "":
-			result[id_text] = record
-	return result
 
 
 func _safety_local_position(data: Dictionary, room_rect_m: Rect2) -> Vector2:

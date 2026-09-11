@@ -50,8 +50,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	editor.editor_data = _one_room_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_one_room_scenario(), 0)
 	editor._set_editor_view_mode(MODE_3D)
 	await get_tree().process_frame
 
@@ -104,8 +103,7 @@ func _run() -> void:
 			Array(editor.editor_data.get("rooms_data", [])).size(), rooms_before + 2])
 
 	# La medida tecleada: en perspectiva es la unica forma de ser exacto.
-	editor.editor_data = _one_room_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_one_room_scenario(), 0)
 	await get_tree().process_frame
 	editor._set_tool(TOOL_ROOM)
 	_push(editor, _mouse(from_px, true))
@@ -124,8 +122,7 @@ func _run() -> void:
 		_expect(false, "escribir la medida en 3D no crea la sala")
 
 	# Y en una planta alta, donde el suelo del 3D no esta a cota cero.
-	editor.editor_data = _one_room_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_one_room_scenario(), 0)
 	# _create_floor(false) y no el boton: el boton abre el dialogo de "vacía o
 	# copiada", y aqui lo que se prueba es dibujar arriba.
 	editor._create_floor(false)
@@ -154,8 +151,7 @@ func _run() -> void:
 	# Se mide el MAPEO y no la sala que sale: la sala pasa además por el encaje
 	# con las vecinas, que mueve aristas a propósito, y eso taparía lo que aquí se
 	# está probando.
-	editor.editor_data = _one_room_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_one_room_scenario(), 0)
 	editor._set_editor_view_mode(MODE_3D)
 	await get_tree().process_frame
 	editor._set_tool(TOOL_ROOM)
@@ -184,8 +180,7 @@ func _run() -> void:
 	# Y que la vista se pueda leer mientras se dibuja: el rotulo de una sala cabe
 	# DENTRO de ella. Con un tamaño fijo, "Pasillo" en un pasillo de 1,20 m salia
 	# partido en "Pa/sil/lo" y ocupaba dos metros y medio de suelo.
-	editor.editor_data = _corridor_scenario()
-	editor.current_floor_index = 0
+	editor.adopt_scenario_data(_corridor_scenario(), 0)
 	editor._sync_editor_runtime_views(false)
 	await get_tree().process_frame
 	var label_room_id: int = 0
