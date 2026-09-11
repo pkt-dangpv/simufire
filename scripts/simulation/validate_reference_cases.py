@@ -173,7 +173,7 @@ class Check:
     disposition: str | None = None
 
     def passed(self) -> bool:
-        if self.actual is None:
+        if self.actual is None or not math.isfinite(self.actual):
             return False
         if self.expected is not None and self.tolerance is not None:
             if abs(self.actual - self.expected) > self.tolerance:
@@ -459,6 +459,9 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
             if "=" not in segment:
                 continue
             key, value = segment.split("=", 1)
+            # FED logs append a component breakdown to the total: FED=1.2(CO:...).
+            if key == "FED":
+                value = value.partition("(")[0]
             # Strip known unit suffixes so float() can parse them.
             # 'm' is last to avoid corrupting 'ppm' after 'p' removal.
             value = (value.split()[0]

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-09T13:46:06Z",
+  "generated_at": "2026-09-10T20:10:16Z",
   "all_required_pass": true,
   "required_count": 346,
   "failed_required_count": 0,
@@ -1564,7 +1564,7 @@
     },
     {
       "name": "cfast_fed_heat_not_explosive",
-      "actual": NaN,
+      "actual": 6.817,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -5922,7 +5922,7 @@
     },
     {
       "name": "cfast_bed_fed_lethal",
-      "actual": NaN,
+      "actual": 267.527,
       "expected": null,
       "tolerance": null,
       "minimum": 1.0,
