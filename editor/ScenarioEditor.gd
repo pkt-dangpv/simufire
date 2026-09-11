@@ -2194,7 +2194,9 @@ func _update_floor_status() -> void:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) == TYPE_DICTIONARY and _is_room_on_current_floor(room):
 			rooms_on_floor += 1
-	_floor_status_label.text = "Editando %s. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: %d." % [
+	# Se arma en codigo, asi que necesita `tr()` a mano: el `Control` solo traduce
+	# su `text` de escena, y este se sobrescribe en cuanto cambia la planta.
+	_floor_status_label.text = tr("Editando %s. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: %d.") % [
 		_current_floor_name(),
 		rooms_on_floor
 	]
