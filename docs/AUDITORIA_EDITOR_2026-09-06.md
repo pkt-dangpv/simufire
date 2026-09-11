@@ -1601,7 +1601,26 @@ Noventa y cinco líneas y la función más larga del fichero. Y, más importante
 el número: **la capa tiene sitio**. El siguiente corte no necesita inventar dónde
 va, solo mudarse.
 
-### 20.4 Lo que queda de D-1, por dónde
+### 20.4 Corrección: las 1036 líneas eran mías y estaban infladas
+
+El clasificador del §20.1 miraba **solo el cuerpo** de cada función. Una que no
+escribe `editor_data` pero llama a `_add_opening` muta igual, y él la contaba
+como pregunta pura. Con detección **transitiva** de mutación —quien llama a un
+mutador, muta— la cifra real es:
+
+| | funciones | líneas |
+|---|---:|---:|
+| lo que dije | 58 | 1036 |
+| **lo que era** | **30** | **344** |
+
+La diferencia son sobre todo `_open_passages_to_neighbours` y
+`_open_passages_to_circulation` (92 líneas), que crean aperturas, y las que
+convierten a píxeles.
+
+Es el mismo error que cometí con el medidor de estilo, en el mismo día: **una
+medida mal hecha infla la promesa**. Y esta vez la promesa ya estaba dada.
+
+### 20.5 Lo que queda de D-1, por dónde
 
 Las 56 preguntas puras que siguen dentro, las más gordas primero:
 `_snap_rect_to_adjacent_rooms` (60), `_plan_ghost_view` (49),
@@ -1612,3 +1631,92 @@ Un aviso para quien siga: las que acaban en `_view` o en `_px` **no son
 preguntas puras del todo** —convierten a píxeles, y eso necesita el zoom y la
 cámara—. La capa que se está sacando es la de metros; el paso a píxeles se queda
 en el editor, que es quien sabe cómo se está mirando el plano.
+
+---
+
+## 21. D-1, la capa de preguntas entera, y por qué 7400 no sale por aquí
+
+Petición del usuario: *«sigue con los cortes hasta las 7400 líneas»*. Se hicieron
+tres cortes más, todos verificados, y el objetivo **no se alcanza por esta vía**.
+Esto cuenta lo que salió y por qué se para aquí.
+
+### 21.1 Los tres cortes
+
+| corte | a dónde | líneas |
+|---|---|---:|
+| las preguntas básicas —quién es cada sala, cada objeto, cada id— | `editor/ScenarioQueries.gd` (nuevo) | −111 |
+| la geometría de una pared: de dónde arranca, hacia dónde corre, cómo se saca un tramo | `editor/PlanGeometry.gd` | −63 |
+| las preguntas sobre aperturas: dónde cae, cuánto puede medir, de qué planta es | `editor/ScenarioWalls.gd` | −91 |
+
+`ScenarioQueries` es la base: `ScenarioWalls` se apoya en ella, y también le cedió
+los accesores que se había quedado en el corte anterior. La capa ya tiene forma y
+tiene dueño.
+
+**8449 → 8091 líneas** contando el corte de las paredes del §20.
+
+### 21.2 Y aquí es donde se acaba lo extraíble
+
+Tras esos cortes quedan **16 preguntas puras, 215 líneas** — y de ésas, cuatro no
+son movibles: `_apply_balcony_fields` **muta** la abertura que recibe (por
+referencia, que en GDScript es mutar), `_room_handle_points_m` es de vista, y los
+dos `_marker_*` son envoltorios de `RoomMarkers`.
+
+Antes de seguir se midió el resto del fichero para buscar otra vía:
+
+| bloque | func | líneas | ¿se puede sacar? |
+|---|---:|---:|---|
+| enlazar UI (`_bind_*`) | 17 | 377 | **No.** Asignan variables miembro del editor y conectan señales a sus propios métodos. |
+| sincronizar UI (`_sync_*`, `_update_*`) | 32 | 543 | **No**, por lo mismo. |
+| manejadores (`_on_*`) | 37 | 551 | **No**: son los extremos de las señales de la escena. |
+| vistas del plano (`_view`, `_px`) | 18 | 433 | **A medias**: necesitan el zoom, la planta actual y la selección. Sacarlas obliga a una interfaz de cinco parámetros. |
+| el resto | 306 | 5724 | la lógica del escenario, entretejida con su estado |
+
+Yo mismo había estimado «preguntas + enlaces + vistas ≈ −1000». **Dos de los tres
+bloques no eran extraíbles**, y lo supe al abrirlos, no al medirlos. La estimación
+se hizo contando líneas por prefijo de nombre, que es exactamente la clase de
+medida que esta auditoría lleva tres capítulos desaconsejando.
+
+### 21.3 Lo que hace falta para bajar de verdad
+
+Las **66 funciones que mutan el escenario** (1798 líneas) son el grueso, y no se
+sacan de una en una: todas escriben en el mismo diccionario suelto. Bajar de las
+~8000 líneas pide una decisión de diseño, no más cortes:
+
+> **`editor_data` deja de ser un diccionario público y pasa a tener dueño**, con
+> las mutaciones como métodos suyos.
+
+Eso no es un refactor mecánico y **no se puede verificar por equivalencia**, que
+es lo que ha hecho seguros los cortes de estos dos días. El riesgo es concreto y
+ya mordió una vez esta semana: `adopt_scenario_data` bloqueaba la pose de los
+muebles al deshacer, y eso no lo caza ninguna comparación de entrada y salida —
+hizo falta darse cuenta de que *deshacer tiene que devolver el estado tal cual*.
+Súmese que un `Dictionary` es una referencia y que «escribir de vuelta» a veces
+no hace nada.
+
+Por eso se para aquí y se deja la decisión tomada por quien corresponde.
+
+### 21.4 Y la trampa de `--import`, que mordió
+
+Al generar el `.uid` del módulo nuevo, `godot --headless --import` **borró
+`lights_and_shadows/directional_shadow/size=4096` de `project.godot`** — el valor
+que G-3 restauró a propósito el 9 de septiembre después de que se bajara
+persiguiendo un fallo que resultó ser z-fighting.
+
+La trampa está documentada desde entonces, y aun así casi se cuela, porque la
+comprobación que hice no valía: comparé el fichero **justo después** de que el
+comando devolviera, y Godot lo reescribe al salir. El `diff` dijo «idéntico» y
+`git status` dijo lo contrario treinta segundos después.
+
+La comprobación buena es la que ya decía el documento: **`git diff project.godot`
+antes de commitear**, no un `diff` contra una copia. Restaurado con
+`git checkout -- project.godot`.
+
+### 21.5 Dónde queda el fichero
+
+| | al empezar el día | ahora |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 8449 | **8091** |
+| módulos de `editor/` | 15 | **17** |
+
+Y la capa, con su frontera escrita: **si una función necesita escribir, no es de
+este módulo**.

@@ -60,6 +60,7 @@ const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
 const Handles = preload("res://editor/EditorHandles.gd")
 const CorridorLayout = preload("res://editor/CorridorLayout.gd")
 const RoomMarkers = preload("res://editor/RoomMarkers.gd")
+const ScenarioQueries = preload("res://editor/ScenarioQueries.gd")
 const ScenarioWalls = preload("res://editor/ScenarioWalls.gd")
 
 ## Los tres giros de escalera, EN EL ORDEN del desplegable: la posicion es el id
@@ -976,7 +977,7 @@ func _sync_editor_visualizer_selection() -> void:
 	elif selected_opening_index >= 0:
 		_editor_visualizer_3d.select_opening(selected_opening_index)
 	elif selected_object_room_id >= 0 and selected_object_index >= 0:
-		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+		var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 		_editor_visualizer_3d.select_object(selected_object_room_id, String(obj.get("id", "")))
 	elif selected_detector_index >= 0:
 		var detector_id: String = _marker_id_for_index("detectors", selected_detector_index)
@@ -1264,7 +1265,7 @@ func _on_editor_3d_opening_clicked(opening_index: int, _screen_pos: Vector2) -> 
 func _on_editor_3d_object_clicked(room_id: int, object_id: String) -> void:
 	if _editor_view_mode != EditorViewMode.MODE_3D:
 		return
-	var object_index: int = _object_index_for_id(room_id, object_id)
+	var object_index: int = ScenarioQueries.object_index_for_id(editor_data, room_id, object_id)
 	if object_index < 0:
 		return
 	match current_tool:
@@ -1509,13 +1510,13 @@ func _on_editor_3d_object_dragged(room_id: int, object_id: String, floor_pos_m: 
 		return
 	if current_tool != Tool.SELECT:
 		return
-	var object_index: int = _object_index_for_id(room_id, object_id)
+	var object_index: int = ScenarioQueries.object_index_for_id(editor_data, room_id, object_id)
 	if object_index < 0:
 		return
 	_move_object_center_to(room_id, object_index, floor_pos_m, true)
 	selected_object_room_id = room_id
 	selected_object_index = object_index
-	var obj: Dictionary = _get_object(room_id, object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, room_id, object_index)
 	_sync_object_property_fields(obj)
 	queue_redraw()
 
@@ -1590,7 +1591,7 @@ func _sync_editor_3d_after_direct_edit() -> void:
 
 
 func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vector2, visual_pose_locked: bool = true) -> void:
-	var obj: Dictionary = _get_object(room_id, object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, room_id, object_index)
 	if obj.is_empty():
 		return
 	var room_rect: Rect2 = _get_room_rect(room_id)
@@ -1649,19 +1650,7 @@ func _sync_victim_property_fields(vic: Dictionary) -> void:
 	_props.fill_victim(vic)
 
 
-func _object_index_for_id(room_id: int, object_id: String) -> int:
-	var room: Dictionary = _get_room(room_id)
-	if room.is_empty():
-		return -1
-	var objects: Array = room.get("fuel_objects", [])
-	for i in range(objects.size()):
-		if typeof(objects[i]) == TYPE_DICTIONARY and String(Dictionary(objects[i]).get("id", "")) == object_id:
-			return i
-	return -1
 
-
-## Detectores y victimas son la misma forma de dato, asi que se buscan igual: lo
-## unico que cambia es de que lista. Antes eran cuatro funciones identicas.
 func _marker_index_for_id(list_key: String, marker_id: String) -> int:
 	return RoomMarkers.index_for_id(Array(editor_data.get(list_key, [])), marker_id)
 
@@ -2610,7 +2599,7 @@ func _copy_floor_contents(from_level_m: float, to_level_m: float) -> Dictionary:
 				id_map[source_id] = twin_id
 			continue
 		var copy: Dictionary = source.duplicate(true)
-		var new_id: int = _next_room_id()
+		var new_id: int = ScenarioQueries.next_room_id(editor_data)
 		copy["id"] = new_id
 		copy["floor_level_z_m"] = to_level_m
 		rooms.append(copy)
@@ -2623,7 +2612,7 @@ func _copy_floor_contents(from_level_m: float, to_level_m: float) -> Dictionary:
 			if typeof(objects[i]) != TYPE_DICTIONARY:
 				continue
 			var obj: Dictionary = objects[i]
-			obj["id"] = _next_object_id()
+			obj["id"] = ScenarioQueries.next_object_id(editor_data)
 			obj["room_id"] = new_id
 			objects[i] = obj
 			copied_objects += 1
@@ -2698,7 +2687,7 @@ func _copy_detectors_for_map(id_map: Dictionary) -> int:
 		# El id se pide con la copia ya en la lista, para que no se repita con la
 		# siguiente.
 		copy["id"] = ""
-		copy["id"] = _next_detector_id()
+		copy["id"] = ScenarioQueries.next_detector_id(editor_data)
 		detectors[detectors.size() - 1] = copy
 	editor_data["detectors"] = detectors
 	return pending.size()
@@ -2812,17 +2801,13 @@ func _current_floor_name() -> String:
 	return String(floor.get("name", _default_floor_name(current_floor_index)))
 
 
-func _room_floor_level(room: Dictionary) -> float:
-	return float(room.get("floor_level_z_m", 0.0))
-
 
 func _room_id_floor_level(room_id: int) -> float:
-	var room: Dictionary = _get_room(room_id)
-	return _room_floor_level(room) if not room.is_empty() else 0.0
+	return ScenarioQueries.room_level_m(editor_data, room_id)
 
 
 func _is_room_on_current_floor(room: Dictionary) -> bool:
-	return absf(_room_floor_level(room) - _current_floor_level_m()) < 0.05
+	return absf(ScenarioQueries.room_level_of(room) - _current_floor_level_m()) < 0.05
 
 
 func _opening_on_current_floor(opening: Dictionary) -> bool:
@@ -3331,7 +3316,7 @@ func _handle_press(pos_m: Vector2) -> void:
 					_select_at(pos_m)
 					return
 				var selected_room: Dictionary = _get_room(selected_room_id)
-				if not selected_room.is_empty() and PlanGeometry.rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
+				if not selected_room.is_empty() and PlanGeometry.rotated_rect_has_point(_get_room_rect(selected_room_id), ScenarioQueries.room_rotation_deg(editor_data, selected_room_id), pos_m):
 					_begin_room_mouse_edit(ObjectMouseMode.MOVE, pos_m)
 					return
 			# Pinchar en cuadricula vacia deselecciona Y engancha el plano: es
@@ -3527,7 +3512,7 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 	if not hit_obj.is_empty():
 		_ctx_room_id     = int(hit_obj.get("room_id", -1))
 		_ctx_obj_index   = int(hit_obj.get("object_index", -1))
-		var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
+		var obj: Dictionary = ScenarioQueries.object_at(editor_data, _ctx_room_id, _ctx_obj_index)
 		menu.add_item("Mostrar propiedades: %s" % str(obj.get("name", "objeto")), _CTX_EDIT)
 		menu.add_item("Duplicar objeto  [Ctrl+D]", _CTX_DUPLICATE)
 		menu.add_separator()
@@ -3647,7 +3632,7 @@ func _selection_payload() -> Dictionary:
 			"victims": _elements_in_room("victims", selected_room_id)
 		}
 	if selected_object_room_id >= 0 and selected_object_index >= 0:
-		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+		var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 		if obj.is_empty():
 			return {}
 		return {"kind": "object", "object": obj.duplicate(true), "room_id": selected_object_room_id}
@@ -3754,9 +3739,9 @@ func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> 
 
 	_push_undo_snapshot("duplicate_room" if beside else "paste_room")
 	var room: Dictionary = Dictionary(payload.get("room", {})).duplicate(true)
-	var new_id: int = _next_room_id()
+	var new_id: int = ScenarioQueries.next_room_id(editor_data)
 	room["id"] = new_id
-	room["name"] = _copy_name(String(room.get("name", "")), _room_names())
+	room["name"] = _copy_name(String(room.get("name", "")), ScenarioQueries.room_names(editor_data))
 	room["floor_level_z_m"] = _current_floor_level_m()
 	# El foco inicial no se clona: solo hay uno, y dos objetos marcados dejarian
 	# el escenario contradiciendose consigo mismo.
@@ -3765,7 +3750,7 @@ func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> 
 		if typeof(obj) != TYPE_DICTIONARY:
 			continue
 		var copy_obj: Dictionary = Dictionary(obj).duplicate(true)
-		copy_obj["id"] = _next_object_id_including(objects)
+		copy_obj["id"] = ScenarioQueries.next_object_id(editor_data, objects)
 		copy_obj["room_id"] = new_id
 		copy_obj["is_primary_ignition_source"] = false
 		objects.append(copy_obj)
@@ -3783,16 +3768,16 @@ func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> 
 	var dets: Array = editor_data.get("detectors", [])
 	for det in Array(payload.get("detectors", [])):
 		var copy_det: Dictionary = Dictionary(det).duplicate(true)
-		copy_det["id"] = _next_detector_id()
+		copy_det["id"] = ScenarioQueries.next_detector_id(editor_data)
 		copy_det["room_id"] = new_id
 		dets.append(copy_det)
 	editor_data["detectors"] = dets
 	var vics: Array = editor_data.get("victims", [])
 	for vic in Array(payload.get("victims", [])):
 		var copy_vic: Dictionary = Dictionary(vic).duplicate(true)
-		copy_vic["id"] = _next_victim_id()
+		copy_vic["id"] = ScenarioQueries.next_victim_id(editor_data)
 		copy_vic["room_id"] = new_id
-		copy_vic["name"] = _copy_name(String(copy_vic.get("name", "")), _victim_names())
+		copy_vic["name"] = _copy_name(String(copy_vic.get("name", "")), ScenarioQueries.victim_names(editor_data))
 		vics.append(copy_vic)
 	editor_data["victims"] = vics
 
@@ -3807,21 +3792,6 @@ func _insert_room_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> 
 	])
 	queue_redraw()
 
-
-## Como _next_object_id(), contando ademas los que aun no estan en el arbol: al
-## copiar una sala entera sus objetos se numeran antes de insertarse.
-func _next_object_id_including(pending: Array) -> String:
-	var taken: Dictionary = {}
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		for obj in Array(Dictionary(room).get("fuel_objects", [])):
-			if typeof(obj) == TYPE_DICTIONARY:
-				taken[String(Dictionary(obj).get("id", ""))] = true
-	for pending_obj in pending:
-		if typeof(pending_obj) == TYPE_DICTIONARY:
-			taken[String(Dictionary(pending_obj).get("id", ""))] = true
-	return _first_free_id("obj_%03d", taken)
 
 
 func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -> void:
@@ -3838,7 +3808,7 @@ func _insert_object_payload(payload: Dictionary, pos_m: Vector2, beside: bool) -
 	else:
 		local = _snap_object_m(pos_m - rect.position - size * 0.5)
 	_push_undo_snapshot("duplicate_object" if beside else "paste_object")
-	obj["id"] = _next_object_id()
+	obj["id"] = ScenarioQueries.next_object_id(editor_data)
 	obj["room_id"] = room_id
 	obj["is_primary_ignition_source"] = false
 	obj["position_m"] = Serializer.vector_to_data(PlanGeometry.clamp_object_local_pos_for_rotation(
@@ -3873,10 +3843,10 @@ func _insert_point_payload(payload: Dictionary, kind: String, list_key: String, 
 	item["y_m"] = local.y
 	var items: Array = editor_data.get(list_key, [])
 	if kind == "detector":
-		item["id"] = _next_detector_id()
+		item["id"] = ScenarioQueries.next_detector_id(editor_data)
 	else:
-		item["id"] = _next_victim_id()
-		item["name"] = _copy_name(String(item.get("name", "")), _victim_names())
+		item["id"] = ScenarioQueries.next_victim_id(editor_data)
+		item["name"] = _copy_name(String(item.get("name", "")), ScenarioQueries.victim_names(editor_data))
 	items.append(item)
 	editor_data[list_key] = items
 	if kind == "detector":
@@ -3904,21 +3874,6 @@ func _copy_name(base_name: String, taken: Dictionary) -> String:
 		n += 1
 	return candidate
 
-
-func _room_names() -> Dictionary:
-	var names: Dictionary = {}
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) == TYPE_DICTIONARY:
-			names[String(Dictionary(room).get("name", ""))] = true
-	return names
-
-
-func _victim_names() -> Dictionary:
-	var names: Dictionary = {}
-	for vic in Array(editor_data.get("victims", [])):
-		if typeof(vic) == TYPE_DICTIONARY:
-			names[String(Dictionary(vic).get("name", ""))] = true
-	return names
 
 
 ## Donde esta el raton, en metros del plano. Pegar donde mira el usuario es lo
@@ -4226,7 +4181,7 @@ func _sync_room_geometry_fields(room_id: int) -> void:
 func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
 	if selected_object_room_id < 0 or selected_object_index < 0:
 		return
-	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		return
 	var rr: Rect2 = _get_room_rect(selected_object_room_id)
@@ -4245,7 +4200,7 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 	if selected_object_room_id < 0 or selected_object_index < 0:
 		_cancel_drag_if(Drag.OBJECT)
 		return
-	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		_cancel_drag_if(Drag.OBJECT)
 		return
@@ -4261,13 +4216,13 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 			var new_local_m: Vector2 = new_world_m - rr.position
 			new_local_m = PlanGeometry.clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
 			_set_object_position(selected_object_room_id, selected_object_index, new_local_m, true)
-	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
+	_sync_object_property_fields(ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index))
 	_preview_3d_follow_drag()
 	queue_redraw()
 
 
 func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
-	var current_obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	var current_obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	if current_obj.is_empty():
 		return
 	var local_mouse: Vector2 = PlanGeometry.world_to_object_local(pos_m, object_drag_start_center_m, object_drag_start_rotation_deg)
@@ -4300,7 +4255,7 @@ func _rotate_selected_object_with_mouse(pos_m: Vector2) -> void:
 	var dir: Vector2 = pos_m - object_drag_start_center_m
 	if dir.length_squared() < 0.0001:
 		return
-	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		return
 	var rotation_deg: float = _snap_object_rotation_deg(rad_to_deg(atan2(dir.y, dir.x)) + 90.0)
@@ -4327,7 +4282,7 @@ func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2, visu
 
 
 func _set_object_rotation(room_id: int, obj_index: int, rotation_deg: float) -> void:
-	var obj: Dictionary = _get_object(room_id, obj_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, room_id, obj_index)
 	if obj.is_empty():
 		return
 	_set_object_geometry(
@@ -4372,7 +4327,7 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 
 
 func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: String = "generic", floor_level_m: float = 0.0, height_m: float = 2.7) -> int:
-	var id: int = _next_room_id()
+	var id: int = ScenarioQueries.next_room_id(editor_data)
 	var rooms: Array = editor_data.get("rooms_data", [])
 	var rects: Dictionary = editor_data.get("room_rect_m", {})
 	var room := {
@@ -4458,7 +4413,7 @@ func _open_passages_to_circulation(room_id: int) -> Array[int]:
 		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
 		if shared.is_empty():
 			continue
-		var span_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+		var span_m: float = ScenarioWalls.max_opening_width_for_shared(editor_data, int(shared["a"]), int(shared["b"]), String(shared["wall"]))
 		if span_m < 0.45:
 			continue
 		_add_opening(
@@ -4502,7 +4457,7 @@ func _open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: 
 		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
 		if shared.is_empty():
 			continue
-		var width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+		var width_m: float = ScenarioWalls.max_opening_width_for_shared(editor_data, int(shared["a"]), int(shared["b"]), String(shared["wall"]))
 		# El codo de un pasillo en L comparte solo el ancho de la esquina, que puede
 		# quedarse en medio metro largo. Por debajo de 45 cm ya no es un paso ni en
 		# una esquina, y ahi si conviene no fingirlo.
@@ -4769,7 +4724,7 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 		_set_status(tr("El pasillo no tiene tamaño suficiente."))
 		return
 
-	var base_id: int = _next_room_id()
+	var base_id: int = ScenarioQueries.next_room_id(editor_data)
 	# Un tramo pegado a un pasillo que ya existe ES ese pasillo, no otro. Cada
 	# arrastre creaba «Pasillo 3», «Pasillo 5», «Pasillo 7» y una U se leia
 	# como tres pasillos distintos. Siguen siendo salas separadas -el motor es
@@ -4946,33 +4901,6 @@ func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	)
 
 
-func _next_room_id() -> int:
-	var next_id: int = 0
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) == TYPE_DICTIONARY:
-			next_id = maxi(next_id, int(room.get("id", -1)) + 1)
-	return next_id
-
-
-## Primer id libre, no "cuantos hay mas uno". El contador simple repetia id en
-## cuanto se borraba algo, y duplicar multiplica esas coincidencias.
-func _next_object_id() -> String:
-	var taken: Dictionary = {}
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		for obj in Array(room.get("fuel_objects", [])):
-			if typeof(obj) == TYPE_DICTIONARY:
-				taken[String(Dictionary(obj).get("id", ""))] = true
-	return _first_free_id("obj_%03d", taken)
-
-
-## El primer "<patron> %03d" que nadie use.
-func _first_free_id(pattern: String, taken: Dictionary) -> String:
-	var n: int = 1
-	while taken.has(pattern % n):
-		n += 1
-	return pattern % n
 
 
 func _select_at(pos_m: Vector2) -> void:
@@ -5070,7 +4998,7 @@ func _select_object(room_id: int, object_index: int) -> void:
 	selected_player_start_room_id = -1
 	_refresh_property_panel()
 	_sync_editor_visualizer_selection()
-	var obj: Dictionary = _get_object(room_id, object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, room_id, object_index)
 	_set_status(tr("Seleccionado objeto %s.") % String(obj.get("name", obj.get("id", ""))))
 	queue_redraw()
 
@@ -5111,7 +5039,7 @@ func _refresh_property_panel() -> void:
 	var has_room: bool = not room.is_empty()
 	var obj: Dictionary = {}
 	if selected_object_room_id >= 0 and selected_object_index >= 0:
-		obj = _get_object(selected_object_room_id, selected_object_index)
+		obj = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	var state: Dictionary = {
 		"room": room,
 		"room_rect": _get_room_rect(selected_room_id) if has_room else Rect2(),
@@ -5136,13 +5064,13 @@ func _refresh_property_panel() -> void:
 	var opening: Dictionary = state["opening"]
 	if not opening.is_empty():
 		state["opening_type_label"] = _opening_type_label_text(opening)
-		state["opening_max_width_m"] = _max_width_for_opening(opening)
+		state["opening_max_width_m"] = ScenarioWalls.max_width_for_opening(editor_data, opening)
 		state["opening_max_offset_m"] = 200.0 if bool(opening.get("is_vertical", false)) else PlanGeometry.wall_length(
 			_get_room_rect(int(opening.get("a", -1))),
 			String(opening.get("wall", "top"))
 		)
 		state["opening_accepts_balcony"] = _opening_accepts_balcony(opening)
-		state["opening_balcony_max_width_m"] = _max_balcony_width_for_opening(opening)
+		state["opening_balcony_max_width_m"] = ScenarioWalls.max_balcony_width_for_opening(editor_data, opening)
 	_props.show(state)
 	_refresh_element_list()
 
@@ -5311,11 +5239,10 @@ func _apply_room_properties() -> void:
 		return
 
 
+## Se queda como nombre corto porque lo llaman cuarenta sitios; la busqueda vive
+## en la capa de preguntas.
 func _get_room(room_id: int) -> Dictionary:
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) == TYPE_DICTIONARY and int(room.get("id", -1)) == room_id:
-			return room
-	return {}
+	return ScenarioQueries.room_by_id(editor_data, room_id)
 
 
 ## Cambiar campos de una sala por su id. Devuelve si la encontro.
@@ -5330,7 +5257,7 @@ func _get_room(room_id: int) -> Dictionary:
 ## visible que esto guarda; repetido ocho veces solo hacia parecer que cada
 ## copia hacia algo distinto.
 func _update_room_fields(room_id: int, fields: Dictionary) -> bool:
-	var index: int = _room_index_for_id(room_id)
+	var index: int = ScenarioQueries.room_index_for_id(editor_data, room_id)
 	if index < 0:
 		return false
 	var rooms: Array = editor_data.get("rooms_data", [])
@@ -5341,13 +5268,6 @@ func _update_room_fields(room_id: int, fields: Dictionary) -> bool:
 	editor_data["rooms_data"] = rooms
 	return true
 
-
-func _room_index_for_id(room_id: int) -> int:
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) == TYPE_DICTIONARY and int(Dictionary(rooms[i]).get("id", -1)) == room_id:
-			return i
-	return -1
 
 
 func _is_corridor_room(room: Dictionary) -> bool:
@@ -5366,22 +5286,8 @@ func _room_display_name(room: Dictionary, room_id: int) -> String:
 ## El rectangulo lo lee ScenarioWalls, que es donde vive la capa de preguntas.
 ## Este nombre se queda porque lo llaman cincuenta y nueve sitios.
 func _get_room_rect(room_id: int) -> Rect2:
-	return ScenarioWalls.room_rect(editor_data, room_id)
+	return ScenarioQueries.room_rect(editor_data, room_id)
 
-
-func _room_rotation_deg(room_id: int) -> float:
-	var room: Dictionary = _get_room(room_id)
-	return float(room.get("rotation_deg", 0.0)) if not room.is_empty() else 0.0
-
-
-func _get_object(room_id: int, object_index: int) -> Dictionary:
-	var room: Dictionary = _get_room(room_id)
-	var objects: Array = room.get("fuel_objects", [])
-	if object_index < 0 or object_index >= objects.size():
-		return {}
-	if typeof(objects[object_index]) != TYPE_DICTIONARY:
-		return {}
-	return objects[object_index]
 
 
 func _find_room_at(pos_m: Vector2) -> int:
@@ -5391,7 +5297,7 @@ func _find_room_at(pos_m: Vector2) -> int:
 		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
-		if PlanGeometry.rotated_rect_has_point(_get_room_rect(room_id), _room_rotation_deg(room_id), pos_m):
+		if PlanGeometry.rotated_rect_has_point(_get_room_rect(room_id), ScenarioQueries.room_rotation_deg(editor_data, room_id), pos_m):
 			return room_id
 	return -1
 
@@ -5424,7 +5330,7 @@ func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> PackedVector2
 func _room_handle_points_m(room_id: int) -> PackedVector2Array:
 	var rect: Rect2 = _get_room_rect(room_id)
 	return Handles.points_m(
-		rect.get_center(), rect.size, _room_rotation_deg(room_id), OBJECT_ROTATE_HANDLE_OFFSET_M
+		rect.get_center(), rect.size, ScenarioQueries.room_rotation_deg(editor_data, room_id), OBJECT_ROTATE_HANDLE_OFFSET_M
 	)
 
 
@@ -5442,7 +5348,7 @@ func _find_selected_room_handle_at(pos_m: Vector2) -> int:
 func _find_selected_object_handle_at(pos_m: Vector2) -> int:
 	if selected_object_room_id < 0 or selected_object_index < 0:
 		return ObjectMouseMode.NONE
-	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	var obj: Dictionary = ScenarioQueries.object_at(editor_data, selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		return ObjectMouseMode.NONE
 	return _handle_mode_at(_object_handle_points_m(_get_room_rect(selected_object_room_id), obj), pos_m)
@@ -5474,11 +5380,11 @@ func _find_opening_at(pos_m: Vector2) -> int:
 		if not _opening_on_current_floor(openings[i]):
 			continue
 		if bool(Dictionary(openings[i]).get("is_vertical", false)):
-			var vertical_rect: Rect2 = _vertical_opening_rect(Dictionary(openings[i]))
+			var vertical_rect: Rect2 = ScenarioWalls.vertical_opening_rect(editor_data, Dictionary(openings[i]))
 			if vertical_rect.has_point(pos_m):
 				return i
 			continue
-		var segment: PackedVector2Array = _opening_segment_m(openings[i])
+		var segment: PackedVector2Array = ScenarioWalls.opening_segment_m(editor_data, openings[i])
 		if segment.size() != 2:
 			continue
 		if PlanGeometry.distance_to_segment(pos_m, segment[0], segment[1]) <= 0.18:
@@ -5496,7 +5402,7 @@ func _create_object_at(pos_m: Vector2, kind_override: String = "") -> void:
 
 	var kind: String = kind_override if kind_override != "" else _selected_object_kind()
 	var room_rect: Rect2 = _get_room_rect(room_id)
-	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
+	var obj: Dictionary = ObjectLibraryScript.create_object(kind, ScenarioQueries.next_object_id(editor_data), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
 	var local_pos: Vector2 = _snap_object_m(pos_m - room_rect.position - size * 0.5)
 	local_pos = PlanGeometry.clamp_object_local_pos(room_rect, size, local_pos)
@@ -5546,7 +5452,7 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 
 
 func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
-	if _get_object(target_room_id, target_index).is_empty():
+	if ScenarioQueries.object_at(editor_data, target_room_id, target_index).is_empty():
 		_set_status(tr("Selecciona un objeto combustible para marcar el foco inicial."))
 		return
 	_push_undo_snapshot("mark_ignition")
@@ -5571,20 +5477,6 @@ func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
 	queue_redraw()
 
 
-func _next_detector_id() -> String:
-	return _first_free_id("det_%03d", _taken_ids("detectors"))
-
-
-func _next_victim_id() -> String:
-	return _first_free_id("vic_%03d", _taken_ids("victims"))
-
-
-func _taken_ids(list_key: String) -> Dictionary:
-	var taken: Dictionary = {}
-	for item in Array(editor_data.get(list_key, [])):
-		if typeof(item) == TYPE_DICTIONARY:
-			taken[String(Dictionary(item).get("id", ""))] = true
-	return taken
 
 
 func _create_detector_at(pos_m: Vector2) -> void:
@@ -5597,7 +5489,7 @@ func _create_detector_at(pos_m: Vector2) -> void:
 	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
 	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
 	var dets: Array = editor_data.get("detectors", [])
-	var new_id: String = _next_detector_id()
+	var new_id: String = ScenarioQueries.next_detector_id(editor_data)
 	_push_undo_snapshot("create_detector")
 	dets.append({
 		"id": new_id,
@@ -5623,7 +5515,7 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
 	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
 	var vics: Array = editor_data.get("victims", [])
-	var new_id: String = _next_victim_id()
+	var new_id: String = ScenarioQueries.next_victim_id(editor_data)
 	var vic_num: int = vics.size() + 1
 	_push_undo_snapshot("create_victim")
 	vics.append({
@@ -5758,7 +5650,7 @@ func _apply_victim_properties() -> void:
 func _create_door_at(pos_m: Vector2) -> void:
 	var shared: Dictionary = _find_shared_wall_at(pos_m)
 	if not shared.is_empty():
-		var door_width_m: float = minf(0.9, _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"])))
+		var door_width_m: float = minf(0.9, ScenarioWalls.max_opening_width_for_shared(editor_data, int(shared["a"]), int(shared["b"]), String(shared["wall"])))
 		_add_opening(int(shared["a"]), int(shared["b"]), "door", String(shared["wall"]), float(shared["offset_m"]), door_width_m, 2.05, 0.0, 1.0)
 		_set_status(tr("Puerta creada entre habitaciones %d y %d.") % [int(shared["a"]), int(shared["b"])])
 		queue_redraw()
@@ -5828,7 +5720,7 @@ func _create_hole_at(pos_m: Vector2) -> void:
 	if shared.is_empty():
 		_set_status(tr("El hueco debe colocarse en un paramento compartido entre dos habitaciones."))
 		return
-	var max_width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+	var max_width_m: float = ScenarioWalls.max_opening_width_for_shared(editor_data, int(shared["a"]), int(shared["b"]), String(shared["wall"]))
 	var width_m: float = clampf(opening_tool_width_m, 0.30, max_width_m)
 	_add_opening(
 		int(shared["a"]),
@@ -5903,7 +5795,7 @@ func _create_balcony_door_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	)
 	# El hueco se centra en el trozo arrastrado, no donde empezo el arrastre.
 	var center_along: float = (start_m.x + end_m.x) * 0.5 if horizontal else (start_m.y + end_m.y) * 0.5
-	var offset_m: float = _wall_offset_for_point(room_id, wall_name, center_along, horizontal)
+	var offset_m: float = ScenarioWalls.wall_offset_for_point(editor_data, room_id, wall_name, center_along, horizontal)
 	if not _is_wall_exterior(room_id, wall_name, offset_m, door_width_m):
 		_set_status(tr("Un balcón cuelga de la fachada: arrastra sobre un tramo de pared exterior."))
 		return
@@ -5923,16 +5815,6 @@ func _create_balcony_door_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 		balcony_width_m, depth_m, room_id, recortado])
 	queue_redraw()
 
-
-## Coordenada a lo largo del muro, medida desde su arranque, de un punto del
-## plano. Es lo que espera `offset_m` de una abertura.
-func _wall_offset_for_point(room_id: int, wall_name: String, coord_m: float, horizontal: bool) -> float:
-	var rect: Rect2 = _get_room_rect(room_id)
-	var wall_data: Dictionary = _wall_start_dir(rect, wall_name)
-	var start: Vector2 = wall_data["start"]
-	var dir: Vector2 = wall_data["dir"]
-	var point := Vector2(coord_m, start.y) if horizontal else Vector2(start.x, coord_m)
-	return clampf((point - start).dot(dir), 0.0, PlanGeometry.wall_length(rect, wall_name))
 
 
 func _create_balcony_door_at(pos_m: Vector2) -> void:
@@ -6109,11 +5991,11 @@ func _find_wall_at(pos_m: Vector2) -> Dictionary:
 		var room_id: int = int(room.get("id", -1))
 		var rect: Rect2 = _get_room_rect(room_id)
 		for wall in ["top", "bottom", "left", "right"]:
-			var segment: PackedVector2Array = _wall_segment(rect, wall, PlanGeometry.wall_length(rect, wall) * 0.5, PlanGeometry.wall_length(rect, wall))
+			var segment: PackedVector2Array = PlanGeometry.wall_segment(rect, wall, PlanGeometry.wall_length(rect, wall) * 0.5, PlanGeometry.wall_length(rect, wall))
 			var dist: float = PlanGeometry.distance_to_segment(pos_m, segment[0], segment[1])
 			if dist < best_distance:
 				best_distance = dist
-				var offset: float = _offset_on_wall(rect, wall, pos_m)
+				var offset: float = PlanGeometry.offset_on_wall(rect, wall, pos_m)
 				best = {"room_id": room_id, "wall": wall, "offset_m": offset}
 	return best
 
@@ -6140,7 +6022,7 @@ func _find_shared_wall_at(pos_m: Vector2) -> Dictionary:
 
 func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: float) -> bool:
 	var rect: Rect2 = _get_room_rect(room_id)
-	var wall_seg: PackedVector2Array = _wall_segment(rect, wall, offset_m, width_m)
+	var wall_seg: PackedVector2Array = PlanGeometry.wall_segment(rect, wall, offset_m, width_m)
 	if wall_seg.size() != 2:
 		return false
 
@@ -6156,122 +6038,12 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 		if shared.is_empty() or String(shared.get("wall", "")) != wall:
 			continue
 		var other_seg: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, other_id, wall)
-		if other_seg.size() == 2 and _segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
+		if other_seg.size() == 2 and PlanGeometry.segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
 			return false
 	return true
 
 
 
-func _max_opening_width_for_shared(room_id: int, other_id: int, wall: String) -> float:
-	var segment: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, other_id, wall)
-	if segment.size() != 2:
-		return 0.30
-	return maxf(0.30, segment[0].distance_to(segment[1]) - 0.10)
-
-
-func _max_width_for_opening(opening: Dictionary) -> float:
-	if bool(opening.get("is_vertical", false)):
-		var room_rect: Rect2 = _get_room_rect(int(opening.get("a", -1)))
-		return maxf(0.30, room_rect.size.x - 0.10)
-	var a_id: int = int(opening.get("a", -1))
-	var b_id: int = int(opening.get("b", OUTSIDE_ID))
-	var wall: String = String(opening.get("wall", ""))
-	if a_id >= 0 and b_id != OUTSIDE_ID and wall != "":
-		return _max_opening_width_for_shared(a_id, b_id, wall)
-	if a_id >= 0:
-		var rect: Rect2 = _get_room_rect(a_id)
-		if wall == "":
-			wall = "top"
-		return maxf(0.30, PlanGeometry.wall_length(rect, wall) - 0.10)
-	return 0.30
-
-
-func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> bool:
-	if a1.distance_to(a2) <= 0.0001 or b1.distance_to(b2) <= 0.0001:
-		return false
-	var horizontal: bool = absf(a1.y - a2.y) <= 0.001
-	if horizontal:
-		if absf(a1.y - b1.y) > 0.05:
-			return false
-		var a_min: float = minf(a1.x, a2.x)
-		var a_max: float = maxf(a1.x, a2.x)
-		var b_min: float = minf(b1.x, b2.x)
-		var b_max: float = maxf(b1.x, b2.x)
-		return minf(a_max, b_max) - maxf(a_min, b_min) > 0.05
-	if absf(a1.x - b1.x) > 0.05:
-		return false
-	var ay_min: float = minf(a1.y, a2.y)
-	var ay_max: float = maxf(a1.y, a2.y)
-	var by_min: float = minf(b1.y, b2.y)
-	var by_max: float = maxf(b1.y, b2.y)
-	return minf(ay_max, by_max) - maxf(ay_min, by_min) > 0.05
-
-
-
-func _offset_on_wall(rect: Rect2, wall: String, pos_m: Vector2) -> float:
-	match wall:
-		"top", "bottom":
-			return clampf(pos_m.x - rect.position.x, 0.0, rect.size.x)
-		"left", "right":
-			return clampf(pos_m.y - rect.position.y, 0.0, rect.size.y)
-	return 0.0
-
-
-func _wall_start_dir(rect: Rect2, wall: String) -> Dictionary:
-	match wall:
-		"top":
-			return {"start": rect.position, "dir": Vector2.RIGHT}
-		"bottom":
-			return {"start": rect.position + Vector2(0.0, rect.size.y), "dir": Vector2.RIGHT}
-		"left":
-			return {"start": rect.position, "dir": Vector2.DOWN}
-		"right":
-			return {"start": rect.position + Vector2(rect.size.x, 0.0), "dir": Vector2.DOWN}
-	return {"start": rect.position, "dir": Vector2.RIGHT}
-
-
-func _wall_segment(rect: Rect2, wall: String, offset_m: float, width_m: float) -> PackedVector2Array:
-	var wall_data: Dictionary = _wall_start_dir(rect, wall)
-	var start: Vector2 = wall_data["start"]
-	var dir: Vector2 = wall_data["dir"]
-	var length: float = PlanGeometry.wall_length(rect, wall)
-	var half_width: float = minf(width_m, length) * 0.5
-	var center_offset: float = clampf(offset_m, half_width, maxf(half_width, length - half_width))
-	var center: Vector2 = start + dir * center_offset
-	return PackedVector2Array([center - dir * half_width, center + dir * half_width])
-
-
-func _opening_segment_m(opening: Dictionary) -> PackedVector2Array:
-	var a_id: int = int(opening.get("a", -1))
-	if a_id < 0:
-		return PackedVector2Array()
-	var rect: Rect2 = _get_room_rect(a_id)
-	var wall: String = String(opening.get("wall", ""))
-	var b_id: int = int(opening.get("b", OUTSIDE_ID))
-	if wall == "":
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, a_id, b_id)
-		wall = String(shared.get("wall", "top"))
-	var width: float = float(opening.get("width_m", 0.9))
-	var offset: float = float(opening.get("offset_m", PlanGeometry.wall_length(rect, wall) * 0.5))
-	if bool(opening.get("offset_is_fraction", true)):
-		if b_id != OUTSIDE_ID:
-			var shared_segment: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, a_id, b_id, wall)
-			if shared_segment.size() == 2:
-				return _line_segment_from_fraction(shared_segment[0], shared_segment[1], offset, width)
-		offset = PlanGeometry.wall_length(rect, wall) * clampf(offset, 0.0, 1.0)
-	return _wall_segment(rect, wall, offset, width)
-
-
-func _line_segment_from_fraction(a: Vector2, b: Vector2, offset_fraction: float, width_m: float) -> PackedVector2Array:
-	var axis: Vector2 = b - a
-	var length: float = axis.length()
-	if length <= 0.0001:
-		return PackedVector2Array()
-	var dir: Vector2 = axis / length
-	var safe_width: float = minf(width_m, length)
-	var center_offset: float = clampf(length * clampf(offset_fraction, 0.0, 1.0), safe_width * 0.5, maxf(safe_width * 0.5, length - safe_width * 0.5))
-	var center: Vector2 = a + dir * center_offset
-	return PackedVector2Array([center - dir * safe_width * 0.5, center + dir * safe_width * 0.5])
 
 
 func _save_pressed() -> void:
@@ -6583,7 +6355,7 @@ func _apply_opening_properties() -> void:
 				op["open_fraction"] = 1.0
 			elif wanted_type == "window" and float(op.get("sill_m", 0.0)) <= 0.01:
 				op["sill_m"] = 0.90
-	op["width_m"] = minf(float(fields.get("width_m", 0.9)), _max_width_for_opening(op))
+	op["width_m"] = minf(float(fields.get("width_m", 0.9)), ScenarioWalls.max_width_for_opening(editor_data, op))
 	op["height_m"] = float(fields.get("height_m", 2.0))
 	if not bool(op.get("is_vertical", false)):
 		op["offset_m"] = clampf(
@@ -6613,17 +6385,6 @@ func _opening_accepts_balcony(opening: Dictionary) -> bool:
 	return int(opening.get("a", 0)) == OUTSIDE_ID or int(opening.get("b", -1)) == OUTSIDE_ID
 
 
-## Lo mas ancho que puede ser un balcon: la fachada de la que cuelga. Aqui se
-## mide la del paramento de SU sala, que es la que el editor conoce sin salir
-## de la abertura; la vista, que ve el lienzo entero, todavia lo recorta mas si
-## la abertura esta cerca de la esquina.
-func _max_balcony_width_for_opening(opening: Dictionary) -> float:
-	var wall_m: float = PlanGeometry.wall_length(
-		_get_room_rect(int(opening.get("a", -1))),
-		String(opening.get("wall", "top"))
-	)
-	return maxf(float(opening.get("width_m", 0.9)), wall_m)
-
 
 ## Guarda el balcon en la abertura. Sin balcon se BORRAN las medidas en vez de
 ## dejarlas dormidas: asi el JSON dice lo que hay, y una abertura que dejo de
@@ -6639,7 +6400,7 @@ func _apply_balcony_fields(op: Dictionary, fields: Dictionary) -> void:
 	op["balcony_width_m"] = clampf(
 		float(fields.get("balcony_width_m", 0.0)),
 		0.0,
-		_max_balcony_width_for_opening(op)
+		ScenarioWalls.max_balcony_width_for_opening(editor_data, op)
 	)
 	op["balcony_depth_m"] = clampf(
 		float(fields.get("balcony_depth_m", 1.20)),
@@ -6738,9 +6499,9 @@ func _plan_ghost_view() -> Dictionary:
 		var opening_dict: Dictionary = opening
 		if bool(opening_dict.get("is_vertical", false)):
 			continue
-		if not _opening_on_level(opening_dict, lower_level):
+		if not ScenarioWalls.opening_on_level(editor_data, opening_dict, lower_level):
 			continue
-		var segment_m: PackedVector2Array = _opening_segment_m(opening_dict)
+		var segment_m: PackedVector2Array = ScenarioWalls.opening_segment_m(editor_data, opening_dict)
 		if segment_m.size() == 2:
 			openings_view.append({
 				"a_px": _m_to_px(segment_m[0]),
@@ -6884,7 +6645,7 @@ func _plan_openings_view() -> Array:
 			continue
 		var selected: bool = i == selected_opening_index
 		if bool(opening.get("is_vertical", false)):
-			var hole_rect: Rect2 = _vertical_opening_rect(opening)
+			var hole_rect: Rect2 = ScenarioWalls.vertical_opening_rect(editor_data, opening)
 			if hole_rect.size.x <= 0.0 or hole_rect.size.y <= 0.0:
 				continue
 			out.append({
@@ -6893,7 +6654,7 @@ func _plan_openings_view() -> Array:
 				"color": Color(1.0, 1.0, 0.45, 1.0) if selected else Color(1.0, 0.78, 0.20, 0.92)
 			})
 			continue
-		var segment_m: PackedVector2Array = _opening_segment_m(opening)
+		var segment_m: PackedVector2Array = ScenarioWalls.opening_segment_m(editor_data, opening)
 		if segment_m.size() != 2:
 			continue
 		var type_str: String = String(opening.get("type", "door"))
@@ -6939,7 +6700,7 @@ func _balcony_outline_px(opening: Dictionary, segment_m: PackedVector2Array) -> 
 	# mas ancho, nunca mas estrecho.
 	var wall: String = String(opening.get("wall", "top"))
 	var rect: Rect2 = _get_room_rect(int(opening.get("a", -1)))
-	var wall_data: Dictionary = _wall_start_dir(rect, wall)
+	var wall_data: Dictionary = PlanGeometry.wall_start_dir(rect, wall)
 	width_m = OpeningModel.balcony_trimmed_span_m(
 		width_m,
 		(center_m - Vector2(wall_data["start"])).dot(Vector2(wall_data["dir"])),
@@ -7306,7 +7067,7 @@ func _hover_help_text_at(pos_m: Vector2) -> String:
 
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	if not hit_obj.is_empty():
-		var obj: Dictionary = _get_object(int(hit_obj.get("room_id", -1)), int(hit_obj.get("object_index", -1)))
+		var obj: Dictionary = ScenarioQueries.object_at(editor_data, int(hit_obj.get("room_id", -1)), int(hit_obj.get("object_index", -1)))
 		return "Objeto: %s" % String(obj.get("name", obj.get("id", "combustible")))
 
 	var opening_index: int = _find_opening_at(pos_m)
@@ -7414,15 +7175,6 @@ func _immediate_lower_floor_level() -> float:
 	return best
 
 
-func _opening_on_level(opening: Dictionary, level_m: float) -> bool:
-	var a_id: int = int(opening.get("a", -1))
-	var b_id: int = int(opening.get("b", OUTSIDE_ID))
-	if a_id < 0:
-		return false
-	if absf(_room_id_floor_level(a_id) - level_m) < 0.05:
-		return true
-	return b_id != OUTSIDE_ID and absf(_room_id_floor_level(b_id) - level_m) < 0.05
-
 
 func _inside_normal_for_wall_2d(wall: String) -> Vector2:
 	match wall:
@@ -7436,20 +7188,6 @@ func _inside_normal_for_wall_2d(wall: String) -> Vector2:
 			return Vector2.LEFT
 	return Vector2.DOWN
 
-
-func _vertical_opening_rect(opening: Dictionary) -> Rect2:
-	var a_id: int = int(opening.get("a", -1))
-	var room_rect: Rect2 = _get_room_rect(a_id)
-	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
-		return Rect2()
-	var room: Dictionary = _get_room(a_id)
-	if not room.is_empty() and StairPlanRules.is_stair_room(room):
-		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
-		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
-		return StairGeometry.vertical_void_rect(room_rect, stair_dir, turn_degrees)
-	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
-	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
-	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
 
 
 func _set_status(text: String) -> void:

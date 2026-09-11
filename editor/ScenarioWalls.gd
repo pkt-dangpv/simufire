@@ -19,7 +19,7 @@ extends RefCounted
 ## poner entre dos salas por un lado y no por el otro. Aqui son cuatro entradas
 ## de una tabla y una sola regla que las recorre.
 
-const Serializer = preload("res://editor/ScenarioSerializer.gd")
+const ScenarioQueries = preload("res://editor/ScenarioQueries.gd")
 
 ## Brecha maxima entre paredes para considerarlas conectadas (m).
 const GAP_TOL: float = 0.30
@@ -33,24 +33,8 @@ const CLICK_TOL: float = 0.40
 const NO_CLICK := Vector2(1.0e20, 1.0e20)
 
 
-## El rectangulo de una sala, tal y como esta guardado.
-static func room_rect(data: Dictionary, room_id: int) -> Rect2:
-	var rects: Dictionary = data.get("room_rect_m", {})
-	return Serializer.rect2_from_data(rects.get(str(room_id), Rect2()))
-
-
-## La sala con ese id, o un diccionario vacio.
-static func room_by_id(data: Dictionary, room_id: int) -> Dictionary:
-	for raw_room in data.get("rooms_data", []):
-		if typeof(raw_room) == TYPE_DICTIONARY and int(Dictionary(raw_room).get("id", -1)) == room_id:
-			return raw_room
-	return {}
-
-
-## La cota de la planta en la que esta esa sala.
-static func room_level_m(data: Dictionary, room_id: int) -> float:
-	var room: Dictionary = room_by_id(data, room_id)
-	return float(room.get("floor_level_z_m", 0.0)) if not room.is_empty() else 0.0
+## Quien es cada sala, donde esta y en que planta lo contesta `ScenarioQueries`,
+## que es la base de esta capa. Aqui solo quedan las preguntas sobre PAREDES.
 
 
 ## Que pared comparten dos salas, y con que desplazamiento.
@@ -62,10 +46,10 @@ static func room_level_m(data: Dictionary, room_id: int) -> float:
 ## Devuelve el par de paredes con la **menor separacion**, o `{}` si no hay
 ## conexion. Dos salas en plantas distintas nunca comparten pared.
 static func shared_wall_between(data: Dictionary, a_id: int, b_id: int, click_m: Vector2 = NO_CLICK) -> Dictionary:
-	if absf(room_level_m(data, a_id) - room_level_m(data, b_id)) > 0.05:
+	if absf(ScenarioQueries.room_level_m(data, a_id) - ScenarioQueries.room_level_m(data, b_id)) > 0.05:
 		return {}
-	var a: Rect2 = room_rect(data, a_id)
-	var b: Rect2 = room_rect(data, b_id)
+	var a: Rect2 = ScenarioQueries.room_rect(data, a_id)
+	var b: Rect2 = ScenarioQueries.room_rect(data, b_id)
 	var filtra_clic: bool = click_m.x < 1.0e19
 
 	# Las cuatro parejas de paredes enfrentadas. `eje` es el eje por el que se
@@ -113,8 +97,8 @@ static func shared_wall_between(data: Dictionary, a_id: int, b_id: int, click_m:
 ## El tramo de pared que dos salas comparten, como segmento. Vacio si no llegan
 ## a `MIN_SHARED`.
 static func shared_wall_segment(data: Dictionary, room_id: int, other_id: int, wall: String) -> PackedVector2Array:
-	var rect: Rect2 = room_rect(data, room_id)
-	var other: Rect2 = room_rect(data, other_id)
+	var rect: Rect2 = ScenarioQueries.room_rect(data, room_id)
+	var other: Rect2 = ScenarioQueries.room_rect(data, other_id)
 	match wall:
 		"left", "right":
 			var start_y: float = maxf(rect.position.y, other.position.y)
@@ -131,3 +115,109 @@ static func shared_wall_segment(data: Dictionary, room_id: int, other_id: int, w
 			var edge_y: float = rect.position.y if wall == "top" else rect.end.y
 			return PackedVector2Array([Vector2(start_x, edge_y), Vector2(end_x, edge_y)])
 	return PackedVector2Array()
+
+
+## ── Aperturas ───────────────────────────────────────────────────────────────
+##
+## Donde cae una apertura sobre su pared, cuanto puede medir y a que planta
+## pertenece. Todo sale del escenario y de la geometria; nada de esto necesita
+## saber que hay seleccionado ni como se esta mirando el plano.
+
+const StairPlanRules = preload("res://editor/StairPlanRules.gd")
+const StairGeometry = preload("res://view/geometry/StairGeometry.gd")
+const PlanGeometry = preload("res://editor/PlanGeometry.gd")
+
+## Id que representa "el exterior" en el campo `b` de una apertura.
+const OUTSIDE_ID: int = -1
+
+static func max_opening_width_for_shared(data: Dictionary, room_id: int, other_id: int, wall: String) -> float:
+	var segment: PackedVector2Array = shared_wall_segment(data, room_id, other_id, wall)
+	if segment.size() != 2:
+		return 0.30
+	return maxf(0.30, segment[0].distance_to(segment[1]) - 0.10)
+
+
+static func opening_segment_m(data: Dictionary, opening: Dictionary) -> PackedVector2Array:
+	var a_id: int = int(opening.get("a", -1))
+	if a_id < 0:
+		return PackedVector2Array()
+	var rect: Rect2 = ScenarioQueries.room_rect(data, a_id)
+	var wall: String = String(opening.get("wall", ""))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	if wall == "":
+		var shared: Dictionary = shared_wall_between(data, a_id, b_id)
+		wall = String(shared.get("wall", "top"))
+	var width: float = float(opening.get("width_m", 0.9))
+	var offset: float = float(opening.get("offset_m", PlanGeometry.wall_length(rect, wall) * 0.5))
+	if bool(opening.get("offset_is_fraction", true)):
+		if b_id != OUTSIDE_ID:
+			var shared_segment: PackedVector2Array = shared_wall_segment(data, a_id, b_id, wall)
+			if shared_segment.size() == 2:
+				return PlanGeometry.line_segment_from_fraction(shared_segment[0], shared_segment[1], offset, width)
+		offset = PlanGeometry.wall_length(rect, wall) * clampf(offset, 0.0, 1.0)
+	return PlanGeometry.wall_segment(rect, wall, offset, width)
+
+
+static func max_width_for_opening(data: Dictionary, opening: Dictionary) -> float:
+	if bool(opening.get("is_vertical", false)):
+		var room_rect: Rect2 = ScenarioQueries.room_rect(data, int(opening.get("a", -1)))
+		return maxf(0.30, room_rect.size.x - 0.10)
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	var wall: String = String(opening.get("wall", ""))
+	if a_id >= 0 and b_id != OUTSIDE_ID and wall != "":
+		return max_opening_width_for_shared(data, a_id, b_id, wall)
+	if a_id >= 0:
+		var rect: Rect2 = ScenarioQueries.room_rect(data, a_id)
+		if wall == "":
+			wall = "top"
+		return maxf(0.30, PlanGeometry.wall_length(rect, wall) - 0.10)
+	return 0.30
+
+
+## Lo mas ancho que puede ser un balcon: la fachada de la que cuelga. Aqui se
+## mide la del paramento de SU sala, que es la que el editor conoce sin salir
+## de la abertura; la vista, que ve el lienzo entero, todavia lo recorta mas si
+## la abertura esta cerca de la esquina.
+static func max_balcony_width_for_opening(data: Dictionary, opening: Dictionary) -> float:
+	var wall_m: float = PlanGeometry.wall_length(
+		ScenarioQueries.room_rect(data, int(opening.get("a", -1))),
+		String(opening.get("wall", "top"))
+	)
+	return maxf(float(opening.get("width_m", 0.9)), wall_m)
+
+
+## Coordenada a lo largo del muro, medida desde su arranque, de un punto del
+## plano. Es lo que espera `offset_m` de una abertura.
+static func wall_offset_for_point(data: Dictionary, room_id: int, wall_name: String, coord_m: float, horizontal: bool) -> float:
+	var rect: Rect2 = ScenarioQueries.room_rect(data, room_id)
+	var wall_data: Dictionary = PlanGeometry.wall_start_dir(rect, wall_name)
+	var start: Vector2 = wall_data["start"]
+	var dir: Vector2 = wall_data["dir"]
+	var point := Vector2(coord_m, start.y) if horizontal else Vector2(start.x, coord_m)
+	return clampf((point - start).dot(dir), 0.0, PlanGeometry.wall_length(rect, wall_name))
+
+
+static func vertical_opening_rect(data: Dictionary, opening: Dictionary) -> Rect2:
+	var a_id: int = int(opening.get("a", -1))
+	var room_rect: Rect2 = ScenarioQueries.room_rect(data, a_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return Rect2()
+	var room: Dictionary = ScenarioQueries.room_by_id(data, a_id)
+	if not room.is_empty() and StairPlanRules.is_stair_room(room):
+		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
+		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
+		return StairGeometry.vertical_void_rect(room_rect, stair_dir, turn_degrees)
+	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
+	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
+	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
+
+
+static func opening_on_level(data: Dictionary, opening: Dictionary, level_m: float) -> bool:
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	if a_id < 0:
+		return false
+	if absf(ScenarioQueries.room_level_m(data, a_id) - level_m) < 0.05:
+		return true
+	return b_id != OUTSIDE_ID and absf(ScenarioQueries.room_level_m(data, b_id) - level_m) < 0.05
