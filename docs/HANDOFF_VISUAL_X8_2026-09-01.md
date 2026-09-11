@@ -13,8 +13,9 @@
 Estado para retomar la línea visual en otra sesión. La línea del motor va aparte
 y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md).
 
-- **Rama**: `main`, árbol limpio salvo dos `.mp4` de grabaciones y unos `.uid`
-  sin seguir de la línea motor.
+- **Rama**: `main`, árbol limpio salvo unos `.uid` sin seguir de la línea motor.
+  (Los dos `.mp4` de grabaciones que había en la raíz se borraron el 2026-09-10;
+  ver §6.)
 - **HEAD**: FP-3 cerrada el 2026-09-03; antes de eso, `202ebada` — *fix(view):
   stop the live rebuild from killing the remote debugger*.
 - **Suite**: `python scripts/check_product.py` → **32/33**. El único fallo es
@@ -263,11 +264,21 @@ No es iluminación. Los dos sospechosos que quedan:
 
 ## 6. Cabos sueltos menores
 
-- **Grabación de las 00:38** (`Grabación 2026-09-01 003800.mp4`, 13 s, visor 3D):
-  se ve una sala en primer plano casi completamente **negra**. No está registrado
-  en la auditoría y no se llegó a preguntar de qué iba. La otra grabación
-  (`001802.mp4`, 63 s) es la que ya se usó para diagnosticar X-4 y X-7.
-- Ninguna de las dos está en git, y son grandes (53 MB y 5 MB).
+- ~~**Grabación de las 00:38**~~ (`Grabación 2026-09-01 003800.mp4`, 13 s, visor
+  3D): se veía una sala en primer plano casi completamente **negra**. No estaba
+  registrado en la auditoría y no se llegó a preguntar de qué iba. La otra
+  grabación (`001802.mp4`, 63 s) es la que ya se usó para diagnosticar X-4 y X-7.
+- **Las dos se borraron el 2026-09-10**, a petición del usuario. Nunca estuvieron
+  en git —eran 53 MB y 5 MB en la raíz del repositorio— y aquí quedan nombradas
+  para que se sepa qué hubo y por qué ya no está.
+
+  Con ello **se pierde el único registro de la sala negra**. Lo más probable es
+  que ya no aplique: X-8 se cerró el **2026-09-05** y resultó ser z-fighting, y
+  el **2026-09-09** se encontró la otra mitad de lo mismo —el entorno del FP
+  tiene `ambient_light_source = 1`, o sea ambiente apagado, así que lo que no
+  recibe sol directo se va a negro, que es exactamente lo que dejaba las
+  fachadas de la calle como recortes—. Las dos causas se arreglaron. Si la sala
+  negra vuelve a aparecer, **hay que grabarla otra vez**: no queda material.
 
 ---
 

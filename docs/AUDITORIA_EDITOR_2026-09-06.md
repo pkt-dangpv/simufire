@@ -16,6 +16,14 @@ Superficie auditada: `scenes/ScenarioEditorScene.tscn` (1921 líneas, 99 control
 interactivos), `editor/ScenarioEditor.gd` (7435 líneas, 377 funciones) y los
 cuatro módulos de apoyo de `editor/`.
 
+> **Nota de vigencia (2026-09-10).** Esta auditoría se escribió el 6 de
+> septiembre y sus §7-§16 cubren las tandas del día 7. Lo que el editor ganó
+> **los días 8, 9 y 10** —3D en vivo, dibujo directo en 3D, catálogo de
+> mobiliario, revisión previa, copia de planta, idiomas, calidad gráfica— no
+> estaba escrito en ninguna parte salvo en los mensajes de commit, y eso era el
+> hallazgo **D-5** de `ESTADO_Y_PLAN_2026-09-09.md`. **Está al día desde el §17**,
+> que es el estado del editor hoy.
+
 ---
 
 ## 1. Resumen
@@ -1052,3 +1060,479 @@ desde seis ángulos antes de tocarlo —árbol de la UI, mandos del panel, geome
 de escaleras, geometría del plano, gestos de ratón y nueve capturas de
 pantalla—. Cinco de los seis cortes de hoy destaparon un fallo real, y ninguno
 lo destapó leyendo el código: lo destapó un `diff`.
+
+---
+
+## 17. D-5 — el editor de hoy, del día 8 al 10 (2026-09-10)
+
+Los §7-§16 acaban el 7 de septiembre, con E-12 y el sexto corte. Desde ahí hubo
+tres días de trabajo y **ninguna línea de documentación**: el hallazgo D-5 de
+`ESTADO_Y_PLAN_2026-09-09.md` lo midió contando menciones en este mismo fichero
+—*3D en vivo* 0, *revisión* 0, *catálogo* 0, *dibujar en 3D* 0, *copia de la
+planta* 0— y por eso «lo que el editor hace hoy no está escrito en ninguna parte
+salvo en los mensajes de commit».
+
+Este capítulo lo arregla. **No repite el porqué de cada decisión**: el relato de
+la tanda del día 10, con las causas de cada fallo, está en
+[EDITOR_Y_ESCALA_2026-09-10.md](EDITOR_Y_ESCALA_2026-09-10.md), y el plan que las
+ordenó, en [ESTADO_Y_PLAN_2026-09-09.md](ESTADO_Y_PLAN_2026-09-09.md). Aquí queda
+**qué hay**, que es lo que se consulta al volver.
+
+### 17.1 Las tres vistas
+
+El editor trabaja en **2D**, **3D** y **primera persona**, y desde el día 8 el 3D
+no es solo para mirar: **se dibuja directamente en él**
+(`validate_editor_draw_in_3d`). Además hay un **3D en vivo** en un panel movible
+y redimensionable, con cámara propia en coordenadas esféricas —arrastrar gira, la
+rueda acerca— y un «Encuadrar» que **calcula** la vista desde la caja de las
+salas de la planta. Reconstruir el plano no reencuadra, a propósito: si lo
+hiciera, cada cambio devolvería la cámara al ángulo de fábrica.
+
+### 17.2 Las catorce herramientas
+
+`enum Tool`: selección, sala, pasillo en L, escalera, puerta, hueco, ventana,
+objeto, ignición, inicio FP, borrar, detector, víctima y **puerta de balcón**
+(balconera, añadida el 10 de septiembre al final del enum para no renumerar el
+resto). Todas con icono, texto entero, tooltip, unidad y tecla.
+
+**Colocada una cosa, la herramienta vuelve a Selección** — y solo si de verdad
+creó algo: se compara la cuenta de elementos antes y después del clic, en un
+único sitio, y vale igual para 2D y para 3D.
+
+### 17.3 Los pasillos
+
+Un arrastre da un tramo recto o en L. **La forma se puede forzar** mientras se
+arrastra: `L` gira, `R` recto, y la previsualización dice cuál va a salir. Antes
+lo decidía a escondidas un umbral sobre el gesto, y una diagonal moderada salía
+recta sin avisar.
+
+Los tramos **se unen solos** (`_open_passages_to_neighbours`) y un tramo pegado a
+un pasillo **adopta su nombre**, así que una U es «Pasillo 3» tres veces. La
+junta entre tramos del mismo pasillo **no se dibuja** como tabique.
+
+**No se funden en una sola sala, y es deliberado**: el motor es un modelo de
+zonas y cada sala es una zona bien mezclada. Un pasillo en L de doce metros como
+una sola zona diría que el humo aparece a la vez en los dos extremos, que es
+justo lo que un pasillo aporta a un incendio. Por eso hay un caso «CFAST:
+Corridor Chain» en el repositorio.
+
+### 17.4 Las aberturas
+
+Se puede **cambiar el tipo** de una abertura ya puesta —era imposible, y el paso
+entre tramos de pasillo nace como hueco—, con dos reglas: en un hueco
+**vertical** no aparece el selector, porque es un hueco de forjado y no admite
+hoja, y una **ventana** solo cabe donde hay fachada. Al pasar a hueco se fuerza
+alféizar 0 y abierto; al pasar a ventana, alféizar 0,90 si no tenía.
+
+**Balcones** (fase 4, solo en el edificio del jugador): casilla y tres medidas en
+la ficha de la abertura, con tope de vuelo y ancho recortado a la fachada
+**durante el arrastre** —la previsualización se pone naranja y lo dice—. Se
+dibuja como una sala: a lo largo del muro el ancho, hacia fuera el vuelo.
+
+### 17.5 El mobiliario
+
+El catálogo pasó de 14 a **38 arquetipos** el día 9 (era D-2: un baño y una
+cocina no se podían amueblar). Cada pieza tiene **vista previa 3D** en un
+`SubViewport` sobre la lista, montada con **el mismo cargador que usa la vista
+3D** —lo que se ve ahí es lo que se va a dibujar—, sus tres medidas debajo y si
+es modelo propio o caja a escala.
+
+> **Trampa del catálogo**: `alto` **no es la altura, es la elevación** sobre el
+> suelo —0 en un sofá, 0,95 en el mueble de baño colgado—. El accesor se llama
+> `elevation_m()`; la altura de verdad la sabe `FurnitureDimensions`, que es
+> quien dibuja.
+
+### 17.6 Las plantas
+
+Crear vacía o **como copia de la actual**, fantasma de la de abajo para alinear,
+y escaleras que encadenan planta a planta por las que el humo sube de verdad.
+Dos datos independientes: **plantas totales** del edificio y **planta actual**.
+La convención de nombres es rasante `R`, y encima `R+1`, `R+2`; se genera en
+`sim/building/FloorNaming.gd` y **solo ahí**, y los escenarios guardados con la
+convención vieja (`PB`, `P1`) se reescriben al cargar.
+
+### 17.7 La cuadrícula y los paneles
+
+- La rueda hace zoom **solo si el puntero no está sobre la interfaz**: un
+  `ScrollContainer` deja de consumir el evento al llegar al final de su
+  recorrido, y el zoom se disparaba al terminar de bajar una lista.
+- **Se arrastra el plano con el botón izquierdo** sobre cuadrícula vacía, además
+  del botón central, que en un portátil no existe.
+- **Regla de escala** abajo a la izquierda: distancia redonda, paso de rejilla y
+  zoom en porcentaje.
+- Panel izquierdo por secciones —PLANTAS · EDIFICIO · ENTORNO · opciones de la
+  herramienta activa · AYUDA Y VISTA— y pestaña LISTA agrupada por tipo, con la
+  cuenta en la cabecera y los objetos sangrados bajo su sala.
+- La pestaña `DIBUJO` se llama **`ESCENARIO`**.
+- **La ficha de la sala se pinta la última** (D-3), por encima de muebles,
+  aperturas, detectores y víctimas. Una sala girada ancla su ficha en el
+  **centro**, no en la esquina del rectángulo sin girar.
+
+### 17.8 Idiomas y configuración
+
+**Traducción nativa de Godot**: el castellano de la escena hace de clave, así que
+las 289 etiquetas y los 103 tooltips de la escena **no se tocaron**. Añadir un
+idioma es añadir `i18n/<código>_strings.json` y una línea en
+`UILocalization.AVAILABLE_LOCALES`.
+
+> **La trampa**: el castellano necesita **su propia tabla, aunque sea la
+> identidad**. Sin ella `TranslationServer` cae al idioma de reserva y el
+> programa arrancaba en castellano y se veía en inglés.
+
+**Calidad gráfica** en tres niveles (sombras, suavizado, escala de render y
+decorado de calle), persistida en `user://simufire.cfg` y guardada al cambiar, no
+al salir. **No cambia la física**: el fuego, el humo y las medidas son los mismos
+en los tres niveles, y el panel lo dice.
+
+### 17.9 El tamaño, otra vez
+
+E-12 dejó el fichero en 6871 líneas el 7 de septiembre. Hoy:
+
+| | líneas |
+|---|---:|
+| `editor/ScenarioEditor.gd` | **8713** |
+| `editor/EditorPropertyPanel.gd` | 708 |
+| `editor/ScenarioSerializer.gd` | 475 |
+| `editor/EditorDraw2D.gd` | 453 |
+| `editor/EditorPreview3D.gd` | 305 |
+| `editor/ObjectLibrary.gd` | 257 |
+| `editor/ScenarioReview.gd` | 227 |
+| `editor/EditorObjectCatalog.gd` | 179 |
+| `editor/PlanGeometry.gd` | 164 |
+| `editor/StairPlanRules.gd` | 138 |
+
+Es **D-1**, y sigue abierto. La forma del problema no es la que sugiere
+«monolito»: son ~408 funciones y 155 variables de estado en **una clase**, no
+funciones largas. Los dos bloques que piden módulo son los que llegaron después
+del corte de E-12 —«3D en vivo» y «objetos/mobiliario»—, y los dos ya tienen la
+cabeza de puente fuera (`EditorPreview3D.gd`, `EditorObjectCatalog.gd`).
+
+### 17.10 La red que lo sostiene
+
+**17 guardarraíles de la suite tocan el editor**, seis de ellos nuevos de los
+días 9 y 10:
+
+| guardarraíl | qué fija |
+|---|---|
+| `validate_editor_scene_complete` | la UI 100 % en escena; falla si un control se cuela por código |
+| `validate_editor_ui_affordances` | 9 reglas de icono, texto, tooltip, unidad y foco |
+| `validate_editor_interaction` | vuelta a Selección, balcón dibujado, ficha de la sala girada, encuadre del 3D en vivo |
+| `validate_corridors` | la U como un pasillo, la unión automática, el tipo de abertura, la forma forzada |
+| `validate_localization` | los dos idiomas, el guardado, las tres calidades, y que los textos de código traduzcan |
+| `validate_object_preview` | las 38 piezas previsualizables y la ficha honesta |
+| `validate_object_catalog` | todo arquetipo se puede colocar; la carga de fuego es creíble |
+| `validate_floor_naming` | `R`, `R+1`, y la reescritura de la convención vieja |
+| `validate_editor_live_3d` · `validate_editor_draw_in_3d` | el panel y el dibujo en 3D |
+| `validate_editor_corridors` · `validate_editor_floor_copy` · `validate_editor_review` | pasillos, copia de planta, revisión previa |
+| `validate_editor_stairs_climbable` | la escalera dibujada se sube en FP |
+| `validate_editor_object_drag` | arrastrar mobiliario |
+| `validate_editor_to_sim_flow` | del editor al motor |
+| `validate_editor_load_error_dialog` | el fichero que no carga lo dice |
+
+Y **seis sondas** que fotografían el editor antes de tocarlo: árbol de la UI,
+mandos del panel, geometría de escaleras, geometría del plano, gestos de ratón y
+capturas de pantalla. Sigue valiendo lo que se aprendió el día 7: cinco de los
+seis cortes de E-12 destaparon un fallo real, y **ninguno lo destapó leyendo el
+código; lo destapó un `diff`**.
+
+### 17.11 Lo que queda del editor
+
+- **D-1**, el tamaño: sacar «3D en vivo» y «objetos» a sus módulos.
+- **D-6**, las sondas de captura no pasan por el camino real
+  (`capture_editor_plan.gd` no llama a `_sync_floor_controls()`, y las fotos
+  salen con «Salas: 0» habiendo tres). Arrastra la fiabilidad de
+  `probe_editor_3d_cost`, que da 8 ms de dispersión entre pasadas de la misma
+  configuración.
+- **La tabla de inglés a medias**: de los **165 literales `tr()` únicos** de
+  `editor/ScenarioEditor.gd`, **127 no tienen entrada** en
+  `i18n/en_strings.json` (que trae 233). No rompe nada —lo que falta cae al
+  castellano, que es el original— y es rellenar tabla, no tocar código. Igual
+  con los tooltips largos y las descripciones de escenarios.
+
+**D-5 queda cerrado con este capítulo.**
+
+---
+
+## 18. D-6 — las sondas, por el camino real (2026-09-10)
+
+El hallazgo, tal como se midió el 6 de septiembre: `capture_editor_plan.gd`
+monta el escenario inyectando `editor_data` a mano —que es lo correcto para
+fotografiar un arrastre sin ratón— pero **no pasa por `_sync_floor_controls()`**,
+así que todas sus fotos salían con `Salas: 0` habiendo tres salas dibujadas, y
+con el mensaje de estado de otra acción mientras se arrastraba una sala.
+
+Y la frase que lo justificaba: **una sonda que miente en un detalle obliga a
+verificar todo lo que enseña**, que es justo lo contrario de para lo que está.
+
+### 18.1 No era una sonda: eran veintiuna
+
+Al ir a añadir la llamada que faltaba apareció el tamaño real: **21 herramientas
+de `tools/` asignaban `editor_data` a mano**, 34 veces entre todas, y cada una
+reproducía el trozo del camino real que recordó quien la escribió. Una añadía la
+planta, otra limpiaba la selección, otra ninguna de las dos.
+
+### 18.2 Y dentro del editor la secuencia estaba tres veces
+
+Lo que destapó el corte, que es lo de siempre en este fichero: adoptar un
+escenario estaba escrito **tres veces** —cargar por ruta, cargar de la lista y
+aplicar una instantánea del historial— y las tres copias habían divergido.
+
+| paso | cargar por ruta | cargar de la lista | instantánea |
+|---|:--:|:--:|:--:|
+| bloquear la pose visual de los objetos | sí | sí | **no** |
+| vaciar el historial | sí | **no** | n/a |
+| normalizar plantas y clamp de la actual | sí | sí | sí |
+| sincronizar el tiempo de parada | sí | sí | **no** |
+| `_sync_floor_controls()` | sí | sí | sí |
+| ventilación (HVAC) | sí | sí | sí |
+| **casilla de luces** | sí | **no** | sí |
+| tipo de edificio | sí | sí | sí |
+| limpiar selección | sí | sí | sí |
+| **cancelar el gesto y la puerta pendiente** | **no** | **no** | sí |
+
+Cada hueco de esa tabla es un fallo que estaba puesto y esperando:
+
+- **Cargar un escenario desde la lista dejaba la casilla de luces con el valor
+  del escenario anterior**, y el dato ya decía otra cosa.
+- **Y no vaciaba el historial**: un `Ctrl+Z` después de cargar se metía en el
+  escenario de antes.
+- **Ninguna de las dos cargas cancelaba el arrastre en curso** ni la puerta
+  pendiente: cargar a mitad de un gesto dejaba el gesto vivo, con índices de
+  unos datos que ya no existían.
+
+### 18.3 La forma del arreglo
+
+Un solo sitio: **`ScenarioEditor.adopt_scenario_data(datos, planta)`**, que hace
+la unión de las tres columnas. Los tres caminos del editor la llaman y las 21
+herramientas también, así que **el camino de la sonda es el camino real** en vez
+de una copia suya que se queda atrás a la primera.
+
+Lo que **no** entra dentro es vaciar el historial, y es la única excepción con
+motivo: deshacer y rehacer llaman a esta función, y si vaciara el historial se
+borrarían a sí mismos. Eso se queda en quien carga.
+
+Es pública a propósito. Un guardarraíl que solo mira código no impide que la
+siguiente herramienta vuelva a inyectar el diccionario; lo impide que haya un
+sitio evidente al que llamar.
+
+### 18.4 El guardarraíl
+
+`tools/validate_probe_paths.gd`, en la suite. Tres reglas estáticas —que la
+función exista, que el editor la llame al menos tres veces, y que **ninguna**
+herramienta sustituya el diccionario entero— y una de comportamiento, que es la
+que importa: monta el editor, adopta un piso de tres salas y **comprueba que el
+contador dice «Salas: 3»**, y que en la planta alta vacía dice «Salas: 0».
+
+Quedan fuera a propósito dos cosas que no son adoptar un escenario: **leer**
+`editor_data` (así comprueba su resultado media suite) y **tocar una clave**
+(`editor_data["rooms_data"] = …`), que es modificar un escenario ya adoptado.
+
+Probado con cuatro mutaciones, las cuatro cazadas:
+
+| mutación | qué dijo |
+|---|---|
+| una herramienta vuelve a inyectar el diccionario | `validate_editor_live_3d.gd:43 asigna editor_data a mano` |
+| `_undo_stack.clear()` dentro de la función común | `vacía el historial: deshacer y rehacer la llaman` |
+| un camino del editor se descuelga | `solo 2 llamadas: se esperan al menos 3` |
+| la propia sonda monta el escenario a mano | **`el contador de la planta dice «… Salas: 0.» con 3 salas dibujadas`** |
+
+La última es el síntoma original de D-6, reproducido letra por letra.
+
+### 18.5 La otra mitad: la sonda que medía mal
+
+`probe_editor_3d_cost.gd` daba **la media de 12 pasadas** y de ahí sacaba un
+veredicto tajante: «cabe / no cabe en un fotograma». La corrección del 9 de
+septiembre ya la había pillado —cuatro pasadas sobre la misma configuración
+dieron 17,5 · 21,9 · 23,6 · 25,4 ms, y esa misma mañana 13,5: **casi 8 ms de
+dispersión, más que el efecto que se pretendía medir**— y por eso D-4 se rebajó
+de hallazgo medido a sospecha fundada.
+
+Dos cosas estaban mal, y son distintas:
+
+1. **La media no aguanta esa distribución.** Un parón del recolector mete una
+   muestra de 60 ms y arrastra la media entera; la mediana no se entera. Ahora
+   reporta **mediana con banda p10-p90**, sobre 24 muestras y tirando 3 de
+   calentamiento.
+2. **El veredicto no puede ser más preciso que la medida.** Ahora solo se da si
+   **toda la banda** cae del mismo lado del fotograma. Si la banda cruza los
+   16,7 ms, la sonda lo dice —*«ESTA MEDIDA NO DECIDE»*— en vez de inventarse un
+   lado. Y en las tablas comparativas, una diferencia cuyas bandas se solapan se
+   marca **«dentro del ruido»** en lugar de leerse como un efecto.
+
+### 18.6 Lo que dijo en cuanto dejó de mentir
+
+Primera pasada con la sonda arreglada, piso de referencia (5 salas, 7 aperturas,
+10 objetos):
+
+```
+rehacer la vista 3D: primera 18.6 ms, mediana 20.1 ms (p10-p90 18.0-21.9, n=24)
+-> no cabe en un fotograma, pero sí en una pausa corta
+```
+
+La banda entera está **por encima** de los 16,7 ms, así que ese veredicto sí se
+sostiene — y es el contrario del que se dio en julio con una sola pasada de
+13,5 ms.
+
+Tres cosas más, que la sonda rota escondía:
+
+- **Las aperturas no cuestan nada medible.** Con 4 salas fijas: 0 aperturas
+  8,4 ms · 3 aperturas 9,1 ms · 6 aperturas 8,9 ms, todas **dentro del ruido**.
+  Lo que cuesta es el mobiliario: de 0 a 6 objetos por sala, de 7,9 a 20,1 ms.
+- **El coste por salas sí es real**, y ahí las bandas no se solapan: 1 sala
+  3,1 ms · 2 salas 4,4 · 4 salas 7,5 · 8 salas 15,4 · 16 salas 26,1.
+- **Y una que contradice lo que este mismo documento daba por bueno**: apagar
+  los muebles para seguir al ratón **no ahorra nada medible**. Rehacer sin
+  muebles da 19,1 ms (p10-p90 17,6-20,5) y rehacer entero 22,5 (20,0-25,4): las
+  bandas se solapan. El camino que sí ahorra es el otro, **recolocar sin
+  rehacer: 5,6 ms** (5,2-5,9), cuatro veces menos y sin solape. Queda anotado,
+  no arreglado: es del visor, y a quién sigue el ratón se decide aparte.
+
+**D-6 queda cerrado.**
+
+---
+
+## 19. D-1 — cuatro cortes, y una corrección a esta auditoría (2026-09-10)
+
+D-1 decía: *sacar «3D en vivo» y «objetos» a sus módulos*. Lo primero ya estaba
+hecho —`EditorPreview3D.gd` salió en la tanda del día 10— y lo segundo resultó
+no ser lo que convenía cortar. Antes de tocar nada se midió, y la medida
+contradice lo que esta auditoría dio por bueno.
+
+### 19.1 Lo que dijo la medida
+
+Para cada bloque de funciones se contó cuántos **miembros del editor ajenos al
+bloque** usa —que es exactamente lo que habría que pasarle o pedirle si viviera
+en otro fichero— y cuántas funciones de fuera lo llaman:
+
+| bloque | func | líneas | mira hacia fuera a | lo llaman |
+|---|---:|---:|---:|---:|
+| **vista 3D** | 35 | 589 | **80** | 14 |
+| objetos | 38 | 633 | 51 | 29 |
+| aperturas | 30 | 834 | 48 | 29 |
+| plantas | 35 | 697 | 45 | 57 |
+| detectores/víctimas | 27 | 404 | 31 | 14 |
+| escaleras | 23 | 365 | 24 | 11 |
+| **pasillos** | 16 | 461 | **24** | 8 |
+| catálogo/arrastre | 7 | 117 | 16 | 3 |
+| cámara/rejilla | 5 | 81 | 6 | 3 |
+
+**La «vista 3D» es el bloque peor acoplado del fichero**, no un módulo esperando
+a salir: mira hacia fuera a 80 miembros del editor. Sacarla produciría un fichero
+que llama al editor en cada línea, que es más difícil de leer que dejarla donde
+está. Y **los pasillos son el bloque grande más limpio**: 461 líneas y solo 24
+miembros hacia fuera.
+
+Esto no invalida D-1 —el fichero sigue siendo demasiado ancho— pero sí cambia por
+dónde se corta. La lección se parece a la de D-4: **una intuición sobre el
+código, sin medir, apunta al bloque equivocado.**
+
+Y hay un corte que la tabla dice que **no** merece la pena: el arrastre del
+catálogo, 117 líneas y 7 funciones, es demasiado poco para un fichero propio.
+
+### 19.2 Corte 1 — los tiradores de una caja girada
+
+`editor/EditorHandles.gd`, 65 líneas. No había función larga que partir: había
+**el mismo concepto escrito dos veces**, en tres niveles a la vez.
+
+| | sala | objeto |
+|---|---|---|
+| dónde están | `_room_handle_points_m` | `_object_handle_points_m` |
+| cuál pinchó el ratón | `_find_selected_room_handle_at` | `_find_selected_object_handle_at` |
+| cómo se dibujan | `_room_handles_view` | `_object_handles_view` |
+
+Las seis hacían lo mismo y solo cambiaban de dónde salían el centro, el tamaño y
+el ángulo. **Una sala es una caja girada y un objeto también**: ésa es la
+pregunta que las copias evitaban.
+
+El módulo devuelve los puntos en un orden fijo —ancho, fondo, giro— y el editor
+traduce ese orden a su `enum ObjectMouseMode` **en un solo sitio**,
+`HANDLE_MODES`. Traerse el enum al módulo habría sido la copia que se acababa de
+quitar.
+
+Verificado comparando con la fórmula vieja escrita a mano sobre **162 cajas**
+—tres centros × tres anchos × tres fondos × seis ángulos— con 1 µm de tolerancia,
+más los casos degenerados: caja de ancho cero, lista vacía y un clic lejos de
+todo. Idénticos.
+
+Y de paso quedó arreglada una asimetría: la guarda de «caja sin medidas» estaba
+solo en el lado de las salas, así que un objeto de tamaño cero ofrecía tres
+tiradores encima del mismo punto.
+
+### 19.3 Corte 2 — la geometría del pasillo
+
+`editor/CorridorLayout.gd`, 253 líneas; el bloque de pasillos del editor pasa de
+**461 a 243** líneas. Estático y puro, como `PlanGeometry` y `StairPlanRules`:
+no conoce `editor_data`, ni la planta actual, ni la selección.
+
+La frontera está en un sitio concreto y con nombre: las tres reglas que miran «lo
+que ya hay» —el codo, el hueco y el recorte— reciben **los rectángulos ya
+filtrados por planta**, que el editor reúne en `_corridor_obstacles()`. Eso es lo
+que las vuelve comprobables de una en una, que es justo lo que un pasillo en L
+necesitaba: sus reglas se pisan entre sí y a ojo no se distinguen.
+
+De paso, `layout()` escribía cinco veces las mismas cuatro cuentas para «un tramo
+recto por el eje que mande»; ahora es `_straight()`, una vez. `_build_corridor_layout`
+era la tercera función más larga del fichero (102 líneas) y ya no está en él.
+
+**Una bandera que nadie lee es adorno que no se puede comprobar**: al mover el
+código añadí un `l_did_not_fit` para avisar de que la L pedida no cabía, y resultó
+que el editor ya se enteraba comparando el modo que pidió con el que recibe
+(`_corridor_forced_mode == "l" and mode != "l"`). La bandera se quitó.
+
+### 19.4 Corte 3 — los marcadores de sala
+
+`editor/RoomMarkers.gd`, 68 líneas; el bloque de detectores y víctimas pasa de
+**404 a 287** líneas y de 27 funciones a 21.
+
+Otro caso de dos copias, y de las descaradas: `_move_detector_to` y
+`_move_victim_to` eran **idénticas letra por letra** salvo el nombre de la lista.
+`_detector_index_for_id` / `_victim_index_for_id`, iguales salvo la clave.
+`_find_detector_at` / `_find_victim_at`, iguales salvo la clave y el radio.
+
+Un detector y una víctima son la misma forma de dato —`{id, room_id, x_m, y_m}`,
+con la posición **local a su sala**— y por eso el código salía igual las dos
+veces. Lo que cambia entre ellos es lo que se ve y lo que significan, no cómo se
+buscan.
+
+Lo que **no** se unificó, a propósito: la selección. `selected_detector_index` y
+`selected_victim_index` son estados distintos porque se pueden seleccionar cosas
+distintas, y meterlos en uno sería inventar una regla que el editor no tiene.
+
+**Un cambio de comportamiento, pequeño y a la vista**: las salas de la planta se
+reúnen ahora una vez, en `_room_origins_on_floor()`, y ese filtro descarta las
+que no tienen rectángulo. La búsqueda ya lo hacía; **el dibujo no**, así que un
+marcador de una sala sin rectángulo se pintaba en el origen del plano —una chincheta
+fantasma en la esquina— y ahora no se pinta. Es lo que ya hacía la mitad que sí
+comprobaba, y es la asimetría que las copias escondían.
+
+### 19.5 Corte 4 — lo que quedaba de geometría del objeto
+
+`world_to_object_local()` y `object_has_point()` se van a `PlanGeometry`, que es
+donde ya vivía el resto de la geometría del objeto. El margen de acierto viaja
+como argumento porque **depende del zoom**: pinchar una silla a 20 px/m y a 200
+no es lo mismo, y eso es del editor, no de la geometría.
+
+### 19.6 El precio, y lo que queda
+
+| | antes | ahora |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 8739 líneas | **8471** |
+| funciones en esa clase | 437 | 435 |
+| funciones de más de 60 líneas | 16 | 15 |
+| módulos de `editor/` | 12 | **15** |
+
+**268 líneas fuera y cuatro conceptos duplicados menos.** El número de funciones
+apenas se mueve, y conviene decirlo claro: **estos cortes son de duplicación, no
+de anchura**. D-1 —437 funciones y 144 variables de estado en una clase— sigue
+abierto, y para cerrarlo hacen falta más cortes de los que caben en una tanda.
+
+La tabla del §19.1 dice por dónde seguir, y no es donde se pensaba:
+
+1. **Escaleras** (23 funciones, 365 líneas, 24 hacia fuera): ya tienen casa,
+   `StairPlanRules.gd`.
+2. **Detectores y víctimas**, lo que queda (21 funciones, 287 líneas): crear,
+   borrar y aplicar propiedades, que necesitan deshacer y línea de estado.
+3. **Aperturas** (30 funciones, 834 líneas): el bloque más grande que queda, con
+   48 miembros hacia fuera; hay que partirlo antes en geometría y en mando.
+4. **La vista 3D no**, mientras siga en 78 miembros hacia fuera. Lo que ahí hace
+   falta no es mudarla de fichero, es adelgazar lo que le pide al editor.

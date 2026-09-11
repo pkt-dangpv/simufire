@@ -6,7 +6,10 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 - [COMMANDS.md](COMMANDS.md): comandos oficiales de producto, validación y ejecución.
 - [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md): estado actual para continuar desde otra máquina o sesión.
-- [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md): estado de la línea visual para retomar; X-8 abierto y bisección pendiente.
+- [ESTADO_2026-09-10.md](ESTADO_2026-09-10.md): **punto de retomada vigente** de la línea visual y del editor (fases, pendientes, decisiones y trampas).
+- [ESTADO_Y_PLAN_2026-09-09.md](ESTADO_Y_PLAN_2026-09-09.md): plan por fases con el porqué de cada tarea, marcado a medida que se cierran.
+- [EDITOR_Y_ESCALA_2026-09-10.md](EDITOR_Y_ESCALA_2026-09-10.md): la tanda del editor y la escala en primera persona, con la causa de cada fallo.
+- [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md): registro de método de la línea visual; **X-8 se cerró el 2026-09-05** (z-fighting) y la bisección no llegó a hacer falta.
 - [LOCAL_WORKSPACE.md](LOCAL_WORKSPACE.md): artefactos locales ignorados y limpieza segura.
 - [RUN_WITHOUT_ARTIFACTS.md](RUN_WITHOUT_ARTIFACTS.md): cómo ejecutar checks y escenarios sin ensuciar la raíz.
 - [ARTIFACT_POLICY.md](ARTIFACT_POLICY.md): política de artefactos, baselines y salidas locales.
@@ -50,8 +53,16 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [audits/CREDIBILITY_REPORT.md](audits/CREDIBILITY_REPORT.md): informe de credibilidad.
 - [audits/PRODUCT_EDITOR_FP_3D_AUDIT.md](audits/PRODUCT_EDITOR_FP_3D_AUDIT.md): auditoría producto/editor/first-person/3D.
 - [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md): auditoría gráfica completa (humo en vanos, fachada propia, rellano y entradas).
-- [AUDITORIA_EDITOR_2026-09-06.md](AUDITORIA_EDITOR_2026-09-06.md): auditoría del editor de escenarios (descubribilidad, acabado y funciones que faltan), medida sobre la escena y el script.
+- [AUDITORIA_CODIGO_2026-09-11.md](AUDITORIA_CODIGO_2026-09-11.md): auditoría del código visual y de UI (estilo, código muerto y funciones duplicadas entre las vistas), medida con dos comprobadores; incluye el guardarraíl que aprobaba sin haber mirado.
+- [AUDITORIA_EDITOR_2026-09-06.md](AUDITORIA_EDITOR_2026-09-06.md): auditoría del editor de escenarios (descubribilidad, acabado y funciones que faltan), medida sobre la escena y el script. **El §17 es el estado del editor al 2026-09-10.**
 - [audit_issues/INDEX.md](audit_issues/INDEX.md): índice de issues técnicos derivados de auditorías.
+
+## Encargos a la línea del motor
+
+- [PROMPT_MOTOR_VIENTO_ALTURA.md](PROMPT_MOTOR_VIENTO_ALTURA.md): corrección de la velocidad del viento por la altura de la abertura (N-5, parte motor).
+- [PROMPT_MOTOR_PATIO.md](PROMPT_MOTOR_PATIO.md): patios interiores (N-2, fase 5).
+- [PROMPT_MOTOR_GRAFICAS.md](PROMPT_MOTOR_GRAFICAS.md): gráficas asíncronas y su supresión al salir.
+- [PROMPT_MOTOR_HRR_RESIDUAL.md](PROMPT_MOTOR_HRR_RESIDUAL.md): `hrr_kw` residual en objetos tras la extinción.
 
 ## Roadmaps y Planificación
 

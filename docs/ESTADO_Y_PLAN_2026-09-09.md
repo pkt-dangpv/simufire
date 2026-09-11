@@ -989,10 +989,43 @@ tarde, porque el motor trabaja en paralelo y es el camino largo.
 - **N-2**. La más cara, y la que más depende del motor. El prompt se escribe en
   la fase 0; la integración cae aquí.
 
-### Fase 6 — la deuda que queda
-- **D-1** (sacar «3D en vivo» y «objetos» a sus módulos), **D-3** (la ficha de la
-  sala bajo los muebles), **D-4** (margen del 3D en vivo), **D-5** (documentación
-  del editor), **D-6** (sondas), **G-5** (la magnitud del fuego).
+### Fase 6 — la deuda que queda — 🟠 A MEDIAS (2026-09-10)
+- ✅ **G-5** — la llama mide lo que dice el HUD. Medido con
+  `tools/probe_fp_fire_scale.gd` sobre la malla construida, no sobre la fórmula.
+- ✅ **D-3** — la ficha de la sala ya no la tapan los muebles: sale en una pasada
+  propia, `room_labels()`, la última de todas.
+- ✅ **D-4** — el 3D en vivo ya no se sale del fotograma. Lo arregló de rebote el
+  encuadre calculado, y se midió proyectando las ocho esquinas de la caja del
+  edificio: con 16 salas, de **1/8** esquinas dentro a **8/8**.
+- ✅ **D-5** — la documentación del editor, al día en el **§17** de
+  `AUDITORIA_EDITOR_2026-09-06.md`: las tres vistas, las catorce herramientas,
+  los pasillos, las aberturas, el mobiliario, las plantas, los idiomas, el
+  tamaño y los 17 guardarraíles.
+- ✅ **D-1, en lo que el plan pedía**: los dos bloques que esta fase nombraba
+  —«3D en vivo» y «objetos»— ya están fuera (`EditorPreview3D.gd`,
+  `EditorObjectCatalog.gd`, y la geometría del objeto en `PlanGeometry`). Lo que
+  queda de D-1 es el enunciado general «el fichero es ancho», que no tiene línea
+  de meta: **queda como deuda permanente, con el mapa de por dónde seguir
+  medido** en el §19.1 de `AUDITORIA_EDITOR_2026-09-06.md`.
+- 🟠 **D-1, la deuda que sigue**. **Cuatro cortes el 2026-09-10**: los tiradores de una
+  caja girada (`EditorHandles.gd`), la geometría del pasillo
+  (`CorridorLayout.gd`), los marcadores de sala (`RoomMarkers.gd`) y lo que
+  quedaba de geometría del objeto, a `PlanGeometry`. De **8739 a 8471 líneas** y
+  cuatro conceptos duplicados menos. **Sigue abierto**: son cortes de
+  duplicación, no de anchura, y quedan 435 funciones en una clase. Midiendo el
+  acoplamiento apareció una corrección a la auditoría: **la «vista 3D» es el
+  bloque PEOR acoplado del fichero** (78 miembros hacia fuera), no un módulo
+  esperando a salir. Detalle y por dónde seguir, en el §19 de
+  `AUDITORIA_EDITOR_2026-09-06.md`.
+- ✅ **D-6** — las sondas pasan por el camino real. No era una sonda a la que le
+  faltaba una llamada: eran **21 herramientas** inyectando `editor_data` a mano
+  y, dentro del editor, **la misma secuencia escrita tres veces y divergida**
+  —cargar de la lista no sincronizaba la casilla de luces ni vaciaba el
+  historial, y ninguna de las dos cargas cancelaba el gesto en curso—. Ahora hay
+  un solo sitio, `adopt_scenario_data()`, y un guardarraíl que lo fija
+  (`validate_probe_paths.gd`, 4 mutaciones cazadas). Y `probe_editor_3d_cost`
+  pasa de dar una media con veredicto tajante a dar **mediana con banda p10-p90**
+  y a **no decidir** cuando la banda cruza el fotograma. §18.
 
 ---
 
