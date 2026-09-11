@@ -73,7 +73,6 @@ def test_mutation_overlay_uses_current_contract_and_explicit_evidence_mode():
     ).read_text(encoding="utf-8")
 
     assert "len(checks) != 530" not in runner_source
-    assert "validator.main([], verify_gap_evidence=False)" in runner_source
     assert "verify_gap_evidence: bool = True" in validator_source
     assert (
         "_apply_gap_dispositions(\n"
@@ -84,6 +83,95 @@ def test_mutation_overlay_uses_current_contract_and_explicit_evidence_mode():
         'source_tree_oid = _git_output("rev-parse", f"{source_commit}^{{tree}}")'
         in runner_source
     )
+
+
+@pytest.fixture
+def overlay_evaluation(tmp_path, monkeypatch):
+    runner = _load_mutation_runner()
+    validator = _load_validator()
+    reports = tmp_path / "canonical"
+    reports.mkdir()
+    report = reports / "case.json"
+    report.write_text('{"actual": 2.0}', encoding="utf-8")
+    validator.REPORTS_DIR = reports
+    evidence = validator._artifact_record(report)
+    check = validator.Check("gap", 2.0, maximum=1.0, required=False)
+    validator._GAP_DISPOSITIONS = {"gap": {"disposition": "VERIFIED_MODEL_LIMITATION"}}
+    validator._GAP_DISPOSITION_EVIDENCE = {
+        "gap": {**check.to_dict(), "source_artifacts": [evidence]}
+    }
+
+    def evaluate(argv, *, verify_gap_evidence=True):
+        path = validator.REPORTS_DIR / "case.json"
+        actual = json.loads(path.read_text(encoding="utf-8"))["actual"]
+        check = validator.Check(
+            "gap", actual, maximum=1.0, required=False,
+            provenance={"artifacts": [validator._artifact_record(path)]},
+        )
+        validator._apply_gap_dispositions([check], verify_evidence=verify_gap_evidence)
+        (validator.REPORTS_DIR / "reference_checks.json").write_text(
+            json.dumps({"checks": [check.to_dict()]}), encoding="utf-8"
+        )
+        return 0
+
+    validator.main = evaluate
+    monkeypatch.setattr(runner, "REPORTS_DIR", reports)
+    monkeypatch.setattr(runner, "_load_module", lambda *args: validator)
+    overlay = tmp_path / "campaign" / "controls" / "case"
+    overlay.mkdir(parents=True)
+    (overlay / "case.json").write_bytes(report.read_bytes())
+    return runner, overlay, evidence
+
+
+def test_control_overlay_accepts_identical_bytes_at_temporary_path(overlay_evaluation):
+    runner, overlay, evidence = overlay_evaluation
+    checks = runner._evaluate_with_overlay(overlay, "case", 1)
+    assert checks["gap"]["provenance"]["artifacts"] == [evidence]
+
+
+@pytest.mark.parametrize(
+    ("payload", "reason"),
+    [
+        ('{"actual": 3.0}', "stale gap evidence"),
+        ('{ "actual": 2.0 }', "stale gap source artifacts"),
+        ('{"actual": 0.5}', "no longer a failing non-gating check"),
+    ],
+)
+def test_control_overlay_rejects_stale_or_passing_gap(overlay_evaluation, payload, reason):
+    runner, overlay, _ = overlay_evaluation
+    (overlay / "case.json").write_text(payload, encoding="utf-8")
+    with pytest.raises(ValueError, match=reason):
+        runner._evaluate_with_overlay(overlay, "case", 1)
+
+
+def test_mutant_evaluation_limits_bypass_to_mutated_side(tmp_path, monkeypatch):
+    runner = _load_mutation_runner()
+    calls = []
+    monkeypatch.setattr(runner, "MUTATION_MANIFEST", {"test": {"case": "case", "checks": ["check"]}})
+
+    def evaluate(path, case, count, **kwargs):
+        mutated = kwargs.get("mutated", False)
+        calls.append((path.name, mutated))
+        return {"check": {"actual": 0 if mutated else 1, "pass": not mutated}}
+
+    monkeypatch.setattr(runner, "_evaluate_with_overlay", evaluate)
+    result = runner._evaluate_mutant(
+        "test", tmp_path / "control", tmp_path / "mutant", [], {"check": {"required": True}}
+    )
+    assert calls == [("control", False), ("mutant", True)]
+    assert result["killed"] is True
+    assert result["negative_control_pass"] is True
+
+
+@pytest.mark.parametrize("actual", [3.0, 0.5])
+def test_explicit_mutant_overlay_allows_changed_optional_gap(overlay_evaluation, actual):
+    runner, overlay, _ = overlay_evaluation
+    (overlay / "case.json").write_text(json.dumps({"actual": actual}), encoding="utf-8")
+    checks = runner._evaluate_with_overlay(overlay, "case", 1, mutated=True)
+    assert checks["gap"]["actual"] == actual
+    assert checks["gap"]["required"] is False
+    assert checks["gap"]["pass"] is (actual <= 1.0)
+    assert ("disposition" in checks["gap"]) is (actual > 1.0)
 
 
 def test_gap_evidence_bypass_is_explicit_and_canonical_mode_stays_strict(

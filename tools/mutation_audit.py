@@ -689,7 +689,7 @@ def _record_existing(case_name: str, destination: Path, mutant_id: str | None = 
 
 
 def _evaluate_with_overlay(
-    overlay: Path, case_name: str, expected_check_count: int
+    overlay: Path, case_name: str, expected_check_count: int, *, mutated: bool = False
 ) -> dict[str, dict[str, Any]]:
     evaluation_root = overlay.parents[1] / "evaluations"
     evaluation_root.mkdir(parents=True, exist_ok=True)
@@ -706,10 +706,24 @@ def _evaluate_with_overlay(
         validator = _load_module(VALIDATOR_PATH, module_name)
         validator.REPORTS_DIR = evaluation_dir
         validator._ARTIFACT_CACHE.clear()
+        artifact_record = validator._artifact_record
+
+        def relocated_artifact_record(path: Path) -> dict[str, Any]:
+            record = artifact_record(path)
+            # Preserve report identity after copying, but hash the evaluated bytes.
+            if path.resolve().parent == evaluation_dir.resolve():
+                record["path"] = validator._display_path(
+                    (REPORTS_DIR / path.name).resolve()
+                ).as_posix()
+            return record
+
+        validator._artifact_record = relocated_artifact_record
         output = io.StringIO()
-        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-            exit_code = validator.main([], verify_gap_evidence=False)
-        sys.modules.pop(module_name, None)
+        try:
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+                exit_code = validator.main([], verify_gap_evidence=not mutated)
+        finally:
+            sys.modules.pop(module_name, None)
         if exit_code not in (0, 1):
             raise RuntimeError(f"reference evaluator exited {exit_code}: {output.getvalue()}")
         aggregate_path = evaluation_dir / "reference_checks.json"
@@ -735,7 +749,7 @@ def _evaluate_mutant(mutant_id: str, control_dir: Path, mutant_dir: Path, run_re
         raise RuntimeError(f"{mutant_id}: duplicate names in mutation manifest")
     expected_check_count = len(canonical)
     control = _evaluate_with_overlay(control_dir, case_name, expected_check_count)
-    mutated = _evaluate_with_overlay(mutant_dir, case_name, expected_check_count)
+    mutated = _evaluate_with_overlay(mutant_dir, case_name, expected_check_count, mutated=True)
     missing = [name for name in expected_names if name not in control or name not in mutated]
     if missing:
         raise RuntimeError(f"{mutant_id}: missing checks: {missing}")
