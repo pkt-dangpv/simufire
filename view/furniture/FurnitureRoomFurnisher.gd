@@ -27,6 +27,31 @@ const MIN_ROOM_AREA_M2: float = 2.0
 const NARROW_HALLWAY_M: float = 1.30
 
 
+## Semilla estable de una sala, para que dos viviendas distintas no salgan
+## amuebladas igual.
+##
+## El defecto que arregla, medido el 2026-09-11: el atrezo se elegia por el TIPO
+## de sala y su area, nada mas. Resultado: **seis de los siete pisos del catalogo
+## tenian exactamente las mismas siete piezas en el salon** -sofa, mueble de TV,
+## mesa de centro, alfombra, sillon, libreria y planta-. Siete viviendas
+## distintas se veian por dentro como la misma.
+##
+## La semilla sale del NOMBRE de la sala y de sus medidas, que son lo unico
+## especifico de cada escenario que llega hasta aqui -el `room_id` no vale: la
+## sala 0 es el salon en todos los pisos-. Es **determinista**: el mismo
+## escenario da siempre el mismo mobiliario, que es lo que necesitan las
+## capturas y los guardarrailes.
+static func _variant(room_name: String, w: float, d: float, opciones: int) -> int:
+	if opciones <= 1:
+		return 0
+	var h: int = 5381
+	for c in room_name.strip_edges().to_lower():
+		h = (h * 33 + c.unicode_at(0)) % 2147483647
+	h = (h * 33 + int(round(w * 100.0))) % 2147483647
+	h = (h * 33 + int(round(d * 100.0))) % 2147483647
+	return h % opciones
+
+
 ## Devuelve las fichas de atrezo de una sala, o vacio si no le toca ninguna.
 static func furnish(room_id: int, room_name: String, room_kind: String, room_size: Vector2) -> Array:
 	var w: float = maxf(0.1, room_size.x)
@@ -51,7 +76,7 @@ static func furnish(room_id: int, room_name: String, room_kind: String, room_siz
 
 	match kind:
 		"salon":
-			return _living(room_id, w, d)
+			return _living(room_id, room_name, w, d)
 		"dormitorio":
 			return _bedroom(room_id, w, d)
 		"cocina":
@@ -66,7 +91,10 @@ static func furnish(room_id: int, room_name: String, room_kind: String, room_siz
 			return []
 
 
-static func _living(room_id: int, w: float, d: float) -> Array:
+## El salon. Sofa, television, mesa de centro y alfombra van SIEMPRE: son lo que
+## hace que una sala se lea como un salon. Lo que varia de una vivienda a otra es
+## el relleno, que es lo que distingue un salon de otro sin inventarse nada.
+static func _living(room_id: int, room_name: String, w: float, d: float) -> Array:
 	var area: float = w * d
 	var pieces: Array = []
 	pieces.append(_piece(room_id, "sofa", "Sofa", Vector2(clampf(w * 0.5, 1.60, 3.20), 0.90), Vector2(w * 0.5, 0.45)))
@@ -74,11 +102,34 @@ static func _living(room_id: int, w: float, d: float) -> Array:
 	pieces.append(_piece(room_id, "coffee_table", "Mesa de centro", Vector2(clampf(w * 0.25, 0.80, 1.40), 0.60), Vector2(w * 0.5, d * 0.5)))
 	pieces.append(_floor_piece(room_id, "rug", "Alfombra", Vector2(clampf(w * 0.55, 1.20, 3.20), clampf(d * 0.40, 0.90, 2.20)), Vector2(w * 0.5, d * 0.52)))
 	if area >= 14.0:
-		pieces.append(_piece(room_id, "armchair", "Sillon", Vector2(0.85, 0.85), Vector2(w * 0.82, d * 0.72)))
+		# Junto al sofa: un sillon, una butaca de lectura con su lampara, o una
+		# mesita auxiliar. Las tres caben en el mismo sitio.
+		match _variant(room_name, w, d, 3):
+			0:
+				pieces.append(_piece(room_id, "armchair", "Sillon", Vector2(0.85, 0.85), Vector2(w * 0.82, d * 0.72)))
+			1:
+				pieces.append(_piece(room_id, "armchair", "Butaca", Vector2(0.85, 0.85), Vector2(w * 0.82, d * 0.72)))
+				pieces.append(_piece(room_id, "side_table", "Mesita", Vector2(0.45, 0.40), Vector2(w * 0.92, d * 0.50), 2))
+			_:
+				pieces.append(_piece(room_id, "side_table", "Mesita auxiliar", Vector2(0.45, 0.40), Vector2(w * 0.85, d * 0.70)))
 	if area >= 16.0:
-		pieces.append(_piece(room_id, "bookcase", "Libreria", Vector2(clampf(d * 0.35, 0.60, 1.80), 0.30), Vector2(0.25, d * 0.5)))
+		# Contra el paramento largo: libreria, aparador o modulo de almacenaje.
+		match _variant(room_name, d, w, 3):
+			0:
+				pieces.append(_piece(room_id, "bookcase", "Libreria", Vector2(clampf(d * 0.35, 0.60, 1.80), 0.30), Vector2(0.25, d * 0.5)))
+			1:
+				pieces.append(_piece(room_id, "dresser", "Aparador", Vector2(clampf(d * 0.35, 0.70, 1.60), 0.45), Vector2(0.30, d * 0.5)))
+			_:
+				pieces.append(_piece(room_id, "storage", "Modulo bajo", Vector2(clampf(d * 0.30, 0.60, 1.40), 0.40), Vector2(0.30, d * 0.5)))
 	if area >= 20.0:
-		pieces.append(_piece(room_id, "plant", "Planta", Vector2(0.50, 0.50), Vector2(w - 0.45, 0.45)))
+		match _variant(room_name, w + d, w * d, 2):
+			0:
+				pieces.append(_piece(room_id, "plant", "Planta", Vector2(0.50, 0.50), Vector2(w - 0.45, 0.45)))
+			_:
+				# `copy: 2` porque el grupo de arriba puede haber puesto ya un
+				# sillon en esta sala, y dos piezas con el mismo id son la misma
+				# pieza para todo lo que las indexa por id.
+				pieces.append(_piece(room_id, "armchair", "Sillon de lectura", Vector2(0.85, 0.85), Vector2(w - 0.55, 0.55), 2))
 	return pieces
 
 
