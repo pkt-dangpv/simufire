@@ -100,6 +100,38 @@ func _check(planta: int) -> void:
 			planta, abiertos.size(), BLOCKED_PITCHES.size() * YAWS.size(),
 			", ".join(abiertos.slice(0, 6))])
 
+	# **N-3: desde la ventana no se mira hacia ABAJO a la fila de fondo.**
+	#
+	# Decision del usuario del 2026-09-11: «siempre poner bloques un poco mas
+	# altos que el propio edificio para tapar el horizonte». Que ningun rayo
+	# acabe en cielo es la consecuencia; esto comprueba la causa, y salta antes:
+	# en la prueba de mutacion la regla canto ya en la planta 5, donde los rayos
+	# todavia daban todos tapados por pura suerte de geometria.
+	#
+	# Se mide contra la **altura del ojo**, no contra la cima del edificio en
+	# coordenadas absolutas: el mundo se ancla en la vivienda y la calle cae por
+	# debajo, asi que un numero absoluto no dice nada. Si un bloque de fondo
+	# remata por debajo del ojo es que se le mira desde arriba, que es
+	# exactamente lo que el usuario no quiere.
+	var con_nombre: Array = _named_boxes(world)
+	var bajo_el_ojo: Array[String] = []
+	var medidos: int = 0
+	for raw_caja in con_nombre:
+		var caja: Dictionary = raw_caja
+		var nombre: String = String(caja.get("name", ""))
+		if not nombre.begins_with("BackBlock"):
+			continue
+		medidos += 1
+		var aabb: AABB = caja["aabb"]
+		var cima: float = aabb.position.y + aabb.size.y
+		if cima < origen.y:
+			bajo_el_ojo.append("%s (%.1f m)" % [nombre, cima])
+	if medidos == 0:
+		_failures.append("planta %d: no hay ni un bloque de fondo que medir" % planta)
+	elif not bajo_el_ojo.is_empty():
+		_failures.append("planta %d: %d de %d bloques de fondo rematan POR DEBAJO del ojo (%.1f m): se les mira desde arriba y dejan ver el horizonte: %s" % [
+			planta, bajo_el_ojo.size(), medidos, origen.y, ", ".join(bajo_el_ojo.slice(0, 4))])
+
 	var cielo_arriba: int = 0
 	for yaw in YAWS:
 		if _hits_sky(origen, _direction(frente, float(yaw), OPEN_PITCH), cajas):
@@ -142,6 +174,30 @@ func _boxes(world: Node3D) -> Array:
 			caja = caja.expand(g * local.get_endpoint(i))
 		cajas.append(caja)
 	return cajas
+
+
+## Las mallas visibles del mundo, con su nombre. `_boxes()` devuelve solo cajas
+## anonimas y para la regla de N-3 hace falta saber cual es cual.
+func _named_boxes(world: Node3D) -> Array:
+	var out: Array = []
+	var pendientes: Array = [world]
+	while not pendientes.is_empty():
+		var node: Node = pendientes.pop_back()
+		for child in node.get_children():
+			pendientes.append(child)
+		var mesh := node as MeshInstance3D
+		# `visible` y no `is_visible_in_tree()`: este guardarrail mide el mundo
+		# tal y como lo recorren sus propios rayos en `_boxes()`, y ahi el arbol
+		# no siempre esta colgado. Mezclar los dos criterios daba cero cajas.
+		if mesh == null or mesh.mesh == null or not mesh.visible:
+			continue
+		var local: AABB = mesh.get_aabb()
+		var g: Transform3D = mesh.global_transform
+		var caja := AABB(g * local.position, Vector3.ZERO)
+		for i in range(1, 8):
+			caja = caja.expand(g * local.get_endpoint(i))
+		out.append({"name": String(mesh.name), "aabb": caja})
+	return out
 
 
 func _hits_sky(origen: Vector3, dir: Vector3, cajas: Array) -> bool:

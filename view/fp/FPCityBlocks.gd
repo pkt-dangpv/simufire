@@ -226,6 +226,12 @@ static func _near_neighbours(o: Dictionary) -> Array:
 ## del horizonte es la superficie gris uniforme que se comia media ventana-.
 ## Con el factor de abajo el abanico tapado pasa a ser el que se ve desde el
 ## hueco entero.
+## Lo mas bajo que puede ser un bloque de la fila de fondo, en veces la altura de
+## nuestro edificio. Por debajo de 1,0 el horizonte deja de estar tapado desde la
+## ultima planta, que es la condicion que fija N-3.
+const MIN_BACK_ROW_FACTOR: float = 1.02
+
+
 static func _back_row(o: Dictionary) -> Array:
 	var out: Array = []
 	var count: int = int(o.get("back_block_count", 5))
@@ -253,7 +259,18 @@ static func _back_row(o: Dictionary) -> Array:
 		for i in range(count):
 			var t: float = (float(i) + 0.5) / float(count) - 0.5
 			var seed: float = float(i * 41 + 7 + row * 97)
-			var block_h: float = height * (float(o.get("back_row_base", 1.05)) + fposmod(seed * 0.193, float(o.get("back_row_gain", 0.85))))
+			# **La fila de fondo SIEMPRE es mas alta que nuestro edificio.**
+			# Decision del usuario (N-3, 2026-09-11): «siempre poner bloques un
+			# poco mas altos que el propio edificio para tapar el horizonte».
+			#
+			# `height` ya es la altura de NUESTRO edificio -plantas por altura de
+			# planta, ver `_neighbour_facade_height_m()`-, asi que basta con que
+			# el factor no baje de `MIN_BACK_ROW_FACTOR`. Antes se cumplia por el
+			# valor por defecto de `back_row_base` (1,05) y no por una regla:
+			# bajarlo desde la tipologia dejaba ver cielo a la altura del ojo
+			# desde las plantas altas, que es justo lo que N-3 venia a arreglar.
+			var factor_base: float = maxf(MIN_BACK_ROW_FACTOR, float(o.get("back_row_base", 1.05)))
+			var block_h: float = height * (factor_base + fposmod(seed * 0.193, float(o.get("back_row_gain", 0.85))))
 			out.append({
 				"name": "BackBlock_%02d_%02d" % [row, i],
 				"t": t * span_total + desfase,
