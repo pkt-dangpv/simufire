@@ -18,7 +18,10 @@ enum Tool {
 	VICTIM,
 	## Puerta de balcon (balconera): puerta exterior hasta el suelo, acristalada
 	## y con su balcon puesto. Va al final del enum para no renumerar el resto.
-	BALCONY_DOOR
+	BALCONY_DOOR,
+	## Patio de luces: un conducto vertical que atraviesa TODAS las plantas del
+	## edificio y remata abierto al cielo. Tambien al final, por lo mismo.
+	PATIO
 }
 
 enum ObjectMouseMode {
@@ -2842,6 +2845,10 @@ const BALCONY_DOOR_HEIGHT_M: float = 2.10
 const BALCONY_DEFAULT_DEPTH_M: float = 1.20
 const BALCONY_DEFAULT_PARAPET_M: float = 1.10
 
+## Lado minimo de un patio de luces. Por debajo de metro y medio no es un patio:
+## es un conducto de instalaciones, y ni ventila ni se asoma nadie a el.
+const PATIO_MIN_SIDE_M: float = 1.50
+
 
 const TOOL_SHORTCUTS: Dictionary = {
 	KEY_1: Tool.SELECT,
@@ -2851,6 +2858,7 @@ const TOOL_SHORTCUTS: Dictionary = {
 	KEY_6: Tool.DOOR,
 	KEY_7: Tool.WINDOW,
 	KEY_B: Tool.BALCONY_DOOR,
+	KEY_P: Tool.PATIO,
 	KEY_8: Tool.HOLE,
 	KEY_9: Tool.OBJECT,
 	KEY_0: Tool.DELETE,
@@ -2873,6 +2881,7 @@ const TOOL_NAMES: Dictionary = {
 	Tool.DOOR: ["editor.tool.door", "Puerta"],
 	Tool.WINDOW: ["editor.tool.window", "Ventana"],
 	Tool.BALCONY_DOOR: ["editor.tool.balcony_door", "P. balcón"],
+	Tool.PATIO: ["editor.tool.patio", "Patio"],
 	Tool.HOLE: ["editor.tool.hole", "Hueco"],
 	Tool.OBJECT: ["editor.tool.object", "Objeto"],
 	Tool.DELETE: ["editor.tool.delete", "Borrar"],
@@ -2897,6 +2906,7 @@ const TOOL_ICONS: Dictionary = {
 	Tool.DOOR: "res://ui/icons/tool_door.svg",
 	Tool.WINDOW: "res://ui/icons/tool_window.svg",
 	Tool.BALCONY_DOOR: "res://ui/icons/tool_balcony_door.svg",
+	Tool.PATIO: "res://ui/icons/tool_patio.svg",
 	Tool.HOLE: "res://ui/icons/tool_hole.svg",
 	Tool.OBJECT: "res://ui/icons/tool_object.svg",
 	Tool.DELETE: "res://ui/icons/tool_delete.svg",
@@ -3051,6 +3061,8 @@ func _tool_hint(tool_id: int) -> String:
 			return tr("Ventana: pulsa cerca de una pared exterior en %s.") % _current_floor_name()
 		Tool.BALCONY_DOOR:
 			return tr("Puerta de balcón: arrastra sobre una pared exterior de %s —a lo largo del muro el ancho del balcón, hacia fuera el vuelo, máximo %.2f m—. Un clic sin arrastrar la crea de medidas corrientes. Al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es.") % [_current_floor_name(), OpeningModel.BALCONY_MAX_DEPTH_M]
+		Tool.PATIO:
+			return tr("Patio: arrastra un rectángulo. Crea un patio de luces que atraviesa las %d plantas del edificio y remata abierto al cielo. Las viviendas dan a él con ventanas normales.") % _get_floors().size()
 		Tool.OBJECT:
 			return tr("Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido.") % _current_floor_name()
 		Tool.IGNITION:
@@ -3290,7 +3302,7 @@ func _is_arrow_key(keycode: int) -> bool:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS, Tool.BALCONY_DOOR:
+		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS, Tool.BALCONY_DOOR, Tool.PATIO:
 			# La balconera se dibuja como una sala: lo que se arrastra a lo
 			# largo de la fachada es el ANCHO del balcon y lo perpendicular es
 			# el vuelo. Un clic sin arrastrar sigue dando la balconera de
@@ -3389,6 +3401,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		and current_tool != Tool.CORRIDOR_L
 		and current_tool != Tool.STAIRS
 		and current_tool != Tool.BALCONY_DOOR
+		and current_tool != Tool.PATIO
 	) or drag != Drag.ROOM_RECT:
 		return
 
@@ -3421,6 +3434,17 @@ func _handle_release(pos_m: Vector2) -> void:
 			return
 		_push_undo_snapshot("create_stairs")
 		_create_stairs_from_rect(rect, start_m, end_m)
+		queue_redraw()
+		return
+
+	if current_tool == Tool.PATIO:
+		if rect.size.x < PATIO_MIN_SIDE_M or rect.size.y < PATIO_MIN_SIDE_M:
+			_set_status(tr("El patio es demasiado pequeño (%.2f × %.2f m): al menos %.2f m de lado.%s") % [
+				rect.size.x, rect.size.y, PATIO_MIN_SIDE_M, _flat_drag_hint(rect)])
+			queue_redraw()
+			return
+		_push_undo_snapshot("create_patio")
+		_create_patio_from_rect(rect)
 		queue_redraw()
 		return
 
@@ -4351,6 +4375,60 @@ func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: Strin
 	return id
 
 
+## El patio de luces: un conducto vertical que atraviesa TODAS las plantas del
+## edificio y remata abierto al cielo.
+##
+## La forma que menos inventa, y la que el motor ya entiende: **una zona por
+## planta**, igual que una sala, encadenadas con aperturas verticales de la
+## superficie completa del patio, y en la ultima una boca al exterior.
+##
+## Medido el 2026-09-11 antes de escribir esto: con esa representacion **el motor
+## ya hace la fisica del patio sin tocar nada** -el humo sube con retardo
+## creciente, entra en las viviendas altas y el O2 del conducto baja de 0,209 a
+## 0,146 en cinco minutos-. Las cifras estan en `docs/PROMPT_MOTOR_PATIO.md`.
+##
+## Tres decisiones que conviene tener escritas:
+##
+## 1. **Atraviesa las plantas que HAY**, no crea ninguna. Una escalera si crea la
+##    de arriba, porque una escalera existe para subir a algun sitio; un patio no
+##    añade plantas al edificio, las atraviesa.
+## 2. **No se conecta solo con las salas vecinas.** Un pasillo y una escalera si
+##    -existen para conectar-, pero a un patio se da con una VENTANA, y donde va
+##    esa ventana lo decide quien dibuja: la cocina y el bano dan al patio, el
+##    salon casi nunca.
+## 3. **La boca no lleva `wall_side`.** Es horizontal y esta abrigada: el viento
+##    sobre ella produce succion, no presion frontal, y el motor devuelve 0,0 de
+##    ΔP de viento cuando no hay `wall_side`, que como primera aproximacion es lo
+##    correcto.
+func _create_patio_from_rect(rect: Rect2) -> void:
+	var floors: Array = _get_floors()
+	if floors.is_empty():
+		return
+	var ids: Array[int] = []
+	for i in range(floors.size()):
+		var level_m: float = float(Dictionary(floors[i]).get("level_m", 0.0))
+		var floor_name: String = String(Dictionary(floors[i]).get("name", _default_floor_name(i)))
+		# La altura de la zona es la de la planta: el conducto es continuo y no
+		# deja falso techo entre una zona y la siguiente.
+		var height_m: float = DEFAULT_FLOOR_HEIGHT_M
+		if i + 1 < floors.size():
+			height_m = maxf(2.0, float(Dictionary(floors[i + 1]).get("level_m", level_m + DEFAULT_FLOOR_HEIGHT_M)) - level_m)
+		ids.append(_create_room_at_level(rect, "Patio %s" % floor_name, "patio", level_m, height_m))
+
+	# Encadenado vertical, con TODA la superficie del patio: entre dos zonas del
+	# mismo conducto no hay forjado que atravesar.
+	for i in range(ids.size() - 1):
+		_add_vertical_opening(ids[i], ids[i + 1], rect.size.x, rect.size.y)
+
+	# La boca. Sin ella el patio es un conducto ciego y se presuriza, que es justo
+	# lo contrario de lo que hace un patio de luces.
+	_add_vertical_opening(ids[ids.size() - 1], OUTSIDE_ID, rect.size.x, rect.size.y)
+
+	_select_room(ids[0])
+	_sync_floor_controls()
+	_set_status(tr("Patio creado: %d plantas y boca al cielo. Da a él con ventanas desde las salas que lo necesiten (cocina, baño).") % ids.size())
+
+
 func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
 	var lower_level_m: float = _current_floor_level_m()
 	var upper_floor_index: int = _next_floor_index_above(lower_level_m)
@@ -4558,23 +4636,45 @@ func _add_floor_at_level(level_m: float) -> int:
 
 
 func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> void:
+	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(_get_room(lower_id))
+	var turn_degrees: float = float(_get_room(lower_id).get("stair_turn_degrees", 0.0))
+	var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
+	var along_y: bool = absf(stair_dir.y) >= absf(stair_dir.x)
+	_add_vertical_opening(
+		lower_id, upper_id,
+		void_rect.size.x if along_y else void_rect.size.y,
+		void_rect.size.y if along_y else void_rect.size.x
+	)
+
+
+## Un hueco de FORJADO entre dos salas apiladas: el ojo de una escalera o un
+## tramo de patio. No es una puerta en un tabique, asi que no tiene pared ni
+## alfeizar, y el motor lo intercambia por flotabilidad y no por difusion.
+##
+## `b` puede ser `OUTSIDE_ID`: eso es la boca del patio, abierta al cielo.
+##
+## No duplica: si ya hay un vertical entre esas dos, no pone otro. Encadenando
+## plantas se llama mas de una vez con el mismo par.
+func _add_vertical_opening(a_id: int, b_id: int, width_m: float, depth_m: float) -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	for raw_op in openings:
 		if typeof(raw_op) != TYPE_DICTIONARY:
 			continue
 		var op: Dictionary = raw_op
-		if bool(op.get("is_vertical", false)) and int(op.get("a", -1)) == lower_id and int(op.get("b", -1)) == upper_id:
+		if not bool(op.get("is_vertical", false)):
+			continue
+		if int(op.get("a", -1)) == a_id and int(op.get("b", -1)) == b_id:
 			return
-	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(_get_room(lower_id))
-	var turn_degrees: float = float(_get_room(lower_id).get("stair_turn_degrees", 0.0))
-	var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
 	openings.append({
-		"a": lower_id,
-		"b": upper_id,
+		"a": a_id,
+		"b": b_id,
 		"type": "hole",
-		"width_m": void_rect.size.x if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.y,
-		"height_m": void_rect.size.y if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.x,
+		"wall": "",
+		"width_m": maxf(0.2, width_m),
+		"height_m": maxf(0.2, depth_m),
+		"sill_m": 0.0,
 		"open_fraction": 1.0,
+		"offset_m": 0.0,
 		"offset_is_fraction": false,
 		"is_vertical": true
 	})
@@ -7406,6 +7506,7 @@ func _bind_existing_ui() -> bool:
 	var btn_hole := _ui_root.get_node_or_null("TopBar/HBox/BtnHole") as Button
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
 	var btn_balcony_door := _ui_root.get_node_or_null("TopBar/HBox/BtnBalconyDoor") as Button
+	var btn_patio := _ui_root.get_node_or_null("TopBar/HBox/BtnPatio") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
 	var btn_player_start := _ui_root.get_node_or_null("TopBar/HBox/BtnPlayerStart") as Button
@@ -7428,6 +7529,8 @@ func _bind_existing_ui() -> bool:
 	btn_window.text = _tool_display_name(Tool.WINDOW)
 	if btn_balcony_door != null:
 		btn_balcony_door.text = _tool_display_name(Tool.BALCONY_DOOR)
+	if btn_patio != null:
+		btn_patio.text = _tool_display_name(Tool.PATIO)
 	btn_object.text = _tool_display_name(Tool.OBJECT)
 	btn_ignite.text = _tool_display_name(Tool.IGNITION)
 	btn_player_start.text = _tool_display_name(Tool.PLAYER_START)
@@ -7447,6 +7550,8 @@ func _bind_existing_ui() -> bool:
 	_register_tool_button(btn_window, Tool.WINDOW)
 	if btn_balcony_door != null:
 		_register_tool_button(btn_balcony_door, Tool.BALCONY_DOOR)
+	if btn_patio != null:
+		_register_tool_button(btn_patio, Tool.PATIO)
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
 	_register_tool_button(btn_player_start, Tool.PLAYER_START)

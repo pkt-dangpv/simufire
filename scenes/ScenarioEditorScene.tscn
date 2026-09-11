@@ -210,6 +210,15 @@ theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "P. BALCÓN"
 
+[node name="BtnPatio" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220302]
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+tooltip_text = "Patio: arrastra un rectángulo en R. Crea un patio de luces que atraviesa TODAS las plantas del edificio y remata abierto al cielo. Las viviendas dan a él con ventanas normales."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "PATIO"
+
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
