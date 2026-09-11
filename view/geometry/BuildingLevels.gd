@@ -31,6 +31,21 @@ static func is_stairwell(room: RoomModel) -> bool:
 		or room_name.contains("escalera") or room_name.contains("stair")
 
 
+## Un patio de luces: un conducto vertical abierto al cielo.
+##
+## Se reconoce por el tipo o por el nombre, con el mismo criterio flojo que la
+## escalera, porque un escenario escrito a mano puede traer cualquiera de los
+## dos. Lo que decide la geometria es esto: **un patio no lleva techo, y solo
+## lleva suelo en su fondo**. Sin eso, tres zonas de patio apiladas son tres
+## cajas cerradas y desde la ventana se ve un techo donde deberia verse el cielo.
+static func is_patio(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	var kind: String = room.kind.to_lower()
+	var room_name: String = room.name.to_lower()
+	return kind.contains("patio") or kind.contains("lightwell") or room_name.begins_with("patio")
+
+
 ## Direccion de subida de la escalera, encajada al eje dominante.
 static func stair_run_direction(room: RoomModel) -> Vector2:
 	if room == null:

@@ -500,6 +500,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot patio: " + (diagnostic or "failed"))
 
+    # Las tres ranuras de textura propia del inspector. Una foto puesta a mano
+    # manda sobre el interruptor de ruido procedural: si vuelven a compartir
+    # puerta, la ranura se vacia en silencio y el mundo sale con el procedural.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_texture_overrides.gd",
+        "[validate_texture_overrides] PASS",
+    )
+    rows.append(("Texturas propias Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot texturas: " + (diagnostic or "failed"))
+
     # D-6: las sondas montan el escenario por el camino real. El editor tiene
     # un solo sitio donde se adopta un escenario, y nadie inyecta el
     # diccionario a mano: si lo hace, las fotos y las medidas mienten.

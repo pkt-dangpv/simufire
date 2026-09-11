@@ -238,6 +238,8 @@ Corrección aplicada (F2.1), en tres frentes:
 
 Suelos y rodapiés usan un perfil aparte (`NOISE_PROFILE_FLOOR`: más octavas, grano más grande y contraste multiplicado por `material_floor_dirt_boost`), que es la segunda capa de suciedad que pedía M-1.
 
+**Texturas propias (2026-09-11).** Hay tres ranuras en el inspector para sustituir el ruido generado por fotos de material real —`surface_noise_texture_override` (muros y techos), `floor_noise_texture_override` (pavimentos) y `landing_tile_texture_override` (baldosa del rellano)—. Medido al probarlas: llegaban bien a la geometría, pero **compartían puerta con `use_procedural_surface_noise`**, de modo que apagar el ruido procedural vaciaba también la ranura, en silencio. Corregido: una textura elegida a mano manda sobre ese interruptor. Dos condiciones que no cambian, porque son del shader: el albedo **se multiplica** por la textura (una foto oscura oscurece la sala) y la proyección es **triplanar en metros**, así que el tamaño lo fija `material_noise_size_m` y la imagen conviene que sea *seamless*. Guardarraíl: `tools/validate_texture_overrides.gd`.
+
 ### 🟠 FP-3. Geometría FP todavía paralela a la del 3D — **[CORREGIDO 2026-09-03]**
 `StairGeometry` ya está extraída y compartida (el 🟠 FP-1 de julio está a medias), pero suelos, techos, muros y huecos siguen teniendo dos implementaciones independientes (`FirstPersonController` vs `Visualizer3D`). Cualquier ajuste hecho en una diverge visualmente de la otra.
 

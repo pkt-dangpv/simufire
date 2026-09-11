@@ -174,12 +174,20 @@ asunto y es donde un atajo lo arruinaría.
 
 ### 4. Lo que aporta la línea visual
 
-- Geometría del patio en el editor (un rectángulo que atraviesa plantas, muy
-  parecido al hueco vertical de escalera que ya se dibuja).
-- El patio como espacio real en primera persona y en la maqueta, con el penacho
-  saliendo por la boca.
-- El dato de cuántas plantas tiene el edificio (tarea N-4), que fija la altura
-  del conducto.
+- ✅ **Geometría del patio en el editor** (2026-09-11): herramienta propia, tecla
+  `P`. Se dibuja arrastrando y crea el conducto entero —una zona por planta,
+  encadenadas con huecos verticales y la boca al cielo arriba—.
+- ✅ **El patio como espacio real en primera persona** (2026-09-11): las zonas de
+  patio no llevan techo ni plafón, y solo la del fondo lleva pavimento, de modo
+  que desde la ventana se ve el conducto entero y el cielo al final.
+
+  Un detalle que costó verlo: el hueco vertical **recortaba el forjado con la
+  forma del ojo de una escalera**, así que quedaba una repisa alrededor del pozo.
+  La comprobación no la detectaba porque una losa recortada se llama
+  `FloorPart_N` y no `Floor_N`.
+- 🟠 **Falta el penacho** saliendo por la boca.
+- ✅ **El dato de cuántas plantas tiene el edificio** (tarea N-4), que fija la
+  altura del conducto.
 
 ## Restricciones
 

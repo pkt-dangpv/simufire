@@ -1374,6 +1374,11 @@ func _create_floors(rects: Dictionary) -> void:
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
 			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
+		# Un patio solo tiene suelo en su FONDO. Las zonas de arriba no llevan
+		# forjado: si lo llevaran, el conducto serian tres cajas apiladas y desde
+		# la ventana se veria un techo donde tiene que verse el cielo.
+		if room != null and _room_is_patio(room) and not _is_patio_bottom(room):
+			continue
 		var material: Material = _floor_material_for_room(int(room_id))
 		for slab in SlabGeometry.named_slab_pieces(
 			rect,
@@ -1444,7 +1449,9 @@ func _create_ceilings(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
-		if room != null and _room_is_stairwell(room):
+		# Un conducto vertical -caja de escalera o patio- no lleva techo, y por
+		# tanto tampoco plafon colgado de el.
+		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)):
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
@@ -1955,7 +1962,9 @@ func _create_world_lighting(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect := Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
-		if room != null and _room_is_stairwell(room):
+		# Un conducto vertical -caja de escalera o patio- no lleva techo, y por
+		# tanto tampoco plafon colgado de el.
+		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)):
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
@@ -7410,6 +7419,40 @@ func _room_is_stairwell(room: RoomModel) -> bool:
 	return BuildingLevels.is_stairwell(room)
 
 
+func _room_is_patio(room: RoomModel) -> bool:
+	return BuildingLevels.is_patio(room)
+
+
+## El fondo del patio: la zona que no tiene otra zona de patio debajo. Es la
+## unica que lleva suelo, porque un patio de luces tiene pavimento abajo y nada
+## mas; las de arriba son el hueco del conducto.
+##
+## Se pregunta por el ENCADENADO, no por la cota mas baja del edificio. Un patio
+## a pie de calle y una terraza llamada tambien "patio" en la ultima planta son
+## dos sitios distintos: con el criterio de la cota, la terraza se habria quedado
+## sin suelo y se caeria uno por el agujero.
+func _is_patio_bottom(room: RoomModel) -> bool:
+	if building == null or room == null:
+		return true
+	for raw_op in building.get_openings():
+		var op := raw_op as OpeningModel
+		if op == null or not op.is_vertical:
+			continue
+		var otra_id: int = -1
+		if op.a == room.id:
+			otra_id = op.b
+		elif op.b == room.id:
+			otra_id = op.a
+		if otra_id < 0:
+			continue
+		var otra: RoomModel = building.get_room(otra_id)
+		if otra == null or not BuildingLevels.is_patio(otra):
+			continue
+		if otra.floor_level_z_m < room.floor_level_z_m - 0.05:
+			return false
+	return true
+
+
 func _room_stair_run_direction(room: RoomModel) -> Vector2:
 	return BuildingLevels.stair_run_direction(room)
 
@@ -7538,7 +7581,7 @@ func _mat(
 	material.albedo_color = color
 	material.roughness = material_surface_roughness
 	material.metallic = 0.0
-	if use_procedural_surface_noise and noise_seed >= 0 and not transparent and material_noise_contrast > 0.0:
+	if not transparent and _wants_surface_texture(noise_seed, noise_profile):
 		material.albedo_texture = _noise_texture(noise_seed, noise_profile)
 		# Triplanar en mundo: la textura se mide en metros y no por cara, que es
 		# lo que hacia que un muro largo y una jamba tuviesen el mismo numero de
@@ -7575,7 +7618,7 @@ func _surface_mat(color: Color, noise_seed: int, noise_profile: int = NOISE_PROF
 	material.set_shader_parameter("ao_strength", surface_contact_ao_strength)
 	material.set_shader_parameter("ao_band_m", surface_contact_ao_band_m)
 	material.set_shader_parameter("triplanar_sharpness", surface_triplanar_sharpness)
-	var wants_noise: bool = use_procedural_surface_noise and noise_seed >= 0 and material_noise_contrast > 0.0
+	var wants_noise: bool = _wants_surface_texture(noise_seed, noise_profile)
 	material.set_shader_parameter("use_noise", wants_noise)
 	if wants_noise:
 		material.set_shader_parameter("surface_noise", _noise_texture(noise_seed, noise_profile))
@@ -7595,20 +7638,47 @@ func _noise_size_for_profile(noise_profile: int) -> float:
 	)
 
 
+## La textura que el usuario ha puesto a mano para este tipo de superficie, si
+## la hay. Una por perfil: muros y techos, suelos, y el pavimento del rellano.
+func _surface_texture_override(noise_profile: int) -> Texture2D:
+	match noise_profile:
+		NOISE_PROFILE_TILE:
+			return landing_tile_texture_override
+		NOISE_PROFILE_FLOOR:
+			return floor_noise_texture_override
+		_:
+			return surface_noise_texture_override
+
+
+## ¿Lleva textura esta superficie?
+##
+## Una textura puesta a mano MANDA sobre `use_procedural_surface_noise`: ese
+## interruptor apaga el ruido generado, no una foto que alguien ha elegido. Antes
+## iban los dos por la misma puerta y la ranura se vaciaba en silencio -sin error
+## y sin aviso- en cuanto se apagaba el ruido, que es justo lo que hace quien
+## trae texturas propias.
+## `noise_seed < 0` es la forma de decir "esta pieza NO lleva textura", y la usan
+## los cachivaches del decorado, los cristales y todo lo pequeno. Vale tambien
+## para las texturas propias: la ranura elige CUAL se usa, no a quien se le pone.
+func _wants_surface_texture(noise_seed: int, noise_profile: int) -> bool:
+	if noise_seed < 0:
+		return false
+	if _surface_texture_override(noise_profile) != null:
+		return true
+	return use_procedural_surface_noise and material_noise_contrast > 0.0
+
+
 ## Ruido de superficie utilizable. La clave es la rampa de color: el albedo se
 ## MULTIPLICA por la textura, asi que un ruido en escala de grises de 0 a 1
 ## oscurece a la mitad y motea. Aqui el rango va de (1 - contraste) a 1, de modo
 ## que el color base se conserva y el ruido solo lo rompe (FP-2 / M-1).
 func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Texture2D:
+	var propia: Texture2D = _surface_texture_override(noise_profile)
+	if propia != null:
+		return propia
 	if noise_profile == NOISE_PROFILE_TILE:
-		if landing_tile_texture_override != null:
-			return landing_tile_texture_override
 		return _tile_texture()
 	var is_floor: bool = noise_profile == NOISE_PROFILE_FLOOR
-	if is_floor and floor_noise_texture_override != null:
-		return floor_noise_texture_override
-	if not is_floor and surface_noise_texture_override != null:
-		return surface_noise_texture_override
 	var contrast: float = clampf(
 		material_noise_contrast * (material_floor_dirt_boost if is_floor else 1.0),
 		0.0,
