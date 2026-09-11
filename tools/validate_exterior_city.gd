@@ -292,8 +292,13 @@ func _built_extent_along(blocks: Array[AABB], road: AABB, along_x: bool, span_on
 
 
 func _is_building_mass(family: String) -> bool:
+	# `PartyWall` sustituye a `NearNeighbour`, que estaba en esta lista y **no se
+	# construia nunca**: las piezas se generaban por fachada y el filtro de la
+	# calzada las tiraba todas. Desde que el anillo deja hueco para medianeras
+	# (2026-09-11) el cuerpo existe, es de la manzana y se llama asi. Cuenta como
+	# masa edificada: su frente da a la calle igual que el de un portal.
 	return family in [
-		"CityFacadeBody", "SideStreetBlock", "CornerReturn", "NearNeighbour", "BackBlock",
+		"CityFacadeBody", "SideStreetBlock", "CornerReturn", "PartyWall", "BackBlock",
 		"ResidentialHouseBody", "PerimeterBlock",
 	]
 

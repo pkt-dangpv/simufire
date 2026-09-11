@@ -932,6 +932,10 @@ var _furniture_nodes_by_room: Dictionary = {}
 ## manzana. Se calcula ANTES de construir el decorado para poder descartar lo
 ## que caiga encima del asfalto.
 var _roadway_rects: Array[Rect2] = []
+## Lados de la manzana con fachada a la calle ("top"/"bottom"/"left"/"right").
+## El lado que NO esta aqui lleva medianera, y es donde el anillo de calle deja
+## hueco. Se llena antes de montar la calle.
+var _street_sides: Dictionary = {}
 ## Reparto de la calle alrededor de la manzana, o vacio si este escenario no
 ## lleva calle (unifamiliar).
 var _street_grid: Dictionary = {}
@@ -3318,6 +3322,23 @@ func _create_exterior_context() -> void:
 			facade["has_street_opening"] = true
 		facades[key] = facade
 
+	# Que EJES tienen fachada a la calle. Hay que saberlo antes de montar la
+	# calle, porque el eje que no la tiene es donde van las medianeras y por
+	# tanto donde el anillo tiene que apartarse (ver `_city_block_rect_world`).
+	#
+	# Cuenta la fachada decorada, con el mismo criterio que usa el bucle de
+	# abajo: una fachada cuyo unico hueco es la puerta del portal no da a la
+	# calle, da al rellano.
+	_street_sides = {}
+	for raw_key in facades.keys():
+		var f: Dictionary = facades[raw_key]
+		if exterior_scenery_skip_landing_facades and not bool(f.get("has_street_opening", true)):
+			continue
+		var n: Vector3 = Vector3(f["normal"])
+		# La misma expresion que usa el bucle de decorado mas abajo, para que las
+		# dos listas no puedan discrepar.
+		_street_sides[_side_name_for_outward(Vector2(-n.x, -n.z))] = true
+
 	# La calle es UNA alrededor de la manzana, no una por fachada. Se construye
 	# antes que nada porque el resto del decorado se apoya en ella.
 	_street_grid = {}
@@ -3339,7 +3360,13 @@ func _create_exterior_context() -> void:
 		# El decorado se ancla en el PARAMENTO, no en el centro de las ventanas.
 		# Anclado en las ventanas, cada fachada ponia su acera a una distancia
 		# distinta del edificio y la calle no cerraba por las esquinas.
-		var facade_center: Vector3 = _facade_wall_anchor(facade_normal, float(facade["floor_level_m"]))
+		# En ciudad, el decorado se centra en la MANZANA y no en nuestra fachada.
+		# En un lado con calle la cara de la manzana y la nuestra son la misma
+		# -solo crecen los lados con medianera-, asi que la distancia no cambia;
+		# lo que cambia es el CENTRO a lo largo de la calle. Centrado en nuestra
+		# fachada, el frente de enfrente se quedaba corto por el extremo que la
+		# medianera habia alargado y se veia el final de la calle.
+		var facade_center: Vector3 = _block_wall_anchor(facade_normal, float(facade["floor_level_m"])) 			if _is_apartment_building() else _facade_wall_anchor(facade_normal, float(facade["floor_level_m"]))
 		var facade_tangent: Vector3 = Vector3(facade["tangent"])
 		var facade_floor: float = float(facade["floor_level_m"])
 		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
@@ -3357,6 +3384,7 @@ func _create_exterior_context() -> void:
 			_create_skyline_backdrop(root, facade_index, facade_center, facade_normal, facade_tangent, _exterior_ground_level_m(), 0.55)
 		facade_index += 1
 
+	_create_party_walls(root)
 	_create_block_perimeter(root, decorated_sides)
 	_create_city_back_ring(root)
 
@@ -3408,8 +3436,8 @@ func _create_city_back_ring(parent: Node3D) -> void:
 	# alta se veia el vacio -otra vez cielo por debajo del horizonte-. Va un pelo
 	# por debajo de la calzada para no compartir plano con ella.
 	var suelo := Vector3(0.0, ground_y - 0.06, 0.0)
-	var anchor_x: Vector3 = _facade_wall_anchor(Vector3(1.0, 0.0, 0.0), ground_y)
-	var anchor_z: Vector3 = _facade_wall_anchor(Vector3(0.0, 0.0, 1.0), ground_y)
+	var anchor_x: Vector3 = _block_wall_anchor(Vector3(1.0, 0.0, 0.0), ground_y)
+	var anchor_z: Vector3 = _block_wall_anchor(Vector3(0.0, 0.0, 1.0), ground_y)
 	suelo.x = anchor_x.x
 	suelo.z = anchor_z.z
 	var lado: float = maxf(240.0, city_backdrop_distance_m * 2.4)
@@ -3430,7 +3458,7 @@ func _create_city_back_ring(parent: Node3D) -> void:
 	for side in sides:
 		var normal: Vector3 = Vector3(side["normal"])
 		var tangent: Vector3 = Vector3(side["tangent"])
-		var anchor: Vector3 = _facade_wall_anchor(normal, ground_y)
+		var anchor: Vector3 = _block_wall_anchor(normal, ground_y)
 		var span_w: float = span_max
 		_spawn_city_pieces(parent, index, anchor, normal, tangent, ground_y, span_w, facade_dist, [], true)
 		index += 1
@@ -3579,13 +3607,64 @@ func _building_rect_world() -> Rect2:
 	return rect
 
 
+## La MANZANA: nuestro solar mas las medianeras de los lados.
+##
+## Decision del usuario del 2026-09-11: «que el anillo deje hueco para
+## medianeras». Hasta hoy la calle se calculaba pegada a nuestro edificio, asi
+## que nuestro edificio ERA la manzana entera y a los lados solo habia asfalto;
+## las dos piezas `NearNeighbour` se generaban y `_crosses_roadway` las tiraba
+## siempre. Un edificio entre medianeras no tiene calle a los costados: tiene
+## vecinos.
+##
+## **Se ensancha cada LADO que no tiene fachada a la calle.** Ahi es donde va la
+## medianera: donde no hay calle a la que dar. Si el edificio tiene huecos a los
+## cuatro lados no hay medianera que valga y esto no cambia nada, que es lo
+## correcto: entonces si esta exento.
+##
+## El ancho sale de `FPCityBlocks.party_wall_span_m()`, el mismo sitio que
+## dimensiona la pieza que lo ocupa. Calculado aparte, el hueco y el vecino se
+## separarian a la primera.
+func _city_block_rect_world() -> Rect2:
+	var rect: Rect2 = _building_rect_world()
+	if not city_near_neighbours_enabled:
+		return rect
+	var span: float = FPCityBlocks.party_wall_span_m(float(_urban_typology().get("module_span_m", 14.0)))
+	if span <= 0.0:
+		return rect
+	# Lado a lado, no eje a eje: un edificio en esquina tiene DOS fachadas a la
+	# calle y sigue teniendo dos medianeras. Tratarlo por ejes lo daba por exento
+	# y no crecia nada, que es el fallo que tuvo la primera version de esto.
+	var izq: float = 0.0 if _street_sides.has("left") else span
+	var der: float = 0.0 if _street_sides.has("right") else span
+	var arr: float = 0.0 if _street_sides.has("top") else span
+	var aba: float = 0.0 if _street_sides.has("bottom") else span
+	if izq <= 0.0 and der <= 0.0 and arr <= 0.0 and aba <= 0.0:
+		return rect
+	return Rect2(
+		rect.position - Vector2(izq, arr),
+		rect.size + Vector2(izq + der, arr + aba)
+	)
+
+
 ## Punto del PARAMENTO de una fachada al que se ancla su decorado.
 ##
 ## Antes se anclaba al centro de las ventanas de esa fachada. Como cada fachada
 ## tiene las suyas donde le toca, cada una ponia su acera a una distancia
 ## distinta del edificio y la calle no cerraba por las esquinas.
 func _facade_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
-	var rect: Rect2 = _building_rect_world()
+	return _rect_wall_anchor(_building_rect_world(), normal, floor_level_m)
+
+
+## El mismo anclaje, sobre la MANZANA. Lo usa el relleno del perimetro, que va al
+## otro lado de la calle: desde que el anillo deja hueco para las medianeras, la
+## calle de un lado sin fachada ya no esta pegada a nuestro paramento sino al
+## borde de la manzana, y anclar ahi el relleno lo plantaba encima del asfalto.
+## Lo cazo `validate_exterior_city`.
+func _block_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
+	return _rect_wall_anchor(_city_block_rect_world(), normal, floor_level_m)
+
+
+func _rect_wall_anchor(rect: Rect2, normal: Vector3, floor_level_m: float) -> Vector3:
 	var outward := Vector2(-normal.x, -normal.z)
 	var center := Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.5)
 	# `outward` es planta: su y es la Z del mundo.
@@ -3601,7 +3680,9 @@ func _facade_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
 func _create_city_street_network(parent: Node3D) -> void:
 	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
 	var road_w: float = maxf(2.0, street_road_width_m)
-	_street_grid = FPStreetGrid.layout(_building_rect_world(), sidewalk_w, road_w)
+	# Sobre la MANZANA -nuestro solar mas las medianeras-, no sobre el edificio:
+	# ver `_city_block_rect_world()`.
+	_street_grid = FPStreetGrid.layout(_city_block_rect_world(), sidewalk_w, road_w)
 	var street_y: float = _exterior_ground_level_m() - 0.03
 	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
 	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
@@ -3830,6 +3911,61 @@ func _side_name_for_outward(outward: Vector2) -> String:
 ## En una casa, lo que va en un lado sin fachada es exactamente la misma fila de
 ## viviendas que en los demas. En un piso sigue siendo un volumen liso, que a la
 ## distancia de una manzana de ciudad es lo que hay: un lateral ciego.
+## Las medianeras: el vecino con el que compartimos pared.
+##
+## Decision del usuario del 2026-09-11: «que el anillo deje hueco para
+## medianeras». Un lado que no da a la calle da a otro edificio, pegado al
+## nuestro. El hueco lo abre `_city_block_rect_world()`; esto lo ocupa.
+##
+## **Una vez por manzana, no por fachada.** Construyendolas por fachada -que es
+## lo que hacia `FPCityBlocks._near_neighbours()`- un edificio con tres fachadas
+## ponia seis cuerpos, apilados de dos en dos en el mismo sitio. Es el mismo
+## fallo que tuvieron la calle y la fila de fondo.
+func _create_party_walls(parent: Node3D) -> void:
+	if not city_near_neighbours_enabled or not _is_apartment_building():
+		return
+	if _street_grid.is_empty():
+		return
+	var propio: Rect2 = _building_rect_world()
+	var manzana: Rect2 = _city_block_rect_world()
+	var ground_y: float = _exterior_ground_level_m()
+	var altura: float = _neighbour_facade_height_m()
+	var index: int = 0
+	# Cada lado sin calle: el cuerpo va de nuestro paramento al borde de la
+	# manzana, que es justo el hueco que la calle dejo.
+	var lados: Array = [
+		{"name": "left", "rect": Rect2(manzana.position.x, propio.position.y,
+			propio.position.x - manzana.position.x, propio.size.y)},
+		{"name": "right", "rect": Rect2(propio.end.x, propio.position.y,
+			manzana.end.x - propio.end.x, propio.size.y)},
+		{"name": "top", "rect": Rect2(propio.position.x, manzana.position.y,
+			propio.size.x, propio.position.y - manzana.position.y)},
+		{"name": "bottom", "rect": Rect2(propio.position.x, propio.end.y,
+			propio.size.x, manzana.end.y - propio.end.y)},
+	]
+	for lado in lados:
+		if _street_sides.has(String(lado["name"])):
+			continue
+		var rect: Rect2 = lado["rect"]
+		if rect.size.x <= 0.5 or rect.size.y <= 0.5:
+			continue
+		# Un pelo mas baja que la nuestra y un pelo mas oscura: una medianera
+		# identica a nuestro edificio se lee como una prolongacion suya.
+		var alto: float = altura * 0.94
+		var material: StandardMaterial3D = _city_mat(
+			(opposite_facade_night_color if _exterior_is_night() else opposite_facade_day_color).darkened(0.12)
+		)
+		_add_box(
+			parent,
+			"PartyWall_%s_%02d" % [String(lado["name"]), index],
+			Vector3(rect.size.x, alto, rect.size.y),
+			Vector3(rect.position.x + rect.size.x * 0.5, ground_y + alto * 0.5, rect.position.y + rect.size.y * 0.5),
+			material,
+			false
+		)
+		index += 1
+
+
 func _create_block_perimeter(parent: Node3D, decorated_sides: Dictionary) -> void:
 	if _street_grid.is_empty():
 		return
@@ -3847,7 +3983,9 @@ func _create_block_perimeter(parent: Node3D, decorated_sides: Dictionary) -> voi
 			continue
 		var normal: Vector3 = Vector3(side["normal"])
 		var tangent: Vector3 = Vector3(side["tangent"])
-		var anchor: Vector3 = _facade_wall_anchor(normal, ground_y)
+		# Sobre la manzana en ciudad -la calle se aparto para las medianeras- y
+		# sobre el edificio en unifamiliar, donde no hay medianeras que valgan.
+		var anchor: Vector3 = _block_wall_anchor(normal, ground_y) if apartment else _facade_wall_anchor(normal, ground_y)
 		var side_data: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z))
 		var span_w: float = float(side_data.get("span_m", 24.0))
 		if apartment:

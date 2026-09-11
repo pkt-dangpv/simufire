@@ -53,7 +53,6 @@ static func pieces(o: Dictionary) -> Array:
 	out.append_array(_front_details(o))
 	out.append_array(_far_blocks(o))
 	out.append_array(_corner_returns(o))
-	out.append_array(_near_neighbours(o))
 	out.append_array(_back_row(o))
 	out.append_array(_street_furniture(o))
 	return out
@@ -184,34 +183,39 @@ static func _corner_returns(o: Dictionary) -> Array:
 	return out
 
 
-## --- Vecinos a nuestro lado de la calle ---
+## --- Medianeras ---
 ##
-## Nuestro edificio no esta solo en un solar: tiene medianeras. Se plantan dos
-## cuerpos a los lados, alineados con nuestra fachada y algo mas atras, que es
-## lo que se ve de reojo al asomarse.
-static func _near_neighbours(o: Dictionary) -> Array:
-	var out: Array = []
-	if not bool(o.get("near_neighbours_enabled", true)):
-		return out
-	var own_half: float = float(o.get("own_facade_half_m", 11.0))
-	var height: float = float(o.get("facade_height_m", 15.0))
-	var base: Color = o.get("block_color", Color(0.55, 0.52, 0.48, 1.0))
-	var depth: float = 11.0
+## Nuestro edificio no esta solo en un solar: si un lado no da a la calle, da a
+## un vecino con el que comparte medianera. **El cuerpo lo construye
+## `FirstPersonController._create_party_walls()`, una vez por manzana**, y no
+## este modulo, que trabaja por fachada.
+##
+## Ese fue el fallo: aqui se generaban dos cuerpos por CADA fachada decorada, y
+## en un edificio con tres fachadas salian seis, apilados de dos en dos en el
+## mismo sitio. Es el mismo error que tuvieron la calle y la fila de fondo, y se
+## arregla igual: una medianera es de la manzana, no de la fachada.
+##
+## Lo que si vive aqui son las medidas, porque las comparten el hueco que la
+## calle deja y el cuerpo que lo ocupa.
+
+## Lo ancho que es la medianera de UN lado, en metros a lo largo de la fachada.
+##
+## Existe para que el hueco que la calle tiene que dejar y la pieza que lo ocupa
+## salgan del **mismo** numero. Mientras el anillo de calle se calculaba por su
+## cuenta, estas piezas se generaban y `_crosses_roadway` las tiraba todas: el
+## edificio era la manzana entera y a los lados solo habia asfalto.
+static func near_neighbour_width_m(block_span_m: float, side_i: int) -> float:
+	return maxf(13.0, block_span_m) + 4.0 * float(side_i)
+
+
+## Lo que hay que apartar la calle a cada lado para que quepan las medianeras.
+static func party_wall_span_m(block_span_m: float) -> float:
+	var ancho: float = 0.0
 	for side_i in range(2):
-		var direction: float = -1.0 if side_i == 0 else 1.0
-		var neighbour_w: float = maxf(13.0, float(o.get("block_span_m", 14.0))) + 4.0 * float(side_i)
-		var neighbour_h: float = height * (0.92 + 0.16 * float(side_i))
-		out.append({
-			"name": "NearNeighbour_%d" % side_i,
-			"t": direction * (own_half + neighbour_w * 0.5 + 0.3),
-			"n": -depth * 0.5 + 0.4,
-			"y": neighbour_h * 0.5,
-			"w": neighbour_w,
-			"h": neighbour_h,
-			"d": depth,
-			"color": base.darkened(0.10 + 0.04 * float(side_i)),
-		})
-	return out
+		ancho = maxf(ancho, near_neighbour_width_m(block_span_m, side_i))
+	# El margen es el mismo 0,3 con el que se separa la pieza de nuestra
+	# fachada, mas medio metro para que la acera no muerda el bloque.
+	return ancho + 0.8
 
 
 ## --- Fila de atras ---
