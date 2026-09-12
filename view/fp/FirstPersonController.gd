@@ -803,6 +803,24 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Suavizado temporal de la niebla (constante de tiempo, s).
 @export_range(0.02, 2.0, 0.01) var fp_fog_smooth_tau_s: float = 0.35
 
+@export_group("Humo del patio")
+## El humo que sube por el patio, visto DESDE FUERA del patio.
+##
+## El resto del humo de primera persona es de camara: tine lo que ves desde la
+## sala en la que estas. Eso deja el patio limpio cuando se mira por la ventana,
+## que es justo donde un patio tiene que leerse como una chimenea. Esto es lo
+## unico que se dibuja como volumen, y solo en el conducto.
+@export var show_patio_smoke: bool = true
+@export var patio_smoke_color: Color = Color(0.30, 0.29, 0.28, 1.0)
+## Opacidad con el conducto lleno del todo. Nunca 1,0: un patio cegado del todo
+## se lee como una pared pintada, no como humo.
+@export_range(0.0, 1.0, 0.01) var patio_smoke_max_alpha: float = 0.88
+## Por debajo de esto no se dibuja. Evita un velo gris permanente.
+@export_range(0.0, 0.5, 0.01) var patio_smoke_min_alpha: float = 0.04
+## Separacion de los paramentos del patio. Pegar la columna a la pared es la
+## clase de fallo del X-8: dos superficies en el mismo plano parpadean.
+@export_range(0.0, 0.5, 0.01) var patio_smoke_inset_m: float = 0.05
+
 @export_group("Fuego FP")
 @export var show_fp_fire: bool = true
 @export var fp_fire_min_visible_hrr_kw: float = 0.5
@@ -944,6 +962,8 @@ var _street_grid: Dictionary = {}
 ## despues.
 var _gate_corridor: Rect2 = Rect2()
 var _fire_nodes_by_room: Dictionary = {}
+## Un segmento de humo por zona de patio, indexado por sala.
+var _patio_smoke_by_room: Dictionary = {}
 ## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
 ## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
 ## registro por identidad exacta de caja: ese solo cazaba el caso en que dos
@@ -1127,6 +1147,7 @@ func set_state(next_state: Dictionary) -> void:
 	_update_smoke_light_attenuation()
 	_update_fp_furniture_visuals()
 	_update_fp_fire_visuals()
+	_update_patio_smoke()
 	_update_safety_marker_states()
 	_update_visibility_overlay()
 	_update_status_hud(true)
@@ -1332,6 +1353,7 @@ func _rebuild_world() -> void:
 	_victim_nodes.clear()
 	_furniture_nodes_by_room.clear()
 	_fire_nodes_by_room.clear()
+	_patio_smoke_by_room.clear()
 	_ceiling_lights_by_room.clear()
 	_ceiling_light_base_energy_by_room.clear()
 	_ceiling_light_base_range_by_room.clear()
@@ -1357,6 +1379,7 @@ func _rebuild_world() -> void:
 	_create_world_lighting(rects)
 	_create_fp_furniture_nodes(rects)
 	_create_fp_fire_nodes(rects)
+	_create_patio_smoke_nodes(rects)
 	_collect_landing_footprints()
 	_create_opening_panels()
 	_create_exterior_context()
@@ -1364,6 +1387,7 @@ func _rebuild_world() -> void:
 	_create_outer_boundary()
 	_update_fp_furniture_visuals()
 	_update_fp_fire_visuals()
+	_update_patio_smoke()
 
 
 func _create_floors(rects: Dictionary) -> void:
@@ -5514,6 +5538,114 @@ func _create_fp_fire_nodes(rects: Dictionary) -> void:
 			"fire_phase": float(room_id) * 1.37,
 			"fire_anchor_id": "",
 		}
+
+
+## Una caja translucida por zona de patio: el humo del conducto, visto desde la
+## ventana de una vivienda.
+##
+## Es un segmento POR ZONA, no una columna unica, porque el motor modela el
+## patio como una zona por planta y cada una se llena a su hora. Asi el frente de
+## humo subiendo planta a planta -que es el fenomeno- se ve tal cual, sin
+## inventarselo la vista.
+func _create_patio_smoke_nodes(rects: Dictionary) -> void:
+	if building == null or _world_root == null:
+		return
+	var root := Node3D.new()
+	root.name = "PatioSmoke"
+	root.visible = show_patio_smoke
+	_world_root.add_child(root)
+
+	for raw_room_id in rects.keys():
+		var room_id: int = int(raw_room_id)
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or not _room_is_patio(room):
+			continue
+		var rect := Rect2(rects[raw_room_id])
+		var inset: float = minf(patio_smoke_inset_m, minf(rect.size.x, rect.size.y) * 0.25)
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(maxf(0.05, rect.size.x - inset * 2.0), 1.0, maxf(0.05, rect.size.y - inset * 2.0))
+
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(patio_smoke_color, 0.0)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# Sin escritura de profundidad y sin descarte de caras: la columna se ve
+		# igual de bien desde la ventana de enfrente que desde la de al lado, y
+		# no se pelea por el orden con el cristal de la propia ventana.
+		material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+		var box := MeshInstance3D.new()
+		box.name = "PatioSmoke_%d" % room_id
+		box.mesh = mesh
+		box.material_override = material
+		box.visible = false
+		# El humo no proyecta sombra ni la recibe: es un volumen falso y, con
+		# sombras, delataria que es una caja.
+		box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(box)
+
+		_patio_smoke_by_room[room_id] = {
+			"box": box,
+			"material": material,
+			"rect": rect,
+			"height_m": _room_height(room),
+			"floor_level_m": room.floor_level_z_m,
+		}
+
+
+## Cada segmento ocupa lo que hay entre la interfase de humo y el techo de su
+## zona, y se opaca con el MISMO calculo que ya atenua la luz. Dos formulas para
+## el mismo humo acabarian diciendo cosas distintas.
+func _update_patio_smoke() -> void:
+	if _patio_smoke_by_room.is_empty():
+		return
+	var root: Node3D = null
+	if _world_root != null:
+		root = _world_root.get_node_or_null("PatioSmoke") as Node3D
+	if root != null:
+		root.visible = show_patio_smoke
+	for raw_room_id in _patio_smoke_by_room.keys():
+		var room_id: int = int(raw_room_id)
+		var item: Dictionary = _patio_smoke_by_room[raw_room_id]
+		var box := item.get("box") as MeshInstance3D
+		var material := item.get("material") as StandardMaterial3D
+		if box == null or material == null:
+			continue
+		# La zona en la que esta la camara NO dibuja su columna. Asomarse por la
+		# ventana mete la cabeza en el conducto, y entonces la caja quedaria
+		# ALREDEDOR del ojo: un lavado plano sobre toda la pantalla. De ese humo
+		# ya se encarga la niebla de camara, que es la que sabe mirarlo desde
+		# dentro.
+		if room_id == _current_room_id:
+			box.visible = false
+			continue
+		var height_m: float = float(item.get("height_m", 2.4))
+		var floor_level_m: float = float(item.get("floor_level_m", 0.0))
+		var alpha: float = (1.0 - _light_smoke_transmission_for_room(room_id, height_m)) * patio_smoke_max_alpha
+		if alpha < patio_smoke_min_alpha:
+			box.visible = false
+			continue
+
+		var room_state: Dictionary = Dictionary(_state.get(str(room_id), {}))
+		var layer_m: float = clampf(
+			float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", height_m)))),
+			0.0,
+			height_m
+		)
+		var thickness_m: float = maxf(0.05, height_m - layer_m)
+		var rect := Rect2(item.get("rect", Rect2()))
+		var c: Vector2 = rect.get_center()
+		var center: Vector3 = _to_world(
+			Vector3(c.x, layer_m + thickness_m * 0.5, c.y),
+			floor_level_m
+		)
+		var mesh := box.mesh as BoxMesh
+		if mesh != null:
+			mesh.size.y = thickness_m
+		box.position = center
+		material.albedo_color = Color(patio_smoke_color, alpha)
+		box.visible = true
 
 
 func _update_fp_fire_visuals() -> void:

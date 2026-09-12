@@ -185,7 +185,13 @@ asunto y es donde un atajo lo arruinaría.
   forma del ojo de una escalera**, así que quedaba una repisa alrededor del pozo.
   La comprobación no la detectaba porque una losa recortada se llama
   `FloorPart_N` y no `Floor_N`.
-- 🟠 **Falta el penacho** saliendo por la boca.
+- ✅ **El humo del conducto, visto desde la vivienda** (2026-09-12): un segmento
+  translúcido por zona de patio, con la opacidad que sale del mismo cálculo que
+  ya atenúa la luz. El humo de primera persona es de cámara y dejaba el patio
+  limpio al mirarlo por la ventana; esto es lo único del mundo que se dibuja
+  como volumen, y solo en el conducto.
+- 🟠 **Falta el penacho por fuera**: el humo saliendo por la boca, visto desde la
+  calle o desde un piso alto.
 - ✅ **El dato de cuántas plantas tiene el edificio** (tarea N-4), que fija la
   altura del conducto.
 

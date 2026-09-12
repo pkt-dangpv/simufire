@@ -206,12 +206,23 @@ func _comprobar_pozo() -> void:
 	if world == null:
 		world = fp
 	var vistos: Dictionary = {}
+	var paredes: Dictionary = {}
+	var centro: Vector3 = fp._to_world(Vector3(6.25, 0.0, 1.25), 0.0)
 	var pendientes: Array = [world]
 	while not pendientes.is_empty():
 		var node: Node = pendientes.pop_back()
 		for child in node.get_children():
 			pendientes.append(child)
 		vistos[String(node.name)] = true
+		var mi := node as MeshInstance3D
+		if mi == null or not String(mi.name).begins_with("WallMesh"):
+			continue
+		# ¿Cae esta pieza de tabique dentro de la huella del patio?
+		var pos: Vector3 = mi.global_position
+		if absf(pos.x - centro.x) > 1.60 or absf(pos.z - centro.z) > 1.60:
+			continue
+		var planta: int = int(floor((pos.y + 0.05) / 2.9))
+		paredes[planta] = int(paredes.get(planta, 0)) + 1
 
 	# Una losa entera se llama `Floor_N`; una RECORTADA por un hueco vertical se
 	# reparte en `FloorPart_N`. Mirar solo la primera deja pasar la repisa que
@@ -242,6 +253,13 @@ func _comprobar_pozo() -> void:
 	_eq("y las zonas de arriba no llevan forjado", ",".join(suelos_arriba), "")
 	_eq("ninguna zona del patio lleva techo", ",".join(techos), "")
 	_eq("ni plafon colgado de el", ",".join(plafones), "")
+
+	# Un conducto sin paramentos en las plantas altas seria un agujero en el
+	# edificio, no un patio. Desde dentro las dos cosas se parecen -en las dos se
+	# ve el cielo- y solo se distinguen contando.
+	var con_pared: Array = paredes.keys()
+	con_pared.sort()
+	_eq("el conducto levanta pared en las tres plantas", ",".join(con_pared.map(func(i): return str(i))), "0,1,2")
 
 	host.queue_free()
 	building.free()

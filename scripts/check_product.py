@@ -511,6 +511,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot texturas: " + (diagnostic or "failed"))
 
+    # El humo que sube por el patio, visto DESDE FUERA del patio. El resto del
+    # humo de primera persona es de camara y deja el conducto limpio al mirarlo
+    # por la ventana, que es justo donde tiene que leerse como una chimenea.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_patio_smoke.gd",
+        "[validate_patio_smoke] PASS",
+    )
+    rows.append(("Humo del patio Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot humo del patio: " + (diagnostic or "failed"))
+
     # D-6: las sondas montan el escenario por el camino real. El editor tiene
     # un solo sitio donde se adopta un escenario, y nadie inyecta el
     # diccionario a mano: si lo hace, las fotos y las medidas mienten.
