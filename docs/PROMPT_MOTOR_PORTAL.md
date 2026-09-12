@@ -149,21 +149,76 @@ ojo, la caja cerrada da 346 / 119 / 96 °C y 9,6 Pa, frente a 539 / 286 / 155 °
 y 11,4 Pa. La forma es la misma y los números no; la herramienta, además, carga
 las zonas con los campos de escalera (`stair_has_walls`, dirección de subida).
 
-## Lo que queda por medir
+## MEDIDO el 2026-09-13: las cuatro preguntas que quedaban
 
-Lo del humo subiendo y lo de la caja presurizándose ya está arriba. Queda:
+Seis variantes del mismo edificio, **todas dibujadas con la herramienta** y
+exportadas por el camino del editor, 300 s cada una. Condiciones comunes:
+- fuego en la vivienda 1 de la planta baja, con su puerta al rellano abierta;
+- en las demás viviendas, puertas y ventanas cerradas;
+- caja cerrada por arriba.
 
-1. **Aditividad**: escenarios sin portal, mismos resultados que ahora. Es la
-   condición de siempre y no se ha comprobado todavía.
-2. **La vivienda deja de ventilar por ahí.** Con la puerta dando a un rellano
-   cargado, la vivienda ya no tiene una salida a aire limpio infinito y el
-   régimen de combustión debería notarlo. En la medición del 2026-09-12 la
-   vivienda del fuego también tenía una ventana a la calle, así que ese efecto no
-   quedó aislado.
-3. **El portal de verdad tiene más de una vivienda por planta.** Se midió con
-   una; con dos o tres puertas dando al mismo rellano, el reparto cambia.
-4. **Cuánto importa el zaguán.** Se midió con su puerta a la calle CERRADA. Con
-   ella abierta hay tiro de abajo arriba y el resultado puede ser otro.
+Ficheros: `export_variante.gd` y `leer_variantes.py`, en el cuaderno de la
+sesión.
+
+| variante | fuego: HRR pico · quemado | humo Portal R+2 | sobrepresión R+2 | viviendas vecinas |
+|---|---|---|---|---|
+| **A** sin portal, ventana abierta | 2250 kW · 348 MJ | — | — | 0 kg |
+| **B** portal, ventana abierta | 2250 kW · 376 MJ | 0,161 kg | 4,6 Pa | 0 kg |
+| **C** sin portal, ventana cerrada | 2492 kW · 344 MJ | — | — | 0 kg |
+| **D** portal, ventana cerrada | 2768 kW · 401 MJ | **0,303 kg** | **11,6 Pa** | 0 kg |
+| **E** portal, dos viviendas por planta | 2250 kW · 379 MJ | 0,245 kg | 4,2 Pa | 0 kg |
+| **F** portal, zaguán abierto | 2250 kW · 374 MJ | 0,158 kg | 3,8 Pa | 0 kg |
+
+**1. Aditividad: se cumple por construcción.** Entre la medición del 2026-09-12
+(`d622e096`) y hoy no ha cambiado ni una línea de `sim/`, de
+`editor/ScenarioSerializer.gd` ni del lanzador `tools/run_scenario_headless.gd`.
+Lo nuevo solo actúa en un escenario que tiene portal: la herramienta, su guarda
+en el editor y la vista. Un escenario sin portal da los mismos números. La
+comparación directa en una copia del repositorio en `d622e096` no se pudo
+montar: un PDF de `docs/literature` tiene un nombre demasiado largo para Windows.
+
+**2. Cuando la vivienda solo ventila hacia el rellano (B → D), el portal se lo
+lleva todo.** Con la ventana cerrada, todo lo que sale del fuego va a la caja:
+- el humo del rellano de arriba casi se duplica (0,161 → 0,303 kg);
+- la sobrepresión de arriba pasa de 4,6 a 11,6 Pa.
+
+El fuego, en cambio, **no se ahoga**. Quema más, no menos (376 → 401 MJ, pico
+2768 kW), con los regímenes casi idénticos (59 % limitado por ventilación en
+las dos). En cinco minutos, la caja de escalera tiene aire de sobra que
+ofrecerle. Queda como observación, no como conclusión: el fuego apenas se nota
+entre A y C, y la puerta a un portal de ~46 m³ por planta alimenta más que la
+misma puerta al aire libre (D frente a C: 401 frente a 344 MJ), lo que merece
+mirarlo desde la línea del motor.
+
+**3. Con dos viviendas por planta (B → E) el portal es más grande y se reparte.**
+El portal pasa de 4 × 4 a 4 × 8 m. Llega más humo arriba (0,161 → 0,245 kg),
+porque la caja tiene más volumen que llenar antes de que la capa baje, pero con
+un poco menos de presión (4,6 → 4,2 Pa).
+
+**4. El zaguán abierto (B → F) alivia poco.** La sobrepresión de arriba baja de
+4,6 a 3,8 Pa. El humo que llega arriba es prácticamente el mismo (0,161 → 0,158
+kg), y los tiempos de llegada no cambian (155 s arriba). No aparece el tiro de
+abajo arriba que se esperaba: con la caja cerrada por arriba, abrir abajo no
+crea una chimenea.
+
+**Y dos observaciones para la LÍNEA DEL MOTOR**, que salen de esta tanda:
+
+- **Una puerta cerrada es estanca.** En las seis variantes, ninguna vivienda
+  vecina recibe ni un gramo de humo; su sobrepresión es de 0,00–0,01 Pa aunque
+  la caja esté a 11 Pa al otro lado. Una puerta real deja pasar humo por sus
+  rendijas, y ese es justamente el mecanismo por el que una escalera cargada
+  mata en las plantas altas con las puertas cerradas. **Con el modelo de hoy, el
+  riesgo de las viviendas altas con puertas cerradas sale en cero**, y la
+  reentrada medida el 2026-09-12 solo aparecía porque aquellas puertas estaban
+  abiertas.
+- **El tope de 900,0 °C aparece otra vez**, en Portal R de la variante B, con
+  la caja cerrada. Las variantes D, E y F no lo tocan (780 / 374 / 345 °C). Ya
+  no se puede atribuir solo al exutorio ni al ojo grande. Las temperaturas de
+  las zonas del portal siguen sin ser de fiar; las masas de humo y las presiones
+  se mueven de forma coherente entre variantes.
+
+El humo llega antes al rellano de arriba que al de abajo (155 s frente a 172 s
+en B). Es el llenado desde el techo: la capa se forma arriba y va bajando.
 
 ## Lo que aporta la línea visual
 
