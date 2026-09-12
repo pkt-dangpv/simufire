@@ -136,3 +136,9 @@ static func is_stair_room(room: Dictionary) -> bool:
 	var kind_name: String = String(room.get("kind", "")).strip_edges().to_lower()
 	var name_text: String = String(room.get("name", "")).strip_edges().to_lower()
 	return kind_name in ["escalera", "stair", "stairs", "stairwell"] or name_text.contains("escalera") or name_text.contains("stair")
+
+
+## Una zona del portal: la caja de escalera COMUN, no la de un duplex. Es la misma
+## regla que `BuildingLevels.is_portal`, del lado del diccionario.
+static func is_portal_room(room: Dictionary) -> bool:
+	return is_stair_room(room) and String(room.get("name", "")).strip_edges().to_lower().begins_with("portal")

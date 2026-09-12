@@ -13,7 +13,9 @@ extends RefCounted
 ## Los casos que de verdad hay:
 ##
 ##   PORTAL_DOOR    puerta de vivienda -> rellano CERRADO. No ventila a la calle.
-##   STREET_DOOR    entrada de unifamiliar -> calle.
+##                  Es el caso en que el rellano solo esta en la vista; si el
+##                  portal se dibuja como recinto, esa puerta ya es INTERIOR.
+##   STREET_DOOR    entrada de unifamiliar -> calle, o el zaguan del portal.
 ##   BALCONY_DOOR   balconera -> calle, y con su losa colgada.
 ##   STREET_WINDOW  ventana -> calle.
 ##   PATIO_WINDOW   ventana de la vivienda -> zona de patio. Da a un conducto
@@ -66,6 +68,10 @@ static func of(building: BuildingModel, op: OpeningModel) -> String:
 		return STREET_WINDOW
 	if op.has_balcony and op.accepts_balcony():
 		return BALCONY_DOOR
+	# El zaguan: la puerta del PORTAL a la via publica. Cuando el rellano es un
+	# recinto de verdad, la del piso ya es interior y esta es la que da a la calle.
+	if BuildingLevels.is_portal(inner):
+		return STREET_DOOR
 	# La ultima distincion, y la que no estaba: en un bloque de pisos, la puerta
 	# de la vivienda da al rellano, no a la calle. En una unifamiliar, si.
 	return PORTAL_DOOR if _is_apartment(building) else STREET_DOOR

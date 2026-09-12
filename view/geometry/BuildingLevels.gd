@@ -31,6 +31,13 @@ static func is_stairwell(room: RoomModel) -> bool:
 		or room_name.contains("escalera") or room_name.contains("stair")
 
 
+## Una zona del portal: la caja de escalera COMUN de un bloque de pisos, no la
+## escalera interior de un duplex. Es una escalera cuyo nombre empieza por
+## «Portal», que es como la crea la herramienta del editor.
+static func is_portal(room: RoomModel) -> bool:
+	return is_stairwell(room) and room.name.to_lower().begins_with("portal")
+
+
 ## Un patio de luces: un conducto vertical abierto al cielo.
 ##
 ## Se reconoce por el tipo o por el nombre, con el mismo criterio flojo que la

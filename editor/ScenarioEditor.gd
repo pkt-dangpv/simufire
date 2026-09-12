@@ -21,7 +21,10 @@ enum Tool {
 	BALCONY_DOOR,
 	## Patio de luces: un conducto vertical que atraviesa TODAS las plantas del
 	## edificio y remata abierto al cielo. Tambien al final, por lo mismo.
-	PATIO
+	PATIO,
+	## Portal: el rellano y la caja de escalera comun, una zona por planta, con la
+	## puerta de cada vivienda dando a la suya. Al final, por lo mismo.
+	PORTAL
 }
 
 enum ObjectMouseMode {
@@ -2849,6 +2852,24 @@ const BALCONY_DEFAULT_PARAPET_M: float = 1.10
 ## es un conducto de instalaciones, y ni ventila ni se asoma nadie a el.
 const PATIO_MIN_SIDE_M: float = 1.50
 
+## Lado minimo de un portal. En menos de dos metros no caben a la vez el rellano
+## y una escalera de dos tramos: seria un pasillo, no un nucleo de comunicacion.
+const PORTAL_MIN_SIDE_M: float = 2.00
+## Lado del OJO de la escalera del portal: el paso libre por el que sube el humo
+## de un rellano al de arriba, no la huella de la escalera.
+##
+## Medido el 2026-09-12 sobre el mismo portal dibujado: con el hueco que calcula
+## la escalera (2,46 x 3,0 m, casi todo el rellano) la planta alta se clava en
+## 900,0 C -mas que el propio fuego, el tope del motor-; con un ojo de 1,4 m sale
+## el tiro de una caja de escalera (346 / 119 / 96 C y 1,5 / 5,7 / 9,6 Pa). El
+## motor toma el area del hueco como paso libre, y los tramos de una escalera de
+## obra lo tapan casi entero. La vista no usa esta medida: dibuja el hueco de la
+## escalera con su geometria.
+const PORTAL_EYE_SIDE_M: float = 1.40
+## La puerta del zaguan a la calle.
+const PORTAL_STREET_DOOR_WIDTH_M: float = 1.20
+const PORTAL_STREET_DOOR_HEIGHT_M: float = 2.10
+
 
 const TOOL_SHORTCUTS: Dictionary = {
 	KEY_1: Tool.SELECT,
@@ -2859,6 +2880,7 @@ const TOOL_SHORTCUTS: Dictionary = {
 	KEY_7: Tool.WINDOW,
 	KEY_B: Tool.BALCONY_DOOR,
 	KEY_P: Tool.PATIO,
+	KEY_O: Tool.PORTAL,
 	KEY_8: Tool.HOLE,
 	KEY_9: Tool.OBJECT,
 	KEY_0: Tool.DELETE,
@@ -2882,6 +2904,7 @@ const TOOL_NAMES: Dictionary = {
 	Tool.WINDOW: ["editor.tool.window", "Ventana"],
 	Tool.BALCONY_DOOR: ["editor.tool.balcony_door", "P. balcón"],
 	Tool.PATIO: ["editor.tool.patio", "Patio"],
+	Tool.PORTAL: ["editor.tool.portal", "Portal"],
 	Tool.HOLE: ["editor.tool.hole", "Hueco"],
 	Tool.OBJECT: ["editor.tool.object", "Objeto"],
 	Tool.DELETE: ["editor.tool.delete", "Borrar"],
@@ -2907,6 +2930,7 @@ const TOOL_ICONS: Dictionary = {
 	Tool.WINDOW: "res://ui/icons/tool_window.svg",
 	Tool.BALCONY_DOOR: "res://ui/icons/tool_balcony_door.svg",
 	Tool.PATIO: "res://ui/icons/tool_patio.svg",
+	Tool.PORTAL: "res://ui/icons/tool_portal.svg",
 	Tool.HOLE: "res://ui/icons/tool_hole.svg",
 	Tool.OBJECT: "res://ui/icons/tool_object.svg",
 	Tool.DELETE: "res://ui/icons/tool_delete.svg",
@@ -3063,6 +3087,8 @@ func _tool_hint(tool_id: int) -> String:
 			return tr("Puerta de balcón: arrastra sobre una pared exterior de %s —a lo largo del muro el ancho del balcón, hacia fuera el vuelo, máximo %.2f m—. Un clic sin arrastrar la crea de medidas corrientes. Al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es.") % [_current_floor_name(), OpeningModel.BALCONY_MAX_DEPTH_M]
 		Tool.PATIO:
 			return tr("Patio: arrastra un rectángulo. Crea un patio de luces que atraviesa las %d plantas del edificio y remata abierto al cielo. Las viviendas dan a él con ventanas normales.") % _get_floors().size()
+		Tool.PORTAL:
+			return tr("Portal: arrastra el rellano pegado a la puerta de entrada, en el sentido en que sube la escalera. Crea la caja de escalera en las %d plantas, cerrada por arriba, y la puerta de cada vivienda que caiga sobre él pasa a dar al rellano. Abajo, el zaguán con su puerta a la calle.") % _get_floors().size()
 		Tool.OBJECT:
 			return tr("Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido.") % _current_floor_name()
 		Tool.IGNITION:
@@ -3302,7 +3328,7 @@ func _is_arrow_key(keycode: int) -> bool:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS, Tool.BALCONY_DOOR, Tool.PATIO:
+		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS, Tool.BALCONY_DOOR, Tool.PATIO, Tool.PORTAL:
 			# La balconera se dibuja como una sala: lo que se arrastra a lo
 			# largo de la fachada es el ANCHO del balcon y lo perpendicular es
 			# el vuelo. Un clic sin arrastrar sigue dando la balconera de
@@ -3402,6 +3428,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		and current_tool != Tool.STAIRS
 		and current_tool != Tool.BALCONY_DOOR
 		and current_tool != Tool.PATIO
+		and current_tool != Tool.PORTAL
 	) or drag != Drag.ROOM_RECT:
 		return
 
@@ -3445,6 +3472,17 @@ func _handle_release(pos_m: Vector2) -> void:
 			return
 		_push_undo_snapshot("create_patio")
 		_create_patio_from_rect(rect)
+		queue_redraw()
+		return
+
+	if current_tool == Tool.PORTAL:
+		if rect.size.x < PORTAL_MIN_SIDE_M or rect.size.y < PORTAL_MIN_SIDE_M:
+			_set_status(tr("El portal es demasiado pequeño (%.2f × %.2f m): al menos %.2f m de lado.%s") % [
+				rect.size.x, rect.size.y, PORTAL_MIN_SIDE_M, _flat_drag_hint(rect)])
+			queue_redraw()
+			return
+		_push_undo_snapshot("create_portal")
+		_create_portal_from_rect(rect, start_m, end_m)
 		queue_redraw()
 		return
 
@@ -4429,6 +4467,188 @@ func _create_patio_from_rect(rect: Rect2) -> void:
 	_set_status(tr("Patio creado: %d plantas y boca al cielo. Da a él con ventanas desde las salas que lo necesiten (cocina, baño).") % ids.size())
 
 
+## El portal: el rellano y la caja de escalera comun de un bloque de pisos.
+##
+## Hasta ahora el rellano solo existia en la vista. En el modelo la puerta de la
+## vivienda daba al ambiente, asi que el humo que salia por ella se iba a la calle
+## y no subia por ninguna escalera. Medido el 2026-09-12 antes de escribir esto:
+## con **una zona de escalera por planta, encadenadas por el ojo y con la puerta
+## de cada vivienda dando a la suya**, el motor hace la fisica entera sin tocarlo
+## -la caja cerrada se presuriza por arriba hasta 11,4 Pa y un exutorio la baja a
+## 3,7-. Cifras en `docs/PROMPT_MOTOR_PORTAL.md`.
+##
+## Cuatro decisiones que conviene tener escritas:
+##
+## 1. **Tipo `escalera`**, que es con el que se midio y el que el motor ya trata
+##    como caja de escalera. Lo que lo separa de una escalera interior es el
+##    nombre, «Portal …», con el mismo criterio que el patio.
+## 2. **Atraviesa las plantas que HAY**, como el patio: un portal no añade pisos.
+## 3. **Se conecta solo, pero por las PUERTAS DE VIVIENDA, no abriendo huecos.**
+##    La puerta de entrada que cae sobre el rellano deja de dar al ambiente y
+##    pasa a dar a el, en el mismo sitio. A las demas salas que toque no les abre
+##    nada: de una vivienda al portal se pasa por su puerta. Una balconera no se
+##    toca aunque caiga ahi: detras de ella hay calle.
+## 4. **Cerrado por arriba.** Es el caso que mata en plantas altas y no se
+##    suaviza; el exutorio es un hueco que se añade a mano, no un regalo.
+func _create_portal_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
+	var floors: Array = _get_floors()
+	if floors.is_empty():
+		return
+	var order: Array = range(floors.size())
+	order.sort_custom(func(i, j): return float(Dictionary(floors[i]).get("level_m", 0.0)) < float(Dictionary(floors[j]).get("level_m", 0.0)))
+
+	var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(start_m, end_m, rect)
+	var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, StairPlanRules.MODE_AUTO)
+	var ids: Array[int] = []
+	var names: Array[String] = []
+	for k in range(order.size()):
+		var floor: Dictionary = floors[int(order[k])]
+		var level_m: float = float(floor.get("level_m", 0.0))
+		var floor_name: String = String(floor.get("name", _default_floor_name(int(order[k]))))
+		# La caja es continua: cada zona llega hasta el forjado de la siguiente.
+		var height_m: float = DEFAULT_FLOOR_HEIGHT_M
+		if k + 1 < order.size():
+			height_m = maxf(2.0, float(Dictionary(floors[int(order[k + 1])]).get("level_m", level_m + DEFAULT_FLOOR_HEIGHT_M)) - level_m)
+		var id: int = _create_room_at_level(rect, "Portal %s" % floor_name, "escalera", level_m, height_m)
+		_apply_stair_defaults_to_room(id, stair_dir, turn_degrees)
+		ids.append(id)
+		names.append(floor_name)
+
+	# El ojo de la escalera entre plantas seguidas: es lo que produce el tiro. Con
+	# el paso libre del ojo, no con la huella de los tramos (`PORTAL_EYE_SIDE_M`).
+	var eye_m: float = _portal_eye_side_m(rect)
+	for k in range(ids.size() - 1):
+		_add_vertical_opening(ids[k], ids[k + 1], eye_m, eye_m)
+
+	var connected: int = 0
+	var without_door: Array[String] = []
+	for k in range(ids.size()):
+		var linked: int = _connect_dwelling_doors_to_portal(ids[k])
+		connected += linked
+		if linked == 0 and _portal_touches_rooms(ids[k]):
+			without_door.append(names[k])
+
+	# El zaguan: abajo, la puerta del portal a la calle. Cerrada, que es como esta
+	# un portal de verdad; abrirla es una decision del escenario.
+	var street_wall: String = _portal_street_wall(ids[0])
+	if street_wall != "":
+		_add_opening(
+			ids[0], OUTSIDE_ID, "door", street_wall,
+			PlanGeometry.wall_length(rect, street_wall) * 0.5,
+			minf(PORTAL_STREET_DOOR_WIDTH_M, PlanGeometry.wall_length(rect, street_wall) - 0.10),
+			PORTAL_STREET_DOOR_HEIGHT_M, 0.0, 0.0, false
+		)
+
+	_select_room(ids[0])
+	_sync_floor_controls()
+	var status: String = tr("Portal creado: %d plantas, cerrado por arriba. Puertas de vivienda que ya dan al rellano: %d.") % [ids.size(), connected]
+	if street_wall == "":
+		status += " " + tr("El zaguán no tiene ningún lado libre a la calle: ponle la puerta a mano.")
+	if not without_door.is_empty():
+		status += " " + tr("Sin puerta al rellano en %s: pónsela con la herramienta Puerta.") % ", ".join(without_door)
+	_set_status(status)
+
+
+## Las puertas de vivienda de la planta del portal que caen sobre el: dejan de
+## dar al ambiente y pasan a dar al rellano, sin moverse de sitio.
+##
+## Solo puertas enteras dentro del tramo compartido. Una balconera no, aunque
+## caiga ahi. Devuelve cuantas se han reconectado.
+func _connect_dwelling_doors_to_portal(portal_id: int) -> int:
+	var level_m: float = _room_id_floor_level(portal_id)
+	var openings: Array = editor_data.get("openings_data", [])
+	var count: int = 0
+	for i in range(openings.size()):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = openings[i]
+		if String(op.get("type", "")) != "door" or bool(op.get("is_vertical", false)):
+			continue
+		if bool(op.get("has_balcony", false)):
+			continue
+		var a_id: int = int(op.get("a", OUTSIDE_ID))
+		var b_id: int = int(op.get("b", OUTSIDE_ID))
+		var room_id: int = a_id if b_id == OUTSIDE_ID else (b_id if a_id == OUTSIDE_ID else OUTSIDE_ID)
+		var wall: String = String(op.get("wall", ""))
+		if room_id < 0 or room_id == portal_id or wall == "":
+			continue
+		if absf(_room_id_floor_level(room_id) - level_m) >= 0.05:
+			continue
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, portal_id)
+		if shared.is_empty() or String(shared["wall"]) != wall:
+			continue
+		var probe: Dictionary = op.duplicate()
+		probe["a"] = room_id
+		probe["b"] = OUTSIDE_ID
+		var door_seg: PackedVector2Array = ScenarioWalls.opening_segment_m(editor_data, probe)
+		var shared_seg: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, portal_id, wall)
+		if door_seg.size() != 2 or shared_seg.size() != 2:
+			continue
+		var along_x: bool = WallSideGeometry.is_horizontal(wall)
+		var lo: float = minf(shared_seg[0].x, shared_seg[1].x) if along_x else minf(shared_seg[0].y, shared_seg[1].y)
+		var hi: float = maxf(shared_seg[0].x, shared_seg[1].x) if along_x else maxf(shared_seg[0].y, shared_seg[1].y)
+		var d0: float = door_seg[0].x if along_x else door_seg[0].y
+		var d1: float = door_seg[1].x if along_x else door_seg[1].y
+		if minf(d0, d1) < lo - 0.02 or maxf(d0, d1) > hi + 0.02:
+			continue
+		op["a"] = room_id
+		op["b"] = portal_id
+		op["offset_m"] = PlanGeometry.offset_on_wall(_get_room_rect(room_id), wall, (door_seg[0] + door_seg[1]) * 0.5)
+		op["offset_is_fraction"] = false
+		openings[i] = op
+		count += 1
+	editor_data["openings_data"] = openings
+	return count
+
+
+## El ojo cabe en el portal: en uno estrecho no puede ser mas ancho que la caja.
+func _portal_eye_side_m(rect: Rect2) -> float:
+	return minf(PORTAL_EYE_SIDE_M, maxf(0.2, minf(rect.size.x, rect.size.y) - 0.2))
+
+
+## ¿Toca el portal alguna sala de su planta? Si toca y no hay puerta, conviene
+## decirlo: en el plano parece conectado y en el modelo esta tapiado.
+func _portal_touches_rooms(portal_id: int) -> bool:
+	for raw in editor_data.get("rooms_data", []):
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var other_id: int = int(Dictionary(raw).get("id", -1))
+		if other_id < 0 or other_id == portal_id:
+			continue
+		if not ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id).is_empty():
+			return true
+	return false
+
+
+## Por donde da el zaguan a la calle: un lado del portal que no toque ninguna
+## sala de su planta. Se prefiere el opuesto a la vivienda -se entra de frente- y,
+## si no, el mas largo. Vacio si esta rodeado.
+func _portal_street_wall(portal_id: int) -> String:
+	var rect: Rect2 = _get_room_rect(portal_id)
+	var blocked: Dictionary = {}
+	for raw in editor_data.get("rooms_data", []):
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var other_id: int = int(Dictionary(raw).get("id", -1))
+		if other_id < 0 or other_id == portal_id:
+			continue
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id)
+		if not shared.is_empty():
+			blocked[String(shared["wall"])] = true
+	var best: String = ""
+	var best_score: float = -1.0
+	for wall in ["top", "bottom", "left", "right"]:
+		if blocked.has(wall):
+			continue
+		var score: float = PlanGeometry.wall_length(rect, wall)
+		if blocked.has(WallSideGeometry.opposite(wall)):
+			score += 100.0
+		if score > best_score:
+			best_score = score
+			best = wall
+	return best
+
+
 func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
 	var lower_level_m: float = _current_floor_level_m()
 	var upper_floor_index: int = _next_floor_index_above(lower_level_m)
@@ -4487,6 +4707,10 @@ func _open_passages_to_circulation(room_id: int) -> Array[int]:
 		if other_id == room_id or other_id < 0:
 			continue
 		if not (_is_corridor_room(other) or StairPlanRules.is_stair_room(other)):
+			continue
+		# Al portal no: de una vivienda al rellano se pasa por su puerta, y un
+		# hueco libre a la caja de escalera es otro edificio para el humo.
+		if StairPlanRules.is_portal_room(other):
 			continue
 		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
 			continue
@@ -4798,6 +5022,13 @@ func _sync_vertical_stair_openings(room_id: int) -> void:
 		if other_id >= 0:
 			_set_stair_turn_mode_for_room(other_id, turn_mode)
 			_set_stair_turn_degrees_for_room(other_id, turn_degrees)
+		# El portal guarda su ojo: el paso libre no crece con la huella.
+		if StairPlanRules.is_portal_room(lower_room):
+			op["width_m"] = _portal_eye_side_m(rect)
+			op["height_m"] = _portal_eye_side_m(rect)
+			openings[i] = op
+			changed = true
+			continue
 		var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
 		op["width_m"] = void_rect.size.x if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.y
 		op["height_m"] = void_rect.size.y if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.x
@@ -7043,7 +7274,7 @@ func _draw_drag_preview() -> void:
 		var rect_px: Rect2 = _rect_to_px(rect)
 		var fill_color: Color = Color(0.25, 0.68, 0.95, 0.18)
 		var outline_color: Color = Color(0.55, 0.90, 1.0, 0.85)
-		if current_tool == Tool.STAIRS:
+		if current_tool == Tool.STAIRS or current_tool == Tool.PORTAL:
 			fill_color = Color(1.0, 0.72, 0.18, 0.20)
 			outline_color = Color(1.0, 0.80, 0.28, 0.95)
 		draw_rect(rect_px, fill_color, true)
@@ -7507,6 +7738,7 @@ func _bind_existing_ui() -> bool:
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
 	var btn_balcony_door := _ui_root.get_node_or_null("TopBar/HBox/BtnBalconyDoor") as Button
 	var btn_patio := _ui_root.get_node_or_null("TopBar/HBox/BtnPatio") as Button
+	var btn_portal := _ui_root.get_node_or_null("TopBar/HBox/BtnPortal") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
 	var btn_player_start := _ui_root.get_node_or_null("TopBar/HBox/BtnPlayerStart") as Button
@@ -7531,6 +7763,8 @@ func _bind_existing_ui() -> bool:
 		btn_balcony_door.text = _tool_display_name(Tool.BALCONY_DOOR)
 	if btn_patio != null:
 		btn_patio.text = _tool_display_name(Tool.PATIO)
+	if btn_portal != null:
+		btn_portal.text = _tool_display_name(Tool.PORTAL)
 	btn_object.text = _tool_display_name(Tool.OBJECT)
 	btn_ignite.text = _tool_display_name(Tool.IGNITION)
 	btn_player_start.text = _tool_display_name(Tool.PLAYER_START)
@@ -7552,6 +7786,8 @@ func _bind_existing_ui() -> bool:
 		_register_tool_button(btn_balcony_door, Tool.BALCONY_DOOR)
 	if btn_patio != null:
 		_register_tool_button(btn_patio, Tool.PATIO)
+	if btn_portal != null:
+		_register_tool_button(btn_portal, Tool.PORTAL)
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
 	_register_tool_button(btn_player_start, Tool.PLAYER_START)

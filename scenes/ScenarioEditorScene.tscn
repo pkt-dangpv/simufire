@@ -219,6 +219,15 @@ theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "PATIO"
 
+[node name="BtnPortal" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220417]
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+tooltip_text = "Portal: arrastra el rellano pegado a la puerta de entrada. Crea la caja de escalera común en TODAS las plantas, cerrada por arriba, con la puerta de cada vivienda dando al rellano y el zaguán a la calle."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "PORTAL"
+
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(92, 28)
 layout_mode = 2

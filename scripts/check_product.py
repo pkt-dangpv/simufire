@@ -500,6 +500,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot patio: " + (diagnostic or "failed"))
 
+    # El portal: el rellano y la caja de escalera como recinto. Si la puerta del
+    # piso vuelve a dar al ambiente, el humo deja de subir por la escalera.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_portal.gd",
+        "[validate_portal] PASS",
+    )
+    rows.append(("Portal y caja de escalera Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot portal: " + (diagnostic or "failed"))
+
     # Las tres ranuras de textura propia del inspector. Una foto puesta a mano
     # manda sobre el interruptor de ruido procedural: si vuelven a compartir
     # puerta, la ranura se vacia en silencio y el mundo sale con el procedural.

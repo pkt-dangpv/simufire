@@ -107,6 +107,48 @@ que es su equivalente en este modelo. No es lo mismo y conviene no confundirlo.
 Ficheros del experimento: `make_portal.py` y `leer_portal.py` en el cuaderno de
 la sesión; el escenario tiene 6 salas y 9 aperturas (10 con exutorio).
 
+## MEDIDO OTRA VEZ, dibujado con la herramienta (2026-09-12)
+
+El mismo edificio, pero el portal **dibujado con la herramienta del editor**
+(tecla `O`) y exportado por el camino real. Tres cosas nuevas:
+
+**1. El ojo no puede ser la huella de la escalera.** La herramienta nació
+encadenando las zonas con el hueco que calcula una escalera: 2,46 × 3,0 m, casi
+todo el rellano. Con eso el rellano de arriba se clava en **900,0 °C**, más que la
+propia vivienda en llamas (554 °C). Con un ojo de 1,4 × 1,4 m, en el mismo
+escenario, sale el tiro de una caja de escalera. El motor toma el área del hueco
+como paso libre, y los tramos de una escalera de obra lo tapan casi entero. La
+herramienta usa ahora `PORTAL_EYE_SIDE_M = 1,40`, y lo conserva al redimensionar.
+La vista no usa esa medida, porque dibuja el hueco con la geometría de la
+escalera.
+
+**2. Las dos variantes, con el portal de la herramienta:**
+
+| | Portal R | Portal R+1 | Portal R+2 | vivienda R+2 |
+|---|---|---|---|---|
+| **Cerrada** · sobrepresión máx | 1,5 Pa | 5,7 Pa | **9,6 Pa** | |
+| **Cerrada** · humo máx | 0,045 kg | 0,061 kg | 0,104 kg | **0,26 kg** |
+| **Con exutorio** 1 × 1 m · sobrepresión máx | 0,7 Pa | 5,9 Pa | **4,9 Pa** | |
+| **Con exutorio** · humo máx | 0,018 kg | 0,033 kg | 0,045 kg | **0,03 kg** |
+
+La caja cerrada se presuriza por arriba y **devuelve el humo a la vivienda alta**,
+que lo recibe a los 178 s. El exutorio parte la sobrepresión de arriba por dos y
+divide por nueve el humo que entra en esa vivienda. La diferencia es grande, que
+era la condición.
+
+**3. Para la línea del motor: el tope de 900,0 °C aparece por tercera vez.** Salió
+en el patio (Patio P1, `PROMPT_MOTOR_PATIO.md`), con el ojo grande de arriba, y
+también **en la variante con exutorio**: Portal R marca 900,0 °C y Portal R+2
+554 °C. Con la caja cerrada las temperaturas son 346 / 119 / 96 °C. Queda como
+observación, no como conclusión: **en las configuraciones con un hueco vertical
+grande o abierto al cielo, la temperatura de las zonas no es de fiar**. Las
+presiones y el humo sí se mueven en la dirección esperada.
+
+Y una diferencia con la medición hecha a mano, sin explicar todavía. Con el mismo
+ojo, la caja cerrada da 346 / 119 / 96 °C y 9,6 Pa, frente a 539 / 286 / 155 °C
+y 11,4 Pa. La forma es la misma y los números no; la herramienta, además, carga
+las zonas con los campos de escalera (`stair_has_walls`, dirección de subida).
+
 ## Lo que queda por medir
 
 Lo del humo subiendo y lo de la caja presurizándose ya está arriba. Queda:
@@ -125,10 +167,20 @@ Lo del humo subiendo y lo de la caja presurizándose ya está arriba. Queda:
 
 ## Lo que aporta la línea visual
 
-- 🟠 **Una herramienta de portal en el editor**, como la del patio: dibujar el
-  rellano y que cree las zonas de todas las plantas encadenadas, con la puerta de
-  cada vivienda dando a la suya. **Es lo único que falta**: la física ya está
-  medida y sale del motor tal cual.
+- ✅ **La herramienta de portal en el editor** (2026-09-12, tecla `O`). Crea una
+  zona `escalera` llamada «Portal …» por cada planta que existe, encadenadas
+  por un ojo de 1,4 m y cerradas por arriba. La puerta de entrada de cada
+  vivienda que cae sobre el rellano pasa a dar a él sin moverse de sitio; la
+  balconera no se toca. Abajo pone la puerta del zaguán a la calle, cerrada y en
+  el lado libre. No abre huecos solo: al portal se entra por una puerta.
+  Guardarraíl `tools/validate_portal.gd`, con 24 comprobaciones; once mutaciones
+  lo tumban.
+- ✅ **En la vista, el zaguán es puerta de calle** y la primera persona ya no
+  planta delante un rellano de decorado, con escalera, ascensor y puertas de
+  vecinos a la calle.
+- 🟠 **Queda la vista del portal por dentro**: en primera persona las zonas del
+  portal apenas llevan pieza. Es el mismo paso que tuvo el patio después de su
+  herramienta.
 - ✅ **Saber a qué da cada abertura** (`view/geometry/OpeningKinds.gd`,
   2026-09-12), que es lo que permite no pintar penacho donde no lo hay.
 - ✅ **El rellano ya está construido en la vista** y su huella se calcula antes de

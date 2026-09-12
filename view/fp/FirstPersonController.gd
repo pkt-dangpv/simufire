@@ -2341,6 +2341,15 @@ func _landing_plane_m(side: String, floor_level_m: float, axis_center_m: float) 
 	return 0.0
 
 
+## ¿Sale esta abertura exterior de una zona del portal? Entonces es el zaguan, y
+## detras no hay un rellano que inventar: el rellano es el propio portal.
+func _opens_from_portal(op: OpeningModel) -> bool:
+	if building == null or op == null:
+		return false
+	var inner_id: int = op.b if op.a == OUTSIDE_ID else op.a
+	return BuildingLevels.is_portal(building.get_room(inner_id))
+
+
 func _collect_landing_footprints() -> void:
 	if building == null or not show_landing_recess or not _is_apartment_building():
 		return
@@ -2349,6 +2358,8 @@ func _collect_landing_footprints() -> void:
 		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
 			continue
 		if _is_balcony_opening(op):
+			continue
+		if _opens_from_portal(op):
 			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
@@ -2393,6 +2404,11 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	# comia dos decorados incompatibles, el portal y el balcon, uno dentro del
 	# otro.
 	if _is_balcony_opening(op):
+		return
+	# La puerta del zaguan de un portal DIBUJADO: el rellano ya es un recinto del
+	# modelo, y plantarle otro de decorado delante duplicaba escalera, ascensor y
+	# puertas de vecinos a la calle.
+	if _opens_from_portal(op):
 		return
 	if not _is_apartment_building():
 		_create_single_family_entry_recess(index, op, info)
@@ -3350,7 +3366,8 @@ func _create_exterior_context() -> void:
 		# caja cerrada: detras de esa fachada no hay calle que ensenar. Solo
 		# cuentan como "a la calle" las ventanas y los huecos, y en unifamiliar
 		# tambien la puerta, porque ahi si da al porche (E-5).
-		var opens_to_street: bool = op.type != OpeningModel.Type.DOOR or not _is_apartment_building()
+		# El zaguan de un portal dibujado si da a la calle.
+		var opens_to_street: bool = op.type != OpeningModel.Type.DOOR or not _is_apartment_building() or _opens_from_portal(op)
 		if opens_to_street:
 			facade["has_street_opening"] = true
 		facades[key] = facade
