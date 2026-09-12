@@ -4530,12 +4530,12 @@ func _create_portal_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 
 	# El zaguan: abajo, la puerta del portal a la calle. Cerrada, que es como esta
 	# un portal de verdad; abrirla es una decision del escenario.
-	var street_wall: String = _portal_street_wall(ids[0])
+	var street: Dictionary = _portal_street_door(ids[0], _portal_landing_wall(ids))
+	var street_wall: String = String(street.get("wall", ""))
 	if street_wall != "":
 		_add_opening(
 			ids[0], OUTSIDE_ID, "door", street_wall,
-			PlanGeometry.wall_length(rect, street_wall) * 0.5,
-			minf(PORTAL_STREET_DOOR_WIDTH_M, PlanGeometry.wall_length(rect, street_wall) - 0.10),
+			float(street["offset_m"]), float(street["width_m"]),
 			PORTAL_STREET_DOOR_HEIGHT_M, 0.0, 0.0, false
 		)
 
@@ -4620,9 +4620,82 @@ func _portal_touches_rooms(portal_id: int) -> bool:
 	return false
 
 
-## Por donde da el zaguan a la calle: un lado del portal que no toque ninguna
-## sala de su planta. Se prefiere el opuesto a la vivienda -se entra de frente- y,
-## si no, el mas largo. Vacio si esta rodeado.
+## La pared del rellano: la del portal que da a mas puertas de vivienda, contadas
+## en todas sus plantas. Es el mismo voto que hace la vista para repartir el
+## rellano y la escalera (`PortalGeometry.landing_side`). Vacio si no hay puertas.
+func _portal_landing_wall(ids: Array[int]) -> String:
+	var votes: Dictionary = {}
+	for raw in editor_data.get("openings_data", []):
+		if typeof(raw) != TYPE_DICTIONARY or bool(Dictionary(raw).get("is_vertical", false)):
+			continue
+		var a_id: int = int(Dictionary(raw).get("a", OUTSIDE_ID))
+		var b_id: int = int(Dictionary(raw).get("b", OUTSIDE_ID))
+		var zone_id: int = a_id if ids.has(a_id) else (b_id if ids.has(b_id) else OUTSIDE_ID)
+		var other_id: int = b_id if zone_id == a_id else a_id
+		if zone_id < 0 or other_id < 0 or ids.has(other_id):
+			continue
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, zone_id, other_id)
+		if not shared.is_empty():
+			votes[String(shared["wall"])] = int(votes.get(String(shared["wall"]), 0)) + 1
+	var best: String = ""
+	for wall in ["left", "top", "right", "bottom"]:
+		if int(votes.get(wall, 0)) > int(votes.get(best, 0)):
+			best = wall
+	return best
+
+
+## La puerta del zaguan a la calle: pared, posicion y ancho.
+##
+## En un lado PERPENDICULAR a la pared del rellano, y centrada en la franja de
+## rellano. La vista sube la escalera en sentido contrario a las puertas, asi que
+## una puerta en el lado de enfrente quedaba detras de los tramos, bajo la meseta
+## y sin paso. Si no hay lado perpendicular libre, se usa el resto de lados como
+## antes: el opuesto a la vivienda y, si no, el mas largo.
+func _portal_street_door(portal_id: int, landing_wall: String) -> Dictionary:
+	var rect: Rect2 = _get_room_rect(portal_id)
+	if landing_wall != "":
+		for wall in ["top", "bottom", "left", "right"]:
+			if wall == landing_wall or wall == WallSideGeometry.opposite(landing_wall):
+				continue
+			if _portal_wall_blocked(portal_id, wall):
+				continue
+			var length_m: float = PlanGeometry.wall_length(rect, wall)
+			var depth_m: float = clampf(PortalGeometry.LANDING_DEPTH_M, 0.0, maxf(0.0, length_m - PortalGeometry.MIN_STAIR_LONG_M))
+			if depth_m < 0.90:
+				break
+			# Los muros corren de izquierda a derecha y de arriba abajo: el rellano
+			# empieza en el arranque del muro si esta a la izquierda o arriba.
+			var from_start: bool = landing_wall == "left" or landing_wall == "top"
+			return {
+				"wall": wall,
+				"offset_m": depth_m * 0.5 if from_start else length_m - depth_m * 0.5,
+				"width_m": minf(PORTAL_STREET_DOOR_WIDTH_M, depth_m - 0.10),
+			}
+	var fallback: String = _portal_street_wall(portal_id)
+	if fallback == "":
+		return {}
+	return {
+		"wall": fallback,
+		"offset_m": PlanGeometry.wall_length(rect, fallback) * 0.5,
+		"width_m": minf(PORTAL_STREET_DOOR_WIDTH_M, PlanGeometry.wall_length(rect, fallback) - 0.10),
+	}
+
+
+func _portal_wall_blocked(portal_id: int, wall: String) -> bool:
+	for raw in editor_data.get("rooms_data", []):
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var other_id: int = int(Dictionary(raw).get("id", -1))
+		if other_id < 0 or other_id == portal_id:
+			continue
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id)
+		if not shared.is_empty() and String(shared["wall"]) == wall:
+			return true
+	return false
+
+
+## Un lado del portal que no toque ninguna sala de su planta. Se prefiere el
+## opuesto a la vivienda y, si no, el mas largo. Vacio si esta rodeado.
 func _portal_street_wall(portal_id: int) -> String:
 	var rect: Rect2 = _get_room_rect(portal_id)
 	var blocked: Dictionary = {}

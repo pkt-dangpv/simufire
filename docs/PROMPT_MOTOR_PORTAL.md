@@ -178,9 +178,22 @@ Lo del humo subiendo y lo de la caja presurizándose ya está arriba. Queda:
 - ✅ **En la vista, el zaguán es puerta de calle** y la primera persona ya no
   planta delante un rellano de decorado, con escalera, ascensor y puertas de
   vecinos a la calle.
-- 🟠 **Queda la vista del portal por dentro**: en primera persona las zonas del
-  portal apenas llevan pieza. Es el mismo paso que tuvo el patio después de su
-  herramienta.
+- ✅ **La vista del portal por dentro** (2026-09-12). Las fotos de
+  `tools/capture_portal.gd` enseñaron tres fallos: la caja abierta al cielo, el
+  portal a oscuras y, el peor, **la puerta del piso dando directamente contra los
+  tramos**. La escalera ocupaba toda la zona, y en las plantas de arriba no había
+  forjado delante de la puerta. `view/geometry/PortalGeometry.gd` reparte ahora
+  cada zona en una **franja de rellano de 1,30 m** junto a las puertas y la
+  escalera en el resto, subiendo en sentido contrario. El lado se decide por
+  votación entre todas las plantas, para que los tramos casen con el hueco. La
+  primera persona, la maqueta 3D y los huecos de forjado leen ese mismo reparto.
+  La última zona lleva techo y cada rellano, su luz (grupo «Portal dibujado» del
+  inspector), que se atenúa con el humo. El zaguán pasa a un lateral, centrado
+  en el rellano: en la pared de enfrente quedaba detrás de los tramos, bajo la
+  meseta. Guardarraíl `tools/validate_portal_view.gd`. Para el motor nada cambia:
+  cada zona sigue siendo una sala entera con su ojo de 1,4 m.
+- 🟠 **El plano 2D del editor** todavía dibuja las guías de escalera sobre la
+  zona entera del portal, no sobre la parte de los tramos.
 - ✅ **Saber a qué da cada abertura** (`view/geometry/OpeningKinds.gd`,
   2026-09-12), que es lo que permite no pintar penacho donde no lo hay.
 - ✅ **El rellano ya está construido en la vista** y su huella se calcula antes de

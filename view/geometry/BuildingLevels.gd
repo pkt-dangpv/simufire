@@ -105,6 +105,12 @@ static func vertical_stair_voids(building: BuildingModel, level_m: float, upper_
 		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
 		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 			continue
+		# En el portal la escalera no ocupa la zona entera: el rellano se queda
+		# con su forjado, y el hueco va sobre la parte de los tramos.
+		var portal: Dictionary = PortalGeometry.layout(building, lower_room)
+		if not portal.is_empty():
+			result.append(StairGeometry.vertical_void_rect(Rect2(portal["stair_rect"]), Vector2(portal["stair_dir"]), float(portal["turn_degrees"])))
+			continue
 		result.append(StairGeometry.vertical_void_rect(rect, stair_run_direction(lower_room), lower_room.stair_turn_degrees))
 	return result
 

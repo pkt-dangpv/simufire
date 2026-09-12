@@ -1004,7 +1004,18 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var walls: Array = shell.get("walls", [])
 	var room_node := shell.get("room_node") as Node3D
 	var floor_parts: Array[MeshInstance3D] = []
-	if floor != null and is_stair and floor_level_m > 0.20:
+	var portal: Dictionary = PortalGeometry.layout(building, room)
+	if floor != null and not portal.is_empty():
+		# El portal: con zona debajo, rellano entero y losas de escalera; la de
+		# abajo del todo se queda con el suelo entero de la maqueta.
+		if PortalGeometry.has_zone_below(building, room):
+			floor.visible = false
+			var portal_mat := _make_material(floor_color, false)
+			var landing: Rect2 = Rect2(portal["landing_rect"])
+			if landing.size.x >= SlabGeometry.MIN_SLAB_SPAN_M and landing.size.y >= SlabGeometry.MIN_SLAB_SPAN_M:
+				floor_parts.append(_add_floor_slab_visual(room_node, "PortalLanding_%02d" % room_id, landing, floor_level_m, portal_mat))
+			_create_stairwell_upper_floor_visual(room_id, Rect2(portal["stair_rect"]), floor_level_m, room_node, Vector2(portal["stair_dir"]), float(portal["turn_degrees"]))
+	elif floor != null and is_stair and floor_level_m > 0.20:
 		floor.visible = false
 		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node, _room_stair_run_direction(room), room.stair_turn_degrees)
 	elif floor != null:
@@ -1176,11 +1187,20 @@ func _create_stair_visuals() -> void:
 		if upper_level_m <= lower_level_m + 0.20:
 			continue
 		var rect := Rect2(rects[room_id])
+		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
+		var turn_degrees: float = lower_room.stair_turn_degrees
+		# El portal sube desde su rellano, y solo hasta la zona de encima.
+		var portal: Dictionary = PortalGeometry.layout(building, lower_room)
+		if not portal.is_empty():
+			if not PortalGeometry.has_zone_above(building, lower_room):
+				continue
+			rect = Rect2(portal["stair_rect"])
+			stair_dir = Vector2(portal["stair_dir"])
+			turn_degrees = float(portal["turn_degrees"])
 		var stair_root := Node3D.new()
 		stair_root.name = "Stairs_%02d" % int(room_id)
 		_rooms_root.add_child(stair_root)
-		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
-		if lower_room.stair_turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
+		if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
 			_create_switchback_stair_visuals(stair_root, rect, lower_level_m, upper_level_m, stair_dir, lower_room.stair_has_railings)
 			continue
 		var steps: int = 14

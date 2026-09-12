@@ -821,6 +821,18 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## clase de fallo del X-8: dos superficies en el mismo plano parpadean.
 @export_range(0.0, 0.5, 0.01) var patio_smoke_inset_m: float = 0.05
 
+@export_group("Portal dibujado")
+## La luz de cada rellano del portal. Una caja de escalera no lleva plafon -no
+## tiene techo en las plantas de en medio-, y sin esto el portal era negro: se
+## cuelga del forjado de encima, sobre el rellano, como el aplique de escalera.
+## Se atenua con el humo de su zona igual que los plafones de las viviendas.
+@export var show_portal_lights: bool = true
+@export var portal_light_color: Color = Color(1.0, 0.93, 0.80, 1.0)
+@export_range(0.0, 4.0, 0.01) var portal_light_energy: float = 0.70
+@export_range(0.5, 12.0, 0.1) var portal_light_range_m: float = 4.5
+## Distancia de la luz por debajo del techo de la zona.
+@export_range(0.05, 1.0, 0.01) var portal_light_drop_m: float = 0.30
+
 @export_group("Fuego FP")
 @export var show_fp_fire: bool = true
 @export var fp_fire_min_visible_hrr_kw: float = 0.5
@@ -1395,6 +1407,16 @@ func _create_floors(rects: Dictionary) -> void:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id)) if building != null else null
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
+		# El portal: el rellano lleva su forjado entero y la escalera, el suyo con
+		# el hueco. Solo si hay otra zona del portal debajo; la de abajo del todo
+		# pisa suelo entero.
+		var portal: Dictionary = PortalGeometry.layout(building, room) if room != null else {}
+		if not portal.is_empty():
+			if PortalGeometry.has_zone_below(building, room):
+				_create_portal_upper_floor(int(room_id), portal, floor_level_m)
+				continue
+			_add_floor_slab("Floor_%s" % str(room_id), rect, floor_level_m, _floor_material_for_room(int(room_id)))
+			continue
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
 			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
@@ -1418,6 +1440,17 @@ func _create_floors(rects: Dictionary) -> void:
 func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
 	var material: Material = _floor_material_for_room(room_id)
 	for slab in SlabGeometry.stairwell_upper_floor_slabs(room_id, rect, stair_dir, turn_degrees):
+		_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
+
+
+## Forjado de una zona del portal con otra debajo: el rellano entero y, en la
+## parte de la escalera, lo que dejan los tramos alrededor del ojo.
+func _create_portal_upper_floor(room_id: int, portal: Dictionary, floor_level_m: float) -> void:
+	var material: Material = _floor_material_for_room(room_id)
+	var landing: Rect2 = Rect2(portal["landing_rect"])
+	if landing.size.x >= SlabGeometry.MIN_SLAB_SPAN_M and landing.size.y >= SlabGeometry.MIN_SLAB_SPAN_M:
+		_add_floor_slab("PortalLanding_%d" % room_id, landing, floor_level_m, material)
+	for slab in SlabGeometry.stairwell_upper_floor_slabs(room_id, Rect2(portal["stair_rect"]), Vector2(portal["stair_dir"]), float(portal["turn_degrees"])):
 		_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
 
 
@@ -1473,9 +1506,12 @@ func _create_ceilings(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
+		# El portal esta CERRADO POR ARRIBA, que es como lo ve el motor: su ultima
+		# zona lleva techo. Sin el, desde el ultimo rellano se veia el cielo.
+		var portal_roof: bool = room != null and BuildingLevels.is_portal(room) and not PortalGeometry.has_zone_above(building, room)
 		# Un conducto vertical -caja de escalera o patio- no lleva techo, y por
 		# tanto tampoco plafon colgado de el.
-		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)):
+		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)) and not portal_roof:
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
@@ -1755,6 +1791,20 @@ func _create_stairs(rects: Dictionary) -> void:
 		var room: RoomModel = building.get_room(int(room_id))
 		if room == null or not _room_is_stairwell(room):
 			continue
+		# El portal sube desde su rellano, y solo si hay zona encima: la de arriba
+		# del todo es el ultimo rellano, no el arranque de otro tramo.
+		var portal: Dictionary = PortalGeometry.layout(building, room)
+		if not portal.is_empty():
+			if PortalGeometry.has_zone_above(building, room):
+				_create_stair_ramp(
+					Rect2(portal["stair_rect"]),
+					room.floor_level_z_m,
+					_find_next_floor_level_above(room.floor_level_z_m),
+					Vector2(portal["stair_dir"]),
+					room.stair_has_railings,
+					float(portal["turn_degrees"])
+				)
+			continue
 		var lower_level_m: float = room.floor_level_z_m
 		var upper_level_m: float = _find_next_floor_level_above(lower_level_m)
 		if upper_level_m <= lower_level_m + 0.20:
@@ -2018,6 +2068,47 @@ func _create_world_lighting(rects: Dictionary) -> void:
 			Vector3(0.34, 0.035, 0.34),
 			light.position + Vector3(0.0, 0.035, 0.0),
 			_mat(Color(1.0, 0.86, 0.58, 1.0), false, Color(1.0, 0.72, 0.36, 1.0), 0.55),
+			false
+		)
+	_create_portal_lights(rects)
+
+
+## Una luz por rellano del portal, colgada del forjado de encima y centrada sobre
+## la franja de rellano. Se registra con los plafones para que el humo de su zona
+## la apague igual que a ellos.
+func _create_portal_lights(rects: Dictionary) -> void:
+	if not show_portal_lights or building == null:
+		return
+	for room_id in rects.keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		var portal: Dictionary = PortalGeometry.layout(building, room)
+		if portal.is_empty():
+			continue
+		var landing: Rect2 = Rect2(portal["landing_rect"])
+		if landing.size.x <= 0.01 or landing.size.y <= 0.01:
+			landing = Rect2(portal["rect"])
+		var center: Vector2 = landing.get_center()
+		var light := OmniLight3D.new()
+		light.name = "PortalLight_%d" % int(room_id)
+		light.light_color = portal_light_color
+		light.light_energy = portal_light_energy
+		light.omni_range = portal_light_range_m
+		light.shadow_enabled = room_ceiling_lights_cast_shadows
+		light.position = _to_world(Vector3(
+			center.x,
+			maxf(1.9, room.height_m - floor_thickness_m - portal_light_drop_m),
+			center.y
+		), room.floor_level_z_m)
+		_world_root.add_child(light, true)
+		_ceiling_lights_by_room[int(room_id)] = light
+		_ceiling_light_base_energy_by_room[int(room_id)] = portal_light_energy
+		_ceiling_light_base_range_by_room[int(room_id)] = portal_light_range_m
+		_add_box(
+			_world_root,
+			"PortalFixture_%d" % int(room_id),
+			Vector3(0.30, 0.05, 0.30),
+			light.position + Vector3(0.0, portal_light_drop_m - 0.025, 0.0),
+			_mat(Color(1.0, 0.90, 0.70, 1.0), false, Color(1.0, 0.80, 0.50, 1.0), 0.55),
 			false
 		)
 

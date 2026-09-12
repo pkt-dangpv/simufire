@@ -510,6 +510,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot portal: " + (diagnostic or "failed"))
 
+    # La vista del portal por dentro: rellano con suelo delante de la puerta,
+    # tramos fuera del rellano, techo arriba y luz en cada planta.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_portal_view.gd",
+        "[validate_portal_view] PASS",
+    )
+    rows.append(("Vista del portal Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot vista del portal: " + (diagnostic or "failed"))
+
     # Las tres ranuras de textura propia del inspector. Una foto puesta a mano
     # manda sobre el interruptor de ruido procedural: si vuelven a compartir
     # puerta, la ranura se vacia en silencio y el mundo sale con el procedural.

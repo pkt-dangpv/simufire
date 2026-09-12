@@ -191,7 +191,10 @@ func _process(_delta: float) -> bool:
 		var z: Dictionary = zaguanes[0]
 		_eq("en la planta baja", int(z.get("a", -1)), ids[0])
 		_eq("cerrada", float(z.get("open_fraction", 1.0)), 0.0)
-		_eq("de frente, no contra la vivienda", String(z.get("wall", "")), "right")
+		# De lado y dentro de la franja de rellano: en la pared de enfrente la
+		# puerta quedaba detras de los tramos, bajo la meseta.
+		_eq("de lado, no detras de la escalera", String(z.get("wall", "")), "top")
+		_eq("y a la altura del rellano", float(z.get("offset_m", 99.0)) <= PortalGeometry.LANDING_DEPTH_M, true)
 
 	# ── 6. No abre huecos solo ──
 	_eq("no se abre ningun hueco de paso", _huecos_de_paso(), 0)
