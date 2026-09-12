@@ -4220,6 +4220,11 @@ func _set_room_rotation(room_id: int, rotation_deg: float) -> void:
 	var room: Dictionary = _get_room(room_id)
 	if room.is_empty():
 		return
+	# Un portal no se gira: su rellano y su escalera los orientan las puertas de
+	# las viviendas. Girarlo dibujaba en el plano un portal que no es el que hay.
+	if StairPlanRules.is_portal_room(room):
+		_set_status(tr("El portal no se gira: lo orientan las puertas de las viviendas que dan a él."))
+		return
 	var is_stair: bool = StairPlanRules.is_stair_room(room)
 	var stair_dir: Vector2 = StairPlanRules.direction_from_rotation(rotation_deg)
 	var fields: Dictionary = {"rotation_deg": rotation_deg}
@@ -4527,6 +4532,21 @@ func _create_portal_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 		connected += linked
 		if linked == 0 and _portal_touches_rooms(ids[k]):
 			without_door.append(names[k])
+
+	# La orientacion del portal la deciden sus puertas, no el gesto: se guarda la
+	# subida del reparto real (`ScenarioWalls.portal_layout`) y giro cero. Los
+	# valores de escalera la sacaban del arrastre y ponian `rotation_deg` a -90,
+	# y el plano dibujaba el portal girado encima de si mismo.
+	for id in ids:
+		var portal: Dictionary = ScenarioWalls.portal_layout(editor_data, _get_room(id))
+		if portal.is_empty():
+			continue
+		_update_room_fields(id, {
+			"rotation_deg": 0.0,
+			"stair_run_direction_m": Serializer.vector_to_data(Vector2(portal["stair_dir"])),
+			"stair_turn_degrees": float(portal["turn_degrees"]),
+			"stair_flight_count": 2 if float(portal["turn_degrees"]) >= 179.0 else 1,
+		})
 
 	# El zaguan: abajo, la puerta del portal a la calle. Cerrada, que es como esta
 	# un portal de verdad; abrirla es una decision del escenario.
@@ -5560,6 +5580,10 @@ func _stair_angle_text(room_id: int, room: Dictionary) -> String:
 	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
 	var slope_deg: float = _stair_slope_angle_deg(room_id, room, rect)
 	var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
+	var portal: Dictionary = ScenarioWalls.portal_layout(editor_data, room)
+	if not portal.is_empty():
+		stair_dir = Vector2(portal["stair_dir"])
+		turn_degrees = float(portal["turn_degrees"])
 	var mode_text: String = "2 tramos + descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
 	return "Subida %.0f° | %s | orientacion %s" % [slope_deg, mode_text, StairPlanRules.direction_label(stair_dir)]
 
@@ -5568,6 +5592,15 @@ func _stair_angle_text(room_id: int, room: Dictionary) -> String:
 ## escenario: hay que mirar el hueco vertical o la cota de la planta de arriba.
 ## Aqui se busca la altura y el modulo hace la trigonometria.
 func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> float:
+	# En el portal, la pendiente es la de los tramos: la franja de rellano no sube.
+	var portal: Dictionary = ScenarioWalls.portal_layout(editor_data, room)
+	if not portal.is_empty():
+		return StairPlanRules.slope_angle_deg(
+			Rect2(portal["stair_rect"]),
+			Vector2(portal["stair_dir"]),
+			float(portal["turn_degrees"]),
+			_stair_rise_for_room(room_id, room)
+		)
 	return StairPlanRules.slope_angle_deg(
 		rect,
 		StairPlanRules.run_direction_for_room(room),
@@ -6891,6 +6924,7 @@ func _plan_ghost_view() -> Dictionary:
 			"stair_dir": StairPlanRules.run_direction_for_room(room_dict),
 			"turn_degrees": float(room_dict.get("stair_turn_degrees", 0.0))
 		}
+		_add_portal_plan_fields(entry, room_dict)
 		# Una sala diminuta en pantalla no cabe su nombre: mejor sin cartel que
 		# con un cartel que tapa el plano de arriba.
 		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
@@ -6915,6 +6949,22 @@ func _plan_ghost_view() -> Dictionary:
 				"color": Color(0.70, 0.84, 0.92, 0.25)
 			})
 	return {"rooms": rooms_view, "openings": openings_view}
+
+
+## En el portal la escalera no ocupa la zona entera: el plano dibuja las guias
+## sobre la parte de los tramos y marca la franja de rellano, con el mismo
+## reparto que construye la vista (`ScenarioWalls.portal_layout`).
+func _add_portal_plan_fields(entry: Dictionary, room_dict: Dictionary) -> void:
+	var portal: Dictionary = ScenarioWalls.portal_layout(editor_data, room_dict)
+	if portal.is_empty():
+		return
+	entry["stair_dir"] = portal["stair_dir"]
+	entry["turn_degrees"] = portal["turn_degrees"]
+	entry["stair_rect_m"] = portal["stair_rect"]
+	entry["stair_rect_px"] = _rect_to_px(Rect2(portal["stair_rect"]))
+	var landing: Rect2 = Rect2(portal["landing_rect"])
+	if landing.size.x > 0.01 and landing.size.y > 0.01:
+		entry["landing_rect_px"] = _rect_to_px(landing)
 
 
 ## El color dice de que es cada sala -pasillo, escalera o estancia- y si esta
@@ -6960,6 +7010,7 @@ func _plan_rooms_view() -> Array:
 			"dim_color": Color(0.75, 0.88, 0.95, 0.85),
 			"area_color": Color(0.65, 0.82, 0.65, 0.85)
 		}
+		_add_portal_plan_fields(entry, room_dict)
 		# Solo las salas giradas se dibujan como poligono: el resto, como rect.
 		var rotation_deg: float = float(room_dict.get("rotation_deg", 0.0))
 		if absf(rotation_deg) > 0.001:

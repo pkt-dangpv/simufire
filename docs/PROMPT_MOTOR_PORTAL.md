@@ -192,8 +192,17 @@ Lo del humo subiendo y lo de la caja presurizándose ya está arriba. Queda:
   en el rellano: en la pared de enfrente quedaba detrás de los tramos, bajo la
   meseta. Guardarraíl `tools/validate_portal_view.gd`. Para el motor nada cambia:
   cada zona sigue siendo una sala entera con su ojo de 1,4 m.
-- 🟠 **El plano 2D del editor** todavía dibuja las guías de escalera sobre la
-  zona entera del portal, no sobre la parte de los tramos.
+- ✅ **El plano 2D del editor** (2026-09-13) dibuja las guías de escalera sobre la
+  parte de los tramos y marca la franja de rellano. El hueco vertical, el que se
+  pincha para seleccionarlo, y la pendiente del panel salen del mismo reparto.
+  `PortalGeometry.split` es la regla pura, y `ScenarioWalls.portal_layout` la
+  aplica sobre el diccionario del editor con el mismo voto de puertas.
+  `validate_portal_view` comprueba que el plano y la vista dan el mismo hueco y
+  la misma escalera. Al mirar la foto del plano salió un fallo que venía de la
+  herramienta: **el portal se dibujaba girado −90°** encima de sí mismo, porque
+  la subida y el `rotation_deg` salían del gesto de arrastre. Nace ahora sin
+  giro, con la subida del reparto real, y no se deja girar: lo orientan las
+  puertas de las viviendas.
 - ✅ **Saber a qué da cada abertura** (`view/geometry/OpeningKinds.gd`,
   2026-09-12), que es lo que permite no pintar penacho donde no lo hay.
 - ✅ **El rellano ya está construido en la vista** y su huella se calcula antes de

@@ -204,6 +204,11 @@ static func vertical_opening_rect(data: Dictionary, opening: Dictionary) -> Rect
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return Rect2()
 	var room: Dictionary = ScenarioQueries.room_by_id(data, a_id)
+	# El portal: el hueco va sobre la parte de los tramos, no sobre la zona
+	# entera, igual que en la vista.
+	var portal: Dictionary = portal_layout(data, room)
+	if not portal.is_empty():
+		return StairGeometry.vertical_void_rect(Rect2(portal["stair_rect"]), Vector2(portal["stair_dir"]), float(portal["turn_degrees"]))
 	if not room.is_empty() and StairPlanRules.is_stair_room(room):
 		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(room)
 		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
@@ -211,6 +216,42 @@ static func vertical_opening_rect(data: Dictionary, opening: Dictionary) -> Rect
 	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
 	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
 	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
+
+
+## El reparto de una zona del portal -rellano y escalera- desde el diccionario
+## del escenario. Es `PortalGeometry.layout` del lado del editor: el mismo voto
+## de puertas entre todas las plantas del portal y el mismo `split`, para que el
+## plano dibuje la escalera donde la construye la vista. Vacio si no es portal.
+static func portal_layout(data: Dictionary, room: Dictionary) -> Dictionary:
+	if room.is_empty() or not StairPlanRules.is_portal_room(room):
+		return {}
+	var rect: Rect2 = ScenarioQueries.room_rect(data, int(room.get("id", -1)))
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return {}
+	var chain: Dictionary = {}
+	for raw in data.get("rooms_data", []):
+		if typeof(raw) != TYPE_DICTIONARY or not StairPlanRules.is_portal_room(raw):
+			continue
+		var other_id: int = int(Dictionary(raw).get("id", -1))
+		if PortalGeometry.same_rect(ScenarioQueries.room_rect(data, other_id), rect):
+			chain[other_id] = true
+	var votes: Dictionary = {}
+	for raw_op in data.get("openings_data", []):
+		if typeof(raw_op) != TYPE_DICTIONARY or bool(Dictionary(raw_op).get("is_vertical", false)):
+			continue
+		var a_id: int = int(Dictionary(raw_op).get("a", OUTSIDE_ID))
+		var b_id: int = int(Dictionary(raw_op).get("b", OUTSIDE_ID))
+		var other: int = OUTSIDE_ID
+		if chain.has(a_id) and b_id >= 0 and not chain.has(b_id):
+			other = b_id
+		elif chain.has(b_id) and a_id >= 0 and not chain.has(a_id):
+			other = a_id
+		if other < 0:
+			continue
+		var side: String = PortalGeometry.touching_side(rect, ScenarioQueries.room_rect(data, other))
+		if side != "":
+			votes[side] = int(votes.get(side, 0)) + 1
+	return PortalGeometry.split(rect, PortalGeometry.side_from_votes(votes, StairPlanRules.run_direction_for_room(room)))
 
 
 static func opening_on_level(data: Dictionary, opening: Dictionary, level_m: float) -> bool:

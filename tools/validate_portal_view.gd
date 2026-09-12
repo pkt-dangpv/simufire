@@ -18,6 +18,7 @@ extends SceneTree
 const BuildingModelScript := preload("res://sim/BuildingModel.gd")
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
+const ScenarioWalls := preload("res://editor/ScenarioWalls.gd")
 
 const TOOL_PORTAL: int = 15
 const PLANTA_H: float = 2.9
@@ -129,6 +130,25 @@ func _process(_d: float) -> bool:
 	_eq("el hueco del forjado no pisa el rellano", hueco_en_rellano, false)
 	_eq("y cae dentro de la parte de la escalera", huecos.size() == 1 and stair.grow(0.02).encloses(huecos[0]), true)
 
+	# ── 2b. El plano del editor dice lo mismo que la vista ──
+	#
+	# Sin esto el plano pintaba la escalera sobre la zona entera: el reparto
+	# tiene que salir de la misma regla en los dos lados.
+	var ojo_editor := Rect2()
+	for raw in _editor.editor_data.get("openings_data", []):
+		var op: Dictionary = raw
+		if bool(op.get("is_vertical", false)) and int(op.get("b", -1)) == zonas[1].id:
+			ojo_editor = ScenarioWalls.vertical_opening_rect(_editor.editor_data, op)
+	_eq("el hueco en el plano es el mismo que en la vista", huecos.size() == 1 and _mismo(ojo_editor, huecos[0]), true)
+	var plano_escalera := Rect2()
+	var plano_rellano: bool = false
+	for entrada in _editor._plan_rooms_view():
+		if String(Dictionary(entrada).get("name", "")).begins_with("Portal"):
+			plano_escalera = Rect2(Dictionary(entrada).get("stair_rect_m", Rect2()))
+			plano_rellano = Dictionary(entrada).has("landing_rect_px")
+	_eq("el plano dibuja la escalera en la parte de los tramos", _mismo(plano_escalera, stair), true)
+	_eq("y marca la franja de rellano", plano_rellano, true)
+
 	# ── 3. Cerrado por arriba ──
 	var techos: Array[String] = []
 	for z in zonas:
@@ -166,6 +186,10 @@ func _hay_suelo_en(nodos: Dictionary, fp: FirstPersonController, z: RoomModel, p
 			if x >= caja.position.x and x <= caja.end.x and zz >= caja.position.z and zz <= caja.end.z:
 				return true
 	return false
+
+
+func _mismo(a: Rect2, b: Rect2) -> bool:
+	return a.size.x > 0.0 and a.position.distance_to(b.position) < 0.02 and a.size.distance_to(b.size) < 0.02
 
 
 func _hay(nodos: Dictionary, prefijo: String) -> bool:

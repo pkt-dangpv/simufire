@@ -246,13 +246,24 @@ static func ghost_floor(canvas: CanvasItem, rooms_view: Array, openings_view: Ar
 		canvas.draw_rect(rect_px, room.get("fill", Color.WHITE), true)
 		canvas.draw_rect(rect_px, room.get("outline", Color.WHITE), false, 1.2)
 		if bool(room.get("is_stair", false)):
-			stair_room_guides(canvas, rect_px, room.get("stair_dir", Vector2.DOWN), float(room.get("turn_degrees", 0.0)))
+			portal_landing_band(canvas, room)
+			stair_room_guides(canvas, room.get("stair_rect_px", rect_px), room.get("stair_dir", Vector2.DOWN), float(room.get("turn_degrees", 0.0)))
 		if room.has("label"):
 			screen_string(canvas, font, scale_inv, rect_px.position, Vector2(6.0, 16.0),
 				String(room["label"]), float(room.get("label_width_px", 30.0)), 10, room.get("label_color", Color.WHITE))
 	for entry in openings_view:
 		var opening: Dictionary = entry
 		canvas.draw_line(opening.get("a_px", Vector2.ZERO), opening.get("b_px", Vector2.ZERO), opening.get("color", Color.WHITE), 3.0)
+
+
+## La franja de rellano de un portal: un velo claro y su linea de borde con la
+## escalera. Nada si la sala no la trae.
+static func portal_landing_band(canvas: CanvasItem, room: Dictionary) -> void:
+	if not room.has("landing_rect_px"):
+		return
+	var band: Rect2 = room["landing_rect_px"]
+	canvas.draw_rect(band, Color(0.95, 0.88, 0.62, 0.10), true)
+	canvas.draw_rect(band, Color(1.0, 0.86, 0.40, 0.55), false, 1.5)
 
 
 ## Cada sala: su relleno, sus guias si es pasillo o escalera, su ficha de nombre,
@@ -282,7 +293,10 @@ static func rooms(canvas: CanvasItem, rooms_view: Array, font: Font, scale_inv: 
 		if is_corridor:
 			corridor_room_guides(canvas, rect_px)
 		if is_stair:
-			stair_room_guides(canvas, rect_px, room.get("stair_dir", Vector2.DOWN), float(room.get("turn_degrees", 0.0)))
+			# En un portal, las guias van sobre la parte de los tramos y la franja
+			# de rellano se marca aparte.
+			portal_landing_band(canvas, room)
+			stair_room_guides(canvas, room.get("stair_rect_px", rect_px), room.get("stair_dir", Vector2.DOWN), float(room.get("turn_degrees", 0.0)))
 		if is_corridor or is_stair:
 			narrow_room_dimension_labels(canvas, room.get("rect_m", Rect2()), rect_px, is_stair)
 		if room.has("handles"):

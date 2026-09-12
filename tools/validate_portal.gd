@@ -108,10 +108,12 @@ func _portales() -> Array:
 
 
 func _dibujar_portal() -> void:
-	# 3 x 3 pegado a la pared derecha de la vivienda, subiendo hacia abajo.
+	# 3,25 x 3 pegado a la pared derecha de la vivienda. El gesto es mas ancho
+	# que alto a proposito: asi la escalera por defecto "sube hacia la derecha" y
+	# las zonas nacerian con -90 grados si la herramienta no los corrigiera.
 	_editor.current_tool = TOOL_PORTAL
 	_editor._handle_press(Vector2(5.0, 0.5))
-	_editor._handle_release(Vector2(8.0, 3.5))
+	_editor._handle_release(Vector2(8.25, 3.5))
 
 
 func _process(_delta: float) -> bool:
@@ -142,6 +144,15 @@ func _process(_delta: float) -> bool:
 	var tipos: Array = zonas.map(func(z): return String(z.get("kind", "")))
 	_eq("todas de escalera, que es con lo que se midio", ",".join(tipos), "escalera,escalera,escalera")
 	var ids: Array = zonas.map(func(z): return int(z.get("id", -1)))
+	# Sin giro, y con la subida que dicen las puertas y no el gesto: con un gesto
+	# mas ancho que alto, las zonas nacian con -90 grados y el plano dibujaba el
+	# portal girado encima de si mismo.
+	var giros: Array = zonas.map(func(z): return "%.0f" % float(z.get("rotation_deg", 99.0)))
+	_eq("el portal nace sin giro", ",".join(giros), "0,0,0")
+	var subida: Dictionary = Dictionary(zonas[0].get("stair_run_direction_m", {}))
+	_eq("y sube alejandose de la puerta del piso", "%.0f,%.0f" % [float(subida.get("x", 0.0)), float(subida.get("y", 0.0))], "1,0")
+	_editor._set_room_rotation(ids[0], 90.0)
+	_eq("y no se deja girar", "%.0f" % float(_editor._get_room(ids[0]).get("rotation_deg", 99.0)), "0")
 
 	# ── 2. Encadenado y cerrado por arriba ──
 	var verticales: Array = []

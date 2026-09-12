@@ -53,7 +53,13 @@ static func layout(building: BuildingModel, room: RoomModel) -> Dictionary:
 	var rect: Rect2 = _rect_of(building, room.id)
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 		return {}
-	var side: String = landing_side(building, room)
+	return split(rect, landing_side(building, room))
+
+
+## El reparto en si, sin modelo: un rectangulo y la pared del rellano. Lo usan
+## la vista, con el `BuildingModel`, y el editor, con su diccionario
+## (`ScenarioWalls.portal_layout`), para que el plano y el mundo no discrepen.
+static func split(rect: Rect2, side: String) -> Dictionary:
 	var stair_dir: Vector2 = _inward_direction(side)
 	var along_x: bool = side == "left" or side == "right"
 	var long_m: float = rect.size.x if along_x else rect.size.y
@@ -93,7 +99,7 @@ static func landing_side(building: BuildingModel, room: RoomModel) -> String:
 	var chain: Dictionary = {}
 	for key in building.get_rooms().keys():
 		var other: RoomModel = building.get_room(int(key))
-		if other != null and BuildingLevels.is_portal(other) and _same_rect(_rect_of(building, other.id), rect):
+		if other != null and BuildingLevels.is_portal(other) and same_rect(_rect_of(building, other.id), rect):
 			chain[other.id] = other.floor_level_z_m
 	var votes: Dictionary = {}
 	for raw_op in building.get_openings():
@@ -113,6 +119,12 @@ static func landing_side(building: BuildingModel, room: RoomModel) -> String:
 		var side: String = touching_side(rect, _rect_of(building, other_id))
 		if side != "":
 			votes[side] = int(votes.get(side, 0)) + 1
+	return side_from_votes(votes, BuildingLevels.stair_run_direction(room))
+
+
+## Gana la pared con mas puertas; a igualdad, en el orden izquierda, arriba,
+## derecha, abajo. Sin votos, la contraria a la subida guardada.
+static func side_from_votes(votes: Dictionary, stored_stair_dir: Vector2) -> String:
 	var best: String = ""
 	var best_votes: int = 0
 	for side in ["left", "top", "right", "bottom"]:
@@ -121,7 +133,7 @@ static func landing_side(building: BuildingModel, room: RoomModel) -> String:
 			best = side
 	if best != "":
 		return best
-	return _side_behind(BuildingLevels.stair_run_direction(room))
+	return _side_behind(stored_stair_dir)
 
 
 ## Que pared de `rect` toca a `other`, o "" si no se tocan.
@@ -189,5 +201,5 @@ static func _rect_of(building: BuildingModel, room_id: int) -> Rect2:
 	return Rect2(building.room_rect_m.get(room_id, Rect2()))
 
 
-static func _same_rect(a: Rect2, b: Rect2) -> bool:
+static func same_rect(a: Rect2, b: Rect2) -> bool:
 	return a.position.distance_to(b.position) <= SAME_RECT_TOL_M and a.size.distance_to(b.size) <= SAME_RECT_TOL_M
