@@ -1720,3 +1720,91 @@ antes de commitear**, no un `diff` contra una copia. Restaurado con
 
 Y la capa, con su frontera escrita: **si una función necesita escribir, no es de
 este módulo**.
+
+---
+
+## 22. D-1: de quién es `editor_data` — DECIDIDO (2026-09-13)
+
+El usuario delegó la decisión que el §21.3 dejó abierta. Se toma con lo medido
+hoy sobre `editor/ScenarioEditor.gd`, que ha vuelto a crecer con el patio y el
+portal: **8558 líneas y 414 funciones**.
+
+| lo que escribe el escenario | sitios |
+|---|---:|
+| asignaciones a una clave de primer nivel (`editor_data["rooms_data"] = …`) | 66 |
+| reasignaciones del diccionario entero (`editor_data = …`) | 7 |
+| instantáneas de deshacer puestas a mano (`_push_undo_snapshot`) | 39 |
+| guardarraíles o sondas que escriben directamente | **1** (`validate_editor_interaction.gd:140`) |
+| módulos de `editor/` que lo leen | 7 |
+
+### 22.1 La decisión
+
+> **El dueño es un `ScenarioDocument` nuevo (`editor/ScenarioDocument.gd`,
+> `RefCounted`). Tiene el diccionario del escenario y su historial. Es el único
+> que escribe en él.**
+
+Cinco reglas, que son la decisión:
+
+1. **Las mutaciones son métodos del documento y no tocan la interfaz.** No ponen
+   estado ni cambian la selección ni redibujan. Devuelven un resultado —ids
+   creados, cuántas puertas se reconectaron, un motivo de rechazo— y es el editor
+   quien lo convierte en mensaje y selección. Es la frontera que ya funcionó en
+   la capa de preguntas, del lado de la escritura.
+2. **El historial vive en el documento, y cada mutación es una transacción.** El
+   método toma él mismo la instantánea antes de escribir. Las 39 llamadas a mano
+   desaparecen, y con ellas la clase de fallo «esta acción no se puede deshacer
+   porque alguien olvidó la instantánea».
+3. **Deshacer restaura tal cual.** Es la lección del §21.3: la restauración no
+   normaliza ni bloquea poses. Se hace con `restore(snapshot)`, que es un camino
+   distinto de `adopt(data)`, el que carga un escenario de fuera.
+4. **El documento avisa; el editor escucha.** Una señal `changed` sustituye a
+   `_mark_editor_runtime_dirty()` y a los redibujos repartidos. El editor decide
+   qué rehacer: el plano, el 3D en vivo o los mandos.
+5. **Leer sigue siendo libre.** `editor_data` pasa a ser una propiedad de solo
+   lectura que devuelve el diccionario del documento. Los siete módulos de
+   `editor/` y las veintidós herramientas que lo leen no cambian. Escribir por
+   esa vía queda prohibido y lo vigila un guardarraíl de texto, al estilo de
+   `validate_probe_paths`: fuera de `ScenarioDocument` no puede aparecer
+   `editor_data[...] =`, ni `editor_data = `, ni un `append`/`erase` sobre sus
+   listas. La única escritura directa de un guardarraíl
+   (`validate_editor_interaction.gd:140`) pasa a `adopt_scenario_data`, que ya es
+   la entrada única desde D-6.
+
+**Lo que NO se muda al documento:** la selección, la planta que se mira, el
+arrastre en curso, la cámara, la puerta a medio poner. Es estado de la
+interfaz, no del escenario. Mezclarlos es lo que hizo imposible verificar
+deshacer por equivalencia.
+
+### 22.2 Lo que se descartó, y por qué
+
+- **Que el dueño sea `BuildingModel`.** No: es el formato de ejecución. Tipos
+  distintos (`Rect2` frente a diccionarios), valores normalizados por
+  `ScenarioSerializer.to_runtime_template`, y le faltan campos que solo
+  existen para editar, como `stair_turn_mode` o los tiradores. La vista ya
+  consume el template; el editor necesita el formato que no pierde nada.
+- **Un módulo estático de mutadores sobre el diccionario suelto**, como
+  `ScenarioWalls` pero escribiendo. Bajaría líneas, pero deja el diccionario
+  público. Siguen vivos los dos riesgos del §21.3: que un `Dictionary` sea una
+  referencia, y que «escribir de vuelta» a veces no haga nada. Y el historial
+  seguiría siendo manual.
+- **Seguir cortando preguntas.** El §21.2 ya midió que por ahí no queda nada.
+
+### 22.3 Cómo se hace sin romper deshacer
+
+No de golpe: **por familias de mutaciones, cada una con su sonda antes y
+después**. La primera familia es la de **los conductos verticales**: escalera,
+patio y portal. Tres razones:
+- es la más reciente;
+- es la que tiene la mejor cobertura (`validate_patio`, `validate_portal` y
+  `validate_portal_view`, con diecinueve mutaciones muertas);
+- sus funciones se llaman entre sí: `_add_vertical_opening`,
+  `_create_room_at_level`, `_apply_stair_defaults_to_room`.
+
+Cada familia se da por cerrada cuando se cumplen tres cosas:
+- sus guardarraíles siguen verdes;
+- **deshacer y rehacer devuelven el diccionario idéntico**, comparado byte a byte
+  tras cada acción de la familia (sonda nueva);
+- no quedan escrituras de esa familia fuera del documento.
+
+Las 7400 líneas son una consecuencia, no el objetivo: el objetivo es que el
+escenario tenga un único sitio que lo escribe.
