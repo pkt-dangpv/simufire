@@ -26,6 +26,7 @@ signal screenshot_failed(message: String)
 const SmokeAnimation3D := preload("res://view/3d/smoke/SmokeAnimation3D.gd")
 const SmokeLayerVisuals := preload("res://view/3d/smoke/SmokeLayerVisuals.gd")
 const SmokeOpeningCurtain3D := preload("res://view/3d/smoke/SmokeOpeningCurtain3D.gd")
+const OpeningKinds := preload("res://view/geometry/OpeningKinds.gd")
 const SmokePuffSpriteFactory := preload("res://view/3d/smoke/SmokePuffSpriteFactory.gd")
 const SmokeVolumeMaterialFactory := preload("res://view/3d/smoke/SmokeVolumeMaterialFactory.gd")
 const CameraOrbit3D := preload("res://view/3d/camera/CameraOrbit3D.gd")
@@ -1650,6 +1651,15 @@ func _opening_pose(op: OpeningModel) -> Dictionary:
 			pose["upper_room_id"] = upper_room_id
 			pose["upper_floor_level_m"] = upper_floor_m
 			pose["vertical_span_m"] = maxf(0.30, upper_floor_m - lower_floor_m)
+		elif op.is_vertical:
+			# Hueco horizontal contra el cielo -la boca de un patio, una
+			# claraboya-. Va en el TECHO de su sala, no en su suelo: es por donde
+			# el conducto remata.
+			var position_sky := Vector3(pose["position"])
+			position_sky.y = _get_room_height(room_id)
+			pose["position"] = position_sky
+			pose["floor_level_m"] = _get_room_floor_level(room_id)
+			pose["vertical_span_m"] = maxf(0.30, _get_room_height(room_id))
 		else:
 			if other_id != BuildingModel.OUTSIDE_ID and absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
 				return {}
@@ -2800,6 +2810,12 @@ func _update_openings() -> void:
 			broken_crack_v.visible = op.type == OpeningModel.Type.WINDOW and op.glass_broken
 
 		SmokeOpeningCurtain3D.update(item_dict, op, _room_items, {
+			# A QUE DA esta abertura. El modelo solo sabe si el otro lado es una
+			# sala o el ambiente, y con eso la puerta de un piso -que da a un
+			# rellano cerrado- echaba penacho a la calle igual que la entrada de
+			# una unifamiliar. Una de las dos es falsa.
+			"vents_outdoors": OpeningKinds.vents_outdoors(building, op),
+			"is_patio_mouth": OpeningKinds.is_patio_mouth(building, op),
 			"show_smoke_volume": show_smoke_volume,
 			"show_smoke_opening_curtains": show_smoke_opening_curtains \
 				and (not _first_person_overlay or show_smoke_opening_curtains_in_first_person),

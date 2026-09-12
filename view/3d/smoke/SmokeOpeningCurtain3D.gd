@@ -76,8 +76,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["exterior_door_curtain_outward_shift"] = float(settings.get("exterior_door_curtain_outward_shift", 0.0))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
-		_hide_layer(plume)
-		_update_vertical(curtain, pose, item_a, item_b, open_frac, context)
+		_update_vertical(curtain, plume, pose, item_a, item_b, open_frac, context)
 	else:
 		_update_horizontal(curtain, inflow, plume, pose, op, item_a, item_b, open_frac, context)
 
@@ -417,6 +416,7 @@ static func _update_lower_inflow(
 
 static func _update_vertical(
 	curtain: MeshInstance3D,
+	plume: MeshInstance3D,
 	pose: Dictionary,
 	item_a: Dictionary,
 	item_b: Dictionary,
@@ -428,6 +428,7 @@ static func _update_vertical(
 	# aunque la de abajo estuviese cargada. La ausente se toma como limpia.
 	if item_a.is_empty() and item_b.is_empty():
 		curtain.visible = false
+		_hide_layer(plume)
 		return
 	if item_a.is_empty():
 		item_a = _absent_floor_item(item_b)
@@ -452,6 +453,7 @@ static func _update_vertical(
 	var curtain_alpha: float = maxf(lower_alpha * 0.92, upper_alpha * 0.58) * open_frac
 	if lower_depth_m <= smoke_min_visible_depth_m and upper_depth_m <= smoke_min_visible_depth_m:
 		curtain.visible = false
+		_hide_layer(plume)
 		return
 
 	var start_local_m: float = clampf(
@@ -460,9 +462,19 @@ static func _update_vertical(
 		maxf(0.16, lower_height_m - 0.04)
 	)
 	var start_abs_m: float = lower_floor_m + start_local_m
-	var top_abs_m: float = upper_floor_m + maxf(0.45, upper_height_m - 0.08)
+	# La boca de un patio no tiene planta encima: remata en su propio plano. Sin
+	# este tope, la cortina del conducto seguia subiendo una planta POR ENCIMA
+	# del edificio -el hueco ausente se supone una planta mas- y se leia como una
+	# columna flotando sobre la cubierta. De lo que sale por ahi se encarga el
+	# penacho, que es otra cosa y se dibuja aparte.
+	var es_boca: bool = bool(context.get("is_patio_mouth", false))
+	var top_abs_m: float = lower_floor_m + lower_height_m if es_boca 		else upper_floor_m + maxf(0.45, upper_height_m - 0.08)
 	var plume_height_m: float = maxf(0.0, top_abs_m - start_abs_m)
 	curtain.visible = plume_height_m > smoke_min_visible_depth_m and curtain_alpha > MIN_CURTAIN_ALPHA
+	if es_boca:
+		_update_mouth_plume(plume, context, pose, top_abs_m, lower_alpha * open_frac)
+	else:
+		_hide_layer(plume)
 	if not curtain.visible:
 		return
 
@@ -507,6 +519,17 @@ static func _update_vertical(
 	)
 
 
+## ¿Sale al aire libre lo que pasa por esta abertura?
+##
+## Lo dice quien monto el contexto. Si no lo dice -un llamante viejo-, vale el
+## criterio de siempre: que el otro lado sea el ambiente.
+static func _vents_outdoors(context: Dictionary, op: OpeningModel) -> bool:
+	var declarado = context.get("vents_outdoors", null)
+	if declarado == null:
+		return op != null and op.is_exterior_opening()
+	return bool(declarado)
+
+
 static func _context_from(pose: Dictionary, settings: Dictionary) -> Dictionary:
 	return {
 		"smoke_opening_blend_depth_m": float(settings.get("smoke_opening_blend_depth_m", 1.55)),
@@ -519,6 +542,12 @@ static func _context_from(pose: Dictionary, settings: Dictionary) -> Dictionary:
 		"show_cold_air_inflow_curtains": bool(settings.get("show_cold_air_inflow_curtains", false)),
 		"floor_level_m": float(pose.get("floor_level_m", 0.0)),
 		"first_person_overlay": bool(settings.get("first_person_overlay", false)),
+		# A QUE DA la abertura. Lo decide quien conoce el edificio; aqui solo se
+		# usa. Sin valor, se cae al criterio antiguo -el otro lado es el
+		# ambiente-, que es el que confunde la puerta de un piso con la entrada
+		# de una unifamiliar.
+		"vents_outdoors": settings.get("vents_outdoors", null),
+		"is_patio_mouth": bool(settings.get("is_patio_mouth", false)),
 	}
 
 
@@ -626,7 +655,7 @@ static func _update_exterior_plume(
 	var requires_curtain: bool = bool(context.get("exterior_plume_requires_curtain", false))
 	if not bool(context.get("show_exterior_smoke_plume", true)) \
 			or op == null \
-			or not op.is_exterior_opening() \
+			or not _vents_outdoors(context, op) \
 			or (requires_curtain and not curtain_visible) \
 			or source_alpha <= float(context.get("exterior_plume_min_source_alpha", 0.05)) \
 			or absf(outward_sign) < 0.5:
@@ -723,6 +752,102 @@ static func _update_exterior_plume(
 		plume_pos.z += stand_off_m + lean_offset_m
 		plume.rotation = Vector3(lean_rad, 0.0, 0.0)
 	plume.position = MeshFactory.to_world(plume_pos, meters_to_units, Vector2(context.get("origin_offset_m", Vector2.ZERO)))
+
+
+## El penacho de la BOCA de un patio: sube recto.
+##
+## No es el de fachada con otros numeros. Un hueco de fachada echa el humo de
+## lado, apoyado en el muro, y por eso aquel se inclina doce grados y se
+## retranquea del plano; una boca es un agujero horizontal en la cubierta y lo
+## que sale de ella sube por flotabilidad, centrado en el hueco y con la huella
+## del hueco. Inclinar esto seria pintar un viento que nadie ha calculado.
+##
+## La altura la manda cuanto humo hay en la ultima zona del conducto: es el
+## final de la chimenea, y lo que se ve desde fuera es justo eso.
+static func _update_mouth_plume(
+	plume: MeshInstance3D,
+	context: Dictionary,
+	pose: Dictionary,
+	mouth_abs_y_m: float,
+	source_alpha: float
+) -> void:
+	if plume == null:
+		return
+	if not bool(context.get("show_exterior_smoke_plume", true)) \
+			or source_alpha <= float(context.get("exterior_plume_min_source_alpha", 0.05)):
+		_hide_layer(plume)
+		return
+
+	var drive_t: float = clampf(source_alpha * 1.35, 0.0, 1.0)
+	var plume_alpha: float = clampf(source_alpha * 0.68, 0.0, 0.32)
+	var height_m: float = lerpf(
+		float(context.get("exterior_plume_min_height_m", 0.55)),
+		float(context.get("exterior_plume_max_height_m", 3.60)),
+		drive_t
+	)
+	plume.visible = plume_alpha > MIN_CURTAIN_ALPHA and height_m > 0.30
+	if not plume.visible:
+		return
+
+	# La huella del penacho es la del hueco, un poco recogida: el humo se
+	# estrecha al salir, no sale con el borde recto de una caja.
+	var meters_to_units: float = float(context.get("meters_to_units", 1.0))
+	var pose_size: Vector3 = Vector3(pose["size"])
+	var span_x_m: float = maxf(0.25, pose_size.x * 0.86)
+	var span_z_m: float = maxf(0.25, pose_size.z * 0.86)
+	plume.mesh = SmokeBridgeMesh.create_vertical(span_x_m, span_z_m, height_m, meters_to_units)
+
+	var first_person_overlay: bool = bool(context.get("first_person_overlay", false))
+	var shader_alpha: float = clampf(
+		plume_alpha * float(context.get(
+			"exterior_plume_first_person_alpha_factor" if first_person_overlay else "exterior_plume_alpha_factor",
+			0.78 if first_person_overlay else 0.62
+		)),
+		0.030,
+		0.36
+	)
+	_apply_smoke_material(
+		plume,
+		_plume_color(context, 0.0),
+		shader_alpha,
+		{
+			"density": clampf(0.40 + plume_alpha * 1.20, 0.32, 1.10),
+			"turbulence": lerpf(
+				float(context.get("exterior_plume_laminar_turbulence", 0.30)),
+				float(context.get("exterior_plume_turbulent_turbulence", 1.15)),
+				drive_t
+			),
+			"drift_speed": lerpf(
+				float(context.get("exterior_plume_min_speed", 0.10)),
+				float(context.get("exterior_plume_max_speed", 0.62)),
+				drive_t
+			),
+			"volume_depth_m": maxf(height_m, 0.05),
+			"meters_to_units": meters_to_units,
+			"edge_softness": float(context.get("exterior_plume_edge_softness", 0.72)),
+			"bottom_waviness": 0.30,
+			"edge_band_strength": 0.20,
+			"side_visibility": float(context.get("exterior_plume_side_visibility", 0.34)),
+			"bottom_surface_strength": 0.10,
+			"top_visibility": 0.0,
+			"vertical_gradient_strength": 0.30,
+			"lower_density_floor": 0.70,
+			"flow_strength": clampf(0.24 + drive_t * 0.56, 0.0, 0.90),
+			"flow_speed": 0.30 + drive_t * 0.60,
+			"flow_direction": 0.0,
+		},
+		clampf(plume_alpha * 0.50, 0.030, 0.32)
+	)
+
+	# Arranca EN el plano de la boca -no por encima-, para que se vea salir del
+	# agujero y no flotando sobre la cubierta.
+	var pos3: Vector3 = Vector3(pose["position"])
+	plume.rotation = Vector3.ZERO
+	plume.position = MeshFactory.to_world(
+		Vector3(pos3.x, mouth_abs_y_m + height_m * 0.5, pos3.z),
+		meters_to_units,
+		Vector2(context.get("origin_offset_m", Vector2.ZERO))
+	)
 
 
 static func _horizontal_neutral_plane_m(

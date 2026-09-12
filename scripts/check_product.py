@@ -522,6 +522,26 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot humo del patio: " + (diagnostic or "failed"))
 
+    # A QUE DA cada abertura. El modelo solo sabe si el otro lado es una sala o
+    # el ambiente, y con eso la puerta de un piso -que da a un rellano cerrado-
+    # era el mismo dato que la entrada de una unifamiliar a la calle.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_opening_kinds.gd",
+        "[validate_opening_kinds] PASS",
+    )
+    rows.append(("Tipos de abertura Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot tipos de abertura: " + (diagnostic or "failed"))
+
+    # Y por donde sale el penacho, medido sobre el visor construido.
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_exterior_plume.tscn",
+        "[validate_exterior_plume] PASS",
+    )
+    rows.append(("Penacho exterior Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot penacho: " + (diagnostic or "failed"))
+
     # D-6: las sondas montan el escenario por el camino real. El editor tiene
     # un solo sitio donde se adopta un escenario, y nadie inyecta el
     # diccionario a mano: si lo hace, las fotos y las medidas mienten.

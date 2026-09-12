@@ -53,6 +53,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [audits/CREDIBILITY_REPORT.md](audits/CREDIBILITY_REPORT.md): informe de credibilidad.
 - [audits/PRODUCT_EDITOR_FP_3D_AUDIT.md](audits/PRODUCT_EDITOR_FP_3D_AUDIT.md): auditoría producto/editor/first-person/3D.
 - [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md): auditoría gráfica completa (humo en vanos, fachada propia, rellano y entradas).
+- [PROMPT_MOTOR_PORTAL.md](PROMPT_MOTOR_PORTAL.md): el portal y la caja de escalera como recinto de verdad. Hoy la puerta de la vivienda da al ambiente, así que el humo que sale por ella no choca contra ningún techo ni sube por ninguna escalera: el rellano es decorado, no existe para el motor.
 - [AUDITORIA_CODIGO_2026-09-11.md](AUDITORIA_CODIGO_2026-09-11.md): auditoría del código visual y de UI (estilo, código muerto y funciones duplicadas entre las vistas), medida con dos comprobadores; incluye el guardarraíl que aprobaba sin haber mirado.
 - [AUDITORIA_EDITOR_2026-09-06.md](AUDITORIA_EDITOR_2026-09-06.md): auditoría del editor de escenarios (descubribilidad, acabado y funciones que faltan), medida sobre la escena y el script. **El §17 es el estado del editor al 2026-09-10.**
 - [audit_issues/INDEX.md](audit_issues/INDEX.md): índice de issues técnicos derivados de auditorías.
