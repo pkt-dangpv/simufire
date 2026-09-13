@@ -21,8 +21,9 @@ const TOOL_PATIO: int = 14
 const TOOL_PORTAL: int = 15
 
 ## Escrituras directas a `editor_data` que quedan en `editor/` fuera del documento.
-## Solo puede bajar: 64 al mudar la familia de conductos verticales (2026-09-13).
-const LIMITE_ESCRITURAS: int = 64
+## Solo puede bajar: 64 al mudar la familia de conductos verticales, 50 al mudar
+## la de plantas (2026-09-13).
+const LIMITE_ESCRITURAS: int = 50
 
 ## Las envolturas de la familia de conductos verticales.
 const ENVOLTURAS_MUDADAS: Array[String] = [
@@ -32,6 +33,8 @@ const ENVOLTURAS_MUDADAS: Array[String] = [
 	"_copy_stairs_from_level_to_level", "_sync_linked_stair_rects",
 	"_apply_stair_rotation_to_linked_rooms", "_sync_vertical_stair_openings",
 	"_floor_name_for_level", "_update_room_fields", "_add_opening", "_ensure_floor_data",
+	# Plantas (segunda familia).
+	"_create_floor", "_delete_floor_pressed", "_on_floor_level_changed", "_set_room_rect",
 ]
 
 var _editor: Node = null
@@ -85,6 +88,10 @@ func _process(_d: float) -> bool:
 	_accion("escalera encadenada arriba", 1, TOOL_STAIRS, Vector2(-3.0, 0.0), Vector2(0.0, 4.0))
 	_accion("patio", 0, TOOL_PATIO, Vector2(0.0, 4.0), Vector2(2.5, 6.5))
 	_accion("portal", 0, TOOL_PORTAL, Vector2(5.0, 0.0), Vector2(9.25, 3.0))
+	# La familia de plantas: copiar una planta, cambiarle la cota y borrarla.
+	_accion_llamada("planta nueva copiando la baja", 0, func(): _editor._create_floor(true))
+	_accion_llamada("cambiar la cota de la planta nueva", 3, func(): _editor._on_floor_level_changed(9.25))
+	_accion_llamada("borrar la planta nueva", 3, func(): _editor._delete_floor_pressed())
 
 	# ── 2 y 3. Quien escribe ──
 	_comprobar_escrituras()
@@ -103,6 +110,19 @@ func _accion(nombre: String, planta: int, tool_id: int, desde: Vector2, hasta: V
 	_editor.current_tool = tool_id
 	_editor._handle_press(desde)
 	_editor._handle_release(hasta)
+	var despues: String = _canon()
+	_eq("%s: cambia el escenario" % nombre, despues != antes, true)
+	_editor._undo_last_action()
+	_eq("%s: UN deshacer lo deja como estaba" % nombre, _canon() == antes, true)
+	_editor._redo_last_action()
+	_eq("%s: y rehacer, como quedo" % nombre, _canon() == despues, true)
+
+
+## Lo mismo que `_accion`, para las acciones que no se dibujan arrastrando.
+func _accion_llamada(nombre: String, planta: int, gesto: Callable) -> void:
+	_editor.current_floor_index = planta
+	var antes: String = _canon()
+	gesto.call()
 	var despues: String = _canon()
 	_eq("%s: cambia el escenario" % nombre, despues != antes, true)
 	_editor._undo_last_action()

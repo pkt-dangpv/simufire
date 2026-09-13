@@ -1877,3 +1877,33 @@ estaban**, y ninguna comparación de entrada y salida los habría visto:
 Candidatas para la siguiente familia: **las plantas** (añadir, borrar, copiar y
 cambiar de cota; ya llaman a `copy_stairs_between_levels`) y **las aperturas**
 (puertas, ventanas, huecos y balconeras; 30 funciones).
+
+### 22.5 Segunda familia: las plantas (2026-09-13)
+
+Crear la planta de encima, vacía o copiando otra, con sus aperturas, muebles y
+detectores. Cambiarle la cota. Borrarla con todo lo que tiene. Y colocar una sala
+en la rejilla, que la copia necesita y que arrastra a las escaleras gemelas.
+
+| | tras la 1.ª familia | tras la 2.ª |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 7923 líneas · 406 funciones | **7704 · 403** |
+| `editor/ScenarioDocument.gd` | 916 · 38 | 1202 · 46 |
+| instantáneas de deshacer puestas a mano | 35 | **31** |
+| escrituras directas a `editor_data` fuera del documento | 64 | **50** (trinquete) |
+
+**Mudanza pura, y así salió.** Antes de tocar nada, `validate_scenario_document`
+ya daba estas tres acciones como correctas: una instantánea cada una, y rehacer
+exacto. Así que aquí no había fallo que arreglar y la sonda tenía que salir
+entera. La sonda nueva, `tools/probe_floor_family.gd`, parte de un piso con una
+de cada cosa que la copia sube o deja abajo: salas, puerta, ventana, mueble,
+detector, víctima, inicio FP y escalera. Recorre diez gestos: escalera, planta
+vacía, planta copiada, cota, borrado, dos deshacer y dos rehacer. **Los diez
+salen idénticos byte a byte**, incluida la planta que queda activa. La sonda de
+la primera familia, repetida después del corte, también sale entera (el
+redimensionado de salas se mudó con este).
+
+Las tres acciones son ahora transacciones del documento (`add_floor`,
+`delete_floor`, `floor_level`). Cuatro mutaciones más tumban el guardarraíl:
+quitar cualquiera de las tres transacciones, y que la envoltura de borrar planta
+vuelva a escribir el diccionario, que la caza el trinquete. El diálogo de planta nueva, el resumen de lo que
+hay que copiar y el texto del mensaje se quedan en el editor: son interfaz.

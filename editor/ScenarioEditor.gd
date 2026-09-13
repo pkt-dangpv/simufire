@@ -2432,33 +2432,12 @@ func _add_floor_pressed() -> void:
 
 
 ## Crea la planta de encima. Con `copy_contents`, con lo que hay en la actual.
-## Devuelve el indice de la planta nueva.
+## La crea `ScenarioDocument.create_floor_above`, que es una transaccion; aqui
+## se cambia a ella y se enseña el resultado. Devuelve el indice de la nueva.
 func _create_floor(copy_contents: bool) -> int:
-	_push_undo_snapshot("add_floor")
-	var floors: Array = _get_floors()
-	# Dos plantas distintas, y a proposito:
-	#
-	#  - la de DEBAJO de la nueva es la ultima de la pila, y es con la que hay que
-	#    encadenar la escalera: es la que tiene el forjado que se perfora.
-	#  - la que se COPIA es la que estas mirando, que es la que dice el dialogo.
-	#    Dibujando un bloque de viviendas se termina la planta baja y se pide otra
-	#    igual; la ultima de la pila puede ser el hueco de escalera vacio que
-	#    creo sola la herramienta de escaleras, y copiar eso no es copiar nada.
-	var source_level_m: float = _current_floor_level_m()
-	var lower_level_m: float = source_level_m
-	var next_level_m: float = 0.0
-	if not floors.is_empty():
-		lower_level_m = float(floors[floors.size() - 1].get("level_m", 0.0))
-		next_level_m = lower_level_m + DEFAULT_FLOOR_HEIGHT_M
-	floors.append({"name": _default_floor_name(floors.size()), "level_m": next_level_m})
-	editor_data["floors"] = floors
-	# Las escaleras primero: encadenan las dos plantas y abren el hueco vertical.
-	# La copia va despues y las respeta, para no duplicar ese hueco.
-	_copy_stairs_from_level_to_level(lower_level_m, next_level_m)
-	var copied: Dictionary = {}
-	if copy_contents:
-		copied = _copy_floor_contents(source_level_m, next_level_m)
-	current_floor_index = floors.size() - 1
+	var result: Dictionary = _doc.create_floor_above(current_floor_index, copy_contents)
+	var copied: Dictionary = result["copied"]
+	current_floor_index = int(result["index"])
 	pending_door_room_id = -1
 	_clear_selection()
 	_sync_floor_controls()
@@ -2466,7 +2445,7 @@ func _create_floor(copy_contents: bool) -> int:
 		_set_status(tr("Nueva planta creada: %s.") % _current_floor_name())
 	else:
 		_set_status(tr("Nueva planta creada: %s, copiada de %s (%s).") % [
-			_current_floor_name(), _floor_name_for_level(source_level_m), _copy_summary_text(copied)])
+			_current_floor_name(), _floor_name_for_level(float(result["source_level_m"])), _copy_summary_text(copied)])
 	_mark_editor_runtime_dirty()
 	queue_redraw()
 	return current_floor_index
@@ -2557,221 +2536,30 @@ func _copy_summary_text(copied: Dictionary) -> String:
 	return ", ".join(parts)
 
 
-## Copia lo CONSTRUIDO de una planta a la de encima: salas, pasillos, sus
-## aperturas, el mobiliario y los detectores.
-##
-## No copia victimas ni el inicio en primera persona: son personas, no obra, y
-## repartir la misma victima por cada planta es lo contrario de lo que se quiere.
-##
-## Las escaleras no se duplican: ya estan arriba -las pone
-## _copy_stairs_from_level_to_level()- y se emparejan por su rectangulo, para que
-## la puerta que abajo daba a la escalera arriba de a la escalera de arriba.
-func _copy_floor_contents(from_level_m: float, to_level_m: float) -> Dictionary:
-	var id_map: Dictionary = {}
-	var copied_rooms: int = 0
-	var copied_objects: int = 0
-	var rooms: Array = editor_data.get("rooms_data", [])
-	var source_rooms: Array[Dictionary] = []
-	for room in rooms:
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var room_dict: Dictionary = room
-		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - from_level_m) < 0.05:
-			source_rooms.append(room_dict)
-
-	for source in source_rooms:
-		var source_id: int = int(source.get("id", -1))
-		var rect: Rect2 = _get_room_rect(source_id)
-		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-			continue
-		if StairPlanRules.is_stair_room(source):
-			var twin_id: int = _find_matching_stair_room_at_level(rect, to_level_m)
-			if twin_id >= 0:
-				id_map[source_id] = twin_id
-			continue
-		var copy: Dictionary = source.duplicate(true)
-		var new_id: int = ScenarioQueries.next_room_id(editor_data)
-		copy["id"] = new_id
-		copy["floor_level_z_m"] = to_level_m
-		rooms.append(copy)
-		editor_data["rooms_data"] = rooms
-		_set_room_rect(new_id, rect)
-		# Los ids de mueble se piden DESPUES de meter la sala en la lista: la
-		# cuenta de ids libres mira lo que hay, y si no esta puesta se repiten.
-		var objects: Array = copy.get("fuel_objects", [])
-		for i in range(objects.size()):
-			if typeof(objects[i]) != TYPE_DICTIONARY:
-				continue
-			var obj: Dictionary = objects[i]
-			obj["id"] = ScenarioQueries.next_object_id(editor_data)
-			obj["room_id"] = new_id
-			objects[i] = obj
-			copied_objects += 1
-		copy["fuel_objects"] = objects
-		id_map[source_id] = new_id
-		copied_rooms += 1
-
-	var copied_openings: int = _copy_openings_for_map(from_level_m, id_map)
-	var copied_detectors: int = _copy_detectors_for_map(id_map)
-	return {
-		"rooms": copied_rooms,
-		"objects": copied_objects,
-		"openings": copied_openings,
-		"detectors": copied_detectors
-	}
-
-
-## Rehace en la planta nueva las aperturas de la vieja, con los ids nuevos.
-##
-## Las verticales no: son el hueco de la escalera, que ya lo abre el encadenado,
-## y repetirlo perforaria dos veces el mismo forjado.
-func _copy_openings_for_map(from_level_m: float, id_map: Dictionary) -> int:
-	var openings: Array = editor_data.get("openings_data", [])
-	var copies: Array[Dictionary] = []
-	for raw_op in openings:
-		if typeof(raw_op) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = raw_op
-		if bool(op.get("is_vertical", false)):
-			continue
-		var a_id: int = int(op.get("a", -1))
-		var b_id: int = int(op.get("b", OUTSIDE_ID))
-		if not id_map.has(a_id):
-			continue
-		if b_id != OUTSIDE_ID and not id_map.has(b_id):
-			continue
-		if absf(_room_id_floor_level(a_id) - from_level_m) >= 0.05:
-			continue
-		var new_a: int = int(id_map[a_id])
-		var new_b: int = OUTSIDE_ID if b_id == OUTSIDE_ID else int(id_map[b_id])
-		# Dos escaleras que se mapean a si mismas serian el mismo paso otra vez:
-		# ese lo abrio el encadenado al subir la escalera.
-		if new_a == a_id and new_b == b_id:
-			continue
-		var copy: Dictionary = op.duplicate(true)
-		copy["a"] = new_a
-		copy["b"] = new_b
-		copies.append(copy)
-	for copy in copies:
-		openings.append(copy)
-	editor_data["openings_data"] = openings
-	return copies.size()
-
-
-## Los detectores son instalacion del edificio: suben con su sala.
-func _copy_detectors_for_map(id_map: Dictionary) -> int:
-	var detectors: Array = editor_data.get("detectors", [])
-	var pending: Array[Dictionary] = []
-	for raw in detectors:
-		if typeof(raw) != TYPE_DICTIONARY:
-			continue
-		var detector: Dictionary = raw
-		var room_id: int = int(detector.get("room_id", -1))
-		if not id_map.has(room_id) or int(id_map[room_id]) == room_id:
-			continue
-		var copy: Dictionary = detector.duplicate(true)
-		copy["room_id"] = int(id_map[room_id])
-		pending.append(copy)
-	for copy in pending:
-		detectors.append(copy)
-		editor_data["detectors"] = detectors
-		# El id se pide con la copia ya en la lista, para que no se repita con la
-		# siguiente.
-		copy["id"] = ""
-		copy["id"] = ScenarioQueries.next_detector_id(editor_data)
-		detectors[detectors.size() - 1] = copy
-	editor_data["detectors"] = detectors
-	return pending.size()
-
-
+## Borra la planta que se mira. La borra `ScenarioDocument.delete_floor`.
 func _delete_floor_pressed() -> void:
 	var floors: Array = _get_floors()
 	if floors.size() <= 1:
 		_set_status(tr("No se puede borrar la unica planta."))
 		return
-	if current_floor_index < 0 or current_floor_index >= floors.size():
+	var result: Dictionary = _doc.delete_floor(current_floor_index)
+	if result.is_empty():
 		return
-	_push_undo_snapshot("delete_floor")
-	var floor: Dictionary = floors[current_floor_index]
-	var level_m: float = float(floor.get("level_m", 0.0))
-	var room_ids_to_delete: Array[int] = []
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) == TYPE_DICTIONARY and absf(float(Dictionary(room).get("floor_level_z_m", 0.0)) - level_m) < 0.05:
-			room_ids_to_delete.append(int(Dictionary(room).get("id", -1)))
-
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size() - 1, -1, -1):
-		if typeof(rooms[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(rooms[i]).get("id", -1))):
-			rooms.remove_at(i)
-	editor_data["rooms_data"] = rooms
-
-	var rects: Dictionary = editor_data.get("room_rect_m", {})
-	for room_id in room_ids_to_delete:
-		rects.erase(str(room_id))
-	editor_data["room_rect_m"] = rects
-
-	var openings: Array = editor_data.get("openings_data", [])
-	for i in range(openings.size() - 1, -1, -1):
-		if typeof(openings[i]) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = openings[i]
-		if room_ids_to_delete.has(int(op.get("a", -999))) or room_ids_to_delete.has(int(op.get("b", -999))):
-			openings.remove_at(i)
-	editor_data["openings_data"] = openings
-
-	var dets: Array = editor_data.get("detectors", [])
-	for i in range(dets.size() - 1, -1, -1):
-		if typeof(dets[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(dets[i]).get("room_id", -1))):
-			dets.remove_at(i)
-	editor_data["detectors"] = dets
-
-	var vics: Array = editor_data.get("victims", [])
-	for i in range(vics.size() - 1, -1, -1):
-		if typeof(vics[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(vics[i]).get("room_id", -1))):
-			vics.remove_at(i)
-	editor_data["victims"] = vics
-
-	floors.remove_at(current_floor_index)
-	editor_data["floors"] = floors
-	current_floor_index = clampi(current_floor_index - 1, 0, floors.size() - 1)
+	current_floor_index = clampi(current_floor_index - 1, 0, int(result["remaining"]) - 1)
 	_clear_selection()
 	_ensure_floor_data()
 	_sync_floor_controls()
-	_set_status(tr("Planta %s eliminada.") % String(floor.get("name", "")))
+	_set_status(tr("Planta %s eliminada.") % String(result["name"]))
 	queue_redraw()
 
 
+## La cota de la planta que se mira. La cambia `ScenarioDocument.set_floor_level`.
 func _on_floor_level_changed(value: float) -> void:
-	var floors: Array = _get_floors()
-	if current_floor_index < 0 or current_floor_index >= floors.size():
-		return
-	var floor: Dictionary = floors[current_floor_index]
-	var selected_floor_name: String = String(floor.get("name", _default_floor_name(current_floor_index)))
-	var previous_level_m: float = float(floor.get("level_m", 0.0))
-	if absf(previous_level_m - value) <= 0.001:
-		return
-	_push_undo_snapshot("floor_level")
-	floor["level_m"] = value
-	floors[current_floor_index] = floor
-	editor_data["floors"] = floors
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY:
-			continue
-		var room: Dictionary = rooms[i]
-		if absf(float(room.get("floor_level_z_m", 0.0)) - previous_level_m) < 0.05:
-			room["floor_level_z_m"] = value
-			rooms[i] = room
-	editor_data["rooms_data"] = rooms
 	_ensure_floor_data()
-	var normalized_floors: Array = editor_data.get("floors", [])
-	for i in range(normalized_floors.size()):
-		if typeof(normalized_floors[i]) != TYPE_DICTIONARY:
-			continue
-		var normalized_floor: Dictionary = normalized_floors[i]
-		if String(normalized_floor.get("name", "")) == selected_floor_name and absf(float(normalized_floor.get("level_m", 0.0)) - value) < 0.05:
-			current_floor_index = i
-			break
+	var index: int = _doc.set_floor_level(current_floor_index, value)
+	if index < 0:
+		return
+	current_floor_index = index
 	_sync_floor_controls()
 	queue_redraw()
 
@@ -4173,14 +3961,7 @@ func _world_to_room_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float
 
 
 func _set_room_rect(room_id: int, rect: Rect2) -> void:
-	var rects: Dictionary = editor_data.get("room_rect_m", {})
-	var snapped_rect := Rect2(_snap_m(rect.position), Vector2(maxf(0.25, snappedf(rect.size.x, GRID_M)), maxf(0.25, snappedf(rect.size.y, GRID_M))))
-	rects[str(room_id)] = Serializer.rect_to_data(snapped_rect)
-	editor_data["room_rect_m"] = rects
-	var room: Dictionary = _get_room(room_id)
-	if StairPlanRules.is_stair_room(room):
-		_sync_linked_stair_rects(room_id, snapped_rect)
-		_sync_vertical_stair_openings(room_id)
+	_doc.set_room_rect(room_id, rect)
 
 
 func _set_room_rotation(room_id: int, rotation_deg: float) -> void:
@@ -4519,10 +4300,6 @@ func _add_floor_at_level(level_m: float) -> int:
 
 func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float) -> void:
 	_doc.copy_stairs_between_levels(lower_level_m, upper_level_m)
-
-
-func _find_matching_stair_room_at_level(rect: Rect2, level_m: float) -> int:
-	return _doc.find_matching_stair_room_at_level(rect, level_m)
 
 
 func _linked_vertical_stair_room_ids(room_id: int) -> Array[int]:

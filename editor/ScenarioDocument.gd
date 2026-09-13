@@ -31,6 +31,9 @@ const PlanGeometry = preload("res://editor/PlanGeometry.gd")
 
 const OUTSIDE_ID: int = -1
 const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
+## La rejilla del plano. Es la misma que `ScenarioEditor.GRID_M`: una sala que se
+## coloca desde aqui cae donde caeria dibujada.
+const GRID_M: float = 0.25
 
 ## Lado del OJO de la escalera del portal: el paso libre por el que sube el humo
 ## de un rellano al de arriba, no la huella de la escalera.
@@ -201,6 +204,289 @@ func floor_name_for_level(level_m: float) -> String:
 		if typeof(floor_list[i]) == TYPE_DICTIONARY and absf(float(Dictionary(floor_list[i]).get("level_m", 0.0)) - level_m) < 0.05:
 			return String(Dictionary(floor_list[i]).get("name", FloorNaming.label(i)))
 	return FloorNaming.label(floor_list.size())
+
+
+## La cota de la planta de ese indice, encajado a las que hay. 0 sin plantas.
+func _level_at_index(floor_list: Array, index: int) -> float:
+	if floor_list.is_empty():
+		return 0.0
+	return float(Dictionary(floor_list[clampi(index, 0, floor_list.size() - 1)]).get("level_m", 0.0))
+
+
+# --------------------------------------------------------------------------
+# Plantas: crear, copiar, borrar y cambiar de cota (segunda familia de D-1)
+# --------------------------------------------------------------------------
+
+## Crea la planta de encima de la pila. Con `copy_contents`, con lo que hay en la
+## planta de `source_floor_index`. Es una transaccion.
+##
+## Dos plantas distintas, y a proposito:
+##
+##  - la de DEBAJO de la nueva es la ultima de la pila, y es con la que hay que
+##    encadenar la escalera: es la que tiene el forjado que se perfora.
+##  - la que se COPIA es la que se esta mirando, que es la que dice el dialogo.
+##    Dibujando un bloque de viviendas se termina la planta baja y se pide otra
+##    igual; la ultima de la pila puede ser el hueco de escalera vacio que creo
+##    sola la herramienta de escaleras, y copiar eso no es copiar nada.
+##
+## Devuelve `index` (el de la planta nueva), `source_level_m` y `copied` (lo que
+## se copio, vacio si no se pidio copiar).
+func create_floor_above(source_floor_index: int, copy_contents: bool) -> Dictionary:
+	begin("add_floor")
+	var floor_list: Array = floors()
+	var source_level_m: float = _level_at_index(floor_list, source_floor_index)
+	var lower_level_m: float = source_level_m
+	var next_level_m: float = 0.0
+	if not floor_list.is_empty():
+		lower_level_m = float(floor_list[floor_list.size() - 1].get("level_m", 0.0))
+		next_level_m = lower_level_m + DEFAULT_FLOOR_HEIGHT_M
+	floor_list.append({"name": FloorNaming.label(floor_list.size()), "level_m": next_level_m})
+	data["floors"] = floor_list
+	# Las escaleras primero: encadenan las dos plantas y abren el hueco vertical.
+	# La copia va despues y las respeta, para no duplicar ese hueco.
+	copy_stairs_between_levels(lower_level_m, next_level_m)
+	var copied: Dictionary = {}
+	if copy_contents:
+		copied = copy_floor_contents(source_level_m, next_level_m)
+	commit()
+	return {"index": floor_list.size() - 1, "source_level_m": source_level_m, "copied": copied}
+
+
+## Coloca una sala, encajada a la rejilla. Una escalera arrastra a sus gemelas de
+## arriba y de abajo, y el hueco de forjado que las une.
+func set_room_rect(room_id: int, rect: Rect2) -> void:
+	var rects: Dictionary = data.get("room_rect_m", {})
+	var snapped_rect := Rect2(
+		Vector2(snappedf(rect.position.x, GRID_M), snappedf(rect.position.y, GRID_M)),
+		Vector2(maxf(0.25, snappedf(rect.size.x, GRID_M)), maxf(0.25, snappedf(rect.size.y, GRID_M)))
+	)
+	rects[str(room_id)] = Serializer.rect_to_data(snapped_rect)
+	data["room_rect_m"] = rects
+	var room: Dictionary = ScenarioQueries.room_by_id(data, room_id)
+	if StairPlanRules.is_stair_room(room):
+		sync_linked_stair_rects(room_id, snapped_rect)
+		sync_vertical_stair_openings(room_id)
+
+
+## Copia lo CONSTRUIDO de una planta a la de encima: salas, pasillos, sus
+## aperturas, el mobiliario y los detectores.
+##
+## No copia victimas ni el inicio en primera persona: son personas, no obra, y
+## repartir la misma victima por cada planta es lo contrario de lo que se quiere.
+##
+## Las escaleras no se duplican: ya estan arriba -las pone
+## `copy_stairs_between_levels()`- y se emparejan por su rectangulo, para que la
+## puerta que abajo daba a la escalera arriba de a la escalera de arriba.
+func copy_floor_contents(from_level_m: float, to_level_m: float) -> Dictionary:
+	var id_map: Dictionary = {}
+	var copied_rooms: int = 0
+	var copied_objects: int = 0
+	var rooms: Array = data.get("rooms_data", [])
+	var source_rooms: Array[Dictionary] = []
+	for room in rooms:
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - from_level_m) < 0.05:
+			source_rooms.append(room_dict)
+
+	for source in source_rooms:
+		var source_id: int = int(source.get("id", -1))
+		var rect: Rect2 = ScenarioQueries.room_rect(data, source_id)
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		if StairPlanRules.is_stair_room(source):
+			var twin_id: int = find_matching_stair_room_at_level(rect, to_level_m)
+			if twin_id >= 0:
+				id_map[source_id] = twin_id
+			continue
+		var copy: Dictionary = source.duplicate(true)
+		var new_id: int = ScenarioQueries.next_room_id(data)
+		copy["id"] = new_id
+		copy["floor_level_z_m"] = to_level_m
+		rooms.append(copy)
+		data["rooms_data"] = rooms
+		set_room_rect(new_id, rect)
+		# Los ids de mueble se piden DESPUES de meter la sala en la lista: la
+		# cuenta de ids libres mira lo que hay, y si no esta puesta se repiten.
+		var objects: Array = copy.get("fuel_objects", [])
+		for i in range(objects.size()):
+			if typeof(objects[i]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[i]
+			obj["id"] = ScenarioQueries.next_object_id(data)
+			obj["room_id"] = new_id
+			objects[i] = obj
+			copied_objects += 1
+		copy["fuel_objects"] = objects
+		id_map[source_id] = new_id
+		copied_rooms += 1
+
+	var copied_openings: int = _copy_openings_for_map(from_level_m, id_map)
+	var copied_detectors: int = _copy_detectors_for_map(id_map)
+	return {
+		"rooms": copied_rooms,
+		"objects": copied_objects,
+		"openings": copied_openings,
+		"detectors": copied_detectors
+	}
+
+
+## Rehace en la planta nueva las aperturas de la vieja, con los ids nuevos.
+##
+## Las verticales no: son el hueco de la escalera, que ya lo abre el encadenado,
+## y repetirlo perforaria dos veces el mismo forjado.
+func _copy_openings_for_map(from_level_m: float, id_map: Dictionary) -> int:
+	var openings: Array = data.get("openings_data", [])
+	var copies: Array[Dictionary] = []
+	for raw_op in openings:
+		if typeof(raw_op) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = raw_op
+		if bool(op.get("is_vertical", false)):
+			continue
+		var a_id: int = int(op.get("a", -1))
+		var b_id: int = int(op.get("b", OUTSIDE_ID))
+		if not id_map.has(a_id):
+			continue
+		if b_id != OUTSIDE_ID and not id_map.has(b_id):
+			continue
+		if absf(ScenarioQueries.room_level_m(data, a_id) - from_level_m) >= 0.05:
+			continue
+		var new_a: int = int(id_map[a_id])
+		var new_b: int = OUTSIDE_ID if b_id == OUTSIDE_ID else int(id_map[b_id])
+		# Dos escaleras que se mapean a si mismas serian el mismo paso otra vez:
+		# ese lo abrio el encadenado al subir la escalera.
+		if new_a == a_id and new_b == b_id:
+			continue
+		var copy: Dictionary = op.duplicate(true)
+		copy["a"] = new_a
+		copy["b"] = new_b
+		copies.append(copy)
+	for copy in copies:
+		openings.append(copy)
+	data["openings_data"] = openings
+	return copies.size()
+
+
+## Los detectores son instalacion del edificio: suben con su sala.
+func _copy_detectors_for_map(id_map: Dictionary) -> int:
+	var detectors: Array = data.get("detectors", [])
+	var pending: Array[Dictionary] = []
+	for raw in detectors:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var detector: Dictionary = raw
+		var room_id: int = int(detector.get("room_id", -1))
+		if not id_map.has(room_id) or int(id_map[room_id]) == room_id:
+			continue
+		var copy: Dictionary = detector.duplicate(true)
+		copy["room_id"] = int(id_map[room_id])
+		pending.append(copy)
+	for copy in pending:
+		detectors.append(copy)
+		data["detectors"] = detectors
+		# El id se pide con la copia ya en la lista, para que no se repita con la
+		# siguiente.
+		copy["id"] = ""
+		copy["id"] = ScenarioQueries.next_detector_id(data)
+		detectors[detectors.size() - 1] = copy
+	data["detectors"] = detectors
+	return pending.size()
+
+
+## Borra la planta de ese indice con todo lo que hay en ella: salas, sus
+## aperturas, detectores y victimas. Es una transaccion. La unica planta no se
+## borra: devuelve `{}`, igual que con un indice fuera de rango.
+##
+## Devuelve `name` (el de la planta borrada) y `remaining` (cuantas quedan).
+func delete_floor(index: int) -> Dictionary:
+	var floor_list: Array = floors()
+	if floor_list.size() <= 1 or index < 0 or index >= floor_list.size():
+		return {}
+	begin("delete_floor")
+	var floor: Dictionary = floor_list[index]
+	var level_m: float = float(floor.get("level_m", 0.0))
+	var room_ids_to_delete: Array[int] = []
+	for room in data.get("rooms_data", []):
+		if typeof(room) == TYPE_DICTIONARY and absf(float(Dictionary(room).get("floor_level_z_m", 0.0)) - level_m) < 0.05:
+			room_ids_to_delete.append(int(Dictionary(room).get("id", -1)))
+
+	var rooms: Array = data.get("rooms_data", [])
+	for i in range(rooms.size() - 1, -1, -1):
+		if typeof(rooms[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(rooms[i]).get("id", -1))):
+			rooms.remove_at(i)
+	data["rooms_data"] = rooms
+
+	var rects: Dictionary = data.get("room_rect_m", {})
+	for room_id in room_ids_to_delete:
+		rects.erase(str(room_id))
+	data["room_rect_m"] = rects
+
+	var openings: Array = data.get("openings_data", [])
+	for i in range(openings.size() - 1, -1, -1):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = openings[i]
+		if room_ids_to_delete.has(int(op.get("a", -999))) or room_ids_to_delete.has(int(op.get("b", -999))):
+			openings.remove_at(i)
+	data["openings_data"] = openings
+
+	var dets: Array = data.get("detectors", [])
+	for i in range(dets.size() - 1, -1, -1):
+		if typeof(dets[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(dets[i]).get("room_id", -1))):
+			dets.remove_at(i)
+	data["detectors"] = dets
+
+	var vics: Array = data.get("victims", [])
+	for i in range(vics.size() - 1, -1, -1):
+		if typeof(vics[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(vics[i]).get("room_id", -1))):
+			vics.remove_at(i)
+	data["victims"] = vics
+
+	floor_list.remove_at(index)
+	data["floors"] = floor_list
+	commit()
+	return {"name": String(floor.get("name", "")), "remaining": floor_list.size()}
+
+
+## Cambia la cota de la planta de ese indice y sube o baja con ella sus salas.
+## Es una transaccion. Devuelve el indice que la planta tiene DESPUES -al
+## reordenar puede cambiar-, o -1 si no ha cambiado nada.
+func set_floor_level(index: int, value: float) -> int:
+	var floor_list: Array = floors()
+	if index < 0 or index >= floor_list.size():
+		return -1
+	var floor: Dictionary = floor_list[index]
+	var selected_floor_name: String = String(floor.get("name", FloorNaming.label(index)))
+	var previous_level_m: float = float(floor.get("level_m", 0.0))
+	if absf(previous_level_m - value) <= 0.001:
+		return -1
+	begin("floor_level")
+	floor["level_m"] = value
+	floor_list[index] = floor
+	data["floors"] = floor_list
+	var rooms: Array = data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = rooms[i]
+		if absf(float(room.get("floor_level_z_m", 0.0)) - previous_level_m) < 0.05:
+			room["floor_level_z_m"] = value
+			rooms[i] = room
+	data["rooms_data"] = rooms
+	ensure_floors()
+	var normalized_floors: Array = data.get("floors", [])
+	var new_index: int = clampi(index, 0, normalized_floors.size() - 1)
+	for i in range(normalized_floors.size()):
+		if typeof(normalized_floors[i]) != TYPE_DICTIONARY:
+			continue
+		var normalized_floor: Dictionary = normalized_floors[i]
+		if String(normalized_floor.get("name", "")) == selected_floor_name and absf(float(normalized_floor.get("level_m", 0.0)) - value) < 0.05:
+			new_index = i
+			break
+	commit()
+	return new_index
 
 
 # --------------------------------------------------------------------------
