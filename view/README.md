@@ -16,5 +16,13 @@ Esta carpeta contiene solo presentacion e interaccion visual. La simulacion y su
 - `fp/`: control de primera persona, raycast de interaccion, postura y luces locales.
   - `fp/FPVisibilityOverlay.gd`: overlay de humo y visibilidad efectiva en FP.
   - `fp/FPOpeningVisuals.gd`: helpers de geometria visual para puertas/ventanas FP.
+- `geometry/`: geometria pura compartida por el mundo FP y el visor 3D. Sin nodos,
+  sin materiales y sin ajustes de vista: solo el reparto, que las dos vistas emiten
+  luego cada una a su manera (FP-3).
+  - `StairGeometry.gd`: tramos, mesetas, ojo de escalera y troceado de rectangulos.
+  - `BuildingLevels.gd`: consultas de planta sobre el modelo de edificio.
+  - `SlabGeometry.gd`: reparto en losas de suelos y techos, con sus nombres de nodo.
+  - `WallSideGeometry.gd`: los cuatro lados de una sala y sus relaciones.
+  - `OpeningPlacement.gd`: donde cae un hueco a lo largo de su paramento.
 
 Regla de mantenimiento: los scripts de `view/` leen el estado publico que entrega el simulador y lo convierten en representacion visual. No deben introducir reglas fisicas, victoria/derrota ni cambios de estado del core.

@@ -1,6 +1,7 @@
 extends RefCounted
 
 const SmokePuffSpriteFactory := preload("res://view/3d/smoke/SmokePuffSpriteFactory.gd")
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
 
 
 static func animate(item: Dictionary, global_phase: float, settings: Dictionary) -> void:
@@ -52,7 +53,7 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		var z_m: float = rect.position.y + room_inset_m + z_frac * usable_d
 		var y_m: float = bottom_m + depth_m * y_frac + sin(phase * 1.4) * minf(depth_m * 0.035, 0.042)
 		y_m = clampf(y_m, bottom_m + 0.06, height_m - 0.18)
-		puff.position = _to_world(Vector3(x_m, floor_level_m + y_m, z_m), meters_to_units, origin_offset_m)
+		puff.position = MeshFactory.to_world(Vector3(x_m, floor_level_m + y_m, z_m), meters_to_units, origin_offset_m)
 		var wobble: float = 1.0 + sin(phase * 1.1) * 0.07
 		var sprite_scale: float = puff_base * lerpf(0.58, 1.05, fposmod(puff_seed * 0.13, 1.0)) * wobble
 		puff.scale = Vector3.ONE * sprite_scale * meters_to_units
@@ -71,10 +72,3 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		var tint := Color(0.38, 0.39, 0.40, puff_alpha).lerp(Color(0.12, 0.12, 0.115, puff_alpha), soot_t)
 		puff.modulate = tint
 
-
-static func _to_world(meters: Vector3, meters_to_units: float, origin_offset_m: Vector2) -> Vector3:
-	return Vector3(
-		(meters.x + origin_offset_m.x) * meters_to_units,
-		meters.y * meters_to_units,
-		(meters.z + origin_offset_m.y) * meters_to_units
-	)

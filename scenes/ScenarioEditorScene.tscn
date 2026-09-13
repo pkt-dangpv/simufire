@@ -94,6 +94,20 @@ file_mode = 0
 access = 2
 filters = PackedStringArray("*.json ; Plantillas SimuFire")
 
+[node name="NewFloorDialog" type="ConfirmationDialog" parent="CanvasLayer" unique_id=1490022871]
+title = "Nueva planta"
+size = Vector2i(560, 260)
+ok_button_text = "Vacía"
+cancel_button_text = "Cancelar"
+dialog_autowrap = true
+
+[node name="ScenarioReviewDialog" type="ConfirmationDialog" parent="CanvasLayer" unique_id=1655230904]
+title = "Revisión del escenario"
+size = Vector2i(640, 340)
+ok_button_text = "Volver al plano"
+cancel_button_text = "Cerrar"
+dialog_autowrap = true
+
 [node name="UI" type="Control" parent="CanvasLayer" unique_id=630610743]
 layout_mode = 3
 anchors_preset = 15
@@ -105,7 +119,7 @@ mouse_filter = 1
 theme = ExtResource("3_sftheme")
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
-custom_minimum_size = Vector2(560, 88)
+custom_minimum_size = Vector2(560, 116)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -113,7 +127,7 @@ anchor_right = 0.5
 offset_left = -280.0
 offset_top = 8.0
 offset_right = 280.0
-offset_bottom = 96.0
+offset_bottom = 124.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
 
@@ -121,148 +135,143 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
-columns = 7
+columns = 5
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
-focus_mode = 0
+tooltip_text = "Seleccionar: clic en habitación, objeto o apertura. Clic derecho para opciones."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 button_pressed = true
-text = "SEL"
-
-[node name="BtnExteriorWall" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1824601915]
-custom_minimum_size = Vector2(72, 28)
-layout_mode = 2
-tooltip_text = "Exterior: arrastra para dibujar muros exteriores rectos. Tambien puedes marcar el contorno de una habitacion."
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-toggle_mode = true
-text = "EXTERIOR"
+text = "SELECCIÓN"
 
 [node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Estancia: arrastra para crear una estancia en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "SALA"
 
 [node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (1.20 m actualmente)"
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "PASILLO"
 
 [node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en PB. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
-focus_mode = 0
+tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en R. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "ESCALERA"
 
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Puerta: pulsa una pared compartida o exterior en PB para crear puerta."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "PUERTA"
 
 [node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Hueco: pulsa una pared compartida en PB. Se crea un paso sin puerta con ancho maximo limitado por el paramento."
-focus_mode = 0
+tooltip_text = "Hueco: pulsa una pared compartida en PB. Se crea un paso sin puerta con ancho máximo limitado por el paramento."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "HUECO"
 
 [node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Ventana: pulsa cerca de una pared exterior en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "VENTANA"
 
+[node name="BtnBalconyDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220301]
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+tooltip_text = "Puerta de balcón: pulsa una pared exterior en R. Crea una balconera hasta el suelo con su balcón puesto; al balcón no se puede salir, pero la puerta abre y ventila como el hueco que es."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "P. BALCÓN"
+
+[node name="BtnPatio" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220302]
+custom_minimum_size = Vector2(92, 28)
+layout_mode = 2
+tooltip_text = "Patio: arrastra un rectángulo en R. Crea un patio de luces que atraviesa TODAS las plantas del edificio y remata abierto al cielo. Las viviendas dan a él con ventanas normales."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "PATIO"
+
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Objeto: pulsa dentro de una estancia de PB para colocar el combustible elegido."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "OBJETO"
 
 [node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Ignicion: pulsa un objeto de PB para marcarlo como foco inicial."
-focus_mode = 0
+tooltip_text = "Ignición: pulsa un objeto de PB para marcarlo como foco inicial."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "IGNICION"
+text = "IGNICIÓN"
 
 [node name="BtnPlayerStart" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1330466507]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Inicio FP: pulsa dentro de una estancia de PB para colocar donde aparece el jugador."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "INICIO FP"
 
 [node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
 tooltip_text = "Borrar: elimina objeto, apertura o estancia bajo el cursor en PB."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "BORRAR"
 
 [node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Detector: pulsa dentro de una habitacion de PB para colocar un detector de humo, calor o CO."
-focus_mode = 0
+tooltip_text = "Detector: pulsa dentro de una habitación de PB para colocar un detector de humo, calor o CO."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "DETECT."
+text = "DETECTOR"
 
 [node name="BtnVictim" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200002]
-custom_minimum_size = Vector2(72, 28)
+custom_minimum_size = Vector2(92, 28)
 layout_mode = 2
-tooltip_text = "Victima: pulsa dentro de una habitacion de PB para marcar la posicion de una victima."
-focus_mode = 0
+tooltip_text = "Víctima: pulsa dentro de una habitación de PB para marcar la posición de una víctima."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "VICT."
+text = "VÍCTIMA"
 
 [node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
 custom_minimum_size = Vector2(276, 0)
@@ -275,16 +284,21 @@ offset_bottom = -76.0
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_dnoaf")
 
-[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel" unique_id=1144839810]
+[node name="Scroll" type="ScrollContainer" parent="CanvasLayer/UI/LeftPanel"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll" unique_id=1144839810]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="BrandHeader" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=481810983]
+[node name="BrandHeader" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=481810983]
 custom_minimum_size = Vector2(0, 84)
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Logo" type="TextureRect" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1606370815]
+[node name="Logo" type="TextureRect" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/BrandHeader" unique_id=1606370815]
 custom_minimum_size = Vector2(236, 56)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -292,7 +306,7 @@ texture = ExtResource("4_logo")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="EditorModeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1858921621]
+[node name="EditorModeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/BrandHeader" unique_id=1858921621]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
 theme_override_fonts/font = ExtResource("3_pdysm")
@@ -300,103 +314,97 @@ theme_override_font_sizes/font_size = 13
 text = "EDITOR DE ESCENARIOS"
 horizontal_alignment = 1
 
-[node name="EditorTabsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1592657740]
+[node name="EditorTabsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1592657740]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="TabTools" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=1013663512]
+[node name="TabTools" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/EditorTabsRow" unique_id=1013663512]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Dibujo: herramientas de creación y edición sobre el plano."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "DIBUJO"
+text = "ESCENARIO"
 
-[node name="TabSelection" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=1229708488]
+[node name="TabSelection" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/EditorTabsRow" unique_id=1229708488]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Lista: selecciona salas, objetos, aperturas, detectores, víctimas e inicio FP cuando se solapan."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "LISTA"
 
-[node name="TabScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=976861793]
+[node name="TabScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/EditorTabsRow" unique_id=976861793]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Archivo: guardar, cargar, plantillas, tiempo, luces, tipo de edificio y HVAC."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 button_pressed = true
 text = "ARCHIVO"
 
-[node name="ViewModeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2042358301]
+[node name="ViewModeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2042358301]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="BtnViewMode2D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=1627026087]
+[node name="BtnViewMode2D" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ViewModeRow" unique_id=1627026087]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista 2D: edición precisa de geometría, aperturas, objetos y planta."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 button_pressed = true
 text = "2D"
 
-[node name="BtnViewMode3D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=1910602613]
+[node name="BtnViewMode3D" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ViewModeRow" unique_id=1910602613]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista 3D: inspección orbital y edición de elementos simples."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "3D"
 
-[node name="BtnViewModeFP" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=377959865]
+[node name="BtnViewModeFP" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ViewModeRow" unique_id=377959865]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Vista FP: inspección en primera persona desde el marcador Inicio FP."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "FP"
 
-[node name="FloorSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1232621465]
+[node name="FloorSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1232621465]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="FloorTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=955659574]
+[node name="FloorTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection" unique_id=955659574]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PLANTAS"
 
-[node name="FloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=344908838]
+[node name="FloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection" unique_id=344908838]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="FloorOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=1836290134]
+[node name="FloorOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection/FloorRow" unique_id=1836290134]
+tooltip_text = "Planta que se está editando. El plano, la lista de elementos y las herramientas actúan solo sobre ella."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -404,28 +412,28 @@ item_count = 1
 popup/item_0/text = "PB  0.00m"
 popup/item_0/id = 0
 
-[node name="BtnAddFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=1654805431]
+[node name="BtnAddFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection/FloorRow" unique_id=1654805431]
+tooltip_text = "Añade una planta por encima de la actual y copia en ella las escaleras que arranquen de esta."
 custom_minimum_size = Vector2(86, 28)
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "+ PLANTA"
 
-[node name="BtnDeleteFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=59839532]
+[node name="BtnDeleteFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection/FloorRow" unique_id=59839532]
+tooltip_text = "Borra la planta actual con todo lo que contiene. No se puede borrar la última planta."
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
 text = "BORRAR"
 
-[node name="FloorLevelRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=749481526]
+[node name="FloorLevelRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection" unique_id=749481526]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="FloorLevelLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorLevelRow" unique_id=528716257]
+[node name="FloorLevelLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection/FloorLevelRow" unique_id=528716257]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -433,26 +441,35 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "COTA (M)"
 
-[node name="FloorLevelSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorLevelRow" unique_id=413612190]
+[node name="FloorLevelSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection/FloorLevelRow" unique_id=413612190]
+tooltip_text = "Cota del suelo de esta planta sobre la rasante, en metros. Es lo que separa una planta de la siguiente en 3D."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -2.0
 max_value = 30.0
 step = 0.05
 
-[node name="FloorStatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=1102403001]
+[node name="FloorStatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/FloorSection" unique_id=1102403001]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "Editando PB. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: 0."
+text = "Editando R. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: 0."
 autowrap_mode = 3
 
-[node name="BuildingTypeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1147591082]
+[node name="BuildingSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1592657801]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 14
+text = "EDIFICIO"
+
+[node name="BuildingTypeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1147591082]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="BuildingTypeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/BuildingTypeRow" unique_id=1275202084]
+[node name="BuildingTypeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/BuildingTypeRow" unique_id=1275202084]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -460,10 +477,10 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "TIPO EDIFICIO"
 
-[node name="BuildingTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/BuildingTypeRow" unique_id=1280741162]
+[node name="BuildingTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/BuildingTypeRow" unique_id=1280741162]
+tooltip_text = "Unifamiliar dibuja jardín, porche y vecindario alrededor. Piso dibuja calle, portal con escalera y edificio de enfrente."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -473,11 +490,11 @@ popup/item_0/id = 0
 popup/item_1/text = "Piso"
 popup/item_1/id = 1
 
-[node name="ApartmentFloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=492074010]
+[node name="ApartmentFloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074010]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ApartmentFloorRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/ApartmentFloorRow" unique_id=1261591420]
+[node name="ApartmentFloorRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ApartmentFloorRow" unique_id=1261591420]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -485,94 +502,83 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "PLANTA PISO"
 
-[node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/ApartmentFloorRow" unique_id=1621999601]
+[node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ApartmentFloorRow" unique_id=1621999601]
+tooltip_text = "En qué planta del edificio está la vivienda. 0 es la rasante (R). Sube la calle o la hunde, y los edificios de alrededor crecen las mismas plantas. La vivienda es la misma."
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = -5.0
-max_value = 80.0
+min_value = 0.0
+max_value = 79.0
 value = 1.0
 rounded = true
 
-[node name="ElementListTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1790654901]
-visible = false
+[node name="TotalFloorsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074011]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TotalFloorsRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/TotalFloorsRow" unique_id=1261591421]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "DE UN TOTAL DE"
+
+[node name="TotalFloorsSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/TotalFloorsRow" unique_id=1621999602]
+tooltip_text = "Cuántas plantas tiene el edificio entero. Las que no se dibujan no arden ni salen en el HUD, pero se ven desde fuera y los edificios de alrededor miden lo mismo."
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 80.0
+value = 2.0
+rounded = true
+suffix = " plantas"
+
+[node name="EnvironmentSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1592657802]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 15
-text = "ELEMENTOS DE PLANTA"
+theme_override_font_sizes/font_size = 14
+text = "ENTORNO"
 
-[node name="ElementList" type="ItemList" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1416856336]
-visible = false
-custom_minimum_size = Vector2(0, 132)
+[node name="WindDirRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074012]
 layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-allow_reselect = true
-item_count = 1
-item_0/text = "Sin elementos en PB"
-item_0/disabled = true
+theme_override_constants/separation = 4
 
-[node name="HoverHelpRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2061814893]
-visible = false
+[node name="WindDirRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindDirRow" unique_id=1261591422]
+custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="HoverHelpCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/VBox/HoverHelpRow" unique_id=596181626]
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-button_pressed = true
-text = "AYUDA CONTEXTUAL"
-
-[node name="ControlsHelpToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=813305791]
-custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
-tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-text = "AYUDA DEL EDITOR"
-
-[node name="ControlsHelpPanel" type="PanelContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2133068813]
-visible = false
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ejixe")
-
-[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/LeftPanel/VBox/ControlsHelpPanel" unique_id=2040747218]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="ControlsHelp" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/ControlsHelpPanel/Margin" unique_id=1916245612]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "Dibujo
+text = "VIENTO DEL"
 
-Elige una herramienta en la barra superior. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Victima e Inicio FP se colocan clicando dentro de una sala.
+[node name="WindDirOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindDirRow" unique_id=1621999603]
+tooltip_text = "De dónde VIENE el viento, como en un parte meteorológico. Empuja hacia dentro en la fachada que le da la cara y succiona en la de sotavento."
+layout_mode = 2
+size_flags_horizontal = 3
 
-Seleccion
+[node name="WindSpeedRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=492074013]
+layout_mode = 2
+theme_override_constants/separation = 4
 
-Usa Select para elegir elementos en el plano. Si un objeto, detector o victima esta encima de una sala, el editor prioriza el elemento pequeno antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan.
+[node name="WindSpeedRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindSpeedRow" unique_id=1261591423]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "VELOCIDAD"
 
-Edicion
+[node name="WindSpeedSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/WindSpeedRow" unique_id=1621999604]
+tooltip_text = "Velocidad del viento. 0 lo apaga. Lo interesante pasa entre 5 y 15 m/s (18-54 km/h); el tope de 28 m/s son 100 km/h, el techo de la fuerza 10."
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 28.0
+step = 0.5
+suffix = " m/s"
 
-El panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Supr borra la seleccion y Ctrl+Z deshace.
-
-Archivo
-
-La pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulacion valida y exporta el escenario antes de abrir SimulationScene."
-autowrap_mode = 3
-
-[node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1026911107]
+[node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1026911107]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
@@ -580,78 +586,56 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "OBJETO A COLOCAR"
 
-[node name="ObjectTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=137288235]
+[node name="ObjectPreview" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=137288300]
 visible = false
 layout_mode = 2
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-selected = 0
-item_count = 14
-popup/item_0/text = "sofa"
-popup/item_0/id = 0
-popup/item_1/text = "armchair"
-popup/item_1/id = 1
-popup/item_2/text = "bed"
-popup/item_2/id = 2
-popup/item_3/text = "table"
-popup/item_3/id = 3
-popup/item_4/text = "coffee_table"
-popup/item_4/id = 4
-popup/item_5/text = "desk"
-popup/item_5/id = 5
-popup/item_6/text = "curtain"
-popup/item_6/id = 6
-popup/item_7/text = "wardrobe"
-popup/item_7/id = 7
-popup/item_8/text = "bookcase"
-popup/item_8/id = 8
-popup/item_9/text = "dresser"
-popup/item_9/id = 9
-popup/item_10/text = "tv_stand"
-popup/item_10/id = 10
-popup/item_11/text = "rug"
-popup/item_11/id = 11
-popup/item_12/text = "kitchen_unit"
-popup/item_12/id = 12
-popup/item_13/text = "plastic_bin"
-popup/item_13/id = 13
+theme_override_constants/separation = 3
 
-[node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1659549896]
+[node name="ObjectPreviewViewportContainer" type="SubViewportContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview" unique_id=137288301]
+custom_minimum_size = Vector2(0, 132)
+tooltip_text = "La pieza elegida, tal como se va a ver en 3D. Si no tiene modelo propio se enseña su caja a escala, que es lo que se dibujará."
 layout_mode = 2
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "user://editor_scenario.json"
+stretch = true
 
-[node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=55829757]
+[node name="ObjectPreviewViewport" type="SubViewport" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview/ObjectPreviewViewportContainer" unique_id=137288302]
+own_world_3d = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(240, 132)
+render_target_update_mode = 4
+
+[node name="ObjectPreviewCamera" type="Camera3D" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview/ObjectPreviewViewportContainer/ObjectPreviewViewport" unique_id=137288303]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 1.6, 1.4, 2.4)
+fov = 40.0
+
+[node name="ObjectPreviewLight" type="DirectionalLight3D" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview/ObjectPreviewViewportContainer/ObjectPreviewViewport" unique_id=137288304]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 3, 0)
+light_energy = 1.4
+
+[node name="ObjectPreviewFill" type="OmniLight3D" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview/ObjectPreviewViewportContainer/ObjectPreviewViewport" unique_id=137288305]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6, 1.6, 1.8)
+light_energy = 1.2
+omni_range = 8.0
+
+[node name="ObjectPreviewRoot" type="Node3D" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview/ObjectPreviewViewportContainer/ObjectPreviewViewport" unique_id=137288306]
+
+[node name="ObjectPreviewLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ObjectPreview" unique_id=137288307]
 layout_mode = 2
-tooltip_text = "Guarda el escenario actual en la ruta indicada."
-focus_mode = 0
+autowrap_mode = 3
 theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-text = "GUARDAR"
+theme_override_font_sizes/font_size = 11
+text = "—"
 
-[node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=456158521]
-layout_mode = 2
-tooltip_text = "Carga un escenario desde la ruta indicada sin perder el anterior si falla la validación."
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-text = "CARGAR"
-
-[node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2085730832]
-layout_mode = 2
-tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-text = "EXPORTAR SIMULACION"
-
-[node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2108069766]
+[node name="ObjectCatalog" type="ItemList" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=137288235]
+custom_minimum_size = Vector2(0, 168)
+tooltip_text = "Catálogo de mobiliario. Arrastra una pieza al plano para colocarla, o elígela aquí y pulsa dentro de una habitación. El tipo fija su carga de fuego, su HRR y cómo se dibuja."
 visible = false
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+allow_reselect = true
 
-[node name="CorridorSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1755867705]
+[node name="CorridorSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1755867705]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
@@ -659,7 +643,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "PASILLO"
 
-[node name="CorridorWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1666637995]
+[node name="CorridorWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1666637995]
+tooltip_text = "Ancho del pasillo que crea la herramienta PASILLO, en metros."
+suffix = " m"
 visible = false
 layout_mode = 2
 min_value = 0.6
@@ -667,24 +653,24 @@ max_value = 3.0
 step = 0.05
 value = 1.2
 
-[node name="StairToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1239436613]
+[node name="StairToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1239436613]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StairToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection" unique_id=1608642320]
+[node name="StairToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/StairToolSection" unique_id=1608642320]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "ESCALERA"
 
-[node name="StairToolTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection" unique_id=1235438882]
+[node name="StairToolTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/StairToolSection" unique_id=1235438882]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StairToolTurnRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection/StairToolTurnRow" unique_id=1539906519]
+[node name="StairToolTurnRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/StairToolSection/StairToolTurnRow" unique_id=1539906519]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -692,10 +678,10 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "TIPO"
 
-[node name="StairToolTurnOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection/StairToolTurnRow" unique_id=34725576]
+[node name="StairToolTurnOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/StairToolSection/StairToolTurnRow" unique_id=34725576]
+tooltip_text = "Escalera recta de un tramo, o dos tramos con descansillo y giro de 180°."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -707,24 +693,24 @@ popup/item_1/id = 1
 popup/item_2/text = "180°"
 popup/item_2/id = 2
 
-[node name="OpeningToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=111482937]
+[node name="OpeningToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=111482937]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1843974518]
+[node name="OpeningToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/OpeningToolSection" unique_id=1843974518]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "APERTURA"
 
-[node name="OpeningToolWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1167022486]
+[node name="OpeningToolWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/OpeningToolSection" unique_id=1167022486]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningToolWidthLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=1493617539]
+[node name="OpeningToolWidthLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=1493617539]
 custom_minimum_size = Vector2(112, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -732,7 +718,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ANCHO HUECO"
 
-[node name="OpeningToolWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=840411980]
+[node name="OpeningToolWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=840411980]
+tooltip_text = "Ancho con el que se crean puertas, ventanas y huecos nuevos, en metros. Después se puede cambiar uno a uno."
+suffix = " m"
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
@@ -741,80 +729,123 @@ max_value = 6.0
 step = 0.05
 value = 1.2
 
-[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852410168]
+[node name="HelpSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1592657803]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 14
+text = "AYUDA Y VISTA"
+
+[node name="HoverHelpRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2061814893]
 visible = false
 layout_mode = 2
+theme_override_constants/separation = 6
 
-[node name="StopTimeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1405461915]
+[node name="HoverHelpCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/HoverHelpRow" unique_id=596181626]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "AYUDA CONTEXTUAL"
+
+[node name="Preview3DToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=770011202]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+tooltip_text = "Enseña el plano en 3D mientras lo dibujas, en un panel pequeño. Se rehace sola al soltar cada cambio."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "3D EN VIVO"
+
+[node name="ControlsHelpToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=813305791]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "AYUDA DEL EDITOR"
+
+[node name="ControlsHelpPanel" type="PanelContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2133068813]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ejixe")
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ControlsHelpPanel" unique_id=2040747218]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ControlsHelp" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/ControlsHelpPanel/Margin" unique_id=1916245612]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "La guia del editor se escribe al arrancar desde ScenarioEditor.gd, que la arma con las teclas de TOOL_SHORTCUTS."
+autowrap_mode = 3
+
+[node name="ElementListTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1790654901]
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
-text = "PARAR A (S)"
+text = "ELEMENTOS DE PLANTA"
 
-[node name="StopTimeSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1085679699]
+[node name="ElementList" type="ItemList" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1416856336]
+tooltip_text = "Todo lo que hay en la planta actual. Sirve para seleccionar algo que quede tapado por otra cosa en el plano."
+visible = false
+custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
-max_value = 86400.0
-step = 30.0
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+allow_reselect = true
+item_count = 1
+item_0/text = "Sin elementos en PB"
+item_0/disabled = true
 
-[node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1893888048]
+[node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1659549896]
+tooltip_text = "Ruta del fichero de escenario que usan GUARDAR y CARGAR. user:// es la carpeta de datos del usuario."
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "user://editor_scenario.json"
+
+[node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=55829757]
+layout_mode = 2
+tooltip_text = "Guarda el escenario actual en la ruta indicada."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "GUARDAR"
+
+[node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=456158521]
+layout_mode = 2
+tooltip_text = "Carga un escenario desde la ruta indicada sin perder el anterior si falla la validación."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "CARGAR"
+
+[node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2085730832]
+layout_mode = 2
+tooltip_text = "Guarda una copia interna para probar la simulación; Iniciar simulación lo hace automáticamente."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "EXPORTAR SIMULACIÓN"
+
+[node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1893888048]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PLANTILLAS"
 
-[node name="HVACRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=982996122]
+[node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1034367345]
+tooltip_text = "Escenario de catálogo que cargará el botón de abajo. Sustituye lo que haya en el editor."
 layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="HVACLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/HVACRow" unique_id=1825093425]
-custom_minimum_size = Vector2(82, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "HVAC"
-
-[node name="HVACOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/HVACRow" unique_id=1905153469]
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-selected = 0
-item_count = 3
-popup/item_0/text = "Sin HVAC"
-popup/item_0/id = 0
-popup/item_1/text = "Instalado OFF"
-popup/item_1/id = 1
-popup/item_2/text = "Instalado ON"
-popup/item_2/id = 2
-
-[node name="LightingRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=176308093]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="@Label@402" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/LightingRow" unique_id=1296479679]
-custom_minimum_size = Vector2(82, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "LUCES"
-
-[node name="InteriorLightsCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/VBox/LightingRow" unique_id=1488744371]
-layout_mode = 2
-size_flags_horizontal = 3
-focus_mode = 0
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 12
-button_pressed = true
-text = "INTERIORES"
-
-[node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1034367345]
-layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -898,15 +929,84 @@ popup/item_37/id = 37
 popup/item_38/text = "CFAST: Window Break T 180"
 popup/item_38/id = 38
 
-[node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=445792796]
+[node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=445792796]
 layout_mode = 2
 tooltip_text = "Carga la plantilla seleccionada en el editor."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "EDITAR PLANTILLA"
 
-[node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852960015]
+[node name="StopTimeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1405461915]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PARAR A (S)"
+
+[node name="StopTimeSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1085679699]
+tooltip_text = "Cuándo se detiene sola la simulación, en segundos de tiempo simulado. 0 = no se detiene."
+suffix = " s"
+layout_mode = 2
+max_value = 86400.0
+step = 30.0
+
+[node name="LightingRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=176308093]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="@Label@402" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/LightingRow" unique_id=1296479679]
+custom_minimum_size = Vector2(82, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "LUCES"
+
+[node name="InteriorLightsCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/LightingRow" unique_id=1488744371]
+tooltip_text = "Arranca la simulación con las luces de las salas encendidas o apagadas."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "INTERIORES"
+
+[node name="HVACRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=982996122]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HVACLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/HVACRow" unique_id=1825093425]
+custom_minimum_size = Vector2(82, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "HVAC"
+
+[node name="HVACOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox/HVACRow" unique_id=1905153469]
+tooltip_text = "Ventilación mecánica del escenario. Mueve aire, humo y calor entre salas aunque las puertas estén cerradas."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Sin HVAC"
+popup/item_0/id = 0
+popup/item_1/text = "Instalado OFF"
+popup/item_1/id = 1
+popup/item_2/text = "Instalado ON"
+popup/item_2/id = 2
+
+[node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=2108069766]
+visible = false
+layout_mode = 2
+
+[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1852410168]
+visible = false
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/Scroll/VBox" unique_id=1852960015]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
@@ -931,11 +1031,16 @@ grow_horizontal = 0
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_gyilq")
 
-[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel" unique_id=216967571]
+[node name="Scroll" type="ScrollContainer" parent="CanvasLayer/UI/RightPanel"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll" unique_id=216967571]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1841010525]
+[node name="RoomTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1841010525]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
@@ -943,7 +1048,8 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PROPIEDADES DE HABITACIÓN"
 
-[node name="RoomNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=762771066]
+[node name="RoomNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=762771066]
+tooltip_text = "Nombre de la sala. Aparece en el plano, en el HUD y en los informes."
 visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
@@ -951,7 +1057,8 @@ theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre"
 editable = false
 
-[node name="RoomKindEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=231177903]
+[node name="RoomKindEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=231177903]
+tooltip_text = "Tipo de sala: salon, dormitorio, cocina, bano, pasillo, almacen, trastero o escalera. Decide los materiales, el mobiliario y las luces que se le ponen."
 visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
@@ -959,16 +1066,16 @@ theme_override_font_sizes/font_size = 13
 placeholder_text = "Tipo"
 editable = false
 
-[node name="RoomGeometry" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=731231745]
+[node name="RoomGeometry" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=731231745]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1200612267]
+[node name="RoomXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=1200612267]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomXRow" unique_id=1360977639]
+[node name="RoomXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomXRow" unique_id=1360977639]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -976,7 +1083,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "X (M)"
 
-[node name="RoomXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomXRow" unique_id=1088090340]
+[node name="RoomXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomXRow" unique_id=1088090340]
+tooltip_text = "Esquina superior izquierda de la sala en el plano, eje X, en metros."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -200.0
@@ -984,12 +1093,12 @@ max_value = 200.0
 step = 0.05
 editable = false
 
-[node name="RoomYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1426285472]
+[node name="RoomYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=1426285472]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomYRow" unique_id=1956179515]
+[node name="RoomYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomYRow" unique_id=1956179515]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -997,7 +1106,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "Y (M)"
 
-[node name="RoomYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomYRow" unique_id=815948228]
+[node name="RoomYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomYRow" unique_id=815948228]
+tooltip_text = "Esquina superior izquierda de la sala en el plano, eje Y, en metros."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -200.0
@@ -1005,12 +1116,12 @@ max_value = 200.0
 step = 0.05
 editable = false
 
-[node name="RoomWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=969035441]
+[node name="RoomWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=969035441]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomWidthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomWidthRow" unique_id=862058369]
+[node name="RoomWidthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomWidthRow" unique_id=862058369]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1018,7 +1129,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ANCHO (M)"
 
-[node name="RoomWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomWidthRow" unique_id=974265903]
+[node name="RoomWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomWidthRow" unique_id=974265903]
+tooltip_text = "Ancho de la sala en metros, antes de rotarla."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.25
@@ -1027,12 +1140,12 @@ step = 0.05
 value = 1.0
 editable = false
 
-[node name="RoomDepthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=644293779]
+[node name="RoomDepthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=644293779]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomDepthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomDepthRow" unique_id=796022256]
+[node name="RoomDepthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomDepthRow" unique_id=796022256]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1040,7 +1153,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "FONDO (M)"
 
-[node name="RoomDepthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomDepthRow" unique_id=381758016]
+[node name="RoomDepthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomDepthRow" unique_id=381758016]
+tooltip_text = "Fondo de la sala en metros, antes de rotarla."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.25
@@ -1049,32 +1164,34 @@ step = 0.05
 value = 1.0
 editable = false
 
-[node name="RoomRotationRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=304980432]
+[node name="RoomRotationRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=304980432]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="RoomRotationRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomRotationRow" unique_id=835738687]
+[node name="RoomRotationRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomRotationRow" unique_id=835738687]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "ANGULO (DEG)"
+text = "ÁNGULO (DEG)"
 
-[node name="RoomRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomRotationRow" unique_id=1758863150]
+[node name="RoomRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/RoomRotationRow" unique_id=1758863150]
+tooltip_text = "Giro de la sala en grados. Las puertas y ventanas de sus paredes giran con ella."
+suffix = "°"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -180.0
 max_value = 180.0
 editable = false
 
-[node name="StairTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1957564102]
+[node name="StairTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=1957564102]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StairTurnRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairTurnRow" unique_id=2070755996]
+[node name="StairTurnRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairTurnRow" unique_id=2070755996]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1082,10 +1199,10 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "TIPO ESCALERA"
 
-[node name="StairTurnOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairTurnRow" unique_id=348715655]
+[node name="StairTurnOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairTurnRow" unique_id=348715655]
+tooltip_text = "Escalera recta de un tramo, o dos tramos con descansillo y giro de 180°."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
@@ -1098,44 +1215,44 @@ popup/item_1/id = 1
 popup/item_2/text = "180°"
 popup/item_2/id = 2
 
-[node name="StairWallsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=496057205]
+[node name="StairWallsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=496057205]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StairWallsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairWallsRow" unique_id=1043535007]
+[node name="StairWallsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairWallsRow" unique_id=1043535007]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 
-[node name="StairWallsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairWallsRow" unique_id=1892776917]
+[node name="StairWallsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairWallsRow" unique_id=1892776917]
+tooltip_text = "Levanta paredes a los lados de la escalera. Afecta a la vista 3D y a por dónde pasa el humo."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
 text = "ESCALERA CON PAREDES"
 
-[node name="StairRailingsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=423263801]
+[node name="StairRailingsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=423263801]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="StairRailingsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairRailingsRow" unique_id=189080474]
+[node name="StairRailingsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairRailingsRow" unique_id=189080474]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 
-[node name="StairRailingsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairRailingsRow" unique_id=464775520]
+[node name="StairRailingsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry/StairRailingsRow" unique_id=464775520]
+tooltip_text = "Pone barandilla a la escalera. Solo cambia lo que se ve, no cómo circula el humo."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 disabled = true
 button_pressed = true
 text = "ESCALERA CON BARANDILLAS"
 
-[node name="StairAngleLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1665384688]
+[node name="StairAngleLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/RoomGeometry" unique_id=1665384688]
 visible = false
 modulate = Color(0.49, 0.55, 0.6, 0.92)
 layout_mode = 2
@@ -1144,7 +1261,7 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 autowrap_mode = 3
 
-[node name="RoomHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1195206120]
+[node name="RoomHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1195206120]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1152,7 +1269,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ALTURA TECHO (M)"
 
-[node name="RoomHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1355792470]
+[node name="RoomHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1355792470]
+tooltip_text = "Altura libre de la sala, de suelo a techo, en metros. Es el volumen que tiene que llenar el humo."
+suffix = " m"
 visible = false
 layout_mode = 2
 min_value = 1.8
@@ -1161,7 +1280,7 @@ step = 0.1
 value = 2.7
 editable = false
 
-[node name="FuelEnergyLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=569333049]
+[node name="FuelEnergyLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=569333049]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1169,14 +1288,16 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "CARGA DE FUEGO (MJ)"
 
-[node name="FuelEnergySpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1716212050]
+[node name="FuelEnergySpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1716212050]
+tooltip_text = "Energía total que puede liberar la sala al arder, en megajulios, aparte de la de sus objetos."
+suffix = " MJ"
 visible = false
 layout_mode = 2
 max_value = 10000.0
 step = 10.0
 editable = false
 
-[node name="MaxHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1080176794]
+[node name="MaxHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1080176794]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1184,36 +1305,36 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "HRR MÁXIMO (KW)"
 
-[node name="MaxHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=655296354]
+[node name="MaxHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=655296354]
+tooltip_text = "Potencia máxima que puede alcanzar el fuego de la sala, en kilovatios."
+suffix = " kW"
 visible = false
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 editable = false
 
-[node name="BtnApplyRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=964308888]
+[node name="BtnApplyRoom" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=964308888]
 visible = false
 layout_mode = 2
 tooltip_text = "Aplica los cambios numéricos de la habitación seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR HABITACIÓN"
 
-[node name="BtnDeleteRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1951604257]
+[node name="BtnDeleteRoom" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1951604257]
 visible = false
 layout_mode = 2
 tooltip_text = "Borra la habitación seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR HABITACIÓN"
 
-[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=175276598]
+[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=175276598]
 visible = false
 layout_mode = 2
 
-[node name="ObjectTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=643658256]
+[node name="ObjectTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=643658256]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
@@ -1221,22 +1342,23 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PROPIEDADES DEL OBJETO SELECCIONADO"
 
-[node name="ObjProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1481127137]
+[node name="ObjProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1481127137]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="ObjNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1161814676]
+[node name="ObjNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1161814676]
+tooltip_text = "Nombre del objeto. Aparece en el HUD y en los informes de la simulación."
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre objeto"
 
-[node name="ObjXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1716790268]
+[node name="ObjXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1716790268]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ObjXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjXRow" unique_id=469629605]
+[node name="ObjXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps/ObjXRow" unique_id=469629605]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1244,18 +1366,20 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "X LOCAL (M)"
 
-[node name="ObjXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjXRow" unique_id=937329722]
+[node name="ObjXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps/ObjXRow" unique_id=937329722]
+tooltip_text = "Posición del objeto dentro de su sala, eje X, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -200.0
 max_value = 200.0
 step = 0.05
 
-[node name="ObjYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1443645140]
+[node name="ObjYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1443645140]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ObjYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjYRow" unique_id=1411388176]
+[node name="ObjYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps/ObjYRow" unique_id=1411388176]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1263,14 +1387,16 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "Y LOCAL (M)"
 
-[node name="ObjYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjYRow" unique_id=703955319]
+[node name="ObjYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps/ObjYRow" unique_id=703955319]
+tooltip_text = "Posición del objeto dentro de su sala, eje Y, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = -200.0
 max_value = 200.0
 step = 0.05
 
-[node name="ObjWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1829439604]
+[node name="ObjWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1829439604]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1278,7 +1404,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ANCHO (M)"
 
-[node name="ObjWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=504730624]
+[node name="ObjWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=504730624]
+tooltip_text = "Ancho del objeto en metros. Es la huella que arde, no el tamaño del mueble que se dibuja."
+suffix = " m"
 visible = false
 layout_mode = 2
 min_value = 0.1
@@ -1286,7 +1414,7 @@ max_value = 20.0
 step = 0.05
 value = 0.1
 
-[node name="ObjHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1061734162]
+[node name="ObjHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1061734162]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1294,7 +1422,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "LARGO (M)"
 
-[node name="ObjHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1410567642]
+[node name="ObjHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1410567642]
+tooltip_text = "Fondo del objeto en metros. Es la huella que arde, no el tamaño del mueble que se dibuja."
+suffix = " m"
 visible = false
 layout_mode = 2
 min_value = 0.1
@@ -1302,75 +1432,81 @@ max_value = 20.0
 step = 0.05
 value = 0.1
 
-[node name="ObjRotationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=454561501]
+[node name="ObjRotationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=454561501]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ROTACION (DEG)"
 
-[node name="ObjRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=122038773]
+[node name="ObjRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=122038773]
+tooltip_text = "Giro del objeto en grados dentro de su sala."
+suffix = "°"
 layout_mode = 2
 min_value = -180.0
 max_value = 180.0
 
-[node name="ObjElevationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1819385101]
+[node name="ObjElevationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1819385101]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ALTURA (M)"
 
-[node name="ObjElevationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=2011010877]
+[node name="ObjElevationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=2011010877]
+tooltip_text = "A qué altura sobre el suelo está el objeto, en metros. Decide desde dónde sube la llama."
+suffix = " m"
 layout_mode = 2
 max_value = 6.0
 step = 0.05
 
-[node name="ObjFuelLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1093911295]
+[node name="ObjFuelLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1093911295]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "CARGA FUEGO (MJ)"
 
-[node name="ObjFuelSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1573415355]
+[node name="ObjFuelSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1573415355]
+tooltip_text = "Energía total que libera el objeto al arder por completo, en megajulios."
+suffix = " MJ"
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 
-[node name="ObjHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=100655930]
+[node name="ObjHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=100655930]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "HRR MÁX. (KW)"
 
-[node name="ObjHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=703785309]
+[node name="ObjHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=703785309]
+tooltip_text = "Potencia máxima del objeto ardiendo, en kilovatios."
+suffix = " kW"
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 
-[node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1849481972]
+[node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=1849481972]
 layout_mode = 2
 tooltip_text = "Aplica posición, tamaño, rotación y combustible del objeto seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR OBJETO"
 
-[node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=670449681]
+[node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/ObjProps" unique_id=670449681]
 layout_mode = 2
 tooltip_text = "Borra el objeto seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR OBJETO"
 
-[node name="SeparatorC" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=110912611]
+[node name="SeparatorC" type="HSeparator" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=110912611]
 visible = false
 layout_mode = 2
 
-[node name="OpeningTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1162256429]
+[node name="OpeningTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=1162256429]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
@@ -1378,12 +1514,12 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PROPIEDADES DE APERTURA"
 
-[node name="OpeningProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=162593781]
+[node name="OpeningProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=162593781]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=38058230]
+[node name="OpeningTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=38058230]
 modulate = Color(0.75, 0.878431, 1, 1)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1391,67 +1527,102 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "Tipo: —"
 
-[node name="OpeningWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1420258332]
+[node name="OpeningTypeRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1420258400]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningTypeRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningTypeRow" unique_id=1420258401]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO"
+
+[node name="OpeningTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningTypeRow" unique_id=1420258402]
+tooltip_text = "Qué es este hueco. Un paso sin puerta entre dos tramos de pasillo se puede convertir aquí en puerta, y al revés. Cambia cómo ventila: una puerta cerrada corta el paso del humo, un hueco no."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Puerta"
+popup/item_0/id = 0
+popup/item_1/text = "Ventana"
+popup/item_1/id = 1
+popup/item_2/text = "Hueco"
+popup/item_2/id = 2
+
+[node name="OpeningWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1420258332]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ANCHO (M)"
 
-[node name="OpeningWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=878676402]
+[node name="OpeningWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=878676402]
+tooltip_text = "Ancho del hueco en metros. Junto con el alto, decide cuánto aire y humo pasan."
+suffix = " m"
 layout_mode = 2
 min_value = 0.3
 max_value = 6.0
 step = 0.05
 value = 0.8999999999999999
 
-[node name="OpeningHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1066252635]
+[node name="OpeningHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1066252635]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ALTO (M)"
 
-[node name="OpeningHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=268589647]
+[node name="OpeningHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=268589647]
+tooltip_text = "Alto del hueco en metros, sin contar el antepecho."
+suffix = " m"
 layout_mode = 2
 min_value = 0.5
 max_value = 3.5
 step = 0.05
 value = 2.0
 
-[node name="OpeningOffsetRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=648712961]
+[node name="OpeningOffsetRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=648712961]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningOffsetRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningOffsetRow" unique_id=657768793]
+[node name="OpeningOffsetRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningOffsetRow" unique_id=657768793]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
-text = "POSICION (M)"
+text = "POSICIÓN (M)"
 
-[node name="OpeningOffsetSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningOffsetRow" unique_id=725991204]
+[node name="OpeningOffsetSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningOffsetRow" unique_id=725991204]
+tooltip_text = "Dónde cae el hueco a lo largo de su pared, en metros desde el arranque del paramento."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 200.0
 step = 0.05
 
-[node name="OpeningSillLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=2086762699]
+[node name="OpeningSillLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2086762699]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ALFÉIZAR (M)"
 
-[node name="OpeningSillSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1242201272]
+[node name="OpeningSillSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1242201272]
+tooltip_text = "Altura del antepecho sobre el suelo, en metros. 0 en una puerta; en torno a 0,9 en una ventana."
+suffix = " m"
 layout_mode = 2
 max_value = 2.0
 step = 0.05
 
-[node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=53628024]
+[node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=53628024]
+tooltip_text = "Si el hueco arranca abierto o cerrado. Durante la simulación se puede cambiar."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1461,11 +1632,11 @@ popup/item_0/id = 0
 popup/item_1/text = "Abierta"
 popup/item_1/id = 1
 
-[node name="OpeningSwingRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=431085258]
+[node name="OpeningSwingRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=431085258]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningSwingRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningSwingRow" unique_id=1882466829]
+[node name="OpeningSwingRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningSwingRow" unique_id=1882466829]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1473,10 +1644,10 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "ABRE HACIA"
 
-[node name="OpeningSwingOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningSwingRow" unique_id=1614491914]
+[node name="OpeningSwingOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningSwingRow" unique_id=1614491914]
+tooltip_text = "Hacia qué lado abre la hoja. Solo cambia cómo se dibuja al abrirla."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1486,11 +1657,11 @@ popup/item_0/id = 0
 popup/item_1/text = "Exterior"
 popup/item_1/id = 1
 
-[node name="OpeningHingeRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1397775072]
+[node name="OpeningHingeRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1397775072]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningHingeRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningHingeRow" unique_id=1638264714]
+[node name="OpeningHingeRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningHingeRow" unique_id=1638264714]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1498,10 +1669,10 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "BISAGRA"
 
-[node name="OpeningHingeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningHingeRow" unique_id=963504766]
+[node name="OpeningHingeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningHingeRow" unique_id=963504766]
+tooltip_text = "De qué lado están las bisagras. Solo cambia cómo se dibuja al abrirla."
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1511,18 +1682,101 @@ popup/item_0/id = 0
 popup/item_1/text = "Derecha"
 popup/item_1/id = 1
 
-[node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1200648205]
+[node name="OpeningBalconyRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648300]
 layout_mode = 2
-focus_mode = 0
+theme_override_constants/separation = 4
+
+[node name="OpeningBalconyRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyRow" unique_id=1200648302]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "BALCÓN"
+
+[node name="OpeningBalconyCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyRow" unique_id=1200648301]
+tooltip_text = "Cuelga un balcón de esta abertura. Solo en aberturas exteriores. Es decorado: la puerta abre y cuenta como hueco a fachada, pero al balcón no se puede salir."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "Con balcón"
+
+[node name="OpeningBalconyWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648310]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningBalconyWidthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyWidthRow" unique_id=1200648311]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO BALCÓN"
+
+[node name="OpeningBalconyWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyWidthRow" unique_id=1200648312]
+tooltip_text = "Ancho de la losa. 0 = el del hueco más 0,80 m, que es lo que se construye. El tope es la fachada de la que cuelga, y si la abertura está cerca de la esquina se recorta aún más."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 8.0
+step = 0.05
+
+[node name="OpeningBalconyDepthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648320]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningBalconyDepthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyDepthRow" unique_id=1200648321]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "VUELO"
+
+[node name="OpeningBalconyDepthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyDepthRow" unique_id=1200648322]
+tooltip_text = "Cuánto sale la losa de la fachada. Un balcón español típico vuela entre 0,90 y 1,50 m; el tope son 2 m, que es hasta donde se sostiene una losa en voladizo. Cuanto más vuela, más canto se le da."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.4
+max_value = 2.0
+step = 0.05
+
+[node name="OpeningBalconyParapetRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648330]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningBalconyParapetRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyParapetRow" unique_id=1200648331]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANTEPECHO"
+
+[node name="OpeningBalconyParapetSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningBalconyParapetRow" unique_id=1200648332]
+tooltip_text = "Altura del antepecho. El CTE DB-SUA 1 pide 1,10 m por encima de los 6 m de desnivel, y 0,90 m por debajo."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.6
+max_value = 1.6
+step = 0.05
+
+[node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648205]
+tooltip_text = "Guarda en la abertura seleccionada los valores de este panel."
+layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR APERTURA"
 
-[node name="SeparatorD" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200003]
+[node name="SeparatorD" type="HSeparator" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200003]
 visible = false
 layout_mode = 2
 
-[node name="DetectorTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200004]
+[node name="DetectorTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200004]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
@@ -1530,22 +1784,23 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
 text = "PROPIEDADES DEL DETECTOR"
 
-[node name="DetectorProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200005]
+[node name="DetectorProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200005]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DetectorIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200006]
+[node name="DetectorIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200006]
+tooltip_text = "Identificador del detector. Con él se le distingue en el HUD y en los informes."
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 placeholder_text = "ID"
 
-[node name="DetectorXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=1529697835]
+[node name="DetectorXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=1529697835]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DetectorXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorXRow" unique_id=1244291902]
+[node name="DetectorXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps/DetectorXRow" unique_id=1244291902]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1553,17 +1808,19 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "X LOCAL (M)"
 
-[node name="DetectorXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorXRow" unique_id=507287410]
+[node name="DetectorXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps/DetectorXRow" unique_id=507287410]
+tooltip_text = "Posición del detector dentro de su sala, eje X, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 200.0
 step = 0.05
 
-[node name="DetectorYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=1246165462]
+[node name="DetectorYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=1246165462]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DetectorYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorYRow" unique_id=951921071]
+[node name="DetectorYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps/DetectorYRow" unique_id=951921071]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1571,22 +1828,24 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "Y LOCAL (M)"
 
-[node name="DetectorYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorYRow" unique_id=589310399]
+[node name="DetectorYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps/DetectorYRow" unique_id=589310399]
+tooltip_text = "Posición del detector dentro de su sala, eje Y, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 200.0
 step = 0.05
 
-[node name="DetectorTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200007]
+[node name="DetectorTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200007]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "TIPO"
 
-[node name="DetectorTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200008]
+[node name="DetectorTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200008]
+tooltip_text = "Qué mide el detector. Cambia también la unidad del umbral de abajo."
 layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 selected = 0
@@ -1598,62 +1857,61 @@ popup/item_1/id = 1
 popup/item_2/text = "CO"
 popup/item_2/id = 2
 
-[node name="DetectorThresholdLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200009]
+[node name="DetectorThresholdLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200009]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "UMBRAL"
 
-[node name="DetectorThresholdSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200010]
+[node name="DetectorThresholdSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200010]
 layout_mode = 2
 max_value = 10000.0
 step = 0.001
 
-[node name="BtnApplyDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200011]
+[node name="BtnApplyDetector" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200011]
 layout_mode = 2
 tooltip_text = "Aplica tipo, umbral y posición del detector seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "APLICAR DETECTOR"
 
-[node name="BtnDeleteDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200012]
+[node name="BtnDeleteDetector" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/DetectorProps" unique_id=811200012]
 layout_mode = 2
 tooltip_text = "Borra el detector seleccionado."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "BORRAR DETECTOR"
 
-[node name="SeparatorE" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200013]
+[node name="SeparatorE" type="HSeparator" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200013]
 visible = false
 layout_mode = 2
 
-[node name="VictimTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200014]
+[node name="VictimTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200014]
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 15
-text = "PROPIEDADES DE LA VICTIMA"
+text = "PROPIEDADES DE LA VÍCTIMA"
 
-[node name="VictimProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200015]
+[node name="VictimProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox" unique_id=811200015]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="VictimNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200016]
+[node name="VictimNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=811200016]
+tooltip_text = "Nombre de la víctima. Aparece en el HUD y en el informe de dosis recibida."
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre"
 
-[node name="VictimXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=1990998943]
+[node name="VictimXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=1990998943]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="VictimXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimXRow" unique_id=860281219]
+[node name="VictimXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimXRow" unique_id=860281219]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1661,17 +1919,19 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "X LOCAL (M)"
 
-[node name="VictimXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimXRow" unique_id=1518115550]
+[node name="VictimXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimXRow" unique_id=1518115550]
+tooltip_text = "Posición de la víctima dentro de su sala, eje X, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 200.0
 step = 0.05
 
-[node name="VictimYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=546801580]
+[node name="VictimYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=546801580]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="VictimYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimYRow" unique_id=286942615]
+[node name="VictimYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimYRow" unique_id=286942615]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1679,17 +1939,19 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "Y LOCAL (M)"
 
-[node name="VictimYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimYRow" unique_id=1341990098]
+[node name="VictimYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimYRow" unique_id=1341990098]
+tooltip_text = "Posición de la víctima dentro de su sala, eje Y, en metros desde la esquina de la sala."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 200.0
 step = 0.05
 
-[node name="VictimHeightRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=1678329313]
+[node name="VictimHeightRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=1678329313]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="VictimHeightRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimHeightRow" unique_id=444297450]
+[node name="VictimHeightRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimHeightRow" unique_id=444297450]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
@@ -1697,7 +1959,9 @@ theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 13
 text = "PLANO RESP. (M)"
 
-[node name="VictimHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimHeightRow" unique_id=144667763]
+[node name="VictimHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps/VictimHeightRow" unique_id=144667763]
+tooltip_text = "Altura del plano de respiración sobre el suelo, en metros. Es donde se mide lo que respira: de pie ~1,5, agachada ~0,9, tumbada ~0,3."
+suffix = " m"
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.2
@@ -1705,153 +1969,122 @@ max_value = 2.2
 step = 0.05
 value = 0.2
 
-[node name="BtnApplyVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200017]
+[node name="BtnApplyVictim" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=811200017]
 layout_mode = 2
 tooltip_text = "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "APLICAR VICTIMA"
+text = "APLICAR VÍCTIMA"
 
-[node name="BtnDeleteVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200018]
+[node name="BtnDeleteVictim" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/VictimProps" unique_id=811200018]
 layout_mode = 2
 tooltip_text = "Borra la víctima seleccionada."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "BORRAR VICTIMA"
+text = "BORRAR VÍCTIMA"
 
-[node name="BtnMarkRoomExterior" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=99174965]
-visible = false
+[node name="ScaleBar" type="VBoxContainer" parent="CanvasLayer/UI" unique_id=770011300]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 292.0
+offset_top = -124.0
+offset_right = 620.0
+offset_bottom = -80.0
+grow_vertical = 0
+theme_override_constants/separation = 3
+mouse_filter = 2
+
+[node name="ScaleLabel" type="Label" parent="CanvasLayer/UI/ScaleBar" unique_id=770011301]
 layout_mode = 2
-tooltip_text = "Marca la habitación seleccionada como parte del contorno exterior."
-focus_mode = 0
+theme_override_colors/font_color = Color(0.72, 0.86, 0.92, 0.92)
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "MARCAR CONTORNO EXTERIOR"
+text = "1 m"
+mouse_filter = 2
 
-[node name="ExteriorWallTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=2000315787]
-visible = false
+[node name="ScaleRule" type="ColorRect" parent="CanvasLayer/UI/ScaleBar" unique_id=770011302]
+custom_minimum_size = Vector2(120, 5)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 15
-text = "MURO EXTERIOR"
+size_flags_horizontal = 0
+color = Color(0.72, 0.86, 0.92, 0.72)
+mouse_filter = 2
 
-[node name="ExteriorWallProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=2133062281]
-visible = false
+[node name="Preview3DPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=770011201]
+custom_minimum_size = Vector2(320, 236)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -588.0
+offset_top = -320.0
+offset_right = -268.0
+offset_bottom = -84.0
+grow_horizontal = 0
+grow_vertical = 0
+tooltip_text = "Vista 3D en vivo del plano que estás dibujando. Se rehace sola al soltar cada cambio."
+theme_override_styles/panel = SubResource("StyleBoxFlat_dnoaf")
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/Preview3DPanel"]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="WallStartXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1768365896]
+[node name="HeaderRow" type="HBoxContainer" parent="CanvasLayer/UI/Preview3DPanel/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
-[node name="WallStartXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartXRow" unique_id=1903590038]
-custom_minimum_size = Vector2(96, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "INICIO X"
-
-[node name="WallStartXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartXRow" unique_id=1130296695]
+[node name="Preview3DTitle" type="Label" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = -200.0
-max_value = 200.0
-step = 0.05
-
-[node name="WallStartYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=554839888]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="WallStartYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartYRow" unique_id=2096148810]
-custom_minimum_size = Vector2(96, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "INICIO Y"
-
-[node name="WallStartYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartYRow" unique_id=1196936439]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = -200.0
-max_value = 200.0
-step = 0.05
-
-[node name="WallEndXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1782526101]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="WallEndXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndXRow" unique_id=804962032]
-custom_minimum_size = Vector2(96, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "FIN X"
-
-[node name="WallEndXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndXRow" unique_id=2064438801]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = -200.0
-max_value = 200.0
-step = 0.05
-
-[node name="WallEndYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=513888755]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="WallEndYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndYRow" unique_id=52546197]
-custom_minimum_size = Vector2(96, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "FIN Y"
-
-[node name="WallEndYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndYRow" unique_id=1569666956]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = -200.0
-max_value = 200.0
-step = 0.05
-
-[node name="WallThicknessRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=777222434]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="WallThicknessRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallThicknessRow" unique_id=2044662407]
-custom_minimum_size = Vector2(96, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-theme_override_fonts/font = ExtResource("3_pdysm")
-theme_override_font_sizes/font_size = 13
-text = "GROSOR"
-
-[node name="WallThicknessSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallThicknessRow" unique_id=966169604]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.05
-max_value = 1.0
-step = 0.01
-value = 0.05
-
-[node name="BtnApplyExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=236944218]
-layout_mode = 2
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "APLICAR MURO"
+text = "3D en vivo"
 
-[node name="BtnDeleteExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1720961175]
+[node name="BtnPreview3DFrame" type="Button" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
+custom_minimum_size = Vector2(72, 24)
 layout_mode = 2
-focus_mode = 0
+tooltip_text = "Vuelve a encuadrar la vista 3D sobre todo lo dibujado."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+text = "Encuadrar"
+
+[node name="BtnPreview3DClose" type="Button" parent="CanvasLayer/UI/Preview3DPanel/VBox/HeaderRow"]
+custom_minimum_size = Vector2(28, 24)
+layout_mode = 2
+tooltip_text = "Cierra la vista 3D en vivo. Se vuelve a abrir con el botón 3D EN VIVO del panel izquierdo."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+text = "X"
+
+[node name="Preview3DViewportContainer" type="SubViewportContainer" parent="CanvasLayer/UI/Preview3DPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="Preview3DViewport" type="SubViewport" parent="CanvasLayer/UI/Preview3DPanel/VBox/Preview3DViewportContainer"]
+handle_input_locally = false
+size = Vector2i(312, 196)
+render_target_update_mode = 4
+
+[node name="Preview3DCamera" type="Camera3D" parent="CanvasLayer/UI/Preview3DPanel/VBox/Preview3DViewportContainer/Preview3DViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 10)
+fov = 55.0
+
+[node name="Preview3DFooter" type="HBoxContainer" parent="CanvasLayer/UI/Preview3DPanel/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="Preview3DResizeGrip" type="Button" parent="CanvasLayer/UI/Preview3DPanel/VBox/Preview3DFooter"]
+custom_minimum_size = Vector2(22, 18)
+layout_mode = 2
+mouse_default_cursor_shape = 12
+tooltip_text = "Arrastra esta esquina para agrandar o encoger la vista 3D en vivo."
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
-text = "BORRAR MURO"
+text = "◢"
 
 [node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
 layout_mode = 1
@@ -1860,9 +2093,9 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -226.0
+offset_left = -305.0
 offset_top = -66.0
-offset_right = 226.0
+offset_right = 305.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_lvx7d")
@@ -1875,16 +2108,22 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 tooltip_text = "Valida, exporta y abre la simulación con el escenario actual."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "✓ INICIAR SIMULACIÓN"
+
+[node name="BtnReviewScenario" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=1120344881]
+custom_minimum_size = Vector2(150, 42)
+layout_mode = 2
+tooltip_text = "Busca lo que hace que una simulación no enseñe nada: salas selladas, sin foco de ignición, plantas sin comunicar."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "REVISAR"
 
 [node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=2143511484]
 custom_minimum_size = Vector2(160, 42)
 layout_mode = 2
 tooltip_text = "Sale del editor y vuelve al menú principal."
-focus_mode = 0
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "✗ CANCELAR"

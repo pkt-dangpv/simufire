@@ -71,7 +71,7 @@ var _chart: Control = null
 var _header: Label = null
 
 var _rooms: Dictionary = {}     # rid -> { name, times: PackedFloat32Array, cols: {c: PF32} }
-var _room_ids: Array = []
+var _room_ids: Array[int] = []
 var _events: Array = []
 
 var _active_series: Array = []  # dicts listos para el chart
@@ -233,7 +233,7 @@ func _on_clear() -> void:
 	_refresh_chart()
 
 
-func _add_traces_for(rid, group_idx: int) -> void:
+func _add_traces_for(rid: int, group_idx: int) -> void:
 	if not _rooms.has(rid):
 		return
 	var gi: int = clampi(group_idx, 0, METRIC_GROUPS.size() - 1)

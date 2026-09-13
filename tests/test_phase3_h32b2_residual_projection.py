@@ -339,6 +339,8 @@ def _references_the_primitive(path: str) -> bool:
 def test_the_only_consumer_is_the_read_only_shadow():
     tracked = _git_grep("Phase3ResidualProjection")
     unexpected = tracked - ALLOWED_REFERENCES - {"sim/core/SimulationEngine.gd"}
+    # Apply the same primitive/shadow distinction before rejecting references.
+    unexpected = {path for path in unexpected if _references_the_primitive(path)}
     assert not unexpected, "unexpected reference: %s" % sorted(unexpected)
     # Exactly one thing under sim/ calls the primitive, and it is the shadow.
     consumers = {q for q in tracked
@@ -358,6 +360,52 @@ def test_the_only_consumer_is_the_read_only_shadow():
     # file would be invisible to a plain `git grep` and this gate would pass
     # vacuously.
     assert "tests/fixtures/phase3_h32b2_residual_projection.gd" in tracked
+
+
+@pytest.mark.parametrize("tracked", [True, False], ids=["tracked", "untracked"])
+@pytest.mark.parametrize("reference", [
+    "shadow_doc", "primitive_doc", "primitive_source", "mixed_source", "engine_source",
+])
+def test_consumer_guard_distinguishes_shadow_from_primitive(tmp_path, monkeypatch,
+                                                          tracked, reference):
+    files = {
+        SHADOW_CONSUMER: 'const P = preload("res://sim/core/Phase3ResidualProjection.gd")\n'
+                         'const RESULT = {"shadow_applied": false}\n',
+        "sim/core/SimulationEngine.gd": 'const S = preload("res://sim/core/Phase3ResidualProjectionShadow.gd")\n',
+        "tests/fixtures/phase3_h32b2_residual_projection.gd":
+            'const P = preload("res://sim/core/Phase3ResidualProjection.gd")\n',
+    }
+    for name, content in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+    if reference.endswith("doc"):
+        added = "docs/validation/probe_design.md"
+        content = ("Phase3ResidualProjectionShadow.gd:75\n" if reference == "shadow_doc"
+                   else "Phase3ResidualProjection.gd:75\n")
+    else:
+        added = ("sim/core/SimulationEngine.gd" if reference == "engine_source"
+                 else "sim/core/UnauthorizedConsumer.gd")
+        content = 'const P = preload("res://sim/core/Phase3ResidualProjection.gd")\n'
+        if reference == "mixed_source":
+            content += 'const S = preload("res://sim/core/Phase3ResidualProjectionShadow.gd")\n'
+        if reference == "engine_source" and not tracked:
+            subprocess.run(["git", "rm", "--cached", added], cwd=tmp_path,
+                           check=True, capture_output=True)
+    path = tmp_path / added
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    if tracked:
+        subprocess.run(["git", "add", added], cwd=tmp_path, check=True, capture_output=True)
+    monkeypatch.setitem(globals(), "ROOT", tmp_path)
+    assert added in _git_grep("Phase3ResidualProjection")
+    if reference == "shadow_doc":
+        test_the_only_consumer_is_the_read_only_shadow()
+    else:
+        with pytest.raises(AssertionError):
+            test_the_only_consumer_is_the_read_only_shadow()
 
 
 def test_only_the_shadow_and_tests_load_the_primitive():

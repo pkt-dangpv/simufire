@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+
 
 static func fuel_object_color_for_state(state_name: String, fallback_fill: Color) -> Color:
 	match state_name:
@@ -79,14 +81,7 @@ static func window_status_label(rs: Dictionary, full_open_threshold: float) -> S
 	return "Win OPEN %.0f%%" % (w_open * 100.0)
 
 
+## Igual que `ScenarioSerializer.vector2_from_data`: se queda por ser API
+## publica -la vista 2D la llama por su nombre- pero la regla vive en un sitio.
 static func vector2_from_variant(value: Variant) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return Vector2.ZERO
+	return ScenarioValues.to_vector2(value)

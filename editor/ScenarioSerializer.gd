@@ -1,6 +1,8 @@
 extends RefCounted
 class_name ScenarioSerializer
 
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+
 const DEFAULT_VERSION: int = 1
 
 
@@ -81,6 +83,9 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
 		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
+		"building_total_floors": int(data.get("building_total_floors", 0)),
+		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
+		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"floors": Array(data.get("floors", [])).duplicate(true),
@@ -104,6 +109,9 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
 		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
+		"building_total_floors": int(data.get("building_total_floors", 0)),
+		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
+		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
@@ -145,7 +153,10 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	if building_type != "apartment":
 		building_type = "single_family"
 	data["building_type"] = building_type
-	data["apartment_floor_number"] = int(data.get("apartment_floor_number", 1))
+	data["apartment_floor_number"] = maxi(0, int(data.get("apartment_floor_number", 1)))
+	data["building_total_floors"] = maxi(0, int(data.get("building_total_floors", 0)))
+	data["wind_speed_m_s"] = maxf(0.0, float(data.get("wind_speed_m_s", 0.0)))
+	data["wind_direction_deg"] = fposmod(float(data.get("wind_direction_deg", 0.0)), 360.0)
 	data["interior_lights_on"] = bool(data.get("interior_lights_on", true))
 	var exterior_lighting_mode: String = String(data.get("exterior_lighting_mode", "Dia")).strip_edges()
 	data["exterior_lighting_mode"] = "Noche" if exterior_lighting_mode.to_lower() == "noche" else "Dia"
@@ -268,7 +279,7 @@ static func normalize_floors(raw_floors: Variant, room_levels: Array = []) -> Ar
 			var level_m: float = float(raw.get("level_m", 0.0 if floors.is_empty() else floors.size() * 2.9))
 			if _floor_level_exists(floors, level_m):
 				continue
-			var fallback_name: String = "PB" if floors.is_empty() else "P%d" % floors.size()
+			var fallback_name: String = FloorNaming.label(floors.size())
 			floors.append({
 				"name": String(raw.get("name", fallback_name)),
 				"level_m": level_m
@@ -277,16 +288,15 @@ static func normalize_floors(raw_floors: Variant, room_levels: Array = []) -> Ar
 		var level_m: float = float(raw_level)
 		if not _floor_level_exists(floors, level_m):
 			floors.append({
-				"name": "PB" if floors.is_empty() else "P%d" % floors.size(),
+				"name": FloorNaming.label(floors.size()),
 				"level_m": level_m
 			})
 	if floors.is_empty():
-		floors.append({"name": "PB", "level_m": 0.0})
+		floors.append({"name": FloorNaming.label(0), "level_m": 0.0})
 	floors.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
 	for i in range(floors.size()):
 		var floor: Dictionary = floors[i]
-		if String(floor.get("name", "")).strip_edges() == "":
-			floor["name"] = "PB" if i == 0 else "P%d" % i
+		floor["name"] = FloorNaming.migrated_name(String(floor.get("name", "")), i)
 		floors[i] = floor
 	return floors
 
@@ -346,7 +356,35 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 		opening["open_fraction"] = 1.0
 	if opening.has("is_vertical"):
 		opening["is_vertical"] = bool(opening["is_vertical"])
+	_normalize_balcony(opening)
 	return opening
+
+
+## N-1: el balcon solo existe colgado de una abertura EXTERIOR y no vertical.
+## Un hueco entre dos salas no da a ninguna fachada y uno vertical es un hueco
+## de forjado, asi que ahi el dato se borra en vez de arrastrarse: si la
+## abertura se movio a un tabique interior, el balcon que tenia sobra.
+static func _normalize_balcony(opening: Dictionary) -> void:
+	var exterior: bool = int(opening.get("a", 0)) == -1 or int(opening.get("b", -1)) == -1
+	var vertical: bool = bool(opening.get("is_vertical", false))
+	if not exterior or vertical or not bool(opening.get("has_balcony", false)):
+		opening.erase("has_balcony")
+		opening.erase("balcony_width_m")
+		opening.erase("balcony_depth_m")
+		opening.erase("balcony_parapet_m")
+		return
+	opening["has_balcony"] = true
+	opening["balcony_width_m"] = maxf(0.0, float(opening.get("balcony_width_m", 0.0)))
+	opening["balcony_depth_m"] = clampf(
+		float(opening.get("balcony_depth_m", 1.20)),
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	opening["balcony_parapet_m"] = clampf(
+		float(opening.get("balcony_parapet_m", 1.10)),
+		OpeningModel.BALCONY_MIN_PARAPET_M,
+		OpeningModel.BALCONY_MAX_PARAPET_M
+	)
 
 
 static func rect2_from_data(value: Variant) -> Rect2:
@@ -367,17 +405,11 @@ static func rect2_from_data(value: Variant) -> Rect2:
 	return Rect2()
 
 
+## El formato lo lee `sim/ScenarioValues`, que es el unico sitio donde esta
+## escrito. Esta funcion se queda porque es API publica del serializador y la
+## llaman doce sitios; lo que ya no tiene es una segunda copia de la regla.
 static func vector2_from_data(value: Variant) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return Vector2.ZERO
+	return ScenarioValues.to_vector2(value)
 
 
 static func rect_to_data(rect: Rect2) -> Dictionary:

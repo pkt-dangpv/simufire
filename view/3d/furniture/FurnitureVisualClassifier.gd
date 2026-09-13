@@ -1,6 +1,54 @@
 extends RefCounted
 
 
+## Todos los arquetipos que puede devolver visual_archetype().
+##
+## Escrita porque es un CONTRATO con el catalogo de modelos: cada uno de estos
+## tiene que resolver a un modelo de assets/fp/furniture/ y no a las cajas de
+## respaldo. Lo comprueba tools/validate_furniture_runtime.tscn, que es la red
+## para cuando entren modelos nuevos: un arquetipo sin fichero, o un fichero
+## renombrado, cae a cajas sin decir nada.
+const ARCHETYPES: Array[String] = [
+	"armchair",
+	"bathroom_cabinet",
+	"bathtub",
+	"bed",
+	"bed_bunk",
+	"bed_single",
+	"bench",
+	"bookcase",
+	"chair",
+	"chair_desk",
+	"clutter",
+	"coffee_table",
+	"containers",
+	"curtain",
+	"desk",
+	"dresser",
+	"dryer",
+	"kitchen_fridge",
+	"kitchen_sink",
+	"kitchen_stove",
+	"kitchen_unit",
+	"lamp_floor",
+	"lamp_table",
+	"lounge_sofa_long",
+	"plant",
+	"pool",
+	"rug",
+	"shower",
+	"side_table",
+	"sink",
+	"sofa",
+	"storage",
+	"table",
+	"textile_pile",
+	"toilet",
+	"tv_stand",
+	"wardrobe",
+	"washer",
+]
+
 static func visual_archetype(obj: Dictionary) -> String:
 	var kind_text: String = String(obj.get("kind", "")).strip_edges().to_lower()
 	var name_text: String = String(obj.get("name", "")).strip_edges().to_lower()
@@ -58,8 +106,20 @@ static func visual_archetype(obj: Dictionary) -> String:
 		return "shower"
 	if _has(tokens, ["inodoro", "retrete", "wc", "aseo", "toilet"]):
 		return "toilet"
+	# El fregadero antes que el lavabo: "kitchen sink" tambien contiene "sink",
+	# y sin esto acababa dibujado como lavabo de bano.
+	if _has(tokens, ["fregadero", "kitchen sink", "kitchen_sink"]):
+		return "kitchen_sink"
 	if _has(tokens, ["lavabo", "sink"]):
 		return "sink"
+	# El mueble de bano tiene que ir ANTES que el "armario" generico de mas
+	# abajo. Sin esto un armario de bano salia dibujado como un ROPERO de 2,05 m
+	# de alto dentro de un bano de 4 m2, y un botiquin caia en el monton de
+	# bultos del fallback. El modelo existia y no lo alcanzaba nadie.
+	if _has(tokens, ["mueble de bano", "mueble de baño", "armario de bano",
+			"armario de baño", "botiquin", "botiquín", "bathroom cabinet",
+			"medicine cabinet", "vanity"]):
+		return "bathroom_cabinet"
 
 	# --- Cocina (electrodomésticos antes que unidad genérica) ---
 	if _has(tokens, ["nevera", "frigo", "frigorifico", "frigorífico", "fridge"]):
@@ -139,11 +199,47 @@ static func visual_archetype(obj: Dictionary) -> String:
 	return "clutter"
 
 
+## Busca la palabra, no la cadena.
+##
+## Con `contains` a secas, "mesilla" contiene "silla" y "cortinas" contiene
+## "tina": la mesilla de noche se clasificaba como SILLA y las cortinas como
+## BANERA, y salian dibujadas como tales. Aqui la aguja tiene que empezar y
+## acabar en un limite de palabra -principio, final, o un caracter que no sea
+## una letra: espacio, guion bajo, cifra- y se admite la "s" del plural
+## castellano, para que "cortina" siga casando con "cortinas".
 static func _has(haystack: String, needles: Array) -> bool:
 	for needle in needles:
-		if haystack.contains(String(needle)):
+		if _has_word(haystack, String(needle)):
 			return true
 	return false
+
+
+static func _has_word(haystack: String, needle: String) -> bool:
+	if needle == "":
+		return false
+	var from: int = 0
+	while true:
+		var at: int = haystack.find(needle, from)
+		if at < 0:
+			return false
+		if not _is_letter_at(haystack, at - 1):
+			var after: int = at + needle.length()
+			if not _is_letter_at(haystack, after):
+				return true
+			# Plural castellano: "cortinas" para la aguja "cortina".
+			if haystack.substr(after, 1) == "s" and not _is_letter_at(haystack, after + 1):
+				return true
+		from = at + 1
+	return false
+
+
+static func _is_letter_at(text: String, index: int) -> bool:
+	if index < 0 or index >= text.length():
+		return false
+	var c: String = text.substr(index, 1)
+	# Vale para acentos y ene: una letra cambia al pasarla a mayuscula o a
+	# minuscula; un guion bajo, un espacio o una cifra no.
+	return c.to_upper() != c.to_lower()
 
 
 static func shape_needs_rebuild(node: Node3D, kind_name: String, size_m: Vector2) -> bool:

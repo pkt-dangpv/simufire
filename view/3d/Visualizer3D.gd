@@ -26,12 +26,14 @@ signal screenshot_failed(message: String)
 const SmokeAnimation3D := preload("res://view/3d/smoke/SmokeAnimation3D.gd")
 const SmokeLayerVisuals := preload("res://view/3d/smoke/SmokeLayerVisuals.gd")
 const SmokeOpeningCurtain3D := preload("res://view/3d/smoke/SmokeOpeningCurtain3D.gd")
+const OpeningKinds := preload("res://view/geometry/OpeningKinds.gd")
 const SmokePuffSpriteFactory := preload("res://view/3d/smoke/SmokePuffSpriteFactory.gd")
 const SmokeVolumeMaterialFactory := preload("res://view/3d/smoke/SmokeVolumeMaterialFactory.gd")
 const CameraOrbit3D := preload("res://view/3d/camera/CameraOrbit3D.gd")
 const FireAnimation3D := preload("res://view/3d/fire/FireAnimation3D.gd")
 const FireMeshFactory := preload("res://view/3d/fire/FireMeshFactory.gd")
 const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
@@ -40,6 +42,9 @@ const OpeningPose3D := preload("res://view/3d/openings/OpeningPose3D.gd")
 const RoomShellFactory := preload("res://view/3d/geometry/RoomShellFactory.gd")
 const Legend3DScene: PackedScene = preload("res://view/3d/Legend3D.tscn")
 const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
 
 @export_group("Scene Nodes")
 @export var building_path: NodePath
@@ -52,6 +57,9 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Geometry")
 @export var meters_to_units: float = 1.0
+## Atrezo en las salas que el escenario deja sin objetos. Ver el mando del mismo
+## nombre en FirstPersonController: las dos vistas amueblan igual.
+@export var furnish_empty_rooms: bool = true
 @export var wall_thickness_m: float = 0.07
 @export var floor_thickness_m: float = 0.04
 @export var room_inset_m: float = 0.04
@@ -100,6 +108,29 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_smoke_ceiling_masks: bool = true
 @export var show_cold_air_inflow_curtains: bool = false
 @export var show_fire_smoke_plume: bool = false
+
+@export_group("Orden de transparencias")
+## Por sala conviven varias capas translucidas. Sin prioridad explicita, el
+## orden de dibujado lo decide la distancia a camara y salta al orbitar
+## (popping de ordenacion alfa). Numero mayor = se dibuja encima (V3-1).
+@export var render_priority_smoke_volume: int = 0
+@export var render_priority_layer_gradient: int = 1
+@export var render_priority_hot_layer: int = 2
+@export var render_priority_layer_150c: int = 3
+@export var render_priority_ceiling_mask: int = 4
+@export var render_priority_opening_curtain: int = 5
+@export var render_priority_opening_inflow: int = 6
+@export var render_priority_exterior_plume: int = 7
+
+@export_group("Captura tecnica")
+## Renderiza la captura en un SubViewport propio con una camara clonada, en
+## vez de fotografiar el viewport raiz. Asi la imagen sale sin HUD ni
+## leyenda, que es lo que se quiere de un export tecnico (V3-2).
+@export var screenshot_use_clean_viewport: bool = true
+## Tamano de la captura. Con (0, 0) se usa el tamano del viewport actual.
+@export var screenshot_size_px: Vector2i = Vector2i(1920, 1080)
+## Fondo transparente en la captura, para montarla sobre otro documento.
+@export var screenshot_transparent_background: bool = false
 
 @export_group("Colors")
 @export var floor_color: Color = Color(0.18, 0.18, 0.17, 1.0)
@@ -170,6 +201,97 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.0, 1.5, 0.05) var opening_curtain_edge_band: float = 0.55
 ## Suavizado del contorno de la cortina (mayor = mas difuso).
 @export_range(0.05, 0.8, 0.05) var opening_curtain_edge_softness: float = 0.40
+## H-5: la cortina se estrecha al hueco libre que deja la hoja y se desplaza al
+## lado de la cerradura, en vez de ocupar el vano entero y atravesar la puerta.
+@export var opening_curtain_follows_leaf: bool = true
+## Ancho minimo de la cortina como fraccion del vano, para que una rendija siga
+## leyendose desde lejos.
+@export_range(0.0, 0.5, 0.01) var opening_curtain_min_width_ratio: float = 0.12
+## Cuanto atenua ademas la opacidad la fraccion de apertura. Con la geometria ya
+## estrechada, 1.0 contaria la apertura dos veces y 0.0 no la contaria en la
+## opacidad en absoluto.
+@export_range(0.0, 1.0, 0.05) var opening_curtain_alpha_open_exponent: float = 0.5
+## Opacidad maxima de la cortina de aire frio que entra por el vano. El valor
+## heredado era 0,085, con el que no se veia nada; se sube para que encender
+## show_cold_air_inflow_curtains baste, sin tener que tocar tambien esto (H-4).
+@export_range(0.0, 0.6, 0.005) var opening_inflow_max_alpha: float = 0.26
+## Condiciona la cortina de aire frio a que la de humo haya superado su propio
+## umbral de visibilidad en el mismo fotograma. Era el comportamiento anterior
+## y hacia que la contracorriente no llegase a dibujarse nunca (H-4).
+@export var opening_inflow_requires_outflow: bool = false
+## Calibracion de la cortina de vano CUANDO se ve desde primera persona. El
+## visor 3D corre como overlay en FP, asi que el humo del hueco tambien se ve
+## desde dentro de la vivienda, y alli se mira desde debajo de la capa y a un
+## metro del vano: pide mas opacidad, menos costados y mas panza (FP-7).
+@export_range(0.0, 2.0, 0.01) var opening_curtain_first_person_alpha_factor: float = 0.72
+@export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_side_visibility: float = 0.08
+@export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_bottom_strength: float = 0.46
+## Opacidad de la cortina de vano vista desde la casa de munecas.
+@export_range(0.0, 2.0, 0.01) var opening_curtain_alpha_factor: float = 0.52
+## Alto del penacho que sale por un hueco a fachada, entre carga minima y
+## maxima de humo, y su opacidad en cada vista.
+@export_range(0.05, 3.0, 0.05) var exterior_plume_min_height_m: float = 0.55
+@export_range(0.5, 12.0, 0.10) var exterior_plume_max_height_m: float = 3.60
+@export_range(0.0, 2.0, 0.01) var exterior_plume_alpha_factor: float = 0.62
+@export_range(0.0, 2.0, 0.01) var exterior_plume_first_person_alpha_factor: float = 0.78
+## Cuanto tira el penacho hacia el color caliente. Es humo de la misma sala,
+## asi que parte de su color; con 0 sale exactamente del color del humo.
+@export_range(0.0, 1.0, 0.01) var exterior_plume_hot_tint: float = 0.18
+## Lo mismo para la cortina que cruza el vano: es el humo de la sala, no una
+## llamarada. Con 0 sale exactamente del color del humo.
+@export_range(0.0, 1.0, 0.01) var opening_curtain_hot_tint: float = 0.18
+## Visibilidad de los costados de la cortina vista desde la casa de munecas.
+## Subirla hace que se lean las cuatro caras y el vano parezca una caja.
+@export_range(0.0, 1.0, 0.01) var opening_curtain_side_visibility: float = 0.22
+## Fondo del puente de humo en un hueco A FACHADA. Con valores grandes el
+## puente se convierte en un cajon que asoma medio dentro y medio fuera de la
+## habitacion; lo que debe verse es humo llenando el hueco y, por encima, el
+## penacho que sale. Los huecos interiores conservan su fondo, que ahi si
+## conecta dos capas.
+@export_range(0.05, 1.60, 0.05) var exterior_opening_curtain_depth_m: float = 0.30
+## Cuanto se desplaza hacia la calle el puente de un hueco a fachada, en
+## fracciones de su propio fondo. Con 0,32 quedaba a caballo del muro (medio
+## dentro, medio fuera); con 0,55 queda pegado por fuera y se lee como humo
+## saliendo, no como un cajon metido en la ventana.
+@export_range(0.0, 1.5, 0.05) var exterior_opening_curtain_outward_shift: float = 0.55
+## Lo mismo para una PUERTA exterior de vivienda, que no da a la calle sino al
+## rellano: un espacio cerrado donde empujar la lamina hacia fuera la deja
+## flotando en mitad del portal. Por defecto se queda en el plano del hueco.
+@export_range(0.0, 1.5, 0.05) var exterior_door_curtain_outward_shift: float = 0.0
+## Regimen del penacho segun el empuje: con poco, columna lisa y lenta
+## (laminar); con mucho, revuelta y rapida.
+@export_range(0.0, 2.0, 0.05) var exterior_plume_laminar_turbulence: float = 0.30
+@export_range(0.0, 2.0, 0.05) var exterior_plume_turbulent_turbulence: float = 1.15
+@export_range(0.0, 2.0, 0.01) var exterior_plume_min_speed: float = 0.10
+@export_range(0.0, 2.0, 0.01) var exterior_plume_max_speed: float = 0.62
+## Suavidad del borde y visibilidad de los costados. Subir el segundo hace
+## que se lean las cuatro caras del volumen y el penacho parezca una caja.
+@export_range(0.0, 1.5, 0.01) var exterior_plume_edge_softness: float = 0.72
+@export_range(0.0, 1.0, 0.01) var exterior_plume_side_visibility: float = 0.34
+## Condiciona el penacho a que la cortina del hueco haya superado su umbral de
+## visibilidad. Era el comportamiento anterior y hacia que el penacho apareciese
+## y desapareciese de golpe en vez de crecer con el incendio.
+@export var exterior_plume_requires_curtain: bool = false
+## Carga de humo minima en la sala para que salga penacho por el hueco.
+@export_range(0.0, 0.5, 0.01) var exterior_plume_min_source_alpha: float = 0.05
+## Altura del plano neutro dentro del vano, como fraccion de su alto: donde se
+## separan el humo que sale por arriba y el aire que entra por abajo. El primer
+## valor es con las dos salas equilibradas y el segundo con maximo
+## desequilibrio, que baja el plano porque el hueco pasa mas humo (H-2).
+@export_range(0.0, 1.0, 0.01) var neutral_plane_calm_fraction: float = 0.58
+@export_range(0.0, 1.0, 0.01) var neutral_plane_driven_fraction: float = 0.44
+## Lo mismo para un hueco a fachada, donde siempre hay contracorriente.
+@export_range(0.0, 1.0, 0.01) var neutral_plane_exterior_calm_fraction: float = 0.62
+@export_range(0.0, 1.0, 0.01) var neutral_plane_exterior_driven_fraction: float = 0.40
+## Rugosidad de los materiales planos del visor 3D.
+@export_range(0.0, 1.0, 0.01) var surface_roughness_3d: float = 0.94
+## Radio en pixeles para pinchar un marcador de apertura, y holgura en metros
+## con la que se considera que el raton esta "sobre el modelo".
+@export_range(4.0, 120.0, 1.0) var opening_marker_pick_radius_px: float = 26.0
+@export_range(0.0, 5.0, 0.05) var model_hover_margin_m: float = 0.75
+## Penacho de humo que sube por la fachada al salir por un hueco exterior.
+## Sin el, el humo de una ventana termina en un corte plano en el dintel.
+@export var show_exterior_smoke_plume: bool = true
 @export_group("")
 
 @export var smoke_grow_lerp: float = 0.08
@@ -218,6 +340,11 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Camera")
 @export var enable_mouse_camera: bool = true
+## Radio de gracia, en pixeles, para pinchar un mueble por proximidad cuando
+## el clic no cae dentro de su silueta.
+@export_range(0.0, 120.0, 1.0) var fuel_object_pick_radius_px: float = 34.0
+## Holgura que se anade a la silueta del mueble al comprobar el clic.
+@export_range(0.0, 40.0, 1.0) var fuel_object_pick_margin_px: float = 4.0
 @export var orbit_with_left_drag_on_model: bool = true
 @export var allow_element_drag: bool = true
 @export var camera_distance_m: float = 13.0
@@ -347,18 +474,23 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 	if vp == null:
 		screenshot_failed.emit("Viewport no disponible")
 		return
-	var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
-	if _legend_canvas != null:
-		_legend_canvas.visible = false
-	# frame_post_draw no dispara nunca en --headless (no hay render): la
-	# corrutina se colgaria sin emitir senal. Ahi basta un process_frame.
-	if DisplayServer.get_name() == "headless":
-		await get_tree().process_frame
+	var img: Image = null
+	if screenshot_use_clean_viewport and _camera != null and DisplayServer.get_name() != "headless":
+		img = await _render_clean_screenshot(vp)
 	else:
-		await RenderingServer.frame_post_draw
-	var img := vp.get_texture().get_image()
-	if _legend_canvas != null:
-		_legend_canvas.visible = legend_was_visible
+		# Camino antiguo: fotografiar el viewport raiz, con HUD incluido.
+		var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
+		if _legend_canvas != null:
+			_legend_canvas.visible = false
+		# frame_post_draw no dispara nunca en --headless (no hay render): la
+		# corrutina se colgaria sin emitir senal. Ahi basta un process_frame.
+		if DisplayServer.get_name() == "headless":
+			await get_tree().process_frame
+		else:
+			await RenderingServer.frame_post_draw
+		img = vp.get_texture().get_image()
+		if _legend_canvas != null:
+			_legend_canvas.visible = legend_was_visible
 	if img == null:
 		screenshot_failed.emit("get_image() devolvio null")
 		return
@@ -372,6 +504,48 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 		screenshot_saved.emit(file_path)
 	else:
 		screenshot_failed.emit("Error %d al guardar %s" % [err, file_path])
+
+
+## Render de la escena 3D en un viewport aparte, con una camara clonada de la
+## activa. Comparte el mismo World3D, asi que se ve exactamente la misma
+## escena, pero sin nada de la interfaz: el HUD y la leyenda viven en capas de
+## lienzo del viewport raiz y no entran aqui (V3-2).
+func _render_clean_screenshot(source_vp: Viewport) -> Image:
+	var sub := SubViewport.new()
+	sub.name = "ScreenshotViewport"
+	var size: Vector2i = screenshot_size_px
+	if size.x <= 0 or size.y <= 0:
+		size = Vector2i(source_vp.get_visible_rect().size)
+	sub.size = Vector2i(maxi(16, size.x), maxi(16, size.y))
+	sub.world_3d = source_vp.world_3d
+	sub.own_world_3d = false
+	sub.transparent_bg = screenshot_transparent_background
+	sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sub.msaa_3d = source_vp.msaa_3d
+
+	var cam := Camera3D.new()
+	cam.name = "ScreenshotCamera"
+	cam.fov = _camera.fov
+	cam.near = _camera.near
+	cam.far = _camera.far
+	cam.projection = _camera.projection
+	cam.size = _camera.size
+	cam.environment = _camera.environment
+	cam.attributes = _camera.attributes
+	sub.add_child(cam)
+	add_child(sub)
+	cam.global_transform = _camera.global_transform
+	cam.current = true
+
+	# Dos vueltas: la primera monta el viewport, la segunda ya tiene imagen.
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var texture: ViewportTexture = sub.get_texture()
+	var img: Image = texture.get_image() if texture != null else null
+
+	remove_child(sub)
+	sub.queue_free()
+	return img
 
 
 func select_room(room_id: int) -> void:
@@ -451,6 +625,38 @@ func clear_selection() -> void:
 	_apply_selection_visuals()
 
 
+## Con esto en falso, el boton izquierdo NO es del visor: ni selecciona, ni
+## arrastra elementos, ni deselecciona.
+##
+## Lo apaga el editor mientras hay una herramienta de dibujo puesta, porque ahi
+## ese clic es un trazo. Sin esto solo se podia dibujar la primera sala: en
+## cuanto habia una, el visor se quedaba el clic -para seleccionarla, o para
+## deseleccionar si se pulsaba fuera- y el trazo no llegaba nunca al editor. El
+## boton derecho (orbita) y la rueda (zoom) siguen siendo suyos: mientras dibujas
+## quieres poder mover la camara.
+@export var allow_left_click_picking: bool = true
+
+
+## Cuadra la vista con los ejes del plano: el giro se lleva al múltiplo de 90°
+## más cercano, sin tocar la inclinación.
+##
+## Dibujando en 3D esto no es estética. Con la vista girada 42°, un arrastre
+## cuadrado de 200 x 200 px en pantalla cae en diagonal sobre el plano, y como
+## la sala que sale es el rectángulo recto que lo envuelve, salía de 2,69 x 0,20
+## m: una tira. Con la vista cuadrada, el mismo gesto da 1,86 x 1,95 m, que es lo
+## que se ve dibujar.
+func align_yaw_to_plan_axes() -> void:
+	var quarter_turn: float = PI * 0.5
+	_orbit_y = roundf(_orbit_y / quarter_turn) * quarter_turn
+	_apply_camera_transform()
+
+
+func set_left_click_picking_enabled(enabled: bool) -> void:
+	allow_left_click_picking = enabled
+	if not enabled:
+		_clear_element_drag()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_active or not enable_mouse_camera or not is_visible_in_tree():
 		return
@@ -471,8 +677,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if not allow_left_click_picking:
+				# Ese clic es de quien esté dibujando; aquí ni se mira.
+				return
 			if mb.pressed:
-				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 					var player_start_hit: Dictionary = _player_start_at_screen_pos(mb.position)
 					if not player_start_hit.is_empty():
 						var start_room_id: int = int(player_start_hit.get("room_id", -1))
@@ -504,7 +713,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_begin_element_drag("object", object_id, object_room_id, mb.position)
 						get_viewport().set_input_as_handled()
 						return
-					var opening_index: int = ScreenPicking3D.opening_index_at_screen_pos(_camera, _opening_items, mb.position)
+					var opening_index: int = ScreenPicking3D.opening_index_at_screen_pos(_camera, _opening_items, mb.position, opening_marker_pick_radius_px)
 					if opening_index >= 0:
 						select_opening(opening_index)
 						opening_clicked.emit(opening_index, mb.position)
@@ -531,16 +740,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif _is_element_dragging():
 				_finish_element_drag()
 				get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_orbit_dragging = true
 			get_viewport().set_input_as_handled()
 		elif not mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
 			_orbit_dragging = false
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, true, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, false, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
@@ -657,10 +866,68 @@ func _get_or_create_node3d(path: NodePath, fallback_name: String) -> Node3D:
 	return node
 
 
+## Los muebles que esperan a que la reconstruccion los vuelva a colgar, por
+## "sala|objeto". Ver _harvest_fuel_object_nodes().
+var _fuel_node_pool: Dictionary = {}
+
+
+## Guarda los muebles antes de vaciar la escena, para volver a colgarlos.
+##
+## Rehacer la escena tiraba el arbol entero, y volver a crear cada mueble cuesta
+## unos 4 ms: con diez muebles son tres cuartas partes de los 63 ms que costaba
+## una reconstruccion. Por eso el 3D en vivo los apagaba mientras se arrastraba
+## una sala, y los muebles desaparecian justo mientras movias su habitacion.
+##
+## No es un atajo: es el MISMO nodo que _update_room_fuel_objects_3d ya reutiliza
+## entre pasada y pasada -con su forma, su color y su estado recalculados-, solo
+## que ahora tambien sobrevive al rebuild. Lo que nadie reclame se libera en
+## _release_unclaimed_fuel_nodes().
+func _harvest_fuel_object_nodes() -> void:
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for obj_id in nodes.keys():
+			var node := nodes[obj_id] as Node3D
+			if node == null or not is_instance_valid(node):
+				continue
+			var key: String = "%d|%s" % [int(room_id), String(obj_id)]
+			var previous := _fuel_node_pool.get(key) as Node3D
+			if previous != null and is_instance_valid(previous) and previous != node:
+				previous.queue_free()
+			var parent: Node = node.get_parent()
+			if parent != null:
+				parent.remove_child(node)
+			_fuel_node_pool[key] = node
+
+
+## Un mueble guardado, si lo hay, listo para colgarlo de su sala.
+func _claim_pooled_fuel_node(room_id: int, obj_id: String) -> Node3D:
+	var key: String = "%d|%s" % [room_id, obj_id]
+	var node := _fuel_node_pool.get(key) as Node3D
+	if node == null:
+		return null
+	_fuel_node_pool.erase(key)
+	if not is_instance_valid(node):
+		return null
+	return node
+
+
+## Los que ya no tiene sala nadie: se van.
+func _release_unclaimed_fuel_nodes() -> void:
+	if _fuel_node_pool.is_empty():
+		return
+	for key in _fuel_node_pool.keys():
+		var node := _fuel_node_pool[key] as Node3D
+		if node != null and is_instance_valid(node):
+			node.queue_free()
+	_fuel_node_pool.clear()
+
+
 func _rebuild_scene() -> void:
 	if building == null or _rooms_root == null:
 		return
 
+	_harvest_fuel_object_nodes()
 	_clear_container(_rooms_root)
 	_clear_container(_openings_root)
 	_clear_container(_atmosphere_root)
@@ -673,7 +940,7 @@ func _rebuild_scene() -> void:
 	if rects.is_empty():
 		return
 
-	_bounds_m = _compute_bounds(rects)
+	_bounds_m = ViewScenarioRead.bounds_of_rects(rects)
 	_origin_offset_m = -(_bounds_m.position + _bounds_m.size * 0.5)
 
 	var room_ids: Array[int] = []
@@ -684,7 +951,6 @@ func _rebuild_scene() -> void:
 	for room_id in room_ids:
 		_create_room(room_id, Rect2(rects[room_id]))
 
-	_create_exterior_wall_visuals()
 	_create_stair_visuals()
 
 	for index in range(building.get_opening_count()):
@@ -706,18 +972,6 @@ func _clear_container(container: Node) -> void:
 		container.remove_child(child)
 		child.queue_free()
 
-
-func _compute_bounds(rects: Dictionary) -> Rect2:
-	var first: bool = true
-	var bounds := Rect2()
-	for value in rects.values():
-		var rect := Rect2(value)
-		if first:
-			bounds = rect
-			first = false
-		else:
-			bounds = bounds.merge(rect)
-	return bounds
 
 
 func _create_room(room_id: int, rect_m: Rect2) -> void:
@@ -754,20 +1008,30 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		floor.visible = false
 		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node, _room_stair_run_direction(room), room.stair_turn_degrees)
 	elif floor != null:
-		var slabs: Array[Rect2] = _split_rect_by_voids(rect_m, _vertical_stair_voids_for_floor(floor_level_m))
-		if not (slabs.size() == 1 and _rect_same(slabs[0], rect_m)):
+		# Si ningun hueco vertical toca la sala, la losa sale entera y ya la
+		# dibuja el suelo de la maqueta: no hay nada que emitir.
+		var slabs: Array[Dictionary] = SlabGeometry.named_slab_pieces(
+			rect_m,
+			_vertical_stair_voids_for_floor(floor_level_m),
+			"",
+			"FloorVoidPart_%02d" % room_id
+		)
+		if not (slabs.size() == 1 and bool(slabs[0]["whole"])):
 			floor.visible = false
-			for i in range(slabs.size()):
-				floor_parts.append(_add_floor_void_part_visual(room_node, "FloorVoidPart_%02d_%02d" % [room_id, i], slabs[i], floor_level_m))
+			var floor_part_mat := _make_material(floor_color, false)
+			for slab in slabs:
+				floor_parts.append(_add_floor_slab_visual(room_node, String(slab["name"]), slab["rect"], floor_level_m, floor_part_mat))
 
-	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
+	var smoke := MeshFactory.box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
 	_disable_shadow_casting(smoke)
+	_set_alpha_layer_priority(smoke, render_priority_smoke_volume)
 	_atmosphere_root.add_child(smoke)
 
-	var smoke_plume := _create_box("SmokePlume_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
+	var smoke_plume := MeshFactory.box("SmokePlume_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
 	smoke_plume.visible = false
 	_disable_shadow_casting(smoke_plume)
+	_set_alpha_layer_priority(smoke_plume, render_priority_smoke_volume)
 	_atmosphere_root.add_child(smoke_plume)
 
 	var smoke_puffs_root := Node3D.new()
@@ -783,21 +1047,25 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 
 	var smoke_ceiling_mask := SmokeLayerVisuals.create_ceiling_mask("SmokeCeilingMask_%02d" % room_id)
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
+	_set_alpha_layer_priority(smoke_ceiling_mask, render_priority_ceiling_mask)
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
-	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
+	var gradient_band := MeshFactory.box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
 	gradient_band.visible = false
 	_disable_shadow_casting(gradient_band)
+	_set_alpha_layer_priority(gradient_band, render_priority_layer_gradient)
 	_atmosphere_root.add_child(gradient_band)
 
-	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
+	var hot := MeshFactory.box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
 	hot.visible = false
 	_disable_shadow_casting(hot)
+	_set_alpha_layer_priority(hot, render_priority_hot_layer)
 	_atmosphere_root.add_child(hot)
 
-	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
+	var l150 := MeshFactory.box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
 	l150.visible = false
 	_disable_shadow_casting(l150)
+	_set_alpha_layer_priority(l150, render_priority_layer_150c)
 	_atmosphere_root.add_child(l150)
 
 	var fire_root := Node3D.new()
@@ -926,7 +1194,7 @@ func _create_stair_visuals() -> void:
 		for i in range(steps):
 			var step_h: float = rise_m * float(i + 1)
 			var step_2d: Vector2 = _stair_point_along_run(rect, stair_dir, start_margin_m + step_depth_m * (float(i) + 0.5))
-			var step := _create_box(
+			var step := MeshFactory.box(
 				"Step_%02d" % i,
 				Vector3(step_width_m, maxf(0.04, step_h), step_depth_m * 0.92) * meters_to_units,
 				_make_material(Color(0.38, 0.32, 0.25, 1.0), false)
@@ -942,7 +1210,7 @@ func _create_stair_visuals() -> void:
 			var rail_length_m: float = sqrt(run_m * run_m + rise_total_m * rise_total_m)
 			for side in [-1.0, 1.0]:
 				var rail_2d: Vector2 = center_2d + normal * half_width * side
-				var rail := _create_box(
+				var rail := MeshFactory.box(
 					"Handrail",
 					Vector3(0.055, 0.08, rail_length_m) * meters_to_units,
 					_make_material(Color(0.18, 0.14, 0.10, 1.0), false)
@@ -973,7 +1241,7 @@ func _create_switchback_stair_visuals(stair_root: Node3D, rect: Rect2, lower_lev
 		landing_size = Vector3(landing_depth_m, 0.12, flight_width_m * 2.0 + gap_m)
 	else:
 		landing_size = Vector3(flight_width_m * 2.0 + gap_m, 0.12, landing_depth_m)
-	var landing := _create_box(
+	var landing := MeshFactory.box(
 		"SwitchbackLanding",
 		landing_size * meters_to_units,
 		_make_material(Color(0.40, 0.33, 0.25, 1.0), false)
@@ -989,7 +1257,7 @@ func _create_stair_visual_flight_segment(stair_root: Node3D, node_prefix: String
 	for i in range(steps):
 		var step_h: float = rise_m * float(i + 1) / float(steps)
 		var step_2d: Vector2 = start_2d + flight_dir * (step_depth_m * (float(i) + 0.5))
-		var step := _create_box(
+		var step := MeshFactory.box(
 			"%sStep_%02d" % [node_prefix, i],
 			Vector3(width_m, maxf(0.04, step_h), step_depth_m * 0.90) * meters_to_units,
 			_make_material(Color(0.38, 0.32, 0.25, 1.0), false)
@@ -1004,7 +1272,7 @@ func _create_stair_visual_flight_segment(stair_root: Node3D, node_prefix: String
 		var rail_length_m: float = sqrt(run_m * run_m + rise_m * rise_m)
 		for side in [-1.0, 1.0]:
 			var rail_2d: Vector2 = center_2d + normal * (width_m * 0.5 + 0.08) * side
-			var rail := _create_box(
+			var rail := MeshFactory.box(
 				"%sHandrail" % node_prefix,
 				Vector3(0.055, 0.08, rail_length_m) * meters_to_units,
 				_make_material(Color(0.18, 0.14, 0.10, 1.0), false)
@@ -1015,117 +1283,19 @@ func _create_stair_visual_flight_segment(stair_root: Node3D, node_prefix: String
 			stair_root.add_child(rail)
 
 
-func _create_exterior_wall_visuals() -> void:
-	if building == null or _rooms_root == null:
-		return
-	for i in range(building.exterior_walls.size()):
-		if typeof(building.exterior_walls[i]) != TYPE_DICTIONARY:
-			continue
-		var wall: Dictionary = building.exterior_walls[i]
-		var a: Vector2 = wall.get("a", Vector2.ZERO)
-		var b: Vector2 = wall.get("b", Vector2.ZERO)
-		var axis: Vector2 = b - a
-		var length_m: float = axis.length()
-		if length_m <= 0.05:
-			continue
-		var thickness_m: float = maxf(0.05, float(wall.get("thickness_m", wall_thickness_m * 2.0)))
-		var root := Node3D.new()
-		root.name = "ExteriorWall_%02d" % i
-		_rooms_root.add_child(root)
-		var mesh := _create_box(
-			"WallMesh",
-			Vector3(length_m, default_room_height_m, thickness_m) * meters_to_units,
-			_make_material(Color(0.72, 0.70, 0.64, 0.72), true)
-		)
-		mesh.position = _to_world(Vector3((a.x + b.x) * 0.5, default_room_height_m * 0.5, (a.y + b.y) * 0.5))
-		mesh.rotation.y = -atan2(axis.y, axis.x)
-		root.add_child(mesh)
-
-
 func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
 	if parent == null:
 		parent = _rooms_root
-	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
-	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
 	var mat := _make_material(floor_color, false)
-	if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
-		_create_switchback_stairwell_upper_floor_visual(room_id, rect, floor_level_m, parent, stair_dir, mat)
-		return
-
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
-		var ramp_bottom_m: float = ramp_top_m + ramp_width_m
-		var top_height_m: float = maxf(0.0, ramp_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_stairwell_floor_visual(parent, "StairSideFloorTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, mat)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - ramp_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_stairwell_floor_visual(parent, "StairSideFloorBottom_%s" % str(room_id), Rect2(rect.position.x, ramp_bottom_m, rect.size.x, bottom_height_m), floor_level_m, mat)
-		if landing_depth_m >= 0.28:
-			var landing_x_m: float = rect.position.x + rect.size.x - landing_depth_m if stair_dir.x > 0.0 else rect.position.x
-			_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(landing_x_m, rect.position.y, landing_depth_m, rect.size.y), floor_level_m, mat)
-		return
-
-	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
-	var ramp_right_m: float = ramp_left_m + ramp_width_m
-	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_stairwell_floor_visual(parent, "StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, mat)
-
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
-	if right_width_m >= 0.28:
-		_add_stairwell_floor_visual(parent, "StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, mat)
-
-	if landing_depth_m >= 0.28:
-		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
-		_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, mat)
+	for slab in SlabGeometry.stairwell_upper_floor_slabs(room_id, rect, stair_dir, turn_degrees):
+		_add_floor_slab_visual(parent, String(slab["name"]), slab["rect"], floor_level_m, mat)
 
 
-func _create_switchback_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D, stair_dir: Vector2, mat: StandardMaterial3D) -> void:
-	var gap_m: float = 0.18
-	var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
-	var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-	var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var shaft_top_m: float = rect.position.y + rect.size.y * 0.5 - shaft_width_m * 0.5
-		var shaft_bottom_m: float = shaft_top_m + shaft_width_m
-		var top_height_m: float = maxf(0.0, shaft_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_stairwell_floor_visual(parent, "StairSwitchbackSideTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, mat)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - shaft_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_stairwell_floor_visual(parent, "StairSwitchbackSideBottom_%s" % str(room_id), Rect2(rect.position.x, shaft_bottom_m, rect.size.x, bottom_height_m), floor_level_m, mat)
-		return
-
-	var shaft_left_m: float = rect.position.x + rect.size.x * 0.5 - shaft_width_m * 0.5
-	var shaft_right_m: float = shaft_left_m + shaft_width_m
-	var left_width_m: float = maxf(0.0, shaft_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_stairwell_floor_visual(parent, "StairSwitchbackSideLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, mat)
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - shaft_right_m)
-	if right_width_m >= 0.28:
-		_add_stairwell_floor_visual(parent, "StairSwitchbackSideRight_%s" % str(room_id), Rect2(shaft_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, mat)
-
-
-func _add_stairwell_floor_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float, mat: StandardMaterial3D) -> void:
-	var slab := _create_box(
+func _add_floor_slab_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float, mat: StandardMaterial3D) -> MeshInstance3D:
+	var slab := MeshFactory.box(
 		node_name,
 		Vector3(rect.size.x, floor_thickness_m, rect.size.y) * meters_to_units,
 		mat
-	)
-	slab.position = _to_world(Vector3(
-		rect.position.x + rect.size.x * 0.5,
-		floor_level_m - floor_thickness_m * 0.5,
-		rect.position.y + rect.size.y * 0.5
-	))
-	parent.add_child(slab)
-
-
-func _add_floor_void_part_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float) -> MeshInstance3D:
-	var slab := _create_box(
-		node_name,
-		Vector3(rect.size.x, floor_thickness_m, rect.size.y) * meters_to_units,
-		_make_material(floor_color, false)
 	)
 	slab.position = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
@@ -1138,44 +1308,7 @@ func _add_floor_void_part_visual(parent: Node3D, node_name: String, rect: Rect2,
 
 
 func _vertical_stair_voids_for_floor(floor_level_m: float) -> Array[Rect2]:
-	var result: Array[Rect2] = []
-	if building == null:
-		return result
-	for raw_op in building.get_openings():
-		var op := raw_op as OpeningModel
-		if op == null or not op.is_vertical:
-			continue
-		var lower_room: RoomModel = building.get_room(op.a)
-		var upper_room: RoomModel = building.get_room(op.b)
-		if lower_room == null or upper_room == null:
-			continue
-		if upper_room.floor_level_z_m < lower_room.floor_level_z_m:
-			var tmp := lower_room
-			lower_room = upper_room
-			upper_room = tmp
-		if absf(upper_room.floor_level_z_m - floor_level_m) > 0.05:
-			continue
-		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
-		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-			continue
-		result.append(_stair_vertical_void_rect(rect, _room_stair_run_direction(lower_room), lower_room.stair_turn_degrees))
-	return result
-
-
-func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
-	return StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
-
-
-func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
-	return StairGeometry.split_rect_by_voids(rect, voids)
-
-
-func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
-	return StairGeometry.subtract_rect(rect, void_rect)
-
-
-func _rect_same(a: Rect2, b: Rect2) -> bool:
-	return a.position.distance_to(b.position) <= 0.001 and a.size.distance_to(b.size) <= 0.001
+	return BuildingLevels.vertical_stair_voids(building, floor_level_m, true)
 
 
 func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
@@ -1214,7 +1347,7 @@ func _create_opening(index: int) -> void:
 	if op.is_closed():
 		material_color = closed_opening_color
 
-	var marker := _create_box(
+	var marker := MeshFactory.box(
 		"Opening_%02d" % index,
 		Vector3(pose["size"]) * meters_to_units,
 		_make_material(material_color, true)
@@ -1230,8 +1363,8 @@ func _create_opening(index: int) -> void:
 		var crack_mat := _make_material(Color(1.0, 0.95, 0.72, 0.95), true)
 		var crack_h_size := Vector3(maxf(pose_size.x, 0.02) * 0.68, 0.025, 0.018) if pose_size.x >= pose_size.z else Vector3(0.018, 0.025, maxf(pose_size.z, 0.02) * 0.68)
 		var crack_v_size := Vector3(0.025, maxf(pose_size.y, 0.02) * 0.58, 0.018) if pose_size.x >= pose_size.z else Vector3(0.018, maxf(pose_size.y, 0.02) * 0.58, 0.025)
-		var crack_h := _create_box("BrokenGlassCrackH_%02d" % index, crack_h_size, crack_mat)
-		var crack_v := _create_box("BrokenGlassCrackV_%02d" % index, crack_v_size, crack_mat)
+		var crack_h := MeshFactory.box("BrokenGlassCrackH_%02d" % index, crack_h_size, crack_mat)
+		var crack_v := MeshFactory.box("BrokenGlassCrackV_%02d" % index, crack_v_size, crack_mat)
 		crack_h.visible = false
 		crack_v.visible = false
 		marker.add_child(crack_h)
@@ -1242,7 +1375,7 @@ func _create_opening(index: int) -> void:
 	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
 	# entre estancias o hacia el exterior.
 	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW or op.type == OpeningModel.Type.HOLE:
-		var curtain := _create_box(
+		var curtain := MeshFactory.box(
 			"SmokeCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
 			_make_smoke_volume_material()
@@ -1250,8 +1383,9 @@ func _create_opening(index: int) -> void:
 		curtain.position = marker.position
 		curtain.visible = false
 		_disable_shadow_casting(curtain)
+		_set_alpha_layer_priority(curtain, render_priority_opening_curtain)
 		_atmosphere_root.add_child(curtain)
-		var inflow := _create_box(
+		var inflow := MeshFactory.box(
 			"AirInflowCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
 			SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color, smoke_noise_texture, smoke_noise_texture_strength, smoke_noise_texture_uv_scale)
@@ -1259,10 +1393,23 @@ func _create_opening(index: int) -> void:
 		inflow.position = marker.position
 		inflow.visible = false
 		_disable_shadow_casting(inflow)
+		_set_alpha_layer_priority(inflow, render_priority_opening_inflow)
 		_atmosphere_root.add_child(inflow)
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["air_inflow_curtain"] = inflow
 		_opening_items[index]["curtain_pose"] = pose
+		if op.is_exterior_opening():
+			var plume := MeshFactory.box(
+				"SmokeExteriorPlume_%02d" % index,
+				Vector3(pose["size"]) * meters_to_units,
+				_make_smoke_volume_material()
+			)
+			plume.position = marker.position
+			plume.visible = false
+			_disable_shadow_casting(plume)
+			_set_alpha_layer_priority(plume, render_priority_exterior_plume)
+			_atmosphere_root.add_child(plume)
+			_opening_items[index]["smoke_exterior_plume"] = plume
 
 
 func _create_door_leaf_visual(index: int, op: OpeningModel, pose: Dictionary, marker: MeshInstance3D) -> void:
@@ -1299,7 +1446,7 @@ func _create_door_leaf_visual(index: int, op: OpeningModel, pose: Dictionary, ma
 	pivot.set_meta("full_open_angle_rad", _door_leaf_full_open_angle(op, closed_dir, horizontal_wall))
 	marker.add_child(pivot)
 
-	var panel := _create_box("DoorLeaf_%02d" % index, panel_size, _make_material(door_color, true))
+	var panel := MeshFactory.box("DoorLeaf_%02d" % index, panel_size, _make_material(door_color, true))
 	panel.position = panel_local
 	panel.set_meta("leaf_width_m", leaf_width_m)
 	panel.set_meta("leaf_height_m", leaf_height_m)
@@ -1376,12 +1523,12 @@ func _create_apartment_landing_context(index: int, op: OpeningModel, pose: Dicti
 	var root := Node3D.new()
 	root.name = "ApartmentLanding_%02d" % index
 	_rooms_root.add_child(root)
-	var slab := _create_box("LandingFloor", Vector3(size_x, floor_thickness_m, size_z) * meters_to_units, _make_material(Color(0.34, 0.34, 0.32, 1.0), false))
+	var slab := MeshFactory.box("LandingFloor", Vector3(size_x, floor_thickness_m, size_z) * meters_to_units, _make_material(Color(0.34, 0.34, 0.32, 1.0), false))
 	slab.position = _to_world(floor_center)
 	root.add_child(slab)
 	var back_wall_center := Vector3(center.x + normal.x * size_x, center.y + 1.15, center.z + normal.y * size_z)
 	var wall_size := Vector3(size_x, 2.3, 0.08) if absf(normal.y) > 0.5 else Vector3(0.08, 2.3, size_z)
-	var wall := _create_box("LandingBackWall", wall_size * meters_to_units, _make_material(Color(0.68, 0.66, 0.60, 0.82), true))
+	var wall := MeshFactory.box("LandingBackWall", wall_size * meters_to_units, _make_material(Color(0.68, 0.66, 0.60, 0.82), true))
 	wall.position = _to_world(back_wall_center)
 	root.add_child(wall)
 	_add_landing_panels(root, center, normal, size_x, size_z)
@@ -1394,18 +1541,18 @@ func _add_landing_panels(root: Node3D, door_center: Vector3, normal: Vector2, si
 		var offset: float = (float(i) - 1.0) * 1.35
 		var pos := Vector3(base.x + tangent.x * offset, base.y, base.z + tangent.y * offset)
 		var panel_size := Vector3(0.82, 1.95, 0.06) if absf(normal.y) > 0.5 else Vector3(0.06, 1.95, 0.82)
-		var panel := _create_box("FlatDoor_%d" % i, panel_size * meters_to_units, _make_material(Color(0.22, 0.19, 0.15, 1.0), false))
+		var panel := MeshFactory.box("FlatDoor_%d" % i, panel_size * meters_to_units, _make_material(Color(0.22, 0.19, 0.15, 1.0), false))
 		panel.position = _to_world(pos)
 		root.add_child(panel)
 	var lift_pos := Vector3(base.x + tangent.x * 2.25, base.y, base.z + tangent.y * 2.25)
 	var lift_size := Vector3(1.0, 2.0, 0.07) if absf(normal.y) > 0.5 else Vector3(0.07, 2.0, 1.0)
-	var lift := _create_box("ElevatorDoor", lift_size * meters_to_units, _make_material(Color(0.42, 0.45, 0.46, 1.0), false))
+	var lift := MeshFactory.box("ElevatorDoor", lift_size * meters_to_units, _make_material(Color(0.42, 0.45, 0.46, 1.0), false))
 	lift.position = _to_world(lift_pos)
 	root.add_child(lift)
 	for j in range(5):
 		var step_pos := Vector3(door_center.x - tangent.x * 2.25 + normal.x * (0.55 + float(j) * 0.16), door_center.y + 0.04 + float(j) * 0.035, door_center.z - tangent.y * 2.25 + normal.y * (0.55 + float(j) * 0.16))
 		var step_size := Vector3(0.9, 0.07, 0.18) if absf(normal.y) > 0.5 else Vector3(0.18, 0.07, 0.9)
-		var step := _create_box("LandingStair_%d" % j, step_size * meters_to_units, _make_material(Color(0.40, 0.36, 0.30, 1.0), false))
+		var step := MeshFactory.box("LandingStair_%d" % j, step_size * meters_to_units, _make_material(Color(0.40, 0.36, 0.30, 1.0), false))
 		step.position = _to_world(step_pos)
 		root.add_child(step)
 
@@ -1417,17 +1564,17 @@ func _create_single_family_entry_context(index: int, op: OpeningModel, pose: Dic
 	root.name = "SingleFamilyExterior_%02d" % index
 	_rooms_root.add_child(root)
 	var path_size := Vector3(1.25, floor_thickness_m, 3.4) if absf(normal.y) > 0.5 else Vector3(3.4, floor_thickness_m, 1.25)
-	var path := _create_box("EntryPath", path_size * meters_to_units, _make_material(Color(0.46, 0.45, 0.40, 1.0), false))
+	var path := MeshFactory.box("EntryPath", path_size * meters_to_units, _make_material(Color(0.46, 0.45, 0.40, 1.0), false))
 	path.position = _to_world(Vector3(center.x + normal.x * 1.7, center.y - floor_thickness_m * 0.5, center.z + normal.y * 1.7))
 	root.add_child(path)
 	var street_size := Vector3(5.8, floor_thickness_m, 0.55) if absf(normal.y) > 0.5 else Vector3(0.55, floor_thickness_m, 5.8)
-	var street := _create_box("StreetEdge", street_size * meters_to_units, _make_material(Color(0.12, 0.13, 0.13, 1.0), false))
+	var street := MeshFactory.box("StreetEdge", street_size * meters_to_units, _make_material(Color(0.12, 0.13, 0.13, 1.0), false))
 	street.position = _to_world(Vector3(center.x + normal.x * 3.6, center.y - floor_thickness_m * 0.52, center.z + normal.y * 3.6))
 	root.add_child(street)
 	var garden_size := Vector3(2.2, floor_thickness_m, 1.25) if absf(normal.y) > 0.5 else Vector3(1.25, floor_thickness_m, 2.2)
 	for side in [-1.0, 1.0]:
 		var tangent := Vector2(-normal.y, normal.x)
-		var garden := _create_box("ResidentialStrip_%s" % str(side), garden_size * meters_to_units, _make_material(Color(0.18, 0.32, 0.20, 1.0), false))
+		var garden := MeshFactory.box("ResidentialStrip_%s" % str(side), garden_size * meters_to_units, _make_material(Color(0.18, 0.32, 0.20, 1.0), false))
 		garden.position = _to_world(Vector3(center.x + normal.x * 1.4 + tangent.x * side * 1.7, center.y - floor_thickness_m * 0.55, center.z + normal.y * 1.4 + tangent.y * side * 1.7))
 		root.add_child(garden)
 
@@ -1445,22 +1592,13 @@ func _create_window_backdrop(index: int, op: OpeningModel, pose: Dictionary, col
 	var center: Vector3 = Vector3(pose["position"].x, float(pose.get("floor_level_m", 0.0)) + float(pose["position"].y), pose["position"].z)
 	var soft_color := Color(color.r, color.g, color.b, minf(color.a, 0.22))
 	var backdrop_size := Vector3(2.8, 1.7, 0.05) if absf(normal.y) > 0.5 else Vector3(0.05, 1.7, 2.8)
-	var panel := _create_box("%s_%02d" % [name_prefix, index], backdrop_size * meters_to_units, _make_material(soft_color, true))
+	var panel := MeshFactory.box("%s_%02d" % [name_prefix, index], backdrop_size * meters_to_units, _make_material(soft_color, true))
 	panel.position = _to_world(Vector3(center.x + normal.x * 1.65, center.y, center.z + normal.y * 1.65))
 	_rooms_root.add_child(panel)
 
 
 func _outside_normal_for_wall(wall_side: String) -> Vector2:
-	match wall_side.strip_edges().to_lower():
-		"top", "north":
-			return Vector2(0.0, -1.0)
-		"bottom", "south":
-			return Vector2(0.0, 1.0)
-		"left", "west":
-			return Vector2(-1.0, 0.0)
-		"right", "east":
-			return Vector2(1.0, 0.0)
-	return Vector2(0.0, -1.0)
+	return WallSideGeometry.outward_normal_2d(wall_side)
 
 
 func _opening_color(op: OpeningModel) -> Color:
@@ -1513,6 +1651,15 @@ func _opening_pose(op: OpeningModel) -> Dictionary:
 			pose["upper_room_id"] = upper_room_id
 			pose["upper_floor_level_m"] = upper_floor_m
 			pose["vertical_span_m"] = maxf(0.30, upper_floor_m - lower_floor_m)
+		elif op.is_vertical:
+			# Hueco horizontal contra el cielo -la boca de un patio, una
+			# claraboya-. Va en el TECHO de su sala, no en su suelo: es por donde
+			# el conducto remata.
+			var position_sky := Vector3(pose["position"])
+			position_sky.y = _get_room_height(room_id)
+			pose["position"] = position_sky
+			pose["floor_level_m"] = _get_room_floor_level(room_id)
+			pose["vertical_span_m"] = maxf(0.30, _get_room_height(room_id))
 		else:
 			if other_id != BuildingModel.OUTSIDE_ID and absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
 				return {}
@@ -1524,6 +1671,8 @@ func _update_dynamic_state() -> void:
 	var update_fuel_objects: bool = _should_update_fuel_objects_this_pass()
 	for room_id in _room_items.keys():
 		_update_room(int(room_id), update_fuel_objects)
+	if update_fuel_objects:
+		_release_unclaimed_fuel_nodes()
 	_update_openings()
 	_update_player_start_marker_3d()
 	_apply_selection_visuals()
@@ -1571,51 +1720,10 @@ func _build_static_room_state(room_id: int) -> Dictionary:
 		"layer_150c_m": room.layer_150c_m,
 		"visibility_m": room.visibility_m,
 		"overpressure_pa": room.overpressure_pa,
-		"fuel_objects": _build_static_fuel_object_snapshots(room)
+		"fuel_objects": ViewScenarioRead.fuel_object_snapshots(room)
 	}
 
 
-func _build_static_fuel_object_snapshots(room: RoomModel) -> Array:
-	var snapshots: Array = []
-	if room == null:
-		return snapshots
-	for obj in room.fuel_objects:
-		if obj == null:
-			continue
-		snapshots.append({
-			"id": String(obj.id),
-			"name": String(obj.name),
-			"kind": String(obj.kind),
-			"room_id": int(obj.room_id),
-			"position_m": obj.position_m,
-			"size_m": obj.size_m,
-			"rotation_deg": float(obj.rotation_deg),
-			"visual_pose_locked": bool(obj.visual_pose_locked),
-			"elevation_m": float(obj.elevation_m),
-			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
-			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
-			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
-			"hrr_kw": maxf(0.0, obj.hrr_kw),
-			"state": _fuel_object_state_name(int(obj.state)),
-			"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
-		})
-	return snapshots
-
-
-func _fuel_object_state_name(state_id: int) -> String:
-	match state_id:
-		FuelObjectModel.State.HEATING:
-			return "heating"
-		FuelObjectModel.State.PYROLYZING:
-			return "pyrolyzing"
-		FuelObjectModel.State.FLAMING:
-			return "flaming"
-		FuelObjectModel.State.DECAYING:
-			return "decaying"
-		FuelObjectModel.State.BURNED_OUT:
-			return "burned_out"
-		_:
-			return "cold"
 
 
 func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
@@ -1784,8 +1892,21 @@ func _has_selection() -> bool:
 		or _selected_player_start
 
 
-func screen_to_floor_m(screen_pos: Vector2) -> Variant:
-	return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
+## Donde cae un punto de la pantalla sobre el suelo, en metros del plano.
+##
+## `floor_level_m` importa al dibujar en una planta alta: el punto tiene que caer
+## sobre el suelo de ESA planta, no sobre la cota cero.
+func screen_to_floor_m(screen_pos: Vector2, floor_level_m: float = 0.0) -> Variant:
+	if absf(floor_level_m) <= 0.001:
+		return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
+	return _screen_to_floor_at_level(screen_pos, floor_level_m)
+
+
+## Un punto del plano, en metros, a coordenadas del mundo 3D y a la altura que se
+## pida. Publica por lo mismo que screen_to_floor_m: el editor dibuja sobre el
+## suelo y necesita colocar ahi su previsualizacion.
+func floor_point_to_world(point_m: Vector2, height_m: float) -> Vector3:
+	return _to_world(Vector3(point_m.x, height_m, point_m.y))
 
 
 func _screen_to_floor_at_level(screen_pos: Vector2, floor_level_m: float) -> Variant:
@@ -1922,14 +2043,63 @@ func _node_floor_position_m(node: Node3D) -> Vector2:
 	)
 
 
+## Cotas de planta presentes en el edificio, para que el picking no se resuelva
+## siempre contra y = 0 (V3-3).
+func _floor_levels_m() -> Array[float]:
+	var levels: Array[float] = []
+	if building == null:
+		return levels
+	for key in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null:
+			continue
+		var level_m: float = room.floor_level_z_m
+		var known: bool = false
+		for existing in levels:
+			if absf(existing - level_m) <= 0.05:
+				known = true
+				break
+		if not known:
+			levels.append(level_m)
+	return levels
+
+
 func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 	var best: Dictionary = {}
 	var best_distance: float = 999999.0
+	# Primero, lo que se pincha DENTRO de su silueta: medir la distancia al
+	# origen del nodo hacia que los muebles grandes fuesen dificiles de clicar
+	# por los bordes, que es justo donde se pincha (V3-4).
+	var inside_best: Dictionary = {}
+	var inside_depth: float = 999999.0
 	for room_id in _room_items.keys():
 		var item: Dictionary = _room_items[room_id]
 		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 		for object_id in fuel_obj_nodes.keys():
 			var node := fuel_obj_nodes[object_id] as Node3D
+			if node != null and bool(node.get_meta("visual_only", false)):
+				continue
+			var rect: Rect2 = _node_screen_rect(node)
+			if rect.size == Vector2.ZERO or not rect.has_point(screen_pos):
+				continue
+			if _camera == null:
+				continue
+			var depth: float = _camera.global_position.distance_to(node.global_position)
+			if depth < inside_depth:
+				inside_depth = depth
+				inside_best = {"room_id": int(room_id), "object_id": String(object_id)}
+	if not inside_best.is_empty():
+		return inside_best
+
+	# Si no se ha pinchado dentro de ninguno, se admite el mas cercano por
+	# proximidad, como antes, para no perder el clic aproximado.
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for object_id in fuel_obj_nodes.keys():
+			var node := fuel_obj_nodes[object_id] as Node3D
+			if node != null and bool(node.get_meta("visual_only", false)):
+				continue
 			var distance: float = _node_screen_distance(node, screen_pos)
 			if distance < best_distance:
 				best_distance = distance
@@ -1937,7 +2107,7 @@ func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 					"room_id": int(room_id),
 					"object_id": String(object_id)
 				}
-	return best if best_distance <= 34.0 else {}
+	return best if best_distance <= fuel_object_pick_radius_px else {}
 
 
 func _safety_marker_at_screen_pos(screen_pos: Vector2) -> Dictionary:
@@ -1971,6 +2141,41 @@ func _player_start_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 	return {
 		"room_id": int(building.player_start.get("room_id", -1))
 	}
+
+
+## Rectangulo en pantalla que ocupa un nodo, uniendo las cajas de todas sus
+## mallas y proyectando las ocho esquinas. Es lo que permite pinchar un mueble
+## por su silueta y no solo por su centro (V3-4).
+func _node_screen_rect(node: Node3D) -> Rect2:
+	if _camera == null or node == null or not node.is_visible_in_tree():
+		return Rect2()
+	var meshes: Array[MeshInstance3D] = []
+	_collect_mesh_instances(node, meshes)
+	if meshes.is_empty():
+		return Rect2()
+	var rect := Rect2()
+	var started: bool = false
+	for mesh in meshes:
+		var aabb: AABB = mesh.get_aabb()
+		for corner_i in range(8):
+			var corner: Vector3 = mesh.global_transform * aabb.get_endpoint(corner_i)
+			if _camera.is_position_behind(corner):
+				return Rect2()
+			var projected: Vector2 = _camera.unproject_position(corner)
+			if not started:
+				rect = Rect2(projected, Vector2.ZERO)
+				started = true
+			else:
+				rect = rect.expand(projected)
+	return rect.grow(fuel_object_pick_margin_px) if started else Rect2()
+
+
+func _collect_mesh_instances(node: Node, out: Array[MeshInstance3D]) -> void:
+	var mesh := node as MeshInstance3D
+	if mesh != null and mesh.is_visible_in_tree():
+		out.append(mesh)
+	for child in node.get_children():
+		_collect_mesh_instances(child, out)
 
 
 func _node_screen_distance(node: Node3D, screen_pos: Vector2) -> float:
@@ -2292,6 +2497,7 @@ func _apply_smoke_volume_shader(
 		"turbulence": clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95),
 		"drift_speed": 0.045 + hrr_smoke_t * 0.13,
 		"volume_depth_m": maxf(render_depth_m, 0.05),
+		"meters_to_units": meters_to_units,
 		"edge_softness": lerpf(0.28, 0.48, hrr_smoke_t) if _first_person_overlay else lerpf(0.22, 0.38, hrr_smoke_t),
 		"bottom_waviness": lerpf(0.16, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.28, hrr_smoke_t),
 		"edge_band_strength": 0.24 if _first_person_overlay else 0.20,
@@ -2448,6 +2654,7 @@ func _update_fire_smoke_plume(
 			"turbulence": 0.92,
 			"drift_speed": 0.13 + hrr_t * 0.18,
 			"volume_depth_m": maxf(plume_height_m, 0.05),
+			"meters_to_units": meters_to_units,
 			"edge_softness": 0.40,
 			"bottom_waviness": 0.34,
 			"edge_band_strength": 0.34,
@@ -2521,8 +2728,8 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 		best_obj = previous_obj
 	item["fire_anchor_id"] = String(best_obj.get("id", ""))
 
-	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
-	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+	var pos_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
+	var size_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 	var kind_name: String = _fuel_visual_archetype(best_obj)
 	# Mismo tope que FP (_fp_fire_base_y_for_object): una elevation_m alta no
 	# debe plantar la llama en el techo — la base queda a media sala como mucho.
@@ -2540,18 +2747,6 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 	))
 	return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
 
-
-func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return fallback
 
 
 func _update_fire_animation() -> void:
@@ -2615,6 +2810,12 @@ func _update_openings() -> void:
 			broken_crack_v.visible = op.type == OpeningModel.Type.WINDOW and op.glass_broken
 
 		SmokeOpeningCurtain3D.update(item_dict, op, _room_items, {
+			# A QUE DA esta abertura. El modelo solo sabe si el otro lado es una
+			# sala o el ambiente, y con eso la puerta de un piso -que da a un
+			# rellano cerrado- echaba penacho a la calle igual que la entrada de
+			# una unifamiliar. Una de las dos es falsa.
+			"vents_outdoors": OpeningKinds.vents_outdoors(building, op),
+			"is_patio_mouth": OpeningKinds.is_patio_mouth(building, op),
 			"show_smoke_volume": show_smoke_volume,
 			"show_smoke_opening_curtains": show_smoke_opening_curtains \
 				and (not _first_person_overlay or show_smoke_opening_curtains_in_first_person),
@@ -2625,6 +2826,38 @@ func _update_openings() -> void:
 			"opening_curtain_flow_speed": opening_curtain_flow_speed,
 			"opening_curtain_edge_band": opening_curtain_edge_band,
 			"opening_curtain_edge_softness": opening_curtain_edge_softness,
+			"opening_curtain_follows_leaf": opening_curtain_follows_leaf,
+			"opening_curtain_min_width_ratio": opening_curtain_min_width_ratio,
+			"opening_curtain_alpha_open_exponent": opening_curtain_alpha_open_exponent,
+			"opening_inflow_max_alpha": opening_inflow_max_alpha,
+			"opening_inflow_requires_outflow": opening_inflow_requires_outflow,
+			"opening_curtain_first_person_alpha_factor": opening_curtain_first_person_alpha_factor,
+			"opening_curtain_first_person_side_visibility": opening_curtain_first_person_side_visibility,
+			"opening_curtain_first_person_bottom_strength": opening_curtain_first_person_bottom_strength,
+			"opening_curtain_alpha_factor": opening_curtain_alpha_factor,
+			"exterior_plume_min_height_m": exterior_plume_min_height_m,
+			"exterior_plume_max_height_m": exterior_plume_max_height_m,
+			"exterior_plume_alpha_factor": exterior_plume_alpha_factor,
+			"exterior_plume_first_person_alpha_factor": exterior_plume_first_person_alpha_factor,
+			"exterior_plume_hot_tint": exterior_plume_hot_tint,
+			"opening_curtain_hot_tint": opening_curtain_hot_tint,
+			"opening_curtain_side_visibility": opening_curtain_side_visibility,
+			"exterior_opening_curtain_depth_m": exterior_opening_curtain_depth_m,
+			"exterior_opening_curtain_outward_shift": exterior_opening_curtain_outward_shift,
+			"exterior_door_curtain_outward_shift": exterior_door_curtain_outward_shift,
+			"exterior_plume_laminar_turbulence": exterior_plume_laminar_turbulence,
+			"exterior_plume_turbulent_turbulence": exterior_plume_turbulent_turbulence,
+			"exterior_plume_min_speed": exterior_plume_min_speed,
+			"exterior_plume_max_speed": exterior_plume_max_speed,
+			"exterior_plume_edge_softness": exterior_plume_edge_softness,
+			"exterior_plume_side_visibility": exterior_plume_side_visibility,
+			"exterior_plume_requires_curtain": exterior_plume_requires_curtain,
+			"exterior_plume_min_source_alpha": exterior_plume_min_source_alpha,
+			"neutral_plane_calm_fraction": neutral_plane_calm_fraction,
+			"neutral_plane_driven_fraction": neutral_plane_driven_fraction,
+			"neutral_plane_exterior_calm_fraction": neutral_plane_exterior_calm_fraction,
+			"neutral_plane_exterior_driven_fraction": neutral_plane_exterior_driven_fraction,
+			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,
 			"origin_offset_m": _origin_offset_m,
@@ -2653,15 +2886,6 @@ func _update_door_leaf_visual(item_dict: Dictionary, op: OpeningModel) -> void:
 		mat.albedo_color = Color(leaf_color.r, leaf_color.g, leaf_color.b, maxf(leaf_color.a, 0.72))
 
 
-func _create_box(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	var node := MeshInstance3D.new()
-	node.name = node_name
-	node.mesh = mesh
-	node.material_override = material
-	return node
-
 
 func _make_smoke_volume_material() -> ShaderMaterial:
 	return SmokeVolumeMaterialFactory.create_volume(
@@ -2672,10 +2896,20 @@ func _make_smoke_volume_material() -> ShaderMaterial:
 	)
 
 
+## Fija la prioridad de dibujado de una capa translucida. Es lo unico que
+## hace determinista el orden entre las capas de una misma sala (V3-1).
+func _set_alpha_layer_priority(node: MeshInstance3D, priority: int) -> void:
+	if node == null:
+		return
+	var material := node.material_override as Material
+	if material != null:
+		material.render_priority = priority
+
+
 func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.94
+	material.roughness = surface_roughness_3d
 	material.metallic = 0.0
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -2710,36 +2944,21 @@ func _get_room_height(room_id: int) -> float:
 
 
 func _get_room_floor_level(room_id: int) -> float:
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	return room.floor_level_z_m if room != null else 0.0
+	return BuildingLevels.room_floor_level_m(building, room_id)
 
 
 func _is_stair_room(room: RoomModel) -> bool:
-	if room == null:
-		return false
-	var kind: String = room.kind.to_lower()
-	var name: String = room.name.to_lower()
-	return kind.contains("escalera") or kind.contains("stair") or name.contains("escalera") or name.contains("stair")
+	return BuildingLevels.is_stairwell(room)
 
 
 func _room_stair_run_direction(room: RoomModel) -> Vector2:
-	if room == null:
-		return Vector2.DOWN
-	var value: Vector2 = room.stair_run_direction_m
-	if absf(value.x) > absf(value.y):
-		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
-	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
+	return BuildingLevels.stair_run_direction(room)
 
 
+## Devuelve -1,0 cuando no hay planta encima: es el centinela que esperan sus
+## llamantes, y por eso el valor de reserva viaja explicito.
 func _find_next_floor_level_above(level_m: float) -> float:
-	var best: float = INF
-	if building == null:
-		return -1.0
-	for room_id in building.get_rooms().keys():
-		var room: RoomModel = building.get_room(int(room_id))
-		if room != null and room.floor_level_z_m > level_m + 0.20:
-			best = minf(best, room.floor_level_z_m)
-	return best if best < INF else -1.0
+	return BuildingLevels.next_floor_level_above_m(building, level_m, -1.0)
 
 
 func _get_room_name(room_id: int) -> String:
@@ -2788,7 +3007,7 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 	var room_height_m: float = float(item.get("height_m", default_room_height_m))
 
 	if show_detector_markers_3d:
-		var detector_states: Dictionary = _state_records_by_id(Array(state.get("detectors", [])))
+		var detector_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("detectors", [])))
 		for raw_det in building.detectors:
 			if typeof(raw_det) != TYPE_DICTIONARY:
 				continue
@@ -2802,7 +3021,7 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 				node = _create_detector_marker_node(det_id)
 				root.add_child(node)
 				detector_nodes[det_id] = node
-			var local_pos: Vector2 = _safety_local_position(det, rect)
+			var local_pos: Vector2 = ViewScenarioRead.safety_local_position(det, rect)
 			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m + room_height_m - 0.08, rect.position.y + local_pos.y))
 			var det_state: Dictionary = detector_states.get(det_id, {})
 			var triggered: bool = bool(det_state.get("triggered", det.get("triggered", false)))
@@ -2812,7 +3031,7 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 			_set_marker_color(node, detector_color)
 
 	if show_victim_markers_3d:
-		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
+		var victim_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("victims", [])))
 		for raw_vic in building.victims:
 			if typeof(raw_vic) != TYPE_DICTIONARY:
 				continue
@@ -2826,7 +3045,7 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 				node = _create_victim_marker_node(vic_id)
 				root.add_child(node)
 				victim_nodes[vic_id] = node
-			var local_pos: Vector2 = _safety_local_position(vic, rect)
+			var local_pos: Vector2 = ViewScenarioRead.safety_local_position(vic, rect)
 			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m, rect.position.y + local_pos.y))
 			var vic_state: Dictionary = victim_states.get(vic_id, {})
 			var incapacitated: bool = bool(vic_state.get("incapacitated", vic.get("incapacitated", false)))
@@ -2860,7 +3079,7 @@ func _update_player_start_marker_3d() -> void:
 			_player_start_node.visible = false
 		return
 	var rect := Rect2(rects[room_id])
-	var local_pos: Vector2 = _vector2_from_variant(start.get("position_m", rect.size * 0.5), rect.size * 0.5)
+	var local_pos: Vector2 = ScenarioValues.to_vector2(start.get("position_m", rect.size * 0.5), rect.size * 0.5)
 	local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
 	local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
 	if _player_start_node == null:
@@ -2873,26 +3092,6 @@ func _update_player_start_marker_3d() -> void:
 	var marker_color: Color = player_start_marker_color.lerp(selection_highlight_color, 0.58) if _selected_player_start else player_start_marker_color
 	_set_marker_color(_player_start_node, marker_color)
 
-
-func _state_records_by_id(records: Array) -> Dictionary:
-	var result: Dictionary = {}
-	for raw_record in records:
-		if typeof(raw_record) != TYPE_DICTIONARY:
-			continue
-		var record: Dictionary = raw_record
-		var id_text: String = String(record.get("id", ""))
-		if id_text != "":
-			result[id_text] = record
-	return result
-
-
-func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
-	if data.has("x_m") and data.has("y_m"):
-		return Vector2(
-			clampf(float(data.get("x_m", rect.size.x * 0.5)), 0.0, rect.size.x),
-			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
-		)
-	return rect.size * 0.5
 
 
 func _create_player_start_marker_node() -> Node3D:
@@ -3030,17 +3229,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var room_id: int = int(item.get("room_id", -1))
 	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	var room_name: String = room.name if room != null else String(rs.get("name", ""))
-	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
-	var normalized_objects: Array = []
-	for raw_snapshot in objects:
-		if typeof(raw_snapshot) != TYPE_DICTIONARY:
-			continue
-		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(room_id, room_name, room_kind, rect.size, Dictionary(raw_snapshot))
-		if not bool(normalized.get("visual_hidden", false)):
-			normalized_objects.append(normalized)
-	objects = normalized_objects
+	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects, furnish_empty_rooms)
 
 	if _first_person_overlay and not show_fuel_objects_in_first_person:
 		fuel_objects_root.visible = false
@@ -3075,7 +3264,9 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 
 		var state_name: String = String(obj.get("state", "cold"))
-		var kind_name: String = _fuel_visual_archetype(obj)
+		var kind_name: String = String(obj.get("visual_archetype", ""))
+		if kind_name == "":
+			kind_name = _fuel_visual_archetype(obj)
 		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
 		var visual_pose_locked: bool = bool(obj.get("visual_pose_locked", false))
 		var visual_center_m: Vector2 = pos_m + size_m * 0.5
@@ -3099,7 +3290,10 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		if fuel_obj_nodes.has(obj_id):
 			node = fuel_obj_nodes[obj_id] as Node3D
 		else:
-			node = _create_fuel_object_node(obj_id, kind_name, visual_size_m)
+			# Primero el que sobrevivio a la reconstruccion; crear es lo caro.
+			node = _claim_pooled_fuel_node(room_id, obj_id)
+			if node == null:
+				node = _create_fuel_object_node(obj_id, kind_name, visual_size_m)
 			fuel_objects_root.add_child(node)
 			fuel_obj_nodes[obj_id] = node
 
@@ -3107,10 +3301,15 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 		if _fuel_shape_needs_rebuild(node, kind_name, visual_size_m):
 			_rebuild_fuel_object_shape(node, kind_name, visual_size_m)
+		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
 
 		var center_x: float = rect.position.x + visual_center_m.x
 		var center_z: float = rect.position.y + visual_center_m.y
-		node.position = _to_world(Vector3(center_x, float(item.get("floor_level_m", 0.0)), center_z))
+		# Lo colgado arranca a su altura sobre el forjado de su planta.
+		node.position = _to_world(Vector3(
+			center_x,
+			float(item.get("floor_level_m", 0.0)) + FurnitureDimensions.mount_height_m(kind_name),
+			center_z))
 		node.rotation_degrees.y = rotation_deg
 		node.set_meta("room_id", room_id)
 		node.set_meta("object_id", obj_id)
@@ -3310,16 +3509,7 @@ func _fuel_visual_opening_clearances_for_room(room_id: int, room_rect: Rect2) ->
 
 
 func _opening_side_for_room_rect(room_rect: Rect2, pos3: Vector3) -> String:
-	var eps: float = 0.08
-	if absf(pos3.z - room_rect.position.y) <= eps:
-		return "top"
-	if absf(pos3.z - (room_rect.position.y + room_rect.size.y)) <= eps:
-		return "bottom"
-	if absf(pos3.x - room_rect.position.x) <= eps:
-		return "left"
-	if absf(pos3.x - (room_rect.position.x + room_rect.size.x)) <= eps:
-		return "right"
-	return ""
+	return WallSideGeometry.side_from_point(room_rect, pos3.x, pos3.z, 0.08)
 
 
 func _create_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:

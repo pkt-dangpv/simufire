@@ -1,6 +1,8 @@
 extends CharacterBody3D
 class_name FirstPersonController
 
+const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
+
 signal exit_requested
 signal opening_changed
 
@@ -11,6 +13,7 @@ const FPPlayerMotion := preload("res://view/fp/FPPlayerMotion.gd")
 const FireAnimation3D := preload("res://view/3d/fire/FireAnimation3D.gd")
 const FireMeshFactory := preload("res://view/3d/fire/FireMeshFactory.gd")
 const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
@@ -20,7 +23,20 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 ## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
+const FPCityBlocks := preload("res://view/fp/FPCityBlocks.gd")
+const FPStreetGrid := preload("res://view/fp/FPStreetGrid.gd")
+## Shader de las superficies construidas por codigo: ruido en metros y
+## oclusion de contacto en las aristas (M-2).
+const FPSurfaceShader: Shader = preload("res://view/fp/fp_surface.gdshader")
+const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
 const OUTSIDE_ID: int = -1
+## Perfiles de ruido de superficie: paramentos frente a suelos y rodapies,
+## que admiten una capa de suciedad mas marcada y de grano mas grande.
+const NOISE_PROFILE_SURFACE: int = 0
+const NOISE_PROFILE_FLOOR: int = 1
+## Suelo con despiece de baldosa (rellano del portal).
+const NOISE_PROFILE_TILE: int = 2
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
@@ -33,11 +49,37 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var wall_thickness_m: float = 0.10
 @export var floor_thickness_m: float = 0.10
 @export var ceiling_thickness_m: float = 0.08
+## Estira el techo de cada planta hasta la cara inferior del forjado de la
+## planta superior, cerrando el anillo perimetral entre plantas (E-4).
+@export var interstitial_ceiling_seal_enabled: bool = true
 @export var closed_door_thickness_m: float = 0.08
 @export var person_height_m: float = 1.80
 @export var crouch_height_m: float = 1.05
 @export var prone_height_m: float = 0.36
-@export var stand_speed_m_s: float = 2.25
+## Campo de vision HORIZONTAL de la camara, en grados.
+##
+## Estaba clavado a 75 en el codigo, y ese 75 era el VERTICAL: Godot mide el
+## `fov` sobre el eje que no fija `keep_aspect`, y por defecto fija el alto.
+## A 16:9 eso son **107,5 grados horizontales**, un gran angular de 14 mm. Con
+## esa apertura cada pared cae mas lejos y mas pequena de lo que le toca, y una
+## vivienda entera se lee como una maqueta: es la sensacion de "esto es mas
+## pequeno de lo que dice el plano".
+##
+## Aqui se declara el HORIZONTAL y se fija `keep_aspect` al ancho, para que el
+## valor signifique lo mismo en cualquier ventana. 90 grados es el estandar de
+## primera persona; por debajo de 75 se gana realismo arquitectonico y se pierde
+## vision periferica, que en un incendio importa.
+@export_range(50.0, 120.0, 1.0) var fp_camera_fov_h_deg: float = 75.0:
+	set(value):
+		fp_camera_fov_h_deg = value
+		_apply_camera_fov()
+## Velocidad de marcha de pie.
+##
+## Una persona pasea a 1,3-1,4 m/s y va con paso vivo a 1,7. Estaba en 2,25, con
+## lo que un salon de 5 m se cruzaba en 2,2 s en vez de 3,7: la casa se recorre
+## en dos zancadas y se percibe pequena. La velocidad es la otra mitad de la
+## sensacion de tamano, junto con el campo de vision.
+@export var stand_speed_m_s: float = 1.40
 @export var crouch_speed_m_s: float = 1.15
 @export var prone_speed_m_s: float = 0.42
 @export var mouse_sensitivity: float = 0.0022
@@ -47,14 +89,20 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var boundary_height_m: float = 2.6
 
 @export_group("Iluminacion FP")
-@export var ambient_fill_enabled: bool = true
+@export var ambient_fill_enabled: bool = true:
+	set(value):
+		ambient_fill_enabled = value
+		_rebuild_if_live()
 @export var ambient_fill_energy: float = 0.30
 @export var ambient_fill_color: Color = Color(0.72, 0.78, 0.82, 1.0)
 ## Altura (m) de la luz ambiental global sobre el suelo.
 @export var ambient_fill_height_m: float = 1.6
 ## Multiplicador del alcance de la luz ambiental respecto al lado mayor del edificio.
 @export var ambient_fill_range_factor: float = 1.35
-@export var room_ceiling_lights_enabled: bool = true
+@export var room_ceiling_lights_enabled: bool = true:
+	set(value):
+		room_ceiling_lights_enabled = value
+		_rebuild_if_live()
 @export var room_ceiling_light_energy: float = 0.56
 @export var room_ceiling_light_range_extra_m: float = 1.25
 @export var room_ceiling_light_color: Color = Color(1.0, 0.88, 0.68, 1.0)
@@ -63,9 +111,19 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Limita el alcance de cada luz de techo a la semidiagonal de su sala (+0.4m),
 ## evitando que ilumine esquinas de salas vecinas a traves de las paredes.
 @export var room_ceiling_light_contain_to_room: bool = true
+## Suelo del alcance de la luz de techo cuando hay humo, como fraccion del
+## alcance limpio. El humo debe ATENUAR el brillo, no recortar el alcance:
+## omni_range es un corte duro, no una extincion, y por debajo de la altura de
+## la sala deja a oscuras hasta el suelo que hay bajo la propia luminaria
+## (FP-6 en docs/AUDITORIA_VISUAL_2026-08-29.md). 1.0 = solo se atenua el
+## brillo; valores menores reintroducen el recorte geometrico.
+@export_range(0.0, 1.0, 0.05) var room_ceiling_light_smoke_range_min_factor: float = 1.0
 ## Sombras en las luces de techo. Elimina del todo la luz que atraviesa
 ## paredes, con coste de rendimiento (una luz sombreada por sala).
-@export var room_ceiling_lights_cast_shadows: bool = false
+@export var room_ceiling_lights_cast_shadows: bool = false:
+	set(value):
+		room_ceiling_lights_cast_shadows = value
+		_rebuild_if_live()
 @export var landing_light_energy: float = 0.92
 @export var landing_light_closed_ratio: float = 0.12
 @export var landing_light_range_m: float = 3.6
@@ -79,17 +137,103 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## con 10+ ventanas hunde el framerate. Off por defecto; activar solo en
 ## equipos potentes. La luz del sol (sky light, direccional) si mantiene
 ## sombras y es la que da el haz principal por las ventanas.
-@export var opening_lights_cast_shadows: bool = false
+@export var opening_lights_cast_shadows: bool = false:
+	set(value):
+		opening_lights_cast_shadows = value
+		_rebuild_if_live()
 ## Atenuacion de las luces de aperturas. >1.0 concentra la luz junto a la
 ## ventana/puerta; <1.0 la reparte mas al interior.
 @export_range(0.2, 4.0, 0.05) var opening_light_attenuation: float = 1.4
 
 @export_group("Materiales FP")
-@export var use_procedural_surface_noise: bool = false
+## Ruido de superficie en muros, suelos y techos. Sin el, toda la escena es
+## color plano y se lee como maqueta de carton (FP-2 / M-1).
+@export var use_procedural_surface_noise: bool = true:
+	set(value):
+		use_procedural_surface_noise = value
+		_rebuild_if_live()
 @export var material_noise_frequency: float = 0.075
+## Contraste del ruido: cuanto llega a oscurecer la mota mas oscura respecto
+## al color base. Bajo a proposito; el ruido rompe el plano, no mancha.
+## Medido sobre una captura del pasillo, 0,13 daba manchas que se leen como
+## humedades, no como enfoscado. El ruido debe insinuarse, no mancharse.
+@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.06:
+	set(value):
+		material_noise_contrast = value
+		_rebuild_if_live()
+## Tamano en metros del patron de ruido. Se aplica con UV triplanar en
+## coordenadas de mundo, asi que la escala es la misma en un tabique de 6 m
+## y en una jamba de 0,2 m, y el patron encaja entre piezas contiguas.
+## Tamano del patron. Con 1,8 m las manchas eran del tamano de una persona y
+## se leian como suciedad; a menos de 1 m el grano pasa a ser de material.
+@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 0.85:
+	set(value):
+		material_noise_size_m = value
+		_rebuild_if_live()
+## Multiplicador de contraste de la capa de suciedad de suelos y rodapies,
+## que si admiten mas variacion que un paramento vertical.
+@export_range(1.0, 4.0, 0.1) var material_floor_dirt_boost: float = 2.1
+## Lado de la baldosa del rellano. El despiece se dibuja en la textura y se
+## proyecta en metros, asi que no cuesta ni una malla mas (R-3).
+@export_range(0.15, 1.20, 0.05) var landing_tile_size_m: float = 0.55
+## Oscurecimiento de la junta entre baldosas, sobre el color del suelo.
+@export_range(0.0, 0.6, 0.01) var landing_tile_grout_darkening: float = 0.22
+## Rugosidad de todas las superficies construidas por codigo.
+@export_range(0.0, 1.0, 0.01) var material_surface_roughness: float = 0.96
+## Lado en pixeles de la textura de ruido generada. Mas resolucion es mas
+## detalle fino y mas memoria; el tamano aparente lo manda
+## material_noise_size_m, no esto.
+@export_range(32, 1024, 32) var material_noise_texture_px: int = 256
+## Octavas del ruido de paramentos y de suelos. Mas octavas = grano mas
+## irregular, menos = mancha mas limpia.
+@export_range(1, 8, 1) var material_noise_octaves: int = 3
+@export_range(1, 8, 1) var material_floor_noise_octaves: int = 5
+## Factores del perfil de suelo respecto al de paramento: frecuencia mas
+## baja y patron mas grande, porque un suelo admite mas variacion.
+@export_range(0.1, 2.0, 0.05) var material_floor_noise_frequency_factor: float = 0.6
+@export_range(0.5, 6.0, 0.1) var material_floor_noise_size_factor: float = 2.4
+## Lado en pixeles de la textura de baldosa y ancho de la junta en pixeles.
+## El ancho real de la junta sale de la relacion entre ambos y de
+## landing_tile_size_m.
+@export_range(32, 512, 32) var landing_tile_texture_px: int = 128
+@export_range(1, 16, 1) var landing_tile_grout_px: int = 3
+## Oclusion ambiental de contacto en muros, suelos y techos. GL
+## Compatibility no tiene SSAO, asi que se oscurece la franja cercana a las
+## aristas de cada pieza desde el propio shader (M-2). Apagarlo devuelve las
+## superficies a StandardMaterial3D.
+@export var surface_contact_ao_enabled: bool = true:
+	set(value):
+		surface_contact_ao_enabled = value
+		_rebuild_if_live()
+## Cuanto se oscurece la arista.
+@export_range(0.0, 1.0, 0.01) var surface_contact_ao_strength: float = 0.34
+## En cuantos metros se difumina ese oscurecimiento.
+@export_range(0.02, 2.0, 0.01) var surface_contact_ao_band_m: float = 0.32
+## Nitidez de la mezcla triplanar del ruido: mas alto marca mas la transicion
+## entre las tres proyecciones, mas bajo la suaviza en las esquinas.
+@export_range(1.0, 16.0, 0.5) var surface_triplanar_sharpness: float = 4.0
+
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
 @export var landing_recess_depth_m: float = 1.25
+## Cuanto se aparta la calle del portal, por fuera de su fondo. El portal se
+## planta fuera de la huella de la vivienda, asi que la manzana tiene que
+## contarlo o la calzada le pasa por encima.
+@export_range(0.0, 6.0, 0.1) var landing_bay_clearance_m: float = 2.60
+
+@export_group("Materiales propios FP")
+## Ranuras para tus propios materiales y texturas. Si dejas una vacia se usa
+## la generacion por codigo; si pones un recurso, manda el recurso. Se usan
+## tal cual, sin duplicar: no los modifica nadie en runtime.
+@export var wall_material_override: StandardMaterial3D = null
+@export var floor_material_override: StandardMaterial3D = null
+@export var ceiling_material_override: StandardMaterial3D = null
+@export var exterior_facade_material_override: StandardMaterial3D = null
+## Texturas de superficie propias, si prefieres una foto de material real
+## al ruido procedural. Se proyectan igual, en metros.
+@export var surface_noise_texture_override: Texture2D = null
+@export var floor_noise_texture_override: Texture2D = null
+@export var landing_tile_texture_override: Texture2D = null
 
 @export_group("Ventanas FP")
 @export var window_open_angle_deg: float = 68.0
@@ -103,11 +247,29 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var window_glass_crack_color: Color = Color(0.88, 0.98, 1.0, 0.78)
 
 @export_group("Exterior FP")
-@export var exterior_context_enabled: bool = true
-@export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
+@export var exterior_context_enabled: bool = true:
+	set(value):
+		exterior_context_enabled = value
+		_rebuild_if_live()
+@export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia":
+	set(value):
+		exterior_lighting_mode = value
+		_rebuild_if_live()
 ## Sombras en la luz direccional del cielo. Sin sombras esta luz atraviesa
 ## las paredes e ilumina esquinas interiores (recomendado activarlo).
-@export var exterior_sky_light_cast_shadows: bool = true
+@export var exterior_sky_light_cast_shadows: bool = true:
+	set(value):
+		exterior_sky_light_cast_shadows = value
+		_rebuild_if_live()
+## Las piezas decorativas finas y casi coplanarias con el muro que las recibe
+## (rodapie, chapa de fachada, bordillo y grava del porche) proyectan sombra
+## sobre esa misma superficie. Con un mapa de sombra ortogonal que sigue a la
+## camara, eso da acne de sombra que se mueve al andar, sobre todo en pasillos
+## y en el rellano. Apagarlas no cambia la lectura de la escena.
+@export var decorative_pieces_cast_shadows: bool = false:
+	set(value):
+		decorative_pieces_cast_shadows = value
+		_rebuild_if_live()
 @export var exterior_day_sky_light_energy: float = 0.58
 @export var exterior_night_sky_light_energy: float = 0.16
 @export var exterior_day_sky_light_color: Color = Color(0.88, 0.92, 1.0, 1.0)
@@ -118,10 +280,29 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Ajustes de la sombra del sol para evitar el borde dentado y el "baile" al
 ## moverse. Mayor bias = menos acne; mayor blur = borde mas suave; menor
 ## max_distance = mas resolucion cerca (menos temblor).
-@export var exterior_sky_shadow_bias: float = 0.08
+## Sesgo de la sombra del sol. Dentro de una vivienda los paramentos quedan casi
+## rasantes a la luz, que es el caso peor para el acne de sombra: manchas
+## redondas, cuadradas y lineas de sierra que cambian al mover la camara.
+@export var exterior_sky_shadow_bias: float = 0.18
 @export var exterior_sky_shadow_normal_bias: float = 2.0
-@export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 1.4
-@export var exterior_sky_shadow_max_distance_m: float = 42.0
+## Radio de difuminado de la sombra del sol. En GL Compatibility el difuminado
+## se hace con un patron TRAMADO por pixel: con radios altos el borde de sombra
+## se llena de puntos que reptan al mover la camara. 1,4 era demasiado.
+##
+## Se queda en 0 a proposito, pero por una razon distinta de la de antes. El
+## 2026-09-01 se bajo el filtro de sombra del proyecto a calidad 0 persiguiendo
+## unas manchas que cambiaban al mover la camara, y entonces el difuminado no
+## aportaba nada. Aquel diagnostico resulto FALSO -X-8 era z-fighting, cerrada
+## el 2026-09-05-, asi que el 2026-09-09 el filtro vuelve a calidad 3 y el
+## suavizado del borde ya lo da el filtro. El difuminado se sube solo si se
+## quiere sombra mas blanda todavia, sabiendo que arriesga el tramado.
+@export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 0.0
+## Alcance del mapa de sombra direccional. Repartir la misma resolucion entre
+## 42 m deja muy pocos texeles donde de verdad se mira, dentro de la vivienda,
+## y eso agrava el tramado del borde. El decorado lejano no necesita sombra.
+## Cuanto mas corto el alcance, mas texeles de sombra caen dentro de la
+## vivienda, que es donde se mira. El decorado lejano no necesita sombra.
+@export var exterior_sky_shadow_max_distance_m: float = 15.0
 @export var exterior_soft_fill_day_energy: float = 0.18
 @export var exterior_soft_fill_night_energy: float = 0.06
 @export var exterior_soft_fill_day_color: Color = Color(0.78, 0.86, 0.94, 1.0)
@@ -130,7 +311,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_soft_fill_height_m: float = 3.2
 ## Relleno local por fachada. Evita que una orientacion perpendicular al sol
 ## quede negra sin aumentar la luz que atraviesa toda la vivienda.
-@export var exterior_facade_fill_enabled: bool = true
+@export var exterior_facade_fill_enabled: bool = true:
+	set(value):
+		exterior_facade_fill_enabled = value
+		_rebuild_if_live()
 @export_range(0.0, 2.0, 0.01) var exterior_facade_fill_day_energy: float = 0.26
 @export_range(0.0, 2.0, 0.01) var exterior_facade_fill_night_energy: float = 0.07
 @export var exterior_facade_fill_day_color: Color = Color(0.76, 0.84, 0.92, 1.0)
@@ -139,7 +323,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Cielo: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd). Se usa
 ## geometria porque el renderer GL Compatibility no dibuja el sky de un
 ## Environment por camara.
-@export var exterior_procedural_sky_enabled: bool = true
+@export var exterior_procedural_sky_enabled: bool = true:
+	set(value):
+		exterior_procedural_sky_enabled = value
+		_rebuild_if_live()
 @export var sky_dome_radius_m: float = 160.0
 @export var sky_day_top_color: Color = Color(0.24, 0.45, 0.80, 1.0)
 @export var sky_day_horizon_color: Color = Color(0.78, 0.86, 0.93, 1.0)
@@ -154,11 +341,101 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.2, 6.0, 0.1) var sky_sun_size_deg: float = 1.6
 @export_range(0.0, 1.5, 0.05) var sky_sun_halo_day: float = 0.55
 @export_range(0.0, 1.5, 0.05) var sky_sun_halo_night: float = 0.25
-@export var exterior_floor_drop_m: float = 5.8
+
+@export_subgroup("Cielo: bruma, nubes y noche")
+## Banda de aire pegada al horizonte. Sin ella el degradado se corta en seco y
+## el cielo se lee como un fondo pintado, no como aire.
+@export var sky_haze_day_color: Color = Color(0.88, 0.91, 0.94, 1.0)
+@export var sky_haze_night_color: Color = Color(0.13, 0.16, 0.24, 1.0)
+@export_range(0.0, 1.0, 0.01) var sky_haze_day_strength: float = 0.55
+@export_range(0.0, 1.0, 0.01) var sky_haze_night_strength: float = 0.40
+@export_range(1.0, 24.0, 0.5) var sky_haze_falloff: float = 9.0
+## Nubes procedurales. La cobertura es lo que cambia el tiempo que hace: 0
+## despejado, 1 cubierto.
+@export_range(0.0, 1.0, 0.01) var sky_cloud_day_coverage: float = 0.42
+@export_range(0.0, 1.0, 0.01) var sky_cloud_night_coverage: float = 0.30
+@export_range(0.5, 8.0, 0.1) var sky_cloud_sharpness: float = 2.6
+@export_range(0.4, 8.0, 0.1) var sky_cloud_scale: float = 2.4
+@export_range(0.0, 0.05, 0.001) var sky_cloud_speed: float = 0.004
+@export var sky_cloud_day_color: Color = Color(1.0, 1.0, 1.0, 1.0)
+@export var sky_cloud_day_shadow_color: Color = Color(0.62, 0.66, 0.72, 1.0)
+@export var sky_cloud_night_color: Color = Color(0.20, 0.23, 0.31, 1.0)
+@export var sky_cloud_night_shadow_color: Color = Color(0.09, 0.11, 0.16, 1.0)
+## Velo alto (cirros), por encima de los cumulos.
+@export_range(0.0, 1.0, 0.01) var sky_cloud_veil_strength: float = 0.22
+@export_range(1.0, 16.0, 0.1) var sky_cloud_veil_scale: float = 6.5
+## Estrellas: solo de noche. La luna es el propio disco del cielo, con su
+## color y su tamano: de noche no hay dos cosas en el cielo, hay una.
+@export_range(0.0, 1.0, 0.01) var sky_star_amount: float = 0.55
+@export_range(0.90, 0.999, 0.001) var sky_star_size: float = 0.985
+## Tamano del disco de noche: la luna se ve mas pequena que el sol.
+@export_range(0.3, 4.0, 0.05) var sky_moon_size_deg: float = 1.1
+## Resplandor ancho alrededor del sol.
+@export_range(0.0, 1.5, 0.01) var sky_sun_glow_strength: float = 0.30
+@export_range(1.0, 40.0, 0.5) var sky_sun_glow_power: float = 6.0
+
+@export_subgroup("Fachada del propio edificio")
+## Lienzo de fachada del edificio del jugador, con los huecos recortados en
+## las aberturas reales. Sin el, al asomarse a una ventana solo se ve el canto
+## del forjado y un vacio hasta la calle.
+@export var exterior_own_facade_enabled: bool = true:
+	set(value):
+		exterior_own_facade_enabled = value
+		_rebuild_if_live()
+@export_range(0.04, 0.40, 0.01) var own_facade_thickness_m: float = 0.12
+## Holgura del recorte alrededor de cada hueco (evita comerse la jamba).
+@export_range(0.0, 0.30, 0.01) var own_facade_hole_margin_m: float = 0.07
+## Prolongacion lateral del lienzo mas alla del muro con huecos.
+@export_range(0.0, 3.0, 0.05) var own_facade_side_margin_m: float = 0.60
+@export_range(0.0, 2.0, 0.05) var own_facade_plinth_height_m: float = 0.65
+@export_range(0.0, 2.0, 0.05) var own_facade_parapet_m: float = 0.55
+
+## N-1, balcones del edificio del jugador. Cuelgan de las aberturas exteriores
+## que los declaren en el editor; los de los edificios de enfrente son otra
+## cosa y los gobierna `city_balconies_enabled`.
+##
+## Decision del usuario del 2026-09-10: **solo en el edificio del jugador**.
+## Las plantas de arriba y abajo de la fachada propia quedan lisas.
+@export var own_balconies_enabled: bool = true:
+	set(value):
+		own_balconies_enabled = value
+		_rebuild_if_live()
+## Canto de la losa en voladizo.
+@export_range(0.08, 0.40, 0.01) var own_balcony_slab_thickness_m: float = 0.18
+## Grueso del antepecho de fabrica.
+@export_range(0.04, 0.30, 0.01) var own_balcony_parapet_thickness_m: float = 0.11
+## Pasamanos: la banda que remata el antepecho. Es lo que le da escala.
+@export_range(0.0, 0.16, 0.01) var own_balcony_handrail_height_m: float = 0.06
+@export var own_balcony_color: Color = Color(0.74, 0.72, 0.68, 1.0)
+@export var own_balcony_handrail_color: Color = Color(0.30, 0.31, 0.32, 1.0)
+## Rebote de cielo de NUESTRA fachada, el mismo mecanismo que `city_sky_bounce_*`
+## y por la misma razon: el entorno del FP tiene la luz ambiente DESACTIVADA, asi
+## que lo que no recibe sol directo se va a negro. La calle ya se lo puso el
+## 2026-09-09 y nuestro edificio se quedo fuera: visto desde la acera, la
+## fachada propia era una silueta negra entre vecinos grises, y el balcon con
+## ella. Bajarlo a cero devuelve la silueta.
+@export_range(0.0, 1.2, 0.01) var own_facade_sky_bounce_day: float = 0.42
+@export_range(0.0, 1.2, 0.01) var own_facade_sky_bounce_night: float = 0.06
+## Separacion entre las lineas de forjado dibujadas en las plantas inferiores
+## no modeladas (solo aparecen si la vivienda esta elevada sobre la calle).
+## Altura de una planta. Gobierna tres cosas que TIENEN que cuadrar entre si:
+## las lineas de forjado de nuestra fachada, cuanto cae la calle segun la
+## planta en la que este el piso, y cuantas plantas se levantan los vecinos
+## (N-3/N-4). Es el valor de reserva: cuando el edificio tiene dos o mas
+## plantas dibujadas, la altura sale medida del propio edificio.
+##
+## Se llamaba `own_facade_storey_pitch_m` y solo lo leia la fachada propia.
+@export_range(2.0, 4.0, 0.01) var exterior_storey_pitch_m: float = 2.85:
+	set(value):
+		exterior_storey_pitch_m = value
+		_rebuild_if_live()
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 24.0
 @export var city_backdrop_distance_m: float = 52.0
-@export var exterior_window_obstacles_enabled: bool = true
+@export var exterior_window_obstacles_enabled: bool = true:
+	set(value):
+		exterior_window_obstacles_enabled = value
+		_rebuild_if_live()
 @export var city_building_count_per_window: int = 3
 @export var exterior_day_window_light_energy: float = 1.05
 @export var exterior_night_window_light_energy: float = 0.14
@@ -169,6 +446,17 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_day_landing_light_color: Color = Color(0.92, 0.88, 0.76, 1.0)
 @export var exterior_night_landing_light_color: Color = Color(1.0, 0.70, 0.38, 1.0)
 @export var exterior_facade_color: Color = Color(0.62, 0.61, 0.56, 1.0)
+## Piel de fachada en la cara exterior de los tabiques que dan al exterior.
+## Sin ella, el muro se pinta con el color de la estancia por las DOS caras
+## y desde fuera el edificio es 'salon' (E-6). Donde ya hay lienzo de
+## fachada la piel queda dentro de el y no se ve: es solo el respaldo de
+## los frentes que no generan lienzo.
+## No generar decorado urbano (calle, aceras, coches, edificio de enfrente,
+## skyline) en fachadas cuyo unico hueco exterior es la puerta del portal: da
+## al rellano, que es una caja cerrada, y ese decorado no se ve nunca (E-5).
+@export var exterior_scenery_skip_landing_facades: bool = true
+@export var exterior_wall_skin_enabled: bool = true
+@export_range(0.005, 0.10, 0.005) var exterior_wall_skin_thickness_m: float = 0.02
 @export var city_sky_color: Color = Color(0.74, 0.84, 0.92, 1.0)
 @export var city_street_color: Color = Color(0.34, 0.35, 0.34, 1.0)
 @export var city_window_color: Color = Color(0.46, 0.58, 0.64, 1.0)
@@ -209,16 +497,119 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var sidewalk_color: Color = Color(0.52, 0.51, 0.49, 1.0)
 @export var road_marking_color: Color = Color(0.78, 0.76, 0.62, 1.0)
 ## Fachada continua de enfrente (lo normal en ciudad, no bloques sueltos).
-@export var opposite_facade_enabled: bool = true
+@export var opposite_facade_enabled: bool = true:
+	set(value):
+		opposite_facade_enabled = value
+		_rebuild_if_live()
+## Altura MINIMA de la fachada de enfrente. Dejo de ser la altura a secas: los
+## vecinos se levantan tantas plantas como aparente el nuestro (N-4), y esto es
+## el suelo de esa cuenta -una calle de ciudad no baja de cuatro plantas aunque
+## la vivienda sea de una-.
 @export var opposite_facade_height_m: float = 15.0
 @export var opposite_facade_length_m: float = 46.0
-@export var opposite_facade_day_color: Color = Color(0.55, 0.52, 0.48, 1.0)
+@export var opposite_facade_day_color: Color = Color(0.66, 0.65, 0.62, 1.0)
 @export var opposite_facade_night_color: Color = Color(0.13, 0.13, 0.15, 1.0)
 @export var opposite_window_day_color: Color = Color(0.22, 0.26, 0.30, 1.0)
 @export var opposite_window_night_color: Color = Color(0.10, 0.11, 0.13, 1.0)
 @export var opposite_window_lit_color: Color = Color(1.0, 0.82, 0.48, 1.0)
-@export_range(0, 12, 1) var opposite_facade_floors: int = 4
+## Tope de filas de ventanas por fachada. Dejo de ser el NUMERO de filas: las
+## filas son las plantas que tiene la fachada, y la fachada tiene las plantas
+## que aparenta nuestro edificio (N-4). Con el tope viejo de cuatro filas, una
+## fachada de 45 m repartia cuatro ventanas cada once metros y se leia como un
+## muro liso: ese era el hallazgo G-4. Sigue siendo un mando porque las filas
+## cuestan nodos, y 0 apaga las ventanas.
+@export_range(0, 90, 1) var opposite_facade_max_window_floors: int = 80
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
+
+@export_subgroup("Unifamiliar: porche y parcela")
+## De noche el aplique del porche solo se pintaba de color: no alumbraba nada,
+## asi que la entrada de una casa quedaba a oscuras.
+@export_range(0.0, 4.0, 0.05) var house_porch_light_energy: float = 1.35
+@export_range(1.0, 12.0, 0.5) var house_porch_light_range_m: float = 5.5
+## Barandilla entre los pilares del porche.
+@export var house_porch_railing_enabled: bool = true:
+	set(value):
+		house_porch_railing_enabled = value
+		_rebuild_if_live()
+## Camino de la puerta a la acera, acceso de coche y buzon. Van SOLO en la
+## fachada de la entrada; antes el camino y el acceso se construian en las tres.
+@export var house_front_path_enabled: bool = true:
+	set(value):
+		house_front_path_enabled = value
+		_rebuild_if_live()
+## Valla de la parcela y buzon: es lo que convierte un cesped en una parcela.
+@export var house_fence_enabled: bool = true:
+	set(value):
+		house_fence_enabled = value
+		_rebuild_if_live()
+@export_range(0.4, 2.2, 0.05) var house_fence_height_m: float = 1.05
+@export var house_fence_color: Color = Color(0.60, 0.58, 0.54, 1.0)
+@export var house_mailbox_color: Color = Color(0.26, 0.32, 0.36, 1.0)
+
+@export_subgroup("Ciudad: manzanas y mobiliario")
+## Manzanas que cubren el resto del largo de la calle, partidas por bocacalles.
+## Sin ellas la calzada mide mas que las fachadas que la flanquean y por la
+## ventana se ve donde termina el mundo.
+@export var city_far_blocks_enabled: bool = true:
+	set(value):
+		city_far_blocks_enabled = value
+		_rebuild_if_live()
+## Retornos perpendiculares en los extremos de la calle. Son los que cierran la
+## vista de reojo; sin ellos se ve el canto de la ultima fachada y detras cielo.
+@export var city_corner_returns_enabled: bool = true:
+	set(value):
+		city_corner_returns_enabled = value
+		_rebuild_if_live()
+## Medianeras: nuestro edificio no esta solo en un solar.
+@export var city_near_neighbours_enabled: bool = true:
+	set(value):
+		city_near_neighbours_enabled = value
+		_rebuild_if_live()
+## Fila de volumenes por detras de la fachada de enfrente, antes del skyline.
+@export_range(0, 10, 1) var city_back_block_count: int = 5:
+	set(value):
+		city_back_block_count = value
+		_rebuild_if_live()
+## Planta baja comercial y balcones: es lo que distingue una calle de una
+## maqueta de bloques.
+@export var city_shopfronts_enabled: bool = true:
+	set(value):
+		city_shopfronts_enabled = value
+		_rebuild_if_live()
+@export var city_balconies_enabled: bool = true:
+	set(value):
+		city_balconies_enabled = value
+		_rebuild_if_live()
+## Mobiliario urbano. Da escala: sin una farola de 4 m al lado, un edificio de
+## 15 puede ser de 40.
+@export_range(0, 14, 1) var city_lamp_count: int = 6
+@export_range(0, 10, 1) var city_bin_count: int = 3
+@export_range(0, 8, 1) var city_bench_count: int = 2
+@export_range(0, 20, 1) var city_bollard_count: int = 8
+@export_range(0, 8, 1) var city_sign_count: int = 2
+@export_range(0, 10, 1) var city_planter_count: int = 4
+@export var city_crossing_enabled: bool = true
+@export var city_bus_stop_enabled: bool = true
+## Rebote de cielo del decorado urbano. Es lo que impide que una fachada en
+## sombra se lea como una silueta negra: el entorno del FP no tiene luz
+## ambiente, asi que la calle se la pone ella. Subirlo aplana el relieve;
+## bajarlo a cero devuelve las siluetas negras.
+@export_range(0.0, 1.2, 0.01) var city_sky_bounce_day: float = 0.42
+@export_range(0.0, 1.2, 0.01) var city_sky_bounce_night: float = 0.06
+@export var city_back_block_day_color: Color = Color(0.58, 0.59, 0.61, 1.0)
+@export var city_back_block_night_color: Color = Color(0.10, 0.11, 0.15, 1.0)
+@export var city_shopfront_color: Color = Color(0.18, 0.21, 0.24, 1.0)
+@export var city_shop_lit_color: Color = Color(1.0, 0.86, 0.58, 1.0)
+@export var city_awning_color: Color = Color(0.52, 0.20, 0.18, 1.0)
+@export var city_balcony_color: Color = Color(0.28, 0.29, 0.30, 1.0)
+@export var city_street_metal_color: Color = Color(0.22, 0.24, 0.25, 1.0)
+@export var city_lamp_light_color: Color = Color(1.0, 0.86, 0.56, 1.0)
+@export var city_bin_color: Color = Color(0.20, 0.30, 0.24, 1.0)
+@export var city_bench_color: Color = Color(0.42, 0.30, 0.20, 1.0)
+@export var city_sign_color: Color = Color(0.86, 0.88, 0.90, 1.0)
+@export var city_crossing_color: Color = Color(0.86, 0.86, 0.82, 1.0)
+@export var city_planter_color: Color = Color(0.30, 0.28, 0.24, 1.0)
+@export var city_bus_stop_glass_color: Color = Color(0.62, 0.72, 0.78, 0.42)
 
 @export_subgroup("Detalle urbano procedural")
 @export_range(3, 8, 1) var city_facade_module_count: int = 5
@@ -261,12 +652,28 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var landing_lift_frame_color: Color = Color(0.38, 0.39, 0.40, 1.0)
 ## Puertas de vivienda en el rellano (2 es lo habitual por planta).
 @export_range(1, 4, 1) var landing_neighbor_doors: int = 2
+## Luz propia del rellano y de la caja de escalera. Sin ella el portal solo
+## se ilumina con la luz del hueco de la puerta de la vivienda (proporcional
+## a su apertura), asi que con la puerta cerrada el rellano queda negro.
+@export var landing_ambient_lights_enabled: bool = true
+@export_range(0.0, 2.0, 0.01) var landing_ambient_light_factor: float = 0.85
+## Atenuacion del plafon del rellano. Por debajo de 1 reparte mas la luz por el
+## pavimento; por encima la concentra bajo la luminaria. No debe heredar la de
+## las aperturas, que esta calibrada para concentrar el haz junto a una ventana.
+@export_range(0.2, 4.0, 0.05) var landing_ambient_light_attenuation: float = 0.90
+## Margen sobre el alcance necesario para llegar a las esquinas del portal.
+@export_range(0.5, 2.5, 0.05) var landing_ambient_light_range_factor: float = 1.10
 ## Peldaños con proporciones reales (huella/tabica).
 @export var landing_step_tread_m: float = 0.29
 @export var landing_step_rise_m: float = 0.18
 @export var landing_stair_color: Color = Color(0.46, 0.44, 0.40, 1.0)
 @export var landing_railing_color: Color = Color(0.30, 0.30, 0.31, 1.0)
+## Altura libre del rellano cuando no se deriva de la vivienda.
 @export_range(2.3, 3.4, 0.01) var landing_floor_height_m: float = 2.62
+## Deriva esa altura de la sala a la que sirve la puerta, en vez de usar el
+## valor fijo. Con una vivienda de 2,40 m, un portal de 2,62 dejaba el
+## encuentro 22 cm descuadrado al cruzar la puerta (R-4).
+@export var landing_height_follows_dwelling: bool = true
 @export_range(1.8, 3.2, 0.01) var landing_stair_bay_width_m: float = 2.12
 @export_range(0.45, 1.2, 0.01) var landing_stair_front_landing_depth_m: float = 0.62
 @export_range(0.45, 1.2, 0.01) var landing_stair_rear_landing_depth_m: float = 0.56
@@ -274,6 +681,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.02, 0.20, 0.01) var landing_stair_side_clearance_m: float = 0.05
 ## Entrada de casa unifamiliar: porche techado con pilares.
 @export var house_porch_roof_enabled: bool = true
+## Acuerdo entre el porche y el cesped: bordillo perimetral y franja de grava.
+## Sin el, la losa apoya directamente sobre la hierba (R-5).
+@export var house_porch_ground_transition_enabled: bool = true
+@export_range(0.0, 0.40, 0.01) var house_porch_curb_height_m: float = 0.14
+@export_range(0.0, 0.30, 0.01) var house_porch_curb_thickness_m: float = 0.10
+@export_range(0.0, 1.20, 0.05) var house_porch_gravel_apron_m: float = 0.45
+@export var house_porch_gravel_color: Color = Color(0.44, 0.42, 0.38, 1.0)
 @export var house_porch_color: Color = Color(0.52, 0.50, 0.45, 1.0)
 @export var house_porch_column_color: Color = Color(0.78, 0.76, 0.71, 1.0)
 @export var house_porch_roof_color: Color = Color(0.34, 0.18, 0.12, 1.0)
@@ -344,6 +758,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export_group("Mobiliario FP")
 @export var show_fp_furniture: bool = true
+## Pone atrezo en las salas que el escenario deja sin objetos. Siete de las diez
+## plantillas del catalogo declaran su carga de fuego a granel y se recorren
+## vacias. El atrezo no arde: es un apano hasta que el motor tenga objetos de
+## verdad para esas plantillas.
+@export var furnish_empty_rooms: bool = true:
+	set(value):
+		furnish_empty_rooms = value
+		_rebuild_if_live()
 @export var fp_furniture_generic_height_m: float = 0.34
 
 @export_group("Humo FP")
@@ -381,13 +803,51 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Suavizado temporal de la niebla (constante de tiempo, s).
 @export_range(0.02, 2.0, 0.01) var fp_fog_smooth_tau_s: float = 0.35
 
+@export_group("Humo del patio")
+## El humo que sube por el patio, visto DESDE FUERA del patio.
+##
+## El resto del humo de primera persona es de camara: tine lo que ves desde la
+## sala en la que estas. Eso deja el patio limpio cuando se mira por la ventana,
+## que es justo donde un patio tiene que leerse como una chimenea. Esto es lo
+## unico que se dibuja como volumen, y solo en el conducto.
+@export var show_patio_smoke: bool = true
+@export var patio_smoke_color: Color = Color(0.30, 0.29, 0.28, 1.0)
+## Opacidad con el conducto lleno del todo. Nunca 1,0: un patio cegado del todo
+## se lee como una pared pintada, no como humo.
+@export_range(0.0, 1.0, 0.01) var patio_smoke_max_alpha: float = 0.88
+## Por debajo de esto no se dibuja. Evita un velo gris permanente.
+@export_range(0.0, 0.5, 0.01) var patio_smoke_min_alpha: float = 0.04
+## Separacion de los paramentos del patio. Pegar la columna a la pared es la
+## clase de fallo del X-8: dos superficies en el mismo plano parpadean.
+@export_range(0.0, 0.5, 0.01) var patio_smoke_inset_m: float = 0.05
+
 @export_group("Fuego FP")
 @export var show_fp_fire: bool = true
 @export var fp_fire_min_visible_hrr_kw: float = 0.5
+## Ya no escala la llama -de eso se encarga Heskestad- pero sigue siendo la
+## referencia del color y del ancho de la columna.
 @export var fp_fire_reference_hrr_kw: float = 1000.0
 @export var fp_fire_base_radius_m: float = 0.14
 @export var fp_fire_max_radius_m: float = 0.48
-@export var fp_fire_max_height_m: float = 1.75
+## Tope de la llama libre, por si un HRR disparatado pide una columna absurda.
+## Ya no es "la altura a 1 MW": la altura la da la correlacion.
+@export var fp_fire_max_height_m: float = 6.00
+
+## Tiempo en el que la llama recorre el 63 % de lo que le falta para su tamano.
+##
+## **Aqui estaba G-5.** El acercamiento era un `lerp` de factor fijo que se
+## ejecutaba UNA VEZ POR ESTADO de la simulacion, no por unidad de tiempo: con
+## 0,28 por estado hacen falta siete estados para llegar al 90 %, asi que en
+## cualquier instante la llama se dibujaba a una fraccion de su tamano. Medido:
+## con el HUD marcando 850 kW se construia una llama de **0,60 m** cuando la
+## correlacion pide 1,95. Ahora es una constante de tiempo y avanza con el
+## reloj, no con el ritmo al que llegue el estado.
+@export_range(0.05, 3.0, 0.05) var fp_fire_grow_tau_s: float = 0.45
+
+## Lo mismo, pero para cuando la llama BAJA. Una llama que se apaga lo hace
+## antes de lo que tarda en crecer, y ademas una brasa colgando medio segundo
+## de mas se lee como que el fuego sigue vivo.
+@export_range(0.05, 3.0, 0.05) var fp_fire_fade_tau_s: float = 0.22
 @export var fp_fire_ceiling_clearance_m: float = 0.10
 @export var fp_fire_ceiling_cap_thickness_m: float = 0.20
 ## Energia de la luz del fuego cuando HRR = 1000 kW (referencia 1 MW).
@@ -472,10 +932,50 @@ var _yaw: float = 0.0
 var _pitch: float = 0.0
 var _stance: int = STANCE_STAND
 var _opening_nodes: Dictionary = {}
+var _landing_recess_keys: Dictionary = {}
+## Lienzos de fachada del propio edificio, por plano de muro. Se calcula una
+## vez por reconstruccion: lo miran el lienzo y los balcones, y recorrer todas
+## las aberturas por cada balcon seria pagarlo dos veces.
+var _own_facade_groups_cache: Dictionary = {}
+var _own_facade_groups_ready: bool = false
+## Huella de cada rellano del portal, por fachada y planta, calculada ANTES
+## de construir. Sin esto la respuesta a "aqui hay portal?" dependia del
+## orden en que se recorren los huecos: el rellano se registra al crear la
+## puerta, y una ventana con indice menor preguntaba antes de que existiera.
+var _landing_footprints: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
+## La calzada, en planta y en mundo: los cuatro brazos del anillo que rodea la
+## manzana. Se calcula ANTES de construir el decorado para poder descartar lo
+## que caiga encima del asfalto.
+var _roadway_rects: Array[Rect2] = []
+## Lados de la manzana con fachada a la calle ("top"/"bottom"/"left"/"right").
+## El lado que NO esta aqui lleva medianera, y es donde el anillo de calle deja
+## hueco. Se llena antes de montar la calle.
+var _street_sides: Dictionary = {}
+## Reparto de la calle alrededor de la manzana, o vacio si este escenario no
+## lleva calle (unifamiliar).
+var _street_grid: Dictionary = {}
+## Hueco de la valla por donde sale el camino de la puerta. Lo fija el porche,
+## que es quien sabe por donde va el camino, y lo lee la valla, que se levanta
+## despues.
+var _gate_corridor: Rect2 = Rect2()
 var _fire_nodes_by_room: Dictionary = {}
+## Un segmento de humo por zona de patio, indexado por sala.
+var _patio_smoke_by_room: Dictionary = {}
+## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
+## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
+## registro por identidad exacta de caja: ese solo cazaba el caso en que dos
+## salas parten su medianera por los mismos sitios, y un pasillo nunca lo
+## hace (ver _create_wall_segment_height).
+var _wall_plane_covers: Dictionary = {}
+## Evita que un setter que reconstruye el mundo se dispare a si mismo.
+var _rebuilding: bool = false
+var _rebuild_queued: bool = false
+## Materiales opacos ya creados, indexados por color y ruido (M-3).
+var _material_cache: Dictionary = {}
+var _city_material_cache: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
@@ -510,9 +1010,10 @@ func _ready() -> void:
 
 func setup(next_building: BuildingModel) -> void:
 	building = next_building
-	_apply_startup_lighting_options()
-	_rebuild_world()
-	_place_at_entry()
+	# Misma secuencia que rebuild_from_building(), y por eso se delega en
+	# ella: duplicarla dejaba esta construccion inicial fuera del guard de
+	# reentrada.
+	rebuild_from_building()
 
 
 ## Aplica los valores de [param p] (o de [member fp_preset] si p es null) sobre las propiedades
@@ -521,6 +1022,11 @@ func apply_preset(p: FPPreset = null) -> void:
 	var src: FPPreset = p if p != null else fp_preset
 	if src == null:
 		return
+	# El preset asigna varias propiedades que ahora tienen setter propio.
+	# Sin el guard, aplicar un preset reconstruiria el mundo una vez por
+	# cada una de ellas; asi se reconstruye una sola vez y al final.
+	var was_rebuilding: bool = _rebuilding
+	_rebuilding = true
 	ambient_fill_enabled = src.ambient_fill_enabled
 	room_ceiling_lights_enabled = src.room_ceiling_lights_enabled
 	exterior_lighting_mode = src.exterior_lighting_mode
@@ -534,6 +1040,9 @@ func apply_preset(p: FPPreset = null) -> void:
 	show_visibility_readout = src.show_visibility_readout
 	fp_victim_fed_incapacitated_threshold = src.fp_victim_fed_incapacitated_threshold
 	fp_victim_fed_fatal_threshold = src.fp_victim_fed_fatal_threshold
+	_rebuilding = was_rebuilding
+	if not was_rebuilding:
+		_rebuild_if_live()
 
 
 func set_active(enabled: bool) -> void:
@@ -567,10 +1076,69 @@ func set_active(enabled: bool) -> void:
 		_stop_detector_alarms()
 
 
+## Reconstruye el mundo si ya existe. Lo usan los setters de los parametros
+## que solo se leen al construir (materiales, luces, sombras): sin esto,
+## cambiarlos en el inspector no hacia NADA hasta reiniciar, que es una trampa
+## para quien intenta calibrar o diagnosticar.
+func _rebuild_if_live() -> void:
+	# Guarda de reentrada: la reconstruccion vuelve a asignar algunas de estas
+	# mismas propiedades (apply_preset, opciones de arranque), y sin esto el
+	# setter se llama a si mismo y el juego se queda colgado.
+	if _rebuilding or _rebuild_queued or not is_inside_tree() or building == null or _world_root == null:
+		return
+	# La reconstruccion NO puede correr dentro de la llamada que asigna la
+	# propiedad. Cuando esa llamada viene del inspector remoto, es el depurador
+	# quien la esta ejecutando, y liberar y recrear cientos de nodos en mitad de
+	# su callback le desincroniza el stream: "Malformed packet received, not an
+	# Array" seguido de "Packet too large" y conexion caida. Aplazarla al final
+	# del frame la saca de ese callback, y de paso agrupa en una sola
+	# reconstruccion los varios interruptores que se toquen en el mismo frame.
+	_rebuild_queued = true
+	_rebuild_live_deferred.call_deferred()
+
+
+func _rebuild_live_deferred() -> void:
+	_rebuild_queued = false
+	if _rebuilding or not is_inside_tree() or building == null or _world_root == null:
+		return
+	_rebuilding = true
+	# Aqui NO se llama a rebuild_from_building(): esa reaplica las opciones de
+	# arranque, y _apply_startup_lighting_options() reescribe
+	# room_ceiling_lights_enabled y exterior_lighting_mode desde el edificio.
+	# Es decir, el interruptor recien tocado en el inspector volvia solo a su
+	# valor anterior y el cambio no llegaba a verse: la trampa de nuevo, ahora
+	# disfrazada de setter que si funciona. En una reconstruccion pedida desde
+	# el inspector manda el inspector.
+	#
+	# Tampoco se llama a _place_at_entry(): quien calibra o bisecciona esta
+	# mirando justo al detalle que quiere juzgar, y volver a la puerta en cada
+	# cambio obliga a rehacer el camino para comparar dos estados.
+	var keep_position: Vector3 = global_position
+	var keep_yaw: float = _yaw
+	var keep_pitch: float = _pitch
+	_rebuild_world()
+	global_position = keep_position
+	_yaw = keep_yaw
+	_pitch = keep_pitch
+	rotation.y = _yaw
+	if _camera != null:
+		_camera.rotation.x = _pitch
+	_rebuilding = false
+
+
 func rebuild_from_building() -> void:
+	# El guard tambien cubre esta reconstruccion, no solo la del inspector:
+	# _apply_startup_lighting_options() asigna room_ceiling_lights_enabled y
+	# exterior_lighting_mode, que ahora tienen setter, y sin el guard cada
+	# reconstruccion normal dispararia otra reconstruccion anidada dentro de
+	# si misma. Se restaura el valor previo en vez de ponerlo a false: esta
+	# funcion es publica y puede llamarse desde dentro de otra reconstruccion.
+	var was_rebuilding: bool = _rebuilding
+	_rebuilding = true
 	_apply_startup_lighting_options()
 	_rebuild_world()
 	_place_at_entry()
+	_rebuilding = was_rebuilding
 
 
 func set_state(next_state: Dictionary) -> void:
@@ -579,6 +1147,7 @@ func set_state(next_state: Dictionary) -> void:
 	_update_smoke_light_attenuation()
 	_update_fp_furniture_visuals()
 	_update_fp_fire_visuals()
+	_update_patio_smoke()
 	_update_safety_marker_states()
 	_update_visibility_overlay()
 	_update_status_hud(true)
@@ -590,7 +1159,7 @@ func _physics_process(delta: float) -> void:
 	_fp_fire_phase += delta
 	_apply_movement(delta)
 	_update_opening_hold(delta)
-	_animate_fp_fire()
+	_animate_fp_fire(delta)
 	_update_prompt()
 	_update_visibility_overlay()
 	_update_status_hud()
@@ -660,8 +1229,8 @@ func _create_player_nodes() -> void:
 
 	_camera = Camera3D.new()
 	_camera.name = "FirstPersonCamera"
-	_camera.fov = 75.0
 	_camera.near = 0.03
+	_apply_camera_fov()
 	# Niebla de visibilidad + cielo: entorno propio de la camara FP (duplicado
 	# del .tres para no mutar el recurso compartido).
 	_fog_env = FPCameraEnvironmentRes.duplicate(true) as Environment
@@ -776,13 +1345,21 @@ func _rebuild_world() -> void:
 	_world_root.global_transform = Transform3D.IDENTITY
 	_world_root.visible = _active
 	_opening_nodes.clear()
+	_landing_recess_keys.clear()
+	_landing_footprints.clear()
+	_own_facade_groups_cache.clear()
+	_own_facade_groups_ready = false
 	_detector_nodes.clear()
 	_victim_nodes.clear()
 	_furniture_nodes_by_room.clear()
 	_fire_nodes_by_room.clear()
+	_patio_smoke_by_room.clear()
 	_ceiling_lights_by_room.clear()
 	_ceiling_light_base_energy_by_room.clear()
 	_ceiling_light_base_range_by_room.clear()
+	# Sin esto, tocar un parametro de material en el inspector no se veria: la
+	# reconstruccion reutilizaria los materiales cacheados de la anterior.
+	_material_cache.clear()
 
 	if building == null:
 		return
@@ -792,7 +1369,7 @@ func _rebuild_world() -> void:
 	if rects.is_empty():
 		return
 
-	_bounds_m = _compute_bounds(rects)
+	_bounds_m = ViewScenarioRead.bounds_of_rects(rects)
 	_origin_offset_m = -(_bounds_m.position + _bounds_m.size * 0.5)
 
 	_create_floors(rects)
@@ -802,12 +1379,15 @@ func _rebuild_world() -> void:
 	_create_world_lighting(rects)
 	_create_fp_furniture_nodes(rects)
 	_create_fp_fire_nodes(rects)
+	_create_patio_smoke_nodes(rects)
+	_collect_landing_footprints()
 	_create_opening_panels()
 	_create_exterior_context()
 	_create_safety_markers(rects)
 	_create_outer_boundary()
 	_update_fp_furniture_visuals()
 	_update_fp_fire_visuals()
+	_update_patio_smoke()
 
 
 func _create_floors(rects: Dictionary) -> void:
@@ -818,78 +1398,33 @@ func _create_floors(rects: Dictionary) -> void:
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
 			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
-		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_floor(floor_level_m))
-		for i in range(slabs.size()):
-			var slab: Rect2 = slabs[i]
-			var node_name: String = "Floor_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "FloorPart_%s_%02d" % [str(room_id), i]
-			_add_floor_slab(node_name, slab, floor_level_m, _floor_material_for_room(int(room_id)))
+		# Un patio solo tiene suelo en su FONDO. Las zonas de arriba no llevan
+		# forjado: si lo llevaran, el conducto serian tres cajas apiladas y desde
+		# la ventana se veria un techo donde tiene que verse el cielo.
+		if room != null and _room_is_patio(room) and not _is_patio_bottom(room):
+			continue
+		var material: Material = _floor_material_for_room(int(room_id))
+		for slab in SlabGeometry.named_slab_pieces(
+			rect,
+			_vertical_stair_voids_for_floor(floor_level_m),
+			"Floor_%s" % str(room_id),
+			"FloorPart_%s" % str(room_id)
+		):
+			_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
 
 
+## El reparto en losas vive en `SlabGeometry`, compartido con el visor 3D; aqui
+## solo se emite cada losa como cuerpo con colision y material de la sala.
 func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
-	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
-	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
-	var material := _floor_material_for_room(room_id)
-	if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
-		_create_switchback_stairwell_upper_floor(room_id, rect, floor_level_m, stair_dir, material)
-		return
-
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
-		var ramp_bottom_m: float = ramp_top_m + ramp_width_m
-		var top_height_m: float = maxf(0.0, ramp_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_floor_slab("StairSideFloorTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - ramp_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_floor_slab("StairSideFloorBottom_%s" % str(room_id), Rect2(rect.position.x, ramp_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
-		if landing_depth_m >= 0.28:
-			var landing_x_m: float = rect.position.x + rect.size.x - landing_depth_m if stair_dir.x > 0.0 else rect.position.x
-			_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(landing_x_m, rect.position.y, landing_depth_m, rect.size.y), floor_level_m, material)
-		return
-
-	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
-	var ramp_right_m: float = ramp_left_m + ramp_width_m
-	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_floor_slab("StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
-	if right_width_m >= 0.28:
-		_add_floor_slab("StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
-	if landing_depth_m >= 0.28:
-		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
-		_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, material)
+	var material: Material = _floor_material_for_room(room_id)
+	for slab in SlabGeometry.stairwell_upper_floor_slabs(room_id, rect, stair_dir, turn_degrees):
+		_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
 
 
-func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, material: StandardMaterial3D) -> void:
-	var gap_m: float = 0.18
-	var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
-	var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-	var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var shaft_top_m: float = rect.position.y + rect.size.y * 0.5 - shaft_width_m * 0.5
-		var shaft_bottom_m: float = shaft_top_m + shaft_width_m
-		var top_height_m: float = maxf(0.0, shaft_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_floor_slab("StairSwitchbackSideTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - shaft_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_floor_slab("StairSwitchbackSideBottom_%s" % str(room_id), Rect2(rect.position.x, shaft_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
-		return
-
-	var shaft_left_m: float = rect.position.x + rect.size.x * 0.5 - shaft_width_m * 0.5
-	var shaft_right_m: float = shaft_left_m + shaft_width_m
-	var left_width_m: float = maxf(0.0, shaft_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_floor_slab("StairSwitchbackSideLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - shaft_right_m)
-	if right_width_m >= 0.28:
-		_add_floor_slab("StairSwitchbackSideRight_%s" % str(room_id), Rect2(shaft_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
-
-
-func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: StandardMaterial3D) -> void:
+func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var center: Vector3 = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
 		-floor_thickness_m * 0.5,
@@ -898,35 +1433,70 @@ func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, mater
 	_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, material, true)
 
 
-func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: StandardMaterial3D) -> void:
+func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
+	var thickness_m: float = _ceiling_thickness_to_next_floor_m(floor_level_m, height_m)
 	var center: Vector3 = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
-		height_m + ceiling_thickness_m * 0.5,
+		height_m + thickness_m * 0.5,
 		rect.position.y + rect.size.y * 0.5
 	), floor_level_m)
-	_add_box(body, "CeilingMesh", Vector3(rect.size.x, ceiling_thickness_m, rect.size.y), center, material, true)
+	_add_box(body, "CeilingMesh", Vector3(rect.size.x, thickness_m, rect.size.y), center, material, true)
+
+
+## Grosor del techo de una planta. Por defecto el nominal, pero si encima hay
+## otra planta se estira hasta la cara inferior de su forjado: con los valores
+## de preset_two_storey_house (2,65 + 0,08 de techo contra una planta a 2,90
+## con solera de 0,10) quedaba si no un anillo perimetral de 7 cm por el que
+## entraba luz exterior desde dentro y se veia el interior desde fuera (E-4).
+func _ceiling_thickness_to_next_floor_m(floor_level_m: float, height_m: float) -> float:
+	if not interstitial_ceiling_seal_enabled or building == null:
+		return ceiling_thickness_m
+	var ceiling_base_m: float = floor_level_m + height_m
+	var next_underside_m: float = INF
+	for key in building.get_rooms().keys():
+		var other: RoomModel = building.get_room(int(key))
+		if other == null:
+			continue
+		var other_level_m: float = other.floor_level_z_m
+		if other_level_m <= ceiling_base_m + 0.001:
+			continue
+		next_underside_m = minf(next_underside_m, other_level_m - floor_thickness_m)
+	if is_inf(next_underside_m):
+		return ceiling_thickness_m
+	return maxf(ceiling_thickness_m, next_underside_m - ceiling_base_m)
 
 
 func _create_ceilings(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
-		if room != null and _room_is_stairwell(room):
+		# Un conducto vertical -caja de escalera o patio- no lleva techo, y por
+		# tanto tampoco plafon colgado de el.
+		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)):
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
-		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_ceiling(floor_level_m))
-		for i in range(slabs.size()):
-			var slab: Rect2 = slabs[i]
-			var node_name: String = "Ceiling_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "CeilingPart_%s_%02d" % [str(room_id), i]
-			_add_ceiling_slab(node_name, slab, floor_level_m, height_m, _ceiling_material_for_room(int(room_id)))
+		var material: Material = _ceiling_material_for_room(int(room_id))
+		for slab in SlabGeometry.named_slab_pieces(
+			rect,
+			_vertical_stair_voids_for_ceiling(floor_level_m),
+			"Ceiling_%s" % str(room_id),
+			"CeilingPart_%s" % str(room_id)
+		):
+			_add_ceiling_slab(String(slab["name"]), slab["rect"], floor_level_m, height_m, material)
 
 
 func _create_walls(rects: Dictionary) -> void:
-	for room_id in rects.keys():
+	# Se reinicia el reparto de tabiques: una medianera la piden las dos salas
+	# que la comparten y antes se levantaban las dos, con z-fighting entre sus
+	# colores y colision duplicada (FP-1).
+	_wall_plane_covers.clear()
+	var ordered_ids: Array = rects.keys()
+	ordered_ids.sort()
+	for room_id in ordered_ids:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
 		if room != null and _room_is_stairwell(room) and not room.stair_has_walls:
@@ -966,28 +1536,191 @@ func _create_wall_segment(rect: Rect2, room_id: int, side: String, start: float,
 	_create_wall_segment_height(rect, room_id, side, start, end, 0.0, height_m, floor_level_m)
 
 
+## Levanta el tramo de tabique que aun no exista.
+##
+## Cada sala pide sus cuatro lados, asi que una medianera la piden las dos
+## salas que la comparten. Antes se descartaba el duplicado comparando la
+## caja entera, y eso solo funciona cuando las dos salas parten el muro por
+## los mismos sitios. Un pasillo no lo hace nunca: su lado es una tirada
+## continua a lo largo de varias habitaciones, mientras que cada habitacion
+## corta en su propio borde y en sus propios huecos. Las cajas salian con
+## longitudes distintas, la comparacion no casaba y el tabique se dibujaba
+## dos veces, un solido dentro de otro: 13,4 m2 de fabrica duplicada solo en
+## el pasillo del piso patron, con las dos caras coplanarias peleandose por
+## cada pixel.
+##
+## Ahora se lleva, por plano de tabique, que trozos ya tienen fabrica, y se
+## levanta solo el hueco que quede. Es la misma idea de antes llevada a su
+## forma general: la comparacion de cajas era el caso particular en que el
+## trozo pedido coincide entero con uno ya cubierto.
 func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start: float, end: float, y_min_m: float, y_max_m: float, floor_level_m: float) -> void:
 	var span: float = maxf(0.0, end - start)
 	var height_m: float = maxf(0.0, y_max_m - y_min_m)
 	if span <= 0.03 or height_m <= 0.03:
 		return
-	var body := StaticBody3D.new()
-	body.name = "Wall_%s" % side
-	_world_root.add_child(body)
 
+	# El rodapie SI es por sala: mira hacia dentro de cada estancia, asi que
+	# una medianera compartida necesita el de cada lado.
+	_create_skirting_segment(rect, side, start, end, floor_level_m)
+
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float = WallSideGeometry.side_offset_m(rect, side)
+	var axis_start_m: float = float(WallSideGeometry.side_span(rect, side)["start"]) + start
+	var plane_key: String = "%s|%.2f|%.2f" % ["z" if horizontal else "x", plane_m, floor_level_m]
+
+	var covered: Array[Rect2] = []
+	if _wall_plane_covers.has(plane_key):
+		covered.assign(_wall_plane_covers[plane_key])
+	var wanted := Rect2(axis_start_m, y_min_m, span, height_m)
+	for piece in StairGeometry.split_rect_by_voids(wanted, covered):
+		_add_wall_piece(rect, room_id, side, horizontal, plane_m, piece, floor_level_m)
+		covered.append(piece)
+	_wall_plane_covers[plane_key] = covered
+
+
+## Una caja de tabique, con su cuerpo estatico y, si esa cara da a la calle,
+## su chapa de fachada. `piece` va en (recorrido a lo largo del muro, altura).
+func _add_wall_piece(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	horizontal: bool,
+	plane_m: float,
+	piece: Rect2,
+	floor_level_m: float
+) -> void:
+	var center_y: float = piece.position.y + piece.size.y * 0.5
+	var axis_center_m: float = piece.position.x + piece.size.x * 0.5
 	var size: Vector3
 	var center: Vector3
-	var center_y: float = y_min_m + height_m * 0.5
-	if side == "top" or side == "bottom":
-		size = Vector3(span, height_m, wall_thickness_m)
-		var z: float = rect.position.y if side == "top" else rect.position.y + rect.size.y
-		center = _to_world(Vector3(rect.position.x + start + span * 0.5, center_y, z), floor_level_m)
+	if horizontal:
+		size = Vector3(piece.size.x, piece.size.y, wall_thickness_m)
+		center = _to_world(Vector3(axis_center_m, center_y, plane_m), floor_level_m)
 	else:
-		size = Vector3(wall_thickness_m, height_m, span)
-		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
-		center = _to_world(Vector3(x, center_y, rect.position.y + start + span * 0.5), floor_level_m)
+		size = Vector3(wall_thickness_m, piece.size.y, piece.size.x)
+		center = _to_world(Vector3(plane_m, center_y, axis_center_m), floor_level_m)
+
+	var body := StaticBody3D.new()
+	body.name = "Wall_%s" % side
+	_world_root.add_child(body, true)
 	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
-	_create_skirting_segment(rect, side, start, end, floor_level_m)
+
+	# La chapa de fachada se pregunta por el tramo realmente levantado, en
+	# coordenadas de la sala, que es como la espera _wall_face_is_exterior.
+	var rel_start: float = piece.position.x - float(WallSideGeometry.side_span(rect, side)["start"])
+	_add_exterior_wall_skin(rect, room_id, side, rel_start, rel_start + piece.size.x, size, center, floor_level_m)
+
+
+## Material de la envolvente exterior: la ranura del inspector si la hay, y
+## si no el color de fachada con el ruido de superficie.
+func _facade_material() -> StandardMaterial3D:
+	if exterior_facade_material_override != null:
+		return exterior_facade_material_override
+	return _own_exterior_mat(exterior_facade_color, 2600)
+
+
+## Chapa fina con material de fachada sobre la cara exterior de un tabique
+## que no tiene sala vecina. El muro es una sola caja y no admite un
+## material por cara, asi que la cara de fuera se resuelve con esta pieza.
+## Despiece de baldosa: una baldosa por repeticion de textura, con la junta
+## dibujada en el borde. Se multiplica sobre el color del suelo, igual que el
+## ruido, asi que el blanco deja el color base intacto y la junta lo oscurece.
+func _tile_texture() -> Texture2D:
+	var size_px: int = maxi(8, landing_tile_texture_px)
+	var grout_px: int = clampi(landing_tile_grout_px, 1, size_px / 2)
+	var grout_value: float = clampf(1.0 - landing_tile_grout_darkening, 0.0, 1.0)
+	var image := Image.create(size_px, size_px, false, Image.FORMAT_RGB8)
+	image.fill(Color.WHITE)
+	var grout := Color(grout_value, grout_value, grout_value, 1.0)
+	# Una franja de junta pegada a dos bordes; al repetirse la textura, cada
+	# baldosa queda rodeada de junta por sus cuatro lados.
+	for y in range(size_px):
+		for x in range(size_px):
+			if x < grout_px or y < grout_px:
+				image.set_pixel(x, y, grout)
+	# La junta es una linea de 3 px: sin mipmaps es lo primero que dentellea al
+	# alejarse del suelo del rellano.
+	image.generate_mipmaps()
+	return ImageTexture.create_from_image(image)
+
+
+func _add_exterior_wall_skin(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	start: float,
+	end: float,
+	wall_size: Vector3,
+	wall_center: Vector3,
+	floor_level_m: float
+) -> void:
+	if not exterior_wall_skin_enabled:
+		return
+	if not _wall_face_is_exterior(rect, room_id, side, start, end, floor_level_m):
+		return
+	var outward: Vector3 = -_inside_normal_for_side(side)
+	var thickness_m: float = exterior_wall_skin_thickness_m
+	var skin_size: Vector3 = wall_size
+	if side == "top" or side == "bottom":
+		skin_size.z = thickness_m
+	else:
+		skin_size.x = thickness_m
+	var offset_m: float = wall_thickness_m * 0.5 + thickness_m * 0.5
+	_mark_decorative(_add_box(
+		_world_root,
+		"ExteriorWallSkin_%s" % side,
+		skin_size,
+		wall_center + outward * offset_m,
+		_facade_material(),
+		false
+	))
+
+
+## Una cara es exterior cuando ninguna otra sala de la misma planta apoya en
+## ella. Se compara el plano del tabique y el solape del tramo, para que un
+## muro medio medianero y medio a fachada se resuelva por tramos.
+func _wall_face_is_exterior(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	start: float,
+	end: float,
+	floor_level_m: float
+) -> bool:
+	if building == null:
+		return false
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float
+	if horizontal:
+		plane_m = rect.position.y if side == "top" else rect.position.y + rect.size.y
+	else:
+		plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
+	var seg_min: float = (rect.position.x if horizontal else rect.position.y) + start
+	var seg_max: float = (rect.position.x if horizontal else rect.position.y) + end
+
+	for key in _room_rects_cache.keys():
+		if int(key) == room_id:
+			continue
+		var other_room: RoomModel = building.get_room(int(key))
+		if other_room != null and absf(other_room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var other: Rect2 = Rect2(_room_rects_cache[key])
+		var touches: bool
+		var other_min: float
+		var other_max: float
+		if horizontal:
+			touches = absf(other.position.y - plane_m) < 0.02 or absf(other.position.y + other.size.y - plane_m) < 0.02
+			other_min = other.position.x
+			other_max = other.position.x + other.size.x
+		else:
+			touches = absf(other.position.x - plane_m) < 0.02 or absf(other.position.x + other.size.x - plane_m) < 0.02
+			other_min = other.position.y
+			other_max = other.position.y + other.size.y
+		if not touches:
+			continue
+		if minf(seg_max, other_max) - maxf(seg_min, other_min) > 0.05:
+			return false
+	return true
 
 
 func _create_skirting_segment(rect: Rect2, side: String, start: float, end: float, floor_level_m: float) -> void:
@@ -1005,7 +1738,14 @@ func _create_skirting_segment(rect: Rect2, side: String, start: float, end: floa
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
 		center = _to_world(Vector3(x, wall_skirting_height_m * 0.5, rect.position.y + start + span * 0.5), floor_level_m) + normal * (wall_thickness_m * 0.5 + 0.012)
 		size = Vector3(0.028, wall_skirting_height_m, span)
-	_add_box(_world_root, "Skirting_%s" % side, size, center, _mat(Color(0.34, 0.27, 0.20, 1.0), false), false)
+	_mark_decorative(_add_box(
+		_world_root,
+		"Skirting_%s" % side,
+		size,
+		center,
+		_mat(Color(0.34, 0.27, 0.20, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1900, NOISE_PROFILE_FLOOR),
+		false
+	))
 
 
 func _create_stairs(rects: Dictionary) -> void:
@@ -1039,7 +1779,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float,
 
 	var body := StaticBody3D.new()
 	body.name = "StairRamp"
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = ramp_size
@@ -1058,7 +1798,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float,
 	mesh.rotation.x = -angle
 	mesh.rotation.y = yaw
 	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 
 	var steps: int = 12
 	var step_depth: float = run_m / float(steps)
@@ -1123,7 +1863,7 @@ func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_d
 	var ramp_size := Vector3(width_m, 0.15, sqrt(run_m * run_m + rise_m * rise_m))
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = ramp_size
@@ -1141,7 +1881,7 @@ func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_d
 	mesh.rotation.x = -angle
 	mesh.rotation.y = yaw
 	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 	var steps: int = 8
 	var step_depth: float = run_m / float(steps)
 	for i in range(steps):
@@ -1220,45 +1960,7 @@ func _vertical_stair_voids_for_ceiling(floor_level_m: float) -> Array[Rect2]:
 
 
 func _vertical_stair_voids_for_level(floor_level_m: float, upper_floor: bool) -> Array[Rect2]:
-	var result: Array[Rect2] = []
-	if building == null:
-		return result
-	for raw_op in building.get_openings():
-		var op := raw_op as OpeningModel
-		if op == null or not op.is_vertical:
-			continue
-		var lower_room: RoomModel = building.get_room(op.a)
-		var upper_room: RoomModel = building.get_room(op.b)
-		if lower_room == null or upper_room == null:
-			continue
-		if upper_room.floor_level_z_m < lower_room.floor_level_z_m:
-			var tmp := lower_room
-			lower_room = upper_room
-			upper_room = tmp
-		var target_level: float = upper_room.floor_level_z_m if upper_floor else lower_room.floor_level_z_m
-		if absf(target_level - floor_level_m) > 0.05:
-			continue
-		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
-		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-			continue
-		result.append(_stair_vertical_void_rect(rect, _room_stair_run_direction(lower_room), lower_room.stair_turn_degrees))
-	return result
-
-
-func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
-	return StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
-
-
-func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
-	return StairGeometry.split_rect_by_voids(rect, voids)
-
-
-func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
-	return StairGeometry.subtract_rect(rect, void_rect)
-
-
-func _rect_same(a: Rect2, b: Rect2) -> bool:
-	return a.position.distance_to(b.position) <= 0.001 and a.size.distance_to(b.size) <= 0.001
+	return BuildingLevels.vertical_stair_voids(building, floor_level_m, upper_floor)
 
 
 func _create_world_lighting(rects: Dictionary) -> void:
@@ -1284,7 +1986,9 @@ func _create_world_lighting(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect := Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
-		if room != null and _room_is_stairwell(room):
+		# Un conducto vertical -caja de escalera o patio- no lleva techo, y por
+		# tanto tampoco plafon colgado de el.
+		if room != null and (_room_is_stairwell(room) or _room_is_patio(room)):
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
@@ -1304,7 +2008,7 @@ func _create_world_lighting(rects: Dictionary) -> void:
 			maxf(1.8, height_m - 0.22),
 			rect.position.y + rect.size.y * 0.5
 		), floor_level_m)
-		_world_root.add_child(light)
+		_world_root.add_child(light, true)
 		_ceiling_lights_by_room[int(room_id)] = light
 		_ceiling_light_base_energy_by_room[int(room_id)] = base_energy
 		_ceiling_light_base_range_by_room[int(room_id)] = base_range
@@ -1333,11 +2037,11 @@ func _create_opening_panels() -> void:
 
 		var body := StaticBody3D.new()
 		body.name = "Opening_%02d" % index
-		_world_root.add_child(body)
+		_world_root.add_child(body, true)
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Panel"
 		mesh.mesh = BoxMesh.new()
-		body.add_child(mesh)
+		body.add_child(mesh, true)
 		var shape := CollisionShape3D.new()
 		shape.name = "Collision"
 		shape.shape = BoxShape3D.new()
@@ -1365,7 +2069,7 @@ func _create_opening_panels() -> void:
 				0.045,
 				-1.0
 			)
-		else:
+		elif not _is_balcony_opening(op):
 			asset = _try_build_opening_asset(body, op)
 			if asset != null:
 				mesh.visible = false
@@ -1402,7 +2106,7 @@ func _create_opening_light(op: OpeningModel, info: Dictionary) -> OmniLight3D:
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	light.position = center - inward * outside_offset
 	light.position.y = floor_level_m + 2.05 if op.type == OpeningModel.Type.DOOR else maxf(floor_level_m + 1.35, center.y)
-	_world_root.add_child(light)
+	_world_root.add_child(light, true)
 	return light
 
 
@@ -1535,7 +2239,7 @@ func _xz_rect(center: Vector3, half_tan: float, half_norm: float, tangent: Vecto
 
 ## Losa (suelo/techo) horizontal con huecos rectangulares recortados: se parte
 ## en trozos alrededor de los huecos (reutiliza StairGeometry.split_rect_by_voids).
-func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, thickness_m: float, holes: Array[Rect2], material: StandardMaterial3D) -> void:
+func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, thickness_m: float, holes: Array[Rect2], material: Material) -> void:
 	var typed_holes: Array[Rect2] = []
 	for h in holes:
 		typed_holes.append(h)
@@ -1546,14 +2250,164 @@ func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, 
 		_add_box(_world_root, "%s_%02d" % [name_prefix, i], Vector3(p.size.x, thickness_m, p.size.y), pc, material, false)
 
 
+## Clave de rellano: uno por fachada y planta.
+func _landing_key(side: String, floor_level_m: float) -> String:
+	return "%s_%d" % [side, roundi(floor_level_m * 100.0)]
+
+
+func _landing_side_for(op: OpeningModel, info: Dictionary) -> String:
+	var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
+	return String(info.get("side_for_%d" % room_id, "top"))
+
+
+## Ancho que le gustaria tener al rellano: da para la puerta, para las puertas
+## de los vecinos y para la caja de escalera.
+func _landing_width_for(door_width_m: float) -> float:
+	var doors: int = clampi(landing_neighbor_doors, 1, 4)
+	return maxf(
+		5.40,
+		maxf(door_width_m + 4.10, float(doors) * 1.18 + landing_stair_bay_width_m + 1.0)
+	)
+
+
+func _landing_depth_m() -> float:
+	return maxf(3.30, landing_recess_depth_m * 2.35)
+
+
+## Separacion del portal respecto al plano de la puerta.
+##
+## El portal se planta hacia fuera desde la puerta de entrada dando por supuesto
+## que ahi no hay nada. En una planta rectangular es cierto; en cuanto la
+## vivienda tiene forma de L deja de serlo. En `compact_apartment` la puerta da a
+## una fachada que tiene el lavadero a un lado y el bano al otro, ambos mas alla
+## del plano de la puerta, y el portal se plantaba encima de los dos: 3,4 m2 de
+## suelo duplicado y los tabiques de la vivienda cruzando el rellano.
+##
+## Estrecharlo no sirve: entre el lavadero y el bano solo quedan 1,40 m, menos
+## que la caja de escalera. Lo que se hace es apartarlo hasta librar lo que
+## estorba, y unirlo a la puerta con un paso del ancho del hueco. Es ademas lo
+## que pasa en un edificio real: el nucleo comun esta donde cabe, y a la puerta
+## de cada vivienda se llega por un pasillo.
+func _landing_fit(side: String, floor_level_m: float, axis_center_m: float, half_width_m: float, depth_m: float) -> Dictionary:
+	var result: Dictionary = {
+		"half_width_m": half_width_m,
+		"depth_m": depth_m,
+		"standoff_m": 0.0,
+	}
+	if building == null:
+		return result
+	var canon: String = WallSideGeometry.canonical(side)
+	if canon == "":
+		return result
+
+	var plane_m: float = _landing_plane_m(canon, floor_level_m, axis_center_m)
+	var outward_2d: Vector2 = WallSideGeometry.outward_normal_2d(canon)
+	var outward: float = outward_2d.y if WallSideGeometry.is_horizontal(canon) else outward_2d.x
+
+	# Cuanto sobresale cada estancia de la planta mas alla de ese plano, y que
+	# tramo de fachada ocupa.
+	var standoff_m: float = 0.0
+	for key in _room_rects_cache.keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null or absf(room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(_room_rects_cache[key])
+		var span: Dictionary = WallSideGeometry.side_span(rect, canon)
+		if float(span["end"]) <= axis_center_m - half_width_m + 0.01:
+			continue
+		if float(span["start"]) >= axis_center_m + half_width_m - 0.01:
+			continue
+		var near_m: float = WallSideGeometry.side_offset_m(rect, canon)
+		var far_m: float = WallSideGeometry.side_offset_m(rect, WallSideGeometry.opposite(canon))
+		var reach_m: float = maxf((near_m - plane_m) * outward, (far_m - plane_m) * outward)
+		standoff_m = maxf(standoff_m, reach_m)
+
+	result["standoff_m"] = standoff_m
+	return result
+
+
+## Coordenada del plano de fachada por el que sale el portal.
+func _landing_plane_m(side: String, floor_level_m: float, axis_center_m: float) -> float:
+	var canon: String = WallSideGeometry.canonical(side)
+	for key in _room_rects_cache.keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null or absf(room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(_room_rects_cache[key])
+		var span: Dictionary = WallSideGeometry.side_span(rect, canon)
+		if axis_center_m < float(span["start"]) - 0.01 or axis_center_m > float(span["end"]) + 0.01:
+			continue
+		return WallSideGeometry.side_offset_m(rect, canon)
+	return 0.0
+
+
+func _collect_landing_footprints() -> void:
+	if building == null or not show_landing_recess or not _is_apartment_building():
+		return
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
+			continue
+		if _is_balcony_opening(op):
+			continue
+		var info: Dictionary = _opening_info(index)
+		if info.is_empty():
+			continue
+		var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+		var key: String = _landing_key(_landing_side_for(op, info), floor_level_m)
+		if _landing_footprints.has(key):
+			continue
+		var axis_center_m: float = float(info.get("axis_center", 0.0))
+		var fit: Dictionary = _landing_fit(
+			_landing_side_for(op, info),
+			floor_level_m,
+			axis_center_m,
+			_landing_width_for(float(info.get("width_m", 0.85))) * 0.5,
+			_landing_depth_m()
+		)
+		_landing_footprints[key] = {
+			"axis_center": axis_center_m,
+			"half_width_m": float(fit["half_width_m"]),
+			"depth_m": float(fit["depth_m"]),
+			"standoff_m": float(fit["standoff_m"]),
+		}
+
+
+## Cierto si ese punto de esa fachada cae dentro del rellano del portal, es
+## decir: lo que hay ahi fuera ya no es la calle.
+func _landing_covers(side: String, floor_level_m: float, axis_center_m: float) -> bool:
+	var key: String = _landing_key(side, floor_level_m)
+	if not _landing_footprints.has(key):
+		return false
+	var data: Dictionary = _landing_footprints[key]
+	return absf(axis_center_m - float(data["axis_center"])) <= float(data["half_width_m"])
+
+
 func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> void:
 	if not show_landing_recess or op == null:
 		return
 	if not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
 		return
+	# El portal es de la puerta de ENTRADA. Una puerta con balcon es una
+	# balconera: detras hay calle, no rellano. Sin esto, el mismo hueco se
+	# comia dos decorados incompatibles, el portal y el balcon, uno dentro del
+	# otro.
+	if _is_balcony_opening(op):
+		return
 	if not _is_apartment_building():
 		_create_single_family_entry_recess(index, op, info)
 		return
+
+	# Un rellano por fachada y planta: con dos puertas exteriores en la misma
+	# planta se generaban dos portales completos interpenetrados (escaleras
+	# dobles, z-fighting en suelos y techos).
+	var recess_key: String = _landing_key(
+		_landing_side_for(op, info),
+		float(info.get("floor_level_m", 0.0))
+	)
+	if _landing_recess_keys.has(recess_key):
+		return
+	_landing_recess_keys[recess_key] = index
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
@@ -1562,14 +2416,22 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var doors: int = clampi(landing_neighbor_doors, 1, 4)
 	var stair_bay_w: float = landing_stair_bay_width_m
-	var width_m: float = maxf(
-		5.40,
-		maxf(float(info.get("width_m", 0.85)) + 4.10, float(doors) * 1.18 + stair_bay_w + 1.0)
-	)
-	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
-	var corridor_height_m: float = landing_floor_height_m
+	# Las medidas salen de la huella ya ajustada al hueco libre, calculada
+	# antes de construir nada, para que el porche y el recinto usen la misma.
+	var footprint: Dictionary = _landing_footprints.get(recess_key, {})
+	var width_m: float = float(footprint.get("half_width_m", _landing_width_for(float(info.get("width_m", 0.85))) * 0.5)) * 2.0
+	var depth_m: float = float(footprint.get("depth_m", _landing_depth_m()))
+	var corridor_height_m: float = _landing_height_for_opening(info)
 
-	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
+	# El rellano se pega a la cara exterior del tabique de la vivienda, que esta
+	# a wall_thickness_m * 0.5. Arrancando en 0.08 quedaba una rendija de 3 cm
+	# en todo el encuentro (suelo, techo y laterales) por la que entraba luz.
+	var landing_join_m: float = maxf(0.0, wall_thickness_m * 0.5 - 0.02)
+	# Cuanto hay que apartar el portal para que no caiga encima de la propia
+	# vivienda. Cero en una planta rectangular; en una en L, lo que sobresalga.
+	var standoff_m: float = float(footprint.get("standoff_m", 0.0))
+	var front_face_m: float = landing_join_m + standoff_m
+	var floor_center: Vector3 = center - normal * (front_face_m + depth_m * 0.5)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 
 	# Caja de escalera contra la pared derecha. Dos tiros paralelos conectan
@@ -1580,17 +2442,36 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 	var shaft_hole: Rect2 = Rect2(stair_layout["shaft_hole_xz"])
 
-	var floor_rect: Rect2 = _xz_rect(floor_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	# Huella de los forjados. Cubre el recinto ENTERO, muros incluidos, en vez
+	# de quedarse en el hueco libre y dejar que los muros se apoyen por fuera.
+	#
+	# Con la huella libre el encuentro dependia de que cuadraran dos cuentas
+	# distintas, y no cuadraban: el forjado moria en z 6,805 y el muro del
+	# fondo arrancaba en 6,810. Cinco milimetros a lo ancho de todo el portal,
+	# por los que se veia la calle mirando hacia arriba y hacia atras. Peor
+	# aun, la franja que quedaba entre el ojo de la escalera y el borde del
+	# forjado medida 2,5 cm, y `split_rect_by_voids` descarta por sana
+	# costumbre las esquirlas de menos de 8 cm: esa franja ni siquiera llegaba
+	# a construirse.
+	#
+	# Derivando la huella del propio cerramiento las dos cosas se arreglan
+	# solas y dejan de depender de que nadie toque una constante.
+	var back_face_m: float = front_face_m + depth_m + 0.03 + wall_thickness_m * 0.5
+	var slab_half_tan_m: float = width_m * 0.5 + wall_thickness_m
+	var slab_half_norm_m: float = (back_face_m - front_face_m) * 0.5
+	var slab_center: Vector3 = center - normal * (front_face_m + slab_half_norm_m)
+
+	var floor_rect: Rect2 = _xz_rect(slab_center, slab_half_tan_m, slab_half_norm_m, tangent, normal)
 	_add_slab_with_holes(
 		"LandingFloor_%02d" % index,
 		floor_rect,
 		floor_center.y,
 		floor_thickness_m,
 		[shaft_hole],
-		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index, NOISE_PROFILE_TILE)
 	)
 
-	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
+	var wall_center: Vector3 = center - normal * (front_face_m + depth_m + 0.03)
 	wall_center.y = floor_level_m + corridor_height_m * 0.5
 	var wall_size := Vector3(width_m, corridor_height_m, wall_thickness_m) if horizontal else Vector3(wall_thickness_m, corridor_height_m, width_m)
 	_add_box(
@@ -1599,7 +2480,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		wall_size,
 		wall_center,
 		_mat(landing_wall_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4200 + index),
-		false
+		true
 	)
 
 	var side_wall_size := Vector3(wall_thickness_m, corridor_height_m, depth_m) if horizontal else Vector3(depth_m, corridor_height_m, wall_thickness_m)
@@ -1612,12 +2493,37 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 			side_wall_size,
 			side_center,
 			_mat(landing_wall_color.darkened(0.06), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4250 + index),
-			false
+			true
 		)
 
-	var ceiling_center: Vector3 = floor_center
+	_create_landing_front_wall(
+		index,
+		center - normal * standoff_m,
+		normal,
+		tangent,
+		floor_level_m,
+		width_m,
+		corridor_height_m,
+		float(info.get("width_m", 0.86)),
+		float(info.get("height_m", 2.03))
+	)
+
+	# Misma huella que el suelo: el techo tapa tambien el coronamiento de los
+	# muros, que es por donde se colaba la luz.
+	_create_landing_passage(
+		index,
+		center,
+		normal,
+		tangent,
+		floor_level_m,
+		corridor_height_m,
+		standoff_m,
+		float(info.get("width_m", 0.86)) + 0.16
+	)
+
+	var ceiling_center: Vector3 = slab_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
-	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, slab_half_tan_m, slab_half_norm_m, tangent, normal)
 	_add_slab_with_holes(
 		"LandingCeiling_%02d" % index,
 		ceiling_rect,
@@ -1637,6 +2543,31 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		_mat(_effective_landing_light_color(), false, _effective_landing_light_color(), 0.85),
 		false
 	)
+
+	_add_landing_lights(index, fixture_center, stair_bay_center, floor_level_m, corridor_height_m, width_m, depth_m)
+
+	# Rodapie tambien en las paredes laterales: antes solo lo tenia el fondo y
+	# el encuentro suelo-pared lateral quedaba a hueso.
+	for skirting_side in [-1.0, 1.0]:
+		var side_skirting: Vector3 = floor_center - tangent * skirting_side * (width_m * 0.5 - 0.020)
+		side_skirting.y = floor_level_m + 0.055
+		_add_oriented_box(
+			_world_root,
+			"LandingSideSkirting_%02d_%s" % [index, "L" if skirting_side < 0.0 else "R"],
+			side_skirting,
+			normal,
+			depth_m,
+			0.11,
+			0.030,
+			_mat(landing_skirting_color, false),
+			false
+		)
+
+	# Felpudo delante de la puerta de la vivienda, ya en el rellano.
+	var landing_mat_center: Vector3 = center - normal * 0.58
+	landing_mat_center.y = floor_level_m + 0.012
+	_add_oriented_box(_world_root, "LandingDoormat_%02d" % index, landing_mat_center, tangent,
+		0.82, 0.022, 0.52, _mat(house_doormat_color, false), false)
 
 	var surface_center: Vector3 = wall_center + normal * (wall_thickness_m * 0.5 + 0.026)
 
@@ -1724,6 +2655,186 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 
 
+## Frente del rellano hacia la fachada, con el hueco de la puerta recortado.
+##
+## El muro de la vivienda solo cubre su propio ancho (1,40 m en los pisos de
+## referencia) frente a los 5,40 m que mide el rellano: los 4 m restantes
+## quedaban ABIERTOS al exterior, y por ahi entraba el sol a plena luz en un
+## portal que deberia ser interior (de ahi las sombras duras que barrian el
+## rellano al moverse). Se apoya en la cara exterior del tabique de la
+## vivienda sin quedar coplanar con el, para no provocar z-fighting.
+## Altura del rellano: la de la sala que da a esa puerta si se pide derivarla,
+## y si no el valor fijo del inspector (R-4).
+func _landing_height_for_opening(info: Dictionary) -> float:
+	if not landing_height_follows_dwelling or building == null:
+		return landing_floor_height_m
+	var room_id: int = int(info.get("room_id", -1))
+	var room: RoomModel = building.get_room(room_id) if room_id >= 0 else null
+	if room == null:
+		return landing_floor_height_m
+	# Suelo a suelo de la vivienda: altura libre mas su forjado, que es lo que
+	# hace que el pavimento del rellano case con el de la vivienda.
+	return clampf(room.height_m + ceiling_thickness_m, 2.0, 4.0)
+
+
+## Paso entre la puerta de la vivienda y el frente del portal, cuando este ha
+## tenido que apartarse para no plantarse encima de la propia planta. Suelo,
+## techo y dos paramentos: es un tramo de pasillo comun, y como tal se cierra.
+func _create_landing_passage(
+	index: int,
+	door_center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	corridor_height_m: float,
+	standoff_m: float,
+	opening_w: float
+) -> void:
+	if standoff_m <= 0.01:
+		return
+	var mid: Vector3 = door_center - normal * (standoff_m * 0.5)
+	var wall_mat: StandardMaterial3D = _mat(landing_wall_color.darkened(0.04), false)
+
+	var floor_c: Vector3 = mid
+	floor_c.y = floor_level_m - floor_thickness_m * 0.5
+	_add_oriented_box(
+		_world_root,
+		"LandingPassageFloor_%02d" % index,
+		floor_c,
+		tangent,
+		opening_w + wall_thickness_m * 2.0,
+		floor_thickness_m,
+		standoff_m,
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4150 + index, NOISE_PROFILE_TILE),
+		true
+	)
+
+	var ceiling_c: Vector3 = mid
+	ceiling_c.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
+	_add_oriented_box(
+		_world_root,
+		"LandingPassageCeiling_%02d" % index,
+		ceiling_c,
+		tangent,
+		opening_w + wall_thickness_m * 2.0,
+		ceiling_thickness_m,
+		standoff_m,
+		_mat(landing_ceiling_color, false),
+		false
+	)
+
+	for side_sign in [-1.0, 1.0]:
+		var side_c: Vector3 = mid + tangent * side_sign * (opening_w * 0.5 + wall_thickness_m * 0.5)
+		side_c.y = floor_level_m + corridor_height_m * 0.5
+		_add_oriented_box(
+			_world_root,
+			"LandingPassageWall_%02d_%s" % [index, "L" if side_sign < 0.0 else "R"],
+			side_c,
+			tangent,
+			wall_thickness_m,
+			corridor_height_m,
+			standoff_m,
+			wall_mat,
+			true
+		)
+
+
+func _create_landing_front_wall(
+	index: int,
+	door_center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	width_m: float,
+	corridor_height_m: float,
+	door_width_m: float,
+	door_height_m: float
+) -> void:
+	var material: StandardMaterial3D = _mat(landing_wall_color.darkened(0.04), false)
+	var opening_w: float = clampf(door_width_m + 0.16, 0.40, maxf(0.40, width_m - 0.40))
+	var opening_h: float = clampf(door_height_m + 0.12, 0.50, maxf(0.50, corridor_height_m - 0.05))
+	var plane_offset_m: float = wall_thickness_m
+	var side_span: float = maxf(0.0, (width_m - opening_w) * 0.5)
+	if side_span > 0.02:
+		for side_sign in [-1.0, 1.0]:
+			var segment_center: Vector3 = door_center \
+				- normal * plane_offset_m \
+				+ tangent * side_sign * (opening_w * 0.5 + side_span * 0.5)
+			segment_center.y = floor_level_m + corridor_height_m * 0.5
+			_add_oriented_box(
+				_world_root,
+				"LandingFrontWall_%02d_%s" % [index, "L" if side_sign < 0.0 else "R"],
+				segment_center,
+				tangent,
+				side_span,
+				corridor_height_m,
+				wall_thickness_m,
+				material,
+				true
+			)
+	var lintel_h: float = maxf(0.0, corridor_height_m - opening_h)
+	if lintel_h > 0.02:
+		var lintel_center: Vector3 = door_center - normal * plane_offset_m
+		lintel_center.y = floor_level_m + opening_h + lintel_h * 0.5
+		_add_oriented_box(
+			_world_root,
+			"LandingFrontLintel_%02d" % index,
+			lintel_center,
+			tangent,
+			opening_w,
+			lintel_h,
+			wall_thickness_m,
+			material,
+			true
+		)
+
+
+## Iluminacion propia del portal: plafon del rellano + luz de la caja de
+## escalera. Independientes del estado de la puerta de la vivienda.
+func _add_landing_lights(
+	index: int,
+	fixture_center: Vector3,
+	stair_bay_center: Vector3,
+	floor_level_m: float,
+	corridor_height_m: float,
+	width_m: float,
+	depth_m: float
+) -> void:
+	if not landing_ambient_lights_enabled:
+		return
+	var energy: float = _effective_landing_light_energy() * landing_ambient_light_factor
+	var ceiling_light := OmniLight3D.new()
+	ceiling_light.name = "LandingAmbientLight_%02d" % index
+	ceiling_light.light_color = _effective_landing_light_color()
+	ceiling_light.light_energy = energy
+	# El alcance tiene que llegar a las ESQUINAS del suelo del rellano, no al
+	# 80 % del lado mayor: con 5,40 x 3,30 se quedaba en 4,32 m y las esquinas
+	# caian fuera. La distancia real del plafon a la esquina del pavimento es la
+	# semidiagonal mas la altura.
+	ceiling_light.omni_range = maxf(
+		3.6,
+		Vector2(width_m, depth_m).length() * 0.5 + corridor_height_m
+	) * landing_ambient_light_range_factor
+	ceiling_light.omni_attenuation = landing_ambient_light_attenuation
+	ceiling_light.shadow_enabled = false
+	ceiling_light.position = fixture_center - Vector3(0.0, 0.10, 0.0)
+	_world_root.add_child(ceiling_light)
+
+	var stair_light := OmniLight3D.new()
+	stair_light.name = "LandingStairLight_%02d" % index
+	stair_light.light_color = _effective_landing_light_color()
+	stair_light.light_energy = energy * 0.70
+	stair_light.omni_range = maxf(3.2, depth_m * 0.85) * landing_ambient_light_range_factor
+	stair_light.omni_attenuation = landing_ambient_light_attenuation
+	stair_light.shadow_enabled = false
+	stair_light.position = Vector3(
+		stair_bay_center.x,
+		floor_level_m + corridor_height_m - 0.28,
+		stair_bay_center.z
+	)
+	_world_root.add_child(stair_light)
+
+
 func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
@@ -1773,9 +2884,147 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 		var lamp_color: Color = house_porch_lamp_color
 		_add_oriented_box(_world_root, "HousePorchLamp_%02d" % index, lamp, tangent,
 			0.16, 0.24, 0.10, _mat(lamp_color.darkened(0.38), false, lamp_color, 0.72), false)
+		# El aplique estaba pintado de color pero no alumbraba: de noche la
+		# entrada de la casa quedaba a oscuras con una pegatina encendida.
+		if _exterior_is_night() and house_porch_light_energy > 0.0:
+			var porch_light := OmniLight3D.new()
+			porch_light.name = "HousePorchLight_%02d" % index
+			porch_light.position = lamp - normal * 0.22
+			porch_light.light_color = lamp_color
+			porch_light.light_energy = house_porch_light_energy
+			porch_light.omni_range = house_porch_light_range_m
+			porch_light.shadow_enabled = false
+			_world_root.add_child(porch_light)
+
+		# Barandilla entre los pilares, a los dos lados del paso.
+		if house_porch_railing_enabled:
+			for rail_side in [-1.0, 1.0]:
+				var rail_center: Vector3 = center - normal * (porch_d - 0.22) + tangent * (rail_side * porch_w * 0.40)
+				rail_center.y = floor_level_m + 0.52
+				_add_oriented_box(_world_root, "HousePorchRail_%02d_%s" % [index, "L" if rail_side < 0.0 else "R"],
+					rail_center, tangent, 0.10, 0.90, porch_d - 0.44,
+					_mat(house_porch_column_color.darkened(0.06), false), false)
+
+	_create_porch_ground_transition(index, center, normal, tangent, floor_level_m, porch_w, porch_d)
+	_create_front_path(index, center, normal, tangent, floor_level_m, porch_d)
 
 	# Jardin, camino, calle y vecindario pertenecen al generador residencial
 	# por fachada. Mantenerlos fuera evita duplicados cuando hay varias puertas.
+
+
+## Camino de la puerta a la acera, acceso de coche al lado y buzon en la
+## cancela.
+##
+## Antes esto lo ponia el decorado residencial de CADA fachada, asi que una casa
+## con ventanas a tres lados tenia tres caminos de entrada y tres accesos de
+## coche, uno por cada lado, incluido el del jardin de atras. Va con la puerta,
+## que es la unica que sabe por donde se entra.
+func _create_front_path(
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	porch_d: float
+) -> void:
+	if not house_front_path_enabled:
+		return
+	var surface_y: float = _exterior_ground_level_m()
+	var walk_out: float = maxf(0.6, residential_lawn_depth_m) + 0.4
+	var path_w: float = maxf(0.8, residential_path_width_m)
+	var path_center: Vector3 = center - normal * (porch_d + walk_out * 0.5)
+	path_center.y = surface_y + 0.035
+	_add_oriented_box(_world_root, "GardenPath_%02d" % index, path_center, tangent,
+		path_w, 0.04, walk_out, _mat(house_path_color, false), false)
+
+	var drive_center: Vector3 = path_center + tangent * residential_driveway_offset_m
+	_add_oriented_box(_world_root, "ResidentialDriveway_%02d" % index, drive_center, tangent,
+		residential_driveway_width_m, 0.035, walk_out, _mat(house_path_color.darkened(0.08), false), false)
+
+	var mailbox_center: Vector3 = path_center - normal * (walk_out * 0.5 - 0.35) + tangent * (path_w * 0.5 + 0.35)
+	mailbox_center.y = surface_y + 0.60
+	_add_oriented_box(_world_root, "Mailbox_%02d_Post" % index, mailbox_center, tangent,
+		0.08, 1.20, 0.08, _mat(house_fence_color.darkened(0.18), false), false)
+	var box_center: Vector3 = mailbox_center
+	box_center.y = surface_y + 1.16
+	_add_oriented_box(_world_root, "Mailbox_%02d_Box" % index, box_center, tangent,
+		0.28, 0.22, 0.38, _mat(house_mailbox_color, false), false)
+
+	# Por aqui pasa el camino: la valla tiene que dejar el hueco de la cancela.
+	var gate_center: Vector3 = path_center - normal * (walk_out * 0.5)
+	var gate_half: float = path_w * 0.5 + 0.7
+	_gate_corridor = Rect2(
+		Vector2(gate_center.x - gate_half, gate_center.z - gate_half),
+		Vector2(gate_half * 2.0, gate_half * 2.0)
+	)
+
+
+## Acuerdo entre el porche y el cesped. Sin el, la losa del porche apoyaba
+## directamente sobre la hierba, sin bordillo ni cambio de material, y el
+## encuentro rompia la escena (R-5).
+func _create_porch_ground_transition(
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	porch_w: float,
+	porch_d: float
+) -> void:
+	if not house_porch_ground_transition_enabled:
+		return
+	var curb_h: float = house_porch_curb_height_m
+	var curb_t: float = house_porch_curb_thickness_m
+	var apron_w: float = house_porch_gravel_apron_m
+	var curb_mat: StandardMaterial3D = _mat(house_porch_color.darkened(0.22), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2700)
+	var apron_mat: StandardMaterial3D = _mat(house_porch_gravel_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2701, NOISE_PROFILE_FLOOR)
+
+	# Franja de grava alrededor del porche: rompe el corte seco losa/cesped.
+	if apron_w > 0.01:
+		var apron_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
+		apron_center.y = floor_level_m - floor_thickness_m - 0.015
+		_mark_decorative(_add_oriented_box(
+			_world_root,
+			"HousePorchApron_%02d" % index,
+			apron_center,
+			tangent,
+			porch_w + apron_w * 2.0,
+			0.03,
+			porch_d + apron_w * 2.0,
+			apron_mat,
+			false
+		))
+
+	# Bordillo en los tres lados libres del porche (el cuarto es la fachada).
+	if curb_h <= 0.005 or curb_t <= 0.005:
+		return
+	for side in [-1.0, 1.0]:
+		var lateral: Vector3 = center - normal * (porch_d * 0.5 - 0.05) + tangent * (side * (porch_w * 0.5 + curb_t * 0.5))
+		lateral.y = floor_level_m - floor_thickness_m + curb_h * 0.5
+		_mark_decorative(_add_oriented_box(
+			_world_root,
+			"HousePorchCurb_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+			lateral,
+			tangent,
+			curb_t,
+			curb_h,
+			porch_d + curb_t,
+			curb_mat,
+			false
+		))
+	var front: Vector3 = center - normal * (porch_d + curb_t * 0.5 - 0.05)
+	front.y = floor_level_m - floor_thickness_m + curb_h * 0.5
+	_mark_decorative(_add_oriented_box(
+		_world_root,
+		"HousePorchCurb_%02d_F" % index,
+		front,
+		tangent,
+		porch_w + curb_t * 2.0,
+		curb_h,
+		curb_t,
+		curb_mat,
+		false
+	))
 
 
 ## Barra recta entre dos puntos (pasamanos inclinado, zancas...).
@@ -1790,7 +3039,7 @@ func _add_bar_between(node_name: String, p_from: Vector3, p_to: Vector3, thickne
 	box.size = Vector3(thickness_m, thickness_m, length)
 	mesh.mesh = box
 	mesh.material_override = material
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 	mesh.position = (p_from + p_to) * 0.5
 	var up: Vector3 = Vector3.UP
 	if absf(delta.normalized().dot(up)) > 0.99:
@@ -1966,9 +3215,18 @@ func _create_landing_stairs(
 
 	# Cerramiento de la caja en las plantas contiguas. La planta actual queda
 	# abierta hacia el rellano para que subida y bajada se lean de un vistazo.
+	# Las dos bandas se apartan del forjado del rellano el grosor de la losa.
+	# Rematando en floor_level_m, la inferior dejaba su cara SUPERIOR en el
+	# mismo plano que la cara superior del suelo; arrancando en
+	# floor_level_m + corridor_height_m, la superior dejaba su cara INFERIOR en
+	# el mismo plano que el intrados del techo. Y el costado izquierdo de la
+	# caja no cae dentro del ojo de la escalera, asi que ambas cruzaban la losa
+	# de lado a lado como una linea de sierra de 0,10 x 2,64 m. Ahora rematan
+	# contra el intrados del forjado y el trasdos del techo, que es ademas
+	# donde apoyan de verdad.
 	for level_data in [
-		["Lower", floor_level_m - corridor_height_m * 0.5],
-		["Upper", floor_level_m + corridor_height_m * 1.5],
+		["Lower", floor_level_m - floor_thickness_m - corridor_height_m * 0.5],
+		["Upper", floor_level_m + ceiling_thickness_m + corridor_height_m * 1.5],
 	]:
 		var level_name: String = String(level_data[0])
 		var band_center_y: float = float(level_data[1])
@@ -1986,19 +3244,30 @@ func _create_landing_stairs(
 				wall_mat,
 				false
 			)
-		var back_center: Vector3 = bay_center - normal * (depth_m * 0.5 + wall_thickness_m * 0.5)
-		back_center.y = band_center_y
-		_add_oriented_box(
-			_world_root,
-			"LandingStairBack_%02d_%s" % [index, level_name],
-			back_center,
-			tangent,
-			stair_bay_w + wall_thickness_m * 2.0,
-			corridor_height_m,
-			wall_thickness_m,
-			wall_mat,
-			false
-		)
+		# Fondo y frente. El frente faltaba, y por ese hueco se veia la calle al
+		# mirar hacia arriba desde el rellano: el ojo de la escalera sube a
+		# proposito, pero al llegar a la planta de encima no habia nada que
+		# cerrase el recinto por delante. En la planta actual el frente lo cierra
+		# el muro del propio rellano, y por eso solo se pone en las contiguas.
+		for face in [
+			["Back", -1.0],
+			["Front", 1.0],
+		]:
+			var face_name: String = String(face[0])
+			var face_sign: float = float(face[1])
+			var face_center: Vector3 = bay_center + normal * face_sign * (depth_m * 0.5 + wall_thickness_m * 0.5)
+			face_center.y = band_center_y
+			_add_oriented_box(
+				_world_root,
+				"LandingStair%s_%02d_%s" % [face_name, index, level_name],
+				face_center,
+				tangent,
+				stair_bay_w + wall_thickness_m * 2.0,
+				corridor_height_m,
+				wall_thickness_m,
+				wall_mat,
+				false
+			)
 
 
 func _create_exterior_context() -> void:
@@ -2009,6 +3278,7 @@ func _create_exterior_context() -> void:
 	_world_root.add_child(root)
 	_create_exterior_lighting(root)
 	_create_sky_dome(root)
+	_create_own_facade(root)
 
 	# Los detalles del hueco (jambas, porche) son por abertura; el PAISAJE
 	# (calle, fachada de enfrente, skyline) se genera una sola vez por
@@ -2039,8 +3309,28 @@ func _create_exterior_context() -> void:
 				float(info.get("sill_m", 0.9))
 			)
 		elif op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
-			if _is_apartment_building() or op.type == OpeningModel.Type.HOLE:
+			# El porche es una losa de pavimento exterior a la cota exacta del
+			# suelo (floor_level - floor_thickness/2), la misma que usa el suelo
+			# del rellano. Donde hay portal las dos losas quedaban CO-PLANARIAS
+			# justo delante de la puerta de la vivienda -1,80 x 1,70 m- y el
+			# z-buffer no puede decidir cual esta delante: manchas irregulares
+			# que cambian al mover la camara. Donde hay rellano, el suelo lo
+			# pone el rellano.
+			var has_landing: bool = _landing_covers(
+				_landing_side_for(op, info),
+				floor_level_m,
+				float(info.get("axis_center", 0.0))
+			)
+			if _is_balcony_opening(op):
+				# La losa del balcon ya es el suelo que hay ahi fuera.
+				has_landing = true
+			if (_is_apartment_building() or op.type == OpeningModel.Type.HOLE) and not has_landing:
 				_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
+
+		# El balcon cuelga del hueco, sea puerta o ventana: una balconera y una
+		# puerta de balcon se dibujan igual por fuera.
+		if own_balconies_enabled and op.has_balcony and op.accepts_balcony():
+			_create_own_balcony(root, index, center, normal, tangent, op, info)
 
 		var key: String = "%d_%d" % [roundi(normal.x * 4.0), roundi(normal.z * 4.0)]
 		if not facades.has(key):
@@ -2050,27 +3340,161 @@ func _create_exterior_context() -> void:
 				"sum": Vector3.ZERO,
 				"count": 0,
 				"floor_level_m": floor_level_m,
+				"has_street_opening": false,
 			}
 		var facade: Dictionary = facades[key]
 		facade["sum"] = Vector3(facade["sum"]) + center
 		facade["count"] = int(facade["count"]) + 1
 		facade["floor_level_m"] = minf(float(facade["floor_level_m"]), floor_level_m)
+		# En un piso, la puerta exterior da al rellano del portal, que es una
+		# caja cerrada: detras de esa fachada no hay calle que ensenar. Solo
+		# cuentan como "a la calle" las ventanas y los huecos, y en unifamiliar
+		# tambien la puerta, porque ahi si da al porche (E-5).
+		var opens_to_street: bool = op.type != OpeningModel.Type.DOOR or not _is_apartment_building()
+		if opens_to_street:
+			facade["has_street_opening"] = true
 		facades[key] = facade
 
+	# Que EJES tienen fachada a la calle. Hay que saberlo antes de montar la
+	# calle, porque el eje que no la tiene es donde van las medianeras y por
+	# tanto donde el anillo tiene que apartarse (ver `_city_block_rect_world`).
+	#
+	# Cuenta la fachada decorada, con el mismo criterio que usa el bucle de
+	# abajo: una fachada cuyo unico hueco es la puerta del portal no da a la
+	# calle, da al rellano.
+	_street_sides = {}
+	for raw_key in facades.keys():
+		var f: Dictionary = facades[raw_key]
+		if exterior_scenery_skip_landing_facades and not bool(f.get("has_street_opening", true)):
+			continue
+		var n: Vector3 = Vector3(f["normal"])
+		# La misma expresion que usa el bucle de decorado mas abajo, para que las
+		# dos listas no puedan discrepar.
+		_street_sides[_side_name_for_outward(Vector2(-n.x, -n.z))] = true
+
+	# La calle es UNA alrededor de la manzana, no una por fachada. Se construye
+	# antes que nada porque el resto del decorado se apoya en ella.
+	_street_grid = {}
+	_roadway_rects.clear()
+	_gate_corridor = Rect2()
+	if _is_apartment_building():
+		_create_city_street_network(root)
+	else:
+		_create_residential_street_network(root)
+
+	# Que lados de la manzana llevan decorado. El relleno del fondo solo va en
+	# los que no lo llevan: puesto en un lado decorado se plantaba DELANTE de
+	# las casas y las tapaba.
+	var decorated_sides: Dictionary = {}
 	var facade_index: int = 0
 	for key in facades.keys():
 		var facade: Dictionary = facades[key]
-		var count: int = maxi(1, int(facade["count"]))
-		var facade_center: Vector3 = Vector3(facade["sum"]) / float(count)
 		var facade_normal: Vector3 = Vector3(facade["normal"])
+		# El decorado se ancla en el PARAMENTO, no en el centro de las ventanas.
+		# Anclado en las ventanas, cada fachada ponia su acera a una distancia
+		# distinta del edificio y la calle no cerraba por las esquinas.
+		# En ciudad, el decorado se centra en la MANZANA y no en nuestra fachada.
+		# En un lado con calle la cara de la manzana y la nuestra son la misma
+		# -solo crecen los lados con medianera-, asi que la distancia no cambia;
+		# lo que cambia es el CENTRO a lo largo de la calle. Centrado en nuestra
+		# fachada, el frente de enfrente se quedaba corto por el extremo que la
+		# medianera habia alargado y se veia el final de la calle.
+		var facade_center: Vector3 = _block_wall_anchor(facade_normal, float(facade["floor_level_m"])) 			if _is_apartment_building() else _facade_wall_anchor(facade_normal, float(facade["floor_level_m"]))
 		var facade_tangent: Vector3 = Vector3(facade["tangent"])
 		var facade_floor: float = float(facade["floor_level_m"])
+		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
+			# Fachada cuyo unico hueco es la puerta del portal: generar calle,
+			# aceras, coches, arbolado y skyline detras de la caja del rellano
+			# es geometria que nadie vera jamas (E-5).
+			continue
+		decorated_sides[_side_name_for_outward(Vector2(-facade_normal.x, -facade_normal.z))] = true
 		if _is_apartment_building():
 			_create_exterior_scenery_city(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
 		else:
 			_create_exterior_scenery_residential(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
+			# Al fondo, el mismo recorte de silueta que lleva la ciudad. Sin el,
+			# el barrio se acaba en el jardin de enfrente y detras hay cielo.
+			_create_skyline_backdrop(root, facade_index, facade_center, facade_normal, facade_tangent, _exterior_ground_level_m(), 0.55)
 		facade_index += 1
 
+	_create_party_walls(root)
+	_create_block_perimeter(root, decorated_sides)
+	_create_city_back_ring(root)
+
+	# La valla va la ultima: necesita saber por donde sale el camino de la
+	# puerta para dejarle el hueco de la cancela, y eso lo fija el porche.
+	if not _is_apartment_building() and house_fence_enabled:
+		_create_plot_fence(
+			root,
+			_building_rect_world().grow(maxf(0.5, residential_lawn_depth_m)),
+			_exterior_ground_level_m()
+		)
+
+
+## El fondo de la ciudad, en anillo alrededor de la manzana.
+##
+## Estaba construido por fachada, y por eso se veia el cielo en diagonal: el
+## decorado solo existe delante de las fachadas CON ventana, asi que mirando a
+## 30 o 40 grados desde el hueco no habia nada construido. Medido con
+## `tools/probe_exterior_occlusion.gd`, que dice el nombre del nodo que
+## encuentra cada rayo: entre -25 y +25 grados salia edificio y a partir de ahi
+## CIELO -y desde una planta alta ese cielo por debajo del horizonte es la
+## superficie gris uniforme que se comia media ventana-.
+##
+## Es exactamente la leccion de EXT-1 otra vez: **esto se construye por manzana,
+## no por fachada**. La calle ya se hacia asi; el fondo, no.
+func _create_city_back_ring(parent: Node3D) -> void:
+	if not _is_apartment_building() or city_back_block_count <= 0:
+		return
+	if _street_grid.is_empty():
+		return
+	var ground_y: float = _exterior_ground_level_m()
+	var facade_dist: float = maxf(0.5, street_sidewalk_width_m) * 2.0 + maxf(2.0, street_road_width_m)
+	# Ocho orientaciones, no cuatro: las cuatro diagonales son justo por donde
+	# se veia el cielo. Un anillo de cuatro lados deja las esquinas abiertas, y
+	# la esquina es lo que se mira al asomarse de medio lado.
+	var d: float = sqrt(0.5)
+	var sides: Array = [
+		{"normal": Vector3(0.0, 0.0, 1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"normal": Vector3(0.0, 0.0, -1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"normal": Vector3(1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"normal": Vector3(-1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"normal": Vector3(d, 0.0, d), "tangent": Vector3(d, 0.0, -d)},
+		{"normal": Vector3(d, 0.0, -d), "tangent": Vector3(d, 0.0, d)},
+		{"normal": Vector3(-d, 0.0, d), "tangent": Vector3(d, 0.0, d)},
+		{"normal": Vector3(-d, 0.0, -d), "tangent": Vector3(d, 0.0, -d)},
+	]
+	# Suelo de la ciudad. El anillo de la calle solo pavimenta nuestra manzana;
+	# mas alla no habia NADA, y mirando hacia abajo en diagonal desde una planta
+	# alta se veia el vacio -otra vez cielo por debajo del horizonte-. Va un pelo
+	# por debajo de la calzada para no compartir plano con ella.
+	var suelo := Vector3(0.0, ground_y - 0.06, 0.0)
+	var anchor_x: Vector3 = _block_wall_anchor(Vector3(1.0, 0.0, 0.0), ground_y)
+	var anchor_z: Vector3 = _block_wall_anchor(Vector3(0.0, 0.0, 1.0), ground_y)
+	suelo.x = anchor_x.x
+	suelo.z = anchor_z.z
+	var lado: float = maxf(240.0, city_backdrop_distance_m * 2.4)
+	_add_oriented_box(parent, "CityGroundPlane", suelo, Vector3(1.0, 0.0, 0.0),
+		lado, 0.30, lado, _city_mat(sidewalk_color.darkened(0.22)), false)
+
+	# Todas las orientaciones usan el MISMO ancho: el del lado mas largo. Con el
+	# suyo propio, la fila del lado corto se quedaba corta y dejaba los extremos
+	# de la calle larga sin edificar -que es justo lo que caza el guardarrail
+	# "se ve el final de la calle"-.
+	var span_max: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
+	for side in sides:
+		var n: Vector3 = Vector3(side["normal"])
+		var sd: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-n.x, -n.z))
+		span_max = maxf(span_max, float(sd.get("span_m", 0.0)))
+
+	var index: int = 800
+	for side in sides:
+		var normal: Vector3 = Vector3(side["normal"])
+		var tangent: Vector3 = Vector3(side["tangent"])
+		var anchor: Vector3 = _block_wall_anchor(normal, ground_y)
+		var span_w: float = span_max
+		_spawn_city_pieces(parent, index, anchor, normal, tangent, ground_y, span_w, facade_dist, [], true)
+		index += 1
 
 ## Entrada por la puerta: rellano/porche + escalon a ras de suelo. El
 ## paisaje de fondo lo genera _create_exterior_context una vez por fachada.
@@ -2111,77 +3535,66 @@ func _is_apartment_building() -> bool:
 
 
 
-func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
-	var street_y: float = floor_level_m - exterior_floor_drop_m - 0.03
+func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, _floor_level_m: float) -> void:
+	var street_y: float = _exterior_ground_level_m() - 0.03
 	var night: bool = _exterior_is_night()
 	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
 	var road_w: float = maxf(2.0, street_road_width_m)
-	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
-	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
-	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
-
-	# Calle completa a escala: dos aceras, bordillos levantados y calzada.
-	var near_walk: Vector3 = center - normal * (sidewalk_w * 0.5)
-	near_walk.y = street_y + street_curb_height_m * 0.5
-	_add_oriented_box(parent, "Sidewalk_near_%02d" % index, near_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
-
-	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
-	road_center.y = street_y
-	_add_oriented_box(parent, "Road_%02d" % index, road_center, tangent,
-		span_w, 0.06, road_w, _mat(_effective_city_street_color(), false), false)
-
+	# La calzada, las aceras, los bordillos y las marcas ya estan puestos: son
+	# un anillo alrededor de la manzana, comun a todas las fachadas, y los pone
+	# _create_city_street_network. Aqui va solo lo que se apoya en ellos.
+	var side: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z)) if not _street_grid.is_empty() else {}
+	var span_w: float = float(side.get("span_m", maxf(city_view_width_m * 1.6, opposite_facade_length_m)))
 	var far_walk: Vector3 = center - normal * (sidewalk_w + road_w + sidewalk_w * 0.5)
 	far_walk.y = street_y + street_curb_height_m * 0.5
-	_add_oriented_box(parent, "Sidewalk_far_%02d" % index, far_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
-	for curb_data in [
-		["Near", sidewalk_w + 0.07],
-		["Far", sidewalk_w + road_w - 0.07],
-	]:
-		var curb_center: Vector3 = center - normal * float(curb_data[1])
-		curb_center.y = street_y + 0.10
-		_add_oriented_box(parent, "CityCurb%s_%02d" % [String(curb_data[0]), index], curb_center, tangent,
-			span_w, 0.14, 0.14, curb_mat, false)
-
-	var mark_count: int = maxi(5, int(floor(span_w / 3.6)))
-	for mark_i in range(mark_count):
-		var mark_t: float = (float(mark_i) + 0.5) / float(mark_count) - 0.5
-		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
-		mark.y = street_y + 0.045
-		_add_oriented_box(parent, "RoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
-			1.55, 0.018, 0.11, _mat(road_marking_color, false), false)
 
 	# Edificios de enfrente divididos en portales con anchura, profundidad y
 	# altura propias. Las juntas reales sustituyen a la antigua pared monolitica.
 	var facade_dist: float = sidewalk_w * 2.0 + road_w
+	# Donde cae cada modulo del frente, para que los bajos y los balcones se
+	# planten sobre ellos y no en el aire.
+	var front_modules: Array = []
+	var tipo: Dictionary = _urban_typology()
 	if opposite_facade_enabled:
-		var facade_h: float = maxf(7.5, opposite_facade_height_m)
+		var facade_h: float = _neighbour_facade_height_m()
 		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
-		var module_count: int = clampi(city_facade_module_count, 3, 8)
 		var facade_span_m: float = minf(opposite_facade_length_m, city_facade_max_span_m)
+		# Cuantas piezas caben, segun lo ancha que sea una pieza de este tipo.
+		# Una manzana son portales de trece metros; una torre, frentes de
+		# treinta. Con el mismo numero de modulos para las dos, la torre salia
+		# hecha de lapices.
+		var module_span: float = maxf(6.0, float(tipo.get("module_span_m", 13.0)))
+		# En la manzana manda el mando de siempre -son los portales que ya
+		# habia, y cambiarlos dejaba la calle mas corta que la calzada-. En los
+		# tramos altos manda la anchura de la pieza: es lo que evita las torres
+		# hechas de lapices.
+		var module_count: int = clampi(city_facade_module_count, 3, 8)
+		if String(tipo.get("tier", "")) != FPUrbanTypology.TIER_BLOCK:
+			module_count = clampi(
+				int(round(facade_span_m / module_span)), 1, int(tipo.get("module_count_max", 8)))
+		var variacion: float = float(tipo.get("height_variation", city_facade_height_variation))
 		var module_pitch: float = facade_span_m / float(module_count)
 		for module_i in range(module_count):
 			var module_t: float = (float(module_i) + 0.5) / float(module_count) - 0.5
 			var variant: float = fposmod(float(index * 19 + module_i * 37) * 0.173, 1.0)
 			var module_w: float = module_pitch - 0.18
-			var module_h: float = facade_h * (1.0 - city_facade_height_variation + variant * city_facade_height_variation)
-			var module_depth: float = city_facade_depth_m * (1.0 + variant * 0.40)
+			var module_h: float = facade_h * (1.0 - variacion + variant * variacion)
+			var module_depth: float = city_facade_depth_m * float(tipo.get("facade_depth_factor", 1.0)) * (1.0 + variant * 0.25)
 			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * facade_span_m)
 			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
 			body_center.y = street_y + module_h * 0.5
+			if _crosses_roadway(body_center, tangent, module_w, module_depth):
+				# El modulo entero, no solo su caja: si se queda sin cuerpo, sus
+				# ventanas y su portal flotarian en el aire.
+				continue
 			var module_color: Color = base_color.lightened(0.035) if module_i % 3 == 0 else (base_color.darkened(0.055) if module_i % 3 == 1 else base_color)
-			_add_oriented_box(parent, "CityFacadeBody_%02d_%02d" % [index, module_i], body_center, tangent,
-				module_w, module_h, module_depth, _mat(module_color, false), false)
-			var plinth: Vector3 = face_center + normal * 0.035
-			plinth.y = street_y + 0.42
-			_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i], plinth, tangent,
-				module_w - 0.10, 0.84, 0.07, _mat(module_color.darkened(0.16), false), false)
-			var cornice: Vector3 = face_center + normal * 0.08
-			cornice.y = street_y + module_h - 0.14
-			_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i], cornice, tangent,
-				module_w + 0.10, 0.22, 0.18, _mat(module_color.lightened(0.10), false), false)
-			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h)
+			_create_city_module_body(parent, index, module_i, face_center, normal, tangent,
+				street_y, module_w, module_h, module_depth, module_color, tipo)
+			_create_city_module_crown(parent, index, module_i, face_center, normal, tangent,
+				street_y, module_w, module_h, module_color, tipo, night)
+			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h, tipo)
+			_create_facade_entrance(parent, index, module_i, face_center, normal, tangent, street_y)
+			front_modules.append({"t": module_t * facade_span_m, "w": module_w, "h": module_h})
 		_create_exterior_facade_fill(
 			parent,
 			"CityFacadeFill_%02d" % index,
@@ -2199,29 +3612,854 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		var tree_t: float = (float(tree_i) - float(city_tree_count - 1) * 0.5) * city_tree_spacing_m
 		var tree_base: Vector3 = far_walk + tangent * tree_t
 		tree_base.y = street_y + street_curb_height_m
+		if _crosses_roadway(tree_base, tangent, city_tree_crown_radius_m * 2.4, city_tree_crown_radius_m * 2.4):
+			continue
 		_create_low_poly_tree(parent, "CityTree_%02d_%02d" % [index, tree_i], tree_base, city_tree_trunk_height_m, city_tree_crown_radius_m, tree_i)
+
+	# Todo lo que cierra la calle y la puebla: manzanas hasta los dos extremos,
+	# retornos de esquina, medianeras, fila de atras y mobiliario urbano.
+	_spawn_city_pieces(parent, index, center, normal, tangent, street_y, span_w, facade_dist, front_modules)
 
 	# Skyline lejano por detras del edificio de enfrente (profundidad).
 	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
 
 
-## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
-## (no cajitas sueltas), con algunas encendidas de noche.
-func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, module_w: float, facade_h: float) -> void:
-	if opposite_facade_floors <= 0 or opposite_facade_columns <= 0:
+## Huella del edificio en planta, en coordenadas de mundo.
+##
+## En un piso incluye el PORTAL. El nucleo comun se planta fuera de la huella de
+## la vivienda -a veces apartado, para librar el lavadero o el bano-, y trazar
+## la manzana sobre la vivienda a secas dejaba la calzada pasando por encima del
+## rellano: asfalto cruzando el portal por el que se sale a la escalera.
+func _building_rect_world() -> Rect2:
+	var rect := Rect2(
+		Vector2(_bounds_m.position.x + _origin_offset_m.x, _bounds_m.position.y + _origin_offset_m.y),
+		_bounds_m.size
+	)
+	if _is_apartment_building() and show_landing_recess:
+		rect = rect.grow(maxf(0.0, landing_recess_depth_m) + landing_bay_clearance_m)
+	return rect
+
+
+## La MANZANA: nuestro solar mas las medianeras de los lados.
+##
+## Decision del usuario del 2026-09-11: «que el anillo deje hueco para
+## medianeras». Hasta hoy la calle se calculaba pegada a nuestro edificio, asi
+## que nuestro edificio ERA la manzana entera y a los lados solo habia asfalto;
+## las dos piezas `NearNeighbour` se generaban y `_crosses_roadway` las tiraba
+## siempre. Un edificio entre medianeras no tiene calle a los costados: tiene
+## vecinos.
+##
+## **Se ensancha cada LADO que no tiene fachada a la calle.** Ahi es donde va la
+## medianera: donde no hay calle a la que dar. Si el edificio tiene huecos a los
+## cuatro lados no hay medianera que valga y esto no cambia nada, que es lo
+## correcto: entonces si esta exento.
+##
+## El ancho sale de `FPCityBlocks.party_wall_span_m()`, el mismo sitio que
+## dimensiona la pieza que lo ocupa. Calculado aparte, el hueco y el vecino se
+## separarian a la primera.
+func _city_block_rect_world() -> Rect2:
+	var rect: Rect2 = _building_rect_world()
+	if not city_near_neighbours_enabled:
+		return rect
+	var span: float = FPCityBlocks.party_wall_span_m(float(_urban_typology().get("module_span_m", 14.0)))
+	if span <= 0.0:
+		return rect
+	# Lado a lado, no eje a eje: un edificio en esquina tiene DOS fachadas a la
+	# calle y sigue teniendo dos medianeras. Tratarlo por ejes lo daba por exento
+	# y no crecia nada, que es el fallo que tuvo la primera version de esto.
+	var izq: float = 0.0 if _street_sides.has("left") else span
+	var der: float = 0.0 if _street_sides.has("right") else span
+	var arr: float = 0.0 if _street_sides.has("top") else span
+	var aba: float = 0.0 if _street_sides.has("bottom") else span
+	if izq <= 0.0 and der <= 0.0 and arr <= 0.0 and aba <= 0.0:
+		return rect
+	return Rect2(
+		rect.position - Vector2(izq, arr),
+		rect.size + Vector2(izq + der, arr + aba)
+	)
+
+
+## Punto del PARAMENTO de una fachada al que se ancla su decorado.
+##
+## Antes se anclaba al centro de las ventanas de esa fachada. Como cada fachada
+## tiene las suyas donde le toca, cada una ponia su acera a una distancia
+## distinta del edificio y la calle no cerraba por las esquinas.
+func _facade_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
+	return _rect_wall_anchor(_building_rect_world(), normal, floor_level_m)
+
+
+## El mismo anclaje, sobre la MANZANA. Lo usa el relleno del perimetro, que va al
+## otro lado de la calle: desde que el anillo deja hueco para las medianeras, la
+## calle de un lado sin fachada ya no esta pegada a nuestro paramento sino al
+## borde de la manzana, y anclar ahi el relleno lo plantaba encima del asfalto.
+## Lo cazo `validate_exterior_city`.
+func _block_wall_anchor(normal: Vector3, floor_level_m: float) -> Vector3:
+	return _rect_wall_anchor(_city_block_rect_world(), normal, floor_level_m)
+
+
+func _rect_wall_anchor(rect: Rect2, normal: Vector3, floor_level_m: float) -> Vector3:
+	var outward := Vector2(-normal.x, -normal.z)
+	var center := Vector2(rect.position.x + rect.size.x * 0.5, rect.position.y + rect.size.y * 0.5)
+	# `outward` es planta: su y es la Z del mundo.
+	if absf(outward.x) >= absf(outward.y):
+		center.x = rect.position.x + (rect.size.x if outward.x > 0.0 else 0.0)
+	else:
+		center.y = rect.position.y + (rect.size.y if outward.y > 0.0 else 0.0)
+	return Vector3(center.x, floor_level_m, center.y)
+
+
+## La calle: un anillo de acera, uno de calzada y otro de acera de enfrente,
+## alrededor de la manzana. Se construye una sola vez.
+func _create_city_street_network(parent: Node3D) -> void:
+	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
+	var road_w: float = maxf(2.0, street_road_width_m)
+	# Sobre la MANZANA -nuestro solar mas las medianeras-, no sobre el edificio:
+	# ver `_city_block_rect_world()`.
+	_street_grid = FPStreetGrid.layout(_city_block_rect_world(), sidewalk_w, road_w)
+	var street_y: float = _exterior_ground_level_m() - 0.03
+	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
+	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
+	var road_mat: StandardMaterial3D = _mat(_effective_city_street_color(), false)
+	var mark_mat: StandardMaterial3D = _mat(road_marking_color, false)
+
+	for i in range(Array(_street_grid["near_walk"]).size()):
+		_add_ground_slab(parent, "SidewalkNear_%02d" % i, Rect2(_street_grid["near_walk"][i]),
+			street_y + street_curb_height_m * 0.5, street_curb_height_m, pavement_mat)
+	for i in range(Array(_street_grid["far_walk"]).size()):
+		_add_ground_slab(parent, "SidewalkFar_%02d" % i, Rect2(_street_grid["far_walk"][i]),
+			street_y + street_curb_height_m * 0.5, street_curb_height_m, pavement_mat)
+	_roadway_rects.clear()
+	for i in range(Array(_street_grid["road"]).size()):
+		var road_rect := Rect2(_street_grid["road"][i])
+		_roadway_rects.append(road_rect)
+		_add_ground_slab(parent, "Road_%02d" % i, road_rect, street_y, 0.06, road_mat)
+
+	var curbs: Array[Rect2] = FPStreetGrid.curbs(_street_grid, 0.14)
+	for i in range(curbs.size()):
+		_add_ground_slab(parent, "CityCurb_%02d" % i, curbs[i], street_y + 0.10, 0.14, curb_mat)
+
+	var marks: Array[Dictionary] = FPStreetGrid.lane_marks(_street_grid, 1.55, 2.05)
+	for i in range(marks.size()):
+		_add_ground_slab(parent, "RoadMark_%02d" % i, _mark_rect(marks[i]), street_y + 0.045, 0.018, mark_mat)
+
+
+	if city_crossing_enabled:
+		var stripes: Array[Dictionary] = FPStreetGrid.crossings(_street_grid, 0.52, 0.34, 7)
+		var crossing_mat: StandardMaterial3D = _mat(city_crossing_color, false)
+		for i in range(stripes.size()):
+			_add_ground_slab(parent, "Crossing_%02d" % i, _mark_rect(stripes[i]), street_y + 0.055, 0.02, crossing_mat)
+
+
+func _mark_rect(mark: Dictionary) -> Rect2:
+	var long_m: float = float(mark.get("long", 1.0))
+	var across_m: float = float(mark.get("across", 0.1))
+	var size := Vector2(long_m, across_m) if bool(mark.get("along_x", true)) else Vector2(across_m, long_m)
+	return Rect2(Vector2(float(mark["x"]), float(mark["z"])) - size * 0.5, size)
+
+
+## Losa horizontal a partir de un rectangulo en planta.
+func _add_ground_slab(parent: Node3D, node_name: String, rect: Rect2, center_y: float, height_m: float, material: Material) -> void:
+	if rect.size.x <= 0.001 or rect.size.y <= 0.001:
 		return
-	var floors: int = clampi(mini(opposite_facade_floors, int(round((facade_h - 1.2) / 2.55))), 2, 6)
+	_add_box(
+		parent,
+		node_name,
+		Vector3(rect.size.x, maxf(0.005, height_m), rect.size.y),
+		Vector3(rect.position.x + rect.size.x * 0.5, center_y, rect.position.y + rect.size.y * 0.5),
+		material,
+		false
+	)
+
+
+## ¿Esta pieza cae encima del asfalto?
+##
+## Un bloque en mitad de la calzada es de lo mas visible que hay desde una
+## ventana. Con una calle por fachada era ademas inevitable; ahora la calzada es
+## una sola y basta con no construir encima de ella.
+func _crosses_roadway(center: Vector3, tangent: Vector3, along_m: float, depth_m: float) -> bool:
+	if _roadway_rects.is_empty():
+		return false
+	var half_x: float = (absf(tangent.x) * along_m + absf(tangent.z) * depth_m) * 0.5
+	var half_z: float = (absf(tangent.z) * along_m + absf(tangent.x) * depth_m) * 0.5
+	# El umbral es el mismo que usa tools/validate_exterior_city.gd: si aqui se
+	# midiera con mas manga ancha, el guardarrail cazaria justo lo que este
+	# filtro deja pasar.
+	var piece := Rect2(
+		Vector2(center.x - half_x, center.z - half_z),
+		Vector2(half_x * 2.0, half_z * 2.0)
+	)
+	for road_rect in _roadway_rects:
+		var overlap: Rect2 = piece.intersection(road_rect)
+		if overlap.size.x > 0.0 and overlap.size.y > 0.0 and overlap.size.x * overlap.size.y > 0.60:
+			return true
+	return false
+
+
+## El barrio: jardin, acera, calle, acera y jardin de enfrente, en anillos
+## alrededor de la parcela. Uno solo para toda la casa.
+##
+## Antes lo montaba cada fachada por su cuenta, girado segun ella, asi que una
+## casa con ventanas a tres lados tenia tres calles enteras cruzandose, tres
+## jardines, tres caminos de entrada y tres accesos de coche. Es el mismo fallo
+## que tenia la ciudad y se arregla igual: por parcela, no por fachada.
+func _create_residential_street_network(parent: Node3D) -> void:
+	var lawn: float = maxf(0.5, residential_lawn_depth_m)
+	var walk: float = maxf(0.4, residential_sidewalk_depth_m)
+	var road: float = maxf(2.0, residential_road_depth_m)
+	var far_yard: float = maxf(0.5, residential_opposite_yard_depth_m)
+	var plot: Rect2 = _building_rect_world()
+	var rings: Array = FPStreetGrid.concentric(plot, [lawn, walk, road, walk, far_yard])
+	var surface_y: float = _exterior_ground_level_m()
+
+	_street_grid = {
+		"block": plot.grow(lawn + walk),
+		"road_outer": plot.grow(lawn + walk + road),
+		"road_w_m": road,
+		"sidewalk_w_m": walk,
+	}
+
+	var lawn_mat: StandardMaterial3D = _mat(residential_lawn_color, false)
+	var walk_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.06), false)
+	var road_mat: StandardMaterial3D = _mat(residential_street_color, false)
+	var far_lawn_mat: StandardMaterial3D = _mat(residential_lawn_color.darkened(0.04), false)
+
+	for i in range(Array(rings[0]).size()):
+		_add_ground_slab(parent, "ResidentialLawn_%02d" % i, Rect2(rings[0][i]), surface_y - 0.05, 0.10, lawn_mat)
+	for i in range(Array(rings[1]).size()):
+		_add_ground_slab(parent, "ResidentialSidewalkNear_%02d" % i, Rect2(rings[1][i]), surface_y + 0.045, 0.09, walk_mat)
+	_roadway_rects.clear()
+	for i in range(Array(rings[2]).size()):
+		var road_rect := Rect2(rings[2][i])
+		_roadway_rects.append(road_rect)
+		_add_ground_slab(parent, "ResidentialStreet_%02d" % i, road_rect, surface_y - 0.035, 0.07, road_mat)
+	for i in range(Array(rings[3]).size()):
+		_add_ground_slab(parent, "ResidentialSidewalkFar_%02d" % i, Rect2(rings[3][i]), surface_y + 0.045, 0.09, walk_mat)
+	for i in range(Array(rings[4]).size()):
+		_add_ground_slab(parent, "ResidentialOppositeLawn_%02d" % i, Rect2(rings[4][i]), surface_y - 0.05, 0.10, far_lawn_mat)
+
+	var marks: Array[Dictionary] = FPStreetGrid.lane_marks(_street_grid, 1.20, 2.40)
+	var mark_mat: StandardMaterial3D = _mat(Color(0.72, 0.69, 0.55, 1.0), false)
+	for i in range(marks.size()):
+		_add_ground_slab(parent, "ResidentialRoadMark_%02d" % i, _mark_rect(marks[i]), surface_y + 0.008, 0.015, mark_mat)
+
+
+
+## Fila de casas de enfrente a lo largo de una calle.
+##
+## La piden dos sitios: la fachada que da a esa calle, y los lados de la
+## parcela que no tienen ninguna fachada -que tambien tienen calle, porque el
+## anillo la pavimenta, y necesitan casas enfrente igual-. Antes ese segundo
+## caso se rellenaba con prismas lisos y se veia lo que se veia: una fila de
+## cubos negros. Una casa es una casa aunque nadie la mire de frente.
+func _create_neighbour_house_row(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	span_w: float,
+	surface_y: float,
+	house_face_distance: float,
+	with_fill: bool = true
+) -> void:
+	if not exterior_window_obstacles_enabled:
+		return
+	var night: bool = _exterior_is_night()
+	# Tantas casas como pida el largo de la calle. Con un numero fijo, la
+	# fila medida 15 m frente a una calle de 33 y el resto era cesped.
+	var slot_count: int = maxi(residential_house_count, int(ceil(span_w / maxf(3.0, residential_house_spacing_m))) + 1)
+	for slot in range(slot_count):
+		var slot_t: float = (float(slot) - float(slot_count - 1) * 0.5) * residential_house_spacing_m
+		var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
+		var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
+		var body_d: float = residential_house_depth_m
+		var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
+		var house_center: Vector3 = face_center - normal * (body_d * 0.5)
+		house_center.y = surface_y + body_h * 0.5
+		if _crosses_roadway(house_center, tangent, body_w, body_d):
+			continue
+		var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
+		_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
+			body_w, body_h, body_d, _mat(house_color, false), false)
+		var roof_base: Vector3 = house_center
+		roof_base.y = surface_y + body_h
+		_add_gable_roof(parent, "ResidentialRoof_%02d_%02d" % [index, slot], roof_base, tangent, normal,
+			body_w + 0.34, body_d + 0.36, residential_roof_height_m, residential_roof_color.darkened(0.12) if night else residential_roof_color)
+
+		var door_center: Vector3 = face_center + normal * 0.055
+		door_center.y = surface_y + 1.05
+		_add_oriented_box(parent, "ResidentialDoor_%02d_%02d" % [index, slot], door_center, tangent,
+			0.92, 2.10, 0.08, _mat(landing_door_color.darkened(0.08), false), false)
+		for window_side in [-1.0, 1.0]:
+			for window_floor in range(2):
+				var window_center: Vector3 = face_center + tangent * (window_side * body_w * 0.29) + normal * 0.065
+				window_center.y = surface_y + 1.25 + float(window_floor) * 1.82
+				_add_oriented_box(parent, "ResidentialWindowFrame_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+					1.06, 1.18, 0.08, _mat(residential_window_frame_color, false), false)
+				window_center += normal * 0.065
+				var glass_color: Color = city_night_window_lit_color if (night and (slot + window_floor) % 2 == 0) else city_window_color.darkened(0.12)
+				_add_oriented_box(parent, "ResidentialWindowGlass_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+					0.88, 1.00, 0.035, _mat(glass_color, false, glass_color if night else Color(0.0, 0.0, 0.0, 0.0), 0.35 if night else 0.0), false)
+
+		for hedge_side in [-1.0, 1.0]:
+			var hedge_center: Vector3 = face_center + normal * 1.75 + tangent * hedge_side * (body_w * 0.31)
+			hedge_center.y = surface_y + 0.38
+			_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
+				body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
+	# El relleno de luz es para la fachada que se MIRA. Un lado sin ventanas no
+	# se mira nunca, y una omni mas es una omni que se paga en toda la escena.
+	if with_fill:
+		_create_exterior_facade_fill(
+			parent,
+			"ResidentialFacadeFill_%02d" % index,
+			center - normal * (house_face_distance * 0.72),
+			surface_y + residential_house_height_m * 0.52
+		)
+
+
+## Nombre del lado de la manzana al que mira una direccion.
+func _side_name_for_outward(outward: Vector2) -> String:
+	if absf(outward.x) >= absf(outward.y):
+		return "right" if outward.x > 0.0 else "left"
+	return "bottom" if outward.y > 0.0 else "top"
+
+
+## Lo que va en los lados de la manzana que NO llevan decorado.
+##
+## El anillo pavimenta calle a los cuatro lados -una manzana la tiene- pero el
+## decorado detallado solo se genera para las fachadas con huecos a la calle. En
+## los lados sin ventanas quedaba asfalto con nada detras.
+##
+## Este relleno ha ido mal dos veces y las dos por lo mismo, por tratarlo como
+## un problema de tapar un hueco en vez de como lo que es -que ahi tambien hay
+## vecinos-:
+##
+##  1. Puesto en los cuatro lados y a la distancia de la acera de enfrente. En
+##     un piso queda detras de las fachadas y no se ve; en una casa las
+##     viviendas de enfrente estan mas lejos, asi que se planto DELANTE de ellas
+##     y las tapo: una tapia corrida alrededor del vecindario.
+##  2. Troceado en prismas lisos. Sin cubierta, sin puerta y sin ventanas, una
+##     caja del tamano de una casa no se lee como una casa: se lee como un cubo.
+##
+## En una casa, lo que va en un lado sin fachada es exactamente la misma fila de
+## viviendas que en los demas. En un piso sigue siendo un volumen liso, que a la
+## distancia de una manzana de ciudad es lo que hay: un lateral ciego.
+## Las medianeras: el vecino con el que compartimos pared.
+##
+## Decision del usuario del 2026-09-11: «que el anillo deje hueco para
+## medianeras». Un lado que no da a la calle da a otro edificio, pegado al
+## nuestro. El hueco lo abre `_city_block_rect_world()`; esto lo ocupa.
+##
+## **Una vez por manzana, no por fachada.** Construyendolas por fachada -que es
+## lo que hacia `FPCityBlocks._near_neighbours()`- un edificio con tres fachadas
+## ponia seis cuerpos, apilados de dos en dos en el mismo sitio. Es el mismo
+## fallo que tuvieron la calle y la fila de fondo.
+func _create_party_walls(parent: Node3D) -> void:
+	if not city_near_neighbours_enabled or not _is_apartment_building():
+		return
+	if _street_grid.is_empty():
+		return
+	var propio: Rect2 = _building_rect_world()
+	var manzana: Rect2 = _city_block_rect_world()
+	var ground_y: float = _exterior_ground_level_m()
+	var altura: float = _neighbour_facade_height_m()
+	var index: int = 0
+	# Cada lado sin calle: el cuerpo va de nuestro paramento al borde de la
+	# manzana, que es justo el hueco que la calle dejo.
+	var lados: Array = [
+		{"name": "left", "rect": Rect2(manzana.position.x, propio.position.y,
+			propio.position.x - manzana.position.x, propio.size.y)},
+		{"name": "right", "rect": Rect2(propio.end.x, propio.position.y,
+			manzana.end.x - propio.end.x, propio.size.y)},
+		{"name": "top", "rect": Rect2(propio.position.x, manzana.position.y,
+			propio.size.x, propio.position.y - manzana.position.y)},
+		{"name": "bottom", "rect": Rect2(propio.position.x, propio.end.y,
+			propio.size.x, manzana.end.y - propio.end.y)},
+	]
+	for lado in lados:
+		if _street_sides.has(String(lado["name"])):
+			continue
+		var rect: Rect2 = lado["rect"]
+		if rect.size.x <= 0.5 or rect.size.y <= 0.5:
+			continue
+		# Un pelo mas baja que la nuestra y un pelo mas oscura: una medianera
+		# identica a nuestro edificio se lee como una prolongacion suya.
+		var alto: float = altura * 0.94
+		var material: StandardMaterial3D = _city_mat(
+			(opposite_facade_night_color if _exterior_is_night() else opposite_facade_day_color).darkened(0.12)
+		)
+		_add_box(
+			parent,
+			"PartyWall_%s_%02d" % [String(lado["name"]), index],
+			Vector3(rect.size.x, alto, rect.size.y),
+			Vector3(rect.position.x + rect.size.x * 0.5, ground_y + alto * 0.5, rect.position.y + rect.size.y * 0.5),
+			material,
+			false
+		)
+		index += 1
+
+
+func _create_block_perimeter(parent: Node3D, decorated_sides: Dictionary) -> void:
+	if _street_grid.is_empty():
+		return
+	var ground_y: float = _exterior_ground_level_m()
+	var apartment: bool = _is_apartment_building()
+	var sides: Array = [
+		{"name": "top", "normal": Vector3(0.0, 0.0, 1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"name": "bottom", "normal": Vector3(0.0, 0.0, -1.0), "tangent": Vector3(1.0, 0.0, 0.0)},
+		{"name": "left", "normal": Vector3(1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+		{"name": "right", "normal": Vector3(-1.0, 0.0, 0.0), "tangent": Vector3(0.0, 0.0, 1.0)},
+	]
+	var index: int = 900
+	for side in sides:
+		if decorated_sides.has(String(side["name"])):
+			continue
+		var normal: Vector3 = Vector3(side["normal"])
+		var tangent: Vector3 = Vector3(side["tangent"])
+		# Sobre la manzana en ciudad -la calle se aparto para las medianeras- y
+		# sobre el edificio en unifamiliar, donde no hay medianeras que valgan.
+		var anchor: Vector3 = _block_wall_anchor(normal, ground_y) if apartment else _facade_wall_anchor(normal, ground_y)
+		var side_data: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z))
+		var span_w: float = float(side_data.get("span_m", 24.0))
+		if apartment:
+			_add_perimeter_block(parent, index, anchor, normal, tangent, span_w, ground_y)
+		else:
+			_create_neighbour_house_row(
+				parent,
+				index,
+				anchor,
+				normal,
+				tangent,
+				span_w,
+				ground_y,
+				maxf(0.5, residential_lawn_depth_m)
+					+ maxf(0.4, residential_sidewalk_depth_m) * 2.0
+					+ maxf(2.0, residential_road_depth_m)
+					+ maxf(0.5, residential_opposite_yard_depth_m),
+				false
+			)
+		index += 1
+
+
+## Lateral ciego de manzana: un volumen liso al otro lado de la calle.
+func _add_perimeter_block(
+	parent: Node3D,
+	index: int,
+	anchor: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	span_w: float,
+	ground_y: float
+) -> void:
+	var night: bool = _exterior_is_night()
+	var height: float = _neighbour_facade_height_m()
+	var depth: float = 9.0
+	var distance: float = maxf(0.5, street_sidewalk_width_m) * 2.0 + maxf(2.0, street_road_width_m)
+	var center: Vector3 = anchor - normal * (distance + depth * 0.5)
+	center.y = ground_y + height * 0.5
+	_add_oriented_box(
+		parent,
+		"PerimeterBlock_%02d" % index,
+		center,
+		tangent,
+		span_w + depth,
+		height,
+		depth,
+		_mat((opposite_facade_night_color if night else opposite_facade_day_color).darkened(0.04), false),
+		false
+	)
+
+
+## Valla de la parcela, por el borde del jardin. Es lo que convierte un cesped
+## en una parcela: sin ella la casa esta en mitad de un prado.
+##
+## Se deja pasar por donde va el camino de entrada, que es lo que hace la
+## cancela; el camino lo pone el porche, y aqui basta con no tapar su corredor.
+func _create_plot_fence(parent: Node3D, plot_edge: Rect2, surface_y: float) -> void:
+	var height: float = maxf(0.3, house_fence_height_m)
+	var post_mat: StandardMaterial3D = _mat(house_fence_color, false)
+	var rail_mat: StandardMaterial3D = _mat(house_fence_color.darkened(0.10), false)
+	var pitch: float = 1.60
+	var sides: Array = [
+		{"along_x": true, "fixed": plot_edge.position.y, "from": plot_edge.position.x, "to": plot_edge.position.x + plot_edge.size.x},
+		{"along_x": true, "fixed": plot_edge.position.y + plot_edge.size.y, "from": plot_edge.position.x, "to": plot_edge.position.x + plot_edge.size.x},
+		{"along_x": false, "fixed": plot_edge.position.x, "from": plot_edge.position.y, "to": plot_edge.position.y + plot_edge.size.y},
+		{"along_x": false, "fixed": plot_edge.position.x + plot_edge.size.x, "from": plot_edge.position.y, "to": plot_edge.position.y + plot_edge.size.y},
+	]
+	var index: int = 0
+	for side in sides:
+		var from: float = float(side["from"])
+		var to: float = float(side["to"])
+		var length: float = to - from
+		if length <= pitch:
+			continue
+		var count: int = maxi(2, int(round(length / pitch)))
+		for i in range(count + 1):
+			var t: float = from + length * float(i) / float(count)
+			var post_center: Vector3 = (
+				Vector3(t, surface_y + height * 0.5, float(side["fixed"]))
+				if bool(side["along_x"])
+				else Vector3(float(side["fixed"]), surface_y + height * 0.5, t)
+			)
+			if _crosses_gate(post_center):
+				continue
+			_add_box(parent, "Fence_%02d_%02d" % [index, i], Vector3(0.09, height, 0.09), post_center, post_mat, false)
+		for rail in range(2):
+			var y: float = surface_y + height * (0.42 + 0.42 * float(rail))
+			var rail_center: Vector3 = (
+				Vector3(from + length * 0.5, y, float(side["fixed"]))
+				if bool(side["along_x"])
+				else Vector3(float(side["fixed"]), y, from + length * 0.5)
+			)
+			var rail_size: Vector3 = (
+				Vector3(length, 0.06, 0.05)
+				if bool(side["along_x"])
+				else Vector3(0.05, 0.06, length)
+			)
+			_add_box(parent, "Fence_%02d_Rail_%d" % [index, rail], rail_size, rail_center, rail_mat, false)
+		index += 1
+
+
+## El hueco de la cancela: por donde sale el camino de la puerta.
+func _crosses_gate(point: Vector3) -> bool:
+	if _gate_corridor.size.x <= 0.0:
+		return false
+	return _gate_corridor.has_point(Vector2(point.x, point.z))
+
+
+## Planta las piezas que describe FPCityBlocks.
+##
+## El modulo dice QUE hay en la calle, en coordenadas de calle -a lo largo,
+## hacia fuera, altura-; aqui se convierten al mundo y se les da material. La
+## separacion es a proposito: la aritmetica del decorado no depende de como
+## dibuja cajas esta vista.
+func _spawn_city_pieces(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	street_y: float,
+	span_w: float,
+	facade_dist: float,
+	front_modules: Array,
+	only_back_row: bool = false
+) -> void:
+	var night: bool = _exterior_is_night()
+	var tipo: Dictionary = _urban_typology()
+	# La fila de fondo se construye por MANZANA, no por fachada (ver
+	# _create_city_back_ring): aqui se apaga, y en la pasada del anillo se
+	# apaga todo lo demas.
+	var solo: bool = only_back_row
+	var pieces: Array = FPCityBlocks.pieces({
+		"night": night,
+		"street_span_m": span_w,
+		"front_span_m": minf(opposite_facade_length_m, city_facade_max_span_m),
+		"front_modules": front_modules,
+		"facade_dist_m": facade_dist,
+		"facade_height_m": _neighbour_facade_height_m(),
+		"floor_height_m": BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m),
+		# La manzana entera se dibuja con el mismo tipo que el frente: una torre
+		# rodeada de portales de trece metros se ve enseguida.
+		"tier": tipo.get("tier", ""),
+		"block_span_m": tipo.get("module_span_m", 14.0),
+		"block_depth_m": float(tipo.get("depth_m", city_facade_depth_m * 2.2)) * 1.15,
+		"back_row_base": tipo.get("back_row_base", 1.05),
+		"back_row_gain": tipo.get("back_row_gain", 0.85),
+		"back_row_span_factor": tipo.get("back_row_span_factor", 3.0),
+		"own_facade_half_m": _own_facade_half_extent_m(tangent),
+		"sidewalk_w_m": maxf(0.5, street_sidewalk_width_m),
+		"road_w_m": maxf(2.0, street_road_width_m),
+		"curb_h_m": street_curb_height_m,
+		"far_blocks_enabled": city_far_blocks_enabled and not solo,
+		"corner_returns_enabled": city_corner_returns_enabled and not solo,
+		"near_neighbours_enabled": city_near_neighbours_enabled and not solo,
+		"back_block_count": city_back_block_count if solo else 0,
+		"shopfronts_enabled": city_shopfronts_enabled and bool(tipo.get("shopfronts", true)),
+		# Los balcones son de la manzana. A veinte plantas no se leen y
+		# multiplican nodos por nada.
+		"balconies_enabled": city_balconies_enabled and bool(tipo.get("balconies", true)),
+		"lamp_count": 0 if solo else city_lamp_count,
+		"bin_count": 0 if solo else city_bin_count,
+		"bench_count": 0 if solo else city_bench_count,
+		"bollard_count": 0 if solo else city_bollard_count,
+		"sign_count": 0 if solo else city_sign_count,
+		"planter_count": 0 if solo else city_planter_count,
+		"crossing_enabled": city_crossing_enabled and not solo,
+		"bus_stop_enabled": city_bus_stop_enabled and not solo,
+		"crossing_offset_m": -span_w * 0.18,
+		"bus_stop_offset_m": span_w * 0.20,
+		"block_color": opposite_facade_night_color if night else opposite_facade_day_color,
+		"back_block_color": city_back_block_night_color if night else city_back_block_day_color,
+		"shopfront_color": city_shopfront_color,
+		"shop_lit_color": city_shop_lit_color,
+		"awning_color": city_awning_color,
+		"balcony_color": city_balcony_color,
+		"street_metal_color": city_street_metal_color,
+		"lamp_light_color": city_lamp_light_color,
+		"bin_color": city_bin_color,
+		"bench_color": city_bench_color,
+		"sign_color": city_sign_color,
+		"crossing_color": city_crossing_color,
+		"planter_color": city_planter_color,
+		"bus_stop_glass_color": city_bus_stop_glass_color,
+	})
+	for raw in pieces:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var piece: Dictionary = raw
+		var piece_center: Vector3 = center - normal * float(piece.get("n", 0.0)) + tangent * float(piece.get("t", 0.0))
+		piece_center.y = street_y + float(piece.get("y", 0.0))
+		# El guardarrail de la calzada protege NUESTRA calle. La fila de fondo
+		# esta siempre mas alla del anillo -a treinta metros largos-, y aplicarle
+		# el filtro descartaba justo las piezas de las esquinas: eran ellas las
+		# que dejaban el cielo abierto en diagonal.
+		if not solo and _crosses_roadway(piece_center, tangent, float(piece.get("w", 1.0)), float(piece.get("d", 1.0))):
+			continue
+		var color: Color = piece.get("color", Color(0.5, 0.5, 0.5, 1.0))
+		var energy: float = float(piece.get("energy", 0.0))
+		# Las piezas sordas -manzanas, retornos, fila de fondo- van con el
+		# material de ciudad; las que traen emision propia (escaparates, farolas)
+		# se la quedan.
+		var material: StandardMaterial3D
+		if energy > 0.0 or color.a < 1.0:
+			material = _mat(color, color.a < 1.0, piece.get("emission", Color(0.0, 0.0, 0.0, 0.0)), energy)
+		else:
+			material = _city_mat(color)
+		_add_oriented_box(
+			parent,
+			"%s_%02d" % [String(piece.get("name", "CityPiece")), index],
+			piece_center,
+			tangent,
+			maxf(0.02, float(piece.get("w", 1.0))),
+			maxf(0.02, float(piece.get("h", 1.0))),
+			maxf(0.02, float(piece.get("d", 1.0))),
+			material,
+			false
+		)
+
+
+## Medio frente de nuestro propio edificio a lo largo de la calle. Es lo que
+## necesitan las medianeras para no plantarse encima.
+func _own_facade_half_extent_m(tangent: Vector3) -> float:
+	var extent: float = _bounds_m.size.x if absf(tangent.x) >= absf(tangent.z) else _bounds_m.size.y
+	return maxf(3.0, extent * 0.5 + own_facade_side_margin_m)
+
+
+## Que tipo de edificio toca en la calle, segun las plantas que aparente el
+## nuestro. Ver `FPUrbanTypology`: una manzana, una torre o un rascacielos no
+## son el mismo volumen escalado.
+func _urban_typology() -> Dictionary:
+	var pitch: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	var plantas: int = int(round(_neighbour_facade_height_m() / maxf(1.0, pitch)))
+	return FPUrbanTypology.for_floors(plantas, pitch)
+
+
+## Cuerpo de un edificio de enfrente: podio, fuste y retranqueos.
+##
+## Un bloque de una pieza vale para seis plantas. A partir de veinte, dos cosas
+## lo delatan: que arranca del pavimento sin podio -sale como un poste- y que
+## sube con la misma seccion hasta arriba. Los retranqueos vienen de la ficha
+## del tipo, en fraccion de la altura, y cada uno estrecha tambien el fondo.
+func _create_city_module_body(
+	parent: Node3D, index: int, module_i: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, module_h: float, module_depth: float,
+	module_color: Color, tipo: Dictionary
+) -> void:
+	var pitch: float = maxf(2.0, float(tipo.get("pitch_m", exterior_storey_pitch_m)))
+	var podium_h: float = minf(float(int(tipo.get("podium_floors", 0))) * pitch, module_h * 0.40)
+	var overhang: float = float(tipo.get("podium_overhang_m", 0.0))
+
+	# El fuste, por tramos: uno mas por cada retranqueo.
+	var tramo_y0: float = 0.0
+	var estrecha: float = 0.0
+	var tramos: Array = []
+	for raw in tipo.get("setbacks", []):
+		var sb: Array = raw
+		var at: float = clampf(float(sb[0]), 0.05, 0.98)
+		if at * module_h <= tramo_y0 + 0.5:
+			continue
+		tramos.append({"y0": tramo_y0, "y1": at * module_h, "k": 1.0 - estrecha})
+		tramo_y0 = at * module_h
+		estrecha += float(sb[1])
+	tramos.append({"y0": tramo_y0, "y1": module_h, "k": 1.0 - estrecha})
+
+	for i in range(tramos.size()):
+		var tramo: Dictionary = tramos[i]
+		var alto: float = float(tramo["y1"]) - float(tramo["y0"])
+		if alto <= 0.2:
+			continue
+		var k: float = float(tramo["k"])
+		var ancho: float = module_w * k
+		var fondo: float = module_depth * k
+		# Los tramos altos se retranquean por delante y por los lados, no por
+		# detras: es lo que hace que el retranqueo se VEA desde la calle.
+		var frente: Vector3 = face_center - normal * ((module_depth - fondo) * 0.5)
+		var body_center: Vector3 = frente - normal * (fondo * 0.5)
+		body_center.y = street_y + float(tramo["y0"]) + alto * 0.5
+		_add_oriented_box(parent, "CityFacadeBody_%02d_%02d_%02d" % [index, module_i, i],
+			body_center, tangent, ancho, alto, fondo, _city_mat(module_color), false)
+		if i > 0:
+			# Losa de remate del tramo de abajo: sin ella el retranqueo es un
+			# escalon de aire.
+			var losa: Vector3 = face_center - normal * (module_depth * 0.5)
+			losa.y = street_y + float(tramo["y0"]) + 0.12
+			_add_oriented_box(parent, "CityFacadeSetback_%02d_%02d_%02d" % [index, module_i, i],
+				losa, tangent, module_w * float(tramos[i - 1]["k"]) + 0.2, 0.24,
+				module_depth * float(tramos[i - 1]["k"]) + 0.2,
+				_city_mat(module_color.lightened(0.10)), false)
+
+	# El podio ata el edificio al suelo. Sobresale hacia la calle lo que
+	# sobresale una cornisa -no mas: al otro lado esta la acera-.
+	if podium_h > 0.6:
+		var pod_front: Vector3 = face_center + normal * 0.22
+		var pod_center: Vector3 = pod_front - normal * ((module_depth + 0.44) * 0.5)
+		pod_center.y = street_y + podium_h * 0.5
+		_add_oriented_box(parent, "CityFacadePodium_%02d_%02d" % [index, module_i],
+			pod_center, tangent, module_w - 0.06, podium_h, module_depth + 0.44,
+			_city_mat(module_color.darkened(0.12)), false)
+		var cap: Vector3 = face_center + normal * (0.22 + overhang * 0.5)
+		cap.y = street_y + podium_h + 0.16
+		_add_oriented_box(parent, "CityFacadePodiumCap_%02d_%02d" % [index, module_i],
+			cap, tangent, module_w - 0.06, 0.30, overhang + 0.55,
+			_city_mat(module_color.lightened(0.08)), false)
+	else:
+		# Manzana: el zocalo de siempre.
+		var plinth: Vector3 = face_center + normal * 0.035
+		plinth.y = street_y + 0.42
+		_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i],
+			plinth, tangent, module_w - 0.10, 0.84, 0.07,
+			_city_mat(module_color.darkened(0.16)), false)
+
+
+## Como termina arriba: cornisa de manzana, remate de torre o coronacion con
+## antena. Lo de arriba es lo que se mira desde una planta alta, y una caja
+## cortada en seco es justo lo que delata que es una caja.
+func _create_city_module_crown(
+	parent: Node3D, index: int, module_i: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, module_h: float, module_color: Color,
+	tipo: Dictionary, night: bool
+) -> void:
+	var estrecha: float = 0.0
+	for raw in tipo.get("setbacks", []):
+		estrecha += float((raw as Array)[1])
+	var ancho: float = module_w * (1.0 - estrecha)
+	var crown: String = String(tipo.get("crown", "cornisa"))
+	var cornice: Vector3 = face_center + normal * 0.08
+	cornice.y = street_y + module_h - 0.14
+	if crown == "cornisa":
+		_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
+			cornice, tangent, ancho + 0.10, 0.22, 0.18,
+			_city_mat(module_color.lightened(0.10)), false)
+		return
+
+	# Torre y rascacielos: un antepecho macizo, no una moldura de 22 cm.
+	cornice.y = street_y + module_h - 0.45
+	_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i],
+		cornice, tangent, ancho + 0.16, 0.90, 0.26,
+		_city_mat(module_color.lightened(0.12)), false)
+	if crown != "corona":
+		return
+
+	# Coronacion escalonada y antena. La baliza roja de noche es lo que dice
+	# "esto es alto" sin tener que verle la base.
+	var paso1: Vector3 = face_center - normal * 1.2
+	paso1.y = street_y + module_h + 1.1
+	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_0" % [index, module_i],
+		paso1, tangent, ancho * 0.62, 2.2, ancho * 0.42,
+		_city_mat(module_color.darkened(0.06)), false)
+	var paso2: Vector3 = paso1
+	paso2.y = street_y + module_h + 3.4
+	_add_oriented_box(parent, "CityFacadeCrown_%02d_%02d_1" % [index, module_i],
+		paso2, tangent, ancho * 0.34, 2.4, ancho * 0.24,
+		_city_mat(module_color.darkened(0.02)), false)
+	if not bool(tipo.get("antenna", false)):
+		return
+	var mastil: Vector3 = paso2
+	mastil.y = street_y + module_h + 9.5
+	_add_oriented_box(parent, "CityFacadeAntenna_%02d_%02d" % [index, module_i],
+		mastil, tangent, 0.35, 10.0, 0.35,
+		_city_mat(module_color.darkened(0.30)), false)
+	var baliza: Vector3 = paso2
+	baliza.y = street_y + module_h + 14.6
+	var rojo := Color(1.0, 0.18, 0.12, 1.0)
+	_add_oriented_box(parent, "CityFacadeBeacon_%02d_%02d" % [index, module_i],
+		baliza, tangent, 0.6, 0.6, 0.6,
+		_mat(rojo, false, rojo, 1.6 if night else 0.35), false)
+
+
+## Ventanas de la fachada de enfrente. Dos formas, y no es un capricho de
+## estilo: son las dos que se construyen.
+##
+## - **Hueco** (manzana): una cajita por ventana, con marco, cristal, parteluz y
+##   vierteaguas. Da el detalle que se mira desde el otro lado de la calle.
+## - **Banda** (torre y rascacielos): una franja corrida por planta. Ademas de
+##   ser lo que tiene una torre de verdad, es lo unico viable: a sesenta
+##   plantas, cuatro columnas de ventanas de cuatro nodos cada una son mil
+##   nodos por modulo.
+##
+## En los dos casos hay UNA fila por planta de verdad. El tope viejo eran
+## cuatro filas repartidas por toda la altura, y en una fachada de 45 m eso
+## era una ventana cada once metros: un muro liso (G-4).
+func _create_facade_windows(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, facade_h: float, tipo: Dictionary
+) -> void:
+	if opposite_facade_max_window_floors <= 0:
+		return
+	var pitch: float = maxf(2.0, float(tipo.get("pitch_m", exterior_storey_pitch_m)))
+	var podium_h: float = minf(float(int(tipo.get("podium_floors", 0))) * pitch, facade_h * 0.40)
+	var arranque: float = maxf(podium_h, 1.25)
+	var floors: int = clampi(int((facade_h - arranque) / pitch), 2, opposite_facade_max_window_floors)
+	if String(tipo.get("windows", FPUrbanTypology.WINDOWS_PUNCHED)) == FPUrbanTypology.WINDOWS_RIBBON:
+		_create_facade_ribbons(parent, index, module_index, face_center, normal, tangent,
+			street_y, module_w, arranque, pitch, floors, tipo)
+		return
+	_create_facade_punched_windows(parent, index, module_index, face_center, normal, tangent,
+		street_y, module_w, facade_h, arranque, pitch, floors)
+
+
+## Portal de un edificio de enfrente: puerta retranqueada y marquesina. Lo lleva
+## cualquier tipo -una torre tambien se entra por algun sitio- y por eso esta
+## fuera de las dos formas de ventana.
+func _create_facade_entrance(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float
+) -> void:
+	var frame_col: Color = city_window_frame_night_color if _exterior_is_night() else city_window_frame_day_color
+	var entrance: Vector3 = face_center + normal * 0.052
+	entrance.y = street_y + 1.08
+	_add_oriented_box(parent, "CityEntrance_%02d_%02d" % [index, module_index], entrance, tangent,
+		1.05, 2.16, 0.08, _mat(Color(0.16, 0.18, 0.19, 1.0), false), false)
+	var canopy: Vector3 = entrance + normal * 0.32
+	canopy.y = street_y + 2.28
+	_add_oriented_box(parent, "CityEntranceCanopy_%02d_%02d" % [index, module_index], canopy, tangent,
+		1.42, 0.10, 0.66, _mat(frame_col.darkened(0.18), false), false)
+
+
+## Ventana de hueco, la de la manzana.
+func _create_facade_punched_windows(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, facade_h: float, arranque: float, pitch: float, floors: int
+) -> void:
+	if opposite_facade_columns <= 0:
+		return
 	var columns: int = clampi(mini(opposite_facade_columns, int(round(module_w / 2.25))), 2, 4)
 	var night: bool = _exterior_is_night()
 	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
 	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
-	var floor_h: float = (facade_h - 1.25) / float(floors)
 	var col_step: float = module_w / float(columns + 1)
 	var win_w: float = minf(1.20, col_step * 0.64)
-	var win_h: float = minf(1.38, floor_h * 0.58)
+	var win_h: float = minf(1.38, pitch * 0.58)
 	var frame_col: Color = city_window_frame_night_color if night else city_window_frame_day_color
 	for f in range(floors):
-		var y: float = street_y + 1.28 + floor_h * (float(f) + 0.5)
+		var y: float = street_y + arranque + pitch * (float(f) + 0.5)
+		if y > street_y + facade_h - 1.0:
+			break
 		for c in range(columns):
 			var x: float = (float(c) + 1.0) * col_step - module_w * 0.5
 			var variant_seed: float = float(index * 7 + module_index * 43 + f * 31 + c * 13)
@@ -2250,17 +4488,54 @@ func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_
 			var sill: Vector3 = wc + normal * 0.055
 			sill.y = y - win_h * 0.5 - 0.055
 			_add_oriented_box(parent, "CityWindowSill_%02d_%02d_%02d_%02d" % [index, module_index, f, c], sill, tangent,
-				win_w + 0.18, 0.07, 0.22, _mat(frame_col.lightened(0.07), false), false)
+				win_w + 0.18, 0.07, 0.14, _mat(frame_col.lightened(0.06), false), false)
 
-	# Entrada de portal centrada y ligeramente retranqueada.
-	var entrance: Vector3 = face_center + normal * 0.052
-	entrance.y = street_y + 1.08
-	_add_oriented_box(parent, "CityEntrance_%02d_%02d" % [index, module_index], entrance, tangent,
-		1.05, 2.16, 0.08, _mat(Color(0.16, 0.18, 0.19, 1.0), false), false)
-	var canopy: Vector3 = entrance + normal * 0.32
-	canopy.y = street_y + 2.28
-	_add_oriented_box(parent, "CityEntranceCanopy_%02d_%02d" % [index, module_index], canopy, tangent,
-		1.42, 0.10, 0.66, _mat(frame_col.darkened(0.18), false), false)
+
+## Banda corrida, la de la torre. Dos piezas por planta: el vidrio y el
+## antepecho que lo separa del de arriba. Sin el antepecho la torre entera se
+## lee como un espejo de una pieza.
+func _create_facade_ribbons(
+	parent: Node3D, index: int, module_index: int, face_center: Vector3,
+	normal: Vector3, tangent: Vector3, street_y: float,
+	module_w: float, arranque: float, pitch: float, floors: int, tipo: Dictionary
+) -> void:
+	var night: bool = _exterior_is_night()
+	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
+	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
+	var frame_col: Color = city_window_frame_night_color if night else city_window_frame_day_color
+	# Cada retranqueo estrecha tambien la banda, o el vidrio sobresaldria del
+	# fuste al que pertenece.
+	var cortes: Array = tipo.get("setbacks", [])
+	for f in range(floors):
+		var y: float = street_y + arranque + pitch * (float(f) + 0.55)
+		var altura_rel: float = (arranque + pitch * (float(f) + 0.55)) / maxf(1.0, arranque + pitch * float(floors))
+		var estrecha: float = 0.0
+		for raw in cortes:
+			var sb: Array = raw
+			if altura_rel > float(sb[0]):
+				estrecha += float(sb[1])
+		var ancho: float = module_w * (1.0 - estrecha)
+		# Que la banda entera se encienda de noche no pasa: se encienden
+		# tramos. Se parte en tercios y cada tercio decide.
+		for tercio in range(3):
+			var seed: float = float(index * 11 + module_index * 29 + f * 17 + tercio * 7)
+			var lit: bool = night and fposmod(seed * 0.191, 1.0) < lit_ratio * 1.4
+			var col: Color = opposite_window_lit_color if lit else base_col
+			var w3: float = ancho / 3.0
+			var wc: Vector3 = face_center + tangent * ((float(tercio) - 1.0) * w3) + normal * 0.06
+			wc.y = y
+			_add_oriented_box(
+				parent,
+				"CityWindowGlass_%02d_%02d_%02d_%02d" % [index, module_index, f, tercio],
+				wc, tangent, w3 - 0.06, pitch * 0.46, 0.05,
+				_mat(col, false, col if lit else Color(0.0, 0.0, 0.0, 0.0), 0.75 if lit else 0.0),
+				false
+			)
+		var antepecho: Vector3 = face_center + normal * 0.04
+		antepecho.y = y + pitch * 0.42
+		_add_oriented_box(parent, "CityRibbonSpandrel_%02d_%02d_%02d" % [index, module_index, f],
+			antepecho, tangent, ancho, pitch * 0.36, 0.04,
+			_city_mat(frame_col.darkened(0.25)), false)
 
 
 ## Skyline de fondo: dibujo del usuario si hay textura, o silueta procedural
@@ -2397,97 +4672,36 @@ func _add_gable_roof(parent: Node3D, node_name: String, base_center: Vector3, ta
 
 ## Entorno residencial completo, compartido por todas las aberturas de la
 ## fachada: jardin, acceso, aceras, calzada y viviendas de enfrente.
-func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
+func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, _floor_level_m: float) -> void:
 	var night: bool = _exterior_is_night()
-	var span_w: float = residential_view_width_m
-	var surface_y: float = floor_level_m - 0.015
+	# El largo de la calle de ESTE lado, no un ancho de vista fijo: de aqui sale
+	# cuantas casas de enfrente hacen falta para que la calle no se quede a
+	# medio edificar.
+	var side: Dictionary = FPStreetGrid.side_for(_street_grid, Vector2(-normal.x, -normal.z)) if not _street_grid.is_empty() else {}
+	var span_w: float = float(side.get("span_m", residential_view_width_m))
+	var surface_y: float = _exterior_ground_level_m()
 	var lawn_depth: float = residential_lawn_depth_m
 	var sidewalk_depth: float = residential_sidewalk_depth_m
 	var road_depth: float = residential_road_depth_m
 
-	var lawn_center: Vector3 = center - normal * (lawn_depth * 0.5)
-	lawn_center.y = surface_y - 0.05
-	_add_oriented_box(parent, "ResidentialLawn_%02d" % index, lawn_center, tangent,
-		span_w, 0.10, lawn_depth, _mat(residential_lawn_color, false), false)
-	var path_center: Vector3 = center - normal * ((lawn_depth + sidewalk_depth) * 0.5)
-	path_center.y = surface_y + 0.035
-	_add_oriented_box(parent, "ResidentialEntryPath_%02d" % index, path_center, tangent,
-		residential_path_width_m, 0.04, lawn_depth + sidewalk_depth, _mat(house_path_color, false), false)
-	var driveway_center: Vector3 = path_center + tangent * residential_driveway_offset_m
-	_add_oriented_box(parent, "ResidentialDriveway_%02d" % index, driveway_center, tangent,
-		residential_driveway_width_m, 0.035, lawn_depth + sidewalk_depth, _mat(house_path_color.darkened(0.08), false), false)
-
-	var near_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 0.5)
-	near_sidewalk.y = surface_y + 0.045
-	_add_oriented_box(parent, "ResidentialSidewalkNear_%02d" % index, near_sidewalk, tangent,
-		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
-	var road_center: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth * 0.5)
-	road_center.y = surface_y - 0.035
-	_add_oriented_box(parent, "ResidentialStreet_%02d" % index, road_center, tangent,
-		span_w, 0.07, road_depth, _mat(residential_street_color, false), false)
+	# El jardin, la acera, la calle y el jardin de enfrente ya estan puestos: son
+	# anillos alrededor de la parcela, comunes a todas las fachadas, y los pone
+	# _create_residential_street_network. Antes los ponia cada fachada por su
+	# cuenta y con tres fachadas habia tres calles cruzandose.
+	var opposite_yard_depth: float = residential_opposite_yard_depth_m
 	var far_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth + sidewalk_depth * 0.5)
 	far_sidewalk.y = surface_y + 0.045
-	_add_oriented_box(parent, "ResidentialSidewalkFar_%02d" % index, far_sidewalk, tangent,
-		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
 
-	var road_mark_count: int = maxi(4, int(floor(span_w / 4.0)))
-	for mark_i in range(road_mark_count):
-		var mark_t: float = (float(mark_i) + 0.5) / float(road_mark_count) - 0.5
-		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
-		mark.y = surface_y + 0.008
-		_add_oriented_box(parent, "ResidentialRoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
-			1.20, 0.015, 0.085, _mat(Color(0.72, 0.69, 0.55, 1.0), false), false)
-
-	var opposite_yard_depth: float = residential_opposite_yard_depth_m
-	var opposite_yard: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth * 0.5)
-	opposite_yard.y = surface_y - 0.05
-	_add_oriented_box(parent, "ResidentialOppositeLawn_%02d" % index, opposite_yard, tangent,
-		span_w, 0.10, opposite_yard_depth, _mat(residential_lawn_color.darkened(0.04), false), false)
-
-	if exterior_window_obstacles_enabled:
-		var house_face_distance: float = lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
-		for slot in range(residential_house_count):
-			var slot_t: float = (float(slot) - float(residential_house_count - 1) * 0.5) * residential_house_spacing_m
-			var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
-			var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
-			var body_d: float = residential_house_depth_m
-			var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
-			var house_center: Vector3 = face_center - normal * (body_d * 0.5)
-			house_center.y = surface_y + body_h * 0.5
-			var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
-			_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
-				body_w, body_h, body_d, _mat(house_color, false), false)
-			var roof_base: Vector3 = house_center
-			roof_base.y = surface_y + body_h
-			_add_gable_roof(parent, "ResidentialRoof_%02d_%02d" % [index, slot], roof_base, tangent, normal,
-				body_w + 0.34, body_d + 0.36, residential_roof_height_m, residential_roof_color.darkened(0.12) if night else residential_roof_color)
-
-			var door_center: Vector3 = face_center + normal * 0.055
-			door_center.y = surface_y + 1.05
-			_add_oriented_box(parent, "ResidentialDoor_%02d_%02d" % [index, slot], door_center, tangent,
-				0.92, 2.10, 0.08, _mat(landing_door_color.darkened(0.08), false), false)
-			for window_side in [-1.0, 1.0]:
-				for window_floor in range(2):
-					var window_center: Vector3 = face_center + tangent * (window_side * body_w * 0.29) + normal * 0.065
-					window_center.y = surface_y + 1.25 + float(window_floor) * 1.82
-					_add_oriented_box(parent, "ResidentialWindowFrame_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
-						1.06, 1.18, 0.08, _mat(residential_window_frame_color, false), false)
-					window_center += normal * 0.065
-					var glass_color: Color = city_night_window_lit_color if (night and (slot + window_floor) % 2 == 0) else city_window_color.darkened(0.12)
-					_add_oriented_box(parent, "ResidentialWindowGlass_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
-						0.88, 1.00, 0.035, _mat(glass_color, false, glass_color if night else Color(0.0, 0.0, 0.0, 0.0), 0.35 if night else 0.0), false)
-
-			for hedge_side in [-1.0, 1.0]:
-				var hedge_center: Vector3 = face_center + normal * 1.75 + tangent * hedge_side * (body_w * 0.31)
-				hedge_center.y = surface_y + 0.38
-				_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
-					body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
-		_create_exterior_facade_fill(
-			parent,
-			"ResidentialFacadeFill_%02d" % index,
-			center - normal * (house_face_distance * 0.72),
-			surface_y + residential_house_height_m * 0.52
-		)
+	_create_neighbour_house_row(
+		parent,
+		index,
+		center,
+		normal,
+		tangent,
+		span_w,
+		surface_y,
+		lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
+	)
 
 	for tree_i in range(residential_tree_count):
 		var tree_t: float = (float(tree_i) - float(residential_tree_count - 1) * 0.5) * residential_tree_spacing_m
@@ -2495,8 +4709,458 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 			tree_t += 2.1
 		var tree_base: Vector3 = far_sidewalk - normal * 1.7 + tangent * tree_t
 		tree_base.y = surface_y
+		if _crosses_roadway(tree_base, tangent, residential_tree_crown_radius_m * 2.4, residential_tree_crown_radius_m * 2.4):
+			continue
 		_create_low_poly_tree(parent, "ResidentialTree_%02d_%02d" % [index, tree_i], tree_base,
 			residential_tree_trunk_height_m + float(tree_i % 2) * 0.35, residential_tree_crown_radius_m, tree_i)
+
+
+## Cota del suelo exterior (calle o jardin) para TODO el edificio. Antes cada
+## fachada calculaba la suya con la planta minima de sus propios huecos, asi
+## que dos fachadas del mismo edificio podian tener la calle a alturas
+## distintas.
+## Altura de los edificios de alrededor.
+##
+## Decision de N-4 (2026-09-09): **los vecinos tienen las mismas plantas que el
+## nuestro**. Antes era una constante de 15 m, asi que desde la planta 15 se
+## miraba por encima de toda la manzana y nuestro bloque quedaba suelto en el
+## aire. Ahora sale de las plantas que aparenta el edificio -las de relleno de
+## debajo mas las dibujadas- por su altura de planta, con
+## `opposite_facade_height_m` de minimo.
+func _neighbour_facade_height_m() -> float:
+	var plantas: int = BuildingLevels.apparent_total_floors(building)
+	var altura_planta: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	return maxf(maxf(7.5, opposite_facade_height_m), float(plantas) * altura_planta)
+
+
+func _exterior_ground_level_m() -> float:
+	var span: Dictionary = _building_vertical_span()
+	var base_y: float = float(span.get("min_y", 0.0))
+	if _is_apartment_building():
+		# La calle cae una altura de planta por cada planta que hay debajo del
+		# forjado dibujado. En la baja es 0, y en un sotano sale negativo: la
+		# calle queda por encima, que es lo que toca.
+		return base_y - BuildingLevels.street_drop_m(building, exterior_storey_pitch_m)
+	return base_y - 0.015
+
+
+## Envolvente del edificio del jugador. Se genera un lienzo por plano de muro
+## con huecos exteriores, recortando las aberturas reales, mas zocalo, lineas
+## de forjado y coronacion. Sin esto, desde una ventana se veia el canto del
+## forjado y un vacio hasta la calle.
+func _create_own_facade(parent: Node3D) -> void:
+	if not exterior_own_facade_enabled or building == null:
+		return
+	var groups: Dictionary = _own_facade_groups_cached()
+	if groups.is_empty():
+		return
+	var ground_y: float = _exterior_ground_level_m()
+	var span: Dictionary = _building_vertical_span()
+	# El edificio no termina en el techo de la vivienda: si se ha declarado que
+	# tiene mas plantas, la fachada sigue subiendo. Es la otra mitad del dato de
+	# plantas totales -antes solo existian las de debajo-.
+	var top_y: float = float(span.get("max_y", 3.0)) 		+ BuildingLevels.floors_above_m(building, exterior_storey_pitch_m) 		+ own_facade_parapet_m
+	for key in groups.keys():
+		_create_own_facade_panel(parent, String(key), Dictionary(groups[key]), ground_y, top_y)
+
+
+## Agrupa las aberturas exteriores por plano de muro (lado + coordenada del
+## muro). Cada grupo aporta su extension lateral y sus huecos en coordenadas
+## (u = eje del muro, v = altura absoluta).
+func _own_facade_groups_cached() -> Dictionary:
+	if not _own_facade_groups_ready:
+		_own_facade_groups_cache = _own_facade_groups()
+		_own_facade_groups_ready = true
+	return _own_facade_groups_cache
+
+
+## Clave de lienzo: un lado y una coordenada de muro. La comparten el lienzo y
+## los balcones, y tiene que ser LA MISMA o el balcon buscaria su fachada en un
+## grupo que no existe y se quedaria sin recortar.
+func _own_facade_key(side: String, plane_m: float) -> String:
+	return "%s_%d" % [side, roundi(plane_m * 100.0)]
+
+
+## Extension del lienzo de fachada al que da esta abertura, en coordenadas del
+## muro (u_min, u_max) y ya con los margenes laterales que el lienzo se da.
+## Vector2.ZERO si la abertura no cae en ningun lienzo.
+func _own_facade_extent_for(room_id: int, side: String) -> Vector2:
+	if side == "" or not _room_rects_cache.has(room_id):
+		return Vector2.ZERO
+	var rect: Rect2 = Rect2(_room_rects_cache[room_id])
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float
+	if horizontal:
+		plane_m = rect.position.y if side == "top" else rect.position.y + rect.size.y
+	else:
+		plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
+	var groups: Dictionary = _own_facade_groups_cached()
+	var key: String = _own_facade_key(side, plane_m)
+	if not groups.has(key):
+		return Vector2.ZERO
+	var group: Dictionary = groups[key]
+	return Vector2(
+		float(group.get("u_min", 0.0)) - own_facade_side_margin_m,
+		float(group.get("u_max", 0.0)) + own_facade_side_margin_m
+	)
+
+
+func _own_facade_groups() -> Dictionary:
+	var groups: Dictionary = {}
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or not op.is_exterior_opening() or op.is_vertical:
+			continue
+		var info: Dictionary = _opening_info(index)
+		if info.is_empty():
+			continue
+		var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
+		var side: String = String(info.get("side_for_%d" % room_id, ""))
+		if side == "" or not _room_rects_cache.has(room_id):
+			continue
+		var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+		# El frente del portal ya lo cierra el rellano: un lienzo ahi cortaria
+		# la losa y las paredes del rellano.
+		if _landing_recess_keys.has("%s_%d" % [side, roundi(floor_level_m * 100.0)]):
+			continue
+		var rect: Rect2 = Rect2(_room_rects_cache[room_id])
+		var horizontal: bool = side == "top" or side == "bottom"
+		var plane_m: float
+		if horizontal:
+			plane_m = rect.position.y if side == "top" else rect.position.y + rect.size.y
+		else:
+			plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
+		var u_min: float = rect.position.x if horizontal else rect.position.y
+		var u_max: float = u_min + (rect.size.x if horizontal else rect.size.y)
+		var key: String = _own_facade_key(side, plane_m)
+		if not groups.has(key):
+			var fresh_holes: Array[Rect2] = []
+			groups[key] = {
+				"side": side,
+				"plane_m": plane_m,
+				"u_min": u_min,
+				"u_max": u_max,
+				"holes": fresh_holes,
+				"windows": 0,
+			}
+		var group: Dictionary = groups[key]
+		group["u_min"] = minf(float(group["u_min"]), u_min)
+		group["u_max"] = maxf(float(group["u_max"]), u_max)
+		var width_m: float = float(info.get("width_m", 0.9))
+		var height_m: float = float(info.get("height_m", 2.0))
+		var sill_m: float = float(info.get("sill_m", 0.0))
+		var axis_center: float = float(info.get("axis_center", (u_min + u_max) * 0.5))
+		var margin: float = own_facade_hole_margin_m
+		var holes: Array[Rect2] = group["holes"]
+		holes.append(Rect2(
+			axis_center - width_m * 0.5 - margin,
+			floor_level_m + sill_m - margin,
+			width_m + margin * 2.0,
+			height_m + margin * 2.0
+		))
+		group["holes"] = holes
+		# Cuenta los huecos por los que se MIRA: ventanas y balconeras. El
+		# lienzo solo se levanta donde los hay, y una fachada con balconera y
+		# sin ventana se quedaba sin lienzo: el balcon colgaba delante del
+		# canto del forjado y del vacio hasta la calle.
+		if op.type == OpeningModel.Type.WINDOW or _is_balcony_opening(op):
+			group["windows"] = int(group["windows"]) + 1
+		groups[key] = group
+	return groups
+
+
+func _create_own_facade_panel(parent: Node3D, key: String, group: Dictionary, ground_y: float, top_y: float) -> void:
+	# Solo se cierran los frentes con ventanas: son los unicos que el jugador
+	# llega a ver desde dentro.
+	if int(group.get("windows", 0)) <= 0:
+		return
+	var side: String = String(group.get("side", "top"))
+	var horizontal: bool = side == "top" or side == "bottom"
+	var outward: Vector3 = -_inside_normal_for_side(side)
+	var plane_m: float = float(group.get("plane_m", 0.0))
+	var u_min: float = float(group.get("u_min", 0.0)) - own_facade_side_margin_m
+	var u_max: float = float(group.get("u_max", 0.0)) + own_facade_side_margin_m
+	var span_u: float = u_max - u_min
+	var span_v: float = top_y - ground_y
+	if span_u <= 0.20 or span_v <= 0.20:
+		return
+
+	var holes: Array[Rect2] = []
+	for hole in group.get("holes", []):
+		holes.append(Rect2(hole))
+	var skin_offset: float = wall_thickness_m * 0.5 + own_facade_thickness_m * 0.5
+	var skin_axis_m: float = plane_m + (outward.z if horizontal else outward.x) * skin_offset
+	var skin_mat: StandardMaterial3D = _facade_material()
+	var pieces: Array[Rect2] = StairGeometry.split_rect_by_voids(Rect2(u_min, ground_y, span_u, span_v), holes)
+	for i in range(pieces.size()):
+		var piece: Rect2 = pieces[i]
+		_add_facade_slab(
+			parent,
+			"OwnFacade_%s_%02d" % [key, i],
+			horizontal,
+			piece.position.x + piece.size.x * 0.5,
+			piece.position.y + piece.size.y * 0.5,
+			skin_axis_m,
+			piece.size.x,
+			piece.size.y,
+			own_facade_thickness_m,
+			skin_mat
+		)
+
+	# Relieve: zocalo, lineas de forjado y coronacion. Un plano liso de 8 m
+	# leido desde una ventana no da ninguna escala.
+	var band_axis_m: float = plane_m + (outward.z if horizontal else outward.x) * (skin_offset + own_facade_thickness_m * 0.5 + 0.035)
+	var band_depth: float = 0.09
+	var center_u: float = u_min + span_u * 0.5
+	if own_facade_plinth_height_m > 0.05:
+		_add_facade_slab(parent, "OwnFacadePlinth_%s" % key, horizontal, center_u,
+			ground_y + own_facade_plinth_height_m * 0.5, band_axis_m,
+			span_u, own_facade_plinth_height_m, band_depth,
+			_own_exterior_mat(exterior_facade_color.darkened(0.20), 2601))
+	_add_facade_slab(parent, "OwnFacadeCornice_%s" % key, horizontal, center_u,
+		top_y - 0.13, band_axis_m, span_u + 0.20, 0.26, band_depth + 0.06,
+		_own_exterior_mat(exterior_facade_color.lightened(0.10), 2602))
+	for level_y in _own_facade_band_levels(ground_y, top_y):
+		_add_facade_slab(parent, "OwnFacadeBand_%s_%d" % [key, roundi(level_y * 100.0)], horizontal,
+			center_u, level_y, band_axis_m, span_u, 0.20, band_depth,
+			_own_exterior_mat(exterior_facade_color.darkened(0.10), 2603))
+
+
+## --- N-1: balcones del edificio del jugador ---
+##
+## Cuelgan de una abertura exterior que los declare en el editor. Tres piezas:
+## la losa en voladizo, el antepecho en U -frente y dos retornos- y el
+## pasamanos que lo remata.
+##
+## **No se puede salir a ellos, y es a proposito.** La puerta del balcon se
+## abre -importa para el fuego: es un hueco a fachada, y el motor lo trata como
+## la puerta que es-, pero el suelo del balcon no tiene colision y el hueco se
+## cierra con un colisionador invisible en el plano de la fachada. Modelar un
+## balcon transitable pide barandilla con colision, borde de losa, y decidir
+## que pasa cuando el jugador se asoma a una vivienda que no esta modelada.
+## Nada de eso aporta al incendio, que es lo que se simula aqui.
+func _create_own_balcony(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	op: OpeningModel,
+	info: Dictionary
+) -> void:
+	var flight_m: float = clampf(
+		op.balcony_depth_m,
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	var parapet_m: float = maxf(0.0, op.balcony_parapet_m)
+	var horizontal: bool = absf(tangent.x) >= absf(tangent.z)
+	var outward: Vector3 = -normal.normalized()
+	var width_m: float = float(info.get("width_m", op.width_m))
+	var height_m: float = float(info.get("height_m", op.height_m))
+	var sill_m: float = float(info.get("sill_m", op.sill_m))
+
+	# Un balcon no puede pasar de la fachada de la que cuelga, y aqui se conoce
+	# el lienzo ENTERO -no solo el paramento de la sala-, que es la medida
+	# buena. La regla del recorte es comun con el editor.
+	var span_m: float = op.balcony_span_m()
+	var extent: Vector2 = _own_facade_extent_for(
+		int(info.get("room_id", -1)),
+		String(info.get("side_for_%d" % int(info.get("room_id", -1)), ""))
+	)
+	if extent != Vector2.ZERO:
+		span_m = OpeningModel.balcony_trimmed_span_m(
+			span_m, float(info.get("axis_center", 0.0)), extent.x, extent.y
+		)
+	if span_m <= 0.20:
+		return
+	# El suelo de la vivienda, deducido del centro del hueco: es la cota a la
+	# que tiene que quedar la cara de arriba de la losa.
+	var floor_y: float = center.y - (sill_m + height_m * 0.5)
+	var wall_face_m: float = wall_thickness_m * 0.5
+	# La losa arranca en la cara del muro y pasa por debajo del lienzo de
+	# fachada; si arrancase en el lienzo quedaria una ranura entre los dos.
+	var depth_total_m: float = own_facade_thickness_m + flight_m
+	var origin: Vector3 = Vector3(center.x, floor_y, center.z)
+	# El canto sale del vuelo: una losa en voladizo de dos metros con el canto
+	# de una de ochenta se lee como una hoja de papel.
+	var slab_t: float = op.balcony_slab_thickness_m(own_balcony_slab_thickness_m)
+	var par_t: float = own_balcony_parapet_thickness_m
+	var mat: StandardMaterial3D = _own_exterior_mat(own_balcony_color, 2610)
+
+	# Losa en voladizo. Sin colision: es lo que impide salir andando.
+	_add_box(
+		parent,
+		"OwnBalconySlab_%02d" % index,
+		_balcony_size(span_m, slab_t, depth_total_m, horizontal),
+		origin + outward * (wall_face_m + depth_total_m * 0.5) + Vector3.DOWN * (slab_t * 0.5),
+		mat,
+		false
+	)
+
+	if parapet_m > 0.05:
+		# Frente.
+		_add_box(
+			parent,
+			"OwnBalconyParapet_%02d_F" % index,
+			_balcony_size(span_m, parapet_m, par_t, horizontal),
+			origin + outward * (wall_face_m + depth_total_m - par_t * 0.5) + Vector3.UP * (parapet_m * 0.5),
+			mat,
+			false
+		)
+		# Los dos retornos, hasta morir contra la fachada.
+		for side in [-1.0, 1.0]:
+			_add_box(
+				parent,
+				"OwnBalconyParapet_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+				_balcony_size(par_t, parapet_m, depth_total_m, horizontal),
+				origin
+					+ outward * (wall_face_m + depth_total_m * 0.5)
+					+ tangent * (side * (span_m * 0.5 - par_t * 0.5))
+					+ Vector3.UP * (parapet_m * 0.5),
+				mat,
+				false
+			)
+		# Pasamanos: la banda que remata el antepecho. Un antepecho liso de
+		# fabrica no se lee como balcon desde dentro; el remate si.
+		if own_balcony_handrail_height_m > 0.005:
+			var rail_h: float = own_balcony_handrail_height_m
+			var rail_mat: StandardMaterial3D = _own_exterior_mat(own_balcony_handrail_color, 2611)
+			var rail_top_y: float = floor_y + parapet_m + rail_h * 0.5
+			_add_box(
+				parent,
+				"OwnBalconyHandrail_%02d_F" % index,
+				_balcony_size(span_m + 0.04, rail_h, par_t + 0.05, horizontal),
+				origin + outward * (wall_face_m + depth_total_m - par_t * 0.5) + Vector3.UP * (rail_top_y - floor_y),
+				rail_mat,
+				false
+			)
+			for side in [-1.0, 1.0]:
+				_add_box(
+					parent,
+					"OwnBalconyHandrail_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+					_balcony_size(par_t + 0.05, rail_h, depth_total_m, horizontal),
+					origin
+						+ outward * (wall_face_m + depth_total_m * 0.5)
+						+ tangent * (side * (span_m * 0.5 - par_t * 0.5))
+						+ Vector3.UP * (rail_top_y - floor_y),
+					rail_mat,
+					false
+				)
+
+	_add_balcony_barrier(parent, index, center, outward, width_m, height_m, horizontal)
+
+
+## Cierto si esta abertura lleva balcon Y los balcones estan encendidos. Es la
+## pregunta que hacen el portal y la entrada para apartarse.
+func _is_balcony_opening(op: OpeningModel) -> bool:
+	return own_balconies_enabled and op != null and op.has_balcony and op.accepts_balcony()
+
+
+## Tamano de una caja del balcon en ejes de mundo. `along` corre a lo largo de
+## la fachada, `across` sale de ella; cual es X y cual es Z depende de como este
+## puesto el muro.
+func _balcony_size(along_m: float, height_m: float, across_m: float, horizontal: bool) -> Vector3:
+	if horizontal:
+		return Vector3(along_m, height_m, across_m)
+	return Vector3(across_m, height_m, along_m)
+
+
+## El colisionador invisible que cierra el hueco del balcon. Es lo unico que
+## impide salir: la losa y el antepecho no colisionan. No lleva malla -no se
+## dibuja nada- y se planta en el plano de la fachada, por fuera de la hoja,
+## para que la puerta pueda abrir sin atravesarlo.
+func _add_balcony_barrier(
+	parent: Node3D,
+	index: int,
+	center: Vector3,
+	outward: Vector3,
+	width_m: float,
+	height_m: float,
+	horizontal: bool
+) -> void:
+	var body := StaticBody3D.new()
+	body.name = "OwnBalconyBarrier_%02d" % index
+	# El cuerpo se planta en el hueco y la forma va en su origen. Al reves -el
+	# cuerpo en el origen del mundo y la forma desplazada- colisiona igual,
+	# pero la posicion del nodo miente, y es lo que se mira al depurar.
+	body.position = center + outward * (wall_thickness_m * 0.5 + 0.05)
+	parent.add_child(body, true)
+	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
+	var box := BoxShape3D.new()
+	# Algo mas ancho y mas alto que el hueco: por el canto de la jamba no se
+	# cuela nadie, pero por la holgura del recorte si.
+	box.size = _balcony_size(width_m + 0.30, height_m + 0.30, 0.10, horizontal)
+	shape.shape = box
+	body.add_child(shape)
+
+
+## Alturas de las lineas de forjado: las plantas realmente modeladas mas, si
+## la vivienda esta elevada sobre la calle, las plantas inferiores implicitas.
+func _own_facade_band_levels(ground_y: float, top_y: float) -> Array[float]:
+	var levels: Array[float] = []
+	var seen: Dictionary = {}
+	var modelled: Array[float] = []
+	for key in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null:
+			continue
+		if not modelled.has(room.floor_level_z_m):
+			modelled.append(room.floor_level_z_m)
+	modelled.sort()
+	var base_y: float = modelled[0] if not modelled.is_empty() else ground_y
+	for level in modelled:
+		if level <= base_y + 0.05:
+			continue
+		levels.append(level - 0.12)
+	var pitch: float = BuildingLevels.floor_to_floor_m(building, exterior_storey_pitch_m)
+	var implicit_y: float = base_y - pitch
+	while implicit_y > ground_y + 0.60 and levels.size() < 90:
+		levels.append(implicit_y)
+		implicit_y -= pitch
+	# Y las de arriba, si el edificio tiene mas plantas que las dibujadas.
+	var arriba: float = modelled[modelled.size() - 1] if not modelled.is_empty() else base_y
+	arriba += pitch
+	while arriba < top_y - 0.60 and levels.size() < 90:
+		levels.append(arriba)
+		arriba += pitch
+	var unique: Array[float] = []
+	for level in levels:
+		if level <= ground_y + 0.10 or level >= top_y - 0.35:
+			continue
+		var band_key: int = roundi(level * 100.0)
+		if seen.has(band_key):
+			continue
+		seen[band_key] = true
+		unique.append(level)
+	return unique
+
+
+## Losa vertical de fachada expresada en (u = eje del muro, v = altura).
+func _add_facade_slab(
+	parent: Node3D,
+	node_name: String,
+	horizontal: bool,
+	center_u_m: float,
+	center_v_m: float,
+	axis_m: float,
+	size_u_m: float,
+	size_v_m: float,
+	depth_m: float,
+	material: StandardMaterial3D
+) -> void:
+	if size_u_m <= 0.02 or size_v_m <= 0.02:
+		return
+	var center_m: Vector3
+	var size_m: Vector3
+	if horizontal:
+		center_m = Vector3(center_u_m, center_v_m, axis_m)
+		size_m = Vector3(size_u_m, size_v_m, depth_m)
+	else:
+		center_m = Vector3(axis_m, center_v_m, center_u_m)
+		size_m = Vector3(depth_m, size_v_m, size_u_m)
+	_add_box(parent, node_name, size_m, _to_world(center_m), material, false)
 
 
 func _create_exterior_window_reveal(
@@ -2509,11 +5173,16 @@ func _create_exterior_window_reveal(
 	height_m: float,
 	sill_m: float
 ) -> void:
-	var reveal_center: Vector3 = center - normal * 0.205
+	# Las jambas se apoyan en el lienzo de fachada cuando este existe; si se
+	# desactiva, mantienen la cota historica.
+	var reveal_depth_offset: float = 0.205
+	if exterior_own_facade_enabled:
+		reveal_depth_offset = wall_thickness_m * 0.5 + own_facade_thickness_m + 0.018
+	var reveal_center: Vector3 = center - normal * reveal_depth_offset
 	var band_depth: float = 0.035
 	var band_m: float = 0.12
 	var floor_level_m: float = center.y - (sill_m + height_m * 0.5)
-	var facade_mat := _mat(exterior_facade_color, false)
+	var facade_mat := _facade_material()
 	var top_center: Vector3 = reveal_center
 	top_center.y = floor_level_m + sill_m + height_m + band_m * 0.5
 	_add_oriented_box(parent, "ExteriorWindowTop_%02d" % index, top_center, tangent, width_m + band_m * 2.0, band_m, band_depth, facade_mat, false)
@@ -2524,6 +5193,22 @@ func _create_exterior_window_reveal(
 		var side_center: Vector3 = reveal_center + tangent * side_sign * (width_m * 0.5 + band_m * 0.5)
 		side_center.y = floor_level_m + sill_m + height_m * 0.5
 		_add_oriented_box(parent, "ExteriorWindowSide_%02d" % index, side_center, tangent, band_m, height_m + band_m * 2.0, band_depth, facade_mat, false)
+
+	# Vierteaguas: la pieza que de verdad se ve al asomarse, y la que separa
+	# el hueco del lienzo de fachada.
+	var sill_center: Vector3 = center - normal * (reveal_depth_offset + 0.055)
+	sill_center.y = floor_level_m + maxf(0.06, sill_m - 0.045)
+	_add_oriented_box(
+		parent,
+		"ExteriorWindowSill_%02d" % index,
+		sill_center,
+		tangent,
+		width_m + band_m * 3.0,
+		0.055,
+		band_depth + 0.16,
+		_mat(exterior_facade_color.lightened(0.12), false),
+		false
+	)
 
 
 ## Domo de cielo geometrico (gradiente + sol) centrado en el edificio.
@@ -2539,9 +5224,27 @@ func _create_sky_dome(parent: Node3D) -> void:
 		sky_night_ground_color if night else sky_day_ground_color,
 		sky_sun_night_color if night else sky_sun_day_color,
 		FPSkyDome.sun_direction_from_angles(exterior_sky_light_pitch_deg, exterior_sky_light_yaw_deg),
-		sky_sun_size_deg,
+		sky_moon_size_deg if night else sky_sun_size_deg,
 		sky_sun_halo_night if night else sky_sun_halo_day
 	)
+	FPSkyDome.apply_atmosphere(dome, {
+		"haze_color": sky_haze_night_color if night else sky_haze_day_color,
+		"haze_strength": sky_haze_night_strength if night else sky_haze_day_strength,
+		"haze_falloff": sky_haze_falloff,
+		"cloud_coverage": sky_cloud_night_coverage if night else sky_cloud_day_coverage,
+		"cloud_sharpness": sky_cloud_sharpness,
+		"cloud_scale": sky_cloud_scale,
+		"cloud_speed": sky_cloud_speed,
+		"cloud_color": sky_cloud_night_color if night else sky_cloud_day_color,
+		"cloud_shadow_color": sky_cloud_night_shadow_color if night else sky_cloud_day_shadow_color,
+		"cloud_veil_strength": sky_cloud_veil_strength,
+		"cloud_veil_scale": sky_cloud_veil_scale,
+		"sun_glow_strength": sky_sun_glow_strength,
+		"sun_glow_power": sky_sun_glow_power,
+		# De dia no hay estrellas ni luna, y no es un ajuste fino: son cero.
+		"star_amount": sky_star_amount if night else 0.0,
+		"star_size": sky_star_size,
+	})
 	dome.position = _to_world(Vector3(
 		_bounds_m.position.x + _bounds_m.size.x * 0.5,
 		0.0,
@@ -2592,14 +5295,6 @@ func _create_exterior_facade_fill(parent: Node3D, node_name: String, position: V
 	parent.add_child(facade_fill)
 
 
-func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, _sill_m: float) -> void:
-	var slab_center: Vector3 = center - normal * 0.62
-	slab_center.y = maxf(0.22, center.y - 0.50)
-	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.36, 0.06, 0.30, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
-
-
-
-
 func _create_fp_furniture_nodes(rects: Dictionary) -> void:
 	if building == null or _world_root == null:
 		return
@@ -2644,14 +5339,12 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var room_state: Dictionary = _room_state_for_furniture(room_id)
-	var room_name: String = room.name if room != null else String(room_state.get("name", ""))
-	var room_kind: String = room.kind if room != null else String(room_state.get("kind", ""))
-	var objects: Array = _normalized_fp_furniture_objects(
+	var objects: Array = FurnitureVisualLayout.normalize_room(
+		building,
 		room_id,
-		room_name,
-		room_kind,
 		rect,
-		Array(room_state.get("fuel_objects", [])).duplicate()
+		Array(room_state.get("fuel_objects", [])).duplicate(),
+		furnish_empty_rooms
 	)
 
 	var seen_ids: Dictionary = {}
@@ -2662,10 +5355,10 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		var obj_id: String = String(obj.get("id", ""))
 		if obj_id == "" or obj_id.begins_with("room_proxy_"):
 			continue
-		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+		var size_m: Vector2 = ScenarioValues.to_vector2(obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 		size_m.x = maxf(0.05, size_m.x)
 		size_m.y = maxf(0.05, size_m.y)
-		var position_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
+		var position_m: Vector2 = ScenarioValues.to_vector2(obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
 		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
 		var visual_center_m: Vector2 = position_m + size_m * 0.5
 		var visual_size_m: Vector2 = size_m
@@ -2674,7 +5367,11 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 			visual_center_m = Vector2(visual_pose.get("center_m", visual_center_m))
 			visual_size_m = Vector2(visual_pose.get("size_m", visual_size_m))
 
-		var kind_name: String = FurnitureVisualClassifier.visual_archetype(obj)
+		# El arquetipo ya viene resuelto del reparto; volver a clasificar aqui
+		# deshace lo que la ficha declara.
+		var kind_name: String = String(obj.get("visual_archetype", ""))
+		if kind_name == "":
+			kind_name = FurnitureVisualClassifier.visual_archetype(obj)
 		var node := fuel_obj_nodes.get(obj_id) as Node3D
 		if node == null:
 			node = _create_fp_fuel_object_node(obj_id, kind_name, visual_size_m)
@@ -2686,15 +5383,18 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 			continue
 
 		var floor_level_m: float = room.floor_level_z_m if room != null else float(room_state.get("floor_level_z_m", 0.0))
+		# Una pieza colgada arranca a su altura, no en el suelo: es lo que
+		# permite que el armario del bano este sobre el lavabo y no dentro.
 		node.position = _to_world(Vector3(
 			rect.position.x + visual_center_m.x,
-			0.0,
+			FurnitureDimensions.mount_height_m(kind_name),
 			rect.position.y + visual_center_m.y
 		), floor_level_m)
 		node.rotation_degrees.y = rotation_deg
 		node.visible = show_fp_furniture
 		node.set_meta("room_id", room_id)
 		node.set_meta("object_id", obj_id)
+		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
 		node.set_meta("size_x_m", visual_size_m.x)
 		node.set_meta("size_y_m", visual_size_m.y)
 
@@ -2714,29 +5414,6 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		fuel_obj_nodes.erase(stale_id)
 	item["fuel_obj_nodes"] = fuel_obj_nodes
 	room_root.visible = show_fp_furniture and fuel_obj_nodes.size() > 0
-
-
-func _normalized_fp_furniture_objects(
-	room_id: int,
-	room_name: String,
-	room_kind: String,
-	rect: Rect2,
-	raw_objects: Array
-) -> Array:
-	var normalized_objects: Array = []
-	for raw_snapshot in raw_objects:
-		if typeof(raw_snapshot) != TYPE_DICTIONARY:
-			continue
-		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(
-			room_id,
-			room_name,
-			room_kind,
-			rect.size,
-			Dictionary(raw_snapshot)
-		)
-		if not bool(normalized.get("visual_hidden", false)):
-			normalized_objects.append(normalized)
-	return normalized_objects
 
 
 func _room_state_for_furniture(room_id: int) -> Dictionary:
@@ -2763,58 +5440,17 @@ func _build_static_fp_room_state(room_id: int) -> Dictionary:
 		"kind": room.kind,
 		"height_m": room.height_m,
 		"floor_level_z_m": room.floor_level_z_m,
-		"fuel_objects": _build_static_fp_fuel_object_snapshots(room),
+		# `true`: en primera persona un `room_proxy_` no se dibuja, que es lo que
+		# hacia la version propia que habia aqui.
+		"fuel_objects": ViewScenarioRead.fuel_object_snapshots(room, true),
 	}
 
 
-func _build_static_fp_fuel_object_snapshots(room: RoomModel) -> Array:
-	var snapshots: Array = []
-	if room == null:
-		return snapshots
-	for obj in room.fuel_objects:
-		if obj == null:
-			continue
-		if String(obj.id).begins_with("room_proxy_"):
-			continue
-		snapshots.append({
-			"id": String(obj.id),
-			"name": String(obj.name),
-			"kind": String(obj.kind),
-			"room_id": int(obj.room_id),
-			"position_m": obj.position_m,
-			"size_m": obj.size_m,
-			"rotation_deg": float(obj.rotation_deg),
-			"visual_pose_locked": bool(obj.visual_pose_locked),
-			"elevation_m": float(obj.elevation_m),
-			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
-			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
-			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
-			"hrr_kw": maxf(0.0, obj.hrr_kw),
-			"state": _fp_fuel_object_state_name(int(obj.state)),
-			"is_primary_ignition_source": bool(obj.is_primary_ignition_source),
-		})
-	return snapshots
-
-
-func _fp_fuel_object_state_name(state_id: int) -> String:
-	match state_id:
-		FuelObjectModel.State.HEATING:
-			return "heating"
-		FuelObjectModel.State.PYROLYZING:
-			return "pyrolyzing"
-		FuelObjectModel.State.FLAMING:
-			return "flaming"
-		FuelObjectModel.State.DECAYING:
-			return "decaying"
-		FuelObjectModel.State.BURNED_OUT:
-			return "burned_out"
-		_:
-			return "cold"
 
 
 func _create_fp_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:
 	var node := Node3D.new()
-	node.name = "FuelObj_" + _safe_node_name(obj_id)
+	node.name = "FuelObj_" + MeshFactory.safe_node_name(obj_id, "marker")
 	_rebuild_fp_fuel_object_shape(node, kind_name, size_m)
 	return node
 
@@ -2904,6 +5540,114 @@ func _create_fp_fire_nodes(rects: Dictionary) -> void:
 		}
 
 
+## Una caja translucida por zona de patio: el humo del conducto, visto desde la
+## ventana de una vivienda.
+##
+## Es un segmento POR ZONA, no una columna unica, porque el motor modela el
+## patio como una zona por planta y cada una se llena a su hora. Asi el frente de
+## humo subiendo planta a planta -que es el fenomeno- se ve tal cual, sin
+## inventarselo la vista.
+func _create_patio_smoke_nodes(rects: Dictionary) -> void:
+	if building == null or _world_root == null:
+		return
+	var root := Node3D.new()
+	root.name = "PatioSmoke"
+	root.visible = show_patio_smoke
+	_world_root.add_child(root)
+
+	for raw_room_id in rects.keys():
+		var room_id: int = int(raw_room_id)
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or not _room_is_patio(room):
+			continue
+		var rect := Rect2(rects[raw_room_id])
+		var inset: float = minf(patio_smoke_inset_m, minf(rect.size.x, rect.size.y) * 0.25)
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(maxf(0.05, rect.size.x - inset * 2.0), 1.0, maxf(0.05, rect.size.y - inset * 2.0))
+
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(patio_smoke_color, 0.0)
+		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		# Sin escritura de profundidad y sin descarte de caras: la columna se ve
+		# igual de bien desde la ventana de enfrente que desde la de al lado, y
+		# no se pelea por el orden con el cristal de la propia ventana.
+		material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+		var box := MeshInstance3D.new()
+		box.name = "PatioSmoke_%d" % room_id
+		box.mesh = mesh
+		box.material_override = material
+		box.visible = false
+		# El humo no proyecta sombra ni la recibe: es un volumen falso y, con
+		# sombras, delataria que es una caja.
+		box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(box)
+
+		_patio_smoke_by_room[room_id] = {
+			"box": box,
+			"material": material,
+			"rect": rect,
+			"height_m": _room_height(room),
+			"floor_level_m": room.floor_level_z_m,
+		}
+
+
+## Cada segmento ocupa lo que hay entre la interfase de humo y el techo de su
+## zona, y se opaca con el MISMO calculo que ya atenua la luz. Dos formulas para
+## el mismo humo acabarian diciendo cosas distintas.
+func _update_patio_smoke() -> void:
+	if _patio_smoke_by_room.is_empty():
+		return
+	var root: Node3D = null
+	if _world_root != null:
+		root = _world_root.get_node_or_null("PatioSmoke") as Node3D
+	if root != null:
+		root.visible = show_patio_smoke
+	for raw_room_id in _patio_smoke_by_room.keys():
+		var room_id: int = int(raw_room_id)
+		var item: Dictionary = _patio_smoke_by_room[raw_room_id]
+		var box := item.get("box") as MeshInstance3D
+		var material := item.get("material") as StandardMaterial3D
+		if box == null or material == null:
+			continue
+		# La zona en la que esta la camara NO dibuja su columna. Asomarse por la
+		# ventana mete la cabeza en el conducto, y entonces la caja quedaria
+		# ALREDEDOR del ojo: un lavado plano sobre toda la pantalla. De ese humo
+		# ya se encarga la niebla de camara, que es la que sabe mirarlo desde
+		# dentro.
+		if room_id == _current_room_id:
+			box.visible = false
+			continue
+		var height_m: float = float(item.get("height_m", 2.4))
+		var floor_level_m: float = float(item.get("floor_level_m", 0.0))
+		var alpha: float = (1.0 - _light_smoke_transmission_for_room(room_id, height_m)) * patio_smoke_max_alpha
+		if alpha < patio_smoke_min_alpha:
+			box.visible = false
+			continue
+
+		var room_state: Dictionary = Dictionary(_state.get(str(room_id), {}))
+		var layer_m: float = clampf(
+			float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", height_m)))),
+			0.0,
+			height_m
+		)
+		var thickness_m: float = maxf(0.05, height_m - layer_m)
+		var rect := Rect2(item.get("rect", Rect2()))
+		var c: Vector2 = rect.get_center()
+		var center: Vector3 = _to_world(
+			Vector3(c.x, layer_m + thickness_m * 0.5, c.y),
+			floor_level_m
+		)
+		var mesh := box.mesh as BoxMesh
+		if mesh != null:
+			mesh.size.y = thickness_m
+		box.position = center
+		material.albedo_color = Color(patio_smoke_color, alpha)
+		box.visible = true
+
+
 func _update_fp_fire_visuals() -> void:
 	if _fire_nodes_by_room.is_empty():
 		return
@@ -2942,10 +5686,20 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 	if has_visible_fire:
 		var fire_t: float = clampf(hrr_kw / maxf(1.0, fp_fire_reference_hrr_kw), 0.0, 1.8)
 		var fire_strength: float = clampf(sqrt(maxf(0.0, fire_t)), 0.0, 1.35)
+		# Altura de llama por la correlacion de Heskestad, que es la que usan
+		# los manuales de ingenieria de incendios (SFPE):
+		#
+		#     L = 0,235 · Q^(2/5) − 1,02 · D
+		#
+		# Q en kW y D el diametro de la base del fuego. El termino de D es lo
+		# que hace que el mismo calor de una llama alta y flaca en una papelera
+		# y una baja y ancha en un sofa; la ley que habia -0,18 + sqrt(HRR/1000)
+		# x 1,75- no sabia nada del diametro y era dos numeros elegidos a ojo.
+		var base_diameter_m: float = maxf(0.12, source_radius_m * 2.0)
 		var free_plume_height_m: float = clampf(
-			0.18 + fire_strength * fp_fire_max_height_m,
+			0.235 * pow(maxf(1.0, hrr_kw), 0.4) - 1.02 * base_diameter_m,
 			0.12,
-			available_height_m + fp_fire_max_height_m * 0.30
+			fp_fire_max_height_m
 		)
 		target_height = minf(free_plume_height_m, available_height_m)
 		target_radius = maxf(
@@ -2967,18 +5721,21 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 			var cap_limit_m: float = maxf(0.30, minf(fp_fire_max_radius_m * 2.8, minf(rect.size.x, rect.size.y) * 0.46))
 			target_cap_radius = lerpf(fp_fire_max_radius_m * 0.70, cap_limit_m, clampf(target_cap_weight, 0.0, 1.0))
 
-	var current_height: float = lerpf(float(item.get("fire_height_m", 0.0)), target_height, 0.28 if has_visible_fire else 0.36)
-	var current_radius: float = lerpf(float(item.get("fire_radius_m", fp_fire_base_radius_m)), target_radius, 0.28)
-	var current_cap_radius: float = lerpf(float(item.get("fire_cap_radius_m", 0.0)), target_cap_radius, 0.24)
-	var current_cap_weight: float = lerpf(float(item.get("fire_cap_weight", 0.0)), target_cap_weight, 0.24)
-	item["fire_height_m"] = current_height
-	item["fire_radius_m"] = current_radius
-	item["fire_cap_radius_m"] = current_cap_radius
-	item["fire_cap_weight"] = current_cap_weight
+	# Aqui solo se apunta a donde tiene que llegar la llama. Quien la lleva es
+	# `_grow_fp_fire_item`, que corre con el reloj: si el acercamiento se hace
+	# aqui, avanza una vez por estado y la llama nunca llega (G-5).
+	item["fire_target_height_m"] = target_height
+	item["fire_target_radius_m"] = target_radius
+	item["fire_target_cap_radius_m"] = target_cap_radius
+	item["fire_target_cap_weight"] = target_cap_weight
 	item["fire_available_height_m"] = available_height_m
+	var current_height: float = float(item.get("fire_height_m", 0.0))
 
 	fire_root.position = fire_pos
-	fire_root.visible = show_fp_fire and current_height > 0.05
+	# La visibilidad la manda el DESTINO, no el tamano de este instante: si no,
+	# el nodo nace oculto -la llama empieza en cero- y no se enciende hasta el
+	# siguiente estado.
+	fire_root.visible = show_fp_fire and (current_height > 0.05 or target_height > 0.05)
 
 	var fire_light := item.get("fire_light") as OmniLight3D
 	if fire_light != null:
@@ -3037,7 +5794,7 @@ func _fp_fire_visual_hrr_kw(room_state: Dictionary) -> float:
 	var regime: String = String(room_state.get("combustion_regime", ""))
 	if bool(room_state.get("fire_latent_active", false)) or regime == "ILV_LATENT":
 		return minf(hrr_kw, fp_fire_min_visible_hrr_kw * 0.75)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
 		if o2_upper < 0.05:
 			return hrr_kw * clampf(o2_upper / 0.05, 0.05, 0.35)
@@ -3056,8 +5813,8 @@ func _fp_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Dictionar
 		return {}
 
 	item["fire_anchor_id"] = String(best_obj.get("id", ""))
-	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
-	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+	var pos_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
+	var size_m: Vector2 = ScenarioValues.to_vector2(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 	size_m.x = maxf(0.05, size_m.x)
 	size_m.y = maxf(0.05, size_m.y)
 	var local_center: Vector2 = pos_m + size_m * 0.5
@@ -3138,12 +5895,35 @@ func _fp_fire_base_y_for_object(obj: Dictionary) -> float:
 	return clampf(elevation_m + object_top_m, 0.02, 1.25)
 
 
-func _animate_fp_fire() -> void:
+func _animate_fp_fire(delta: float = 0.0) -> void:
 	for raw_room_id in _fire_nodes_by_room.keys():
 		var item: Dictionary = _fire_nodes_by_room[raw_room_id]
+		if delta > 0.0:
+			_grow_fp_fire_item(item, delta)
 		var fire_root := item.get("fire_root") as Node3D
 		if fire_root != null and fire_root.visible:
 			_animate_fp_fire_item(item)
+
+
+## Acerca la llama a su tamano CON EL RELOJ.
+##
+## El acercamiento es exponencial con constante de tiempo `fp_fire_grow_tau_s`:
+## en tau recorre el 63 % de lo que le falta, y el resultado no depende ni de
+## los fotogramas por segundo ni de cada cuanto llega el estado de la
+## simulacion. Antes era un `lerp` de factor fijo ejecutado una vez por estado,
+## y por eso la llama se quedaba en un tercio de su tamano (G-5).
+func _grow_fp_fire_item(item: Dictionary, delta: float) -> void:
+	var k_sube: float = 1.0 - exp(-delta / maxf(0.01, fp_fire_grow_tau_s))
+	var k_baja: float = 1.0 - exp(-delta / maxf(0.01, fp_fire_fade_tau_s))
+	for clave in ["height_m", "radius_m", "cap_radius_m", "cap_weight"]:
+		var actual: float = float(item.get("fire_" + clave, 0.0))
+		var destino: float = float(item.get("fire_target_" + clave, actual))
+		item["fire_" + clave] = actual + (destino - actual) * (k_sube if destino >= actual else k_baja)
+	var fire_root := item.get("fire_root") as Node3D
+	if fire_root != null:
+		fire_root.visible = show_fp_fire and (
+			float(item.get("fire_height_m", 0.0)) > 0.05
+			or float(item.get("fire_target_height_m", 0.0)) > 0.05)
 
 
 func _animate_fp_fire_item(item: Dictionary) -> void:
@@ -3200,7 +5980,7 @@ func _create_safety_markers(rects: Dictionary) -> void:
 
 func _create_fp_detector_marker(detector_id: String) -> Node3D:
 	var root := Node3D.new()
-	root.name = "Detector_" + _safe_node_name(detector_id)
+	root.name = "Detector_" + MeshFactory.safe_node_name(detector_id, "marker")
 	root.set_meta("detector_id", detector_id)
 	root.set_meta("alarm_triggered", false)
 	root.set_meta("alarm_active", false)
@@ -3270,7 +6050,7 @@ func _build_detector_alarm_stream() -> AudioStreamWAV:
 
 func _create_fp_victim_marker(victim_id: String) -> Node3D:
 	var root := Node3D.new()
-	root.name = "Victim_" + _safe_node_name(victim_id)
+	root.name = "Victim_" + MeshFactory.safe_node_name(victim_id, "marker")
 	var mat := _mat(fp_victim_color, false)
 	var body := _create_fp_human_limb_mesh("MarkerMesh", 0.16, 0.70, mat)
 	body.rotation_degrees.x = 90.0
@@ -3315,18 +6095,10 @@ func _create_fp_human_limb_mesh(node_name: String, radius_m: float, length_m: fl
 
 
 func _safety_world_position(data: Dictionary, rect: Rect2, room: RoomModel, y_m: float) -> Vector3:
-	var local_pos: Vector2 = _safety_local_position(data, rect)
+	var local_pos: Vector2 = ViewScenarioRead.safety_local_position(data, rect)
 	var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 	return _to_world(Vector3(rect.position.x + local_pos.x, y_m, rect.position.y + local_pos.y), floor_level_m)
 
-
-func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
-	if data.has("x_m") and data.has("y_m"):
-		return Vector2(
-			clampf(float(data.get("x_m", rect.size.x * 0.5)), 0.0, rect.size.x),
-			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
-		)
-	return rect.size * 0.5
 
 
 func _room_height(room: RoomModel) -> float:
@@ -3334,7 +6106,7 @@ func _room_height(room: RoomModel) -> float:
 
 
 func _update_safety_marker_states() -> void:
-	var detector_states: Dictionary = _state_records_by_id(Array(_state.get("detectors", [])))
+	var detector_states: Dictionary = ViewScenarioRead.records_by_id(Array(_state.get("detectors", [])))
 	for det_id in _detector_nodes.keys():
 		var node := _detector_nodes[det_id] as Node3D
 		if node == null:
@@ -3345,7 +6117,7 @@ func _update_safety_marker_states() -> void:
 		_set_marker_material(node, fp_detector_triggered_color if triggered else fp_detector_color)
 		_sync_detector_alarm(node, triggered)
 
-	var victim_states: Dictionary = _state_records_by_id(Array(_state.get("victims", [])))
+	var victim_states: Dictionary = ViewScenarioRead.records_by_id(Array(_state.get("victims", [])))
 	for vic_id in _victim_nodes.keys():
 		var node := _victim_nodes[vic_id] as Node3D
 		if node == null:
@@ -3362,17 +6134,6 @@ func _update_safety_marker_states() -> void:
 			vic_color = fp_victim_color
 		_set_marker_material(node, vic_color)
 
-
-func _state_records_by_id(records: Array) -> Dictionary:
-	var result: Dictionary = {}
-	for raw_record in records:
-		if typeof(raw_record) != TYPE_DICTIONARY:
-			continue
-		var record: Dictionary = raw_record
-		var id_text: String = String(record.get("id", ""))
-		if id_text != "":
-			result[id_text] = record
-	return result
 
 
 func _set_marker_material(root: Node3D, color: Color) -> void:
@@ -3570,7 +6331,7 @@ func _add_local_box(parent: Node3D, node_name: String, center_m: Vector3, size_m
 	mesh.material_override = _mat(color, color.a < 1.0)
 	mesh.position = center_m
 	mesh.set_meta("base_color", color)
-	parent.add_child(mesh)
+	parent.add_child(mesh, true)
 	if with_collision and parent is StaticBody3D:
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
@@ -3580,16 +6341,6 @@ func _add_local_box(parent: Node3D, node_name: String, center_m: Vector3, size_m
 		parent.add_child(shape)
 	return mesh
 
-
-func _safe_node_name(value: String) -> String:
-	var result: String = value.strip_edges()
-	if result == "":
-		return "marker"
-	result = result.replace(" ", "_")
-	result = result.replace("/", "_")
-	result = result.replace("\\", "_")
-	result = result.replace(":", "_")
-	return result
 
 
 func _create_outer_boundary() -> void:
@@ -3609,7 +6360,7 @@ func _create_outer_boundary() -> void:
 func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
 	var body := StaticBody3D.new()
 	body.name = "NoExitBoundary"
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size_m
@@ -3618,7 +6369,15 @@ func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
 	body.add_child(shape)
 
 
-func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: Vector3, material: StandardMaterial3D, with_collision: bool) -> MeshInstance3D:
+## Quita la proyeccion de sombra de una pieza decorativa. Ver
+## decorative_pieces_cast_shadows.
+func _mark_decorative(mesh: MeshInstance3D) -> void:
+	if mesh == null or decorative_pieces_cast_shadows:
+		return
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
+func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: Vector3, material: Material, with_collision: bool) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	mesh.name = node_name
 	var box_mesh := BoxMesh.new()
@@ -3626,14 +6385,35 @@ func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: 
 	mesh.mesh = box_mesh
 	mesh.material_override = material
 	mesh.position = center_world
-	parent.add_child(mesh)
+	# force_readable_name: sin el, Godot renombra a "@MeshInstance3D@NN" todo
+	# nodo cuyo nombre ya exista entre sus hermanos, y el mundo FP cuelga
+	# decenas de "Skirting_top" o "Wall_right" del mismo padre. Se perdia la
+	# identidad en el depurador y cualquier busqueda por nombre solo
+	# encontraba la primera (FP-8).
+	parent.add_child(mesh, true)
+	if material is ShaderMaterial:
+		# El shader de superficie mide la franja de oclusion en metros y para
+		# eso necesita el tamano de ESTA pieza; va por instancia para no tener
+		# que crear un material por tamano.
+		mesh.set_instance_shader_parameter("box_size_m", size_m)
 	if with_collision:
+		# Un CollisionShape3D colgado de un Node3D es inerte: la forma tiene que
+		# vivir bajo un CollisionObject3D. Cuando el padre ya es un cuerpo (los
+		# muros lo son) se cuelga de el; cuando no, se crea uno propio. Antes se
+		# anadia siempre como hermano de la malla, asi que el rellano y el
+		# descansillo de la escalera no colisionaban con nada (R-8).
+		var host := parent as CollisionObject3D
+		if host == null:
+			var body := StaticBody3D.new()
+			body.name = node_name + "_Body"
+			parent.add_child(body, true)
+			host = body
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = size_m
 		shape.shape = box
-		shape.position = center_world
-		parent.add_child(shape)
+		shape.position = center_world - host.position
+		host.add_child(shape)
 	return mesh
 
 
@@ -3645,7 +6425,7 @@ func _add_oriented_box(
 	tangent_extent_m: float,
 	height_m: float,
 	normal_depth_m: float,
-	material: StandardMaterial3D,
+	material: Material,
 	with_collision: bool
 ) -> MeshInstance3D:
 	var size_m: Vector3
@@ -3919,7 +6699,7 @@ func _hud_combustion_regime_alert(room_state: Dictionary, hrr_kw: float) -> Stri
 	var o2_upper_vol_pct: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209))) * 100.0
 	if hrr_kw > 0.5 and o2_upper_vol_pct < 5.0:
 		return "ILV CRIT"
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		return "ILV"
 	match regime:
 		"FUEL_CONTROLLED", "FULLY_DEVELOPED":
@@ -3927,16 +6707,6 @@ func _hud_combustion_regime_alert(room_state: Dictionary, hrr_kw: float) -> Stri
 		_:
 			return "--"
 
-
-func _hud_is_ventilation_limited_regime(regime: String) -> bool:
-	return regime in [
-		"VENTILATION_STRESSED",
-		"VENTILATION_CONTROLLED_BURNING",
-		"VENTILATION_INDUCED_GROWTH",
-		"ILV_LATENT",
-		"BACKDRAFT_RISK",
-		"BACKDRAFT_EVENT",
-	]
 
 
 func _hud_eye_height_m() -> float:
@@ -4087,9 +6857,6 @@ func get_player_marker_state() -> Dictionary:
 	}
 
 
-func _next_opening_fraction(current: float) -> float:
-	return FPOpeningInteraction.next_fraction(current, OPENING_FRACTION_STEPS)
-
 
 func _begin_opening_hold() -> void:
 	if building == null:
@@ -4188,21 +6955,6 @@ func _apply_opening_fraction(opening_index: int, next_frac: float) -> void:
 	_update_prompt()
 
 
-func _interact_with_nearest_opening() -> void:
-	if building == null:
-		return
-	if _nearest_opening_index < 0:
-		_nearest_opening_index = _find_nearest_opening()
-	if _nearest_opening_index < 0:
-		return
-	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
-	if op == null:
-		return
-	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
-		return
-	var next_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
-	_apply_opening_fraction(_nearest_opening_index, next_frac)
-
 
 func _sync_opening_panels() -> void:
 	if building == null:
@@ -4266,6 +7018,17 @@ func _apply_stance(immediate: bool) -> void:
 		_camera_y_target = target_y
 		if immediate:
 			_camera.position.y = target_y
+
+
+## Fija el campo de vision en HORIZONTAL. `KEEP_WIDTH` hace que `fov` sea el
+## angulo horizontal, y no el vertical del que tira Godot por defecto: asi el
+## numero significa lo mismo en una ventana 16:9 y en una 21:9, y la sensacion
+## de tamano no cambia al redimensionar.
+func _apply_camera_fov() -> void:
+	if _camera == null:
+		return
+	_camera.keep_aspect = Camera3D.KEEP_WIDTH
+	_camera.fov = clampf(fp_camera_fov_h_deg, 30.0, 150.0)
 
 
 func _current_height() -> float:
@@ -4345,7 +7108,7 @@ func _update_opening_panel(index: int) -> void:
 	var height_m: float = float(info.get("height_m", 2.0))
 	var sill_m: float = float(info.get("sill_m", 0.0))
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-	var panel_thickness: float = closed_door_thickness_m if is_door else 0.045
+	var panel_thickness: float = 0.045 if (not is_door or _is_balcony_opening(op)) else closed_door_thickness_m
 	var size := Vector3(width_m, height_m, panel_thickness)
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
@@ -4422,7 +7185,9 @@ func _update_opening_panel(index: int) -> void:
 	shape.disabled = (not is_door and not (is_window and window_collision_when_closed)) or open_amount > 0.05
 	if light != null:
 		var area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
-		if op.type == OpeningModel.Type.WINDOW:
+		# Por una balconera entra la luz de la CALLE, no la del rellano: es una
+		# puerta, pero da a fachada.
+		if op.type == OpeningModel.Type.WINDOW or _is_balcony_opening(op):
 			light.light_color = _effective_window_light_color()
 			light.light_energy = _effective_window_light_energy() * area_factor * lerpf(0.45, 1.0, open_amount) * smoke_transmission
 			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount) * lerpf(0.72, 1.0, smoke_transmission)
@@ -4444,8 +7209,17 @@ func _update_smoke_light_attenuation() -> void:
 		var transmission: float = _light_smoke_transmission_for_room(room_id, _room_height(room))
 		var base_energy: float = float(_ceiling_light_base_energy_by_room.get(room_id, room_ceiling_light_energy))
 		var base_range: float = float(_ceiling_light_base_range_by_room.get(room_id, room_ceiling_light_range_extra_m))
+		# El humo baja el brillo (hasta smoke_light_min_transmission, lo que
+		# mantiene el apagado casi total en regimenes ILV criticos), pero el
+		# alcance no se recorta por debajo del suelo configurado: si lo hace,
+		# la sala vecina al fuego se lee como una caja negra aunque el
+		# observador este bajo la capa con visibilidad de sobra (FP-6).
 		light.light_energy = base_energy * transmission
-		light.omni_range = base_range * lerpf(0.50, 1.0, transmission)
+		light.omni_range = base_range * lerpf(
+			clampf(room_ceiling_light_smoke_range_min_factor, 0.0, 1.0),
+			1.0,
+			transmission
+		)
 
 
 func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
@@ -4475,7 +7249,7 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 		0.0,
 		1.0
 	)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		blocked = maxf(blocked, 0.78)
 		if o2_upper < 0.05 and hrr_kw > 0.5:
 			blocked = maxf(blocked, 0.97)
@@ -4505,7 +7279,7 @@ func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
 	var visibility_block: float = clampf((12.0 - visibility_m) / 12.0, 0.0, 1.0)
 	var layer_block: float = clampf((height_m - layer_m) / maxf(0.1, height_m), 0.0, 1.0)
 	var blocked: float = maxf(visibility_block * 0.72, layer_block * 0.48)
-	if _hud_is_ventilation_limited_regime(regime):
+	if FPVisibilityOverlay.is_ventilation_limited_regime(regime):
 		blocked = maxf(blocked, 0.74)
 		if o2_upper < 0.05 and hrr_kw > 0.5:
 			blocked = maxf(blocked, 0.94)
@@ -4525,6 +7299,14 @@ func _door_hinge_side(op: OpeningModel) -> String:
 
 
 func _opening_material(op: OpeningModel) -> StandardMaterial3D:
+	# Una balconera es una puerta acristalada: se abre y se cierra como puerta
+	# -abate, tiene bisagra y su lado de apertura- pero se VE como una ventana.
+	# Pintarla de madera maciza tapaba la calle desde dentro y era justo lo que
+	# distingue una balconera de la puerta de entrada.
+	if _is_balcony_opening(op):
+		if op.open_fraction > 0.5:
+			return _mat(window_glass_open_color, true)
+		return _mat(window_glass_closed_color, true)
 	if op.type == OpeningModel.Type.DOOR:
 		if op.open_fraction > 0.5:
 			return _mat(Color(0.50, 0.34, 0.18, 0.76), true, Color(0.0, 0.0, 0.0, 0.0), 0.0, 5201)
@@ -4549,7 +7331,7 @@ func _opening_specs_for_side(rect: Rect2, room_id: int, side: String, room_heigh
 			continue
 		var axis_center: float = float(info.get("axis_center", 0.0))
 		var width_m: float = float(info.get("width_m", 0.8))
-		var side_start: float = rect.position.x if side == "top" or side == "bottom" else rect.position.y
+		var side_start: float = float(WallSideGeometry.side_span(rect, side)["start"])
 		var bottom_m: float = 0.0
 		var top_m: float = minf(room_height_m, float(info.get("height_m", 2.0)))
 		if op.type == OpeningModel.Type.WINDOW:
@@ -4624,41 +7406,47 @@ func _opening_info_on_side(
 	segment_start: float = -1.0,
 	segment_end: float = -1.0
 ) -> Dictionary:
-	var horizontal: bool = side == "top" or side == "bottom"
-	var side_length: float = rect.size.x if horizontal else rect.size.y
-	var side_axis_start: float = rect.position.x if horizontal else rect.position.y
-	var side_axis_end: float = side_axis_start + side_length
+	# El lado se normaliza antes de medir nada. El modelo de huecos admite los
+	# alias cardinales ("north", "south"...): el visor 3D los entendia y este
+	# mundo no, asi que un hueco declarado al norte se colocaba aqui sobre el
+	# paramento derecho. Es justo la clase de divergencia que describe FP-3.
+	var canon_side: String = WallSideGeometry.canonical(side)
+	if canon_side == "":
+		canon_side = "top"
+	var horizontal: bool = WallSideGeometry.is_horizontal(canon_side)
+	var side_axis: Dictionary = WallSideGeometry.side_span(rect, canon_side)
+	var side_axis_start: float = float(side_axis["start"])
+	var side_axis_end: float = float(side_axis["end"])
 	var allowed_start: float = side_axis_start
 	var allowed_end: float = side_axis_end
 	if segment_end > segment_start:
 		allowed_start = maxf(side_axis_start, segment_start)
 		allowed_end = minf(side_axis_end, segment_end)
-	var allowed_length: float = allowed_end - allowed_start
-	if allowed_length <= 0.05:
+	if allowed_end - allowed_start <= 0.05:
 		return {}
 
-	var center_axis: float
-	if offset_is_fraction:
-		center_axis = allowed_start + allowed_length * offset
-	else:
-		center_axis = side_axis_start + offset
-	width_m = minf(width_m, maxf(0.20, allowed_length))
-	center_axis = clampf(center_axis, allowed_start + width_m * 0.5, allowed_end - width_m * 0.5)
+	var placement: Dictionary = OpeningPlacement.center_along_side(
+		allowed_start, allowed_end, side_axis_start, offset, offset_is_fraction, width_m
+	)
+	var center_axis: float = float(placement["center"])
+	width_m = float(placement["width_m"])
 
-	var x: float = center_axis if horizontal else (rect.position.x if side == "left" else rect.position.x + rect.size.x)
-	var z: float = (rect.position.y if side == "top" else rect.position.y + rect.size.y) if horizontal else center_axis
+	var fixed_axis_m: float = WallSideGeometry.side_offset_m(rect, canon_side)
+	var x: float = center_axis if horizontal else fixed_axis_m
+	var z: float = fixed_axis_m if horizontal else center_axis
 	var floor_level_m: float = _get_room_floor_level(room_id)
 	var center: Vector3 = _to_world(Vector3(x, sill_m + height_m * 0.5, z), floor_level_m)
 	var tangent: Vector3 = Vector3.RIGHT if horizontal else Vector3.FORWARD
-	var normal: Vector3 = _inside_normal_for_side(side)
+	var normal: Vector3 = _inside_normal_for_side(canon_side)
 	return {
 		"center": center,
 		"axis_center": center_axis,
+		"room_id": room_id,
 		"width_m": width_m,
 		"height_m": height_m,
 		"sill_m": sill_m,
 		"orientation": "horizontal" if horizontal else "vertical",
-		"side_for_%d" % room_id: side,
+		"side_for_%d" % room_id: canon_side,
 		"tangent": tangent,
 		"normal": normal,
 		"exterior": exterior,
@@ -4666,50 +7454,13 @@ func _opening_info_on_side(
 	}
 
 
-func _shared_side(a: Rect2, b: Rect2) -> String:
-	return String(_shared_side_data(a, b).get("side", ""))
-
 
 func _shared_side_data(a: Rect2, b: Rect2) -> Dictionary:
-	var eps: float = 0.01
-	var min_overlap_m: float = 0.05
-	var overlap_start: float
-	var overlap_end: float
-	if absf((a.position.x + a.size.x) - b.position.x) < eps:
-		overlap_start = maxf(a.position.y, b.position.y)
-		overlap_end = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "right", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf(a.position.x - (b.position.x + b.size.x)) < eps:
-		overlap_start = maxf(a.position.y, b.position.y)
-		overlap_end = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "left", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf((a.position.y + a.size.y) - b.position.y) < eps:
-		overlap_start = maxf(a.position.x, b.position.x)
-		overlap_end = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "bottom", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf(a.position.y - (b.position.y + b.size.y)) < eps:
-		overlap_start = maxf(a.position.x, b.position.x)
-		overlap_end = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "top", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	return {}
+	return WallSideGeometry.shared_side(a, b)
 
 
 func _opposite_side(side: String) -> String:
-	match side:
-		"top":
-			return "bottom"
-		"bottom":
-			return "top"
-		"left":
-			return "right"
-		"right":
-			return "left"
-		_:
-			return ""
+	return WallSideGeometry.opposite(side)
 
 
 func _place_at_entry() -> void:
@@ -4735,6 +7486,11 @@ func _place_at_entry() -> void:
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
+			continue
+		# Sin `player_start` se entra por la puerta, y la puerta no es la
+		# balconera: aparecer en un balcon al que no se puede salir seria
+		# aparecer encerrado.
+		if _is_balcony_opening(op):
 			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
@@ -4768,30 +7524,8 @@ func _place_at_entry() -> void:
 
 
 func _inside_normal_for_side(side: String) -> Vector3:
-	match side:
-		"top":
-			return Vector3(0.0, 0.0, 1.0)
-		"bottom":
-			return Vector3(0.0, 0.0, -1.0)
-		"left":
-			return Vector3.RIGHT
-		"right":
-			return Vector3.LEFT
-		_:
-			return Vector3(0.0, 0.0, 1.0)
+	return WallSideGeometry.inward_normal_3d(side)
 
-
-func _compute_bounds(rects: Dictionary) -> Rect2:
-	var first: bool = true
-	var bounds := Rect2()
-	for value in rects.values():
-		var rect := Rect2(value)
-		if first:
-			bounds = rect
-			first = false
-		else:
-			bounds = bounds.merge(rect)
-	return bounds
 
 
 func _building_vertical_span() -> Dictionary:
@@ -4808,58 +7542,66 @@ func _building_vertical_span() -> Dictionary:
 	return {"min_y": min_y, "max_y": max_y}
 
 
-func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return fallback
-
 
 func _get_room_floor_level(room_id: int) -> float:
-	if building == null:
-		return 0.0
-	var room: RoomModel = building.get_room(room_id)
-	return room.floor_level_z_m if room != null else 0.0
+	return BuildingLevels.room_floor_level_m(building, room_id)
 
 
 func _room_is_stairwell(room: RoomModel) -> bool:
-	if room == null:
-		return false
-	var label: String = ("%s %s" % [room.kind, room.name]).to_lower()
-	return label.contains("escalera") or label.contains("stair")
+	return BuildingLevels.is_stairwell(room)
+
+
+func _room_is_patio(room: RoomModel) -> bool:
+	return BuildingLevels.is_patio(room)
+
+
+## El fondo del patio: la zona que no tiene otra zona de patio debajo. Es la
+## unica que lleva suelo, porque un patio de luces tiene pavimento abajo y nada
+## mas; las de arriba son el hueco del conducto.
+##
+## Se pregunta por el ENCADENADO, no por la cota mas baja del edificio. Un patio
+## a pie de calle y una terraza llamada tambien "patio" en la ultima planta son
+## dos sitios distintos: con el criterio de la cota, la terraza se habria quedado
+## sin suelo y se caeria uno por el agujero.
+func _is_patio_bottom(room: RoomModel) -> bool:
+	if building == null or room == null:
+		return true
+	for raw_op in building.get_openings():
+		var op := raw_op as OpeningModel
+		if op == null or not op.is_vertical:
+			continue
+		var otra_id: int = -1
+		if op.a == room.id:
+			otra_id = op.b
+		elif op.b == room.id:
+			otra_id = op.a
+		if otra_id < 0:
+			continue
+		var otra: RoomModel = building.get_room(otra_id)
+		if otra == null or not BuildingLevels.is_patio(otra):
+			continue
+		if otra.floor_level_z_m < room.floor_level_z_m - 0.05:
+			return false
+	return true
 
 
 func _room_stair_run_direction(room: RoomModel) -> Vector2:
-	if room == null:
-		return Vector2.DOWN
-	var value: Vector2 = room.stair_run_direction_m
-	if absf(value.x) > absf(value.y):
-		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
-	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
+	return BuildingLevels.stair_run_direction(room)
 
 
+## Devuelve la propia cota cuando no hay planta encima: es el contrato que
+## esperan sus llamantes, y por eso el valor de reserva viaja explicito.
 func _find_next_floor_level_above(level_m: float) -> float:
-	if building == null:
-		return level_m
-	var best: float = INF
-	for key in building.get_rooms().keys():
-		var room: RoomModel = building.get_room(int(key))
-		if room != null and room.floor_level_z_m > level_m + 0.20:
-			best = minf(best, room.floor_level_z_m)
-	return level_m if is_inf(best) else best
+	return BuildingLevels.next_floor_level_above_m(building, level_m, level_m)
 
 
 func _to_world(pos_m: Vector3, floor_level_m: float = 0.0) -> Vector3:
 	return Vector3(pos_m.x + _origin_offset_m.x, pos_m.y + floor_level_m, pos_m.z + _origin_offset_m.y)
 
 
-func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
+func _floor_material_for_room(room_id: int) -> Material:
+	if floor_material_override != null:
+		return floor_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var kind: String = room.kind.to_lower() if room != null else ""
 	var color := Color(0.30, 0.29, 0.26, 1.0)
@@ -4871,10 +7613,12 @@ func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.34, 0.33, 0.30, 1.0)
 	elif kind.contains("dorm") or kind.contains("bed"):
 		color = Color(0.35, 0.28, 0.22, 1.0)
-	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1100 + room_id)
+	return _surface_mat(color, 1100 + room_id, NOISE_PROFILE_FLOOR)
 
 
-func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
+func _wall_material_for_room(room_id: int) -> Material:
+	if wall_material_override != null:
+		return wall_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var kind: String = room.kind.to_lower() if room != null else ""
 	var color := Color(0.80, 0.80, 0.75, 1.0)
@@ -4884,11 +7628,64 @@ func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.72, 0.76, 0.76, 1.0)
 	elif kind.contains("pasillo") or kind.contains("hall") or kind.contains("corridor"):
 		color = Color(0.78, 0.75, 0.68, 1.0)
-	return _mat(color, false)
+	# Los muros no pedian semilla, asi que eran los unicos que jamas recibian
+	# ruido aunque estuviese activado (FP-2).
+	return _surface_mat(color, 2100 + room_id)
 
 
-func _ceiling_material_for_room(room_id: int) -> StandardMaterial3D:
-	return _mat(Color(0.76, 0.76, 0.71, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 3100 + room_id)
+func _ceiling_material_for_room(room_id: int) -> Material:
+	if ceiling_material_override != null:
+		return ceiling_material_override
+	return _surface_mat(Color(0.76, 0.76, 0.71, 1.0), 3100 + room_id)
+
+
+## Material del decorado urbano: hormigon, no silueta negra.
+##
+## El entorno del FP tiene `ambient_light_source = 1`, o sea **ambiente
+## desactivado**: lo que no recibe el sol directo se va a negro. Dentro de la
+## vivienda da igual -hay luces por todas partes- pero en la calle deja las
+## fachadas en sombra como recortes negros, y subir el albedo no arregla nada
+## porque no hay luz que lo multiplique.
+##
+## En vez de encender el ambiente global -que cambiaria tambien el interior y
+## no es lo que se ha pedido-, el decorado lleva su propia emision suave del
+## color de su albedo. Es el rebote del cielo, que es de donde viene esa luz en
+## una calle de verdad.
+##
+## Se cachea aparte de `_mat` porque `_mat` no guarda los emisivos: los suyos se
+## mutan en caliente (el brillo del fuego) y compartirlos los acoplaria. Estos
+## no se tocan nunca despues de crearse.
+## Material de una superficie exterior de NUESTRO edificio: como `_city_mat`
+## -albedo mas emision suave del propio color, que hace de rebote de cielo-
+## pero conservando el ruido de superficie, que la fachada propia si tiene
+## porque se mira de cerca.
+func _own_exterior_mat(color: Color, noise_seed: int) -> StandardMaterial3D:
+	var night: bool = _exterior_is_night()
+	var bounce: float = own_facade_sky_bounce_night if night else own_facade_sky_bounce_day
+	if bounce <= 0.0:
+		return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, noise_seed)
+	var cache_key: String = "own|%s|%d|%s" % [color.to_html(true), noise_seed, "n" if night else "d"]
+	if _city_material_cache.has(cache_key):
+		return _city_material_cache[cache_key]
+	var material: StandardMaterial3D = _mat(color, false, color, bounce, noise_seed)
+	_city_material_cache[cache_key] = material
+	return material
+
+
+func _city_mat(color: Color) -> StandardMaterial3D:
+	var night: bool = _exterior_is_night()
+	var cache_key: String = "%s|%s" % [color.to_html(true), "n" if night else "d"]
+	if _city_material_cache.has(cache_key):
+		return _city_material_cache[cache_key]
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = material_surface_roughness
+	material.metallic = 0.0
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = city_sky_bounce_night if night else city_sky_bounce_day
+	_city_material_cache[cache_key] = material
+	return material
 
 
 func _mat(
@@ -4896,29 +7693,147 @@ func _mat(
 	transparent: bool,
 	emission_color: Color = Color(0.0, 0.0, 0.0, 0.0),
 	emission_energy: float = 0.0,
-	noise_seed: int = -1
+	noise_seed: int = -1,
+	noise_profile: int = NOISE_PROFILE_SURFACE
 ) -> StandardMaterial3D:
+	var is_opaque: bool = not transparent and color.a >= 1.0
+	# Solo se comparten los materiales opacos y sin emision. Los transparentes y
+	# los emisivos se mutan en caliente (el tinte del cristal de una ventana, el
+	# brillo del fuego) y compartirlos los acoplaria entre si. Los opacos no se
+	# tocan tras crearse: la fachada, el rellano y el decorado generaban decenas
+	# de copias identicas (M-3).
+	var cacheable: bool = is_opaque and emission_energy <= 0.0
+	var cache_key: String = ""
+	if cacheable:
+		cache_key = "%s|%d|%d" % [color.to_html(true), noise_seed, noise_profile]
+		if _material_cache.has(cache_key):
+			return _material_cache[cache_key]
+
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.96
+	material.roughness = material_surface_roughness
 	material.metallic = 0.0
-	if use_procedural_surface_noise and noise_seed >= 0 and not transparent:
-		material.albedo_texture = _noise_texture(noise_seed)
+	if not transparent and _wants_surface_texture(noise_seed, noise_profile):
+		material.albedo_texture = _noise_texture(noise_seed, noise_profile)
+		# Triplanar en mundo: la textura se mide en metros y no por cara, que es
+		# lo que hacia que un muro largo y una jamba tuviesen el mismo numero de
+		# ciclos de ruido y que el patron saltase en cada encuentro.
+		material.uv1_triplanar = true
+		material.uv1_world_triplanar = true
+		var cycles_per_m: float = 1.0 / maxf(0.05, _noise_size_for_profile(noise_profile))
+		material.uv1_scale = Vector3(cycles_per_m, cycles_per_m, cycles_per_m)
 	if emission_energy > 0.0:
 		material.emission_enabled = true
 		material.emission = emission_color
 		material.emission_energy_multiplier = emission_energy
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if cacheable:
+		_material_cache[cache_key] = material
 	return material
 
 
-func _noise_texture(variant_seed: int) -> Texture2D:
+## Material de las superficies grandes (muros, suelos, techos). Usa el
+## shader propio cuando la oclusion de contacto esta activada; si no, el
+## StandardMaterial3D de siempre, para poder comparar y para no imponer un
+## shader a quien no lo quiera.
+func _surface_mat(color: Color, noise_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Material:
+	if not surface_contact_ao_enabled:
+		return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, noise_seed, noise_profile)
+	var cache_key: String = "shader|%s|%d|%d" % [color.to_html(true), noise_seed, noise_profile]
+	if _material_cache.has(cache_key):
+		return _material_cache[cache_key]
+	var material := ShaderMaterial.new()
+	material.shader = FPSurfaceShader
+	material.set_shader_parameter("albedo", color)
+	material.set_shader_parameter("surface_roughness", material_surface_roughness)
+	material.set_shader_parameter("ao_strength", surface_contact_ao_strength)
+	material.set_shader_parameter("ao_band_m", surface_contact_ao_band_m)
+	material.set_shader_parameter("triplanar_sharpness", surface_triplanar_sharpness)
+	var wants_noise: bool = _wants_surface_texture(noise_seed, noise_profile)
+	material.set_shader_parameter("use_noise", wants_noise)
+	if wants_noise:
+		material.set_shader_parameter("surface_noise", _noise_texture(noise_seed, noise_profile))
+		material.set_shader_parameter(
+			"noise_cycles_per_m",
+			1.0 / maxf(0.05, _noise_size_for_profile(noise_profile))
+		)
+	_material_cache[cache_key] = material
+	return material
+
+
+func _noise_size_for_profile(noise_profile: int) -> float:
+	if noise_profile == NOISE_PROFILE_TILE:
+		return maxf(0.05, landing_tile_size_m)
+	return material_noise_size_m * (
+		material_floor_noise_size_factor if noise_profile == NOISE_PROFILE_FLOOR else 1.0
+	)
+
+
+## La textura que el usuario ha puesto a mano para este tipo de superficie, si
+## la hay. Una por perfil: muros y techos, suelos, y el pavimento del rellano.
+func _surface_texture_override(noise_profile: int) -> Texture2D:
+	match noise_profile:
+		NOISE_PROFILE_TILE:
+			return landing_tile_texture_override
+		NOISE_PROFILE_FLOOR:
+			return floor_noise_texture_override
+		_:
+			return surface_noise_texture_override
+
+
+## ¿Lleva textura esta superficie?
+##
+## Una textura puesta a mano MANDA sobre `use_procedural_surface_noise`: ese
+## interruptor apaga el ruido generado, no una foto que alguien ha elegido. Antes
+## iban los dos por la misma puerta y la ranura se vaciaba en silencio -sin error
+## y sin aviso- en cuanto se apagaba el ruido, que es justo lo que hace quien
+## trae texturas propias.
+## `noise_seed < 0` es la forma de decir "esta pieza NO lleva textura", y la usan
+## los cachivaches del decorado, los cristales y todo lo pequeno. Vale tambien
+## para las texturas propias: la ranura elige CUAL se usa, no a quien se le pone.
+func _wants_surface_texture(noise_seed: int, noise_profile: int) -> bool:
+	if noise_seed < 0:
+		return false
+	if _surface_texture_override(noise_profile) != null:
+		return true
+	return use_procedural_surface_noise and material_noise_contrast > 0.0
+
+
+## Ruido de superficie utilizable. La clave es la rampa de color: el albedo se
+## MULTIPLICA por la textura, asi que un ruido en escala de grises de 0 a 1
+## oscurece a la mitad y motea. Aqui el rango va de (1 - contraste) a 1, de modo
+## que el color base se conserva y el ruido solo lo rompe (FP-2 / M-1).
+func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Texture2D:
+	var propia: Texture2D = _surface_texture_override(noise_profile)
+	if propia != null:
+		return propia
+	if noise_profile == NOISE_PROFILE_TILE:
+		return _tile_texture()
+	var is_floor: bool = noise_profile == NOISE_PROFILE_FLOOR
+	var contrast: float = clampf(
+		material_noise_contrast * (material_floor_dirt_boost if is_floor else 1.0),
+		0.0,
+		0.9
+	)
 	var noise := FastNoiseLite.new()
 	noise.seed = variant_seed
-	noise.frequency = material_noise_frequency
+	noise.frequency = material_noise_frequency * (
+		material_floor_noise_frequency_factor if is_floor else 1.0
+	)
+	noise.fractal_octaves = material_floor_noise_octaves if is_floor else material_noise_octaves
+
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0 - contrast, 1.0 - contrast, 1.0 - contrast, 1.0))
+	ramp.set_color(1, Color.WHITE)
+
 	var texture := NoiseTexture2D.new()
-	texture.width = 128
-	texture.height = 128
+	texture.width = material_noise_texture_px
+	texture.height = material_noise_texture_px
+	texture.seamless = true
+	# Sin mipmaps, una textura proyectada en metros parpadea y dentellea al
+	# alejarse o al mirarla de refilon.
+	texture.generate_mipmaps = true
+	texture.color_ramp = ramp
 	texture.noise = noise
 	return texture

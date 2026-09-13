@@ -28,6 +28,9 @@ func _run() -> void:
 	host.add_child(fp)
 	await get_tree().process_frame
 	fp.setup(building)
+	# Sin activarlo, `_physics_process` sale por la puerta de atras y la llama
+	# no crece nunca: la red medía una llama congelada en cero.
+	fp.set_active(true)
 	await get_tree().physics_frame
 
 	var fire_root := fp.get_node_or_null("FirstPersonWorld/FPFire/Fire_00") as Node3D
@@ -39,6 +42,11 @@ func _run() -> void:
 
 	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0))
 	_expect(fire_root.visible, "FP fire did not become visible for active HRR")
+	# La llama crece con el reloj, no de golpe: hay que dejarla llegar. Antes
+	# esta red daba por bueno que estuviera "escalada" un instante despues del
+	# estado, y eso es justo lo que tapaba G-5 -la llama se quedaba en un tercio
+	# de su tamano y la comprobacion pasaba igual-.
+	await _let_flame_grow(fp)
 	_expect_vec3_close(
 		fire_root.position,
 		_expected_anchor(Vector2(1.0, 0.9), Vector2(1.4, 0.8)),
@@ -47,6 +55,7 @@ func _run() -> void:
 	)
 	var core := fire_root.get_node_or_null("Core") as MeshInstance3D
 	_expect(core != null and core.scale.y > 0.05, "FP fire core was not animated/scaled")
+	_expect_heskestad(fp, fire_root, 900.0)
 	var light := fire_root.get_node_or_null("FireLight") as OmniLight3D
 	_expect(light != null and light.light_energy > 0.1, "FP fire light did not receive energy")
 	var normal_light_energy: float = light.light_energy if light != null else 0.0
@@ -75,8 +84,8 @@ func _run() -> void:
 		"FP fire did not follow moved fuel-object snapshot"
 	)
 
-	for _i in range(14):
-		fp.set_state(_make_no_fire_state(Vector2(2.0, 1.6)))
+	fp.set_state(_make_no_fire_state(Vector2(2.0, 1.6)))
+	await _let_flame_grow(fp)
 	_expect(not fire_root.visible, "FP fire remained visible after HRR dropped to zero")
 	if light != null:
 		_expect(light.light_energy <= 0.01, "FP fire light remained energized after HRR dropped to zero")
@@ -217,6 +226,53 @@ func _finish() -> void:
 	for failure in _failures:
 		push_error("- " + failure)
 	get_tree().quit(1)
+
+
+## Deja correr el reloj de la llama hasta que se estabiliza.
+func _let_flame_grow(fp: Node) -> void:
+	for _i in range(90):
+		await get_tree().physics_frame
+
+
+## La llama mide lo que dice la correlacion de Heskestad, o lo que le deja el
+## techo si no cabe.
+##
+## Es la comprobacion que le faltaba a esta red y el motivo de G-5: con el HUD
+## marcando 850 kW se construia una llama de 0,60 m cuando la correlacion pide
+## 1,95. Que la llama estuviera "escalada" no significaba nada.
+##
+##     L = 0,235 · Q^(2/5) − 1,02 · D
+func _expect_heskestad(fp: Node, fire_root: Node3D, hrr_kw: float) -> void:
+	var alto: float = _flame_height_m(fire_root)
+	var techo: float = maxf(0.24, float(fp.boundary_height_m) - 0.30)
+	var esperado: float = minf(
+		maxf(0.12, 0.235 * pow(hrr_kw, 0.4) - 1.02 * maxf(0.12, float(fp.fp_fire_base_radius_m) * 2.0)),
+		techo)
+	# Un 35 % de holgura: la malla de la llama no es un cilindro y el parpadeo
+	# la mueve. Lo que se caza aqui es una llama que se queda a la mitad.
+	if alto < esperado * 0.65:
+		_expect(false, "FP fire is %.2f m tall and Heskestad asks for %.2f at %.0f kW" % [
+			alto, esperado, hrr_kw])
+
+
+## Alto de la llama construida, medido sobre las mallas visibles.
+func _flame_height_m(fire_root: Node3D) -> float:
+	var alto: float = 0.0
+	var pendientes: Array = [fire_root]
+	while not pendientes.is_empty():
+		var node: Node = pendientes.pop_back()
+		for child in node.get_children():
+			pendientes.append(child)
+		var mesh := node as MeshInstance3D
+		if mesh == null or mesh.mesh == null or not mesh.is_visible_in_tree():
+			continue
+		var local: AABB = mesh.get_aabb()
+		var g: Transform3D = mesh.global_transform
+		var caja := AABB(g * local.position, Vector3.ZERO)
+		for i in range(1, 8):
+			caja = caja.expand(g * local.get_endpoint(i))
+		alto = maxf(alto, caja.position.y + caja.size.y - fire_root.global_position.y)
+	return alto
 
 
 func _expect(condition: bool, message: String) -> void:

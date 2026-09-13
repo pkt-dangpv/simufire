@@ -14,10 +14,12 @@ func _run() -> void:
 	await get_tree().process_frame
 	var apartment := await _build_case("apartment")
 	_validate_city(apartment)
+	_validate_own_facade(apartment, "right", "Opening_02", Vector3.RIGHT, "bottom")
 	_cleanup_case(apartment)
 
 	var house := await _build_case("single_family")
 	_validate_residential(house)
+	_validate_own_facade(house, "bottom", "Opening_01", Vector3.BACK, "")
 	_cleanup_case(house)
 	_finish()
 
@@ -59,8 +61,16 @@ func _validate_city(ctx: Dictionary) -> void:
 	_expect(_find_meshes(exterior, "CityEntrance_").size() == facades.size(), "Each city module needs an entrance")
 	_expect(_find_meshes(exterior, "CityCar_").size() >= 9, "City street scale objects missing")
 	_expect(_find_meshes(exterior, "CityTree_").size() >= 8, "City tree trunks/crowns missing")
-	_expect(_find_meshes(exterior, "CityCurbNear_").size() == 2, "Each city orientation needs a near curb")
-	_expect(_find_meshes(exterior, "CityCurbFar_").size() == 2, "Each city orientation needs a far curb")
+	# La calle dejo de construirse por fachadas y pasa a ser un anillo alrededor
+	# de la manzana: cada fachada montaba antes su calzada, sus dos aceras y sus
+	# dos bordillos girados segun ella, y con tres fachadas eso eran tres calles
+	# superpuestas cruzandose. Lo que se comprueba ya no es "dos bordillos por
+	# orientacion" sino que la calle es UNA y esta completa: cuatro brazos de
+	# calzada, acera a los dos lados y bordillos por los tramos rectos.
+	_expect(_find_meshes(exterior, "Road_").size() == 4, "La calzada debe ser un anillo de cuatro brazos")
+	_expect(_find_meshes(exterior, "SidewalkNear_").size() == 4, "Falta la acera del propio edificio")
+	_expect(_find_meshes(exterior, "SidewalkFar_").size() == 4, "Falta la acera de enfrente")
+	_expect(_find_meshes(exterior, "CityCurb_").size() >= 4, "Faltan bordillos en los tramos rectos")
 	_expect(facade_fills.size() == 2, "Each city orientation needs a local facade fill")
 	_validate_facade_fill_coverage(facades, facade_fills)
 	_expect(_find_meshes(exterior, "OppositeFacade_").is_empty(), "Legacy monolithic facade must be retired")
@@ -75,15 +85,31 @@ func _validate_residential(ctx: Dictionary) -> void:
 		return
 	var houses := _find_meshes(exterior, "ResidentialHouseBody_")
 	var roofs := _find_meshes(exterior, "ResidentialRoof_")
-	_expect(houses.size() == 3, "Residential exterior must create three full-size houses")
-	_expect(roofs.size() == 3, "Residential houses need pitched roofs")
-	_expect(_find_meshes(exterior, "ResidentialWindowGlass_").size() == 12, "Residential facade windows missing")
-	_expect(_find_meshes(exterior, "ResidentialDoor_").size() == 3, "Residential front doors missing")
+	# El numero de casas de enfrente ya no es fijo: sale del largo de la calle
+	# de ese lado. Con tres fijas, una calle de 33 m tenia 15 m de casas y el
+	# resto cesped, que es la version de barrio de "la calle termina en nada".
+	# Lo que se comprueba es que haya fila y que este completa: cada casa con su
+	# cubierta, su puerta y sus cuatro ventanas.
+	_expect(houses.size() >= 3, "Residential exterior must create a row of houses")
+	_expect(roofs.size() == houses.size(), "Cada casa de enfrente necesita su cubierta")
+	_expect(_find_meshes(exterior, "ResidentialWindowGlass_").size() == houses.size() * 4, "Faltan ventanas en las casas de enfrente")
+	_expect(_find_meshes(exterior, "ResidentialDoor_").size() == houses.size(), "Cada casa de enfrente necesita su puerta")
 	_expect(_find_meshes(exterior, "ResidentialTree_").size() == 10, "Residential vegetation missing")
-	_expect(_find_meshes(exterior, "ResidentialEntryPath_").size() == 1, "Residential entry path missing or duplicated")
-	_expect(_find_meshes(exterior, "ResidentialStreet_").size() == 1, "Residential road missing or duplicated")
-	_expect(_find_meshes(exterior, "ResidentialSidewalkNear_").size() == 1, "Near residential sidewalk missing")
-	_expect(_find_meshes(exterior, "ResidentialSidewalkFar_").size() == 1, "Far residential sidewalk missing")
+	# El barrio dejo de construirse por fachadas y pasa a ser anillos alrededor
+	# de la parcela: jardin, acera, calle, acera y jardin de enfrente. Antes lo
+	# montaba cada fachada por su cuenta, asi que una casa con ventanas a tres
+	# lados tenia tres calles enteras cruzandose y tres caminos de entrada.
+	# Ahora la calle es UNA -cuatro tramos que forman el anillo- y el camino de
+	# entrada va con la puerta, que es una.
+	_expect(_find_meshes(exterior, "ResidentialStreet_").size() == 4, "La calle del barrio debe ser un anillo de cuatro tramos")
+	_expect(_find_meshes(exterior, "ResidentialSidewalkNear_").size() == 4, "Falta la acera junto a la parcela")
+	_expect(_find_meshes(exterior, "ResidentialSidewalkFar_").size() == 4, "Falta la acera de enfrente")
+	_expect(_find_meshes(exterior, "ResidentialLawn_").size() == 4, "Falta el jardin alrededor de la casa")
+	var world_paths := _world_root(ctx)
+	_expect(_find_meshes(world_paths, "GardenPath_").size() == 1, "El camino de entrada va con la puerta: uno y solo uno")
+	_expect(_find_meshes(world_paths, "ResidentialDriveway_").size() == 1, "El acceso de coche va con la puerta: uno y solo uno")
+	_expect(_find_meshes(world_paths, "Fence_").size() >= 8, "Falta la valla de la parcela")
+	_expect(_find_meshes(world_paths, "Mailbox_").size() == 2, "Falta el buzon junto a la cancela")
 	_expect(_find_lights(exterior, "ResidentialFacadeFill_").size() == 1, "Residential facade fill missing")
 	_expect(_find_meshes(exterior, "CityFacadeBody_").is_empty(), "House exterior contains city facade modules")
 	var world := _world_root(ctx)
@@ -94,6 +120,47 @@ func _validate_residential(ctx: Dictionary) -> void:
 	for roof in roofs:
 		var array_mesh := roof.mesh as ArrayMesh
 		_expect(array_mesh != null and array_mesh.get_surface_count() == 1, "%s is not a valid gable mesh" % roof.name)
+
+
+## Envolvente del propio edificio: lienzo con huecos recortados, zocalo y
+## coronacion. El frente ocupado por el rellano del portal no se cierra.
+func _validate_own_facade(
+	ctx: Dictionary,
+	side: String,
+	window_node_name: String,
+	outward: Vector3,
+	landing_side: String
+) -> void:
+	var exterior := _exterior_root(ctx)
+	var world := _world_root(ctx)
+	if exterior == null or world == null:
+		return
+	var panels := _find_meshes(exterior, "OwnFacade_%s_" % side)
+	_expect(panels.size() >= 2, "Own facade skin missing or unsplit on %s side" % side)
+	_expect(
+		not _find_meshes(exterior, "OwnFacadeCornice_%s" % side).is_empty(),
+		"Own facade cornice missing on %s side" % side
+	)
+	_expect(
+		not _find_meshes(exterior, "OwnFacadePlinth_%s" % side).is_empty(),
+		"Own facade plinth missing on %s side" % side
+	)
+	if landing_side != "":
+		_expect(
+			_find_meshes(exterior, "OwnFacade_%s_" % landing_side).is_empty(),
+			"Landing front must stay free of facade skin (%s)" % landing_side
+		)
+
+	var window_body := world.get_node_or_null(window_node_name) as Node3D
+	_expect(window_body != null, "Exterior window %s missing" % window_node_name)
+	if window_body == null:
+		return
+	var probe: Vector3 = window_body.global_position + outward.normalized() * 0.12
+	for panel in panels:
+		_expect(
+			not _world_aabb(panel).has_point(probe),
+			"Facade skin %s covers the window opening" % panel.name
+		)
 
 
 func _exterior_root(ctx: Dictionary) -> Node:

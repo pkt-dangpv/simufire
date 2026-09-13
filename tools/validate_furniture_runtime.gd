@@ -6,6 +6,23 @@ const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const SimulationStateBuilderScript := preload("res://sim/core/SimulationStateBuilder.gd")
 const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
+const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
+const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
+const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
+const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
+
+## Donde viven los modelos de mobiliario.
+const FURNITURE_ASSET_DIR: String = "res://assets/fp/furniture"
+
+## El fichero del clasificador, que se lee como texto: ver _check_contract_is_complete().
+const CLASSIFIER_PATH: String = "res://view/3d/furniture/FurnitureVisualClassifier.gd"
+
+## Donde acaba visual_archetype(): el salto de linea va aparte para que el
+## literal no lleve uno dentro.
+const NEXT_FUNCTION_MARK: String = "\nstatic func "
+
+## Muebles con modelo de verdad, de los que traen varios materiales.
+const BURN_KINDS: Array[String] = ["sofa", "bed", "wardrobe"]
 
 var _failures: Array[String] = []
 
@@ -14,8 +31,209 @@ func _ready() -> void:
 	call_deferred("_run")
 
 
+## La lista de arquetipos no puede descolgarse del clasificador.
+##
+## ARCHETYPES esta escrita a MANO, y la comprobacion de abajo solo mira lo que
+## hay en ella: un `return "x"` nuevo en el clasificador que nadie apunte en la
+## lista se salta la red entera, y vuelve exactamente el fallo mudo que la red
+## venia a matar -el arquetipo cae a cajas y nadie se entera-. Asi que aqui la
+## lista se compara con los returns del propio fichero, leido como texto.
+func _check_contract_is_complete() -> void:
+	var source: String = _classifier_source()
+	if source == "":
+		_expect(false, "no se puede leer %s para comprobar el contrato" % CLASSIFIER_PATH)
+		return
+
+	var returned: Dictionary = {}
+	var pattern := RegEx.create_from_string('return "([a-z_]+)"')
+	for found in pattern.search_all(source):
+		returned[found.get_string(1)] = true
+	_expect(not returned.is_empty(),
+		"no se ha encontrado ningun `return` en visual_archetype(): la lectura del fichero no vale")
+
+	var listed: Dictionary = {}
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		listed[archetype] = true
+
+	var missing: PackedStringArray = PackedStringArray()
+	for archetype in returned:
+		if not listed.has(archetype):
+			missing.append(archetype)
+	missing.sort()
+	_expect(missing.is_empty(),
+		"el clasificador devuelve arquetipos que no estan en ARCHETYPES, o sea sin red: %s"
+			% ", ".join(missing))
+
+	var stale: PackedStringArray = PackedStringArray()
+	for archetype in listed:
+		if not returned.has(archetype):
+			stale.append(archetype)
+	stale.sort()
+	_expect(stale.is_empty(),
+		"ARCHETYPES nombra arquetipos que el clasificador ya no devuelve: %s" % ", ".join(stale))
+
+
+## El cuerpo de visual_archetype(), sin el resto del fichero.
+##
+## Se recorta a esa funcion porque es la unica que devuelve arquetipos; leer el
+## fichero entero colaria como arquetipo cualquier cadena devuelta por otra.
+func _classifier_source() -> String:
+	var file := FileAccess.open(CLASSIFIER_PATH, FileAccess.READ)
+	if file == null:
+		return ""
+	var text: String = file.get_as_text()
+	file.close()
+	var from: int = text.find("static func visual_archetype")
+	if from < 0:
+		return ""
+	var to: int = text.find(NEXT_FUNCTION_MARK, from + 1)
+	if to < 0:
+		to = text.length()
+	return text.substr(from, to - from)
+
+
+## Cada arquetipo tiene que salir con su modelo, no con las cajas de respaldo.
+##
+## Las cajas existen para no quedarse sin nada que dibujar, y por eso el fallo es
+## silencioso: un arquetipo sin fichero, o un fichero renombrado, sigue pintando
+## algo -peor, pero algo- y nadie se entera hasta que lo ve en la pantalla. Con el
+## catalogo creciendo, esta es la red.
+func _check_every_archetype_has_a_model() -> void:
+	# Se le pregunta al CARGADOR, que es quien conoce el mapa de alias. Construir
+	# la pieza y mirar si devuelve tamaño no vale: la ruta de respaldo también
+	# devuelve el suyo, así que un arquetipo sin modelo pasaba por bueno.
+	var fallen_back: PackedStringArray = PackedStringArray()
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		if not FurnitureAssetLoader.has_model(archetype):
+			fallen_back.append(archetype)
+	_expect(fallen_back.is_empty(),
+		"arquetipos que salen como cajas por no encontrar modelo: %s" % ", ".join(fallen_back))
+
+	# Y al reves: un modelo que no carga o que llega sin mallas es un asset roto,
+	# y desde fuera se ve igual que uno que falta.
+	var broken: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(FURNITURE_ASSET_DIR)
+	if dir == null:
+		_expect(false, "no se puede abrir %s" % FURNITURE_ASSET_DIR)
+		return
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".tscn"):
+			continue
+		var packed := load("%s/%s" % [FURNITURE_ASSET_DIR, file_name]) as PackedScene
+		if packed == null:
+			broken.append("%s (no carga)" % file_name)
+			continue
+		var instance := packed.instantiate() as Node
+		if instance == null:
+			broken.append("%s (no se instancia)" % file_name)
+			continue
+		add_child(instance)
+		if _mesh_count(instance) == 0:
+			broken.append("%s (sin mallas)" % file_name)
+		remove_child(instance)
+		instance.free()
+	_expect(broken.is_empty(), "modelos de mobiliario rotos: %s" % ", ".join(broken))
+
+	# Y el tercer sentido: un modelo que NINGUN arquetipo alcanza. No da error, no
+	# rompe nada -simplemente no aparece nunca en la casa-, y por eso el mueble de
+	# bano estuvo en el catalogo sin que se dibujara una sola vez. Con el catalogo
+	# creciendo esto es lo que hay que cazar: un modelo comprado y no usado.
+	var reachable: Dictionary = {}
+	for archetype in FurnitureVisualClassifier.ARCHETYPES:
+		reachable[FurnitureAssetLoader.model_path(archetype)] = true
+	var unreached: PackedStringArray = PackedStringArray()
+	for file_name in dir.get_files():
+		if not file_name.ends_with(".tscn"):
+			continue
+		if not reachable.has("%s/%s" % [FURNITURE_ASSET_DIR, file_name]):
+			unreached.append(file_name)
+	unreached.sort()
+	_expect(unreached.is_empty(),
+		"modelos que ningun arquetipo alcanza, o sea que no se dibujan nunca: %s"
+			% ", ".join(unreached))
+
+
+func _mesh_count(node: Node) -> int:
+	var count: int = 0
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			count += 1
+		count += _mesh_count(child)
+	return count
+
+
+## El fuego tiene que verse en los muebles.
+##
+## Los modelos importados no llevan material_override: sus materiales van POR
+## SUPERFICIE, y el tinte de estados solo miraba el override. Resultado: las
+## formas de respaldo -cajas- se calentaban y se ennegrecian, y los muebles de
+## verdad ardian sin cambiar de aspecto. En un simulador de incendios eso es el
+## fallo entero: ves arder la casa y el mobiliario sigue como recien comprado.
+##
+## Importa mas ahora que nunca, porque el catalogo de modelos va a crecer.
+func _check_burning_changes_furniture() -> void:
+	for kind in BURN_KINDS:
+		var node := Node3D.new()
+		add_child(node)
+		var achieved: Vector3 = FurnitureShapeBuilder.rebuild(node, kind, Vector2(2.0, 0.9), 1.0, 0.8)
+		_expect(achieved != Vector3.ZERO, "%s se ha construido con cajas: falta su modelo" % kind)
+		var cold: Array = _albedo_colors(node)
+		_expect(not cold.is_empty(), "%s no tiene ningun material que tenir" % kind)
+		FurnitureStateVisuals.apply(node, "flaming", Color(1.0, 0.45, 0.1), 0.2, true)
+		var flaming: Array = _albedo_colors(node)
+		FurnitureStateVisuals.apply(node, "burned_out", Color(0.2, 0.2, 0.2), 0.0, false)
+		var burned: Array = _albedo_colors(node)
+		_expect(_changed(cold, flaming) == cold.size(),
+			"%s ardiendo: cambian %d de %d materiales" % [kind, _changed(cold, flaming), cold.size()])
+		_expect(_changed(cold, burned) == cold.size(),
+			"%s calcinado: cambian %d de %d materiales" % [kind, _changed(cold, burned), cold.size()])
+		for color in burned:
+			_expect(Color(color).get_luminance() < Color(0.35, 0.35, 0.35).get_luminance(),
+				"%s calcinado sigue claro (luminancia %.2f)" % [kind, Color(color).get_luminance()])
+		remove_child(node)
+		node.free()
+
+
+## El albedo de cada material que pinta la pieza, venga del override o de una
+## superficie del modelo.
+func _albedo_colors(node: Node) -> Array:
+	var out: Array = []
+	_collect_albedo(node, out)
+	return out
+
+
+func _collect_albedo(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			var mesh_node := child as MeshInstance3D
+			if mesh_node.name != "HeatGlow":
+				var override_mat := mesh_node.material_override as StandardMaterial3D
+				if override_mat != null:
+					out.append(override_mat.albedo_color)
+				var mesh := mesh_node.mesh
+				if mesh != null:
+					for surface_index in mesh.get_surface_count():
+						var surface_mat := mesh_node.get_surface_override_material(surface_index) as StandardMaterial3D
+						if surface_mat != null:
+							out.append(surface_mat.albedo_color)
+		if child.get_child_count() > 0:
+			_collect_albedo(child, out)
+
+
+func _changed(before: Array, after: Array) -> int:
+	var count: int = 0
+	for i in range(mini(before.size(), after.size())):
+		if Color(before[i]) != Color(after[i]):
+			count += 1
+	return count
+
+
 func _run() -> void:
 	await get_tree().process_frame
+
+	_check_contract_is_complete()
+	_check_every_archetype_has_a_model()
+	_check_burning_changes_furniture()
 
 	var editor_data: Dictionary = _make_moved_simple_house()
 	var runtime_json: Dictionary = Serializer.to_runtime_json_data(editor_data)

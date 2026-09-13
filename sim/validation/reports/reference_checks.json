@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-10T20:10:16Z",
+  "generated_at": "2026-09-13T11:38:11Z",
   "all_required_pass": true,
   "required_count": 346,
   "failed_required_count": 0,
@@ -15504,7 +15504,7 @@
     },
     {
       "name": "ranch_family_house_smoke_room_0_peak_hrr_kw",
-      "actual": 4112.8682151927,
+      "actual": 4117.1600976894,
       "expected": null,
       "tolerance": null,
       "minimum": 200.0,
@@ -15519,8 +15519,8 @@
         "artifacts": [
           {
             "path": "sim/validation/reports/ranch_family_house_smoke.json",
-            "bytes": 24797,
-            "sha256": "584660a266f93cbfb2bd90b02f60ee428ff16a64c34d9c05c37598bb8674534a"
+            "bytes": 24792,
+            "sha256": "3fc372a8d29bbbf727002535d6f5e781435eea4a5930ed73b906735bb4531a5d"
           },
           {
             "path": "sim/validation/cases/ranch_family_house_smoke.json",
@@ -15532,7 +15532,7 @@
     },
     {
       "name": "ranch_family_house_smoke_room_0_peak_temp_upper_c",
-      "actual": 554.725957870378,
+      "actual": 555.02305016564,
       "expected": null,
       "tolerance": null,
       "minimum": 120.0,
@@ -15547,8 +15547,8 @@
         "artifacts": [
           {
             "path": "sim/validation/reports/ranch_family_house_smoke.json",
-            "bytes": 24797,
-            "sha256": "584660a266f93cbfb2bd90b02f60ee428ff16a64c34d9c05c37598bb8674534a"
+            "bytes": 24792,
+            "sha256": "3fc372a8d29bbbf727002535d6f5e781435eea4a5930ed73b906735bb4531a5d"
           },
           {
             "path": "sim/validation/cases/ranch_family_house_smoke.json",
@@ -15560,7 +15560,7 @@
     },
     {
       "name": "ranch_family_house_smoke_smoke_generated_total_kg",
-      "actual": 19.8308465071734,
+      "actual": 19.8738539534843,
       "expected": null,
       "tolerance": null,
       "minimum": 2.0,
@@ -15575,8 +15575,8 @@
         "artifacts": [
           {
             "path": "sim/validation/reports/ranch_family_house_smoke.json",
-            "bytes": 24797,
-            "sha256": "584660a266f93cbfb2bd90b02f60ee428ff16a64c34d9c05c37598bb8674534a"
+            "bytes": 24792,
+            "sha256": "3fc372a8d29bbbf727002535d6f5e781435eea4a5930ed73b906735bb4531a5d"
           },
           {
             "path": "sim/validation/cases/ranch_family_house_smoke.json",
@@ -15588,7 +15588,7 @@
     },
     {
       "name": "ranch_family_house_smoke_time_room_1_smoke_start_s",
-      "actual": 58.5000000000006,
+      "actual": 58.3333333333339,
       "expected": null,
       "tolerance": null,
       "minimum": 5.0,
@@ -15603,8 +15603,8 @@
         "artifacts": [
           {
             "path": "sim/validation/reports/ranch_family_house_smoke.json",
-            "bytes": 24797,
-            "sha256": "584660a266f93cbfb2bd90b02f60ee428ff16a64c34d9c05c37598bb8674534a"
+            "bytes": 24792,
+            "sha256": "3fc372a8d29bbbf727002535d6f5e781435eea4a5930ed73b906735bb4531a5d"
           },
           {
             "path": "sim/validation/cases/ranch_family_house_smoke.json",
@@ -15616,7 +15616,7 @@
     },
     {
       "name": "ranch_family_house_smoke_time_room_4_smoke_start_s",
-      "actual": 175.250000000002,
+      "actual": 175.500000000002,
       "expected": null,
       "tolerance": null,
       "minimum": 20.0,
@@ -15631,8 +15631,8 @@
         "artifacts": [
           {
             "path": "sim/validation/reports/ranch_family_house_smoke.json",
-            "bytes": 24797,
-            "sha256": "584660a266f93cbfb2bd90b02f60ee428ff16a64c34d9c05c37598bb8674534a"
+            "bytes": 24792,
+            "sha256": "3fc372a8d29bbbf727002535d6f5e781435eea4a5930ed73b906735bb4531a5d"
           },
           {
             "path": "sim/validation/cases/ranch_family_house_smoke.json",
@@ -19256,14 +19256,14 @@
     }
   ],
   "references": {
-    "nist_cfast_csv": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
-    "cfast_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\reports\\cfast_r0_window_360.json",
-    "ghanekar_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
+    "nist_cfast_csv": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
+    "cfast_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\reports\\cfast_r0_window_360.json",
+    "ghanekar_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
     "cfast_new_scenarios": [
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\cfast\\cfast_single_room_closed.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\sim\\validation\\cfast\\cfast_hvac_residential.in"
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\cfast\\cfast_single_room_closed.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\p1r8_integration_final_project\\sim\\validation\\cfast\\cfast_hvac_residential.in"
     ]
   }
 }

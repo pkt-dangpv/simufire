@@ -6,6 +6,7 @@ const FloorPlan2D := preload("res://view/2d/floors/FloorPlan2D.gd")
 const RoomLabelLayout2D := preload("res://view/2d/rooms/RoomLabelLayout2D.gd")
 const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
+const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
 
 ## ============================================================
 ## VISUALIZER
@@ -103,6 +104,13 @@ const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayo
 
 @export var fuel_object_fill_color: Color = Color(1.00, 0.30, 0.00, 0.76)
 @export var fuel_object_outline_color: Color = Color(0.00, 0.01, 0.01, 0.95)
+## El atrezo de las salas que el escenario deja sin objetos no es carga de
+## fuego, asi que en el plano va en gris y no en el color de lo que arde.
+@export var decor_object_fill_color: Color = Color(0.62, 0.64, 0.66, 0.42)
+@export var decor_object_outline_color: Color = Color(0.20, 0.22, 0.24, 0.70)
+## Atrezo en las salas sin objetos. Ver el mando del mismo nombre en
+## FirstPersonController: las tres vistas amueblan igual.
+@export var furnish_empty_rooms: bool = true
 @export var fuel_object_label_color: Color = Color(1.0, 0.96, 0.86, 0.96)
 @export var fixture_fill_color: Color = Color(0.78, 0.88, 0.90, 0.55)
 @export var fixture_outline_color: Color = Color(0.92, 0.98, 1.0, 0.88)
@@ -373,7 +381,7 @@ func select_opening(opening_index: int) -> void:
 
 
 func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
-	var tf: Dictionary = _get_draw_transform()
+	var tf: Dictionary = _current_draw_transform()
 	var scale_px: float = maxf(0.001, float(tf["scale"]))
 	var offset: Vector2 = tf["offset"]
 	var pos_m: Vector2 = (local_pos - offset) / scale_px
@@ -426,7 +434,7 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	if seg_m.size() != 2:
 		return empty
 
-	var tf: Dictionary = _get_draw_transform()
+	var tf: Dictionary = _current_draw_transform()
 	var scale_px: float = float(tf["scale"])
 	var offset: Vector2 = tf["offset"]
 	var p1: Vector2 = seg_m[0] * scale_px + offset
@@ -825,12 +833,13 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 	if not rects_m.has(room_id):
 		return
 
-	var objects: Array = rs.get("fuel_objects", [])
 	var room_rect_m: Rect2 = rects_m[room_id]
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	var room_name: String = room.name if room != null else String(rs.get("name", ""))
-	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
 	var draw_bathroom_fixtures: bool = _is_bathroom_room(room_id)
+	# El reparto es el mismo que recorre el jugador. Si el plano lo calculase
+	# por su cuenta ensenaria los muebles en un sitio y estarian en otro.
+	var objects: Array = FurnitureVisualLayout.normalize_room(
+		building, room_id, room_rect_m, Array(rs.get("fuel_objects", [])), furnish_empty_rooms
+	)
 	if objects.is_empty():
 		if draw_bathroom_fixtures:
 			_draw_bathroom_fixtures_2d(room_rect_m)
@@ -840,11 +849,6 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 		if typeof(raw_obj) != TYPE_DICTIONARY:
 			continue
 		var obj: Dictionary = raw_obj
-		if String(obj.get("id", "")).begins_with("room_proxy_"):
-			continue
-		obj = FurnitureVisualLayout.normalize_spec(room_id, room_name, room_kind, room_rect_m.size, obj)
-		if bool(obj.get("visual_hidden", false)):
-			continue
 		var pos_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("position_m", Vector2.ZERO))
 		var size_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("size_m", Vector2.ONE))
 		if size_m.x <= 0.01 or size_m.y <= 0.01:
@@ -858,7 +862,12 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 			continue
 
 		var state_name: String = String(obj.get("state", "cold"))
+		var visual_only: bool = bool(obj.get("visual_only", false))
 		var fill: Color = RoomStateVisuals2D.fuel_object_color_for_state(state_name, fuel_object_fill_color)
+		if visual_only:
+			# Atrezo: existe para orientarse, no para el modelo. En un plano de
+			# analisis no puede ir del color de lo que arde.
+			fill = decor_object_fill_color
 		var rot := Transform2D(deg_to_rad(float(obj.get("rotation_deg", 0.0))), Vector2.ZERO)
 		var half: Vector2 = visual_size_m * 0.5
 		var corners_px := PackedVector2Array([
@@ -868,7 +877,11 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 			_point_to_px(center_m + rot * Vector2(-half.x, half.y))
 		])
 		draw_colored_polygon(corners_px, fill)
-		draw_polyline(PackedVector2Array([corners_px[0], corners_px[1], corners_px[2], corners_px[3], corners_px[0]]), fuel_object_outline_color, 1.0)
+		draw_polyline(
+			PackedVector2Array([corners_px[0], corners_px[1], corners_px[2], corners_px[3], corners_px[0]]),
+			decor_object_outline_color if visual_only else fuel_object_outline_color,
+			1.0
+		)
 
 		if bool(obj.get("is_primary_ignition_source", false)):
 			draw_circle(_point_to_px(center_m), minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.18, fire_core_color)
@@ -1008,7 +1021,7 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 	if building == null:
 		return
 	if show_detector_markers:
-		var detector_states: Dictionary = _state_records_by_id(Array(state.get("detectors", [])))
+		var detector_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("detectors", [])))
 		for raw_det in building.detectors:
 			if typeof(raw_det) != TYPE_DICTIONARY:
 				continue
@@ -1021,7 +1034,7 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 			draw_circle(px, 9.0, Color(0.0, 0.0, 0.0, 0.72))
 			draw_circle(px, 6.5, detector_triggered_color if triggered else detector_marker_color)
 	if show_victim_markers:
-		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
+		var victim_states: Dictionary = ViewScenarioRead.records_by_id(Array(state.get("victims", [])))
 		for raw_vic in building.victims:
 			if typeof(raw_vic) != TYPE_DICTIONARY:
 				continue
@@ -1041,17 +1054,6 @@ func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 			draw_colored_polygon(pts, victim_incapacitated_color if incapacitated else victim_marker_color)
 			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.0, 0.0, 0.0, 0.75), 1.3)
 
-
-func _state_records_by_id(records: Array) -> Dictionary:
-	var result: Dictionary = {}
-	for raw_record in records:
-		if typeof(raw_record) != TYPE_DICTIONARY:
-			continue
-		var record: Dictionary = raw_record
-		var id_text: String = String(record.get("id", ""))
-		if id_text != "":
-			result[id_text] = record
-	return result
 
 
 func _safety_local_position(data: Dictionary, room_rect_m: Rect2) -> Vector2:
@@ -1617,6 +1619,16 @@ func _get_building_bounds_m() -> Rect2:
 				bounds = bounds.merge(r)
 
 	return bounds
+
+
+## Transformada de dibujo del frame en curso. El merge de limites del edificio
+## ya se hace una vez por _draw(); repetirlo en cada consulta de raton era
+## trabajo duplicado (V2-1).
+func _current_draw_transform() -> Dictionary:
+	if not _frame_tf.is_empty():
+		return _frame_tf
+	_frame_tf = _get_draw_transform()
+	return _frame_tf
 
 
 func _get_draw_transform() -> Dictionary:

@@ -988,13 +988,10 @@ func _on_pause_pressed() -> void:
 	pause_requested.emit()
 
 
+## El atajo de teclado hace exactamente lo mismo que el boton, asi que lo llama:
+## eran dos copias, y si una aprende a distinguir un caso la otra no se entera.
 func _on_play_pause_shortcut_pressed() -> void:
-	if _simulation_finished:
-		return
-	if _playback_paused:
-		play_requested.emit()
-	else:
-		pause_requested.emit()
+	_on_play_pressed()
 
 
 func _on_time_forward_pressed() -> void:

@@ -29,6 +29,10 @@ func _run() -> void:
 	_expect(world != null, "FP world was not created")
 	if world != null:
 		_validate_stair_structure(world)
+		_validate_landing_lighting(world)
+		_validate_single_landing_per_floor(world)
+		_validate_landing_front_is_closed(world)
+		_validate_landing_walls_are_solid(world)
 
 	remove_child(fp)
 	fp.free()
@@ -90,6 +94,76 @@ func _validate_stair_structure(world: Node) -> void:
 				not _aabb_has_volume_overlap(_world_aabb(door), _world_aabb(stair), 0.002),
 				"Apartment door invades stair bay: %s / %s" % [door.name, stair.name]
 			)
+
+
+## El portal tiene luz propia: si solo lo iluminase el hueco de la puerta de
+## la vivienda, con la puerta cerrada el rellano seria una caja negra.
+func _validate_landing_lighting(world: Node) -> void:
+	var ambient := _find_lights(world, "LandingAmbientLight_00")
+	var stair_light := _find_lights(world, "LandingStairLight_00")
+	_expect(ambient.size() == 1, "Landing ceiling light missing")
+	_expect(stair_light.size() == 1, "Stairwell light missing")
+	for light in ambient:
+		_expect(light.light_energy > 0.0, "Landing ceiling light is off")
+	for light in stair_light:
+		_expect(light.light_energy > 0.0, "Stairwell light is off")
+
+
+## Dos puertas exteriores en la misma fachada y planta comparten rellano: si
+## se genera uno por puerta, los dos portales quedan interpenetrados.
+func _validate_single_landing_per_floor(world: Node) -> void:
+	_expect(
+		_find_meshes(world, "LandingFloor_01_").is_empty(),
+		"A second exterior door must reuse the landing, not duplicate it"
+	)
+	_expect(
+		_find_meshes(world, "LandingUpCurrent_01_Step_").is_empty(),
+		"Duplicated landing stairs for a second exterior door"
+	)
+
+
+## El rellano es mas ancho que el muro de la vivienda: sin frente propio, el
+## resto del portal queda abierto al exterior y entra el sol.
+func _validate_landing_front_is_closed(world: Node) -> void:
+	_expect(
+		_find_meshes(world, "LandingFrontWall_00_").size() == 2,
+		"Landing front must be closed at both sides of the flat door"
+	)
+	_expect(
+		_find_meshes(world, "LandingFrontLintel_00").size() == 1,
+		"Landing front lintel missing above the flat door"
+	)
+
+
+## R-8: las paredes del portal tienen que frenar al jugador. Antes eran malla
+## sin cuerpo y se atravesaban, cayendo al vacio.
+func _validate_landing_walls_are_solid(world: Node) -> void:
+	for token in ["LandingBackWall_00", "LandingSideWall_00", "LandingFrontWall_00_L", "LandingFrontWall_00_R"]:
+		var meshes: Array[MeshInstance3D] = _find_meshes(world, token)
+		_expect(meshes.size() >= 1, "Landing wall %s missing" % token)
+		for mesh in meshes:
+			var body := world.get_node_or_null(NodePath(String(mesh.name) + "_Body")) as StaticBody3D
+			_expect(body != null, "Landing wall %s has no static body: the player walks through it" % String(mesh.name))
+			if body != null:
+				var shapes: int = 0
+				for child in body.get_children():
+					if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+						shapes += 1
+				_expect(shapes >= 1, "Landing wall body %s has no collision shape" % String(body.name))
+
+
+func _find_lights(root_node: Node, token: String) -> Array[OmniLight3D]:
+	var result: Array[OmniLight3D] = []
+	_collect_lights(root_node, token, result)
+	return result
+
+
+func _collect_lights(node: Node, token: String, result: Array[OmniLight3D]) -> void:
+	var light := node as OmniLight3D
+	if light != null and String(light.name).contains(token):
+		result.append(light)
+	for child in node.get_children():
+		_collect_lights(child, token, result)
 
 
 func _validate_flight_direction(label: String, meshes: Array[MeshInstance3D], ascending: bool) -> void:
@@ -167,6 +241,16 @@ func _make_template() -> Dictionary:
 				"width_m": 0.90,
 				"height_m": 2.05,
 				"open_fraction": 1.0,
+			},
+			{
+				"a": 0,
+				"b": -1,
+				"type": "door",
+				"wall": "bottom",
+				"offset_m": 0.75,
+				"width_m": 0.80,
+				"height_m": 2.05,
+				"open_fraction": 0.0,
 			},
 		],
 		"detectors": [],

@@ -28,7 +28,12 @@ static func room_id_at_screen_pos(
 	return -1
 
 
-static func opening_index_at_screen_pos(camera: Camera3D, opening_items: Dictionary, screen_pos: Vector2) -> int:
+static func opening_index_at_screen_pos(
+	camera: Camera3D,
+	opening_items: Dictionary,
+	screen_pos: Vector2,
+	max_distance_px: float = 26.0
+) -> int:
 	if camera == null:
 		return -1
 	var best_index: int = -1
@@ -45,25 +50,41 @@ static func opening_index_at_screen_pos(camera: Camera3D, opening_items: Diction
 		if distance < best_distance:
 			best_distance = distance
 			best_index = int(index)
-	return best_index if best_distance <= 26.0 else -1
+	return best_index if best_distance <= max_distance_px else -1
 
 
+## El gesto de orbita/zoom "sobre el modelo" se decidia proyectando contra el
+## plano y = 0 aunque la vivienda estuviese en una planta alta, con lo que en
+## multiplanta se resolvia con la proyeccion equivocada (V3-3). Si se le pasan
+## las cotas de las plantas, se prueba contra cada una, de la mas alta a la mas
+## baja, igual que hace room_id_at_screen_pos.
 static func is_screen_point_over_model(
 	camera: Camera3D,
 	bounds_m: Rect2,
 	screen_pos: Vector2,
 	meters_to_units: float,
-	origin_offset_m: Vector2
+	origin_offset_m: Vector2,
+	floor_levels_m: Array[float] = [],
+	bounds_margin_m: float = 0.75
 ) -> bool:
 	if camera == null:
 		return true
 	if bounds_m.size == Vector2.ZERO:
 		return true
-	var hit_m: Variant = _floor_hit_m(camera, screen_pos, meters_to_units, origin_offset_m)
-	if typeof(hit_m) != TYPE_VECTOR2:
-		return false
-	var expanded_bounds: Rect2 = bounds_m.grow(0.75)
-	return expanded_bounds.has_point(hit_m)
+	var expanded_bounds: Rect2 = bounds_m.grow(bounds_margin_m)
+	var levels: Array[float] = floor_levels_m.duplicate()
+	if levels.is_empty():
+		levels.append(0.0)
+	else:
+		levels.sort()
+		levels.reverse()
+	for level_m in levels:
+		var hit_m: Variant = _floor_hit_at_level(camera, screen_pos, meters_to_units, origin_offset_m, level_m)
+		if typeof(hit_m) != TYPE_VECTOR2:
+			continue
+		if expanded_bounds.has_point(hit_m):
+			return true
+	return false
 
 
 static func floor_hit_m(
