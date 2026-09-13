@@ -1808,3 +1808,72 @@ Cada familia se da por cerrada cuando se cumplen tres cosas:
 
 Las 7400 líneas son una consecuencia, no el objetivo: el objetivo es que el
 escenario tenga un único sitio que lo escribe.
+
+### 22.4 Primera familia mudada: los conductos verticales (2026-09-13)
+
+Escalera, patio y portal, y lo que comparten: crear una sala a una cota,
+encadenar con un hueco de forjado, añadir una planta, abrir el paso a la sala
+vecina. **Y el historial entero**, que se mudó con ellos.
+
+| | antes | después |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 8558 líneas · 414 funciones | **7923 · 406** |
+| `editor/ScenarioDocument.gd` | — | 916 · 38 |
+| instantáneas de deshacer puestas a mano | 39 | **35** |
+| escrituras directas a `editor_data` fuera del documento | 66 + 7 | **64** (trinquete) |
+
+**Se hizo en dos pasos, y por eso se puede fiar.**
+
+1. **Mudanza pura.** Las mutaciones pasaron al documento sin cambiar lo que
+   hacen, y el editor se quedó con envolturas finas: eligen, seleccionan y
+   ponen el mensaje. Una sonda nueva, `tools/probe_vertical_family.gd`,
+   fotografía el escenario tras catorce gestos:
+   - escalera y escalera encadenada;
+   - redimensionar, girar y copiar escaleras;
+   - patio;
+   - portal, redimensionarlo e intentar girarlo;
+   - dos deshacer y dos rehacer.
+
+   Antes y después del corte, **los catorce pasos salieron idénticos byte a
+   byte**.
+2. **Transacciones.** El historial pasó al documento y cada acción de la familia
+   abre y cierra la suya (`begin` / `commit`). Esto sí cambia lo que hace
+   deshacer, y a propósito. Lo fija el guardarraíl nuevo,
+   `tools/validate_scenario_document.gd`: cada acción se deshace con **un**
+   Ctrl+Z hasta el estado exacto de antes, y rehacer la devuelve exacta.
+   Veintitrés mutaciones tumban alguno de los tres guardarraíles del portal y
+   del documento: entre ellas, quitar la transacción de la escalera, dejar que
+   `snapshot()` guarde dentro de una transacción, restaurar normalizando y
+   volver a sincronizar el total de plantas con señal.
+
+**Ese guardarraíl, pasado sobre el código de antes, destapó tres fallos que ya
+estaban**, y ninguna comparación de entrada y salida los habría visto:
+
+- **Rehacer no funcionaba nunca** en un escenario con
+  `building_total_floors = 0`, que es el valor normalizado por defecto:
+  1. deshacer restaura la instantánea y resincroniza los mandos del edificio;
+  2. el mando del total de plantas sube el 0 a su mínimo, 1, y al asignarle el
+     valor **disparaba su señal**;
+  3. el manejador guardaba instantánea y eso vaciaba la pila de rehacer.
+
+  Por lo mismo, cargar un escenario dejaba un paso de deshacer falso, y cambiar
+  la planta de la vivienda guardaba dos. Arreglado con `set_value_no_signal` en
+  las cinco sincronizaciones desde los datos: planta de la vivienda, total de
+  plantas, cota de planta, velocidad del viento y tiempo de parada.
+- **Restaurar normalizaba.** Rehacer devolvía la acción con campos por defecto
+  que no tenía: los de escalera en las zonas de un patio, giro y bisagra en un
+  hueco. Es la regla 3 del §22.1: el historial restaura con
+  `adopt_scenario_data(…, normalize = false)`, sin salir del camino único.
+- **Una escalera pedía dos Ctrl+Z.** Abrir el paso a la sala vecina guardaba
+  instantánea en mitad de la acción. Dentro de una transacción, `snapshot()` no
+  guarda.
+
+**Lo que queda en tránsito:**
+- `editor_data` conserva un *setter*: siete sitios del editor todavía reasignan
+  el diccionario entero;
+- quedan 64 escrituras directas, que el trinquete no deja crecer;
+- quedan 35 instantáneas a mano.
+
+Candidatas para la siguiente familia: **las plantas** (añadir, borrar, copiar y
+cambiar de cota; ya llaman a `copy_stairs_between_levels`) y **las aperturas**
+(puertas, ventanas, huecos y balconeras; 30 funciones).

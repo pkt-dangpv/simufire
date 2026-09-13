@@ -174,7 +174,8 @@ func _check_editor_has_the_single_path() -> void:
 	# Vaciar el historial NO puede estar dentro de la funcion comun: deshacer y
 	# rehacer la llaman, y se borrarian a si mismos.
 	var body: String = _function_body(source, "func adopt_scenario_data(")
-	if body.contains("_undo_stack.clear()"):
+	# El historial vive en `ScenarioDocument` desde D-1: vale el nombre viejo y el nuevo.
+	if body.contains("_undo_stack.clear()") or body.contains("clear_history()"):
 		_fail("adopt_scenario_data() vacia el historial: deshacer y rehacer la llaman y se borrarian a si mismos")
 
 

@@ -68,6 +68,8 @@ const CorridorLayout = preload("res://editor/CorridorLayout.gd")
 const RoomMarkers = preload("res://editor/RoomMarkers.gd")
 const ScenarioQueries = preload("res://editor/ScenarioQueries.gd")
 const ScenarioWalls = preload("res://editor/ScenarioWalls.gd")
+## El dueño del escenario: el unico que deberia escribirlo (D-1).
+const ScenarioDocumentScript = preload("res://editor/ScenarioDocument.gd")
 
 ## Los tres giros de escalera, EN EL ORDEN del desplegable: la posicion es el id
 ## del item. Las etiquetas van aparte y pasan por `tr()`, como el resto de los
@@ -171,7 +173,15 @@ var last_mouse_pos := Vector2.ZERO
 
 ###################
 
-var editor_data: Dictionary = {}
+## El escenario. Lo tiene -y lo escribe- `ScenarioDocument` (D-1, §22 de la
+## auditoria del editor). Leer por aqui es libre. Escribir sigue en transito:
+## las familias que aun no se han mudado escriben todavia en el diccionario.
+var editor_data: Dictionary:
+	get:
+		return _doc.data
+	set(value):
+		_doc.data = value
+var _doc = ScenarioDocumentScript.new()
 var current_tool: int = Tool.SELECT
 
 var selected_room_id: int = -1
@@ -229,10 +239,6 @@ var room_drag_cursor_offset_m: Vector2 = Vector2.ZERO
 var room_drag_start_center_m: Vector2 = Vector2.ZERO
 var room_drag_start_rect_m: Rect2 = Rect2()
 var room_drag_start_rotation_deg: float = 0.0
-var _undo_stack: Array[Dictionary] = []
-## Pila de rehacer. Con instantaneas completas sale casi gratis: al deshacer, el
-## estado actual pasa a esta pila, y rehacer es la misma operacion al reves.
-var _redo_stack: Array[Dictionary] = []
 ## El boton "Copiar <planta>" del dialogo de planta nueva. Se anade una vez.
 var _new_floor_copy_button: Button = null
 ## El boton "Arrancar igualmente" del cuadro de la revision. Tambien una vez.
@@ -411,6 +417,11 @@ var _ctx_pos_m: Vector2 = Vector2.ZERO
 var _ctx_room_id: int = -1
 var _ctx_obj_index: int = -1
 var _ctx_opening_index: int = -1
+
+func _init() -> void:
+	# El historial es del documento; el editor solo se entera de que hay un paso nuevo.
+	_doc.changed.connect(_on_document_changed)
+
 
 func _ready() -> void:
 	UILocalizationScript.ensure_loaded()
@@ -1823,30 +1834,28 @@ func _create_empty_scenario() -> void:
 		"player_start": {}
 	}
 	current_floor_index = 0
-	_undo_stack.clear()
-	_redo_stack.clear()
+	_doc.clear_history()
 
 
 func _push_undo_snapshot(_label: String = "") -> void:
-	if editor_data.is_empty():
-		return
-	_undo_stack.append(editor_data.duplicate(true))
-	while _undo_stack.size() > max_undo_steps:
-		_undo_stack.remove_at(0)
-	# Una accion nueva invalida el rehacer: a partir de aqui la historia es otra.
-	_redo_stack.clear()
+	# El historial es de `ScenarioDocument`. Las familias ya mudadas no llaman aqui:
+	# sus acciones abren transaccion ellas mismas.
+	_doc.max_steps = max_undo_steps
+	_doc.snapshot(_label)
+
+
+## Hay un paso de deshacer nuevo, venga de una accion mudada o de las de aqui.
+func _on_document_changed(_label: String) -> void:
 	_unsaved_changes = true
 	_mark_editor_runtime_dirty()
 
 
 func _undo_last_action() -> void:
-	if _undo_stack.is_empty():
+	_doc.max_steps = max_undo_steps
+	var snapshot: Dictionary = _doc.take_undo()
+	if snapshot.is_empty():
 		_set_status(tr("No hay acciones para deshacer."))
 		return
-	var snapshot: Dictionary = _undo_stack.pop_back()
-	_redo_stack.append(editor_data.duplicate(true))
-	while _redo_stack.size() > max_undo_steps:
-		_redo_stack.remove_at(0)
 	_apply_history_snapshot(snapshot, "Última acción deshecha.")
 
 
@@ -1856,13 +1865,11 @@ func _undo_last_action() -> void:
 ## 48 pasos de deshacer y ninguno de rehacer, asi que un Ctrl+Z de mas perdia el
 ## trabajo sin remedio.
 func _redo_last_action() -> void:
-	if _redo_stack.is_empty():
+	_doc.max_steps = max_undo_steps
+	var snapshot: Dictionary = _doc.take_redo()
+	if snapshot.is_empty():
 		_set_status(tr("No hay acciones para rehacer."))
 		return
-	var snapshot: Dictionary = _redo_stack.pop_back()
-	_undo_stack.append(editor_data.duplicate(true))
-	while _undo_stack.size() > max_undo_steps:
-		_undo_stack.remove_at(0)
 	_apply_history_snapshot(snapshot, "Acción rehecha.")
 
 
@@ -1870,9 +1877,11 @@ func _redo_last_action() -> void:
 ## rehacer para que no se separen al tocar uno de los dos.
 func _apply_history_snapshot(snapshot: Dictionary, message: String) -> void:
 	_unsaved_changes = true
-	# Sin vaciar el historial -es justo lo que se esta recorriendo- y sin
-	# bloquear poses: la instantanea se restaura tal cual.
-	adopt_scenario_data(snapshot.duplicate(true), current_floor_index, false)
+	# Sin vaciar el historial -es justo lo que se esta recorriendo-, sin bloquear
+	# poses y SIN NORMALIZAR: la instantanea se restaura tal cual. Normalizando,
+	# rehacer devolvia la accion con campos por defecto que no tenia (los de
+	# escalera en un patio, giro y bisagra en un hueco).
+	adopt_scenario_data(snapshot.duplicate(true), current_floor_index, false, false)
 	_set_status(message)
 	queue_redraw()
 
@@ -1922,11 +1931,17 @@ func _sync_apartment_floor_control() -> void:
 	if _apartment_floor_spin == null:
 		return
 	var planta: int = maxi(0, int(editor_data.get("apartment_floor_number", 1)))
-	_apartment_floor_spin.value = planta
+	# Sincronizar un mando DESDE los datos no es una accion del usuario: sin
+	# `_no_signal`, poner el valor disparaba su manejador. Con un escenario de
+	# `building_total_floors = 0` -el valor normalizado por defecto- el mando lo
+	# subia a 1, el manejador guardaba instantanea y VACIABA EL REHACER: deshacer
+	# y rehacer pasaban por aqui y Ctrl+Y no hacia nada nunca. Lo cazo
+	# `validate_scenario_document`.
+	_apartment_floor_spin.set_value_no_signal(planta)
 	var is_apartment: bool = String(editor_data.get("building_type", "single_family")).to_lower() == "apartment"
 	PropertyPanelScript.set_row_visible(_apartment_floor_spin, is_apartment)
 	if _total_floors_spin != null:
-		_total_floors_spin.value = maxi(planta + 1, int(editor_data.get("building_total_floors", planta + 1)))
+		_total_floors_spin.set_value_no_signal(maxi(planta + 1, int(editor_data.get("building_total_floors", planta + 1))))
 		PropertyPanelScript.set_row_visible(_total_floors_spin, is_apartment)
 		_sync_floor_limits()
 
@@ -1950,7 +1965,9 @@ func _on_apartment_floor_changed(value: float) -> void:
 	var totales: int = maxi(next_floor + 1, int(editor_data.get("building_total_floors", next_floor + 1)))
 	editor_data["building_total_floors"] = totales
 	if _total_floors_spin != null:
-		_total_floors_spin.value = totales
+		# Sin señal: el total ya se ha escrito arriba, en la misma instantanea. Con
+		# ella, una sola accion guardaba dos.
+		_total_floors_spin.set_value_no_signal(totales)
 	_sync_floor_limits()
 	_set_status(tr("La vivienda esta en %s, de %d plantas.") % [FloorNaming.label(next_floor), totales])
 
@@ -2127,42 +2144,8 @@ func _editor_help_pages() -> PackedStringArray:
 
 
 func _ensure_floor_data() -> void:
-	if typeof(editor_data.get("floors", [])) != TYPE_ARRAY:
-		editor_data["floors"] = _default_floors()
-	var floors: Array = editor_data.get("floors", [])
-	if floors.is_empty():
-		floors = _default_floors()
-	var normalized: Array = []
-	for i in range(floors.size()):
-		if typeof(floors[i]) != TYPE_DICTIONARY:
-			continue
-		var raw: Dictionary = floors[i]
-		var level_m: float = float(raw.get("level_m", 0.0 if normalized.is_empty() else normalized.size() * DEFAULT_FLOOR_HEIGHT_M))
-		normalized.append({
-			"name": String(raw.get("name", _default_floor_name(normalized.size()))),
-			"level_m": level_m
-		})
-	for raw_room in editor_data.get("rooms_data", []):
-		if typeof(raw_room) != TYPE_DICTIONARY:
-			continue
-		var room: Dictionary = raw_room
-		_add_floor_level_if_missing(normalized, float(room.get("floor_level_z_m", 0.0)))
-	if normalized.is_empty():
-		normalized = _default_floors()
-	normalized.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
-	for i in range(normalized.size()):
-		var floor: Dictionary = normalized[i]
-		floor["name"] = FloorNaming.migrated_name(String(floor.get("name", "")), i)
-		normalized[i] = floor
-	editor_data["floors"] = normalized
-	current_floor_index = clampi(current_floor_index, 0, normalized.size() - 1)
-
-
-func _add_floor_level_if_missing(floors: Array, level_m: float) -> void:
-	for raw in floors:
-		if typeof(raw) == TYPE_DICTIONARY and absf(float(raw.get("level_m", 0.0)) - level_m) < 0.05:
-			return
-	floors.append({"name": _default_floor_name(floors.size()), "level_m": level_m})
+	_doc.ensure_floors()
+	current_floor_index = clampi(current_floor_index, 0, Array(editor_data.get("floors", [])).size() - 1)
 
 
 func _default_floor_name(index: int) -> String:
@@ -2186,7 +2169,7 @@ func _sync_floor_controls() -> void:
 	if _floor_level_spin != null and not floors.is_empty():
 		var level_m: float = _current_floor_level_m()
 		if absf(_floor_level_spin.value - level_m) > 0.001:
-			_floor_level_spin.value = level_m
+			_floor_level_spin.set_value_no_signal(level_m)
 	if _floor_delete_button != null:
 		_floor_delete_button.disabled = floors.size() <= 1
 	_update_floor_status()
@@ -2855,20 +2838,6 @@ const PATIO_MIN_SIDE_M: float = 1.50
 ## Lado minimo de un portal. En menos de dos metros no caben a la vez el rellano
 ## y una escalera de dos tramos: seria un pasillo, no un nucleo de comunicacion.
 const PORTAL_MIN_SIDE_M: float = 2.00
-## Lado del OJO de la escalera del portal: el paso libre por el que sube el humo
-## de un rellano al de arriba, no la huella de la escalera.
-##
-## Medido el 2026-09-12 sobre el mismo portal dibujado: con el hueco que calcula
-## la escalera (2,46 x 3,0 m, casi todo el rellano) la planta alta se clava en
-## 900,0 C -mas que el propio fuego, el tope del motor-; con un ojo de 1,4 m sale
-## el tiro de una caja de escalera (346 / 119 / 96 C y 1,5 / 5,7 / 9,6 Pa). El
-## motor toma el area del hueco como paso libre, y los tramos de una escalera de
-## obra lo tapan casi entero. La vista no usa esta medida: dibuja el hueco de la
-## escalera con su geometria.
-const PORTAL_EYE_SIDE_M: float = 1.40
-## La puerta del zaguan a la calle.
-const PORTAL_STREET_DOOR_WIDTH_M: float = 1.20
-const PORTAL_STREET_DOOR_HEIGHT_M: float = 2.10
 
 
 const TOOL_SHORTCUTS: Dictionary = {
@@ -3459,7 +3428,7 @@ func _handle_release(pos_m: Vector2) -> void:
 				stair_long_m, stair_cross_m, GRID_M * 5.0, GRID_M * 3.0, _flat_drag_hint(rect)])
 			queue_redraw()
 			return
-		_push_undo_snapshot("create_stairs")
+		# Sin instantanea aqui: `ScenarioDocument.create_stairs` es una transaccion.
 		_create_stairs_from_rect(rect, start_m, end_m)
 		queue_redraw()
 		return
@@ -3470,7 +3439,6 @@ func _handle_release(pos_m: Vector2) -> void:
 				rect.size.x, rect.size.y, PATIO_MIN_SIDE_M, _flat_drag_hint(rect)])
 			queue_redraw()
 			return
-		_push_undo_snapshot("create_patio")
 		_create_patio_from_rect(rect)
 		queue_redraw()
 		return
@@ -3481,7 +3449,6 @@ func _handle_release(pos_m: Vector2) -> void:
 				rect.size.x, rect.size.y, PORTAL_MIN_SIDE_M, _flat_drag_hint(rect)])
 			queue_redraw()
 			return
-		_push_undo_snapshot("create_portal")
 		_create_portal_from_rect(rect, start_m, end_m)
 		queue_redraw()
 		return
@@ -4396,383 +4363,50 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 
 
 func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: String = "generic", floor_level_m: float = 0.0, height_m: float = 2.7) -> int:
-	var id: int = ScenarioQueries.next_room_id(editor_data)
-	var rooms: Array = editor_data.get("rooms_data", [])
-	var rects: Dictionary = editor_data.get("room_rect_m", {})
-	var room := {
-		"id": id,
-		"name": room_name if room_name != "" else "Room %d" % id,
-		"kind": kind_name,
-		"rotation_deg": 0.0,
-		"height_m": height_m,
-		"floor_level_z_m": floor_level_m,
-		"fuel_energy_MJ": 0.0,
-		"max_hrr_kw": 0.0,
-		"fuel_objects": []
-	}
-	rooms.append(room)
-	rects[str(id)] = Serializer.rect_to_data(rect)
-	editor_data["rooms_data"] = rooms
-	editor_data["room_rect_m"] = rects
+	var id: int = _doc.create_room_at_level(rect, room_name, kind_name, floor_level_m, height_m)
 	_update_floor_status()
 	return id
 
 
-## El patio de luces: un conducto vertical que atraviesa TODAS las plantas del
-## edificio y remata abierto al cielo.
-##
-## La forma que menos inventa, y la que el motor ya entiende: **una zona por
-## planta**, igual que una sala, encadenadas con aperturas verticales de la
-## superficie completa del patio, y en la ultima una boca al exterior.
-##
-## Medido el 2026-09-11 antes de escribir esto: con esa representacion **el motor
-## ya hace la fisica del patio sin tocar nada** -el humo sube con retardo
-## creciente, entra en las viviendas altas y el O2 del conducto baja de 0,209 a
-## 0,146 en cinco minutos-. Las cifras estan en `docs/PROMPT_MOTOR_PATIO.md`.
-##
-## Tres decisiones que conviene tener escritas:
-##
-## 1. **Atraviesa las plantas que HAY**, no crea ninguna. Una escalera si crea la
-##    de arriba, porque una escalera existe para subir a algun sitio; un patio no
-##    añade plantas al edificio, las atraviesa.
-## 2. **No se conecta solo con las salas vecinas.** Un pasillo y una escalera si
-##    -existen para conectar-, pero a un patio se da con una VENTANA, y donde va
-##    esa ventana lo decide quien dibuja: la cocina y el bano dan al patio, el
-##    salon casi nunca.
-## 3. **La boca no lleva `wall_side`.** Es horizontal y esta abrigada: el viento
-##    sobre ella produce succion, no presion frontal, y el motor devuelve 0,0 de
-##    ΔP de viento cuando no hay `wall_side`, que como primera aproximacion es lo
-##    correcto.
+## El patio de luces. Lo crea `ScenarioDocument.create_patio`, donde esta
+## escrito el porque; aqui solo se enseña el resultado.
 func _create_patio_from_rect(rect: Rect2) -> void:
-	var floors: Array = _get_floors()
-	if floors.is_empty():
+	var ids: Array[int] = _doc.create_patio(rect)
+	if ids.is_empty():
 		return
-	var ids: Array[int] = []
-	for i in range(floors.size()):
-		var level_m: float = float(Dictionary(floors[i]).get("level_m", 0.0))
-		var floor_name: String = String(Dictionary(floors[i]).get("name", _default_floor_name(i)))
-		# La altura de la zona es la de la planta: el conducto es continuo y no
-		# deja falso techo entre una zona y la siguiente.
-		var height_m: float = DEFAULT_FLOOR_HEIGHT_M
-		if i + 1 < floors.size():
-			height_m = maxf(2.0, float(Dictionary(floors[i + 1]).get("level_m", level_m + DEFAULT_FLOOR_HEIGHT_M)) - level_m)
-		ids.append(_create_room_at_level(rect, "Patio %s" % floor_name, "patio", level_m, height_m))
-
-	# Encadenado vertical, con TODA la superficie del patio: entre dos zonas del
-	# mismo conducto no hay forjado que atravesar.
-	for i in range(ids.size() - 1):
-		_add_vertical_opening(ids[i], ids[i + 1], rect.size.x, rect.size.y)
-
-	# La boca. Sin ella el patio es un conducto ciego y se presuriza, que es justo
-	# lo contrario de lo que hace un patio de luces.
-	_add_vertical_opening(ids[ids.size() - 1], OUTSIDE_ID, rect.size.x, rect.size.y)
-
 	_select_room(ids[0])
 	_sync_floor_controls()
 	_set_status(tr("Patio creado: %d plantas y boca al cielo. Da a él con ventanas desde las salas que lo necesiten (cocina, baño).") % ids.size())
 
 
-## El portal: el rellano y la caja de escalera comun de un bloque de pisos.
-##
-## Hasta ahora el rellano solo existia en la vista. En el modelo la puerta de la
-## vivienda daba al ambiente, asi que el humo que salia por ella se iba a la calle
-## y no subia por ninguna escalera. Medido el 2026-09-12 antes de escribir esto:
-## con **una zona de escalera por planta, encadenadas por el ojo y con la puerta
-## de cada vivienda dando a la suya**, el motor hace la fisica entera sin tocarlo
-## -la caja cerrada se presuriza por arriba hasta 11,4 Pa y un exutorio la baja a
-## 3,7-. Cifras en `docs/PROMPT_MOTOR_PORTAL.md`.
-##
-## Cuatro decisiones que conviene tener escritas:
-##
-## 1. **Tipo `escalera`**, que es con el que se midio y el que el motor ya trata
-##    como caja de escalera. Lo que lo separa de una escalera interior es el
-##    nombre, «Portal …», con el mismo criterio que el patio.
-## 2. **Atraviesa las plantas que HAY**, como el patio: un portal no añade pisos.
-## 3. **Se conecta solo, pero por las PUERTAS DE VIVIENDA, no abriendo huecos.**
-##    La puerta de entrada que cae sobre el rellano deja de dar al ambiente y
-##    pasa a dar a el, en el mismo sitio. A las demas salas que toque no les abre
-##    nada: de una vivienda al portal se pasa por su puerta. Una balconera no se
-##    toca aunque caiga ahi: detras de ella hay calle.
-## 4. **Cerrado por arriba.** Es el caso que mata en plantas altas y no se
-##    suaviza; el exutorio es un hueco que se añade a mano, no un regalo.
+## El portal. Lo crea `ScenarioDocument.create_portal`, donde estan escritas sus
+## cuatro decisiones; aqui solo se enseña el resultado.
 func _create_portal_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
-	var floors: Array = _get_floors()
-	if floors.is_empty():
+	var result: Dictionary = _doc.create_portal(rect, start_m, end_m)
+	if result.is_empty():
 		return
-	var order: Array = range(floors.size())
-	order.sort_custom(func(i, j): return float(Dictionary(floors[i]).get("level_m", 0.0)) < float(Dictionary(floors[j]).get("level_m", 0.0)))
-
-	var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(start_m, end_m, rect)
-	var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, StairPlanRules.MODE_AUTO)
-	var ids: Array[int] = []
-	var names: Array[String] = []
-	for k in range(order.size()):
-		var floor: Dictionary = floors[int(order[k])]
-		var level_m: float = float(floor.get("level_m", 0.0))
-		var floor_name: String = String(floor.get("name", _default_floor_name(int(order[k]))))
-		# La caja es continua: cada zona llega hasta el forjado de la siguiente.
-		var height_m: float = DEFAULT_FLOOR_HEIGHT_M
-		if k + 1 < order.size():
-			height_m = maxf(2.0, float(Dictionary(floors[int(order[k + 1])]).get("level_m", level_m + DEFAULT_FLOOR_HEIGHT_M)) - level_m)
-		var id: int = _create_room_at_level(rect, "Portal %s" % floor_name, "escalera", level_m, height_m)
-		_apply_stair_defaults_to_room(id, stair_dir, turn_degrees)
-		ids.append(id)
-		names.append(floor_name)
-
-	# El ojo de la escalera entre plantas seguidas: es lo que produce el tiro. Con
-	# el paso libre del ojo, no con la huella de los tramos (`PORTAL_EYE_SIDE_M`).
-	var eye_m: float = _portal_eye_side_m(rect)
-	for k in range(ids.size() - 1):
-		_add_vertical_opening(ids[k], ids[k + 1], eye_m, eye_m)
-
-	var connected: int = 0
-	var without_door: Array[String] = []
-	for k in range(ids.size()):
-		var linked: int = _connect_dwelling_doors_to_portal(ids[k])
-		connected += linked
-		if linked == 0 and _portal_touches_rooms(ids[k]):
-			without_door.append(names[k])
-
-	# La orientacion del portal la deciden sus puertas, no el gesto: se guarda la
-	# subida del reparto real (`ScenarioWalls.portal_layout`) y giro cero. Los
-	# valores de escalera la sacaban del arrastre y ponian `rotation_deg` a -90,
-	# y el plano dibujaba el portal girado encima de si mismo.
-	for id in ids:
-		var portal: Dictionary = ScenarioWalls.portal_layout(editor_data, _get_room(id))
-		if portal.is_empty():
-			continue
-		_update_room_fields(id, {
-			"rotation_deg": 0.0,
-			"stair_run_direction_m": Serializer.vector_to_data(Vector2(portal["stair_dir"])),
-			"stair_turn_degrees": float(portal["turn_degrees"]),
-			"stair_flight_count": 2 if float(portal["turn_degrees"]) >= 179.0 else 1,
-		})
-
-	# El zaguan: abajo, la puerta del portal a la calle. Cerrada, que es como esta
-	# un portal de verdad; abrirla es una decision del escenario.
-	var street: Dictionary = _portal_street_door(ids[0], _portal_landing_wall(ids))
-	var street_wall: String = String(street.get("wall", ""))
-	if street_wall != "":
-		_add_opening(
-			ids[0], OUTSIDE_ID, "door", street_wall,
-			float(street["offset_m"]), float(street["width_m"]),
-			PORTAL_STREET_DOOR_HEIGHT_M, 0.0, 0.0, false
-		)
-
-	_select_room(ids[0])
+	var ids: Array = result["ids"]
+	_select_room(int(ids[0]))
 	_sync_floor_controls()
-	var status: String = tr("Portal creado: %d plantas, cerrado por arriba. Puertas de vivienda que ya dan al rellano: %d.") % [ids.size(), connected]
-	if street_wall == "":
+	var status: String = tr("Portal creado: %d plantas, cerrado por arriba. Puertas de vivienda que ya dan al rellano: %d.") % [ids.size(), int(result["connected"])]
+	if String(result["street_wall"]) == "":
 		status += " " + tr("El zaguán no tiene ningún lado libre a la calle: ponle la puerta a mano.")
+	var without_door: Array = result["without_door"]
 	if not without_door.is_empty():
-		status += " " + tr("Sin puerta al rellano en %s: pónsela con la herramienta Puerta.") % ", ".join(without_door)
+		status += " " + tr("Sin puerta al rellano en %s: pónsela con la herramienta Puerta.") % ", ".join(PackedStringArray(without_door))
 	_set_status(status)
 
 
-## Las puertas de vivienda de la planta del portal que caen sobre el: dejan de
-## dar al ambiente y pasan a dar al rellano, sin moverse de sitio.
-##
-## Solo puertas enteras dentro del tramo compartido. Una balconera no, aunque
-## caiga ahi. Devuelve cuantas se han reconectado.
-func _connect_dwelling_doors_to_portal(portal_id: int) -> int:
-	var level_m: float = _room_id_floor_level(portal_id)
-	var openings: Array = editor_data.get("openings_data", [])
-	var count: int = 0
-	for i in range(openings.size()):
-		if typeof(openings[i]) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = openings[i]
-		if String(op.get("type", "")) != "door" or bool(op.get("is_vertical", false)):
-			continue
-		if bool(op.get("has_balcony", false)):
-			continue
-		var a_id: int = int(op.get("a", OUTSIDE_ID))
-		var b_id: int = int(op.get("b", OUTSIDE_ID))
-		var room_id: int = a_id if b_id == OUTSIDE_ID else (b_id if a_id == OUTSIDE_ID else OUTSIDE_ID)
-		var wall: String = String(op.get("wall", ""))
-		if room_id < 0 or room_id == portal_id or wall == "":
-			continue
-		if absf(_room_id_floor_level(room_id) - level_m) >= 0.05:
-			continue
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, portal_id)
-		if shared.is_empty() or String(shared["wall"]) != wall:
-			continue
-		var probe: Dictionary = op.duplicate()
-		probe["a"] = room_id
-		probe["b"] = OUTSIDE_ID
-		var door_seg: PackedVector2Array = ScenarioWalls.opening_segment_m(editor_data, probe)
-		var shared_seg: PackedVector2Array = ScenarioWalls.shared_wall_segment(editor_data, room_id, portal_id, wall)
-		if door_seg.size() != 2 or shared_seg.size() != 2:
-			continue
-		var along_x: bool = WallSideGeometry.is_horizontal(wall)
-		var lo: float = minf(shared_seg[0].x, shared_seg[1].x) if along_x else minf(shared_seg[0].y, shared_seg[1].y)
-		var hi: float = maxf(shared_seg[0].x, shared_seg[1].x) if along_x else maxf(shared_seg[0].y, shared_seg[1].y)
-		var d0: float = door_seg[0].x if along_x else door_seg[0].y
-		var d1: float = door_seg[1].x if along_x else door_seg[1].y
-		if minf(d0, d1) < lo - 0.02 or maxf(d0, d1) > hi + 0.02:
-			continue
-		op["a"] = room_id
-		op["b"] = portal_id
-		op["offset_m"] = PlanGeometry.offset_on_wall(_get_room_rect(room_id), wall, (door_seg[0] + door_seg[1]) * 0.5)
-		op["offset_is_fraction"] = false
-		openings[i] = op
-		count += 1
-	editor_data["openings_data"] = openings
-	return count
-
-
-## El ojo cabe en el portal: en uno estrecho no puede ser mas ancho que la caja.
-func _portal_eye_side_m(rect: Rect2) -> float:
-	return minf(PORTAL_EYE_SIDE_M, maxf(0.2, minf(rect.size.x, rect.size.y) - 0.2))
-
-
-## ¿Toca el portal alguna sala de su planta? Si toca y no hay puerta, conviene
-## decirlo: en el plano parece conectado y en el modelo esta tapiado.
-func _portal_touches_rooms(portal_id: int) -> bool:
-	for raw in editor_data.get("rooms_data", []):
-		if typeof(raw) != TYPE_DICTIONARY:
-			continue
-		var other_id: int = int(Dictionary(raw).get("id", -1))
-		if other_id < 0 or other_id == portal_id:
-			continue
-		if not ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id).is_empty():
-			return true
-	return false
-
-
-## La pared del rellano: la del portal que da a mas puertas de vivienda, contadas
-## en todas sus plantas. Es el mismo voto que hace la vista para repartir el
-## rellano y la escalera (`PortalGeometry.landing_side`). Vacio si no hay puertas.
-func _portal_landing_wall(ids: Array[int]) -> String:
-	var votes: Dictionary = {}
-	for raw in editor_data.get("openings_data", []):
-		if typeof(raw) != TYPE_DICTIONARY or bool(Dictionary(raw).get("is_vertical", false)):
-			continue
-		var a_id: int = int(Dictionary(raw).get("a", OUTSIDE_ID))
-		var b_id: int = int(Dictionary(raw).get("b", OUTSIDE_ID))
-		var zone_id: int = a_id if ids.has(a_id) else (b_id if ids.has(b_id) else OUTSIDE_ID)
-		var other_id: int = b_id if zone_id == a_id else a_id
-		if zone_id < 0 or other_id < 0 or ids.has(other_id):
-			continue
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, zone_id, other_id)
-		if not shared.is_empty():
-			votes[String(shared["wall"])] = int(votes.get(String(shared["wall"]), 0)) + 1
-	var best: String = ""
-	for wall in ["left", "top", "right", "bottom"]:
-		if int(votes.get(wall, 0)) > int(votes.get(best, 0)):
-			best = wall
-	return best
-
-
-## La puerta del zaguan a la calle: pared, posicion y ancho.
-##
-## En un lado PERPENDICULAR a la pared del rellano, y centrada en la franja de
-## rellano. La vista sube la escalera en sentido contrario a las puertas, asi que
-## una puerta en el lado de enfrente quedaba detras de los tramos, bajo la meseta
-## y sin paso. Si no hay lado perpendicular libre, se usa el resto de lados como
-## antes: el opuesto a la vivienda y, si no, el mas largo.
-func _portal_street_door(portal_id: int, landing_wall: String) -> Dictionary:
-	var rect: Rect2 = _get_room_rect(portal_id)
-	if landing_wall != "":
-		for wall in ["top", "bottom", "left", "right"]:
-			if wall == landing_wall or wall == WallSideGeometry.opposite(landing_wall):
-				continue
-			if _portal_wall_blocked(portal_id, wall):
-				continue
-			var length_m: float = PlanGeometry.wall_length(rect, wall)
-			var depth_m: float = clampf(PortalGeometry.LANDING_DEPTH_M, 0.0, maxf(0.0, length_m - PortalGeometry.MIN_STAIR_LONG_M))
-			if depth_m < 0.90:
-				break
-			# Los muros corren de izquierda a derecha y de arriba abajo: el rellano
-			# empieza en el arranque del muro si esta a la izquierda o arriba.
-			var from_start: bool = landing_wall == "left" or landing_wall == "top"
-			return {
-				"wall": wall,
-				"offset_m": depth_m * 0.5 if from_start else length_m - depth_m * 0.5,
-				"width_m": minf(PORTAL_STREET_DOOR_WIDTH_M, depth_m - 0.10),
-			}
-	var fallback: String = _portal_street_wall(portal_id)
-	if fallback == "":
-		return {}
-	return {
-		"wall": fallback,
-		"offset_m": PlanGeometry.wall_length(rect, fallback) * 0.5,
-		"width_m": minf(PORTAL_STREET_DOOR_WIDTH_M, PlanGeometry.wall_length(rect, fallback) - 0.10),
-	}
-
-
-func _portal_wall_blocked(portal_id: int, wall: String) -> bool:
-	for raw in editor_data.get("rooms_data", []):
-		if typeof(raw) != TYPE_DICTIONARY:
-			continue
-		var other_id: int = int(Dictionary(raw).get("id", -1))
-		if other_id < 0 or other_id == portal_id:
-			continue
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id)
-		if not shared.is_empty() and String(shared["wall"]) == wall:
-			return true
-	return false
-
-
-## Un lado del portal que no toque ninguna sala de su planta. Se prefiere el
-## opuesto a la vivienda y, si no, el mas largo. Vacio si esta rodeado.
-func _portal_street_wall(portal_id: int) -> String:
-	var rect: Rect2 = _get_room_rect(portal_id)
-	var blocked: Dictionary = {}
-	for raw in editor_data.get("rooms_data", []):
-		if typeof(raw) != TYPE_DICTIONARY:
-			continue
-		var other_id: int = int(Dictionary(raw).get("id", -1))
-		if other_id < 0 or other_id == portal_id:
-			continue
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, portal_id, other_id)
-		if not shared.is_empty():
-			blocked[String(shared["wall"])] = true
-	var best: String = ""
-	var best_score: float = -1.0
-	for wall in ["top", "bottom", "left", "right"]:
-		if blocked.has(wall):
-			continue
-		var score: float = PlanGeometry.wall_length(rect, wall)
-		if blocked.has(WallSideGeometry.opposite(wall)):
-			score += 100.0
-		if score > best_score:
-			best_score = score
-			best = wall
-	return best
-
-
+## La escalera dibujada. La crea `ScenarioDocument.create_stairs`; aqui entran
+## lo que es de la interfaz -planta, modo de giro, ancho de paso- y sale el mensaje.
 func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
-	var lower_level_m: float = _current_floor_level_m()
-	var upper_floor_index: int = _next_floor_index_above(lower_level_m)
-	if upper_floor_index < 0:
-		upper_floor_index = _add_floor_at_level(lower_level_m + DEFAULT_FLOOR_HEIGHT_M)
-	var floors: Array = _get_floors()
-	var upper_level_m: float = float(Dictionary(floors[upper_floor_index]).get("level_m", lower_level_m + DEFAULT_FLOOR_HEIGHT_M))
-	var lower_name: String = "Escalera %s" % _current_floor_name()
-	var upper_name: String = "Escalera %s" % String(Dictionary(floors[upper_floor_index]).get("name", _default_floor_name(upper_floor_index)))
-	var lower_id: int = _create_room_at_level(rect, lower_name, "escalera", lower_level_m, minf(upper_level_m - lower_level_m, 3.2))
-	var upper_id: int = _create_room_at_level(rect, upper_name, "escalera", upper_level_m, 2.55)
-	var stair_dir: Vector2 = StairPlanRules.run_direction_from_drag(start_m, end_m, rect)
-	var turn_mode: String = _selected_stair_tool_turn_mode()
-	var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
-	_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
-	_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
-	_set_stair_turn_mode_for_room(lower_id, turn_mode)
-	_set_stair_turn_mode_for_room(upper_id, turn_mode)
-	_add_vertical_stair_opening(lower_id, upper_id, rect)
-	# La escalera nace con paso a la sala de al lado. Sin esto se dibujaba
-	# tapiada: en el plano parecia conectada porque las salas se tocan, y en
-	# primera persona te comias el tabique sin poder entrar.
-	# Sin saltarse las escaleras: encadenando plantas, la vecina de una escalera
-	# suele ser el hueco de la anterior, y es por donde se entra.
-	var access_rooms: Array[int] = _open_passages_to_neighbours(lower_id, true, false)
-	var access_room_id: int = access_rooms[0] if not access_rooms.is_empty() else -1
-	# Y arriba igual. Encadenando plantas, la escalera de arriba llega a un piso
-	# que puede tener ya salas -las de la escalera anterior-, y sin esto nacia
-	# tapiada aunque la de abajo estuviera bien.
-	var upper_access: Array[int] = _open_passages_to_neighbours(upper_id, true, false)
-	_select_room(lower_id)
+	var before: int = Array(editor_data.get("openings_data", [])).size()
+	var result: Dictionary = _doc.create_stairs(rect, start_m, end_m, _current_floor_level_m(), _current_floor_name(), _selected_stair_tool_turn_mode(), corridor_width_m)
+	_select_last_opening_if_added(before)
+	var access_room_id: int = int(result["access_room_id"])
+	var upper_access: Array = result["upper_access"]
+	var turn_degrees: float = float(result["turn_degrees"])
+	_select_room(int(result["lower_id"]))
 	_sync_floor_controls()
 	var shape_text: String = "dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
 	if access_room_id >= 0 and not upper_access.is_empty():
@@ -4828,80 +4462,29 @@ func _open_passages_to_circulation(room_id: int) -> Array[int]:
 	return connected
 
 
-## Abre paso entre una sala recien dibujada y las que toca en su misma planta.
-##
-## `only_widest` abre solo el paso mas ancho -lo que necesita una escalera, que
-## se entra por un sitio-; con falso abre paso a TODAS, que es lo que hace un
-## pasillo: un pasillo existe justamente para conectar.
-##
-## Devuelve los ids conectados. Vacio significa que la sala ha quedado aislada, y
-## eso hay que decirlo: en el plano no se ve, porque las salas se tocan, y en
-## primera persona es un tabique.
+## Abre paso a las salas que toca. La regla vive en
+## `ScenarioDocument.open_passages_to_neighbours`; aqui se pone el ancho de paso
+## elegido y se deja seleccionada la ultima abertura, como hacia `_add_opening`.
 func _open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: bool = true) -> Array[int]:
-	var level_m: float = _room_id_floor_level(room_id)
-	var candidates: Array[Dictionary] = []
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var other: Dictionary = room
-		var other_id: int = int(other.get("id", -1))
-		if other_id == room_id or other_id < 0:
-			continue
-		if skip_stairs and StairPlanRules.is_stair_room(other):
-			continue
-		if absf(_room_id_floor_level(other_id) - level_m) >= 0.05:
-			continue
-		var shared: Dictionary = ScenarioWalls.shared_wall_between(editor_data, room_id, other_id)
-		if shared.is_empty():
-			continue
-		var width_m: float = ScenarioWalls.max_opening_width_for_shared(editor_data, int(shared["a"]), int(shared["b"]), String(shared["wall"]))
-		# El codo de un pasillo en L comparte solo el ancho de la esquina, que puede
-		# quedarse en medio metro largo. Por debajo de 45 cm ya no es un paso ni en
-		# una esquina, y ahi si conviene no fingirlo.
-		if width_m < 0.45:
-			continue
-		shared["_span_m"] = width_m
-		candidates.append(shared)
-	if candidates.is_empty():
-		return []
-	if only_widest:
-		candidates.sort_custom(func(a, b): return float(a["_span_m"]) > float(b["_span_m"]))
-		candidates = [candidates[0]]
-	var connected: Array[int] = []
-	for shared in candidates:
-		var span_m: float = float(shared["_span_m"])
-		_add_opening(
-			int(shared["a"]),
-			int(shared["b"]),
-			"hole",
-			String(shared["wall"]),
-			float(shared["offset_m"]),
-			minf(maxf(1.00, corridor_width_m), span_m),
-			2.10,
-			0.0,
-			1.0
-		)
-		connected.append(int(shared["b"]) if int(shared["a"]) == room_id else int(shared["a"]))
+	var before: int = Array(editor_data.get("openings_data", [])).size()
+	var connected: Array[int] = _doc.open_passages_to_neighbours(room_id, only_widest, skip_stairs, corridor_width_m)
+	_select_last_opening_if_added(before)
 	return connected
 
 
-func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
-	var fields: Dictionary = {
-		"stair_run_direction_m": Serializer.vector_to_data(stair_dir),
-		# El hueco de escalera nace CON paredes. Sin ellas, en primera persona el
-		# descansillo es una repisa en el vacio: un paso de lado y te caes al
-		# piso de abajo. El paso a la sala se abre aparte, con su hueco.
-		"stair_has_walls": true,
-		"stair_has_railings": true,
-		"stair_turn_degrees": turn_degrees,
-		"stair_flight_count": 2 if turn_degrees >= 179.0 else 1,
-		"rotation_deg": PlanGeometry.normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0),
-	}
-	# El modo de giro solo se pone si la sala no traia uno: es una eleccion del
-	# usuario y los valores por defecto no la pisan.
-	if not _get_room(room_id).has("stair_turn_mode"):
-		fields["stair_turn_mode"] = StairPlanRules.turn_mode_from_degrees(turn_degrees)
-	_update_room_fields(room_id, fields)
+## Si una mutacion del documento ha añadido aberturas, la ultima queda
+## seleccionada: es lo que hacia `_add_opening` cuando escribia aqui.
+func _select_last_opening_if_added(count_before: int) -> void:
+	var count_after: int = Array(editor_data.get("openings_data", [])).size()
+	if count_after <= count_before:
+		return
+	selected_opening_index = count_after - 1
+	selected_room_id = -1
+	selected_object_room_id = -1
+	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
+	selected_player_start_room_id = -1
 
 
 func _selected_stair_tool_turn_mode() -> String:
@@ -4917,226 +4500,50 @@ func _populate_stair_turn_options(option: OptionButton) -> void:
 
 
 func _set_stair_turn_mode_for_room(room_id: int, mode: String) -> void:
-	_update_room_fields(room_id, {"stair_turn_mode": StairPlanRules.normalized_turn_mode(mode)})
+	_doc.set_stair_turn_mode(room_id, mode)
 
 
 func _set_stair_turn_degrees_for_room(room_id: int, turn_degrees: float) -> void:
-	_update_room_fields(room_id, {
-		"stair_turn_degrees": turn_degrees,
-		"stair_flight_count": 2 if turn_degrees >= 179.0 else 1,
-	})
+	_doc.set_stair_turn_degrees(room_id, turn_degrees)
 
 
 func _next_floor_index_above(level_m: float) -> int:
-	var floors: Array = _get_floors()
-	var best_index: int = -1
-	var best_level: float = INF
-	for i in range(floors.size()):
-		if typeof(floors[i]) != TYPE_DICTIONARY:
-			continue
-		var floor_level_m: float = float(Dictionary(floors[i]).get("level_m", 0.0))
-		if floor_level_m > level_m + 0.20 and floor_level_m < best_level:
-			best_level = floor_level_m
-			best_index = i
-	return best_index
+	_ensure_floor_data()
+	return _doc.next_floor_index_above(level_m)
 
 
 func _add_floor_at_level(level_m: float) -> int:
-	var floors: Array = _get_floors()
-	floors.append({"name": _default_floor_name(floors.size()), "level_m": level_m})
-	floors.sort_custom(func(a, b): return float(Dictionary(a).get("level_m", 0.0)) < float(Dictionary(b).get("level_m", 0.0)))
-	editor_data["floors"] = floors
-	for i in range(floors.size()):
-		if absf(float(Dictionary(floors[i]).get("level_m", 0.0)) - level_m) < 0.05:
-			return i
-	return floors.size() - 1
-
-
-func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> void:
-	var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(_get_room(lower_id))
-	var turn_degrees: float = float(_get_room(lower_id).get("stair_turn_degrees", 0.0))
-	var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
-	var along_y: bool = absf(stair_dir.y) >= absf(stair_dir.x)
-	_add_vertical_opening(
-		lower_id, upper_id,
-		void_rect.size.x if along_y else void_rect.size.y,
-		void_rect.size.y if along_y else void_rect.size.x
-	)
-
-
-## Un hueco de FORJADO entre dos salas apiladas: el ojo de una escalera o un
-## tramo de patio. No es una puerta en un tabique, asi que no tiene pared ni
-## alfeizar, y el motor lo intercambia por flotabilidad y no por difusion.
-##
-## `b` puede ser `OUTSIDE_ID`: eso es la boca del patio, abierta al cielo.
-##
-## No duplica: si ya hay un vertical entre esas dos, no pone otro. Encadenando
-## plantas se llama mas de una vez con el mismo par.
-func _add_vertical_opening(a_id: int, b_id: int, width_m: float, depth_m: float) -> void:
-	var openings: Array = editor_data.get("openings_data", [])
-	for raw_op in openings:
-		if typeof(raw_op) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = raw_op
-		if not bool(op.get("is_vertical", false)):
-			continue
-		if int(op.get("a", -1)) == a_id and int(op.get("b", -1)) == b_id:
-			return
-	openings.append({
-		"a": a_id,
-		"b": b_id,
-		"type": "hole",
-		"wall": "",
-		"width_m": maxf(0.2, width_m),
-		"height_m": maxf(0.2, depth_m),
-		"sill_m": 0.0,
-		"open_fraction": 1.0,
-		"offset_m": 0.0,
-		"offset_is_fraction": false,
-		"is_vertical": true
-	})
-	editor_data["openings_data"] = openings
+	_ensure_floor_data()
+	return _doc.add_floor_at_level(level_m)
 
 
 func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float) -> void:
-	var lower_stairs: Array[Dictionary] = []
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var room_dict: Dictionary = room
-		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level_m) < 0.05 and StairPlanRules.is_stair_room(room_dict):
-			lower_stairs.append(room_dict)
-	if lower_stairs.is_empty():
-		return
-
-	for lower_room in lower_stairs:
-		var lower_id: int = int(lower_room.get("id", -1))
-		var rect: Rect2 = _get_room_rect(lower_id)
-		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-			continue
-		var upper_id: int = _find_matching_stair_room_at_level(rect, upper_level_m)
-		if upper_id < 0:
-			var floor_name: String = _floor_name_for_level(upper_level_m)
-			upper_id = _create_room_at_level(rect, "Escalera %s" % floor_name, "escalera", upper_level_m, 2.55)
-		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(lower_room)
-		var turn_mode: String = StairPlanRules.turn_mode_for_room(lower_room)
-		var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
-		_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
-		_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
-		_set_stair_turn_mode_for_room(lower_id, turn_mode)
-		_set_stair_turn_mode_for_room(upper_id, turn_mode)
-		_add_vertical_stair_opening(lower_id, upper_id, rect)
+	_doc.copy_stairs_between_levels(lower_level_m, upper_level_m)
 
 
 func _find_matching_stair_room_at_level(rect: Rect2, level_m: float) -> int:
-	for room in editor_data.get("rooms_data", []):
-		if typeof(room) != TYPE_DICTIONARY:
-			continue
-		var room_dict: Dictionary = room
-		if not StairPlanRules.is_stair_room(room_dict):
-			continue
-		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - level_m) >= 0.05:
-			continue
-		var other_rect: Rect2 = _get_room_rect(int(room_dict.get("id", -1)))
-		if rect.position.distance_to(other_rect.position) <= 0.05 and rect.size.distance_to(other_rect.size) <= 0.05:
-			return int(room_dict.get("id", -1))
-	return -1
+	return _doc.find_matching_stair_room_at_level(rect, level_m)
 
 
 func _linked_vertical_stair_room_ids(room_id: int) -> Array[int]:
-	var ids: Array[int] = []
-	for raw_op in editor_data.get("openings_data", []):
-		if typeof(raw_op) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = raw_op
-		if not bool(op.get("is_vertical", false)):
-			continue
-		var a_id: int = int(op.get("a", -1))
-		var b_id: int = int(op.get("b", -1))
-		if a_id == room_id and b_id >= 0:
-			ids.append(b_id)
-		elif b_id == room_id and a_id >= 0:
-			ids.append(a_id)
-	return ids
+	return _doc.linked_vertical_room_ids(room_id)
 
 
 func _sync_linked_stair_rects(room_id: int, rect: Rect2) -> void:
-	var rects: Dictionary = editor_data.get("room_rect_m", {})
-	for linked_id in _linked_vertical_stair_room_ids(room_id):
-		var linked_room: Dictionary = _get_room(linked_id)
-		if StairPlanRules.is_stair_room(linked_room):
-			rects[str(linked_id)] = Serializer.rect_to_data(rect)
-	editor_data["room_rect_m"] = rects
+	_doc.sync_linked_stair_rects(room_id, rect)
 
 
 func _apply_stair_rotation_to_linked_rooms(room_id: int, rotation_deg: float, stair_dir: Vector2) -> void:
-	var linked_ids: Array[int] = _linked_vertical_stair_room_ids(room_id)
-	if linked_ids.is_empty():
-		return
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY:
-			continue
-		var linked_id: int = int(Dictionary(rooms[i]).get("id", -1))
-		if linked_ids.find(linked_id) < 0:
-			continue
-		var room: Dictionary = rooms[i]
-		if not StairPlanRules.is_stair_room(room):
-			continue
-		room["rotation_deg"] = rotation_deg
-		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
-		rooms[i] = room
-	editor_data["rooms_data"] = rooms
+	_doc.apply_stair_rotation_to_linked_rooms(room_id, rotation_deg, stair_dir)
 
 
 func _sync_vertical_stair_openings(room_id: int) -> void:
-	var openings: Array = editor_data.get("openings_data", [])
-	var changed: bool = false
-	for i in range(openings.size()):
-		if typeof(openings[i]) != TYPE_DICTIONARY:
-			continue
-		var op: Dictionary = openings[i]
-		if not bool(op.get("is_vertical", false)):
-			continue
-		var a_id: int = int(op.get("a", -1))
-		var b_id: int = int(op.get("b", -1))
-		if a_id != room_id and b_id != room_id:
-			continue
-		var lower_id: int = a_id
-		if _room_id_floor_level(b_id) < _room_id_floor_level(a_id):
-			lower_id = b_id
-		var rect: Rect2 = _get_room_rect(lower_id)
-		var lower_room: Dictionary = _get_room(lower_id)
-		var stair_dir: Vector2 = StairPlanRules.run_direction_for_room(lower_room)
-		var turn_mode: String = StairPlanRules.turn_mode_for_room(lower_room)
-		var turn_degrees: float = StairPlanRules.turn_degrees_for_mode(rect, stair_dir, turn_mode)
-		_set_stair_turn_degrees_for_room(lower_id, turn_degrees)
-		var other_id: int = b_id if lower_id == a_id else a_id
-		if other_id >= 0:
-			_set_stair_turn_mode_for_room(other_id, turn_mode)
-			_set_stair_turn_degrees_for_room(other_id, turn_degrees)
-		# El portal guarda su ojo: el paso libre no crece con la huella.
-		if StairPlanRules.is_portal_room(lower_room):
-			op["width_m"] = _portal_eye_side_m(rect)
-			op["height_m"] = _portal_eye_side_m(rect)
-			openings[i] = op
-			changed = true
-			continue
-		var void_rect: Rect2 = StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
-		op["width_m"] = void_rect.size.x if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.y
-		op["height_m"] = void_rect.size.y if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.x
-		openings[i] = op
-		changed = true
-	if changed:
-		editor_data["openings_data"] = openings
+	_doc.sync_vertical_stair_openings(room_id)
 
 
 func _floor_name_for_level(level_m: float) -> String:
-	var floors: Array = _get_floors()
-	for i in range(floors.size()):
-		if typeof(floors[i]) == TYPE_DICTIONARY and absf(float(Dictionary(floors[i]).get("level_m", 0.0)) - level_m) < 0.05:
-			return String(Dictionary(floors[i]).get("name", _default_floor_name(i)))
-	return _default_floor_name(floors.size())
+	_ensure_floor_data()
+	return _doc.floor_name_for_level(level_m)
 
 
 func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
@@ -5684,28 +5091,8 @@ func _get_room(room_id: int) -> Dictionary:
 	return ScenarioQueries.room_by_id(editor_data, room_id)
 
 
-## Cambiar campos de una sala por su id. Devuelve si la encontro.
-##
-## El patron -recorrer `rooms_data`, comparar el id, tocar el diccionario y
-## volver a escribirlo- estaba OCHO veces en este fichero, y la escritura de
-## vuelta diecinueve.
-##
-## Un apunte que conviene tener escrito: en GDScript un `Dictionary` es una
-## **referencia**, asi que el `rooms[i] = room` del final no copia nada -la sala
-## ya quedo cambiada en su sitio-. Se conserva aqui, una sola vez, porque hace
-## visible que esto guarda; repetido ocho veces solo hacia parecer que cada
-## copia hacia algo distinto.
 func _update_room_fields(room_id: int, fields: Dictionary) -> bool:
-	var index: int = ScenarioQueries.room_index_for_id(editor_data, room_id)
-	if index < 0:
-		return false
-	var rooms: Array = editor_data.get("rooms_data", [])
-	var room: Dictionary = rooms[index]
-	for key in fields:
-		room[key] = fields[key]
-	rooms[index] = room
-	editor_data["rooms_data"] = rooms
-	return true
+	return _doc.update_room_fields(room_id, fields)
 
 
 
@@ -6284,34 +5671,9 @@ func _create_balcony_door_at(pos_m: Vector2) -> void:
 
 
 func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: float, width_m: float, height_m: float, sill_m: float, open_fraction: float, record_undo: bool = true) -> void:
-	var openings: Array = editor_data.get("openings_data", [])
-	if type_str == "hole":
-		sill_m = 0.0
-		open_fraction = 1.0
-	if record_undo:
-		_push_undo_snapshot("add_opening")
-	openings.append({
-		"a": a,
-		"b": b,
-		"type": type_str,
-		"wall": wall,
-		"offset_m": offset_m,
-		"offset_is_fraction": false,
-		"width_m": width_m,
-		"height_m": height_m,
-		"sill_m": sill_m,
-		"open_fraction": open_fraction,
-		"swing_direction": "in",
-		"hinge_side": "left"
-	})
-	editor_data["openings_data"] = openings
-	selected_opening_index = openings.size() - 1
-	selected_room_id = -1
-	selected_object_room_id = -1
-	selected_object_index = -1
-	selected_detector_index = -1
-	selected_victim_index = -1
-	selected_player_start_room_id = -1
+	var count_before: int = Array(editor_data.get("openings_data", [])).size()
+	_doc.add_opening(a, b, type_str, wall, offset_m, width_m, height_m, sill_m, open_fraction, record_undo)
+	_select_last_opening_if_added(count_before)
 
 
 func _delete_opening(opening_index: int) -> bool:
@@ -6583,8 +5945,10 @@ func _show_load_error(message: String, path: String = "") -> void:
 ## recoloques», que es lo correcto al traer datos de fuera. Una instantanea del
 ## historial NO viene de fuera: es un estado propio de esta sesion y deshacer
 ## tiene que devolverlo **tal cual**, sin añadirle banderas que no tenia.
-func adopt_scenario_data(data: Dictionary, floor_index: int = 0, lock_object_poses: bool = true) -> void:
-	editor_data = Serializer.normalize_editor_data(data)
+## `normalize` en falso es para restaurar una instantanea del historial: esa ya
+## salio del editor y se devuelve tal cual (D-1, regla 3).
+func adopt_scenario_data(data: Dictionary, floor_index: int = 0, lock_object_poses: bool = true, normalize: bool = true) -> void:
+	editor_data = Serializer.normalize_editor_data(data) if normalize else data
 	if lock_object_poses:
 		_lock_all_object_visual_poses()
 	_ensure_floor_data()
@@ -6595,7 +5959,7 @@ func adopt_scenario_data(data: Dictionary, floor_index: int = 0, lock_object_pos
 	drag = Drag.NONE
 	object_mouse_mode = ObjectMouseMode.NONE
 	if _stop_time_spin != null:
-		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+		_stop_time_spin.set_value_no_signal(float(editor_data.get("stop_time_s", 0.0)))
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
 	_sync_lighting_controls_from_data()
@@ -6628,8 +5992,7 @@ func _load_from_path(path: String) -> void:
 	# El historial es del escenario que se acaba de dejar: deshacer aqui saltaria
 	# de un escenario a otro. Fuera de adopt_scenario_data a proposito, que
 	# deshacer y rehacer tambien la llaman.
-	_undo_stack.clear()
-	_redo_stack.clear()
+	_doc.clear_history()
 	if _path_edit != null:
 		_path_edit.text = clean_path
 	_unsaved_changes = false
@@ -7722,8 +7085,7 @@ func _load_scenario_pressed() -> void:
 		_show_load_error(error_msg, path)
 		return
 	adopt_scenario_data(normalized, current_floor_index)
-	_undo_stack.clear()
-	_redo_stack.clear()
+	_doc.clear_history()
 	_set_status(tr("Escenario cargado: %s") % path.get_file())
 
 
@@ -8099,8 +7461,11 @@ func _bind_building_type_controls() -> void:
 ## confundir eso con "hacia donde va" invierte barlovento y sotavento.
 func _sync_wind_controls() -> void:
 	if _wind_speed_spin != null:
-		_wind_speed_spin.value = clampf(
-			float(editor_data.get("wind_speed_m_s", 0.0)), 0.0, WindRose.MAX_SPEED_M_S)
+		# Sin señal: sincronizar desde los datos no es una accion (ver
+		# `_sync_apartment_floor_control`). Con el paso del mando redondeando la
+		# velocidad, la señal guardaba una instantanea y vaciaba el rehacer.
+		_wind_speed_spin.set_value_no_signal(clampf(
+			float(editor_data.get("wind_speed_m_s", 0.0)), 0.0, WindRose.MAX_SPEED_M_S))
 	if _wind_dir_option != null:
 		_wind_dir_option.select(
 			WindRose.index_for_degrees(float(editor_data.get("wind_direction_deg", 0.0))))

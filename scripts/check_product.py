@@ -520,6 +520,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot vista del portal: " + (diagnostic or "failed"))
 
+    # D-1: el dueño del escenario. Cada accion de una familia mudada se deshace
+    # con un Ctrl+Z y rehacer la devuelve tal cual; las escrituras directas a
+    # editor_data fuera del documento no pueden crecer.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_scenario_document.gd",
+        "[validate_scenario_document] PASS",
+    )
+    rows.append(("Dueño del escenario Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot dueño del escenario: " + (diagnostic or "failed"))
+
     # Las tres ranuras de textura propia del inspector. Una foto puesta a mano
     # manda sobre el interruptor de ruido procedural: si vuelven a compartir
     # puerta, la ranura se vacia en silencio y el mundo sale con el procedural.
