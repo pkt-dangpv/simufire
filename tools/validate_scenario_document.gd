@@ -16,14 +16,16 @@ extends SceneTree
 ##
 ##   <godot> --headless --path . --script res://tools/validate_scenario_document.gd
 
+const TOOL_ROOM: int = 1
+const TOOL_CORRIDOR: int = 2
 const TOOL_STAIRS: int = 3
 const TOOL_PATIO: int = 14
 const TOOL_PORTAL: int = 15
 
 ## Escrituras directas a `editor_data` que quedan en `editor/` fuera del documento.
 ## Solo puede bajar: 64 al mudar la familia de conductos verticales, 50 al mudar
-## la de plantas (2026-09-13).
-const LIMITE_ESCRITURAS: int = 50
+## la de plantas y 46 al mudar la de aperturas (2026-09-13).
+const LIMITE_ESCRITURAS: int = 46
 
 ## Las envolturas de la familia de conductos verticales.
 const ENVOLTURAS_MUDADAS: Array[String] = [
@@ -35,6 +37,10 @@ const ENVOLTURAS_MUDADAS: Array[String] = [
 	"_floor_name_for_level", "_update_room_fields", "_add_opening", "_ensure_floor_data",
 	# Plantas (segunda familia).
 	"_create_floor", "_delete_floor_pressed", "_on_floor_level_changed", "_set_room_rect",
+	# Aperturas (tercera familia).
+	"_open_passages_to_circulation", "_delete_opening", "_apply_opening_properties",
+	"_create_balcony_door_from_drag", "_create_balcony_door_at", "_create_door_at",
+	"_create_hole_at", "_create_window_at",
 ]
 
 var _editor: Node = null
@@ -92,6 +98,19 @@ func _process(_d: float) -> bool:
 	_accion_llamada("planta nueva copiando la baja", 0, func(): _editor._create_floor(true))
 	_accion_llamada("cambiar la cota de la planta nueva", 3, func(): _editor._on_floor_level_changed(9.25))
 	_accion_llamada("borrar la planta nueva", 3, func(): _editor._delete_floor_pressed())
+	# La familia de aperturas. La fachada de arriba de la vivienda baja (y = 0)
+	# esta libre: la escalera, el patio y el portal quedan a los otros lados.
+	_accion_llamada("ventana en la fachada", 0, func(): _editor._create_window_at(Vector2(2.5, 0.0)))
+	_accion_llamada("balconera arrastrada", 0, func(): _editor._create_balcony_door_from_drag(Vector2(0.5, 0.0), Vector2(4.0, -1.0)))
+	_accion_llamada("borrar una apertura", 0, func(): _editor._delete_opening(Array(_editor.editor_data.get("openings_data", [])).size() - 1))
+	# Un pasillo pegado a la vivienda abre paso a ella, y una sala pegada al
+	# pasillo abre paso al pasillo: los dos casos en que la herramienta añade
+	# aberturas por su cuenta en mitad de la accion.
+	_accion("pasillo pegado a la vivienda", 0, TOOL_CORRIDOR, Vector2(0.0, -0.6), Vector2(5.0, -0.6))
+	var pasillo := _rect_del_pasillo()
+	_accion("sala pegada al pasillo", 0, TOOL_ROOM, pasillo.position - Vector2(0.0, 3.0), Vector2(pasillo.end.x, pasillo.position.y))
+	# Editar la ficha: el hueco que acaba de abrirse hacia el pasillo pasa a puerta.
+	_accion_llamada("editar una apertura desde la ficha", 0, func(): _editar_ultima_apertura_a_puerta())
 
 	# ── 2 y 3. Quien escribe ──
 	_comprobar_escrituras()
@@ -116,6 +135,28 @@ func _accion(nombre: String, planta: int, tool_id: int, desde: Vector2, hasta: V
 	_eq("%s: UN deshacer lo deja como estaba" % nombre, _canon() == antes, true)
 	_editor._redo_last_action()
 	_eq("%s: y rehacer, como quedo" % nombre, _canon() == despues, true)
+
+
+## La ultima apertura, convertida en puerta por el camino de la ficha, como lo
+## hace `validate_corridors`.
+func _editar_ultima_apertura_a_puerta() -> void:
+	var ops: Array = _editor.editor_data.get("openings_data", [])
+	var index: int = ops.size() - 1
+	_editor.selected_opening_index = index
+	_editor._props.show({"opening": ops[index], "opening_type_label": "Hueco",
+		"opening_max_width_m": 3.0, "opening_max_offset_m": 10.0,
+		"opening_accepts_balcony": false, "opening_balcony_max_width_m": 3.0})
+	_editor._props._opening_type_option.select(0)
+	_editor._apply_opening_properties()
+
+
+## El rectangulo del pasillo de la planta baja que acaba de dibujarse.
+func _rect_del_pasillo() -> Rect2:
+	for raw in _editor.editor_data.get("rooms_data", []):
+		var room: Dictionary = raw
+		if _editor._is_corridor_room(room) and absf(float(room.get("floor_level_z_m", 0.0))) < 0.05:
+			return _editor._get_room_rect(int(room.get("id", -1)))
+	return Rect2(Vector2(0.0, -1.2), Vector2(5.0, 1.2))
 
 
 ## Lo mismo que `_accion`, para las acciones que no se dibujan arrastrando.

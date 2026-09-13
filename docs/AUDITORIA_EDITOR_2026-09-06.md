@@ -1905,5 +1905,66 @@ redimensionado de salas se mudó con este).
 Las tres acciones son ahora transacciones del documento (`add_floor`,
 `delete_floor`, `floor_level`). Cuatro mutaciones más tumban el guardarraíl:
 quitar cualquiera de las tres transacciones, y que la envoltura de borrar planta
-vuelva a escribir el diccionario, que la caza el trinquete. El diálogo de planta nueva, el resumen de lo que
+vuelva a escribir el diccionario, que la caza el trinquete.
+
+### 22.6 Tercera familia: las aperturas (2026-09-13)
+
+Esta familia agrupa todo lo que abre un paso en una pared:
+- la balconera, por clic o arrastrando;
+- borrar una apertura;
+- aplicar la ficha de una apertura, que incluye cambiar el tipo y poner o quitar
+  balcón;
+- el paso que se abre solo entre una sala y la circulación que toca;
+- la regla de qué cuenta como pasillo.
+
+Puerta, hueco y ventana ya escribían a través de `add_opening`, que se mudó con
+la primera familia. Aquí se quedan como envolturas: localizar la pared bajo el
+cursor es cosa de la interfaz.
+
+| | tras la 2.ª familia | tras la 3.ª |
+|---|---:|---:|
+| `editor/ScenarioEditor.gd` | 7704 líneas · 403 funciones | **7584 · 401** |
+| `editor/ScenarioDocument.gd` | 1202 · 46 | 1381 · 53 |
+| instantáneas de deshacer puestas a mano | 31 | **27** |
+| escrituras directas a `editor_data` fuera del documento | 50 | **46** (trinquete) |
+
+La sonda nueva, `tools/probe_openings_family.gd`, recorre catorce gestos:
+- puerta entre salas, puerta exterior, hueco y ventana;
+- balconera por clic y arrastrada;
+- sala pegada a un pasillo;
+- un hueco convertido en puerta desde la ficha;
+- borrar una apertura;
+- dos deshacer y dos rehacer.
+
+**Los catorce salen idénticos byte a byte**, incluida la apertura que queda
+seleccionada tras cada uno. Las sondas de las dos familias anteriores, repetidas
+después del corte, también salen enteras.
+
+**Un fallo más que ya estaba, del mismo tipo que el de la escalera.** El
+guardarraíl, con las acciones nuevas y sobre el código de antes, dio dos casos
+que pedían **más de un Ctrl+Z**:
+- dibujar un pasillo pegado a una sala;
+- dibujar una sala pegada a un pasillo.
+
+Los dos abren pasos por su cuenta dentro del gesto, y cada paso guardaba su
+propia instantánea. Crear sala y crear pasillo todavía no se han mudado, así que
+es el editor quien abre la transacción alrededor del gesto entero
+(`_doc.begin` / `_doc.commit`), en lugar de guardar la instantánea a mano. Cuando
+se mude su familia, la transacción pasará al documento.
+
+Cinco mutaciones más tumban el guardarraíl:
+- quitar la transacción de borrar una apertura;
+- quitar la de editarla;
+- volver a guardar a mano al crear sala;
+- volver a guardar a mano al crear pasillo;
+- que la envoltura de borrar apertura escriba el diccionario.
+
+Las mutaciones enseñaron dos cosas:
+- **La de editar la ficha sobrevivió al principio.** El guardarraíl no tenía
+  ninguna acción que editara una apertura. Ahora la tiene: convierte en puerta,
+  desde la ficha, el hueco que abrió la sala pegada al pasillo.
+- **Quitar la transacción de la balconera es una mutación equivalente, y se
+  descartó.** `add_opening` ya guarda su instantánea antes de escribir, así que
+  sin `begin` sigue habiendo un solo paso de deshacer. No hay nada distinto que
+  cazar. El diálogo de planta nueva, el resumen de lo que
 hay que copiar y el texto del mensaje se quedan en el editor: son interfaz.

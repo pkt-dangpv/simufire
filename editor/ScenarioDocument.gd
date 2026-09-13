@@ -588,6 +588,185 @@ func add_vertical_opening(a_id: int, b_id: int, width_m: float, depth_m: float) 
 	data["openings_data"] = openings
 
 
+## ¿Es un pasillo? Por el tipo o porque se llama asi.
+static func is_corridor_room(room: Dictionary) -> bool:
+	var kind_name: String = String(room.get("kind", "")).strip_edges().to_lower()
+	var name_text: String = String(room.get("name", "")).strip_edges().to_lower()
+	return kind_name in ["corridor", "pasillo", "hallway", "distribuidor"] or name_text.begins_with("pasillo")
+
+
+## Engancha una sala recien dibujada a los pasillos y escaleras que toca.
+##
+## La circulacion existe para conectar, asi que se conecta sola y en los dos
+## sentidos: da igual si dibujas antes el pasillo o la habitacion. Con dos salas
+## normales no se hace: que dos dormitorios se toquen no significa que haya un
+## hueco entre ellos.
+##
+## No guarda instantanea por cada paso: va dentro de la accion que dibuja la sala.
+func open_passages_to_circulation(room_id: int, passage_width_m: float) -> Array[int]:
+	var level_m: float = ScenarioQueries.room_level_m(data, room_id)
+	var connected: Array[int] = []
+	for room in data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other: Dictionary = room
+		var other_id: int = int(other.get("id", -1))
+		if other_id == room_id or other_id < 0:
+			continue
+		if not (is_corridor_room(other) or StairPlanRules.is_stair_room(other)):
+			continue
+		# Al portal no: de una vivienda al rellano se pasa por su puerta, y un
+		# hueco libre a la caja de escalera es otro edificio para el humo.
+		if StairPlanRules.is_portal_room(other):
+			continue
+		if absf(ScenarioQueries.room_level_m(data, other_id) - level_m) >= 0.05:
+			continue
+		var shared: Dictionary = ScenarioWalls.shared_wall_between(data, room_id, other_id)
+		if shared.is_empty():
+			continue
+		var span_m: float = ScenarioWalls.max_opening_width_for_shared(data, int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+		if span_m < 0.45:
+			continue
+		add_opening(
+			int(shared["a"]),
+			int(shared["b"]),
+			"hole",
+			String(shared["wall"]),
+			float(shared["offset_m"]),
+			minf(maxf(0.90, passage_width_m), span_m),
+			2.10,
+			0.0,
+			1.0
+		)
+		connected.append(other_id)
+	return connected
+
+
+# --------------------------------------------------------------------------
+# Aperturas: balconera, borrar y editar (tercera familia de D-1)
+# --------------------------------------------------------------------------
+
+## Puerta de balcon, o balconera: una puerta exterior hasta el suelo con su
+## balcon puesto. Se crea de una vez porque es UNA cosa -nadie pone una
+## balconera y luego decide si le cuelga un balcon-. Es una transaccion.
+##
+## Para el motor es una puerta exterior y nada mas: el hueco que ventila es el
+## de la hoja. Lo que la distingue de la puerta de entrada es que da a la calle
+## -no al portal- y que llega al suelo. Devuelve el indice de la abertura.
+func add_balcony_door(room_id: int, wall: String, offset_m: float, door_width_m: float, door_height_m: float, balcony_width_m: float, depth_m: float, parapet_m: float) -> int:
+	begin("add_opening")
+	var index: int = add_opening(room_id, OUTSIDE_ID, "door", wall, offset_m, door_width_m, door_height_m, 0.0, 0.0)
+	var openings: Array = data.get("openings_data", [])
+	if not openings.is_empty():
+		var op: Dictionary = openings[openings.size() - 1]
+		op["has_balcony"] = true
+		op["balcony_width_m"] = balcony_width_m
+		op["balcony_depth_m"] = depth_m
+		op["balcony_parapet_m"] = parapet_m
+		openings[openings.size() - 1] = op
+		data["openings_data"] = openings
+	commit()
+	return index
+
+
+## Borra la abertura de ese indice. Es una transaccion. Falso si no existe.
+func delete_opening(opening_index: int) -> bool:
+	var openings: Array = data.get("openings_data", [])
+	if opening_index < 0 or opening_index >= openings.size():
+		return false
+	begin("delete_opening")
+	openings.remove_at(opening_index)
+	data["openings_data"] = openings
+	commit()
+	return true
+
+
+## Aplica a la abertura de ese indice lo que dice la ficha. Es una transaccion.
+##
+## El tipo se puede cambiar. Es lo que convierte en puerta el paso que se abre
+## solo entre dos tramos de pasillo. Una ventana, en cambio, cuelga de fachada: en
+## un tabique interior se rechaza y el resto de la ficha se aplica igual.
+##
+## Devuelve `window_rejected`; vacio si el indice no existe.
+func apply_opening_fields(opening_index: int, fields: Dictionary) -> Dictionary:
+	var openings: Array = data.get("openings_data", [])
+	if opening_index < 0 or opening_index >= openings.size():
+		return {}
+	begin("edit_opening")
+	var window_rejected: bool = false
+	var op: Dictionary = openings[opening_index]
+	var op_type: String = String(op.get("type", "door"))
+	var wanted_type: String = String(fields.get("type", ""))
+	if wanted_type != "" and wanted_type != op_type and not bool(op.get("is_vertical", false)):
+		# Una ventana cuelga de fachada; un hueco a la calle no existe.
+		if wanted_type == "window" and int(op.get("b", OUTSIDE_ID)) != OUTSIDE_ID and int(op.get("a", -1)) != OUTSIDE_ID:
+			window_rejected = true
+		else:
+			op["type"] = wanted_type
+			op_type = wanted_type
+			if wanted_type == "hole":
+				op["sill_m"] = 0.0
+				op["open_fraction"] = 1.0
+			elif wanted_type == "window" and float(op.get("sill_m", 0.0)) <= 0.01:
+				op["sill_m"] = 0.90
+	op["width_m"] = minf(float(fields.get("width_m", 0.9)), ScenarioWalls.max_width_for_opening(data, op))
+	op["height_m"] = float(fields.get("height_m", 2.0))
+	if not bool(op.get("is_vertical", false)):
+		op["offset_m"] = clampf(
+			float(fields.get("offset_m", 0.0)),
+			0.0,
+			PlanGeometry.wall_length(ScenarioQueries.room_rect(data, int(op.get("a", -1))), String(op.get("wall", "top")))
+		)
+		op["offset_is_fraction"] = false
+	op["sill_m"] = 0.0 if op_type == "hole" else float(fields.get("sill_m", 0.0))
+	op["open_fraction"] = 1.0 if op_type == "hole" else (0.0 if int(fields.get("open_index", 1)) == 0 else 1.0)
+	if op_type == "door":
+		op["swing_direction"] = "out" if int(fields.get("swing_index", 0)) == 1 else "in"
+		op["hinge_side"] = "right" if int(fields.get("hinge_index", 0)) == 1 else "left"
+	_apply_balcony_fields(op, fields)
+	openings[opening_index] = op
+	data["openings_data"] = openings
+	commit()
+	return {"window_rejected": window_rejected}
+
+
+## N-1: el balcon cuelga de una abertura EXTERIOR y no vertical. En un tabique
+## interior no hay fachada de la que colgarlo, y un hueco vertical es un hueco
+## de forjado.
+static func opening_accepts_balcony(opening: Dictionary) -> bool:
+	if bool(opening.get("is_vertical", false)):
+		return false
+	return int(opening.get("a", 0)) == OUTSIDE_ID or int(opening.get("b", -1)) == OUTSIDE_ID
+
+
+## Guarda el balcon en la abertura. Sin balcon se BORRAN las medidas en vez de
+## dejarlas dormidas: asi el JSON dice lo que hay, y una abertura que dejo de
+## tener balcon no arrastra un vuelo de 1,20 m que no se usa.
+func _apply_balcony_fields(op: Dictionary, fields: Dictionary) -> void:
+	if not opening_accepts_balcony(op) or not bool(fields.get("has_balcony", false)):
+		op.erase("has_balcony")
+		op.erase("balcony_width_m")
+		op.erase("balcony_depth_m")
+		op.erase("balcony_parapet_m")
+		return
+	op["has_balcony"] = true
+	op["balcony_width_m"] = clampf(
+		float(fields.get("balcony_width_m", 0.0)),
+		0.0,
+		ScenarioWalls.max_balcony_width_for_opening(data, op)
+	)
+	op["balcony_depth_m"] = clampf(
+		float(fields.get("balcony_depth_m", 1.20)),
+		OpeningModel.BALCONY_MIN_DEPTH_M,
+		OpeningModel.BALCONY_MAX_DEPTH_M
+	)
+	op["balcony_parapet_m"] = clampf(
+		float(fields.get("balcony_parapet_m", 1.10)),
+		OpeningModel.BALCONY_MIN_PARAPET_M,
+		OpeningModel.BALCONY_MAX_PARAPET_M
+	)
+
+
 ## Abre paso entre una sala recien dibujada y las que toca en su misma planta.
 ##
 ## `only_widest` abre solo el paso mas ancho -lo que necesita una escalera, que
