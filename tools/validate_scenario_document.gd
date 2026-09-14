@@ -41,6 +41,10 @@ const ENVOLTURAS_MUDADAS: Array[String] = [
 	"_open_passages_to_circulation", "_delete_opening", "_apply_opening_properties",
 	"_create_balcony_door_from_drag", "_create_balcony_door_at", "_create_door_at",
 	"_create_hole_at", "_create_window_at",
+	# Marcadores (cuarta familia).
+	"_move_marker_to", "_move_player_start_to", "_insert_point_payload", "_set_player_start_at",
+	"_mark_object_as_ignition", "_create_detector_at", "_create_victim_at",
+	"_apply_detector_properties", "_apply_victim_properties", "_delete_selected",
 ]
 
 var _editor: Node = null
@@ -111,6 +115,16 @@ func _process(_d: float) -> bool:
 	_accion("sala pegada al pasillo", 0, TOOL_ROOM, pasillo.position - Vector2(0.0, 3.0), Vector2(pasillo.end.x, pasillo.position.y))
 	# Editar la ficha: el hueco que acaba de abrirse hacia el pasillo pasa a puerta.
 	_accion_llamada("editar una apertura desde la ficha", 0, func(): _editar_ultima_apertura_a_puerta())
+	# La familia de marcadores, dentro de la vivienda baja (x 0..5, y 0..4).
+	_accion_llamada("detector", 0, func(): _editor._create_detector_at(Vector2(2.5, 2.0)))
+	_accion_llamada("editar el detector desde la ficha", 0, func(): _editar_ultimo_detector())
+	_accion_llamada("victima", 0, func(): _editor._create_victim_at(Vector2(3.0, 2.5)))
+	_accion_llamada("duplicar la victima", 0, func(): _seleccionar_ultima("victims"); _editor._duplicate_selection())
+	_accion_llamada("borrar la victima", 0, func(): _seleccionar_ultima("victims"); _editor._delete_selected())
+	_accion_llamada("inicio FP", 0, func(): _editor._create_player_start_at(Vector2(1.0, 1.0)))
+	_accion_llamada("borrar el inicio FP", 0, func(): _editor._select_player_start(1); _editor._delete_selected())
+	_accion_llamada("objeto", 0, func(): _editor._create_object_at(Vector2(2.0, 3.0)))
+	_accion_llamada("foco inicial", 0, func(): _editor._mark_object_as_ignition(1, Array(_editor._get_room(1).get("fuel_objects", [])).size() - 1))
 
 	# ── 2 y 3. Quien escribe ──
 	_comprobar_escrituras()
@@ -148,6 +162,22 @@ func _editar_ultima_apertura_a_puerta() -> void:
 		"opening_accepts_balcony": false, "opening_balcony_max_width_m": 3.0})
 	_editor._props._opening_type_option.select(0)
 	_editor._apply_opening_properties()
+
+
+## Selecciona el ultimo detector o la ultima victima.
+func _seleccionar_ultima(list_key: String) -> void:
+	var ultimo: int = Array(_editor.editor_data.get(list_key, [])).size() - 1
+	if list_key == "detectors":
+		_editor._select_detector(ultimo)
+	else:
+		_editor._select_victim(ultimo)
+
+
+## El ultimo detector, con otro umbral, por el camino de la ficha.
+func _editar_ultimo_detector() -> void:
+	_seleccionar_ultima("detectors")
+	_editor._props._detector_threshold_spin.value = 0.04
+	_editor._apply_detector_properties()
 
 
 ## El rectangulo del pasillo de la planta baja que acaba de dibujarse.

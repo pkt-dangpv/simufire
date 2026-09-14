@@ -1623,40 +1623,11 @@ func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vec
 ## Mover un marcador: cae en la sala que hay debajo, y si no hay ninguna se
 ## queda en la suya. Era la misma funcion escrita dos veces, letra por letra.
 func _move_marker_to(list_key: String, index: int, world_pos_m: Vector2) -> void:
-	var list: Array = editor_data.get(list_key, [])
-	if index < 0 or index >= list.size() or typeof(list[index]) != TYPE_DICTIONARY:
-		return
-	var marker: Dictionary = list[index]
-	var room_id: int = _find_room_at(world_pos_m)
-	if room_id < 0:
-		room_id = int(marker.get("room_id", -1))
-	var room_rect: Rect2 = _get_room_rect(room_id)
-	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
-		return
-	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
-	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
-	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
-	list[index] = RoomMarkers.placed(marker, room_id, local_pos)
-	editor_data[list_key] = list
+	_doc.move_marker(list_key, index, _find_room_at(world_pos_m), world_pos_m)
 
 
 func _move_player_start_to(world_pos_m: Vector2) -> void:
-	var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
-	var room_id: int = _find_room_at(world_pos_m)
-	if room_id < 0:
-		room_id = int(start.get("room_id", -1))
-	var room: Dictionary = _get_room(room_id)
-	var room_rect: Rect2 = _get_room_rect(room_id)
-	if room.is_empty() or room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
-		return
-	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
-	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
-	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
-	start["room_id"] = room_id
-	start["position_m"] = Serializer.vector_to_data(local_pos)
-	start["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
-	start["yaw_deg"] = float(start.get("yaw_deg", 0.0))
-	editor_data["player_start"] = start
+	_doc.move_player_start(_find_room_at(world_pos_m), world_pos_m)
 
 
 func _sync_detector_property_fields(det: Dictionary) -> void:
@@ -3662,23 +3633,20 @@ func _insert_point_payload(payload: Dictionary, kind: String, list_key: String, 
 		local = pos_m - rect.position
 	local.x = clampf(snappedf(local.x, GRID_M), 0.0, maxf(0.0, rect.size.x))
 	local.y = clampf(snappedf(local.y, GRID_M), 0.0, maxf(0.0, rect.size.y))
-	_push_undo_snapshot(("duplicate_" if beside else "paste_") + kind)
-	item["room_id"] = room_id
-	item["x_m"] = local.x
-	item["y_m"] = local.y
+	var index: int = _doc.insert_point(
+		kind,
+		list_key,
+		item,
+		room_id,
+		local,
+		("duplicate_" if beside else "paste_") + kind
+	)
 	var items: Array = editor_data.get(list_key, [])
 	if kind == "detector":
-		item["id"] = ScenarioQueries.next_detector_id(editor_data)
-	else:
-		item["id"] = ScenarioQueries.next_victim_id(editor_data)
-		item["name"] = _copy_name(String(item.get("name", "")), ScenarioQueries.victim_names(editor_data))
-	items.append(item)
-	editor_data[list_key] = items
-	if kind == "detector":
-		_select_detector(items.size() - 1)
+		_select_detector(index)
 		_set_status(tr("Detector %s copiado en la habitación %d.") % [String(item.get("id", "")), room_id])
 	else:
-		_select_victim(items.size() - 1)
+		_select_victim(index)
 		_set_status(tr("Víctima %s copiada en la habitación %d.") % [String(item.get("name", "")), room_id])
 	queue_redraw()
 
@@ -3709,19 +3677,8 @@ func _mouse_pos_m() -> Vector2:
 
 func _set_player_start_at(room_id: int, world_pos_m: Vector2) -> void:
 	var room: Dictionary = _get_room(room_id)
-	var rect: Rect2 = _get_room_rect(room_id)
-	if room.is_empty() or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+	if room.is_empty() or not _doc.set_player_start(room_id, world_pos_m):
 		return
-	_push_undo_snapshot("set_player_start")
-	var local_pos: Vector2 = world_pos_m - rect.position
-	local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
-	local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
-	editor_data["player_start"] = {
-		"room_id": room_id,
-		"position_m": Serializer.vector_to_data(local_pos),
-		"floor_level_z_m": float(room.get("floor_level_z_m", 0.0)),
-		"yaw_deg": 0.0
-	}
 	_select_room(room_id)
 	_set_status(tr("Punto de inicio del jugador definido en %s.") % _room_display_name(room, room_id))
 	_refresh_element_list()
@@ -5023,26 +4980,9 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 
 
 func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
-	if ScenarioQueries.object_at(editor_data, target_room_id, target_index).is_empty():
+	if not _doc.mark_ignition(target_room_id, target_index):
 		_set_status(tr("Selecciona un objeto combustible para marcar el foco inicial."))
 		return
-	_push_undo_snapshot("mark_ignition")
-	var rooms: Array = editor_data.get("rooms_data", [])
-	for i in range(rooms.size()):
-		if typeof(rooms[i]) != TYPE_DICTIONARY:
-			continue
-		var room: Dictionary = rooms[i]
-		var objects: Array = room.get("fuel_objects", [])
-		for j in range(objects.size()):
-			if typeof(objects[j]) != TYPE_DICTIONARY:
-				continue
-			var obj: Dictionary = objects[j]
-			obj["is_primary_ignition_source"] = int(room.get("id", -1)) == target_room_id and j == target_index
-			objects[j] = obj
-		room["fuel_objects"] = objects
-		rooms[i] = room
-	editor_data["rooms_data"] = rooms
-	editor_data["ignition_room_id"] = target_room_id
 	_select_object(target_room_id, target_index)
 	_set_status(tr("Foco inicial marcado."))
 	queue_redraw()
@@ -5059,19 +4999,9 @@ func _create_detector_at(pos_m: Vector2) -> void:
 	var local_pos: Vector2 = pos_m - room_rect.position
 	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
 	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
-	var dets: Array = editor_data.get("detectors", [])
-	var new_id: String = ScenarioQueries.next_detector_id(editor_data)
-	_push_undo_snapshot("create_detector")
-	dets.append({
-		"id": new_id,
-		"room_id": room_id,
-		"type": "smoke",
-		"threshold": 0.025,
-		"x_m": local_pos.x,
-		"y_m": local_pos.y
-	})
-	editor_data["detectors"] = dets
-	_select_detector(dets.size() - 1)
+	var result: Dictionary = _doc.add_detector(room_id, local_pos)
+	_select_detector(int(result.get("index", -1)))
+	var new_id: String = String(result.get("id", ""))
 	_hand_over_to_selection("Detector %s colocado en habitación %d" % [new_id, room_id])
 	queue_redraw()
 
@@ -5085,20 +5015,9 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	var local_pos: Vector2 = pos_m - room_rect.position
 	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
 	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
-	var vics: Array = editor_data.get("victims", [])
-	var new_id: String = ScenarioQueries.next_victim_id(editor_data)
-	var vic_num: int = vics.size() + 1
-	_push_undo_snapshot("create_victim")
-	vics.append({
-		"id": new_id,
-		"room_id": room_id,
-		"name": "Víctima %d" % vic_num,
-		"x_m": local_pos.x,
-		"y_m": local_pos.y,
-		"height_m": 0.9
-	})
-	editor_data["victims"] = vics
-	_select_victim(vics.size() - 1)
+	var result: Dictionary = _doc.add_victim(room_id, local_pos)
+	_select_victim(int(result.get("index", -1)))
+	var new_id: String = String(result.get("id", ""))
 	_hand_over_to_selection("Víctima %s colocada en habitación %d" % [new_id, room_id])
 	queue_redraw()
 
@@ -5178,21 +5097,8 @@ func _apply_detector_properties() -> void:
 	if selected_detector_index < 0:
 		_set_status(tr("Selecciona un detector antes de aplicar propiedades."))
 		return
-	var dets: Array = editor_data.get("detectors", [])
-	if selected_detector_index >= dets.size():
+	if not _doc.apply_detector_fields(selected_detector_index, _props.read_detector()):
 		return
-	var fields: Dictionary = _props.read_detector()
-	_push_undo_snapshot("edit_detector")
-	var det: Dictionary = dets[selected_detector_index]
-	det["id"] = String(fields.get("id", ""))
-	var idx: int = int(fields.get("type_index", 0))
-	det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
-	det["threshold"] = float(fields.get("threshold", 0.025))
-	var det_room_rect: Rect2 = _get_room_rect(int(det.get("room_id", -1)))
-	det["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.x))
-	det["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.y))
-	dets[selected_detector_index] = det
-	editor_data["detectors"] = dets
 	_set_status(tr("Propiedades del detector actualizadas."))
 	queue_redraw()
 
@@ -5201,19 +5107,8 @@ func _apply_victim_properties() -> void:
 	if selected_victim_index < 0:
 		_set_status(tr("Selecciona una víctima antes de aplicar propiedades."))
 		return
-	var vics: Array = editor_data.get("victims", [])
-	if selected_victim_index >= vics.size():
+	if not _doc.apply_victim_fields(selected_victim_index, _props.read_victim()):
 		return
-	var fields: Dictionary = _props.read_victim()
-	_push_undo_snapshot("edit_victim")
-	var vic: Dictionary = vics[selected_victim_index]
-	vic["name"] = String(fields.get("name", ""))
-	var vic_room_rect: Rect2 = _get_room_rect(int(vic.get("room_id", -1)))
-	vic["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.x))
-	vic["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.y))
-	vic["height_m"] = float(fields.get("height_m", 0.9))
-	vics[selected_victim_index] = vic
-	editor_data["victims"] = vics
 	_set_status(tr("Propiedades de la víctima actualizadas."))
 	queue_redraw()
 
@@ -5780,28 +5675,19 @@ func _delete_selected_room() -> void:
 
 func _delete_selected() -> void:
 	if selected_detector_index >= 0:
-		var dets: Array = editor_data.get("detectors", [])
-		if selected_detector_index < dets.size():
-			_push_undo_snapshot("delete_detector")
-			dets.remove_at(selected_detector_index)
-			editor_data["detectors"] = dets
+		_doc.delete_marker("detectors", selected_detector_index, "delete_detector")
 		_clear_selection()
 		_set_status(tr("Detector eliminado."))
 		queue_redraw()
 		return
 	elif selected_victim_index >= 0:
-		var vics: Array = editor_data.get("victims", [])
-		if selected_victim_index < vics.size():
-			_push_undo_snapshot("delete_victim")
-			vics.remove_at(selected_victim_index)
-			editor_data["victims"] = vics
+		_doc.delete_marker("victims", selected_victim_index, "delete_victim")
 		_clear_selection()
 		_set_status(tr("Víctima eliminada."))
 		queue_redraw()
 		return
 	elif selected_player_start_room_id >= 0:
-		_push_undo_snapshot("delete_player_start")
-		editor_data["player_start"] = {}
+		_doc.clear_player_start()
 		_clear_selection()
 		_set_status(tr("Inicio FP eliminado."))
 		queue_redraw()

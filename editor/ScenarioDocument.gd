@@ -28,6 +28,7 @@ const ScenarioWalls = preload("res://editor/ScenarioWalls.gd")
 const StairPlanRules = preload("res://editor/StairPlanRules.gd")
 const StairGeometry = preload("res://view/geometry/StairGeometry.gd")
 const PlanGeometry = preload("res://editor/PlanGeometry.gd")
+const RoomMarkers = preload("res://editor/RoomMarkers.gd")
 
 const OUTSIDE_ID: int = -1
 const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
@@ -822,6 +823,233 @@ func open_passages_to_neighbours(room_id: int, only_widest: bool, skip_stairs: b
 		)
 		connected.append(int(shared["b"]) if int(shared["a"]) == room_id else int(shared["a"]))
 	return connected
+
+
+# --------------------------------------------------------------------------
+# Marcadores: detectores, victimas, inicio FP y foco inicial (cuarta familia)
+# --------------------------------------------------------------------------
+
+## Un detector de humo nuevo, en ese punto de la sala. Es una transaccion.
+## Devuelve `index` e `id`.
+func add_detector(room_id: int, local_pos: Vector2) -> Dictionary:
+	begin("create_detector")
+	var dets: Array = data.get("detectors", [])
+	var new_id: String = ScenarioQueries.next_detector_id(data)
+	dets.append({
+		"id": new_id,
+		"room_id": room_id,
+		"type": "smoke",
+		"threshold": 0.025,
+		"x_m": local_pos.x,
+		"y_m": local_pos.y
+	})
+	data["detectors"] = dets
+	commit()
+	return {"index": dets.size() - 1, "id": new_id}
+
+
+## Una victima nueva, en ese punto de la sala. Es una transaccion.
+## Devuelve `index` e `id`.
+func add_victim(room_id: int, local_pos: Vector2) -> Dictionary:
+	begin("create_victim")
+	var vics: Array = data.get("victims", [])
+	var new_id: String = ScenarioQueries.next_victim_id(data)
+	var vic_num: int = vics.size() + 1
+	vics.append({
+		"id": new_id,
+		"room_id": room_id,
+		"name": "Víctima %d" % vic_num,
+		"x_m": local_pos.x,
+		"y_m": local_pos.y,
+		"height_m": 0.9
+	})
+	data["victims"] = vics
+	commit()
+	return {"index": vics.size() - 1, "id": new_id}
+
+
+## Lo que dice la ficha, al detector de ese indice. Es una transaccion.
+func apply_detector_fields(index: int, fields: Dictionary) -> bool:
+	var dets: Array = data.get("detectors", [])
+	if index < 0 or index >= dets.size():
+		return false
+	begin("edit_detector")
+	var det: Dictionary = dets[index]
+	det["id"] = String(fields.get("id", ""))
+	var idx: int = int(fields.get("type_index", 0))
+	det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
+	det["threshold"] = float(fields.get("threshold", 0.025))
+	var det_room_rect: Rect2 = ScenarioQueries.room_rect(data, int(det.get("room_id", -1)))
+	det["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.x))
+	det["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, det_room_rect.size.y))
+	dets[index] = det
+	data["detectors"] = dets
+	commit()
+	return true
+
+
+## Lo que dice la ficha, a la victima de ese indice. Es una transaccion.
+func apply_victim_fields(index: int, fields: Dictionary) -> bool:
+	var vics: Array = data.get("victims", [])
+	if index < 0 or index >= vics.size():
+		return false
+	begin("edit_victim")
+	var vic: Dictionary = vics[index]
+	vic["name"] = String(fields.get("name", ""))
+	var vic_room_rect: Rect2 = ScenarioQueries.room_rect(data, int(vic.get("room_id", -1)))
+	vic["x_m"] = clampf(float(fields.get("x_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.x))
+	vic["y_m"] = clampf(float(fields.get("y_m", 0.0)), 0.0, maxf(0.0, vic_room_rect.size.y))
+	vic["height_m"] = float(fields.get("height_m", 0.9))
+	vics[index] = vic
+	data["victims"] = vics
+	commit()
+	return true
+
+
+## Borra el detector o la victima de ese indice. Es una transaccion. Falso si no
+## existe.
+func delete_marker(list_key: String, index: int, label: String) -> bool:
+	var items: Array = data.get(list_key, [])
+	if index < 0 or index >= items.size():
+		return false
+	begin(label)
+	items.remove_at(index)
+	data[list_key] = items
+	commit()
+	return true
+
+
+## Mover un marcador: cae en la sala que hay debajo (`hit_room_id`), y si no hay
+## ninguna se queda en la suya. No guarda instantanea: se llama muchas veces
+## durante un arrastre, y el paso lo guarda quien empieza el arrastre.
+func move_marker(list_key: String, index: int, hit_room_id: int, world_pos_m: Vector2) -> void:
+	var list: Array = data.get(list_key, [])
+	if index < 0 or index >= list.size() or typeof(list[index]) != TYPE_DICTIONARY:
+		return
+	var marker: Dictionary = list[index]
+	var room_id: int = hit_room_id
+	if room_id < 0:
+		room_id = int(marker.get("room_id", -1))
+	var room_rect: Rect2 = ScenarioQueries.room_rect(data, room_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var offset: Vector2 = world_pos_m - room_rect.position
+	var local_pos := Vector2(snappedf(offset.x, GRID_M), snappedf(offset.y, GRID_M))
+	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
+	list[index] = RoomMarkers.placed(marker, room_id, local_pos)
+	data[list_key] = list
+
+
+## El inicio FP en ese punto de esa sala. Es una transaccion. Falso si la sala no
+## existe o no tiene medida.
+func set_player_start(room_id: int, world_pos_m: Vector2) -> bool:
+	var room: Dictionary = ScenarioQueries.room_by_id(data, room_id)
+	var rect: Rect2 = ScenarioQueries.room_rect(data, room_id)
+	if room.is_empty() or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return false
+	begin("set_player_start")
+	var local_pos: Vector2 = world_pos_m - rect.position
+	local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
+	local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
+	data["player_start"] = {
+		"room_id": room_id,
+		"position_m": Serializer.vector_to_data(local_pos),
+		"floor_level_z_m": float(room.get("floor_level_z_m", 0.0)),
+		"yaw_deg": 0.0
+	}
+	commit()
+	return true
+
+
+## Mover el inicio FP arrastrandolo: como `move_marker`, sin instantanea, y
+## conservando hacia donde mira.
+func move_player_start(hit_room_id: int, world_pos_m: Vector2) -> void:
+	var start: Dictionary = Dictionary(data.get("player_start", {})) if typeof(data.get("player_start", {})) == TYPE_DICTIONARY else {}
+	var room_id: int = hit_room_id
+	if room_id < 0:
+		room_id = int(start.get("room_id", -1))
+	var room: Dictionary = ScenarioQueries.room_by_id(data, room_id)
+	var room_rect: Rect2 = ScenarioQueries.room_rect(data, room_id)
+	if room.is_empty() or room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var offset: Vector2 = world_pos_m - room_rect.position
+	var local_pos := Vector2(snappedf(offset.x, GRID_M), snappedf(offset.y, GRID_M))
+	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
+	start["room_id"] = room_id
+	start["position_m"] = Serializer.vector_to_data(local_pos)
+	start["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
+	start["yaw_deg"] = float(start.get("yaw_deg", 0.0))
+	data["player_start"] = start
+
+
+func clear_player_start() -> void:
+	begin("delete_player_start")
+	data["player_start"] = {}
+	commit()
+
+
+## Marca ese objeto como el foco inicial, y quita la marca a todos los demas. Es
+## una transaccion. Falso si el objeto no existe.
+func mark_ignition(target_room_id: int, target_index: int) -> bool:
+	if ScenarioQueries.object_at(data, target_room_id, target_index).is_empty():
+		return false
+	begin("mark_ignition")
+	var rooms: Array = data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = rooms[i]
+		var objects: Array = room.get("fuel_objects", [])
+		for j in range(objects.size()):
+			if typeof(objects[j]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[j]
+			obj["is_primary_ignition_source"] = int(room.get("id", -1)) == target_room_id and j == target_index
+			objects[j] = obj
+		room["fuel_objects"] = objects
+		rooms[i] = room
+	data["rooms_data"] = rooms
+	data["ignition_room_id"] = target_room_id
+	commit()
+	return true
+
+
+## Pega o duplica un detector o una victima ya colocado en su sala: ids nuevos y,
+## si es victima, nombre de copia. Es una transaccion. Devuelve su indice.
+func insert_point(kind: String, list_key: String, item: Dictionary, room_id: int, local: Vector2, label: String) -> int:
+	begin(label)
+	item["room_id"] = room_id
+	item["x_m"] = local.x
+	item["y_m"] = local.y
+	var items: Array = data.get(list_key, [])
+	if kind == "detector":
+		item["id"] = ScenarioQueries.next_detector_id(data)
+	else:
+		item["id"] = ScenarioQueries.next_victim_id(data)
+		item["name"] = copy_name(String(item.get("name", "")), ScenarioQueries.victim_names(data))
+	items.append(item)
+	data[list_key] = items
+	commit()
+	return items.size() - 1
+
+
+## "Salón" -> "Salón (copia)" -> "Salón (copia 2)". El sufijo se recorta antes de
+## volver a ponerlo, para que copiar una copia no encadene "(copia) (copia)".
+static func copy_name(base_name: String, taken: Dictionary) -> String:
+	var base: String = base_name.strip_edges()
+	var suffix_at: int = base.rfind(" (copia")
+	if suffix_at > 0 and base.ends_with(")"):
+		base = base.substr(0, suffix_at)
+	if base == "":
+		base = "Copia"
+	var candidate: String = "%s (copia)" % base
+	var n: int = 2
+	while taken.has(candidate):
+		candidate = "%s (copia %d)" % [base, n]
+		n += 1
+	return candidate
 
 
 # --------------------------------------------------------------------------
