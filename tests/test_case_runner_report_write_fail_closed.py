@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 
 import pytest
+
+from tests.godot_runtime_launcher import run_godot
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,7 +61,7 @@ def test_report_write_failure_exits_nonzero_without_success_claim(tmp_path):
     bad_output = tmp_path / "report_path_is_directory.json"
     bad_output.mkdir()
 
-    completed = subprocess.run(
+    completed = run_godot(
         [
             str(godot),
             "--headless",
@@ -72,13 +73,7 @@ def test_report_write_failure_exits_nonzero_without_success_claim(tmp_path):
             "--validation-output",
             str(bad_output),
         ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=90,
+        timeout_s=90,
     )
     output = completed.stdout + completed.stderr
 

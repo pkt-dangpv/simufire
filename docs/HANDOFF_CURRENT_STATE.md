@@ -1,12 +1,136 @@
 # Current Handoff State
 
-Date: 2026-07-26.
+Date: 2026-08-25.
+
+## Current Program Update - 2026-09-09 - P1R8 contractual gap closure
+
+- The aggregate now contains 532 checks: **346/346 required PASS** and 78
+  failing non-gating checks, all 78 carrying an explicit final disposition.
+- Six former required CFAST `VALID_GAP` checks remain failed and visible as
+  `VERIFIED_MODEL_LIMITATION`; their actual, expected, tolerance, minimum and
+  maximum fields are unchanged.
+- Six remaining behavioral failures are `VERIFIED_MODEL_LIMITATION`. Two stale
+  V7 timestamp snapshots are `FALSE_POSITIVE` and remain visible unchanged;
+  two new required relational checks prove the declared event order.
+- The verified final runtime matrix refreshed 13 stale canonical reports and
+  11 CFAST logs. Two non-gating Ghanekar FED checks now pass at 635.4167 s and
+  784.75 s under their unchanged retained contracts, so their former
+  `VERIFIED_MODEL_LIMITATION` dispositions were retired. This is evidence
+  synchronization, not a claim of physical equivalence.
+- This closes validation-contract bookkeeping only. It does not repair the
+  named physical limitations or grant runtime authority. The final P1R8 matrix
+  completed, but independent review rejected closure until the gap evidence and
+  stale mutation campaign are remediated and re-run from a clean checkpoint.
+
+## Current Program Update - 2026-09-09 - P1R8 O2 owner disposition
+
+- `O2-OWNER-001` has the user-approved final audit disposition
+  `VERIFIED_MODEL_LIMITATION`. The legacy open-interior path can select
+  lower-zone O2 while debiting bulk O2; this is recorded as a model limitation,
+  not represented as a physical fix.
+- Candidates A, B and C were rejected. The Z0/Z1 conservative evaluator was
+  preserved under session 124 and removed from the runtime candidate. Z1 proved
+  6/6 OFF byte identity but its first ON control exceeded 900 s.
+- The generic Godot quiet-period supervisor guard remains as a separate
+  validation-safety change. No physical source, default, case, baseline,
+  expected value or tolerance changed in the withdrawal/disposition step.
+- The separate P1R8 disposition lane is now contractually complete; its failed
+  measurements remain visible and P1R8 has not yet issued an independent
+  `CLEAN GO`.
+- Runtime authority, H3.2b4, H3.3 and D1 remain NO-GO/frozen. HVAC remains
+  excluded. A future two-zone O2 implementation is a separate motor programme.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
 `C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. Explicit
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
+
+## Current Program Update - 2026-08-25 - P1R1 manifest verifier fail-closed remediation
+
+- Session 49 found `P1R1-EVID-004`: the session-48 verifier accepted false
+  top-level file/byte counters and unsupported ordering contracts while
+  reporting PASS. The exact mutation artefacts are preserved under session 49.
+- Session 50 makes those declarations fail closed without changing historical
+  manifests. It validates `file_count`, `total_bytes`/`source_total_bytes`,
+  `tree_manifest_bytes`, and the ordering/hash contracts already used by the
+  seven real manifests. Permanent tests increase from 13 to 26.
+- The real matrix preserves the expected result: session 36 remains the sole
+  FAIL because its historical aggregate tree is not bytewise; sessions 40, 41,
+  45, 47, 48, and 49 PASS with zero file or metadata mismatches.
+- `P1R1-EVID-004` is `REMEDIATED_PENDING_INDEPENDENT_REVIEW`. EVID-002 and
+  EVID-003 remain in the same state; none is self-certified as fixed. Durable
+  record: `docs/validation/P1R1_EVIDENCE_MANIFEST_VERIFIER_REMEDIATION.md`.
+- The candidate inventory after this one new documentation file is 2,302
+  tracked files and 446 scripts: 186 GDScripts, 242 Python files, 16 PowerShell
+  files, and two batch files.
+- P1R1-LANG remains NO-GO until a reviewer who did not author the remediation
+  closes EVID-002, EVID-003, and EVID-004. P1R1 is incomplete; P1R2, H3.2b4,
+  H3.3, D1, and runtime authority remain frozen. D0 remains excluded and not
+  reverted; HVAC remains deferred and out of scope.
+
+## Current Program Update - 2026-08-25 - P1R1 evidence manifest correction
+
+- Session 47 found `P1R1-EVID-002`: the session-36 manifest's 18 individual
+  hashes are exact, but its aggregate `e6d68e15...` tree uses stored
+  case-insensitive order while claiming bytewise UTF-8 order. The corrected
+  bytewise value is `33187f85...`; the historical manifest remains unchanged.
+- The correction and generic exact-byte manifest verifier are implemented on
+  local branch `codex/p1r1-evidence-manifest-remediation`. The finding is
+  `REMEDIATED_PENDING_INDEPENDENT_REVIEW`, not self-certified as fixed. Durable
+  record: `docs/validation/P1R1_SESSION36_MANIFEST_COLLATION_CORRECTION.md`.
+- The audit tooling adds four tracked files and two Python scripts. The next
+  P1R1-LANG inventory must expect 2,301 tracked files, 446 scripts, 186
+  GDScripts, 242 Python files, 16 PowerShell files, and two batch files.
+- Session 48 also records `P1R1-EVID-003`: session 45 stated 2,296 tracked
+  files before adding its own documentation; committed `fa6904f` has 2,297.
+  The existing record is annotated and awaits the same independent review.
+- P1R1-LANG resumes only after independent review closes this finding. P1R1 is
+  incomplete; P1R2, H3.2b4, H3.3, D1, and runtime authority remain frozen. D0
+  remains excluded and not reverted; HVAC remains deferred and out of scope.
+
+## Current Program Update - 2026-08-25 - P1R1 UID integrity
+
+- The P1R1 UID-integrity subgate is complete on local branch
+  `codex/p1r1-uid-integrity-remediation`. Commit
+  `a3d4fbe034675ee5127488b46a7293524cd166c7` adds a fail-closed primary-UID
+  scanner and 24 tests, then removes exactly five reintroduced legacy owners.
+  The canonical OpeningModel, SmokeModel and default fire resource remain
+  unchanged.
+- The fail-first gate reproduced exactly three duplicate groups before the
+  deletion and zero afterward. Fresh Godot 4.7.1 headless A1/A2/B imports are
+  warning-free, idempotent and deterministic across 186 UID sidecars; all
+  three exact-byte trees are
+  `ed5a9da6d86129ec3416e4da243ec10206b8134d1804fdeecb7deb5d295d2c38`.
+- `P1R1-UID-001`, `P1R1-UID-002`, `P1R1-UID-003`, and `P1R1-EVID-001`
+  are `FIXED`. The historical session-38 tree remains preserved; its
+  `e4dc4fc1...` case-sensitive-collation hash is explicitly corrected to the
+  bytewise UTF-8 value `0d1150f6...` without rewriting the artefact. Durable
+  record: `docs/validation/P1R1_UID_INTEGRITY_REMEDIATION.md`.
+- P1R1 is still incomplete and returns to structural inventory and finding
+  requalification. P1R2 has not started. H3.2b4, H3.3, runtime authority, and
+  D1 remain frozen; D0 remains excluded and not reverted; HVAC remains
+  deferred and outside acceptance.
+
+## Current Program Update - 2026-08-23 - Post-audit P1 remediation
+
+- The independent A7-R2 review is complete with `NO-GO`. It is not being
+  reopened or extended.
+- The release-integrity candidate is
+  `f9c3902b35e3f16170b35bf10085697e8021e7f1` on
+  `origin/codex/r2f1-counter-contract`, five commits ahead of
+  `origin/main@ed2b6c0a1d458ff6edb92739cea27117195aa5cf`.
+- Session 31 onward is reserved for the separately named clean-closure program
+  in `docs/validation/MOTOR_POST_AUDIT_P1_REMEDIATION_PLAN.md`. There is no
+  session cap: the program remains active until all in-scope findings, failing
+  tests and required validation failures have a final clean disposition. P1R0
+  is complete. P1R1 must include complete language-parser, script-inventory and
+  program-structure review; each tracked remediation still requires a separate
+  user GO. No motor feature development resumes before an independent
+  `CLEAN GO`.
+- The D0 `zone_at_height` design remains preserved separately on
+  `origin/codex/a7-r2-checkpoint`. D1, H3.2b4, H3.3 and runtime authority remain
+  frozen. HVAC remains deferred and outside the remediation scope.
 
 ## USER-MANDATED STOP - full motor audit before runtime authority
 

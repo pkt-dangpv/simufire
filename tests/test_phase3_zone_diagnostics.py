@@ -54,9 +54,16 @@ class TestPhase3ZoneDiagnosticsStructure(unittest.TestCase):
             "hvac",
             "other",
             "reconcile",
-            "projection_clamp",
         ):
-            self.assertIn(f'_phase3_zone_diag_record_stage("{stage}")', ENGINE)
+            self.assertIn(
+                f'_phase3_zone_runtime_record_stage_shared("{stage}", "{stage}")',
+                ENGINE,
+            )
+        self.assertIn(
+            '_phase3_zone_runtime_record_stage_shared("projection_clamp", '
+            '"clamp_rooms")',
+            ENGINE,
+        )
         self.assertIn("func _phase3_zone_diag_begin_step()", ENGINE)
         self.assertIn("func _phase3_zone_diag_export()", ENGINE)
 

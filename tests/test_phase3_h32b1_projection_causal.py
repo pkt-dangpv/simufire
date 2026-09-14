@@ -62,26 +62,26 @@ def test_accumulator_is_gated_off_first():
     ]
     guard = next(line for line in statements if line.startswith("if "))
     assert guard == "if not enabled:"
-    hook = _func(ENGINE, "_phase3_projection_causal_accumulate")
-    assert "if not phase3_projection_causal_diagnostics_enabled" in hook
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert "if causal_active:" in hook
 
 
 def test_project_room_state_is_not_instrumented_twice():
     # The ledger must consume the EXISTING trace, not add calls inside the solver.
-    assert "get_projection_trace_events()" in _func(
-        ENGINE, "_phase3_projection_causal_accumulate")
+    assert "peek_projection_trace_records()" in _func(
+        ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
     assert "Phase3ProjectionCausalLedger" not in SOLVER
     assert "phase3_projection_causal" not in SOLVER
     # And the trace emission owned by the solver is untouched.
-    assert "_projection_trace_events.append({" in SOLVER
+    assert "_projection_trace_records.append(trace_record)" in SOLVER
 
 
 def test_ledger_writes_no_room_state():
     body = _strip_comments(LEDGER)
     assert not re.search(r"\broom\.\w+ *=[^=]", body)
     assert "RoomModel" not in body
-    # The one `room` identifier it uses is its own per-room accumulator dict.
-    assert "func _room(room_id: int) -> Dictionary:" in LEDGER
+    # The one `room` identifier it uses is its own compact accumulator block.
+    assert "func _room(room_id: int) -> Array:" in LEDGER
 
 
 def test_no_sink_and_no_repair():
@@ -96,7 +96,8 @@ def test_no_sink_and_no_repair():
 
 def test_energy_without_mass_is_counted_not_mutated():
     body = _func(LEDGER, "_scan_invalid_states")
-    assert "energy_without_mass_count_total" in body
+    assert "CausalRoomMetric.ENERGY_WITHOUT_MASS_COUNT" in body
+    assert '"energy_without_mass_count_total"' in _func(LEDGER, "_room_dictionary")
     # It reads the post snapshot and writes only its own counters.
     assert not re.search(r"\bpost\[", body)
     assert "= 0.0" not in body        # nothing is zeroed
@@ -106,7 +107,8 @@ def test_energy_without_mass_is_counted_not_mutated():
 
 def test_nonfinite_state_is_counted_separately():
     body = _func(LEDGER, "_scan_invalid_states")
-    assert "nonfinite_state_count_total" in body
+    assert "CausalRoomMetric.NONFINITE_STATE_COUNT" in body
+    assert '"nonfinite_state_count_total"' in _func(LEDGER, "_room_dictionary")
     assert "is_finite(" in body
 
 
@@ -275,7 +277,7 @@ def test_the_activation_repair_has_a_runtime_fixture():
 
 
 def test_static_gaps_are_declared_every_step_as_coverage_only():
-    hook = _func(ENGINE, "_phase3_projection_causal_accumulate")
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
     for reason in ("STATIC_GAP_HVAC_UNOWNED", "STATIC_GAP_OTHER_CATCHALL",
                    "STATIC_GAP_SUPPRESSION_LOWER_DEAD",
                    "STATIC_GAP_EXTERIOR_NOT_ZONAL"):
@@ -302,7 +304,8 @@ def test_multiplicity_units_are_unambiguous():
                    "steps_with_multiple_projection_calls_total"):
         assert not _standalone(banned, LEDGER), banned
     cause = _func(LEDGER, "_cause")
-    assert '"call_count_total": 0,' in cause
+    assert "CausalCauseMetric.CALL_COUNT" in cause
+    assert '"call_count_total"' in _func(LEDGER, "_cause_dictionary")
 
 
 def test_per_timestep_metrics_exist_because_the_boundary_is_known():
@@ -312,20 +315,20 @@ def test_per_timestep_metrics_exist_because_the_boundary_is_known():
                 "timesteps_with_multiple_projection_calls_total",
                 "timesteps_with_any_projection_call_total"):
         assert key in LEDGER, key
-    hook = _func(ENGINE, "_phase3_projection_causal_accumulate")
-    assert "accumulate_step(" in hook
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert "finish_step_compact(" in hook
     # Declared once, invoked from exactly one site, once per tick.
-    assert ENGINE.count("_phase3_projection_causal_accumulate()") == 2
+    assert ENGINE.count("_phase3_projection_diagnostics_accumulate_shared()") == 2
 
 
 def test_signed_net_and_gross_absolute_are_named_distinctly():
-    room = _func(LEDGER, "_room")
+    room = _func(LEDGER, "_room_dictionary")
     for zone in ("upper", "lower"):
         for quantity, unit in (("mass", "kg"), ("energy", "kj")):
             for kind in ("signed_net", "gross_absolute"):
                 key = f"{zone}_{quantity}_correction_{kind}_{unit}_total"
                 assert key in room, key
-    cause = _func(LEDGER, "_cause")
+    cause = _func(LEDGER, "_cause_dictionary")
     for key in ("mass_gross_absolute_kg_total", "mass_signed_net_kg_total",
                 "energy_gross_absolute_kj_total", "energy_signed_net_kj_total",
                 "call_count_total"):
@@ -361,7 +364,7 @@ def test_missing_telemetry_fails_closed_instead_of_reporting_zero():
     assert '"data_available": available,' in summary
     assert '"unavailable_reason_codes": unavailable,' in summary
     assert "var available: bool = unavailable.is_empty()" in LEDGER
-    hook = _func(ENGINE, "_phase3_projection_causal_accumulate")
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
     assert "REASON_ZONE_DIAG_UNAVAILABLE" in hook
     assert "if not phase3_zone_diagnostics_enabled:" in hook
 
@@ -402,21 +405,17 @@ def test_projection_clamp_cap_and_tick_order_are_untouched():
     # contract exists to protect -- so the assertion is tightened rather than
     # dropped: between the clamp stage and the carbon check there may be passive
     # accumulators and NOTHING else.
-    between = ENGINE.split("_phase3_projection_causal_accumulate()\n", 1)[1]
+    between = ENGINE.split("_phase3_projection_diagnostics_accumulate_shared()\n", 1)[1]
     between = between.split("_check_carbon_balance()", 1)[0]
-    # UPDATED 2026-08-21 by H3.2b1b: a third passive accumulator, the zone
-    # transition observer, now runs here too. The physics tick order is still
-    # what this contract protects, so the allowance is extended by name rather
-    # than loosened.
-    allowed = {"_phase3_residual_projection_shadow_accumulate()",
-               "_phase3_zone_transition_observe()",
-               "# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp."}
+    allowed = {
+        "# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp."
+    }
     for line in between.splitlines():
         stripped = line.strip()
         if stripped:
             assert stripped in allowed, "new stage between clamp and carbon check: %s" % stripped
-    assert "_phase3_residual_projection_shadow_accumulate()" in between
-    assert "_phase3_zone_transition_observe()" in between
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert "_phase3_projection_causal_ledger.accumulate_event(event)" in hook
 
 
 def test_no_new_csv_columns():

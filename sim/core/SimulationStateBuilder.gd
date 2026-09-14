@@ -214,7 +214,6 @@ func build_state(context: Dictionary) -> Dictionary:
 		var visibility_m: float = room.visibility_m
 		if smoke_model != null:
 			visibility_m = smoke_model.estimate_visibility_for_layer_m(room, visible_smoke_layer_m)
-			room.visibility_m = visibility_m
 		var kawagoe_factor: float = _call_room_id_float(kawagoe_factor_callable, room_id, 0.0)
 		state[str(room_id)] = {
 			"id": room.id,

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import re
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +48,24 @@ def test_component_has_only_the_authorized_production_call_sites():
         "tests/fixtures/phase3_h32s0d5d_clamp_ownership.gd",
     }
     references = set()
-    for path in ROOT.rglob("*.gd"):
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z", "--", "*.gd"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8").split("\0")
+    deleted = set(
+        subprocess.run(
+            ["git", "ls-files", "-z", "--deleted", "--", "*.gd"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+        ).stdout.decode("utf-8").split("\0")
+    )
+    for relative_path in tracked:
+        if not relative_path or relative_path in deleted:
+            continue
+        path = ROOT / relative_path
         if path == LEDGER_PATH or path == FIXTURE_PATH:
             continue
         if "Phase3PhysicalOwnerLedger" in path.read_text(encoding="utf-8"):

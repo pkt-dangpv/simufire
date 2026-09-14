@@ -39,7 +39,7 @@ class TestH31FlagAndIsolation(unittest.TestCase):
     def test_projection_trace_is_reused_not_duplicated(self):
         self.assertIn("zone_fire_solver.get_projection_trace_events()", ENGINE)
         self.assertNotIn("phase3_runtime_ownership", ZONE)
-        self.assertEqual(ZONE.count("_projection_trace_events.append"), 1)
+        self.assertEqual(ZONE.count("_projection_trace_records.append(trace_record)"), 1)
 
     def test_csv_schema_is_opt_in(self):
         self.assertIn("if phase3_runtime_ownership_ledger_enabled:", LOG)
@@ -49,8 +49,10 @@ class TestH31FlagAndIsolation(unittest.TestCase):
 
 class TestH31OwnershipCoverage(unittest.TestCase):
     def test_real_writer_stages_are_observed(self):
+        self.assertIn(
+            '_phase3_zone_runtime_record_stage_shared("", "pool_fire")', ENGINE
+        )
         for stage in (
-            "pool_fire",
             "oxygen_exchange",
             "combustion",
             "thermal",
@@ -59,11 +61,16 @@ class TestH31OwnershipCoverage(unittest.TestCase):
             "hvac",
             "other",
             "reconcile",
-            "clamp_rooms",
         ):
             self.assertIn(
-                f'_phase3_runtime_ownership_record_stage("{stage}")', ENGINE
+                f'_phase3_zone_runtime_record_stage_shared("{stage}", "{stage}")',
+                ENGINE,
             )
+        self.assertIn(
+            '_phase3_zone_runtime_record_stage_shared("projection_clamp", '
+            '"clamp_rooms")',
+            ENGINE,
+        )
 
     def test_two_thermal_paths_and_upper_transport_are_distinct(self):
         for mechanism in (
@@ -83,8 +90,11 @@ class TestH31OwnershipCoverage(unittest.TestCase):
         self.assertIn('parcel["energy_residual_kj"]', ENGINE)
 
     def test_projection_is_compared_to_existing_boundary_ledger(self):
-        self.assertIn('event.get("total_energy_delta_kj", 0.0)', ENGINE)
-        self.assertIn('finish.get("boundary_energy_kj", 0.0)', ENGINE)
+        self.assertIn(
+            "event[Phase3ProjectionTraceRecordScript.Field.TOTAL_ENERGY_DELTA_KJ]",
+            ENGINE,
+        )
+        self.assertIn("finish[RuntimeOwnershipState.BOUNDARY_ENERGY_KJ]", ENGINE)
         self.assertIn(
             'room_diag["runtime_owner_projection_boundary_energy_residual_kj_step"]',
             ENGINE,

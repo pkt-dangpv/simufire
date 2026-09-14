@@ -4910,7 +4910,7 @@ func sync_room_upper_layer(
 	# de especies la gestiona el sistema de combustión; actuar aquí distorsionaría
 	# co2_lower_kg (= co2_kg − co2_upper_kg) y aceleraría falsamente el FED en zona lower.
 	var new_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
-	var fire_inactive: bool = room.hrr_kw <= 0.1 and room.fire == null
+	var fire_inactive: bool = _is_building_post_extinction()
 	if fire_inactive:
 		# Fix A: redistribución upper→lower proporcional al encogimiento de la zona superior.
 		# Si la interfaz sube (zona upper se contrae), las especies se redistribuyen;
@@ -4955,7 +4955,7 @@ func _sync_room_two_zone_layer(room: RoomModel, dt: float, projection_cause: Str
 		room, ambient_c, max_upper_temp_c, projection_cause
 	)
 	var new_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
-	var fire_inactive: bool = room.hrr_kw <= 0.1 and room.fire == null
+	var fire_inactive: bool = _is_building_post_extinction()
 	if fire_inactive:
 		# Fix A: redistribución upper→lower proporcional al encogimiento de la zona superior.
 		if old_upper_depth_m > 0.0 and new_upper_depth_m < old_upper_depth_m:
@@ -4976,6 +4976,16 @@ func _sync_room_two_zone_layer(room: RoomModel, dt: float, projection_cause: Str
 		push_warning("M1 two-zone: inversión de capa sala %d — T_upper=%.1f°C < T_lower=%.1f°C" % [
 			room.id, room.temp_upper_c, room.temp_lower_c
 		])
+
+
+func _is_building_post_extinction() -> bool:
+	if _building == null:
+		return false
+	for room_id in _building.get_rooms().keys():
+		var candidate: RoomModel = _building.get_room(room_id)
+		if candidate != null and (candidate.hrr_kw > 0.1 or candidate.fire != null):
+			return false
+	return true
 
 
 func reconcile_two_zone_building(building: BuildingModel, dt: float) -> void:

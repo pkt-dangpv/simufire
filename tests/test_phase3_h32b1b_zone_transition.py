@@ -65,9 +65,9 @@ def test_it_does_not_depend_on_the_shadow_or_the_primitive():
                       "phase3_residual_projection", "phase3_zone_diagnostics"):
         assert forbidden not in CODE, forbidden
     assert "does not depend on the H3.2b3 shadow" in LEDGER
-    # And the engine hook reads room state, not the shadow.
-    hook = _func(ENGINE, "_phase3_zone_transition_observe")
-    assert "_phase3_residual_projection_shadow" not in hook
+    # The ledger's own event consumer remains independent of every other owner.
+    hook = _func(LEDGER, "observe_call")
+    assert "residual" not in hook.lower()
 
 
 def test_off_is_a_no_op():
@@ -76,6 +76,7 @@ def test_off_is_a_no_op():
         guard = next(line.strip() for line in body.splitlines()
                      if line.strip().startswith("if "))
         assert "not enabled" in guard, name
+    assert "if enabled and _seeded:" in _func(LEDGER, "observe_call")
     summary = _func(LEDGER, "summary")
     lines = [line.strip() for line in summary.splitlines()[1:] if line.strip()]
     assert lines[0] == "if not enabled:"
@@ -98,9 +99,9 @@ def test_the_seed_precedes_the_first_step_and_is_idempotent():
     # happened during it -- which is exactly what the >=29 gate caught.
     assert ENGINE.count("_phase3_zone_transition_seed()") == 3
     step_body = ENGINE.split("_ensure_carbon_balance_initialized()", 1)[1]
-    step_body = step_body.split("_phase3_zone_diag_begin_step()", 1)[0]
+    step_body = step_body.split("_phase3_zone_runtime_begin_step_shared()", 1)[0]
     assert "_phase3_zone_transition_seed()" in step_body
-    hook = _func(ENGINE, "_phase3_zone_transition_observe")
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
     assert hook.index("_phase3_zone_transition_seed()") < hook.index("observe_step(")
 
 
@@ -108,15 +109,16 @@ def test_the_seed_is_taken_before_any_physics_in_the_step():
     # The seeding call must precede every physics stage in step(), not merely
     # precede the observation at the end of it.
     step_index = ENGINE.index(
-        "_phase3_zone_transition_seed()\n\t_phase3_zone_diag_begin_step()")
+        "_phase3_zone_transition_seed()\n\t_phase3_zone_runtime_begin_step_shared()")
     for stage in ("_clamp_rooms(", "thermal_system.step(", "_check_carbon_balance()"):
         assert ENGINE.index(stage, step_index) > step_index, stage
 
 
 def test_a_seed_is_never_a_transition():
     body = _func(LEDGER, "seed")
-    assert '"initial_present" if present else "initial_absent"' in body
-    for forbidden in ('"birth"', '"death"', '"stable_present"', '"stable_absent"'):
+    assert "CounterField.INITIAL_PRESENT if present else CounterField.INITIAL_ABSENT" in body
+    for forbidden in ("CounterField.BIRTH", "CounterField.DEATH",
+                      "CounterField.STABLE_PRESENT", "CounterField.STABLE_ABSENT"):
         assert forbidden not in body, forbidden
     assert "never a transition" in LEDGER
 
@@ -129,12 +131,13 @@ def test_observing_without_a_seed_fails_closed():
 
 
 def test_the_observation_point_is_fixed_at_end_of_step():
-    assert ENGINE.count("_phase3_zone_transition_observe()") == 2
+    assert ENGINE.count("_phase3_projection_diagnostics_accumulate_shared()") == 2
     # It runs in the same place every step, after the other passive accumulators
     # and before the carbon balance check.
-    between = ENGINE.split("_phase3_projection_causal_accumulate()\n", 1)[1]
+    between = ENGINE.split("_phase3_projection_diagnostics_accumulate_shared()\n", 1)[1]
     between = between.split("_check_carbon_balance()", 1)[0]
-    assert "_phase3_zone_transition_observe()" in between
+    assert "_phase3_zone_transition_ledger.observe_step(" in _func(
+        ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
 
 
 # --------------------------------------------------------------------------
@@ -143,12 +146,13 @@ def test_the_observation_point_is_fixed_at_end_of_step():
 
 def test_initial_and_transition_classes_are_never_summed():
     body = _func(LEDGER, "_cardinality")
-    assert 'int(block["initial_present"]) + int(block["initial_absent"])' in body
+    assert "block[CounterField.INITIAL_PRESENT]" in body
+    assert "block[CounterField.INITIAL_ABSENT]" in body
     transition_sum = body.split("var boundaries: int = (", 1)[1].split("\n\t)", 1)[0]
-    for field in ("birth", "death", "stable_present", "stable_absent",
-                  "room_added", "room_removed"):
+    for field in ("BIRTH", "DEATH", "STABLE_PRESENT", "STABLE_ABSENT",
+                  "ROOM_ADDED", "ROOM_REMOVED"):
         assert field in transition_sum, field
-    for forbidden in ("initial_present", "initial_absent"):
+    for forbidden in ("INITIAL_PRESENT", "INITIAL_ABSENT"):
         assert forbidden not in transition_sum, forbidden
     assert "never summed" in LEDGER
 
@@ -156,15 +160,16 @@ def test_initial_and_transition_classes_are_never_summed():
 def test_rooms_times_steps_is_asserted_only_when_the_room_set_is_constant():
     body = _func(LEDGER, "_cardinality")
     assert "constant_room_set" in body
-    assert 'int(block["room_added"]) == 0 and int(block["room_removed"]) == 0' in body
+    assert "block[CounterField.ROOM_ADDED]" in body
+    assert "block[CounterField.ROOM_REMOVED]" in body
     # The reduction is null, not false, when the room set changed.
     assert "if constant_room_set else null" in body
 
 
 def test_room_set_changes_are_not_births_or_deaths():
     body = _func(LEDGER, "_classify_boundary")
-    assert '"room_added"' in body
-    assert '"room_removed"' in body
+    assert "CounterField.ROOM_ADDED" in body
+    assert "CounterField.ROOM_REMOVED" in body
     pair = _func(LEDGER, "_classify_pair")
     for forbidden in ("room_added", "room_removed"):
         assert forbidden not in pair, forbidden
@@ -204,11 +209,13 @@ def test_the_ledger_threshold_provenance_is_corrected_not_misattributed():
 
 def test_every_predicate_gets_every_counter():
     body = _func(LEDGER, "_bucket")
-    assert '"%s:%s" % [granularity, predicate]' in body
+    assert "_bucket_index(granularity, predicate)" in body
     block = _func(LEDGER, "_counter_block")
+    exported = _func(LEDGER, "_counter_dictionary")
+    assert "block.resize(CounterField.SIZE)" in block
     for field in ("initial_present", "initial_absent", "birth", "death",
                   "stable_present", "stable_absent", "room_added", "room_removed"):
-        assert '"%s": 0,' % field in block, field
+        assert '"%s"' % field in exported, field
 
 
 # --------------------------------------------------------------------------
@@ -216,16 +223,16 @@ def test_every_predicate_gets_every_counter():
 # --------------------------------------------------------------------------
 
 def test_call_granularity_compares_previous_post_against_next_pre():
-    body = _func(LEDGER, "observe_calls")
-    assert 'pre.get("upper_gas_kg"' in body
-    assert 'post.get("upper_gas_kg"' in body
+    body = _func(LEDGER, "observe_call")
+    assert "Field.PRE_UPPER_GAS_KG" in body
+    assert "Field.POST_UPPER_GAS_KG" in body
     # The interval closes at this call's post, which becomes the next predecessor.
     assert "last[room_key] = _present(post_mass, predicate)" in body
     assert "pre_present" in body
 
 
 def test_no_cause_attribution_at_call_granularity():
-    body = _func(LEDGER, "observe_calls")
+    body = _func(LEDGER, "observe_call")
     assert "cause" not in _strip_comments(body)
     assert "by_cause" not in LEDGER
     assert '"cause_attribution_note"' in _func(LEDGER, "summary")
@@ -241,7 +248,7 @@ def test_both_granularities_are_declared_lower_bounds():
 
 
 def test_call_granularity_declares_absence_when_the_trace_is_missing():
-    hook = _func(ENGINE, "_phase3_zone_transition_observe")
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
     assert "projection_diagnostics_enabled" in hook
     assert "REASON_TRACE_UNAVAILABLE" in hook
     assert "record_unavailable" in hook
@@ -252,16 +259,16 @@ def test_call_granularity_declares_absence_when_the_trace_is_missing():
 # --------------------------------------------------------------------------
 
 def test_the_deprecated_aliases_are_preserved():
+    exported = _func(CAUSAL, "_room_dictionary")
     for key in ("upper_zone_birth_count_total", "upper_zone_death_count_total"):
-        assert '"%s": 0,' % key in CAUSAL, key
-        assert 'room["%s"] = ' % key in CAUSAL, key
+        assert '"%s"' % key in exported, key
 
 
 def test_the_explicit_twins_exist_alongside_them():
+    exported = _func(CAUSAL, "_room_dictionary")
     for key in ("within_projection_call_upper_zone_birth_count_total",
                 "within_projection_call_upper_zone_death_count_total"):
-        assert '"%s": 0,' % key in CAUSAL, key
-        assert 'room["%s"] = ' % key in CAUSAL, key
+        assert '"%s"' % key in exported, key
     assert '"deprecated_counter_note"' in CAUSAL
     assert "DEPRECATED aliases kept for" in CAUSAL
 
@@ -274,8 +281,13 @@ def test_the_ledger_writes_no_state():
     assert not re.search(r"\broom\.\w+ *=[^=]", CODE)
     assert "RoomModel" not in CODE
     assert "BuildingModel" not in CODE
-    for forbidden in ("preload(", "load(", "get_node", "get_tree"):
-        assert forbidden not in CODE, forbidden
+    assert CODE.count("preload(") == 1
+    assert 'preload("res://sim/core/Phase3ProjectionTraceRecord.gd")' in CODE
+    without_schema_preload = CODE.replace(
+        'preload("res://sim/core/Phase3ProjectionTraceRecord.gd")', ""
+    )
+    for forbidden in ("load(\"", "get_node", "get_tree"):
+        assert forbidden not in without_schema_preload, forbidden
 
 
 ALLOWED_LEDGER_BRANCHES = {

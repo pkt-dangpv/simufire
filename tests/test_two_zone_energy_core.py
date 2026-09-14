@@ -128,7 +128,12 @@ class TestTwoZoneStructure(unittest.TestCase):
         self.assertIn("func _configure_validation_two_zone_v1_profile() -> bool:", CASE_RUNNER)
         self.assertIn('_cli_args["validation_engine_mode"] = "two-zone"', CASE_RUNNER)
         self.assertIn('_cli_args["validation_two_zone_opening_flow"] = true', CASE_RUNNER)
-        self.assertIn('_cli_args["validation_canonical_pressure"] = true', CASE_RUNNER)
+        profile = CASE_RUNNER.split(
+            "func _configure_validation_two_zone_v1_profile() -> bool:", 1
+        )[1].split("\nfunc ", 1)[0]
+        self.assertNotIn('_cli_args["validation_canonical_pressure"] = true', profile)
+        self.assertIn("phase3_pressure_canonical_enabled stays at engine default (false)", profile)
+        self.assertIn("validation_canonical_pressure=true", profile)
         self.assertIn('"two_zone_v1_profile": _two_zone_v1_profile', CASE_RUNNER)
 
 
@@ -192,7 +197,7 @@ class TestStairwellHeatBridgeStructure(unittest.TestCase):
         self.assertIn('"phase3_stairwell_heat_bridge_kg_s_m2"', STAIRWELL_CASE)
         self.assertIn('"phase3_stairwell_heat_bridge_vertical_multiplier"', STAIRWELL_CASE)
         self.assertIn('"phase3_stairwell_heat_bridge_target_max_temp_c": 120.0', STAIRWELL_CASE)
-        self.assertIn('"two_zone_convective_heat_multiplier": 1.18', STAIRWELL_CASE)
+        self.assertNotIn('"two_zone_convective_heat_multiplier"', STAIRWELL_CASE)
 
 
 if __name__ == "__main__":

@@ -392,9 +392,8 @@ def main() -> int:
     all_req_pass = data.get("all_required_pass", False) if data else False
     gap_count    = data.get("known_gap_count",   "?") if data else "?"
 
-    # Clasificar los required fallidos: VALID_GAP permitidos vs no permitidos.
-    # El gate pasa solo si TODOS los fallos required están en la allowlist
-    # KNOWN_VALID_GAP_REQUIRED_FAILURES (documentada en GAPS_INVENTORY.md).
+    # Classify required failures. The P1R8 closure leaves the legacy allowlist
+    # empty, so every required failure is blocking.
     checks = data.get("checks", []) if data else []
     valid_gap_fails, unexpected_fails = gap_inventory_check.classify_required_failures(checks)
     if not all_req_pass and not valid_gap_fails and not unexpected_fails:

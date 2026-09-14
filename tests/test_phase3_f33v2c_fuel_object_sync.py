@@ -1,6 +1,6 @@
 from pathlib import Path
-import subprocess
 from scripts.simulation.analyze_phase3_fuel_object_sync import analyze
+from tests.godot_runtime_launcher import run_godot
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +29,7 @@ def test_evaluator_is_dictionary_only_and_bounded():
 def test_direct_godot_fixture():
     if not GODOT.exists():
         return
-    completed = subprocess.run(
+    completed = run_godot(
         [
             str(GODOT),
             "--headless",
@@ -38,10 +38,8 @@ def test_direct_godot_fixture():
             "--script",
             str(FIXTURE),
         ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=60,
+        timeout_s=60,
+        allowed_exit_codes=(0,),
     )
     output = completed.stdout + completed.stderr
     assert completed.returncode == 0, output

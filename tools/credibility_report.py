@@ -26,7 +26,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROVENANCE_CSV = ROOT / "tools/reports/tolerance_provenance.csv"
 CHECKS_JSON = ROOT / "sim/validation/reports/reference_checks.json"
-MUTATION_JSON = ROOT / "tools/mutation_results.json"
+MUTATION_JSON = ROOT / "tools/reports/mutation_results.json"
 OVERRIDE_REGISTRY = ROOT / "sim/validation/override_registry.json"
 
 # Claves de motor consideradas "overrides de física" (no de escenario)

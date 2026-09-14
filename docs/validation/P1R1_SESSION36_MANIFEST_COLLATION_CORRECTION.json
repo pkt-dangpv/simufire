@@ -1,0 +1,49 @@
+{
+  "schema": "simufire.p1r1.evidence_manifest_correction.v1",
+  "finding": "P1R1-EVID-002",
+  "status": "REMEDIATED_PENDING_INDEPENDENT_REVIEW",
+  "source": {
+    "path": "runs/motor_post_audit_p1_remediation_session36/artifact_manifest.json",
+    "checkpoint": "65d04d8e40d9916d4f5f586ed5c012d0a6e1f21a",
+    "byte_length": 3451,
+    "sha256": "4efd8b2d23c644e8baed9c57218a33b4326c78658f5ee468538336fb1b4fcf2f",
+    "file_count": 18,
+    "source_total_bytes": 1158585
+  },
+  "historical_record": {
+    "ordering_claim": "ordinal/bytewise UTF-8 relative path",
+    "actual_ordering": "manifest order, equivalent to case-insensitive ordering for these paths",
+    "tree_sha256": "e6d68e1578e93573774bd6e5a8f992c1b2a3b82a617d41f9ec15b33a4a4da703",
+    "preserved_byte_identically": true
+  },
+  "corrected_semantics": {
+    "ordering": "bytewise UTF-8 relative path",
+    "tree_contract": "relative_path<TAB>lowercase_exact_byte_sha256<LF>",
+    "tree_sha256": "33187f85215930be889b07d632d8ad53465913fecba552d6a84e213af548eec4"
+  },
+  "records_in_historical_manifest_order": [
+    {"relative_path": "build_script_inventory.py", "byte_length": 14647, "sha256": "675bb4cf72eced18ed1ac890a39dcae41a3d7ab13052ba33d0aa24e808a3b1e9"},
+    {"relative_path": "dependency_graph.json", "byte_length": 130131, "sha256": "8b62ceb6b1afb7620f8133bbe7630e92fd30405d40769ab5d9a0af8484b6c351"},
+    {"relative_path": "godot_generated_uid_inventory.json", "byte_length": 11346, "sha256": "50a56b1af15b19443ebf24fc2b76ef13d01558e5b3d19327475b0a3023a81a2f"},
+    {"relative_path": "godot_import_manifest.json", "byte_length": 1030, "sha256": "f38913219ec351b96e702d74fe98a2c74d15b4489e6ae4d1ab37bbb6ab01686f"},
+    {"relative_path": "godot_import_stderr.log", "byte_length": 9912, "sha256": "4498ddbac083f84a7e4afad9c8ed6dec155e9d55e00f5801724f4fba1e0cc770"},
+    {"relative_path": "godot_import_stdout.log", "byte_length": 2908, "sha256": "a49227345759fd8dcb50467cc2c68933dd48b54b4547ecf9b8d472befb0ef5db"},
+    {"relative_path": "p1r1_durable_evidence.zip", "byte_length": 18930, "sha256": "f1491d913a00526e05e9336d6ef1927135b8ec8b48a1324f4a1fd715e6e6995e"},
+    {"relative_path": "p1r1_session36_ledger.json", "byte_length": 3167, "sha256": "d4c7ff7099856e4c3a07dabc453f3ce61a5b4fa261a118f45fc0d861b68e28f1"},
+    {"relative_path": "powershell_parser_ledger.json", "byte_length": 3996, "sha256": "364e7bfb3a52422a157e72244f62fca7b9c19992ca66251e6a63c5b2cd7fec69"},
+    {"relative_path": "prior_p1r1/P1R1_DURABLE_EVIDENCE_MANIFEST.json", "byte_length": 1959, "sha256": "c3aac23d77cc2f4e57fbb9ec8f299d9b08ded1f09367c1c49de2c7ac4f810945"},
+    {"relative_path": "prior_p1r1/runs/motor_post_audit_p1_remediation_session32/p1r1_ledger.json", "byte_length": 14516, "sha256": "f2c7984d119b45a0dad89991efa2b76506a4c9b6b7f587d90f9401cd1db241f5"},
+    {"relative_path": "prior_p1r1/runs/motor_post_audit_p1_remediation_session32/P1R1_STOP_REPORT.md", "byte_length": 29125, "sha256": "da41f018cbf43fb798f56828e04e10fe8797a38587a98b324eb1ea26706cd4a2"},
+    {"relative_path": "python_compile.log", "byte_length": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+    {"relative_path": "run_godot_import_gate.ps1", "byte_length": 3146, "sha256": "f9c184bf34d89fe88a6c58a6b745ba87508746dad06da7a7752b087007c6ac6e"},
+    {"relative_path": "script_inventory.csv", "byte_length": 99205, "sha256": "6150ec340c88dddc4073a4968d127063c177bf2100ef815d33076d759de71788"},
+    {"relative_path": "script_inventory.json", "byte_length": 482582, "sha256": "800a361670af5ee2f34c97b514ff9bf8add9a0761ce5c8db1616203608da2b7a"},
+    {"relative_path": "state_writer_candidates.json", "byte_length": 325808, "sha256": "3efe3f7616868d60c027c8de72fa3e667275a3c52e132efe69b1d6eb6f724ea0"},
+    {"relative_path": "STOP_REPORT.md", "byte_length": 6177, "sha256": "e9a999426b17054f65b4f4bd89fd470466d93e09948043e720f95e73a50d33f9"}
+  ],
+  "limitations": [
+    "This correction changes no historical artifact bytes.",
+    "It corrects aggregate ordering semantics only; it does not requalify the scientific conclusions in the source artifacts.",
+    "Final FIXED disposition requires independent review of the tracked correction and executable verifier."
+  ]
+}

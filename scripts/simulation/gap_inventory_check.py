@@ -32,46 +32,11 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 # ---------------------------------------------------------------------------
-# VALID_GAP — required checks cuyo FAIL es estructural y está aceptado.
-#
-# Documentados en docs/validation/GAPS_INVENTORY.md como fallos required
-# VALID_GAP".  No son gaps non-gating: son checks required que fallan por
-# limitaciones arquitectónicas (Phase 2 / Phase 3+) sin fix per-caso viable.
-# El gate de required checks PASA si el conjunto de required fallidos es
-# exactamente un subconjunto de esta lista; cualquier fallo required NUEVO
-# sigue disparando exit 1.
-#
-# Regla: solo se añade una entrada aquí con su fila correspondiente en la
-# tabla VALID_GAP de GAPS_INVENTORY.md (mismo commit).  Si un check de esta
-# lista empieza a PASAR, elimínalo de ambos sitios.
+# Required failures are never allowlisted. Verified model limitations remain
+# visible as failing non-gating checks with explicit dispositions.
 # ---------------------------------------------------------------------------
 
-KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
-    # Grupo A — cfast_r0_window_360: plume_lower_mode equilibra zonas
-    # bidireccional; SF usa room-avg O2 vs CFAST upper-zone O2.  Cierre: Phase 2.
-    "cfast_t240_o2_depleted",
-    "cfast_t350_o2",
-    "cfast_t360_o2",
-    # Grupo C — cfast_corridor_chain: la equivalencia topológica F3.3l
-    # deja tres gaps acoplados de masa/entalpía/O2.  Cierre: Phase 3+.
-    "cfast_chain_r0_t300_temp_upper_c",
-    "cfast_chain_r0_t600_temp_upper_c",
-    "cfast_chain_r0_o2_t600_o2",
-    # Grupo D — RETIRADO 2026-07-09: los 4 checks eran artefacto de runner/config,
-    # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
-    # run_scenario_headless solo aplica engine_overrides; corregido añadiendo
-    # fire_o2_mode="upper" dentro de engine_overrides en el JSON del caso.
-    # Con la física declarada (upper mode) todos los checks pasan dentro de tolerancia:
-    # t=180: o2_upper=0.112 vs CFAST=0.132 (Δ=-0.020, tol=0.025 PASS)
-    # t=300: o2_upper=0.085 vs CFAST=0.074 (Δ=+0.011, tol=0.034 PASS)
-    # t=300: o2_lower=0.209 vs CFAST=0.205 (Δ=+0.004, tol=0.010 PASS)
-    # t=450: o2_lower=0.209 vs CFAST=0.205 (Δ=+0.004, tol=0.010 PASS)
-    # Grupo E — RETIRADO 2026-07-09: los 6 checks eran artefacto de runner/config,
-    # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
-    # run_scenario_headless solo aplica engine_overrides; corregido añadiendo
-    # fire_o2_mode="upper" dentro de engine_overrides en el JSON del caso.
-    # Con la física declarada todos los checks pasan dentro de tolerancia.
-})
+KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset()
 
 
 def classify_required_failures(checks: list[dict]) -> tuple[list[str], list[str]]:

@@ -1186,8 +1186,12 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
     # ── SimulationLogWriter CSV ───────────────────────────────────────────────
 
     def _csv_header(self) -> str:
-        match = re.search(r'_build_csv_header.*?return\s+"([^"]+)"', self.logwriter_src, re.S)
-        self.assertIsNotNone(match, "_build_csv_header return not found")
+        body = self.logwriter_src.split(
+            "func _build_csv_header() -> String:", 1
+        )[1].split("\nfunc ", 1)[0]
+        match = re.search(r'var\s+header:\s*String\s*=\s*"([^"]+)"', body)
+        self.assertIsNotNone(match, "_build_csv_header base header not found")
+        self.assertIn("return header", body)
         return match.group(1)
 
     def test_log_writer_csv_header_has_c_balance_frac(self):

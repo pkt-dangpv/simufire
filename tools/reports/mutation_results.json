@@ -1,47 +1,1327 @@
 {
-  "baseline_required_checks": 381,
-  "cases_tested": [
-    "cfast_r0_window_360",
-    "cfast_single_room_closed",
-    "cfast_two_room_door_open",
-    "cfast_corridor_chain",
-    "cfast_bedroom_closed_door",
-    "cfast_hvac_residential",
-    "cfast_window_break_t180",
-    "cfast_fast_growth_closed",
-    "ghanekar_bedroom_hallway",
-    "v2_sealed_room_o2_depletion",
-    "v4_co_remote_rooms",
-    "pu_sofa_fec_incapacitation",
-    "victim_fed_incapacitation",
-    "c_balance_high_phi",
-    "confinement_open_close",
-    "energy_budget_living_room",
-    "cfast_two_floor_stairwell"
-  ],
+  "schema_version": 2,
+  "generated_at": "2026-09-09T20:57:40.538953+00:00",
+  "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+  "source_tree_oid": "251e727caa1293626ca7d223c3ece1cc3a14bc6f",
+  "worktree_clean": true,
+  "reference_report_sha256": "c9a4104e048c02014e7ac6c17e1a1a46b0a526f2afb0aa97f3cb99f5b85a067c",
+  "required_check_names_sha256": "fe304995e41fbd7c85a04d395a379c633609ebf36b5247dbfbdba8f7337328cb",
+  "baseline_required_checks": 346,
+  "manifest_complete": true,
   "mutants": {
     "M-HRR": {
-      "killed": false,
-      "required_checks_evaluated": 0,
-      "checks_failed_by_mutation": 0,
-      "kill_rate": 0.0,
-      "godot_runs_ok": 17,
-      "godot_runs_fail": 0,
-      "godot_runs_timeout": 0,
-      "failed_check_names": []
+      "killed": true,
+      "required_checks_evaluated": 3,
+      "evaluated_check_names": [
+        "v2_sealed_room_o2_depletion_room_0_peak_hrr_kw",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s"
+      ],
+      "new_failed_check_names": [
+        "v2_sealed_room_o2_depletion_room_0_peak_hrr_kw",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s"
+      ],
+      "reports": [
+        {
+          "case": "v2_sealed_room_o2_depletion",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.json",
+          "report_bytes": 8740,
+          "report_sha256": "cdfae6a5ec2615eaa538518fb5c7477553a00e54e96e850f60ae2ce277c6b2e6",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.godot.log",
+          "log_bytes": 699,
+          "log_sha256": "5140afc1ead53fd999900c4e94db6609987e41f0741930b8a50017741e7fd10b",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.godot.log",
+          "engine_log_bytes": 699,
+          "engine_log_sha256": "5140afc1ead53fd999900c4e94db6609987e41f0741930b8a50017741e7fd10b",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.runtime_health.json",
+          "runtime_health_bytes": 2510,
+          "runtime_health_sha256": "e6f7526ef5cda9f009eb816d406765b7082005043e03268a67f9bc16c8d26cbb",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:38:28.711298+00:00",
+            "ended_at_utc": "2026-09-09T19:40:11.863084+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 22312,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.396,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v2_sealed_room_o2_depletion.json",
+            "case_blob_oid": "30d5d7eb291f42e33de2336d0f2bbfd723ac16db",
+            "case_sha256": "8e4634a3633d2aa5ded02c00e0e8e8308c45caed372a6039013c13bedd29feb8",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v2_sealed_room_o2_depletion",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\v2_sealed_room_o2_depletion.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\v2_sealed_room_o2_depletion.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\appdata",
+            "stdout_bytes": 692,
+            "stdout_sha256": "8737f603e9e8d1723a95aa9ff3a3f43f0d5643fa4586868cf2cb5af453ac213f",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "v2_sealed_room_o2_depletion",
+          "mutant": "M-HRR",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-HRR/v2_sealed_room_o2_depletion.json",
+          "report_bytes": 8302,
+          "report_sha256": "1b6691703c110c72822acd2e20a426c3f861c69452617f2ad99432825e5b14d7",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-HRR/v2_sealed_room_o2_depletion.godot.log",
+          "log_bytes": 717,
+          "log_sha256": "ffd41239846b47970d9cd3156b9b82e19ad7728943836c9d1247f086bc3a3d54",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-HRR/v2_sealed_room_o2_depletion.godot.log",
+          "engine_log_bytes": 717,
+          "engine_log_sha256": "ffd41239846b47970d9cd3156b9b82e19ad7728943836c9d1247f086bc3a3d54",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-HRR/v2_sealed_room_o2_depletion.runtime_health.json",
+          "runtime_health_bytes": 2475,
+          "runtime_health_sha256": "c964a7b82a61b7e01baddcda63e3ddf64fcafbc63c304902ca378925cfd53f1b",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:43:07.435891+00:00",
+            "ended_at_utc": "2026-09-09T19:44:47.186292+00:00",
+            "wrapper_exit_code": 2,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 27616,
+                "exit_code": 2
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.399,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v2_sealed_room_o2_depletion.json",
+            "case_blob_oid": "30d5d7eb291f42e33de2336d0f2bbfd723ac16db",
+            "case_sha256": "8e4634a3633d2aa5ded02c00e0e8e8308c45caed372a6039013c13bedd29feb8",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v2_sealed_room_o2_depletion",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-HRR\\v2_sealed_room_o2_depletion.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-HRR\\v2_sealed_room_o2_depletion.log",
+              "--validation-mutate=M-HRR"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-HRR\\appdata",
+            "stdout_bytes": 709,
+            "stdout_sha256": "8cdaff47640937ec9ea769a374c78a26d54ab48a2b0e6bc00eaf984f3b25027d",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "v2_sealed_room_o2_depletion_room_0_peak_hrr_kw": 3102.9936212686,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s": 200.666666666672,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s": 131.999999999998
+      },
+      "mutant_values": {
+        "v2_sealed_room_o2_depletion_room_0_peak_hrr_kw": 1.96059289316664,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s": null,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s": null
+      }
+    },
+    "M-ENTR": {
+      "killed": true,
+      "required_checks_evaluated": 3,
+      "evaluated_check_names": [
+        "cfast_closed_t210_temp_upper_c",
+        "cfast_closed_t300_temp_upper_c",
+        "cfast_closed_rmse_temp_upper_c"
+      ],
+      "new_failed_check_names": [
+        "cfast_closed_t300_temp_upper_c",
+        "cfast_closed_rmse_temp_upper_c"
+      ],
+      "reports": [
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.json",
+          "report_bytes": 7550,
+          "report_sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.log",
+          "log_bytes": 222302,
+          "log_sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 599,
+          "engine_log_sha256": "4b41cee26bda13bb4af58980b9694dfa249a0509049faf4737d33c3aa024555d",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2489,
+          "runtime_health_sha256": "391afce18b8c2bb4473ba2c207f5c9f0831eca989be200fce963c5a636a3f4fc",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:34:17.852308+00:00",
+            "ended_at_utc": "2026-09-09T19:35:37.995127+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 23768,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.392,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\appdata",
+            "stdout_bytes": 594,
+            "stdout_sha256": "be95b7dc88256bf2bf1f9a884f1fd2634a03d73522fd9d373bf72697b5ab3aca",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": "M-ENTR",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-ENTR/cfast_single_room_closed.json",
+          "report_bytes": 7581,
+          "report_sha256": "abd4427976e7dd6255f47b15841579376aaa98b313e2835574f02f3b11ef6d28",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-ENTR/cfast_single_room_closed.log",
+          "log_bytes": 222665,
+          "log_sha256": "df5ff7861cae46f84c8804d2b8e9ca3afe3a732ac9b8e5060a390a0e13138515",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-ENTR/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 626,
+          "engine_log_sha256": "abda14df312426153b4237ea9b923c14b5a55de1df0704b45a3fc40c95fe9b5b",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-ENTR/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2467,
+          "runtime_health_sha256": "d0d32e55e9a18e1eb64421d2b309b0a63e2b7a7d9ae2d3c613a73883dd825df0",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:44:47.256923+00:00",
+            "ended_at_utc": "2026-09-09T19:46:30.650793+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 19372,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.394,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-ENTR\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-ENTR\\cfast_single_room_closed.log",
+              "--validation-mutate=M-ENTR"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-ENTR\\appdata",
+            "stdout_bytes": 620,
+            "stdout_sha256": "70104a8aeb5da0bbdfa6f01af15084e60b5062255b18f39faf2a0248cdb82072",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "cfast_closed_t210_temp_upper_c": 190.69,
+        "cfast_closed_t300_temp_upper_c": 197.97,
+        "cfast_closed_rmse_temp_upper_c": 27.84807676973702
+      },
+      "mutant_values": {
+        "cfast_closed_t210_temp_upper_c": 250.77,
+        "cfast_closed_t300_temp_upper_c": 264.73,
+        "cfast_closed_rmse_temp_upper_c": 62.48394170590152
+      }
+    },
+    "M-O2EXT": {
+      "killed": true,
+      "required_checks_evaluated": 3,
+      "evaluated_check_names": [
+        "v2_sealed_room_o2_depletion_room_0_final_o2",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s"
+      ],
+      "new_failed_check_names": [
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s",
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s"
+      ],
+      "reports": [
+        {
+          "case": "v2_sealed_room_o2_depletion",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.json",
+          "report_bytes": 8740,
+          "report_sha256": "cdfae6a5ec2615eaa538518fb5c7477553a00e54e96e850f60ae2ce277c6b2e6",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.godot.log",
+          "log_bytes": 699,
+          "log_sha256": "5140afc1ead53fd999900c4e94db6609987e41f0741930b8a50017741e7fd10b",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.godot.log",
+          "engine_log_bytes": 699,
+          "engine_log_sha256": "5140afc1ead53fd999900c4e94db6609987e41f0741930b8a50017741e7fd10b",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v2_sealed_room_o2_depletion/v2_sealed_room_o2_depletion.runtime_health.json",
+          "runtime_health_bytes": 2510,
+          "runtime_health_sha256": "e6f7526ef5cda9f009eb816d406765b7082005043e03268a67f9bc16c8d26cbb",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:38:28.711298+00:00",
+            "ended_at_utc": "2026-09-09T19:40:11.863084+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 22312,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.396,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v2_sealed_room_o2_depletion.json",
+            "case_blob_oid": "30d5d7eb291f42e33de2336d0f2bbfd723ac16db",
+            "case_sha256": "8e4634a3633d2aa5ded02c00e0e8e8308c45caed372a6039013c13bedd29feb8",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v2_sealed_room_o2_depletion",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\v2_sealed_room_o2_depletion.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\v2_sealed_room_o2_depletion.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v2_sealed_room_o2_depletion\\appdata",
+            "stdout_bytes": 692,
+            "stdout_sha256": "8737f603e9e8d1723a95aa9ff3a3f43f0d5643fa4586868cf2cb5af453ac213f",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "v2_sealed_room_o2_depletion",
+          "mutant": "M-O2EXT",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-O2EXT/v2_sealed_room_o2_depletion.json",
+          "report_bytes": 8436,
+          "report_sha256": "76f6d117ed9d8e1548c281255687b02a39ad01bd01865201e60c94f1f2740ac5",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-O2EXT/v2_sealed_room_o2_depletion.godot.log",
+          "log_bytes": 718,
+          "log_sha256": "ad45122e7d41bb21bee8c3082f138be8c179d640ada9b06c0fae3edfe4fa948d",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-O2EXT/v2_sealed_room_o2_depletion.godot.log",
+          "engine_log_bytes": 718,
+          "engine_log_sha256": "ad45122e7d41bb21bee8c3082f138be8c179d640ada9b06c0fae3edfe4fa948d",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-O2EXT/v2_sealed_room_o2_depletion.runtime_health.json",
+          "runtime_health_bytes": 2483,
+          "runtime_health_sha256": "f2c386a83b9da09973d04f7e5ca4ca58789db12a40aa44bd2426d805b44f7431",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:46:30.743944+00:00",
+            "ended_at_utc": "2026-09-09T19:48:13.393690+00:00",
+            "wrapper_exit_code": 2,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 27328,
+                "exit_code": 2
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.394,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v2_sealed_room_o2_depletion.json",
+            "case_blob_oid": "30d5d7eb291f42e33de2336d0f2bbfd723ac16db",
+            "case_sha256": "8e4634a3633d2aa5ded02c00e0e8e8308c45caed372a6039013c13bedd29feb8",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v2_sealed_room_o2_depletion",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-O2EXT\\v2_sealed_room_o2_depletion.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-O2EXT\\v2_sealed_room_o2_depletion.log",
+              "--validation-mutate=M-O2EXT"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-O2EXT\\appdata",
+            "stdout_bytes": 710,
+            "stdout_sha256": "523ec09a312d2be0a8c522e50b879b641412276ecb8558347355cc265da61365",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "v2_sealed_room_o2_depletion_room_0_final_o2": 0.12822188202639,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s": 200.666666666672,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s": 131.999999999998
+      },
+      "mutant_values": {
+        "v2_sealed_room_o2_depletion_room_0_final_o2": 0.200281125968185,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_13pct_s": null,
+        "v2_sealed_room_o2_depletion_time_room_0_o2_below_18pct_s": null
+      }
+    },
+    "M-YCO": {
+      "killed": true,
+      "required_checks_evaluated": 4,
+      "evaluated_check_names": [
+        "v4_co_remote_rooms_room_1_peak_co_upper_ppm",
+        "v4_co_remote_rooms_room_2_peak_co_upper_ppm",
+        "v4_co_remote_rooms_time_room_1_co_upper_above_1200_s",
+        "v4_co_remote_rooms_time_room_2_co_upper_above_200_s"
+      ],
+      "new_failed_check_names": [
+        "v4_co_remote_rooms_time_room_1_co_upper_above_1200_s"
+      ],
+      "reports": [
+        {
+          "case": "v4_co_remote_rooms",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v4_co_remote_rooms/v4_co_remote_rooms.json",
+          "report_bytes": 19840,
+          "report_sha256": "185b729a639068554ad01836fed8209342ffd70e352570686e2a68eda39affd3",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v4_co_remote_rooms/v4_co_remote_rooms.godot.log",
+          "log_bytes": 603,
+          "log_sha256": "cd58d885b9edb1fb61d897060e2ffc92c1e1408469382b9195c4e385594b04e8",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v4_co_remote_rooms/v4_co_remote_rooms.godot.log",
+          "engine_log_bytes": 603,
+          "engine_log_sha256": "cd58d885b9edb1fb61d897060e2ffc92c1e1408469382b9195c4e385594b04e8",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/v4_co_remote_rooms/v4_co_remote_rooms.runtime_health.json",
+          "runtime_health_bytes": 2447,
+          "runtime_health_sha256": "e268b6a3ea64a1bee2eef467967ac23953ee4ff907c7621282ffd98ad539dcb1",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:40:11.935710+00:00",
+            "ended_at_utc": "2026-09-09T19:43:07.360934+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 21268,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.401,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v4_co_remote_rooms.json",
+            "case_blob_oid": "94bddcfc95b8cbae23778526c76c4bec658e135d",
+            "case_sha256": "4010e4c659faf8403d0b32092652d473b7e5318410f19ef02598de42f8fefb84",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v4_co_remote_rooms",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v4_co_remote_rooms\\v4_co_remote_rooms.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v4_co_remote_rooms\\v4_co_remote_rooms.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\v4_co_remote_rooms\\appdata",
+            "stdout_bytes": 597,
+            "stdout_sha256": "d475761ba888ec55c68ddb55e86a85d4e6a9fba7740e41af6f1a239eed523786",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "v4_co_remote_rooms",
+          "mutant": "M-YCO",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YCO/v4_co_remote_rooms.json",
+          "report_bytes": 19840,
+          "report_sha256": "0a005563f16aeacf6b804b3d5ad0e3187746b832358d3a6256273b48100ab486",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YCO/v4_co_remote_rooms.godot.log",
+          "log_bytes": 643,
+          "log_sha256": "1e155193d72905198f353a33b6b9f02a0d06d75762bccdfb285a71756c49b48b",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YCO/v4_co_remote_rooms.godot.log",
+          "engine_log_bytes": 643,
+          "engine_log_sha256": "1e155193d72905198f353a33b6b9f02a0d06d75762bccdfb285a71756c49b48b",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YCO/v4_co_remote_rooms.runtime_health.json",
+          "runtime_health_bytes": 2436,
+          "runtime_health_sha256": "138e7906a2fceea8850788f0ece518762866a110310270cf67e921a79b622394",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:48:13.466495+00:00",
+            "ended_at_utc": "2026-09-09T19:51:10.014921+00:00",
+            "wrapper_exit_code": 2,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 1888,
+                "exit_code": 2
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.4,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/v4_co_remote_rooms.json",
+            "case_blob_oid": "94bddcfc95b8cbae23778526c76c4bec658e135d",
+            "case_sha256": "4010e4c659faf8403d0b32092652d473b7e5318410f19ef02598de42f8fefb84",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=v4_co_remote_rooms",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YCO\\v4_co_remote_rooms.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YCO\\v4_co_remote_rooms.log",
+              "--validation-mutate=M-YCO"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YCO\\appdata",
+            "stdout_bytes": 636,
+            "stdout_sha256": "789feb66eaf84099e06aae6eacd6c310640af690f525e1bb97059de0a73b1cfe",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "v4_co_remote_rooms_room_1_peak_co_upper_ppm": 99774.2855184852,
+        "v4_co_remote_rooms_room_2_peak_co_upper_ppm": 229061.435727165,
+        "v4_co_remote_rooms_time_room_1_co_upper_above_1200_s": 134.999999999998,
+        "v4_co_remote_rooms_time_room_2_co_upper_above_200_s": 180.833333333336
+      },
+      "mutant_values": {
+        "v4_co_remote_rooms_room_1_peak_co_upper_ppm": 294821.681300532,
+        "v4_co_remote_rooms_room_2_peak_co_upper_ppm": 667640.626741919,
+        "v4_co_remote_rooms_time_room_1_co_upper_above_1200_s": 69.6666666666671,
+        "v4_co_remote_rooms_time_room_2_co_upper_above_200_s": 179.750000000003
+      }
     },
     "M-YHCN": {
-      "killed": false,
-      "required_checks_evaluated": 0,
-      "checks_failed_by_mutation": 0,
-      "kill_rate": 0.0,
-      "godot_runs_ok": 17,
-      "godot_runs_fail": 0,
-      "godot_runs_timeout": 0,
-      "failed_check_names": []
+      "killed": true,
+      "required_checks_evaluated": 1,
+      "evaluated_check_names": [
+        "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm"
+      ],
+      "new_failed_check_names": [
+        "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm"
+      ],
+      "reports": [
+        {
+          "case": "pu_sofa_fec_incapacitation",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/pu_sofa_fec_incapacitation/pu_sofa_fec_incapacitation.json",
+          "report_bytes": 14877,
+          "report_sha256": "7e4f9d442b612e00bfab45b973be6477792d03c72fa377b3aede7521ead1e13a",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/pu_sofa_fec_incapacitation/pu_sofa_fec_incapacitation.godot.log",
+          "log_bytes": 635,
+          "log_sha256": "b4242690b3bb91c3fb4d4c0f708eefcc45bb07dab5668dd832ae84cf742c9ba3",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/pu_sofa_fec_incapacitation/pu_sofa_fec_incapacitation.godot.log",
+          "engine_log_bytes": 635,
+          "engine_log_sha256": "b4242690b3bb91c3fb4d4c0f708eefcc45bb07dab5668dd832ae84cf742c9ba3",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/pu_sofa_fec_incapacitation/pu_sofa_fec_incapacitation.runtime_health.json",
+          "runtime_health_bytes": 2503,
+          "runtime_health_sha256": "0f3cdb8f230e3bd03fd7d626a7aed492193763ecace41df6393eaa61e238d6b3",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:35:38.087843+00:00",
+            "ended_at_utc": "2026-09-09T19:38:28.638572+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 21892,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.434,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/pu_sofa_fec_incapacitation.json",
+            "case_blob_oid": "165a351f107bd3926f10075a5ca4a806f638eeee",
+            "case_sha256": "810f5bad1f4b038faf839291048953df3f1c933691fe73eb877348880db48ac9",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=pu_sofa_fec_incapacitation",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\pu_sofa_fec_incapacitation\\pu_sofa_fec_incapacitation.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\pu_sofa_fec_incapacitation\\pu_sofa_fec_incapacitation.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\pu_sofa_fec_incapacitation\\appdata",
+            "stdout_bytes": 629,
+            "stdout_sha256": "148465ae7ffb76eacb6d8030adb9fd920817c2518d5bb36b732415fb2806db77",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "pu_sofa_fec_incapacitation",
+          "mutant": "M-YHCN",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YHCN/pu_sofa_fec_incapacitation.json",
+          "report_bytes": 14785,
+          "report_sha256": "acc25630cbb5f984f64a36ca2c80d7dae0f9eb20b4f286a43922f4ae2481cbb3",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YHCN/pu_sofa_fec_incapacitation.godot.log",
+          "log_bytes": 688,
+          "log_sha256": "c0026b02e42f414eeefbae07e15fe614fe3604d301a363bc46ec7761cd9ddc85",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YHCN/pu_sofa_fec_incapacitation.godot.log",
+          "engine_log_bytes": 688,
+          "engine_log_sha256": "c0026b02e42f414eeefbae07e15fe614fe3604d301a363bc46ec7761cd9ddc85",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-YHCN/pu_sofa_fec_incapacitation.runtime_health.json",
+          "runtime_health_bytes": 2475,
+          "runtime_health_sha256": "c9ddf7c32074fe99c672f22bb7af0d71882994c81fa5c63296d76b4245ad6734",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:51:10.090262+00:00",
+            "ended_at_utc": "2026-09-09T19:53:55.180803+00:00",
+            "wrapper_exit_code": 2,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 14928,
+                "exit_code": 2
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.405,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/pu_sofa_fec_incapacitation.json",
+            "case_blob_oid": "165a351f107bd3926f10075a5ca4a806f638eeee",
+            "case_sha256": "810f5bad1f4b038faf839291048953df3f1c933691fe73eb877348880db48ac9",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=pu_sofa_fec_incapacitation",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YHCN\\pu_sofa_fec_incapacitation.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YHCN\\pu_sofa_fec_incapacitation.log",
+              "--validation-mutate=M-YHCN"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-YHCN\\appdata",
+            "stdout_bytes": 681,
+            "stdout_sha256": "68aeff4075041acd28ecf449a975f1d59ec4aa4e9245c5ea16ebf01cc83f167c",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm": 1708.90019417164
+      },
+      "mutant_values": {
+        "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm": 0.0
+      }
+    },
+    "M-WALL": {
+      "killed": true,
+      "required_checks_evaluated": 3,
+      "evaluated_check_names": [
+        "cfast_closed_t210_temp_upper_c",
+        "cfast_closed_t300_temp_upper_c",
+        "cfast_closed_rmse_temp_upper_c"
+      ],
+      "new_failed_check_names": [
+        "cfast_closed_t300_temp_upper_c",
+        "cfast_closed_rmse_temp_upper_c"
+      ],
+      "reports": [
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.json",
+          "report_bytes": 7550,
+          "report_sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.log",
+          "log_bytes": 222302,
+          "log_sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 599,
+          "engine_log_sha256": "4b41cee26bda13bb4af58980b9694dfa249a0509049faf4737d33c3aa024555d",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2489,
+          "runtime_health_sha256": "391afce18b8c2bb4473ba2c207f5c9f0831eca989be200fce963c5a636a3f4fc",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:34:17.852308+00:00",
+            "ended_at_utc": "2026-09-09T19:35:37.995127+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 23768,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.392,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\appdata",
+            "stdout_bytes": 594,
+            "stdout_sha256": "be95b7dc88256bf2bf1f9a884f1fd2634a03d73522fd9d373bf72697b5ab3aca",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": "M-WALL",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-WALL/cfast_single_room_closed.json",
+          "report_bytes": 7572,
+          "report_sha256": "97dc3775fa12202af51d9ebbd3ed3b44ae1136b2745ae8dcb148f240e63278be",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-WALL/cfast_single_room_closed.log",
+          "log_bytes": 222622,
+          "log_sha256": "1edd81d24370f3f1de38d02dc95d6fd80aba6de7f7cada7e4239cf91d12e6d19",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-WALL/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 646,
+          "engine_log_sha256": "e00b8b4e907eb855c16f98b33bf85b5326bb0833f569fd519eedba96168167f9",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-WALL/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2467,
+          "runtime_health_sha256": "bfd49ef102bbe3f117ccb964964285a8143c1cce40300942624eefa53edff0a9",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:53:55.255927+00:00",
+            "ended_at_utc": "2026-09-09T19:55:40.012692+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 14256,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 3.103,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-WALL\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-WALL\\cfast_single_room_closed.log",
+              "--validation-mutate=M-WALL"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-WALL\\appdata",
+            "stdout_bytes": 640,
+            "stdout_sha256": "e107db6e62049da927ea22b7053ea8e61939c95d68bd84be4efb7a9d604aa572",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "cfast_closed_t210_temp_upper_c": 190.69,
+        "cfast_closed_t300_temp_upper_c": 197.97,
+        "cfast_closed_rmse_temp_upper_c": 27.84807676973702
+      },
+      "mutant_values": {
+        "cfast_closed_t210_temp_upper_c": 289.12,
+        "cfast_closed_t300_temp_upper_c": 313.24,
+        "cfast_closed_rmse_temp_upper_c": 110.0338163370993
+      }
+    },
+    "M-VENT": {
+      "killed": true,
+      "required_checks_evaluated": 4,
+      "evaluated_check_names": [
+        "cfast_pool_t60_o2",
+        "cfast_pool_t120_o2",
+        "cfast_pool_t300_o2",
+        "cfast_pool_rmse_temp_upper_c"
+      ],
+      "new_failed_check_names": [
+        "cfast_pool_t300_o2"
+      ],
+      "reports": [
+        {
+          "case": "cfast_pool_fire_open",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_pool_fire_open/cfast_pool_fire_open.json",
+          "report_bytes": 7315,
+          "report_sha256": "7a51246233d4d6c705ead0d5903da4e5f17c498533106acf964f41a66c6c496b",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_pool_fire_open/cfast_pool_fire_open.log",
+          "log_bytes": 329925,
+          "log_sha256": "4d940322f7901128b4720bc795fa3c89dbe91ed5b93b55ff2c935edb82780322",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_pool_fire_open/cfast_pool_fire_open.godot.log",
+          "engine_log_bytes": 583,
+          "engine_log_sha256": "30aa01a87c38d64b3bb94cd74fcd94a2f1bf8875c7b7232bfd74aa376d86c943",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_pool_fire_open/cfast_pool_fire_open.runtime_health.json",
+          "runtime_health_bytes": 2459,
+          "runtime_health_sha256": "4b91d4fb13b96181435ae83f4b5b7ebdc26f42d4d95d74be2c1b2f490185142d",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:32:14.732288+00:00",
+            "ended_at_utc": "2026-09-09T19:34:17.743992+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 23812,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.4,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_pool_fire_open.json",
+            "case_blob_oid": "fb3943bbb28aa98bd69c280afaeebba35771299f",
+            "case_sha256": "2f469427bbbd7d30d03c563d0767334ba34fba9e17424cc17c89ce4c9b2c90e2",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_pool_fire_open",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_pool_fire_open\\cfast_pool_fire_open.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_pool_fire_open\\cfast_pool_fire_open.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_pool_fire_open\\appdata",
+            "stdout_bytes": 578,
+            "stdout_sha256": "9459ef3a08e3080f1445703fce315de59cd3340405c3776382a0073ce5081412",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "cfast_pool_fire_open",
+          "mutant": "M-VENT",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-VENT/cfast_pool_fire_open.json",
+          "report_bytes": 7318,
+          "report_sha256": "2236e39169b981fb48a789ba898f0c0a441d2405459e40b9eebcfcc6004aeba8",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-VENT/cfast_pool_fire_open.log",
+          "log_bytes": 329925,
+          "log_sha256": "c66d27d0c946665cb5a69a0ad0f9575a0227c7c49663b8784a5589ed924216fa",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-VENT/cfast_pool_fire_open.godot.log",
+          "engine_log_bytes": 655,
+          "engine_log_sha256": "5292c84ff890da0d12a5eb9c09df8ed2ab9a5b7f9d8016df8574834289d346f4",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-VENT/cfast_pool_fire_open.runtime_health.json",
+          "runtime_health_bytes": 2451,
+          "runtime_health_sha256": "1859f7359f5e9bc59684311ffd6ead0494a230bf166a67aaf82f4a1dc2816ffe",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:55:40.282765+00:00",
+            "ended_at_utc": "2026-09-09T19:58:23.141594+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 12904,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.391,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_pool_fire_open.json",
+            "case_blob_oid": "fb3943bbb28aa98bd69c280afaeebba35771299f",
+            "case_sha256": "2f469427bbbd7d30d03c563d0767334ba34fba9e17424cc17c89ce4c9b2c90e2",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_pool_fire_open",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-VENT\\cfast_pool_fire_open.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-VENT\\cfast_pool_fire_open.log",
+              "--validation-mutate=M-VENT"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-VENT\\appdata",
+            "stdout_bytes": 649,
+            "stdout_sha256": "262aad87f3c625a9fa156a12c149f5f1eac5acbc32bb3df91e27047320bdd538",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "cfast_pool_t60_o2": 0.1879,
+        "cfast_pool_t120_o2": 0.1887,
+        "cfast_pool_t300_o2": 0.2001,
+        "cfast_pool_rmse_temp_upper_c": 32.04819523048547
+      },
+      "mutant_values": {
+        "cfast_pool_t60_o2": 0.1879,
+        "cfast_pool_t120_o2": 0.1887,
+        "cfast_pool_t300_o2": 0.1841,
+        "cfast_pool_rmse_temp_upper_c": 32.04712406508245
+      }
+    },
+    "M-PRES": {
+      "killed": true,
+      "required_checks_evaluated": 1,
+      "evaluated_check_names": [
+        "cfast_closed_t120_pressure_pa"
+      ],
+      "new_failed_check_names": [
+        "cfast_closed_t120_pressure_pa"
+      ],
+      "reports": [
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": null,
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.json",
+          "report_bytes": 7550,
+          "report_sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.log",
+          "log_bytes": 222302,
+          "log_sha256": "11fa455603e221153ce7f5c09ac65fa2b9eb0bb6ecd056b8603bc36358825aec",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 599,
+          "engine_log_sha256": "4b41cee26bda13bb4af58980b9694dfa249a0509049faf4737d33c3aa024555d",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/controls/cfast_single_room_closed/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2489,
+          "runtime_health_sha256": "391afce18b8c2bb4473ba2c207f5c9f0831eca989be200fce963c5a636a3f4fc",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:34:17.852308+00:00",
+            "ended_at_utc": "2026-09-09T19:35:37.995127+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 23768,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.392,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\cfast_single_room_closed.log"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\controls\\cfast_single_room_closed\\appdata",
+            "stdout_bytes": 594,
+            "stdout_sha256": "be95b7dc88256bf2bf1f9a884f1fd2634a03d73522fd9d373bf72697b5ab3aca",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "case": "cfast_single_room_closed",
+          "mutant": "M-PRES",
+          "command": [
+            "REUSED_EXACT_BYTE_RUN"
+          ],
+          "elapsed_s": 0.0,
+          "exit_code": 0,
+          "reused": true,
+          "report_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-PRES/cfast_single_room_closed.json",
+          "report_bytes": 7524,
+          "report_sha256": "1527d8edc1fcf9449600b4517f477b0f037a6a5bac0877d0908cd32cd6410840",
+          "log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-PRES/cfast_single_room_closed.log",
+          "log_bytes": 222142,
+          "log_sha256": "771a0b695c7c82b42647912be0e1bfc852ea74c0e12e33ed5f212e33eb3c0f4e",
+          "engine_log_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-PRES/cfast_single_room_closed.godot.log",
+          "engine_log_bytes": 683,
+          "engine_log_sha256": "4a95e4659ef7fce547ce50ea83bc6ddbbd94917111b9d3975c520e1523c4a778",
+          "runtime_health_path": "C:/Users/dangp/Documents/GitHub/simufire/runs/p1r8_session91_checkout/runs/motor_post_audit_p1_remediation_session128/mutation_campaign/mutants/M-PRES/cfast_single_room_closed.runtime_health.json",
+          "runtime_health_bytes": 2466,
+          "runtime_health_sha256": "f7a649718f2bc0ce2f5e0c2b046754239aaaa43c6b9a7ce9375fc588282b0d79",
+          "runtime_health": {
+            "contract": "windows-window-process-exit-v2",
+            "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+            "console_wrapper_bypassed": true,
+            "windows_error_ui_suppressed": true,
+            "started_at_utc": "2026-09-09T19:58:23.244055+00:00",
+            "ended_at_utc": "2026-09-09T20:00:04.326037+00:00",
+            "wrapper_exit_code": 0,
+            "timed_out": false,
+            "error_dialogs": [],
+            "observed_godot_processes": [
+              {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 8924,
+                "exit_code": 0
+              }
+            ],
+            "process_handle_capture_races": [],
+            "process_handle_capture_failures": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true,
+            "cleanup_terminated_pids": [],
+            "post_exit_observation_s": 2.391,
+            "godot_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+            "godot_version": "4.7.1.stable.official.a13da4feb",
+            "source_commit": "42d45d4ada377ec8bf350e3831d04017f133ff9a",
+            "case_path": "sim/validation/cases/cfast_single_room_closed.json",
+            "case_blob_oid": "4c2ee18a245a1574d57c08f7ebb79a54839237b3",
+            "case_sha256": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861",
+            "command": [
+              "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+              "--headless",
+              "--path",
+              "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout",
+              "--",
+              "--validation-case=cfast_single_room_closed",
+              "--validation-output=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-PRES\\cfast_single_room_closed.json",
+              "--validation-simulation-log=C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-PRES\\cfast_single_room_closed.log",
+              "--validation-mutate=M-PRES"
+            ],
+            "appdata": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\runs\\p1r8_session91_checkout\\runs\\motor_post_audit_p1_remediation_session128\\mutation_campaign\\mutants\\M-PRES\\appdata",
+            "stdout_bytes": 677,
+            "stdout_sha256": "724bc2f09beed4d4cca41b7d592d4e6438f1ca7a3e8d4ffce67930fc1125df57",
+            "stderr_bytes": 0,
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      ],
+      "input_fresh": true,
+      "manifest_complete": true,
+      "negative_control_pass": true,
+      "control_values": {
+        "cfast_closed_t120_pressure_pa": 1192.38
+      },
+      "mutant_values": {
+        "cfast_closed_t120_pressure_pa": 1.99
+      }
     }
   },
-  "kill_rate_global": 0.0,
-  "killed_count": 0,
-  "total_mutants": 2
+  "killed_count": 8,
+  "total_mutants": 8,
+  "kill_rate_global": 1.0
 }

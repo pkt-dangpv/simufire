@@ -1,5 +1,7 @@
 extends RefCounted
 
+const TraceRecordScript = preload("res://sim/core/Phase3ProjectionTraceRecord.gd")
+
 ## H3.2b1: passive causal accumulator for two-zone projection.
 ##
 ## It instruments NOTHING itself. `ZoneFireSolver` already emits a full per-call
@@ -82,6 +84,41 @@ const ZONE_MASS_EPS_KG: float = 1.0e-6
 ## noise and far below anything physical.
 const MATERIAL_ACTIVITY_EPS: float = 1.0e-12
 
+enum CausalRoomMetric {
+	ROOM_ID,
+	PROJECTION_CALL_COUNT,
+	PROJECTION_CALLS_PER_ROOM_STEP_MAX,
+	ROOM_STEPS_WITH_MULTIPLE_CALLS,
+	UPPER_MASS_SIGNED,
+	UPPER_MASS_GROSS,
+	LOWER_MASS_SIGNED,
+	LOWER_MASS_GROSS,
+	UPPER_ENERGY_SIGNED,
+	UPPER_ENERGY_GROSS,
+	LOWER_ENERGY_SIGNED,
+	LOWER_ENERGY_GROSS,
+	THERMAL_CAP_REQUESTED,
+	THERMAL_CAP_ACCEPTED,
+	THERMAL_CAP_REJECTED,
+	THERMAL_CAP_BIND_COUNT,
+	UPPER_ZONE_BIRTH_COUNT,
+	UPPER_ZONE_DEATH_COUNT,
+	WITHIN_CALL_UPPER_ZONE_BIRTH_COUNT,
+	WITHIN_CALL_UPPER_ZONE_DEATH_COUNT,
+	ENERGY_WITHOUT_MASS_COUNT,
+	NONFINITE_STATE_COUNT,
+	SIZE,
+}
+
+enum CausalCauseMetric {
+	CALL_COUNT,
+	MASS_GROSS,
+	MASS_SIGNED,
+	ENERGY_GROSS,
+	ENERGY_SIGNED,
+	SIZE,
+}
+
 var enabled: bool = false
 
 var _totals: Dictionary = {}
@@ -92,6 +129,7 @@ var _room_steps: int = 0
 var _static_gaps: Dictionary = {}
 var _active_gaps: Dictionary = {}
 var _unavailable: Dictionary = {}
+var _calls_by_room_step: Dictionary = {}
 
 
 func clear() -> void:
@@ -101,6 +139,7 @@ func clear() -> void:
 	_static_gaps.clear()
 	_active_gaps.clear()
 	_unavailable.clear()
+	_calls_by_room_step.clear()
 	_timesteps = 0
 	_room_steps = 0
 
@@ -113,56 +152,37 @@ func _bump_int(key: String, amount: int) -> void:
 	_totals[key] = int(_totals.get(key, 0)) + amount
 
 
-func _room(room_id: int) -> Dictionary:
+func _room(room_id: int) -> Array:
 	var key: String = str(room_id)
 	if not _rooms.has(key):
-		_rooms[key] = {
-			"room_id": room_id,
-			"projection_call_count_total": 0,
-			"projection_calls_per_room_step_max": 0,
-			"room_steps_with_multiple_projection_calls_total": 0,
-			# Signed net cancels opposite corrections; gross absolute does not.
-			# Gross is projection CHURN, never a physical contribution.
-			"upper_mass_correction_signed_net_kg_total": 0.0,
-			"upper_mass_correction_gross_absolute_kg_total": 0.0,
-			"lower_mass_correction_signed_net_kg_total": 0.0,
-			"lower_mass_correction_gross_absolute_kg_total": 0.0,
-			"upper_energy_correction_signed_net_kj_total": 0.0,
-			"upper_energy_correction_gross_absolute_kj_total": 0.0,
-			"lower_energy_correction_signed_net_kj_total": 0.0,
-			"lower_energy_correction_gross_absolute_kj_total": 0.0,
-			"thermal_cap_requested_kj_total": 0.0,
-			"thermal_cap_accepted_kj_total": 0.0,
-			"thermal_cap_rejected_kj_total": 0.0,
-			"thermal_cap_bind_count_total": 0,
-			# DEPRECATED 2026-08-21 (H3.2b1b). These compare `pre` and `post`
-			# WITHIN one projection call, and projection never creates upper mass,
-			# so they are near-always zero by construction and cannot witness a
-			# birth. They keep their names and values so nothing that reads them
-			# breaks; the explicitly-named twins below say what they measure, and
-			# `Phase3ZoneTransitionLedger` carries the counters with meaning.
-			"upper_zone_birth_count_total": 0,
-			"upper_zone_death_count_total": 0,
-			"within_projection_call_upper_zone_birth_count_total": 0,
-			"within_projection_call_upper_zone_death_count_total": 0,
-			"energy_without_mass_count_total": 0,
-			"nonfinite_state_count_total": 0,
-		}
+		var block: Array = []
+		block.resize(CausalRoomMetric.SIZE)
+		block.fill(0.0)
+		block[CausalRoomMetric.ROOM_ID] = room_id
+		for index in [
+			CausalRoomMetric.PROJECTION_CALL_COUNT,
+			CausalRoomMetric.PROJECTION_CALLS_PER_ROOM_STEP_MAX,
+			CausalRoomMetric.ROOM_STEPS_WITH_MULTIPLE_CALLS,
+			CausalRoomMetric.THERMAL_CAP_BIND_COUNT,
+			CausalRoomMetric.UPPER_ZONE_BIRTH_COUNT,
+			CausalRoomMetric.UPPER_ZONE_DEATH_COUNT,
+			CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_BIRTH_COUNT,
+			CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_DEATH_COUNT,
+			CausalRoomMetric.ENERGY_WITHOUT_MASS_COUNT,
+			CausalRoomMetric.NONFINITE_STATE_COUNT,
+		]:
+			block[index] = 0
+		_rooms[key] = block
 	return _rooms[key]
 
 
-func _cause(cause: String) -> Dictionary:
+func _cause(cause: String) -> Array:
 	if not _by_cause.has(cause):
-		_by_cause[cause] = {
-			"cause": cause,
-			"call_count_total": 0,
-			# gross_absolute is projection churn: the volume of rewriting this
-			# cause performed. It is NOT a physical contribution and NOT a source.
-			"mass_gross_absolute_kg_total": 0.0,
-			"mass_signed_net_kg_total": 0.0,
-			"energy_gross_absolute_kj_total": 0.0,
-			"energy_signed_net_kj_total": 0.0,
-		}
+		var block: Array = []
+		block.resize(CausalCauseMetric.SIZE)
+		block.fill(0.0)
+		block[CausalCauseMetric.CALL_COUNT] = 0
+		_by_cause[cause] = block
 	return _by_cause[cause]
 
 
@@ -197,93 +217,106 @@ func accumulate_step(trace_events: Array, zone_diag: Dictionary) -> void:
 	## Both are read-only inputs; nothing here is written back.
 	if not enabled:
 		return
+	begin_step()
+	for raw in trace_events:
+		var event: Array = raw if raw is Array else TraceRecordScript.from_dictionary(raw)
+		accumulate_event(event)
+	finish_step(zone_diag)
+
+
+func begin_step() -> void:
+	if not enabled:
+		return
 	_timesteps += 1
 	_bump_int("timesteps_total", 1)
+	_calls_by_room_step.clear()
 
-	var calls_by_room: Dictionary = {}
-	for raw in trace_events:
-		var ev: Dictionary = raw
-		var room_id: int = int(ev.get("room_id", -1))
-		var cause: String = String(ev.get("cause", "unspecified"))
-		var room: Dictionary = _room(room_id)
-		var by_cause: Dictionary = _cause(cause)
 
-		room["projection_call_count_total"] = \
-				int(room["projection_call_count_total"]) + 1
-		by_cause["call_count_total"] = int(by_cause["call_count_total"]) + 1
-		_bump_int("projection_call_count_total", 1)
-		var rk: String = str(room_id)
-		calls_by_room[rk] = int(calls_by_room.get(rk, 0)) + 1
+func accumulate_event(event: Array) -> void:
+	if not enabled:
+		return
+	var room_id: int = int(event[TraceRecordScript.Field.ROOM_ID])
+	var cause: String = String(event[TraceRecordScript.Field.CAUSE])
+	var room: Array = _room(room_id)
+	var by_cause: Array = _cause(cause)
 
-		var upper_cap_mass: float = float(ev.get("upper_cap_mass_delta_kg", 0.0))
-		var lower_proj_mass: float = float(ev.get("lower_projection_mass_delta_kg", 0.0))
-		var upper_cap_energy: float = float(ev.get("upper_cap_energy_delta_kj", 0.0))
-		var lower_proj_energy: float = float(ev.get("lower_projection_energy_delta_kj", 0.0))
-		room["upper_mass_correction_signed_net_kg_total"] = \
-				float(room["upper_mass_correction_signed_net_kg_total"]) + upper_cap_mass
-		room["upper_mass_correction_gross_absolute_kg_total"] = \
-				float(room["upper_mass_correction_gross_absolute_kg_total"]) \
-				+ absf(upper_cap_mass)
-		room["lower_mass_correction_signed_net_kg_total"] = \
-				float(room["lower_mass_correction_signed_net_kg_total"]) + lower_proj_mass
-		room["lower_mass_correction_gross_absolute_kg_total"] = \
-				float(room["lower_mass_correction_gross_absolute_kg_total"]) \
-				+ absf(lower_proj_mass)
-		room["upper_energy_correction_signed_net_kj_total"] = \
-				float(room["upper_energy_correction_signed_net_kj_total"]) + upper_cap_energy
-		room["upper_energy_correction_gross_absolute_kj_total"] = \
-				float(room["upper_energy_correction_gross_absolute_kj_total"]) \
-				+ absf(upper_cap_energy)
-		room["lower_energy_correction_signed_net_kj_total"] = \
-				float(room["lower_energy_correction_signed_net_kj_total"]) + lower_proj_energy
-		room["lower_energy_correction_gross_absolute_kj_total"] = \
-				float(room["lower_energy_correction_gross_absolute_kj_total"]) \
-				+ absf(lower_proj_energy)
+	room[CausalRoomMetric.PROJECTION_CALL_COUNT] = \
+			int(room[CausalRoomMetric.PROJECTION_CALL_COUNT]) + 1
+	by_cause[CausalCauseMetric.CALL_COUNT] = \
+			int(by_cause[CausalCauseMetric.CALL_COUNT]) + 1
+	_bump_int("projection_call_count_total", 1)
+	var room_key: String = str(room_id)
+	_calls_by_room_step[room_key] = int(_calls_by_room_step.get(room_key, 0)) + 1
 
-		var total_mass: float = float(ev.get("total_mass_delta_kg", 0.0))
-		var total_energy: float = float(ev.get("total_energy_delta_kj", 0.0))
-		by_cause["mass_signed_net_kg_total"] = \
-				float(by_cause["mass_signed_net_kg_total"]) + total_mass
-		by_cause["mass_gross_absolute_kg_total"] = \
-				float(by_cause["mass_gross_absolute_kg_total"]) + absf(total_mass)
-		by_cause["energy_signed_net_kj_total"] = \
-				float(by_cause["energy_signed_net_kj_total"]) + total_energy
-		by_cause["energy_gross_absolute_kj_total"] = \
-				float(by_cause["energy_gross_absolute_kj_total"]) + absf(total_energy)
+	var upper_cap_mass: float = float(
+		event[TraceRecordScript.Field.UPPER_CAP_MASS_DELTA_KG])
+	var lower_proj_mass: float = float(
+		event[TraceRecordScript.Field.LOWER_PROJECTION_MASS_DELTA_KG])
+	var upper_cap_energy: float = float(
+		event[TraceRecordScript.Field.UPPER_CAP_ENERGY_DELTA_KJ])
+	var lower_proj_energy: float = float(
+		event[TraceRecordScript.Field.LOWER_PROJECTION_ENERGY_DELTA_KJ])
+	room[CausalRoomMetric.UPPER_MASS_SIGNED] = \
+			float(room[CausalRoomMetric.UPPER_MASS_SIGNED]) + upper_cap_mass
+	room[CausalRoomMetric.UPPER_MASS_GROSS] = \
+			float(room[CausalRoomMetric.UPPER_MASS_GROSS]) + absf(upper_cap_mass)
+	room[CausalRoomMetric.LOWER_MASS_SIGNED] = \
+			float(room[CausalRoomMetric.LOWER_MASS_SIGNED]) + lower_proj_mass
+	room[CausalRoomMetric.LOWER_MASS_GROSS] = \
+			float(room[CausalRoomMetric.LOWER_MASS_GROSS]) + absf(lower_proj_mass)
+	room[CausalRoomMetric.UPPER_ENERGY_SIGNED] = \
+			float(room[CausalRoomMetric.UPPER_ENERGY_SIGNED]) + upper_cap_energy
+	room[CausalRoomMetric.UPPER_ENERGY_GROSS] = \
+			float(room[CausalRoomMetric.UPPER_ENERGY_GROSS]) + absf(upper_cap_energy)
+	room[CausalRoomMetric.LOWER_ENERGY_SIGNED] = \
+			float(room[CausalRoomMetric.LOWER_ENERGY_SIGNED]) + lower_proj_energy
+	room[CausalRoomMetric.LOWER_ENERGY_GROSS] = \
+			float(room[CausalRoomMetric.LOWER_ENERGY_GROSS]) + absf(lower_proj_energy)
 
-		# Thermal cap: a CAUSE, never a physical destination. Requested is the
-		# energy the state carried before the cap; accepted is what survived;
-		# rejected is the difference, and it goes nowhere.
-		var requested_kj: float = float(ev.get("upper_energy_before_cap_kj", 0.0))
-		var accepted_kj: float = requested_kj + upper_cap_energy
-		var rejected_kj: float = requested_kj - accepted_kj
-		room["thermal_cap_requested_kj_total"] = \
-				float(room["thermal_cap_requested_kj_total"]) + requested_kj
-		room["thermal_cap_accepted_kj_total"] = \
-				float(room["thermal_cap_accepted_kj_total"]) + accepted_kj
-		room["thermal_cap_rejected_kj_total"] = \
-				float(room["thermal_cap_rejected_kj_total"]) + rejected_kj
-		if absf(rejected_kj) > 0.0:
-			room["thermal_cap_bind_count_total"] = \
-					int(room["thermal_cap_bind_count_total"]) + 1
+	var total_mass: float = float(event[TraceRecordScript.Field.TOTAL_MASS_DELTA_KG])
+	var total_energy: float = float(event[TraceRecordScript.Field.TOTAL_ENERGY_DELTA_KJ])
+	by_cause[CausalCauseMetric.MASS_SIGNED] = \
+			float(by_cause[CausalCauseMetric.MASS_SIGNED]) + total_mass
+	by_cause[CausalCauseMetric.MASS_GROSS] = \
+			float(by_cause[CausalCauseMetric.MASS_GROSS]) + absf(total_mass)
+	by_cause[CausalCauseMetric.ENERGY_SIGNED] = \
+			float(by_cause[CausalCauseMetric.ENERGY_SIGNED]) + total_energy
+	by_cause[CausalCauseMetric.ENERGY_GROSS] = \
+			float(by_cause[CausalCauseMetric.ENERGY_GROSS]) + absf(total_energy)
 
-		_scan_invalid_states(room, ev)
-		_scan_zone_transition(room, ev)
+	var requested_kj: float = float(
+		event[TraceRecordScript.Field.UPPER_ENERGY_BEFORE_CAP_KJ])
+	var accepted_kj: float = requested_kj + upper_cap_energy
+	var rejected_kj: float = requested_kj - accepted_kj
+	room[CausalRoomMetric.THERMAL_CAP_REQUESTED] = \
+			float(room[CausalRoomMetric.THERMAL_CAP_REQUESTED]) + requested_kj
+	room[CausalRoomMetric.THERMAL_CAP_ACCEPTED] = \
+			float(room[CausalRoomMetric.THERMAL_CAP_ACCEPTED]) + accepted_kj
+	room[CausalRoomMetric.THERMAL_CAP_REJECTED] = \
+			float(room[CausalRoomMetric.THERMAL_CAP_REJECTED]) + rejected_kj
+	if absf(rejected_kj) > 0.0:
+		room[CausalRoomMetric.THERMAL_CAP_BIND_COUNT] = \
+				int(room[CausalRoomMetric.THERMAL_CAP_BIND_COUNT]) + 1
 
+	_scan_invalid_states(room, event)
+	_scan_zone_transition(room, event)
+
+
+func _finish_call_multiplicity() -> void:
 	# Per-room-step multiplicity. A room-step is one room in one timestep.
 	var calls_this_timestep: int = 0
-	for rk in calls_by_room.keys():
-		var n: int = int(calls_by_room[rk])
+	for rk in _calls_by_room_step.keys():
+		var n: int = int(_calls_by_room_step[rk])
 		calls_this_timestep += n
 		_room_steps += 1
 		_bump_int("room_steps_total", 1)
-		var room2: Dictionary = _rooms[rk]
-		room2["projection_calls_per_room_step_max"] = maxi(
-			int(room2["projection_calls_per_room_step_max"]), n
+		var room2: Array = _rooms[rk]
+		room2[CausalRoomMetric.PROJECTION_CALLS_PER_ROOM_STEP_MAX] = maxi(
+			int(room2[CausalRoomMetric.PROJECTION_CALLS_PER_ROOM_STEP_MAX]), n
 		)
 		if n > 1:
-			room2["room_steps_with_multiple_projection_calls_total"] = \
-					int(room2["room_steps_with_multiple_projection_calls_total"]) + 1
+			room2[CausalRoomMetric.ROOM_STEPS_WITH_MULTIPLE_CALLS] = \
+					int(room2[CausalRoomMetric.ROOM_STEPS_WITH_MULTIPLE_CALLS]) + 1
 			_bump_int("room_steps_with_multiple_projection_calls_total", 1)
 		_totals["projection_calls_per_room_step_max"] = maxi(
 			int(_totals.get("projection_calls_per_room_step_max", 0)), n
@@ -299,40 +332,77 @@ func accumulate_step(trace_events: Array, zone_diag: Dictionary) -> void:
 	if calls_this_timestep > 0:
 		_bump_int("timesteps_with_any_projection_call_total", 1)
 
+
+func finish_step(zone_diag: Dictionary) -> void:
+	if not enabled:
+		return
+	_finish_call_multiplicity()
+
 	_accumulate_residuals(zone_diag)
 
 
-func _scan_invalid_states(room: Dictionary, ev: Dictionary) -> void:
+func accumulate_step_compact(
+		trace_events: Array,
+		zone_step: Dictionary,
+		zone_start: Dictionary,
+		zone_finish: Dictionary
+	) -> void:
+	## Engine-only hot path. The trace accumulation remains the public, tested
+	## implementation above; an empty legacy attribution avoids serializing the
+	## same stage arrays merely to read them back immediately.
+	if not enabled:
+		return
+	begin_step()
+	for raw in trace_events:
+		var event: Array = raw if raw is Array else TraceRecordScript.from_dictionary(raw)
+		accumulate_event(event)
+	finish_step_compact(zone_step, zone_start, zone_finish)
+
+
+func finish_step_compact(
+		zone_step: Dictionary,
+		zone_start: Dictionary,
+		zone_finish: Dictionary
+	) -> void:
+	if not enabled:
+		return
+	_finish_call_multiplicity()
+	_accumulate_residuals_compact(zone_step, zone_start, zone_finish)
+
+
+func _scan_invalid_states(room: Array, ev: Array) -> void:
 	## Fail-closed observation. Energy without mass is an INVALID state: it is
 	## counted and reported, the state is NOT mutated and no sink is created.
-	var post: Dictionary = ev.get("post", {})
-	for zone in ["upper", "lower"]:
-		var m: float = float(post.get("%s_gas_kg" % zone, 0.0))
-		var e: float = float(post.get("%s_energy_kj" % zone, 0.0))
+	for fields in [
+		[TraceRecordScript.Field.POST_UPPER_GAS_KG,
+			TraceRecordScript.Field.POST_UPPER_ENERGY_KJ],
+		[TraceRecordScript.Field.POST_LOWER_GAS_KG,
+			TraceRecordScript.Field.POST_LOWER_ENERGY_KJ],
+	]:
+		var m: float = float(ev[int(fields[0])])
+		var e: float = float(ev[int(fields[1])])
 		if not is_finite(m) or not is_finite(e):
-			room["nonfinite_state_count_total"] = \
-					int(room["nonfinite_state_count_total"]) + 1
+			room[CausalRoomMetric.NONFINITE_STATE_COUNT] = \
+					int(room[CausalRoomMetric.NONFINITE_STATE_COUNT]) + 1
 			continue
 		if m <= ZONE_MASS_EPS_KG and absf(e) > 0.0:
-			room["energy_without_mass_count_total"] = \
-					int(room["energy_without_mass_count_total"]) + 1
+			room[CausalRoomMetric.ENERGY_WITHOUT_MASS_COUNT] = \
+					int(room[CausalRoomMetric.ENERGY_WITHOUT_MASS_COUNT]) + 1
 
 
-func _scan_zone_transition(room: Dictionary, ev: Dictionary) -> void:
-	var pre: Dictionary = ev.get("pre", {})
-	var post: Dictionary = ev.get("post", {})
-	var before: float = float(pre.get("upper_gas_kg", 0.0))
-	var after: float = float(post.get("upper_gas_kg", 0.0))
+func _scan_zone_transition(room: Array, ev: Array) -> void:
+	var before: float = float(ev[TraceRecordScript.Field.PRE_UPPER_GAS_KG])
+	var after: float = float(ev[TraceRecordScript.Field.POST_UPPER_GAS_KG])
 	if before <= ZONE_MASS_EPS_KG and after > ZONE_MASS_EPS_KG:
-		room["upper_zone_birth_count_total"] = \
-				int(room["upper_zone_birth_count_total"]) + 1
-		room["within_projection_call_upper_zone_birth_count_total"] = \
-				int(room["within_projection_call_upper_zone_birth_count_total"]) + 1
+		room[CausalRoomMetric.UPPER_ZONE_BIRTH_COUNT] = \
+				int(room[CausalRoomMetric.UPPER_ZONE_BIRTH_COUNT]) + 1
+		room[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_BIRTH_COUNT] = \
+				int(room[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_BIRTH_COUNT]) + 1
 	elif before > ZONE_MASS_EPS_KG and after <= ZONE_MASS_EPS_KG:
-		room["upper_zone_death_count_total"] = \
-				int(room["upper_zone_death_count_total"]) + 1
-		room["within_projection_call_upper_zone_death_count_total"] = \
-				int(room["within_projection_call_upper_zone_death_count_total"]) + 1
+		room[CausalRoomMetric.UPPER_ZONE_DEATH_COUNT] = \
+				int(room[CausalRoomMetric.UPPER_ZONE_DEATH_COUNT]) + 1
+		room[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_DEATH_COUNT] = \
+				int(room[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_DEATH_COUNT]) + 1
 
 
 func _accumulate_residuals(zone_diag: Dictionary) -> void:
@@ -373,6 +443,51 @@ func _accumulate_residuals(zone_diag: Dictionary) -> void:
 		_bump("numerical_correction_energy_kj_total", clos_energy)
 
 
+func _accumulate_residuals_compact(
+		zone_step: Dictionary,
+		zone_start: Dictionary,
+		zone_finish: Dictionary
+	) -> void:
+	## Compact layout owned by SimulationEngine:
+	## state[0:2] = total mass/energy; step contains nine [mass, energy]
+	## stage pairs in PHYSICAL_STAGES + CLOSURE_STAGES order.
+	for room_key in zone_finish.keys():
+		var finish: Array = zone_finish.get(room_key, [])
+		var start: Array = zone_start.get(room_key, finish)
+		if finish.size() < 2 or start.size() < 2:
+			continue
+		var step: Array = zone_step.get(room_key, [])
+		var observed_mass: float = float(finish[0]) - float(start[0])
+		var observed_energy: float = float(finish[1]) - float(start[1])
+		var phys_mass: float = 0.0
+		var phys_energy: float = 0.0
+		for stage_index in range(PHYSICAL_STAGES.size()):
+			var offset: int = stage_index * 2
+			var stage_mass: float = float(step[offset]) if step.size() == 18 else 0.0
+			var stage_energy: float = float(step[offset + 1]) if step.size() == 18 else 0.0
+			phys_mass += stage_mass
+			phys_energy += stage_energy
+			_note_active_gap(PHYSICAL_STAGES[stage_index], stage_mass, stage_energy)
+		var clos_mass: float = 0.0
+		var clos_energy: float = 0.0
+		for closure_index in range(CLOSURE_STAGES.size()):
+			var offset: int = (PHYSICAL_STAGES.size() + closure_index) * 2
+			if step.size() == 18:
+				clos_mass += float(step[offset])
+				clos_energy += float(step[offset + 1])
+		_bump("candidate_physical_residual_mass_kg_total", observed_mass - phys_mass)
+		_bump("candidate_physical_residual_mass_gross_absolute_kg_total",
+			absf(observed_mass - phys_mass))
+		_bump("closure_inclusive_residual_mass_kg_total",
+			observed_mass - phys_mass - clos_mass)
+		_bump("candidate_physical_residual_energy_kj_total",
+			observed_energy - phys_energy)
+		_bump("closure_inclusive_residual_energy_kj_total",
+			observed_energy - phys_energy - clos_energy)
+		_bump("numerical_correction_mass_kg_total", clos_mass)
+		_bump("numerical_correction_energy_kj_total", clos_energy)
+
+
 func _note_active_gap(stage: String, mass_delta: float, energy_delta: float) -> void:
 	## A static gap becomes ACTIVE only when its writer actually moved material
 	## mass or energy. Knowing the code exists is never enough.
@@ -386,6 +501,64 @@ func _note_active_gap(stage: String, mass_delta: float, energy_delta: float) -> 
 		_record_active_gap(STATIC_GAP_OTHER_CATCHALL + ACTIVE_GAP_SUFFIX)
 	elif stage == "suppression" and _static_gaps.has(STATIC_GAP_SUPPRESSION_LOWER_DEAD):
 		_record_active_gap(STATIC_GAP_SUPPRESSION_LOWER_DEAD + ACTIVE_GAP_SUFFIX)
+
+
+func _room_dictionary(block: Array) -> Dictionary:
+	return {
+		"room_id": int(block[CausalRoomMetric.ROOM_ID]),
+		"projection_call_count_total": int(block[CausalRoomMetric.PROJECTION_CALL_COUNT]),
+		"projection_calls_per_room_step_max": int(
+			block[CausalRoomMetric.PROJECTION_CALLS_PER_ROOM_STEP_MAX]),
+		"room_steps_with_multiple_projection_calls_total": int(
+			block[CausalRoomMetric.ROOM_STEPS_WITH_MULTIPLE_CALLS]),
+		"upper_mass_correction_signed_net_kg_total": float(
+			block[CausalRoomMetric.UPPER_MASS_SIGNED]),
+		"upper_mass_correction_gross_absolute_kg_total": float(
+			block[CausalRoomMetric.UPPER_MASS_GROSS]),
+		"lower_mass_correction_signed_net_kg_total": float(
+			block[CausalRoomMetric.LOWER_MASS_SIGNED]),
+		"lower_mass_correction_gross_absolute_kg_total": float(
+			block[CausalRoomMetric.LOWER_MASS_GROSS]),
+		"upper_energy_correction_signed_net_kj_total": float(
+			block[CausalRoomMetric.UPPER_ENERGY_SIGNED]),
+		"upper_energy_correction_gross_absolute_kj_total": float(
+			block[CausalRoomMetric.UPPER_ENERGY_GROSS]),
+		"lower_energy_correction_signed_net_kj_total": float(
+			block[CausalRoomMetric.LOWER_ENERGY_SIGNED]),
+		"lower_energy_correction_gross_absolute_kj_total": float(
+			block[CausalRoomMetric.LOWER_ENERGY_GROSS]),
+		"thermal_cap_requested_kj_total": float(
+			block[CausalRoomMetric.THERMAL_CAP_REQUESTED]),
+		"thermal_cap_accepted_kj_total": float(
+			block[CausalRoomMetric.THERMAL_CAP_ACCEPTED]),
+		"thermal_cap_rejected_kj_total": float(
+			block[CausalRoomMetric.THERMAL_CAP_REJECTED]),
+		"thermal_cap_bind_count_total": int(
+			block[CausalRoomMetric.THERMAL_CAP_BIND_COUNT]),
+		"upper_zone_birth_count_total": int(
+			block[CausalRoomMetric.UPPER_ZONE_BIRTH_COUNT]),
+		"upper_zone_death_count_total": int(
+			block[CausalRoomMetric.UPPER_ZONE_DEATH_COUNT]),
+		"within_projection_call_upper_zone_birth_count_total": int(
+			block[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_BIRTH_COUNT]),
+		"within_projection_call_upper_zone_death_count_total": int(
+			block[CausalRoomMetric.WITHIN_CALL_UPPER_ZONE_DEATH_COUNT]),
+		"energy_without_mass_count_total": int(
+			block[CausalRoomMetric.ENERGY_WITHOUT_MASS_COUNT]),
+		"nonfinite_state_count_total": int(
+			block[CausalRoomMetric.NONFINITE_STATE_COUNT]),
+	}
+
+
+func _cause_dictionary(cause: String, block: Array) -> Dictionary:
+	return {
+		"cause": cause,
+		"call_count_total": int(block[CausalCauseMetric.CALL_COUNT]),
+		"mass_gross_absolute_kg_total": float(block[CausalCauseMetric.MASS_GROSS]),
+		"mass_signed_net_kg_total": float(block[CausalCauseMetric.MASS_SIGNED]),
+		"energy_gross_absolute_kj_total": float(block[CausalCauseMetric.ENERGY_GROSS]),
+		"energy_signed_net_kj_total": float(block[CausalCauseMetric.ENERGY_SIGNED]),
+	}
 
 
 func summary() -> Dictionary:
@@ -409,6 +582,12 @@ func summary() -> Dictionary:
 	# real owner, not merely observed to be quiet this run.
 	var structural_coverage: bool = static_gaps.is_empty()
 	var valid: bool = available and active_gaps.is_empty() and structural_coverage
+	var by_room: Dictionary = {}
+	for room_key in _rooms.keys():
+		by_room[room_key] = _room_dictionary(_rooms[room_key])
+	var by_cause: Dictionary = {}
+	for cause in _by_cause.keys():
+		by_cause[cause] = _cause_dictionary(String(cause), _by_cause[cause])
 
 	var out: Dictionary = {
 		# Units, named unambiguously. A room-step is one room in one timestep.
@@ -444,8 +623,8 @@ func summary() -> Dictionary:
 			"projection churn: the volume of rewriting performed."
 			+ " NOT a physical contribution and NOT a source",
 		"totals": _totals.duplicate(true),
-		"by_cause": _by_cause.duplicate(true),
-		"by_room": _rooms.duplicate(true),
+		"by_cause": by_cause,
+		"by_room": by_room,
 	}
 	var rp_m: float = float(_totals.get("candidate_physical_residual_mass_kg_total", 0.0))
 	var rc_m: float = float(_totals.get("closure_inclusive_residual_mass_kg_total", 0.0))

@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOLVER = (ROOT / "sim/core/ZoneFireSolver.gd").read_text(encoding="utf-8")
+TRACE = (ROOT / "sim/core/Phase3ProjectionTraceRecord.gd").read_text(encoding="utf-8")
 THERMAL = (ROOT / "sim/core/ThermalSystem.gd").read_text(encoding="utf-8")
 ENGINE = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
 RUNNER = (ROOT / "tools/run_scenario_headless.gd").read_text(encoding="utf-8")
@@ -24,7 +25,7 @@ def test_projection_trace_is_default_off():
 
 def test_trace_resets_once_per_diagnostic_step():
     begin = _function(SOLVER, "begin_projection_diagnostics_step")
-    assert "_projection_trace_events.clear()" in begin
+    assert "_projection_trace_records.clear()" in begin
     assert "_projection_call_index = 0" in begin
     engine_begin = _function(ENGINE, "_phase3_zone_diag_begin_step")
     assert "if not phase3_zone_diagnostics_enabled:" in engine_begin
@@ -33,15 +34,19 @@ def test_trace_resets_once_per_diagnostic_step():
 
 def test_trace_read_is_defensive_copy():
     getter = _function(SOLVER, "get_projection_trace_events")
-    assert "duplicate(true)" in getter
+    assert "TraceRecordScript.to_dictionary(record)" in getter
+    assert "return _projection_trace_records" not in getter
 
 
 def test_projection_captures_all_state_boundaries():
     project = _function(SOLVER, "project_room_state")
     for key in ('"pre"', '"ensured"', '"pre_geometry"', '"post"'):
-        assert key in project
-    assert project.index("pre_state") < project.index("ensure_room_state")
-    assert project.index("ensured_state") < project.index("projection_energy_before_kj")
+        assert key in TRACE
+    assert project.count("TraceRecordScript.capture_state(") == 4
+    assert project.index("Field.PRE_UPPER_GAS_KG") < project.index("ensure_room_state")
+    assert project.index("Field.ENSURED_UPPER_GAS_KG") < project.index(
+        "projection_energy_before_kj"
+    )
 
 
 def test_projection_trace_has_eos_targets_and_caps():
@@ -54,7 +59,7 @@ def test_projection_trace_has_eos_targets_and_caps():
         '"upper_cap_mass_delta_kg"',
         '"upper_cap_energy_delta_kj"',
     ):
-        assert key in project
+        assert key in TRACE
 
 
 def test_projection_trace_separates_delta_families():
@@ -68,13 +73,13 @@ def test_projection_trace_separates_delta_families():
         '"total_mass_delta_kg"',
         '"total_energy_delta_kj"',
     ):
-        assert key in project
+        assert key in TRACE
 
 
 def test_projection_trace_is_gated_before_state_capture():
     project = _function(SOLVER, "project_room_state")
     assert "var trace_enabled: bool = projection_diagnostics_enabled" in project
-    assert "_projection_state(room) if trace_enabled else {}" in project
+    assert "_projection_trace_record_for_call() if trace_enabled else []" in project
     assert "if trace_enabled:" in project
 
 
