@@ -1,5 +1,29 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-14 - final audit and repository closure
+
+- `main` and `origin/main` are aligned at `48cfb459`.
+- The runtime audit aggregate remains at **346/346 required PASS**, with **78
+  documented non-gating gaps** and guardrails passing. Those gaps remain
+  visible model limitations; they are not silently converted into authority.
+- The independent runtime review was completed on the preceding integrated
+  checkpoint. Godot 4.7.1 import, the focused guardrails and the full recorded
+  review suite passed; runtime authority, H3.2b4, H3.3, D1 and HVAC remain
+  frozen or deferred.
+- The editor marker migration is now integrated in `48cfb459`: detector,
+  victim, player-start and ignition mutations are owned by
+  `ScenarioDocument`. The editor guardrail, probe-path guardrail and marker
+  probe pass under Godot 4.7.1; the focused Python editor validation is
+  **36 passed, 42 subtests passed**.
+- The full Python suite was attempted locally but its runner terminated with
+  pre-existing failures and a Windows temporary-directory cleanup permission
+  error, so that run is not used as a clean-suite claim. No production motor
+  change was made to force it green.
+- The local tree is clean and no Godot process remains. Four disposable clean
+  worktrees were removed. Remaining branches and worktrees are retained as
+  non-integrated audit evidence or controls and must not be deleted without a
+  separate evidence-disposal decision.
+
 Date: 2026-08-25.
 
 ## Current Program Update - 2026-09-09 - P1R8 contractual gap closure
