@@ -592,6 +592,19 @@ class TestReportsFreshness(unittest.TestCase):
         self.assertIn("run_reference_checks.ps1", out)
         self.assertNotIn("validate_reference_cases.py", out)
 
+    def test_rc0_untracked_godot_uid_is_ignored(self):
+        root, engine, report = self._make_repo("fresh_generated_uid")
+        engine.with_suffix(".gd.uid").write_text("uid://generated\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_untracked_engine_script_without_regeneration(self):
+        root, engine, report = self._make_repo("fresh_untracked_engine")
+        (engine.parent / "untracked_engine.gd").write_text("# engine v2\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1)
+        self.assertIn("untracked_engine.gd", out)
+
     def test_rc0_uncommitted_engine_change_with_regenerated_report(self):
         root, engine, report = self._make_repo("fresh_both")
         engine.write_text("# engine v2\n", encoding="utf-8")

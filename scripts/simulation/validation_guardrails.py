@@ -221,7 +221,16 @@ def _check_reports_freshness(repo_root: Path, json_path: Path) -> tuple[int, str
 
     # 1) Cambios sin commitear en motor/casos mientras el reporte está limpio.
     st_engine = _git("status", "--porcelain", "--", *_ENGINE_PATHS)
-    dirty_engine = [ln.strip() for ln in st_engine.stdout.splitlines() if ln.strip()]
+    dirty_engine = []
+    for raw_line in st_engine.stdout.splitlines():
+        line = raw_line.strip()
+        # Godot generates untracked sidecars for scripts that lack committed UIDs
+        # during --import. They are derived metadata, not a source change; retain
+        # every other untracked path and all changes to tracked UID sidecars.
+        if line.startswith("?? ") and line[3:].endswith(".gd.uid"):
+            continue
+        if line:
+            dirty_engine.append(line)
     st_json = _git("status", "--porcelain", "--", str(rel_json))
     json_dirty = bool(st_json.stdout.strip())
     if dirty_engine and not json_dirty:
