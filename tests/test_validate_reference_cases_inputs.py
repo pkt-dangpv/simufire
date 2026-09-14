@@ -63,15 +63,26 @@ def test_missing_or_invalid_fed_cannot_pass_lethal_guard(tmp_path, raw):
     assert not validate_reference_cases.Check("lethal_guard", sample["fed"], minimum=1.0).passed()
 
 
-def test_bedroom_fed_guard_uses_the_measured_total():
-    checks = validate_reference_cases.build_cfast_bedroom_closed_door_checks()
-    check = next(check for check in checks if check.name == "cfast_bed_fed_lethal")
+def test_bedroom_fed_guard_uses_the_measured_total(tmp_path, monkeypatch):
     report = json.loads(
         (validate_reference_cases.REPORTS_DIR / "cfast_bedroom_closed_door.json")
         .read_text(encoding="utf-8-sig")
     )
+    fed = round(report["metrics"]["room_2_max_fed"], 3)
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir()
+    (reports_dir / "cfast_bedroom_closed_door.log").write_text(
+        "TIME=0.0 s\n"
+        "ROOM 2(Bedroom) | HRR=0.0 | FED=0.0 | O2u=0.21\n"
+        f"TIME=900.0 s\nROOM 2(Bedroom) | HRR=0.0 | FED={fed} | O2u=0.08\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validate_reference_cases, "REPORTS_DIR", reports_dir)
+
+    checks = validate_reference_cases.build_cfast_bedroom_closed_door_checks()
+    check = next(check for check in checks if check.name == "cfast_bed_fed_lethal")
     assert math.isfinite(check.actual)
-    assert check.actual == round(report["metrics"]["room_2_max_fed"], 3)
+    assert check.actual == fed
     assert check.required is True
     assert check.minimum == 1.0
     assert check.passed() is (check.actual >= check.minimum)
