@@ -26,8 +26,21 @@ const OUTSIDE_ID: int = -1
 @export var outside_o2: float = 0.209
 # Viento exterior (0 = sin viento). wind_direction_deg sigue la convención
 # meteorológica: ángulo desde donde VIENE el viento (0=N, 90=E, 180=S, 270=O).
+# wind_speed_m_s es la velocidad a WIND_REFERENCE_HEIGHT_M (10 m) sobre el
+# terreno, como Beaufort, los avisos y el CTE DB-SE-AE.
 @export var wind_speed_m_s: float = 0.0
 @export var wind_direction_deg: float = 0.0
+# N-5: perfil de potencia v(z) = v10·(z/10)^α en cada apertura exterior.
+# Apagado por defecto para que los casos de validación no cambien; lo encienden
+# los escenarios del editor. α: 0,22 periferia, 0,25 ciudad, 0,33 núcleo denso.
+@export var wind_height_profile_enabled: bool = false
+@export var wind_profile_alpha: float = 0.28
+# Altura del suelo del edificio dibujado sobre el terreno (planta en la que está
+# la vivienda dentro de un edificio más alto). Lo rellena la línea visual (N-4).
+@export var building_base_z_m: float = 0.0
+const WIND_REFERENCE_HEIGHT_M: float = 10.0
+# Por debajo de esta altura el perfil de potencia deja de frenar el viento.
+const WIND_PROFILE_MIN_HEIGHT_M: float = 2.0
 
 # Coeficiente geométrico simple para límite por ventilación
 @export var vent_hrr_coeff_kw_per_sqrt_m5: float = 1500.0
@@ -114,6 +127,12 @@ func _ready() -> void:
 		template_data["wind_speed_m_s"] = float(startup_options.get("wind_speed_m_s", 0.0))
 	if startup_options.has("wind_direction_deg"):
 		template_data["wind_direction_deg"] = float(startup_options.get("wind_direction_deg", 0.0))
+	if startup_options.has("wind_height_profile_enabled"):
+		template_data["wind_height_profile_enabled"] = bool(startup_options.get("wind_height_profile_enabled", false))
+	if startup_options.has("wind_profile_alpha"):
+		template_data["wind_profile_alpha"] = float(startup_options.get("wind_profile_alpha", 0.28))
+	if startup_options.has("building_base_z_m"):
+		template_data["building_base_z_m"] = float(startup_options.get("building_base_z_m", 0.0))
 	if startup_options.has("interior_lights_on"):
 		template_data["interior_lights_on"] = bool(startup_options.get("interior_lights_on", true))
 	if startup_options.has("exterior_lighting_mode"):
@@ -155,6 +174,12 @@ func estimate_room_connection_length_m(room_a_id: int, room_b_id: int) -> float:
 		return 1.0
 
 	return maxf(0.5, get_room_centroid_m(room_a_id).distance_to(get_room_centroid_m(room_b_id)))
+
+# Velocidad del viento a una altura sobre el terreno, según el perfil de potencia.
+# Sin techo: una planta 40 recibe lo que le toca.
+func wind_speed_at_height_m_s(height_m: float) -> float:
+	var z_m: float = maxf(height_m, WIND_PROFILE_MIN_HEIGHT_M)
+	return wind_speed_m_s * pow(z_m / WIND_REFERENCE_HEIGHT_M, wind_profile_alpha)
 
 func get_room(room_id: int) -> RoomModel:
 	return rooms.get(room_id)
@@ -436,6 +461,12 @@ func _load_from_template(data: Dictionary) -> void:
 		wind_speed_m_s = float(data["wind_speed_m_s"])
 	if data.has("wind_direction_deg"):
 		wind_direction_deg = float(data["wind_direction_deg"])
+	if data.has("wind_height_profile_enabled"):
+		wind_height_profile_enabled = bool(data["wind_height_profile_enabled"])
+	if data.has("wind_profile_alpha"):
+		wind_profile_alpha = maxf(0.0, float(data["wind_profile_alpha"]))
+	if data.has("building_base_z_m"):
+		building_base_z_m = maxf(0.0, float(data["building_base_z_m"]))
 	# Detectores opcionales (humo, calor, CO).
 	for det_data in data.get("detectors", []):
 		if typeof(det_data) != TYPE_DICTIONARY:

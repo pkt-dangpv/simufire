@@ -4055,6 +4055,10 @@ func _compute_wind_dp_pa(op: OpeningModel, building: BuildingModel) -> float:
 	var v: float = building.wind_speed_m_s
 	if v <= 0.01:
 		return 0.0
+	# N-5: wind_speed_m_s es la velocidad a 10 m; con el perfil encendido cada
+	# apertura recibe la de su altura. Apagado, este bloque no existe.
+	if building.wind_height_profile_enabled:
+		v = building.wind_speed_at_height_m_s(_opening_center_z_m(op, building))
 
 	# Vector unitario que apunta HACIA el origen del viento (de donde viene).
 	# En mapa 2D (y-abajo): N=top→(0,-1), E=right→(+1,0), S=bottom→(0,+1), W=left→(-1,0).
@@ -4085,6 +4089,16 @@ func _compute_wind_dp_pa(op: OpeningModel, building: BuildingModel) -> float:
 		cp = 0.4 * cos_inc   # sotavento (Cp negativo → succión)
 
 	return 0.5 * 1.2 * v * v * cp
+
+
+# Altura del centro de la apertura sobre el terreno: base del edificio + suelo
+# de la sala + alféizar + medio hueco. La planta es lo que pesa; el alféizar son
+# decímetros.
+func _opening_center_z_m(op: OpeningModel, building: BuildingModel) -> float:
+	var room_id: int = op.b if op.a == BuildingModel.OUTSIDE_ID else op.a
+	var room: RoomModel = building.get_room(room_id)
+	var floor_z_m: float = room.floor_level_z_m if room != null else 0.0
+	return building.building_base_z_m + floor_z_m + op.sill_m + op.height_m * 0.5
 
 
 func _has_any_active_fire(building: BuildingModel) -> bool:

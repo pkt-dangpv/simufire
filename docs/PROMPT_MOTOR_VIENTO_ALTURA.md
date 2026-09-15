@@ -1,5 +1,32 @@
 # Prompt: el viento no crece con la altura
 
+> **Hecho el 2026-09-15**, detrás de un interruptor (decisión del usuario: la
+> suite no se mueve).
+>
+> - `BuildingModel`: `wind_speed_m_s` documentada como velocidad a 10 m;
+>   `wind_height_profile_enabled` (**false** por defecto), `wind_profile_alpha`
+>   (0,28), `building_base_z_m` (0,0, para N-4) y
+>   `wind_speed_at_height_m_s(z)` con suelo en 2 m y sin techo. Se cargan del
+>   template, de las opciones de arranque y de `building_params` de un caso.
+> - `GasExchangeSystem._compute_wind_dp_pa`: con el perfil encendido, v a la
+>   altura del centro de la apertura = base + `floor_level_z_m` + `sill_m` +
+>   `height_m/2`. Cp sin tocar; `wind_effect_enabled` igual.
+> - Lo encienden los escenarios del editor (`ScenarioSerializer`, clave
+>   `wind_height_profile_enabled`, por defecto true) y `run_scenario_headless`
+>   pasa las tres claves. Los casos de validación no lo ponen.
+> - Medido: `wind_assisted_exterior_spread` (el único caso con viento, 8 m/s) y
+>   `cfast_pool_fire_open` (viento 0) dan informes **idénticos byte a byte**
+>   antes y después.
+> - Guardarraíl `tools/validate_wind_controls.gd`, regla 5: apagado no cambia
+>   nada al subir la sala 42 m; encendido, empuje estrictamente creciente en 16
+>   plantas; a 45 m con 10 m/s, 14,8–15,7 m/s y factor de presión 2,2–2,45
+>   frente a 10 m; a 0,5 m lo mismo que a 2 m; el editor lo enciende. **8/8
+>   mutaciones muertas** (perfil encendido por defecto, motor que lo ignora o lo
+>   aplica apagado, α a la mitad, sin suelo, sin base, sin planta, editor sin
+>   encenderlo).
+> - Pendiente fuera de esta tarea: rellenar `building_base_z_m` desde la planta
+>   de la vivienda (N-4, línea visual).
+
 ## Qué hay hoy, y funciona
 
 El modelo de viento está implementado y es correcto en lo que hace.

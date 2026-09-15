@@ -20,6 +20,11 @@ extends SceneTree
 ##     hace `match op.wall_side` con top/bottom/left/right y devuelve 0 para
 ##     cualquier otra cosa: una apertura con el lado vacio -o escrito "north"-
 ##     se quedaria sin viento **sin avisar**.
+##  5. **El viento crece con la altura** (N-5), y solo cuando se pide: el
+##     perfil v(z) = v10·(z/10)^α viene apagado para que la suite de validacion
+##     no se mueva, y lo encienden los escenarios del editor. Encendido, subir
+##     de planta empuja siempre mas; a 45 m con 10 m/s sopla a ~15 m/s (2,3
+##     veces la presion de 10 m); y por debajo de 2 m no se sigue frenando.
 ##
 ##   <godot> --headless --path . --script res://tools/validate_wind_controls.gd
 
@@ -37,6 +42,7 @@ func _initialize() -> void:
 	_check_round_trip()
 	_check_pressure_signs()
 	_check_wall_sides()
+	_check_height_profile()
 	if _failures.is_empty():
 		print("WIND CONTROLS VALIDATION PASS")
 		quit(0)
@@ -64,6 +70,8 @@ func _check_round_trip() -> void:
 		_failures.append("la velocidad no llega al modelo: %.2f m/s en vez de 12,50" % building.wind_speed_m_s)
 	if not is_equal_approx(building.wind_direction_deg, 225.0):
 		_failures.append("la direccion no llega al modelo: %.0f grados en vez de 225" % building.wind_direction_deg)
+	if not building.wind_height_profile_enabled:
+		_failures.append("un escenario del editor llega al modelo sin el perfil de altura del viento")
 	building.free()
 
 
@@ -119,6 +127,71 @@ func _check_wall_sides() -> void:
 		if huerfanas > 0:
 			_failures.append("%s: %d aperturas exteriores sin lado canonico; el viento las saltaria sin avisar" % [id, huerfanas])
 		building.free()
+
+
+## 5. El perfil de altura: apagado no cambia nada; encendido, la planta se nota.
+func _check_height_profile() -> void:
+	var builder = BuildingTemplateScript.new()
+	var data: Dictionary = builder.create_by_name("compact_apartment")
+	data["wind_speed_m_s"] = 10.0
+	data["wind_direction_deg"] = 0.0
+	var building: BuildingModel = BuildingModelScript.new()
+	building.load_template_data(data)
+	var gas := GasExchangeSystem.new()
+	gas.wind_effect_enabled = true
+	var op = null
+	for raw in building.get_openings():
+		if raw.b < 0 and String(raw.wall_side) == "top":
+			op = raw
+			break
+	if op == null:
+		_failures.append("el escenario de prueba no tiene apertura exterior a barlovento")
+		building.free()
+		return
+	var room: RoomModel = building.get_room(op.a)
+
+	# Apagado por defecto: un caso de validacion no sabe de plantas.
+	if building.wind_height_profile_enabled:
+		_failures.append("el perfil de altura viene encendido por defecto; los casos de validacion cambiarian")
+	var calle: float = gas._compute_wind_dp_pa(op, building)
+	room.floor_level_z_m = 42.0
+	if gas._compute_wind_dp_pa(op, building) != calle:
+		_failures.append("con el perfil apagado, subir la sala 42 m cambia el empuje del viento")
+	room.floor_level_z_m = 0.0
+
+	building.wind_height_profile_enabled = true
+	# Subir de planta empuja siempre mas.
+	var previo: float = -1.0
+	for planta in range(16):
+		room.floor_level_z_m = planta * 3.0
+		var dp: float = absf(gas._compute_wind_dp_pa(op, building))
+		if dp <= previo:
+			_failures.append("en la planta %d el viento empuja %.2f Pa, no mas que en la de abajo (%.2f)" % [planta, dp, previo])
+			break
+		previo = dp
+	room.floor_level_z_m = 0.0
+
+	# Valor de contraste: 10 m/s a 10 m son ~15 m/s a 45 m, y 2,3 veces la presion.
+	var v45: float = building.wind_speed_at_height_m_s(45.0)
+	if v45 < 14.8 or v45 > 15.7:
+		_failures.append("con 10 m/s a 10 m, a 45 m deberia soplar ~15,2 m/s y sopla %.2f" % v45)
+	var centro_m: float = gas._opening_center_z_m(op, building)
+	building.building_base_z_m = 10.0 - centro_m
+	var dp10: float = gas._compute_wind_dp_pa(op, building)
+	building.building_base_z_m = 45.0 - centro_m
+	var dp45: float = gas._compute_wind_dp_pa(op, building)
+	building.building_base_z_m = 0.0
+	var factor: float = dp45 / dp10 if dp10 > 0.0 else 0.0
+	if factor < 2.2 or factor > 2.45:
+		_failures.append("la presion a 45 m deberia ser ~2,3 veces la de 10 m y es %.2f veces" % factor)
+
+	# Suelo: por debajo de 2 m el perfil no sigue frenando.
+	var v_suelo: float = building.wind_speed_at_height_m_s(0.5)
+	if not is_equal_approx(v_suelo, building.wind_speed_at_height_m_s(2.0)):
+		_failures.append("a 0,5 m el viento sopla %.2f m/s y deberia valer lo mismo que a 2 m" % v_suelo)
+	if v_suelo > building.wind_speed_at_height_m_s(3.0):
+		_failures.append("una apertura a 0,5 m recibe mas viento que una a 3 m")
+	building.free()
 
 
 func _dp_for_side(gas, building: BuildingModel, side: String) -> float:
