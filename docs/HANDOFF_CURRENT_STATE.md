@@ -1,5 +1,41 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-15 - global Python suite verified clean
+
+- The complete Python suite is **GO for zero failed/error tests**, reproduced
+  twice consecutively on the local Windows workspace at
+  `f5a20098756007fcf222659f9e9b17d83af8aa39` (HEAD and `origin/main` at
+  verification). Interpreter: Python **3.14.4**, pytest **9.1.1**.
+- Both runs returned exit **0** with **2705 passed, 0 failed, 0 errors,
+  4 skipped and 42 subtests passed**. The **2709 unique node IDs and their
+  order** match across both clean runs and the preceding diagnostic red run.
+  Wall times were **840.47 s** and **825.15 s**, using separate fresh pytest
+  temporary and cache directories outside the restricted sandbox.
+- The four existing generic PASS-marker skips remain justified: the O2 owner
+  fixture and passive post-extinction observer have dedicated runtime
+  contracts, which passed. No test was newly skipped or relaxed. A visible
+  recorder deprecation warning for `config.inicfg` remains; it is not a test
+  failure and is recorded in the evidence.
+- The diagnostic red run had **2703 passed and 2 failed**. Both failures came
+  from CRLF bytes in the local `cfast_multi_fuel_couch_tv.json` baseline,
+  whereas its approved Git blob and exact-byte registry used LF. With explicit
+  user authorization, only that file was recovered from its existing HEAD
+  blob; the original 621-byte CRLF file was preserved as evidence. The recovered
+  file has 594 bytes and identical JSON values. No production, test assertion,
+  numerical baseline or contract change was required. Both focal tests also
+  passed against exact HEAD and parent blobs before recovery.
+- After recovery, all **2668 tracked files** retained identical byte hashes
+  across both suites. Git status and staged diff were empty, `git diff --check`
+  passed, and zero Godot processes remained at verification. This entry is a
+  subsequent documentation-only update, not part of the tested checkpoint.
+- Local, gitignored evidence is under `runs/python_suite_validation_20260914/`:
+  `CLEAN_SUITE_REPORT.md`, `CLEAN_SUITE_LEDGER.json`, `evidence_sha256.json`,
+  per-run logs/JUnit/invocations and `baseline_recovery/`. These artifacts are
+  preserved locally; committing this handoff does not publish them.
+- This closes the global Python-suite blocker only. Physics, cases, baseline
+  values, expected values, tolerances, defaults and authority are unchanged.
+  Runtime authority, H3.2b4, H3.3 and D1 remain frozen; HVAC remains deferred.
+
 ## Current Program Update - 2026-09-14 - final audit and repository closure
 
 - `main` and `origin/main` are aligned at `48cfb459`.
@@ -15,10 +51,10 @@
   `ScenarioDocument`. The editor guardrail, probe-path guardrail and marker
   probe pass under Godot 4.7.1; the focused Python editor validation is
   **36 passed, 42 subtests passed**.
-- The full Python suite was attempted locally but its runner terminated with
-  pre-existing failures and a Windows temporary-directory cleanup permission
-  error, so that run is not used as a clean-suite claim. No production motor
-  change was made to force it green.
+- The earlier full Python attempt terminated with failures and a Windows
+  temporary-directory cleanup permission error; it was not clean-suite
+  evidence. The later diagnosis and two clean runs are recorded above. The
+  original attribution to pre-existing repository failures was not supported.
 - The local tree is clean and no Godot process remains. Four disposable clean
   worktrees were removed. Remaining branches and worktrees are retained as
   non-integrated audit evidence or controls and must not be deleted without a
