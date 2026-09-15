@@ -1,5 +1,40 @@
 # Prompt: hrr_kw residual en fuel objects tras extinción de sala
 
+> **Medido el 2026-09-15: no se reproduce con el motor actual.** Sonda headless
+> (motor real, paso 0,5 s) que vuelca los objetos en el tick en que la sala se
+> apaga y registra cualquier objeto con `hrr_kw > 0` en una sala sin fuego:
+>
+> | Plantilla | Variante | Extinción | Objetos al apagarse | Fugas |
+> |---|---|---|---|---|
+> | simple_house | tal cual / exteriores cerradas | t=503,5 s, O₂ 0,049 | 7 en `pyrolyzing`, hrr 0 | 0 |
+> | two_storey_house | tal cual / exteriores cerradas | t=836 s, O₂ 0,027 | 3 en `pyrolyzing`, hrr 0 | 0 |
+> | ghanekar_bedroom_hallway | exteriores cerradas | t=608,5 s, O₂ 0,119 | 2 en `pyrolyzing`, hrr 0 | 0 |
+> | ghanekar_bedroom_hallway, piso_mediterraneo | resto | no se apaga en 900 s | — | 0 |
+>
+> Por qué: el reparto de quemado (`_sync_explicit_objects_from_active_fire`,
+> rama sin `burn_MJ`) ya pone `hrr_kw = 0` y hace la cascada de estados en cada
+> tick, y la ruta pasiva (`_update_passive_fuel_object`) recorre todos los
+> objetos —también `FLAMING`/`DECAYING`— y deja `hrr_kw = 0`. El snapshot lee
+> `obj.hrr_kw` directamente, sin otra fuente.
+>
+> Única vía que aún deja `hrr_kw > 0` sin fuego en la sala: la pirólisis previa
+> a la ignición de SF-AUD-016 (hasta el 35 % de `max_hrr_kw` en `PYROLYZING`),
+> que solo existe con `heat_of_gasification_kj_kg` y `heat_of_combustion_kj_kg`
+> explícitos; hoy solo en los casos `char_layer_loi_wood` y
+> `secondary_ignition_demo`, ninguna plantilla ni escenario del editor. Es
+> modelo, no fuga, y la vista ya ignora estados sin llama (`2e90fa0`).
+>
+> **Guardarraíl** `tools/validate_extinction_object_hrr.gd` (en
+> `check_product.py`, ~45 s): sala sintética apagada + un paso pasivo → todos
+> los muebles a 0 kW y ninguno en llama/decayendo; el apagado no impide
+> reencender; y `simple_house` real hasta la extinción por O₂ + 20 s sin un solo
+> tick con potencia en sala apagada. **4/5 mutaciones muertas**: la ruta pasiva
+> sin poner a cero, la ruta pasiva saltando muebles en llama, la extinción sin
+> soltar el fuego y la reignición bloqueada. Sobrevive quitar la puesta a cero
+> del reparto de quemado: la ruta pasiva corre en el mismo tick y lo tapa, así
+> que la invariante se cumple; lo que protege la red es la invariante, no esa
+> línea.
+
 ## Síntoma observado
 
 Run del 2026-07-15 (escenario 6 salas, incendio en R0 Salón, extinción por agotamiento de O₂ hacia t≈700 s). Desde ese momento y hasta el final del run (t=1030 s):

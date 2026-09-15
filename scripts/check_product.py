@@ -335,6 +335,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot mandos del viento: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_extinction_object_hrr.gd",
+        "EXTINCTION OBJECT HRR VALIDATION PASS",
+    )
+    rows.append(("Muebles sin potencia tras apagarse Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot muebles sin potencia tras apagarse: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",
