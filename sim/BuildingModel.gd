@@ -40,6 +40,11 @@ const OUTSIDE_ID: int = -1
 # mayor que 0 manda sobre el ajuste del motor. 0 por defecto; los escenarios del
 # editor la encienden, los casos de validación no.
 @export var thin_upper_layer_min_mass_fraction: float = 0.0
+# Rareza (a) (docs/PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md): las aperturas exteriores
+# reponen O2 con Bernoulli de dos zonas, como una puerta interior. Si es true
+# enciende el ajuste del motor. false por defecto; lo encienden los escenarios del
+# editor, los casos de validación no.
+@export var exterior_opening_bernoulli_o2_enabled: bool = false
 # Altura sobre la calle de la cota 0 del edificio dibujado (N-4). Si el template
 # no la trae, se deduce al cargar con la misma regla con la que la vista hunde la
 # calle: una altura de planta por cada planta que queda debajo de la vivienda.
@@ -530,6 +535,7 @@ func _load_from_template(data: Dictionary) -> void:
 	if data.has("wind_profile_alpha"):
 		wind_profile_alpha = maxf(0.0, float(data["wind_profile_alpha"]))
 	thin_upper_layer_min_mass_fraction = maxf(0.0, float(data.get("thin_upper_layer_min_mass_fraction", 0.0)))
+	exterior_opening_bernoulli_o2_enabled = bool(data.get("exterior_opening_bernoulli_o2_enabled", false))
 	# Detectores opcionales (humo, calor, CO).
 	for det_data in data.get("detectors", []):
 		if typeof(det_data) != TYPE_DICTIONARY:

@@ -111,6 +111,14 @@ sola pasada, que conviene que alguien juzgue:
 - **Vivienda P2 ve el humo antes (84 s) que Vivienda P1 (182 s).** Si es el plano
   neutro, es justo lo que hace interesante al patio y merece quedar explicado; si
   no, es un síntoma.
+  > **Explicado el 2026-09-15, no es un fallo** (`PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md`):
+  > no es el plano neutro. El humo sube por los huecos del patio y se acumula en
+  > la zona de arriba, bajo la salida al cielo (20 g en la zona-patio P2 frente a
+  > 1 g en la P1 a los 80 s), y de ahí entra por la ventana de la vivienda de
+  > arriba. Los 84 s son 1,8 g repartidos por toda la sala, que ya bajan la
+  > visibilidad de 10 m: óptica correcta. En masa las dos llegan casi a la vez.
+- **El tope de 900,0 °C** de Patio P1 está explicado y arreglado en
+  `PROMPT_MOTOR_TOPE_900.md` (capa superior de gramos).
 
 ## Qué hay ya, y es bastante
 

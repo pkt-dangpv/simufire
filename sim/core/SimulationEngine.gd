@@ -756,6 +756,12 @@ var _step_time_us: int = 0
 # Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
 # neutro calculado desde densidades. Default true → paridad CFAST (2026-05-17).
 @export var vent_bernoulli_enabled: bool = true
+# Rareza (a), docs/PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md: una puerta a la calle
+# alimentaba el fuego peor que una puerta a una caja cerrada, porque las
+# aperturas exteriores usan una heuristica y las interiores Bernoulli de dos
+# zonas. Con true, las exteriores (no verticales) usan tambien Bernoulli para el
+# O2. false por defecto: la suite de validacion no se mueve.
+@export var exterior_opening_bernoulli_o2_enabled: bool = false
 # Multiplicador sobre el caudal Bernoulli de vanos exteriores — solo para mutation testing (M-VENT).
 @export var vent_bernoulli_flow_multiplier: float = 1.0
 
@@ -1498,6 +1504,7 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_pressure_ref_pa": doorway_o2_background_pressure_ref_pa,
 		"doorway_o2_background_min_factor": doorway_o2_background_min_factor,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
+		"exterior_opening_bernoulli_o2_enabled": _effective_exterior_opening_bernoulli_o2_enabled(),
 		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate,
 		"co2_yield_kg_per_MJ": co2_yield_kg_per_MJ,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
@@ -4875,6 +4882,14 @@ func _clamp_rooms(dt: float) -> void:
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
 		room.svv_worst_pct = minf(clampf(room.svv_worst_pct, 0.0, 100.0), room.svv_pct)
+
+
+## Bernoulli al exterior para el O2: encendido si lo pide el motor o el escenario
+## (los del editor lo encienden).
+func _effective_exterior_opening_bernoulli_o2_enabled() -> bool:
+	if exterior_opening_bernoulli_o2_enabled:
+		return true
+	return building != null and building.exterior_opening_bernoulli_o2_enabled
 
 
 ## Fracción mínima de capa superior que se aplica: la del escenario si la trae

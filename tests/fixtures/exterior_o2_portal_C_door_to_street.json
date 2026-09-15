@@ -1,0 +1,213 @@
+{
+	"apartment_floor_number": 0,
+	"building_total_floors": 0,
+	"building_type": "apartment",
+	"detectors": [],
+	"exterior_lighting_mode": "Dia",
+	"exterior_walls": [],
+	"floors": [
+		{
+			"level_m": 0.0,
+			"name": "R"
+		},
+		{
+			"level_m": 2.9,
+			"name": "R+1"
+		},
+		{
+			"level_m": 5.8,
+			"name": "R+2"
+		}
+	],
+	"hvac_data": {
+		"exists": false,
+		"mode": "none",
+		"on": false
+	},
+	"hvac_mode": "none",
+	"ignition_room_id": 1,
+	"interior_lights_on": true,
+	"openings_data": [
+		{
+			"a": 1,
+			"b": -1,
+			"height_m": 2.05,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "right",
+			"width_m": 0.92
+		},
+		{
+			"a": 1,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "left",
+			"width_m": 1.3
+		},
+		{
+			"a": 2,
+			"b": -1,
+			"height_m": 2.05,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "right",
+			"width_m": 0.92
+		},
+		{
+			"a": 2,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "left",
+			"width_m": 1.3
+		},
+		{
+			"a": 3,
+			"b": -1,
+			"height_m": 2.05,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "right",
+			"width_m": 0.92
+		},
+		{
+			"a": 3,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "left",
+			"width_m": 1.3
+		}
+	],
+	"outside_o2": 0.209,
+	"outside_temp_c": 20.0,
+	"player_start": {
+		"floor_level_z_m": 0.0,
+		"position_m": {
+			"x": 0.0,
+			"y": 0.0
+		},
+		"room_id": 1,
+		"yaw_deg": 0.0
+	},
+	"room_rect_m": {
+		"1": {
+			"h": 4.0,
+			"w": 5.0,
+			"x": 0.0,
+			"y": 0.0
+		},
+		"2": {
+			"h": 4.0,
+			"w": 5.0,
+			"x": 0.0,
+			"y": 0.0
+		},
+		"3": {
+			"h": 4.0,
+			"w": 5.0,
+			"x": 0.0,
+			"y": 0.0
+		}
+	},
+	"rooms_data": [
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3000.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 1,
+			"kind": "salon",
+			"max_hrr_kw": 2500.0,
+			"name": "Vivienda P0-1",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 2.9,
+			"fuel_energy_MJ": 1500.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 2,
+			"kind": "salon",
+			"max_hrr_kw": 800.0,
+			"name": "Vivienda P1-1",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 5.8,
+			"fuel_energy_MJ": 1500.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 3,
+			"kind": "salon",
+			"max_hrr_kw": 800.0,
+			"name": "Vivienda P2-1",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		}
+	],
+	"stop_time_s": 300.0,
+	"victims": [],
+	"wind_direction_deg": 0.0,
+	"wind_speed_m_s": 0.0
+}

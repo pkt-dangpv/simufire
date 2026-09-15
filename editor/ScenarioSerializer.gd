@@ -9,6 +9,11 @@ const DEFAULT_VERSION: int = 1
 ## por debajo de esta fracción de la masa de la zona. Medido en el patio: las
 ## zonas pasan de 900 °C recortados a 369 °C y la sala del fuego no se mueve.
 const EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION: float = 0.002
+## Rareza (a) (docs/PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md): en los escenarios del
+## editor la puerta a la calle repone O2 con Bernoulli, como una puerta interior.
+## Medido: la vivienda con la puerta a la calle pasa de 344 a 394 MJ frente a los
+## 401 de la misma puerta al portal.
+const EDITOR_EXTERIOR_OPENING_BERNOULLI_O2_ENABLED: bool = true
 
 
 static func save_scenario(path: String, scenario_data: Dictionary) -> bool:
@@ -93,6 +98,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"wind_height_profile_enabled": bool(data.get("wind_height_profile_enabled", true)),
 		"thin_upper_layer_min_mass_fraction": float(data.get("thin_upper_layer_min_mass_fraction", EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION)),
+		"exterior_opening_bernoulli_o2_enabled": bool(data.get("exterior_opening_bernoulli_o2_enabled", EDITOR_EXTERIOR_OPENING_BERNOULLI_O2_ENABLED)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"floors": Array(data.get("floors", [])).duplicate(true),
@@ -121,6 +127,7 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"wind_height_profile_enabled": bool(data.get("wind_height_profile_enabled", true)),
 		"thin_upper_layer_min_mass_fraction": float(data.get("thin_upper_layer_min_mass_fraction", EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION)),
+		"exterior_opening_bernoulli_o2_enabled": bool(data.get("exterior_opening_bernoulli_o2_enabled", EDITOR_EXTERIOR_OPENING_BERNOULLI_O2_ENABLED)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),

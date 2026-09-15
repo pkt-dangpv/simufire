@@ -351,6 +351,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot capa superior casi vacia: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_exterior_opening_o2.gd",
+        "EXTERIOR OPENING O2 VALIDATION PASS",
+    )
+    rows.append(("Puerta a la calle alimenta como la interior Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot O2 por apertura exterior: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

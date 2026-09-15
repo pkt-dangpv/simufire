@@ -600,6 +600,7 @@ func _apply_template_overrides(template_data: Dictionary, scenario: Dictionary) 
 		"wind_height_profile_enabled",
 		"wind_profile_alpha",
 		"thin_upper_layer_min_mass_fraction",
+		"exterior_opening_bernoulli_o2_enabled",
 		"building_base_z_m",
 		"ignition_room_id",
 		"stop_time_s"

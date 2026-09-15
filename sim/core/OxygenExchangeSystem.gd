@@ -25,6 +25,12 @@ var doorway_o2_exchange_coeff: float = 1.70
 # SF-AUD-010: sync con ThermalSystem; cuando true usa bernoulli_lower_kg_s
 # (aire fresco entrante por capa baja) para el intercambio de O2 activo.
 var vent_bernoulli_enabled: bool = false
+# Rareza (a), docs/PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md: con true, una apertura
+# no vertical al exterior repone O2 con el mismo caudal de Bernoulli de dos zonas
+# que una puerta interior, con el exterior como sala infinita a temperatura
+# ambiente. false = la heuristica de siempre (_step_outside_opening_o2).
+var exterior_opening_bernoulli_o2_enabled: bool = false
+var _outside_virtual_room: RoomModel = null
 var doorway_o2_active_max_fraction_per_step: float = 0.08
 var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
@@ -191,6 +197,9 @@ func configure(settings: Dictionary) -> void:
 		settings.get("doorway_o2_upper_routing_gain", doorway_o2_upper_routing_gain)
 	)
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
+	exterior_opening_bernoulli_o2_enabled = bool(settings.get(
+		"exterior_opening_bernoulli_o2_enabled", exterior_opening_bernoulli_o2_enabled
+	))
 	o2_upper_plume_entr_rate = float(settings.get("o2_upper_plume_entr_rate", o2_upper_plume_entr_rate))
 	co2_yield_kg_per_MJ = float(settings.get("co2_yield_kg_per_MJ", co2_yield_kg_per_MJ))
 	phase2h_o2_doorway_two_zone_enabled = bool(
@@ -755,6 +764,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 
 		var lintel_m: float = op.lintel_height_m()
 		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			if exterior_opening_bernoulli_o2_enabled and not op.is_vertical:
+				_step_outside_opening_o2_bernoulli(
+					building,
+					dt,
+					op,
+					air_density_kg_m3,
+					g_gravity,
+					build_interior_flow_callable
+				)
+				continue
 			_step_outside_opening_o2(
 				building,
 				dt,
@@ -1397,3 +1416,100 @@ func _call_interior_flow_state(
 
 	var result: Variant = callable.call(room_a, room_b, op)
 	return result if result is Dictionary else {}
+
+
+## Rareza (a) de docs/PROMPT_MOTOR_RAREZAS_PORTAL_PATIO.md: la puerta a la calle
+## repone O2 con el mismo Bernoulli de dos zonas que una puerta interior.
+##
+## El exterior es una sala virtual infinita a temperatura ambiente, sin humo ni
+## sobrepresion, y el estado de flujo sale de la misma funcion que usan las
+## puertas interiores (plano neutro, banda caliente, caudal de la capa baja). Lo
+## que entra se contabiliza como O2 exterior, no como transporte entre salas, y
+## repone la zona inferior igual que `_exchange_room_o2_active_flow` repone la
+## de la sala caliente. Solo O2: humo, CO2 y energia siguen por su camino.
+func _step_outside_opening_o2_bernoulli(
+	building: BuildingModel,
+	dt: float,
+	op: OpeningModel,
+	air_density_kg_m3: float,
+	g_gravity: float,
+	build_interior_flow_callable: Callable
+) -> void:
+	var indoor_id: int = op.a if op.b == BuildingModel.OUTSIDE_ID else op.b
+	var indoor: RoomModel = building.get_room(indoor_id)
+	if indoor == null:
+		return
+	var outside: RoomModel = _outside_room(building)
+	var flow_state: Dictionary = _call_interior_flow_state(build_interior_flow_callable, indoor, outside, op)
+	if not bool(flow_state.get("active", false)):
+		return
+	# Solo la sala caliente recibe aire de la capa baja; si el exterior esta mas
+	# caliente que la sala no hay fuego que alimentar por aqui.
+	if flow_state.get("hot_room", null) != indoor:
+		return
+
+	var h_drive_m: float = float(flow_state.get("h_drive_m", 0.0))
+	var area_eff_m2: float = float(flow_state.get("area_eff_m2", 0.0))
+	var engagement: float = float(flow_state.get("engagement", 0.0))
+	if h_drive_m <= 0.0 or area_eff_m2 <= 0.0 or engagement <= 0.0:
+		return
+
+	var exchange_kg: float
+	if vent_bernoulli_enabled:
+		exchange_kg = float(flow_state.get("bernoulli_lower_kg_s", 0.0)) * dt
+	else:
+		var t_hot_k: float = float(flow_state.get("source_temp_c", indoor.temp_upper_c)) + 273.15
+		var t_cold_k: float = building.outside_temp_c + 273.15
+		var q_m3_s: float = 0.65 * float(flow_state.get("neutral_plane_f", 0.5)) * area_eff_m2 * sqrt(
+				g_gravity * h_drive_m * float(flow_state.get("temp_delta_k", 0.0)) / ((t_hot_k + t_cold_k) * 0.5)
+		)
+		exchange_kg = q_m3_s * air_density_kg_m3 * dt * doorway_o2_exchange_coeff * engagement
+	var room_air_mass_kg: float = _compute_room_air_mass_kg(indoor, air_density_kg_m3)
+	exchange_kg = minf(exchange_kg, room_air_mass_kg * doorway_o2_active_max_fraction_per_step)
+	if exchange_kg <= 0.0:
+		return
+
+	var delta_o2_kg: float = (building.outside_o2 - _effective_room_o2_fraction(indoor, air_density_kg_m3)) \
+			* exchange_kg
+	if delta_o2_kg <= 0.0:
+		return
+
+	var o2_before: float = indoor.o2
+	var o2_requested: float = (o2_before * room_air_mass_kg + delta_o2_kg) / room_air_mass_kg
+	indoor.o2 = clampf(o2_requested, 0.0, o2_nominal)
+	_record_o2_acceptance(
+		"oes_exterior_opening", "bulk", indoor,
+		o2_before, o2_requested, indoor.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "room_air_mass"
+	)
+	indoor.o2_exterior_net_kg_step += (indoor.o2 - o2_before) * room_air_mass_kg
+	indoor.o2_exterior_net_kg_total += (indoor.o2 - o2_before) * room_air_mass_kg
+
+	# El aire fresco entra por debajo del plano neutro: repone la zona inferior.
+	var flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+		indoor, null, building.outside_temp_c
+	)
+	var lower_frac: float = clampf(flow_interface_m / maxf(0.01, indoor.height_m), 0.01, 0.99)
+	var lower_mass_kg: float = maxf(0.001, room_air_mass_kg * lower_frac)
+	var lower_before: float = indoor.o2_lower
+	var lower_requested: float = indoor.o2_lower + delta_o2_kg / lower_mass_kg
+	indoor.o2_lower = clampf(lower_requested, 0.0, o2_nominal)
+	_record_o2_acceptance(
+		"oes_exterior_opening_lower_replenish", "lower", indoor,
+		lower_before, lower_requested, indoor.o2_lower,
+		Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE, NAN, "lower_zone_mass_double_credited"
+	)
+
+
+## Sala virtual para el exterior: enorme, a temperatura y O2 exteriores, sin
+## humo ni sobrepresion. Se reinicia en cada llamada: el exterior no se calienta.
+func _outside_room(building: BuildingModel) -> RoomModel:
+	if _outside_virtual_room == null:
+		_outside_virtual_room = RoomModel.new()
+		_outside_virtual_room.id = BuildingModel.OUTSIDE_ID
+		_outside_virtual_room.name = "Exterior"
+		_outside_virtual_room.width_m = 1000.0
+		_outside_virtual_room.length_m = 1000.0
+		_outside_virtual_room.height_m = 100.0
+	_outside_virtual_room.reset_dynamic_state(building.outside_temp_c, building.outside_o2)
+	return _outside_virtual_room
