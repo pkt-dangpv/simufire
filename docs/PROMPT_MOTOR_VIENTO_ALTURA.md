@@ -24,8 +24,21 @@
 >   mutaciones muertas** (perfil encendido por defecto, motor que lo ignora o lo
 >   aplica apagado, α a la mitad, sin suelo, sin base, sin planta, editor sin
 >   encenderlo).
-> - Pendiente fuera de esta tarea: rellenar `building_base_z_m` desde la planta
->   de la vivienda (N-4, línea visual).
+> - **N-4, hecho el 2026-09-15**: `building_base_z_m` ya no vale 0 por defecto.
+>   Si el template no la trae, `BuildingModel` la deduce al cargar con la regla
+>   de la vista —una altura de planta por cada planta bajo la vivienda, medida
+>   en el edificio o 2,85 m (`STOREY_PITCH_FALLBACK_M`) con una sola planta
+>   dibujada; unifamiliar a pie de calle— menos la cota más baja dibujada. Las
+>   consultas de plantas se mudaron de `view/geometry/BuildingLevels.gd` al
+>   modelo (la vista delega) y `exterior_storey_pitch_m` toma su valor por
+>   defecto de la constante, así que la calle del viento y la que se ve son la
+>   misma. Regla 6 de `validate_wind_controls.gd`: planta 15 = 15 alturas
+>   sobre la calle, igual que la calle de la vista; un dibujo que empieza en la
+>   cota 2,90 se mide desde su forjado más bajo; unifamiliar a pie de calle; un
+>   valor explícito manda; el dato llega desde el editor; y con el perfil
+>   encendido la planta 15 empuja más del doble que la baja. **6/6 mutaciones
+>   muertas.** `validate_building_height` sigue igual (calle −14,25 m en la
+>   planta 5, −42,75 m en la 15) y `check_product.py` pasa entero (137).
 
 ## Qué hay hoy, y funciona
 

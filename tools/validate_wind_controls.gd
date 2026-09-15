@@ -25,6 +25,12 @@ extends SceneTree
 ##     no se mueva, y lo encienden los escenarios del editor. Encendido, subir
 ##     de planta empuja siempre mas; a 45 m con 10 m/s sopla a ~15 m/s (2,3
 ##     veces la presion de 10 m); y por debajo de 2 m no se sigue frenando.
+##  6. **La calle del viento es la calle que se ve** (N-4): sin valor explicito,
+##     `building_base_z_m` pone la planta 15 quince alturas de planta por
+##     encima de la calle, igual que la vista hunde el suelo exterior; una
+##     unifamiliar no se eleva; un valor explicito manda; el dato llega desde
+##     el editor; y con el perfil encendido la planta 15 recibe mas empuje que
+##     la baja por la misma ventana.
 ##
 ##   <godot> --headless --path . --script res://tools/validate_wind_controls.gd
 
@@ -43,6 +49,7 @@ func _initialize() -> void:
 	_check_pressure_signs()
 	_check_wall_sides()
 	_check_height_profile()
+	_check_building_base()
 	if _failures.is_empty():
 		print("WIND CONTROLS VALIDATION PASS")
 		quit(0)
@@ -175,6 +182,9 @@ func _check_height_profile() -> void:
 	var v45: float = building.wind_speed_at_height_m_s(45.0)
 	if v45 < 14.8 or v45 > 15.7:
 		_failures.append("con 10 m/s a 10 m, a 45 m deberia soplar ~15,2 m/s y sopla %.2f" % v45)
+	# La base se deduce de la planta (N-4): se mide el centro sobre la cota 0 y
+	# luego se coloca la ventana a 10 y a 45 m sobre la calle.
+	building.building_base_z_m = 0.0
 	var centro_m: float = gas._opening_center_z_m(op, building)
 	building.building_base_z_m = 10.0 - centro_m
 	var dp10: float = gas._compute_wind_dp_pa(op, building)
@@ -192,6 +202,103 @@ func _check_height_profile() -> void:
 	if v_suelo > building.wind_speed_at_height_m_s(3.0):
 		_failures.append("una apertura a 0,5 m recibe mas viento que una a 3 m")
 	building.free()
+
+
+## 6. La base del edificio sale de la planta, como la calle de la vista.
+func _check_building_base() -> void:
+	var pitch: float = BuildingModel.STOREY_PITCH_FALLBACK_M
+	var baja: BuildingModel = _building_at_floor("compact_apartment", 0)
+	var alta: BuildingModel = _building_at_floor("compact_apartment", 15)
+	var casa: BuildingModel = _building_at_floor("simple_house", 15)
+
+	# La planta 15 queda 15 alturas de planta sobre la calle; la baja, a pie de calle.
+	var sobre_calle_baja: float = baja.building_base_z_m + baja.lowest_drawn_floor_level_m()
+	var sobre_calle_alta: float = alta.building_base_z_m + alta.lowest_drawn_floor_level_m()
+	var esperado_alta: float = 15.0 * alta.floor_to_floor_m(pitch)
+	if absf(sobre_calle_baja) > 0.01:
+		_failures.append("en la planta baja el suelo dibujado queda a %.2f m de la calle y deberia estar a pie de calle" % sobre_calle_baja)
+	if absf(sobre_calle_alta - esperado_alta) > 0.01:
+		_failures.append("en la planta 15 el suelo dibujado queda a %.2f m de la calle y deberia quedar a %.2f" % [sobre_calle_alta, esperado_alta])
+	# Y es la misma calle que dibuja la vista.
+	var calle_vista: float = BuildingLevels.street_drop_m(alta, pitch)
+	if absf(sobre_calle_alta - calle_vista) > 0.01:
+		_failures.append("la calle del viento (%.2f m) no es la calle que se ve (%.2f m)" % [sobre_calle_alta, calle_vista])
+	# Un dibujo que no empieza en la cota 0: la calle se mide desde su forjado
+	# mas bajo, no desde el origen de coordenadas.
+	var elevado: BuildingModel = _building_at_floor("compact_apartment", 15, 2.90)
+	var sobre_calle_elevado: float = elevado.building_base_z_m + elevado.lowest_drawn_floor_level_m()
+	if absf(elevado.lowest_drawn_floor_level_m() - 2.90) > 0.01:
+		_failures.append("el caso elevado deberia empezar en la cota 2,90 y empieza en %.2f" % elevado.lowest_drawn_floor_level_m())
+	elif absf(sobre_calle_elevado - 15.0 * elevado.floor_to_floor_m(pitch)) > 0.01:
+		_failures.append("un dibujo que empieza en 2,90 m en la planta 15 queda a %.2f m de la calle y deberia quedar a %.2f" % [
+			sobre_calle_elevado, 15.0 * elevado.floor_to_floor_m(pitch)])
+	elevado.free()
+	# Una unifamiliar no se eleva por mucho que diga la planta.
+	var sobre_calle_casa: float = casa.building_base_z_m + casa.lowest_drawn_floor_level_m()
+	if absf(sobre_calle_casa) > 0.01:
+		_failures.append("una unifamiliar en 'planta 15' queda a %.2f m sobre la calle" % sobre_calle_casa)
+
+	# De punta a punta: misma ventana, perfil encendido, la planta 15 empuja mas.
+	var gas := GasExchangeSystem.new()
+	gas.wind_effect_enabled = true
+	var dp_baja: float = 0.0
+	var dp_alta: float = 0.0
+	for b in [baja, alta]:
+		b.wind_speed_m_s = 10.0
+		b.wind_direction_deg = 0.0
+		b.wind_height_profile_enabled = true
+		for raw in b.get_openings():
+			if raw.b < 0 and String(raw.wall_side) == "top":
+				if b == baja:
+					dp_baja = gas._compute_wind_dp_pa(raw, b)
+				else:
+					dp_alta = gas._compute_wind_dp_pa(raw, b)
+				break
+	if dp_baja <= 0.0 or dp_alta < dp_baja * 2.0:
+		_failures.append("con el perfil encendido la planta 15 empuja %.1f Pa y la baja %.1f: deberia ser mas del doble" % [dp_alta, dp_baja])
+	baja.free()
+	alta.free()
+	casa.free()
+
+	# Un valor explicito manda sobre el deducido.
+	var builder = BuildingTemplateScript.new()
+	var data: Dictionary = builder.create_by_name("compact_apartment")
+	data["building_type"] = "apartment"
+	data["apartment_floor_number"] = 15
+	data["building_base_z_m"] = 7.0
+	var explicito: BuildingModel = BuildingModelScript.new()
+	explicito.load_template_data(data)
+	if not is_equal_approx(explicito.building_base_z_m, 7.0):
+		_failures.append("con building_base_z_m = 7 en el template, el modelo usa %.2f m" % explicito.building_base_z_m)
+	explicito.free()
+
+	# Desde el editor: la planta llega al modelo y el modelo la convierte en altura.
+	var editor_data: Dictionary = Serializer.normalize_editor_data(builder.create_by_name("compact_apartment"))
+	editor_data["building_type"] = "apartment"
+	editor_data["apartment_floor_number"] = 6
+	var parsed: Variant = JSON.parse_string(JSON.stringify(Serializer.to_runtime_json_data(editor_data)))
+	var desde_editor: BuildingModel = BuildingModelScript.new()
+	desde_editor.load_template_data(Dictionary(parsed))
+	var sobre_calle_editor: float = desde_editor.building_base_z_m + desde_editor.lowest_drawn_floor_level_m()
+	var esperado_editor: float = 6.0 * desde_editor.floor_to_floor_m(pitch)
+	if absf(sobre_calle_editor - esperado_editor) > 0.01:
+		_failures.append("un escenario del editor en la planta 6 queda a %.2f m de la calle y deberia quedar a %.2f" % [sobre_calle_editor, esperado_editor])
+	desde_editor.free()
+
+
+func _building_at_floor(template_name: String, floor_number: int, level_shift_m: float = 0.0) -> BuildingModel:
+	var builder = BuildingTemplateScript.new()
+	var data: Dictionary = builder.create_by_name(template_name)
+	if template_name != "simple_house":
+		data["building_type"] = "apartment"
+	data["apartment_floor_number"] = floor_number
+	if level_shift_m != 0.0:
+		for raw_room in Array(data.get("rooms_data", [])):
+			if typeof(raw_room) == TYPE_DICTIONARY:
+				raw_room["floor_level_z_m"] = float(raw_room.get("floor_level_z_m", 0.0)) + level_shift_m
+	var building: BuildingModel = BuildingModelScript.new()
+	building.load_template_data(data)
+	return building
 
 
 func _dp_for_side(gas, building: BuildingModel, side: String) -> float:

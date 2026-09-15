@@ -140,54 +140,39 @@ static func vertical_stair_voids(building: BuildingModel, level_m: float, upper_
 ## Separacion minima entre dos cotas para contarlas como plantas distintas. La
 ## misma que usa `next_floor_level_above_m`: por debajo de eso es un desnivel
 ## dentro de una planta, no una planta.
-const FLOOR_SEPARATION_M: float = 0.20
+const FLOOR_SEPARATION_M: float = BuildingModel.FLOOR_SEPARATION_M
+
+# Las cuatro consultas siguientes y `street_drop_m` viven en `BuildingModel`
+# desde N-4: el motor las necesita para `building_base_z_m` (viento por altura)
+# y la calle del viento tiene que ser la misma que la calle que se ve. Aqui solo
+# se conserva la firma que usan la vista y las sondas.
 
 
 ## Cotas de forjado dibujadas, de abajo arriba y sin repetir.
 static func drawn_floor_levels_m(building: BuildingModel) -> Array[float]:
-	var levels: Array[float] = []
 	if building == null:
-		return levels
-	for key in building.get_rooms().keys():
-		var room: RoomModel = building.get_room(int(key))
-		if room == null:
-			continue
-		var nueva: bool = true
-		for level in levels:
-			if absf(level - room.floor_level_z_m) < FLOOR_SEPARATION_M:
-				nueva = false
-				break
-		if nueva:
-			levels.append(room.floor_level_z_m)
-	levels.sort()
-	return levels
+		var vacio: Array[float] = []
+		return vacio
+	return building.drawn_floor_levels_m()
 
 
 ## Cuantas plantas se han dibujado. Nunca menos de una: un edificio sin salas
 ## sigue teniendo su planta, y devolver 0 haria dividir por cero mas arriba.
 static func drawn_floor_count(building: BuildingModel) -> int:
-	return maxi(1, drawn_floor_levels_m(building).size())
+	return building.drawn_floor_count() if building != null else 1
 
 
 ## Altura de planta a planta, medida en el propio edificio. Con una sola planta
 ## dibujada no hay nada que medir y manda `fallback` -por eso es un parametro y
 ## no una constante escondida, como el resto de este modulo-.
 static func floor_to_floor_m(building: BuildingModel, fallback: float) -> float:
-	var levels: Array[float] = drawn_floor_levels_m(building)
-	if levels.size() < 2:
-		return fallback
-	var total: float = levels[levels.size() - 1] - levels[0]
-	return maxf(0.1, total / float(levels.size() - 1))
+	return building.floor_to_floor_m(fallback) if building != null else fallback
 
 
 ## En que planta cae el forjado mas bajo dibujado. 0 = planta baja. Una
 ## unifamiliar esta siempre a pie de calle.
 static func base_floor_number(building: BuildingModel) -> int:
-	if building == null:
-		return 0
-	if String(building.building_type).strip_edges().to_lower() != "apartment":
-		return 0
-	return maxi(0, building.apartment_floor_number)
+	return building.base_floor_number() if building != null else 0
 
 
 ## Plantas que tiene el edificio. Son DOS datos distintos y aqui se juntan:
@@ -209,10 +194,7 @@ static func apparent_total_floors(building: BuildingModel) -> int:
 ## Cuanto cae la calle por debajo del forjado mas bajo dibujado: una altura de
 ## planta por cada planta que hay debajo. En una unifamiliar, y en la baja, 0.
 static func street_drop_m(building: BuildingModel, fallback_floor_height: float) -> float:
-	var relleno: int = base_floor_number(building)
-	if relleno <= 0:
-		return 0.0
-	return float(relleno) * floor_to_floor_m(building, fallback_floor_height)
+	return building.street_drop_m(fallback_floor_height) if building != null else 0.0
 
 
 ## Plantas que quedan POR ENCIMA de lo dibujado. Son las que hacen que, desde la

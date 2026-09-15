@@ -425,7 +425,9 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## plantas dibujadas, la altura sale medida del propio edificio.
 ##
 ## Se llamaba `own_facade_storey_pitch_m` y solo lo leia la fachada propia.
-@export_range(2.0, 4.0, 0.01) var exterior_storey_pitch_m: float = 2.85:
+## El valor por defecto es el del modelo: el viento por altura del motor usa esa
+## misma reserva para saber donde queda la calle (N-4).
+@export_range(2.0, 4.0, 0.01) var exterior_storey_pitch_m: float = BuildingModel.STOREY_PITCH_FALLBACK_M:
 	set(value):
 		exterior_storey_pitch_m = value
 		_rebuild_if_live()

@@ -35,9 +35,16 @@ const OUTSIDE_ID: int = -1
 # los escenarios del editor. α: 0,22 periferia, 0,25 ciudad, 0,33 núcleo denso.
 @export var wind_height_profile_enabled: bool = false
 @export var wind_profile_alpha: float = 0.28
-# Altura del suelo del edificio dibujado sobre el terreno (planta en la que está
-# la vivienda dentro de un edificio más alto). Lo rellena la línea visual (N-4).
+# Altura sobre la calle de la cota 0 del edificio dibujado (N-4). Si el template
+# no la trae, se deduce al cargar con la misma regla con la que la vista hunde la
+# calle: una altura de planta por cada planta que queda debajo de la vivienda.
+# Puede ser negativa: un dibujo que empieza en la cota 2,90 en planta baja.
 @export var building_base_z_m: float = 0.0
+# Altura de planta de reserva cuando solo hay una planta dibujada y no se puede
+# medir. La vista la usa como valor por defecto de `exterior_storey_pitch_m`.
+const STOREY_PITCH_FALLBACK_M: float = 2.85
+# Separación mínima entre dos cotas para contarlas como plantas distintas.
+const FLOOR_SEPARATION_M: float = 0.20
 const WIND_REFERENCE_HEIGHT_M: float = 10.0
 # Por debajo de esta altura el perfil de potencia deja de frenar el viento.
 const WIND_PROFILE_MIN_HEIGHT_M: float = 2.0
@@ -174,6 +181,58 @@ func estimate_room_connection_length_m(room_a_id: int, room_b_id: int) -> float:
 		return 1.0
 
 	return maxf(0.5, get_room_centroid_m(room_a_id).distance_to(get_room_centroid_m(room_b_id)))
+
+# --- Plantas dibujadas y altura sobre la calle (N-4) ---
+# Viven en el modelo porque las usan la vista (BuildingLevels delega aquí) y el
+# motor (building_base_z_m): si cada uno las calculase, la calle del mundo FP y
+# la del viento podrían acabar en sitios distintos.
+
+## Cotas de forjado dibujadas, de abajo arriba y sin repetir.
+func drawn_floor_levels_m() -> Array[float]:
+	var levels: Array[float] = []
+	for key in rooms.keys():
+		var room: RoomModel = rooms[key]
+		if room == null:
+			continue
+		var nueva: bool = true
+		for level in levels:
+			if absf(level - room.floor_level_z_m) < FLOOR_SEPARATION_M:
+				nueva = false
+				break
+		if nueva:
+			levels.append(room.floor_level_z_m)
+	levels.sort()
+	return levels
+
+## Cuántas plantas se han dibujado. Nunca menos de una.
+func drawn_floor_count() -> int:
+	return maxi(1, drawn_floor_levels_m().size())
+
+## Cota del forjado más bajo dibujado; 0,0 sin salas.
+func lowest_drawn_floor_level_m() -> float:
+	var levels: Array[float] = drawn_floor_levels_m()
+	return levels[0] if not levels.is_empty() else 0.0
+
+## Altura de planta a planta medida en el edificio; `fallback` con una sola planta.
+func floor_to_floor_m(fallback: float) -> float:
+	var levels: Array[float] = drawn_floor_levels_m()
+	if levels.size() < 2:
+		return fallback
+	return maxf(0.1, (levels[levels.size() - 1] - levels[0]) / float(levels.size() - 1))
+
+## En qué planta cae el forjado más bajo dibujado. 0 = planta baja. Una
+## unifamiliar está siempre a pie de calle.
+func base_floor_number() -> int:
+	if building_type.strip_edges().to_lower() != "apartment":
+		return 0
+	return maxi(0, apartment_floor_number)
+
+## Cuánto cae la calle por debajo del forjado más bajo dibujado.
+func street_drop_m(fallback_floor_height: float) -> float:
+	var relleno: int = base_floor_number()
+	if relleno <= 0:
+		return 0.0
+	return float(relleno) * floor_to_floor_m(fallback_floor_height)
 
 # Velocidad del viento a una altura sobre el terreno, según el perfil de potencia.
 # Sin techo: una planta 40 recibe lo que le toca.
@@ -465,8 +524,6 @@ func _load_from_template(data: Dictionary) -> void:
 		wind_height_profile_enabled = bool(data["wind_height_profile_enabled"])
 	if data.has("wind_profile_alpha"):
 		wind_profile_alpha = maxf(0.0, float(data["wind_profile_alpha"]))
-	if data.has("building_base_z_m"):
-		building_base_z_m = maxf(0.0, float(data["building_base_z_m"]))
 	# Detectores opcionales (humo, calor, CO).
 	for det_data in data.get("detectors", []):
 		if typeof(det_data) != TYPE_DICTIONARY:
@@ -617,6 +674,13 @@ func _load_from_template(data: Dictionary) -> void:
 		openings.append(op)
 
 	_normalize_hvac_data(String(data.get("hvac_mode", hvac_data.get("mode", HVAC_MODE_NONE))))
+
+	# N-4: con las salas ya cargadas se conocen las cotas dibujadas. Un valor
+	# explícito manda; si no, la calle queda donde la pone la vista.
+	if data.has("building_base_z_m"):
+		building_base_z_m = float(data["building_base_z_m"])
+	else:
+		building_base_z_m = street_drop_m(STOREY_PITCH_FALLBACK_M) - lowest_drawn_floor_level_m()
 
 
 func _normalize_opening_visual_metadata(op: OpeningModel) -> void:
