@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "building_type": "apartment",
+  "apartment_floor_number": 0,
+  "outside_temp_c": 20.0,
+  "outside_o2": 0.209,
+  "interior_lights_on": true,
+  "exterior_lighting_mode": "day",
+  "hvac_mode": "off",
+  "hvac_data": {},
+  "exterior_walls": [],
+  "floors": [
+    {
+      "name": "R",
+      "level_m": 0.0
+    },
+    {
+      "name": "R+1",
+      "level_m": 2.9
+    },
+    {
+      "name": "R+2",
+      "level_m": 5.8
+    }
+  ],
+  "rooms_data": [
+    {
+      "id": 1,
+      "name": "Vivienda P0",
+      "kind": "salon",
+      "rotation_deg": 0.0,
+      "height_m": 2.5,
+      "floor_level_z_m": 0.0,
+      "fuel_energy_MJ": 3000.0,
+      "max_hrr_kw": 2500.0,
+      "fuel_objects": []
+    },
+    {
+      "id": 2,
+      "name": "Patio P0",
+      "kind": "patio",
+      "rotation_deg": 0.0,
+      "height_m": 2.9,
+      "floor_level_z_m": 0.0,
+      "fuel_energy_MJ": 0.0,
+      "max_hrr_kw": 0.0,
+      "fuel_objects": []
+    },
+    {
+      "id": 11,
+      "name": "Vivienda P1",
+      "kind": "salon",
+      "rotation_deg": 0.0,
+      "height_m": 2.5,
+      "floor_level_z_m": 2.9,
+      "fuel_energy_MJ": 1500.0,
+      "max_hrr_kw": 800.0,
+      "fuel_objects": []
+    },
+    {
+      "id": 12,
+      "name": "Patio P1",
+      "kind": "patio",
+      "rotation_deg": 0.0,
+      "height_m": 2.9,
+      "floor_level_z_m": 2.9,
+      "fuel_energy_MJ": 0.0,
+      "max_hrr_kw": 0.0,
+      "fuel_objects": []
+    },
+    {
+      "id": 21,
+      "name": "Vivienda P2",
+      "kind": "salon",
+      "rotation_deg": 0.0,
+      "height_m": 2.5,
+      "floor_level_z_m": 5.8,
+      "fuel_energy_MJ": 1500.0,
+      "max_hrr_kw": 800.0,
+      "fuel_objects": []
+    },
+    {
+      "id": 22,
+      "name": "Patio P2",
+      "kind": "patio",
+      "rotation_deg": 0.0,
+      "height_m": 2.9,
+      "floor_level_z_m": 5.8,
+      "fuel_energy_MJ": 0.0,
+      "max_hrr_kw": 0.0,
+      "fuel_objects": []
+    }
+  ],
+  "room_rect_m": {
+    "1": {
+      "x": 0.0,
+      "y": 0.0,
+      "w": 5.0,
+      "h": 4.0
+    },
+    "2": {
+      "x": 5.0,
+      "y": 0.0,
+      "w": 2.5,
+      "h": 2.5
+    },
+    "11": {
+      "x": 0.0,
+      "y": 0.0,
+      "w": 5.0,
+      "h": 4.0
+    },
+    "12": {
+      "x": 5.0,
+      "y": 0.0,
+      "w": 2.5,
+      "h": 2.5
+    },
+    "21": {
+      "x": 0.0,
+      "y": 0.0,
+      "w": 5.0,
+      "h": 4.0
+    },
+    "22": {
+      "x": 5.0,
+      "y": 0.0,
+      "w": 2.5,
+      "h": 2.5
+    }
+  },
+  "openings_data": [
+    {
+      "a": 1,
+      "b": 2,
+      "type": "window",
+      "wall": "right",
+      "offset_m": 0.5,
+      "offset_is_fraction": true,
+      "width_m": 1.2,
+      "height_m": 1.1,
+      "sill_m": 0.9,
+      "open_fraction": 1.0,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    },
+    {
+      "a": 2,
+      "b": 12,
+      "type": "hole",
+      "wall": "",
+      "offset_m": 0.0,
+      "offset_is_fraction": true,
+      "width_m": 2.5,
+      "height_m": 2.5,
+      "sill_m": 0.0,
+      "open_fraction": 1.0,
+      "is_vertical": true,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    },
+    {
+      "a": 11,
+      "b": 12,
+      "type": "window",
+      "wall": "right",
+      "offset_m": 0.5,
+      "offset_is_fraction": true,
+      "width_m": 1.2,
+      "height_m": 1.1,
+      "sill_m": 0.9,
+      "open_fraction": 1.0,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    },
+    {
+      "a": 12,
+      "b": 22,
+      "type": "hole",
+      "wall": "",
+      "offset_m": 0.0,
+      "offset_is_fraction": true,
+      "width_m": 2.5,
+      "height_m": 2.5,
+      "sill_m": 0.0,
+      "open_fraction": 1.0,
+      "is_vertical": true,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    },
+    {
+      "a": 21,
+      "b": 22,
+      "type": "window",
+      "wall": "right",
+      "offset_m": 0.5,
+      "offset_is_fraction": true,
+      "width_m": 1.2,
+      "height_m": 1.1,
+      "sill_m": 0.9,
+      "open_fraction": 1.0,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    },
+    {
+      "a": 22,
+      "b": -1,
+      "type": "hole",
+      "wall": "",
+      "offset_m": 0.0,
+      "offset_is_fraction": true,
+      "width_m": 2.5,
+      "height_m": 2.5,
+      "sill_m": 0.0,
+      "open_fraction": 1.0,
+      "is_vertical": true,
+      "swing_direction": "in",
+      "hinge_side": "left"
+    }
+  ],
+  "detectors": [],
+  "victims": [],
+  "player_start": {
+    "room_id": 1,
+    "x_m": 2.0,
+    "y_m": 2.0
+  },
+  "ignition_room_id": 1,
+  "stop_time_s": 300.0
+}

@@ -45,6 +45,10 @@ var zone_solver_phase: int = 4
 ## M1: activa el ledger canonico de masa y energia de las dos zonas.
 ## Legacy permanece sin cambios cuando false.
 var two_zone_energy_enabled: bool = false
+# Capa superior casi vacia (docs/PROMPT_MOTOR_TOPE_900.md): por debajo de esta
+# fraccion de la masa de la zona se mezcla con la inferior conservando energia.
+# 0 = apagado (por defecto; la suite de validacion no se mueve).
+var thin_upper_layer_min_mass_fraction: float = 0.0
 ## F3.1d: trace pasivo por llamada de project_room_state(). Solo telemetria.
 var projection_diagnostics_enabled: bool = false
 var _projection_trace_records: Array = []
@@ -204,6 +208,14 @@ func reconcile_projected_temperatures(room: RoomModel, ambient_c: float) -> void
 	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - energy_before_kj
 
 
+## Gramos de gas en la capa superior de una zona de decenas de kilos: con eso,
+## unos pocos kJ dan miles de grados. Medido en el patio y el portal: 0,7-16 g.
+func _is_thin_upper_layer(room: RoomModel) -> bool:
+	if thin_upper_layer_min_mass_fraction <= 0.0:
+		return false
+	return room.upper_gas_kg < thin_upper_layer_min_mass_fraction * room.zone_total_mass_kg()
+
+
 func project_room_state(
 		room: RoomModel,
 		ambient_c: float,
@@ -234,7 +246,10 @@ func project_room_state(
 				/ (room.upper_gas_kg * AIR_CP_KJ_KG_K)
 
 	# Una inversion termica se mezcla instantaneamente conservando energia sensible.
-	if room.upper_gas_kg > ZONE_MASS_EPS_KG and upper_temp_raw_c < lower_temp_c:
+	# Una capa superior casi vacia tambien: T = E/(m*cp) con gramos de gas no es
+	# una temperatura, es una division por casi cero.
+	if room.upper_gas_kg > ZONE_MASS_EPS_KG \
+			and (upper_temp_raw_c < lower_temp_c or _is_thin_upper_layer(room)):
 		var total_mass_kg: float = room.zone_total_mass_kg()
 		var mixed_temp_c: float = ambient_c + room.zone_total_energy_kj() \
 				/ maxf(ZONE_MASS_EPS_KG, total_mass_kg * AIR_CP_KJ_KG_K)

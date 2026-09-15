@@ -83,6 +83,9 @@ var upper_radiative_loss_enabled: bool = true
 # FDS y modelos de dos zonas estándar incluyen radiación desde ~20°C; aquí se
 # usa 80°C para evitar ruido numérico en los primeros instantes del arranque.
 var upper_radiative_loss_start_c: float = 80.0
+# Temperatura de activación plena de la pérdida radiativa. Si no supera
+# upper_radiative_loss_start_c (por defecto -1), es max_upper_temp_c.
+var upper_radiative_loss_full_c: float = -1.0
 var upper_radiative_loss_emissivity: float = 0.90
 var upper_radiative_loss_area_factor: float = 1.10
 var upper_radiative_loss_max_fraction_per_step: float = 0.45
@@ -580,6 +583,7 @@ func configure(settings: Dictionary) -> void:
 	max_upper_temp_c = float(settings.get("max_upper_temp_c", max_upper_temp_c))
 	upper_radiative_loss_enabled = bool(settings.get("upper_radiative_loss_enabled", upper_radiative_loss_enabled))
 	upper_radiative_loss_start_c = float(settings.get("upper_radiative_loss_start_c", upper_radiative_loss_start_c))
+	upper_radiative_loss_full_c = float(settings.get("upper_radiative_loss_full_c", upper_radiative_loss_full_c))
 	upper_radiative_loss_emissivity = float(settings.get("upper_radiative_loss_emissivity", upper_radiative_loss_emissivity))
 	upper_radiative_loss_area_factor = float(settings.get("upper_radiative_loss_area_factor", upper_radiative_loss_area_factor))
 	upper_radiative_loss_max_fraction_per_step = float(
@@ -2268,6 +2272,7 @@ func build_phase3_canonical_wall_ambient_context(room: RoomModel) -> Dictionary:
 			upper_radiative_loss_max_fraction_per_step, 0.0, 1.0
 		),
 		"max_upper_temp_c": max_upper_temp_c,
+		"radiative_full_c": _upper_radiative_full_c(),
 	}
 
 
@@ -2398,7 +2403,7 @@ func preview_phase3_canonical_wall_ambient_flux(
 		) * maxf(0.0, float(context.get("radiative_area_factor", 1.0)))
 		var activation: float = clampf(
 			(upper_temp_c - float(context.get("radiative_start_c", 80.0)))
-					/ maxf(1.0, float(context.get("max_upper_temp_c", 900.0))
+					/ maxf(1.0, float(context.get("radiative_full_c", context.get("max_upper_temp_c", 900.0)))
 							- float(context.get("radiative_start_c", 80.0))),
 			0.0,
 			1.0
@@ -2797,6 +2802,13 @@ func _estimate_raw_upper_temp_c(room: RoomModel, ambient_c: float) -> float:
 	return maxf(room.temp_lower_c, ambient_c + room.upper_energy_kj / maxf(0.05, room.upper_gas_kg))
 
 
+## Techo de la rampa radiativa: el propio si se ha fijado, el tope si no.
+func _upper_radiative_full_c() -> float:
+	if upper_radiative_loss_full_c > upper_radiative_loss_start_c:
+		return upper_radiative_loss_full_c
+	return max_upper_temp_c
+
+
 func _compute_upper_radiative_loss_kj(
 	room: RoomModel,
 	ambient_c: float,
@@ -2825,13 +2837,14 @@ func _compute_upper_radiative_loss_kj(
 	if exchange_area_m2 <= 0.0:
 		return 0.0
 
-	# Activación lineal entre upper_radiative_loss_start_c y max_upper_temp_c.
+	# Activación lineal entre upper_radiative_loss_start_c y el techo radiativo
+	# (max_upper_temp_c salvo que upper_radiative_loss_full_c diga otra cosa).
 	# El modelo previo usaba activación cuadrática que efectivamente suprimía
 	# toda pérdida radiativa por debajo de ~880 °C, causando sobrecalentamiento
 	# irreal de la capa superior en comparación con FDS.
 	var activation: float = clampf(
 		(upper_temp_c - upper_radiative_loss_start_c)
-				/ maxf(1.0, max_upper_temp_c - upper_radiative_loss_start_c),
+				/ maxf(1.0, _upper_radiative_full_c() - upper_radiative_loss_start_c),
 		0.0,
 		1.0
 	)

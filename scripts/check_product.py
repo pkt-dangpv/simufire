@@ -343,6 +343,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot muebles sin potencia tras apagarse: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_upper_layer_temperature.gd",
+        "UPPER LAYER TEMPERATURE VALIDATION PASS",
+    )
+    rows.append(("Capa superior casi vacia y radiacion Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot capa superior casi vacia: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

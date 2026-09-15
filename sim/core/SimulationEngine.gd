@@ -607,8 +607,16 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var upper_to_ambient_loss_rate: float = 0.008
 @export var lower_layer_warming_rate: float = 0.0120
 @export var max_upper_temp_c: float = 900.0
+# Capa superior casi vacía (docs/PROMPT_MOTOR_TOPE_900.md): por debajo de esta
+# fracción de la masa de la zona se mezcla con la inferior conservando energía,
+# en vez de dar T = E/(m·cp) con gramos de gas. 0 = apagado.
+@export var thin_upper_layer_min_mass_fraction: float = 0.0
 @export var upper_radiative_loss_enabled: bool = true
 @export var upper_radiative_loss_start_c: float = 80.0
+# Temperatura a la que la pérdida radiativa de la capa superior llega al 100 %.
+# Si no supera upper_radiative_loss_start_c (por defecto -1) es max_upper_temp_c,
+# como hasta ahora. Separarla deja mover el tope sin cambiar cuánto irradia.
+@export var upper_radiative_loss_full_c: float = -1.0
 @export var upper_radiative_loss_emissivity: float = 0.90
 @export var upper_radiative_loss_area_factor: float = 1.10
 @export var upper_radiative_loss_max_fraction_per_step: float = 0.45
@@ -1229,6 +1237,7 @@ func _sync_auxiliary_services() -> void:
 	_p1r2_record_tick_boundary("auxiliary_sync")
 
 	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
+	zone_fire_solver.thin_upper_layer_min_mass_fraction = _effective_thin_upper_layer_min_mass_fraction()
 	zone_fire_solver.projection_diagnostics_enabled = _phase3_projection_diagnostics_active()
 	zone_fire_solver.set_building(building)
 	_configure_phase3_o2_zonal_mass_shadow()
@@ -1254,6 +1263,7 @@ func _sync_auxiliary_services() -> void:
 		"max_upper_temp_c": max_upper_temp_c,
 		"upper_radiative_loss_enabled": upper_radiative_loss_enabled,
 		"upper_radiative_loss_start_c": upper_radiative_loss_start_c,
+		"upper_radiative_loss_full_c": upper_radiative_loss_full_c,
 		"upper_radiative_loss_emissivity": upper_radiative_loss_emissivity,
 		"upper_radiative_loss_area_factor": upper_radiative_loss_area_factor,
 		"upper_radiative_loss_max_fraction_per_step": upper_radiative_loss_max_fraction_per_step,
@@ -2605,7 +2615,7 @@ func _phase3_shadow_queue_canonical_multisurface_exchange(
 	if upper_radiative_loss_enabled and upper_temp_c > upper_radiative_loss_start_c:
 		radiation_activation = clampf(
 			(upper_temp_c - upper_radiative_loss_start_c)
-			/ maxf(1.0, max_upper_temp_c - upper_radiative_loss_start_c),
+			/ maxf(1.0, _upper_radiative_full_c() - upper_radiative_loss_start_c),
 			0.0,
 			1.0
 		)
@@ -4865,6 +4875,22 @@ func _clamp_rooms(dt: float) -> void:
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
 		room.svv_worst_pct = minf(clampf(room.svv_worst_pct, 0.0, 100.0), room.svv_pct)
+
+
+## Fracción mínima de capa superior que se aplica: la del escenario si la trae
+## (los del editor la encienden), la del motor si no (0 = apagado).
+func _effective_thin_upper_layer_min_mass_fraction() -> float:
+	if building != null and building.thin_upper_layer_min_mass_fraction > 0.0:
+		return building.thin_upper_layer_min_mass_fraction
+	return thin_upper_layer_min_mass_fraction
+
+
+## Techo de la rampa radiativa de la capa superior: el propio si se ha fijado,
+## el tope de temperatura si no (el comportamiento de siempre).
+func _upper_radiative_full_c() -> float:
+	if upper_radiative_loss_full_c > upper_radiative_loss_start_c:
+		return upper_radiative_loss_full_c
+	return max_upper_temp_c
 
 
 func _apply_phase3_stairwell_temperature_cap(room: RoomModel) -> void:

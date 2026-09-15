@@ -4,6 +4,11 @@ class_name ScenarioSerializer
 const ScenarioValues := preload("res://sim/ScenarioValues.gd")
 
 const DEFAULT_VERSION: int = 1
+## Capa superior casi vacía (docs/PROMPT_MOTOR_TOPE_900.md): los escenarios del
+## editor, que son los que tienen patios y portales, la mezclan con la inferior
+## por debajo de esta fracción de la masa de la zona. Medido en el patio: las
+## zonas pasan de 900 °C recortados a 369 °C y la sala del fuego no se mueve.
+const EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION: float = 0.002
 
 
 static func save_scenario(path: String, scenario_data: Dictionary) -> bool:
@@ -87,6 +92,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
 		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"wind_height_profile_enabled": bool(data.get("wind_height_profile_enabled", true)),
+		"thin_upper_layer_min_mass_fraction": float(data.get("thin_upper_layer_min_mass_fraction", EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"floors": Array(data.get("floors", [])).duplicate(true),
@@ -114,6 +120,7 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"wind_speed_m_s": float(data.get("wind_speed_m_s", 0.0)),
 		"wind_direction_deg": float(data.get("wind_direction_deg", 0.0)),
 		"wind_height_profile_enabled": bool(data.get("wind_height_profile_enabled", true)),
+		"thin_upper_layer_min_mass_fraction": float(data.get("thin_upper_layer_min_mass_fraction", EDITOR_THIN_UPPER_LAYER_MIN_MASS_FRACTION)),
 		"interior_lights_on": bool(data.get("interior_lights_on", true)),
 		"exterior_lighting_mode": String(data.get("exterior_lighting_mode", "Dia")),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),

@@ -35,6 +35,11 @@ const OUTSIDE_ID: int = -1
 # los escenarios del editor. α: 0,22 periferia, 0,25 ciudad, 0,33 núcleo denso.
 @export var wind_height_profile_enabled: bool = false
 @export var wind_profile_alpha: float = 0.28
+# Capa superior casi vacía (docs/PROMPT_MOTOR_TOPE_900.md): fracción mínima de la
+# masa de la zona por debajo de la cual la capa se mezcla con la inferior. Si es
+# mayor que 0 manda sobre el ajuste del motor. 0 por defecto; los escenarios del
+# editor la encienden, los casos de validación no.
+@export var thin_upper_layer_min_mass_fraction: float = 0.0
 # Altura sobre la calle de la cota 0 del edificio dibujado (N-4). Si el template
 # no la trae, se deduce al cargar con la misma regla con la que la vista hunde la
 # calle: una altura de planta por cada planta que queda debajo de la vivienda.
@@ -524,6 +529,7 @@ func _load_from_template(data: Dictionary) -> void:
 		wind_height_profile_enabled = bool(data["wind_height_profile_enabled"])
 	if data.has("wind_profile_alpha"):
 		wind_profile_alpha = maxf(0.0, float(data["wind_profile_alpha"]))
+	thin_upper_layer_min_mass_fraction = maxf(0.0, float(data.get("thin_upper_layer_min_mass_fraction", 0.0)))
 	# Detectores opcionales (humo, calor, CO).
 	for det_data in data.get("detectors", []):
 		if typeof(det_data) != TYPE_DICTIONARY:
