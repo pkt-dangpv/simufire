@@ -293,8 +293,10 @@ def test_coverage_is_declared_and_never_claimed_complete():
                  "OxygenExchangeSystem.gd:1128", "OxygenExchangeSystem.gd:470"):
         assert site in block, site
     coverage = ENGINE.split('"writer_coverage": {', 1)[1].split("},", 1)[0]
-    assert '"production_writes_found": 45' in coverage
-    assert '"instrumented": 23' in coverage
+    # 45/23 in S0d6, plus the two instrumented exterior-opening Bernoulli
+    # writes added in f6fed3a7 (oes_exterior_opening, *_lower_replenish).
+    assert '"production_writes_found": 47' in coverage
+    assert '"instrumented": 25' in coverage
     assert '"uninstrumented": 22' in coverage
     assert "adversarial per-writer verification incomplete" in coverage
     # The declared list must have exactly as many entries as the count claims,

@@ -189,6 +189,8 @@ OUT_OF_RUNTIME_SCOPE = {
     "canonical_doorway_exchange_enabled",
     "co_oxidation_enabled",
     "doorway_thermal_counterflow_enabled",
+    # f6fed3a7: live O2 physics for exterior openings (editor scenarios only).
+    "exterior_opening_bernoulli_o2_enabled",
     "fed_co2_source_mass",
     "fire_fds_extinction_enabled",
     "fire_o2_canonical_enabled",
@@ -221,6 +223,10 @@ OUT_OF_RUNTIME_SCOPE = {
     "wall_layer_aware_conduction",
 }
 
+# Every new `@export var <name>: bool = false` in SimulationEngine must be
+# classified above and counted here; an unclassified switch fails closed.
+EXPECTED_DECLARATION_COUNT = 76
+
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 
 
@@ -240,12 +246,14 @@ def static_audit() -> dict:
     declared = discover()
     classified = set(RUNTIME_ACTIVATIONS) | OUT_OF_RUNTIME_SCOPE
     errors: list[str] = []
-    if len(declared) != 75:
-        errors.append(f"expected 75 declarations, found {len(declared)}")
+    if len(declared) != EXPECTED_DECLARATION_COUNT:
+        errors.append(
+            f"expected {EXPECTED_DECLARATION_COUNT} declarations, found {len(declared)}"
+        )
     if set(declared) != classified:
         errors.append(
             "classification mismatch: missing=%s extra=%s"
-            % [sorted(set(declared) - classified), sorted(classified - set(declared))]
+            % (sorted(set(declared) - classified), sorted(classified - set(declared)))
         )
     if set(RUNTIME_ACTIVATIONS) & OUT_OF_RUNTIME_SCOPE:
         errors.append("runtime and out-of-scope partitions overlap")

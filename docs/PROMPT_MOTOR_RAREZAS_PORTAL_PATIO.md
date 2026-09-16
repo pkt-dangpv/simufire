@@ -30,7 +30,8 @@
 > Nota para la auditoría de O₂: esta vía añade dos escrituras registradas con
 > los propietarios de la vía exterior (`oes_exterior_opening` y
 > `oes_exterior_opening_lower_replenish`). El recuento estático declarado en
-> `SimulationEngine` (`writer_coverage`: 45/23/22) es de antes y no las incluye.
+> `SimulationEngine` (`writer_coverage`: 45/23/22) era de antes y no las incluía;
+> corregido el 2026-09-16 a 47/25/22.
 >
 > **Dónde se enciende** (decisión del usuario): en los escenarios del editor,
 > como el viento por altura y la capa fina.

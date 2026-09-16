@@ -4593,12 +4593,15 @@ func _phase3_o2_attribution_combined() -> Dictionary:
 		"flags": _phase3_o2_engine_flag_state(),
 		# H3.2-S0d6: una pasada estatica encuentra 45 escrituras de estado O2 en
 		# produccion; 23 estan instrumentadas. Las 22 restantes se declaran aqui
+		# (numeros de linea de aquella pasada, no posiciones actuales). f6fed3a7
+		# suma dos escrituras instrumentadas de la apertura exterior por Bernoulli
+		# (oes_exterior_opening y oes_exterior_opening_lower_replenish): 47/25/22.
 		# para que la tabla NO se lea como cobertura total. HVAC esta diferido por
 		# enunciado; el resto son escrituras de OxygenExchangeSystem que no son
 		# clamps y quedan fuera del alcance de esta fase.
 		"writer_coverage": {
-			"production_writes_found": 45,
-			"instrumented": 23,
+			"production_writes_found": 47,
+			"instrumented": 25,
 			"uninstrumented": 22,
 			"method": "single static pass; adversarial per-writer verification incomplete",
 		},
