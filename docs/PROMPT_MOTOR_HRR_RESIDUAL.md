@@ -1,5 +1,33 @@
 # Prompt: hrr_kw residual en fuel objects tras extinción de sala
 
+## Disposición final (2026-09-16)
+
+**`FALSE_POSITIVE / NOT_REPRODUCIBLE_WITH_REGRESSION`** — cerrado.
+
+- **No es `FIXED`.** No se ha cambiado la combustión: el motor en el que se
+  midió (2026-09-15; `d8e24628` solo añade el guardarraíl) ya no dejaba potencia en los muebles
+  de una sala apagada. El síntoma del 2026-07-15 no se reproduce con el motor
+  actual.
+- **Evidencia:** 4 plantillas examinadas, 3 extinciones reales por falta de O₂,
+  0 objetos con `hrr_kw > 0` en una sala sin fuego (tabla abajo).
+- **Regresión:** guardarraíl `tools/validate_extinction_object_hrr.gd`
+  (commit `d8e24628`, registrado en `scripts/check_product.py`). 4/5
+  mutaciones detectadas; la superviviente (quitar la puesta a cero del reparto
+  de quemado) queda neutralizada en el mismo tick por la ruta pasiva, así que la
+  invariante observable —ningún mueble con potencia en una sala apagada— se
+  sigue cumpliendo y es lo que el guardarraíl protege.
+- **Pirólisis previa a la ignición (SF-AUD-016):** en los casos con propiedades
+  termoquímicas explícitas (`heat_of_gasification_kj_kg` y
+  `heat_of_combustion_kj_kg`) un objeto en `PYROLYZING` puede tener
+  `hrr_kw > 0` sin llama en la sala. Es **comportamiento modelado**, no una
+  fuga de HRR posterior a la extinción.
+- Las secciones **«Causa probable»**, **«Qué hacer»** y **«Restricciones»** de
+  más abajo son el diagnóstico histórico del 2026-07-15 y quedan **superadas**:
+  la hipótesis no se confirmó y el «arreglo real» en `_extinguish_room_fire`
+  no es necesario. Se conservan como registro.
+
+## Medición (2026-09-15)
+
 > **Medido el 2026-09-15: no se reproduce con el motor actual.** Sonda headless
 > (motor real, paso 0,5 s) que vuelca los objetos en el tick en que la sala se
 > apaga y registra cualquier objeto con `hrr_kw > 0` en una sala sin fuego:
@@ -35,17 +63,17 @@
 > que la invariante se cumple; lo que protege la red es la invariante, no esa
 > línea.
 
-## Síntoma observado
+## Síntoma observado (histórico, 2026-07-15)
 
 Run del 2026-07-15 (escenario 6 salas, incendio en R0 Salón, extinción por agotamiento de O₂ hacia t≈700 s). Desde ese momento y hasta el final del run (t=1030 s):
 
 - **Nivel sala (correcto):** `hrr_kw=0.00` y `burned_hrr_kw=0.00` en el CSV para R0, de forma sostenida. `pyrolysis_kw=0`, `HRRt=0`, `Burn=0`.
-- **Nivel objeto (sospechoso):** el visor FP seguía mostrando una llama activa en R0 anclada a un mueble. El visor FP calcula la visibilidad de la llama como `max(hrr sala, burned_hrr sala, hrr de cada fuel_object del snapshot)` — como los dos primeros eran 0, algún objeto del snapshot reportaba `hrr_kw > 0`.
+- **Nivel objeto (sospechoso):** el visor FP seguía mostrando una llama activa en R0 anclada a un mueble (el log de julio no permite saber si la llama venía del motor de entonces o solo de la vista). El visor FP calcula la visibilidad de la llama como `max(hrr sala, burned_hrr sala, hrr de cada fuel_object del snapshot)` — como los dos primeros eran 0, algún objeto del snapshot reportaba `hrr_kw > 0`.
 - Estado final de R0 en el TXT: `FuelH=7 | FuelP=0 | Obj=salon_sofa:heating | FuelT=64-68`. Siete objetos en heating, ninguno pirolizando, dominante el sofá. El TXT solo registra el objeto dominante, así que no se puede ver desde el log cuál retiene el hrr rancio ni en qué estado está.
 
 **Mitigación ya aplicada en la vista** (commit `2e90fa0`, `view/fp/FirstPersonController.gd` + `view/3d/Visualizer3D.gd`): la llama FP solo cuenta el hrr de objetos en estado `flaming`/`decaying`, y el hrr de objetos en otros estados no puntúa para elegir el objeto ancla. **Esto NO cubre el caso de un objeto congelado en `decaying` con hrr rancio** — si el leak deja objetos en ese estado, la llama fantasma volverá. El arreglo real es del motor.
 
-## Causa probable
+## Causa probable (SUPERADA 2026-09-16: no confirmada, ver «Disposición final»)
 
 `CombustionSystem._extinguish_room_fire()` (línea ~1827) resetea exhaustivamente el estado de combustión **de la sala**:
 
@@ -68,7 +96,7 @@ Después de la extinción:
 
 Contraste: `_mark_room_ignition_object()` (línea ~1854) sí recorre todos los objetos haciendo `obj.hrr_kw = 0.0` al iniciar — el patrón existe, solo falta en la extinción.
 
-## Qué hacer
+## Qué hacer (SUPERADO 2026-09-16: el punto 1 se hizo y no reprodujo el leak; los puntos 2–3 no proceden; el 4 lo cubre el guardarraíl)
 
 1. **Confirmar el leak.** Reproducir un run con extinción por O₂ (o usar un caso de validación existente con backdraft/ventilation-limited) y volcar `[obj.id, obj.state, obj.hrr_kw]` de todos los objetos de la sala tras `_extinguish_room_fire`. Identificar qué objetos retienen hrr > 0 y en qué estado quedan.
 
@@ -88,7 +116,7 @@ Contraste: `_mark_room_ignition_object()` (línea ~1854) sí recorre todos los o
    - Ningún objeto en estado `FLAMING`
    - Si hay backdraft posterior (reignición), los objetos pueden volver a arder con normalidad (el reset no rompe la reignición).
 
-## Restricciones
+## Restricciones (SUPERADAS 2026-09-16: no hay cambio de motor que restringir)
 
 - Cambio localizado en `sim/fire/CombustionSystem.gd` (`_extinguish_room_fire` + test). No tocar el reparto de quemado ni el precalentamiento salvo que la confirmación del punto 1 revele que el leak está en otra ruta.
 - Ojo con `_mark_legacy_proxy_burned_out` / `_sync_legacy_proxy_from_fire`: ya gestionan el proxy legacy dentro de la extinción; el loop nuevo no debe pisar lo que hacen con el proxy (saltar objetos `room_proxy_*` o ejecutar el loop antes de esas llamadas).

@@ -1,5 +1,87 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-16 - engine batch of 15-16 September
+
+- Checkpoint: `main` at `84849a2f` (one local maintenance commit on top of
+  `origin/main` = `b0b31bb6`, not pushed), plus this documentation commit.
+  Scientific matrix: **346/346 required PASS**, **78 documented non-gating
+  gaps**, regenerated in full after `84849a2f` touched `sim/core`.
+- Engine work integrated after the auditor released `sim/` (all physics behind
+  switches that are **off by default**; official validation cases do not turn
+  them on; editor scenarios do, via `ScenarioSerializer`):
+  - **Wind by height (N-5)**, `6832eb1e`: `BuildingModel.wind_height_profile_enabled`
+    (false) and `wind_profile_alpha` (0.28) scale the exterior-opening wind
+    pressure with the opening height. Guardrail `tools/validate_wind_controls.gd`.
+  - **Building base (N-4)**, `d01e9f57`: `BuildingModel` derives
+    `building_base_z_m` from the drawn apartment floor when the template does
+    not declare it; floor queries moved from the view into the model.
+  - **Near-empty upper layers (option A)**, `7505baef`:
+    `thin_upper_layer_min_mass_fraction` (0.0 in `SimulationEngine`) mixes an
+    upper layer holding grams into the room instead of letting
+    `T = E/(m·cp)` hit the 900 °C cap. Editor value 0.002.
+  - **Independent radiative ceiling (option B)**, `7505baef`:
+    `upper_radiative_loss_full_c` lets the upper-layer radiative ramp stop
+    depending on the temperature cap, **but its default `-1` keeps using
+    `max_upper_temp_c`**, so the historical behaviour is unchanged unless a
+    value above `upper_radiative_loss_start_c` is set. The editor does not set it.
+  - **Exterior O₂ by Bernoulli**, `f6fed3a7`: `exterior_opening_bernoulli_o2_enabled`
+    (false) makes non-vertical exterior openings replenish O₂ with the same
+    two-zone Bernoulli flow state as interior doors. **Only O₂ replenishment is
+    shared**; total gas mass, energy, smoke and the other species through
+    exterior openings still use their existing, separate paths. Editor: on.
+  - Guardrails `validate_upper_layer_temperature.gd` (12/12 mutations),
+    `validate_exterior_opening_o2.gd` (13/13) and
+    `validate_extinction_object_hrr.gd` (4/5, see next item). Reports were
+    regenerated after each engine commit (`d5913627`, `011c6bab`, `b0b31bb6`).
+- **Residual HRR closed** as `FALSE_POSITIVE / NOT_REPRODUCIBLE_WITH_REGRESSION`
+  (`docs/PROMPT_MOTOR_HRR_RESIDUAL.md`): not reproducible (4 templates, 3 real
+  O₂ extinctions, 0 objects with `hrr_kw > 0` in a room without fire), no
+  combustion fix, regression guardrail in `check_product.py`. Pre-ignition
+  pyrolysis with explicit thermochemistry is modelled behaviour.
+- **Regression from `f6fed3a7` fixed in `84849a2f`** (tooling and
+  classification only, no physics): `f6fed3a7` added
+  `exterior_opening_bernoulli_o2_enabled` without classifying it, so the P1R4
+  inventory (`tests/test_p1r4_flag_activation_inventory.py`, 2 tests) found 76
+  default-off declarations instead of 75, and the auditor's mismatch message
+  raised `TypeError` (`%` applied to a list). The flag is now classified as live
+  physics outside the P1R4 runtime scope; the auditor uses
+  `EXPECTED_DECLARATION_COUNT = 76` and still fails closed on any unclassified
+  switch (checked by injecting a fake declaration). The same commit updates the
+  O₂ `writer_coverage` count for the two instrumented exterior-opening writes
+  from `f6fed3a7`: 45/23/22 -> **47/25/22** (the listed line labels remain
+  those of the S0d6 pass).
+- Recalification on 2026-09-16 (evidence in gitignored `runs/recal_20260916/`):
+  - At `b0b31bb6`: focused guardrails wind / residual HRR / thin upper layer /
+    exterior O₂ **4/4 PASS**; `check_product.py` **139/139**; scientific
+    guardrails **ALL PASS**; reference checks recomputed from existing reports
+    **346/346**, 78 gaps. Global Python suite **2703 passed, 2 failed** (the
+    P1R4 inventory tests). A previous attempt is void: diagnostic Godot runs
+    were executing in parallel and 7 tests enforce "no pre-existing Godot
+    process".
+  - After the `84849a2f` changes: full `run_reference_checks.ps1` in 77 min,
+    **346/346**, 78 gaps, every case report byte-identical (only
+    `generated_at` changed in `reference_checks.json`); scientific guardrails
+    **ALL PASS** (R2-1 included); `check_product.py` **139/139**.
+  - At `84849a2f` with a clean tree (pending documents stashed), no Godot
+    process, fresh basetemp and cache: scientific guardrails **ALL PASS**;
+    global Python suite **2705 passed, 0 failed, 4 skipped, 42 subtests
+    passed** (97.5 s), exit 0. `git diff --check` passed.
+- **Closed-door leakage: diagnosis and design only**
+  (`docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`), no engine change. Current
+  paths make a cold closed door airtight; a thermally deformed door passes
+  smoke and species through the background heuristic and equalises pressure
+  instantly, but no gas mass, enthalpy or O₂. A probe emulating geometric
+  cracks (78-289 cm²) through the existing door paths delivered **more** smoke
+  than an open door, at the same time and without its heat, so those paths are
+  unusable for leakage. User decisions (2026-09-16): ELA at 4 Pa from NIST TN
+  2329 (**12 cm²** apartment entrance to the stair lobby, **21 cm²** ordinary
+  interior door, explicit override for loose doors), power-law crack flow, a
+  per-opening leakage class in the engine model, the per-step limiter only as a
+  numerical safety belt, and **F2.2 (closed-compartment overpressure, measured
+  at 297-349 kPa in a sealed room) fixed before integrating**. Next step
+  allowed: the pure leakage model tested with imposed, realistic pressure
+  differences, not connected to the engine or the editor.
+
 ## Current Program Update - 2026-09-15 - global Python suite verified clean
 
 - The complete Python suite is **GO for zero failed/error tests**, reproduced
