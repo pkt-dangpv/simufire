@@ -359,6 +359,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot O2 por apertura exterior: " + (diagnostic or "failed"))
 
+    # Modelo puro de fuga de puerta cerrada (fase 1): aun sin conectar al motor.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_closed_door_leakage_model.gd",
+        "CLOSED DOOR LEAKAGE MODEL VALIDATION PASS",
+    )
+    rows.append(("Fuga de puerta cerrada, modelo puro Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot fuga de puerta cerrada: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",
