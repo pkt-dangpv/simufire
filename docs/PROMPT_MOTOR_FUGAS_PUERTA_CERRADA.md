@@ -1,18 +1,31 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-16): solo diagnóstico y diseño. No hay física nueva en el
-> motor.** Medido con `main` en `b0b31bb6` sin tocar `sim/`.
+> **Estado (2026-09-17): fase 1 cerrada.** El modelo puro de fuga de puerta
+> cerrada (`sim/core/ClosedDoorLeakageModel.gd`) está **implementado y
+> validado** (§12), pero **no está integrado**: ningún sistema lo carga en el
+> paso de simulación, no hay física nueva activa y ningún escenario usa todavía
+> esta física. Siguen pendientes la deformación, el vidrio, F2.2 y la
+> integración (§6.6). El diagnóstico de §2-§5 se midió con `main` en
+> `b0b31bb6` sin tocar `sim/`.
+> La revisión bibliográfica trazable está en
+> [`RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md`](RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md).
 >
 > **Decisiones del usuario (2026-09-16):**
 > - **Área**: ELA a 4 Pa según NIST TN 2329: **12 cm²** para la entrada de
->   vivienda al portal y **21 cm²** para una puerta interior corriente. Las
->   puertas desajustadas llevan un override explícito. Los candidatos
->   geométricos L1/L2/L3 de la sonda se descartan como valores (§7).
+>   vivienda y **21 cm²** como clase interior provisional. NIST emplea este
+>   último valor para puertas de garaje/sótano, no como medición universal de
+>   puertas interiores; por eso queda marcado como extrapolación hasta
+>   calibrarlo. Las puertas desajustadas llevan un override explícito. Los
+>   candidatos geométricos L1/L2/L3 de la sonda se descartan como valores (§7).
 > - **Flujo**: de grieta, por ley de potencia; una clase de fuga por abertura
 >   en el motor (§6.2-§6.3).
 > - **Orden**: primero el modelo puro con ΔP impuestas; **F2.2 (sobrepresión)
 >   se arregla antes de integrar**; después se integra (§6.6). El límite por
 >   paso es solo un cinturón numérico, no sustituye a la presión física.
+> - **Integridad**: la fuga fría, los huecos por deformación y el
+>   desprendimiento de vidrio son mecanismos separados. Una puerta cerrada
+>   puede deformarse o perder un paño acristalado sin cambiar su
+>   `open_fraction`.
 
 ## 1. Problema
 
@@ -219,6 +232,13 @@ neto** que entra es de **569 g**.
 | **Deformación térmica** (existe) | puerta interior con `open_fraction < 0.5` y T > 150 °C | `thermal_gap_fraction` | con el interruptor apagado, igual que hoy. Opción a decidir: con él encendido, que ensanche los laterales y el dintel **dentro del mismo solver** en vez de ir por la heurística de fondo |
 | **Apertura voluntaria** | `open_fraction > EPSILON` | hueco de la puerta | rutas actuales; la fuga se desactiva |
 
+La ampliación bibliográfica añade un cuarto estado geométrico que no debe
+confundirse con los anteriores: **pérdida de un paño acristalado**. Una grieta
+sin caída no abre paso; el vidrio realmente desprendido crea una abertura
+rectangular grande en la cota exacta del paño y va al solver Bernoulli de
+aberturas. La deformación, en cambio, añade rendijas localizadas al solver de
+fugas. Ninguno de los dos modifica `open_fraction`.
+
 `open_fraction` no se toca: sigue siendo el estado operativo y visual.
 
 ### 6.2 Dato físico principal: área efectiva de fuga (ELA)
@@ -231,16 +251,19 @@ y el área efectiva de una puerta real es un orden de magnitud menor (§7).
 Parámetros del motor:
 
 - `closed_door_effective_leakage_area_m2`: el valor por defecto de la clase
-  `interior_standard`;
+  `interior_tight`;
 - `closed_door_leakage_reference_pressure_pa = 4.0`;
 - `closed_door_leakage_flow_exponent`: el exponente `n` de la ley de potencia.
-  Se propone 0,65, el valor habitual para grietas, **a confirmar con la fuente**
-  junto con la convención de coeficiente de descarga del ELA.
+  Candidato provisional 0,65, dentro del intervalo 0,6-0,7 que CONTAM
+  considera razonable sin dato experimental (TN 1887r1, p. 266); no es una
+  calibración de puertas interiores residenciales.
+- Convención del ELA (TN 1887r1, ec. 28-29): **ELA a 4 Pa con C_d = 1,0**. No
+  hay coeficiente de descarga aparte (ver §12).
 
 **Campo por abertura, en el modelo del motor** (`OpeningModel`), no deducido de
 la vista:
 
-- `leakage_class`: `interior_standard` (por defecto en las puertas interiores),
+- `leakage_class`: `interior_tight` (por defecto provisional en las puertas interiores),
   `entry_tight` (entrada de vivienda al portal) o `none` (estanca, para pruebas
   y huecos que no son puertas);
 - `leakage_area_override_m2`: un ELA explícito para casos como una puerta vieja
@@ -274,11 +297,13 @@ elemento o banda en la cota z:
 2. **Caudal de grieta con ley de potencia**, calibrado con el ELA a la presión
    de referencia:
    `Q_k = f_k · ELA · sqrt(2·ΔP_ref/ρ) · (|ΔP(z)| / ΔP_ref)^n`, con el signo
-   de ΔP y `ṁ = ρ_src·Q`. Por debajo de una ΔP umbral, un tramo lineal evita la
-   derivada infinita en ΔP = 0.
-3. **Zona de origen y de destino**: el origen es la zona de la sala de origen
-   en esa cota; el destino, la capa alta de la receptora si el gas es más
-   caliente que su capa baja, y la baja si no.
+   de ΔP y `ṁ = ρ_src·Q` (ELA a 4 Pa, C_d = 1,0). Opcionalmente, una
+   regularización **numérica** lineal cerca de ΔP = 0; con 0, ley pura (§12).
+3. **Zona de origen y lado receptor**: el origen es la zona de la sala de
+   origen en esa cota. Del receptor solo se informa la zona geométrica que
+   ocupa esa cota y su densidad. *(Corregido el 2026-09-17: se retira la regla
+   "a la capa alta si el gas es más caliente"; la deposición la decide el
+   consumidor de transporte, §12.4.)*
 4. **Cinturón numérico**: una fracción máxima de la zona de origen por paso.
    **Es solo seguridad numérica.** No valida ni oculta una ΔP fuera de rango:
    si se activa con presiones de más de unos cientos de Pa, cuenta como fallo
@@ -311,7 +336,7 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
 - `SimulationEngine.closed_door_leakage_enabled: bool = false` y el
   equivalente en `BuildingModel`; el motor usa `export OR escenario`.
 - `ScenarioSerializer.EDITOR_CLOSED_DOOR_LEAKAGE_ENABLED` y el paso por
-  `tools/run_scenario_headless.gd`, **solo en la etapa de integración (paso 4
+  `tools/run_scenario_headless.gd`, **solo en la etapa de integración (paso 6
   de §6.6)**.
 - Los casos oficiales no lo encienden. Apagado, todo idéntico byte a byte.
 - Registrar el interruptor en `scripts/simulation/audit_default_off_flags.py`
@@ -321,39 +346,48 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
 
 1. **Modelo puro de fuga** (`ClosedDoorLeakageModel.gd`), probado con
    diferencias de presión **impuestas y razonables** (0-50 Pa, perfiles con y
-   sin capa caliente). Sin conectar al paso del motor.
-2. **No conectarlo** todavía al portal ni activarlo en el editor.
-3. **Resolver F2.2** (magnitud física de la sobrepresión de recintos cerrados)
+   sin capa caliente). Sin conectar al paso del motor. **Hecho y validado
+   (2026-09-17, §12); sin integrar.**
+2. **Modelo puro de deformación prescrita**, con huecos independientes en
+   suelo, laterales y dintel. No se inventa aún una curva automática para
+   puertas residenciales.
+3. **Modelo puro de vidrio**, con estado por hoja
+   `INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN` y conversión del área
+   desprendida en una abertura situada en el paño. `CRACKED` ventila cero.
+4. **No conectar todavía** esos modelos al portal ni activarlos en el editor.
+5. **Resolver F2.2** (magnitud física de la sobrepresión de recintos cerrados)
    como cambio separado, también detrás de interruptor. Referencia (CFAST Model
    Evaluation Guide): en la validación con puerta cerrada se habla de
    sobrepresiones de **varios cientos de Pa**, no de los cientos de kPa medidos
    en §5.7.
-4. **Integrar la fuga** con la presión corregida, encenderla en el editor y
-   medir de nuevo los casos A, Aw y B.
+6. **Integrar una tubería común de intercambio** con la presión corregida,
+   encender explícitamente cada capacidad en el editor y medir de nuevo los
+   casos A, Aw y B, más puertas acristaladas y ventanas multicapas.
 
-## 7. Área efectiva: valores provisionales (decisión del usuario, 2026-09-16)
+## 7. Área efectiva: valores provisionales (recalificados el 2026-09-16)
 
-Fuente primaria **aportada por el usuario** (no se ha vuelto a leer en esta
-sesión): NIST TN 2329, pp. 26-29, para viviendas.
+Fuente primaria leída y guardada localmente: [NIST TN 2329](https://doi.org/10.6028/NIST.TN.2329),
+pp. 26-29, para viviendas.
 
 | clase | ELA a 4 Pa | m² | uso |
 |---|---|---|---|
 | `entry_tight` | **12 cm²** | 0,0012 | entrada de vivienda al portal (puerta con burlete) |
-| `interior_standard` | **21 cm²** | 0,0021 | puerta interior corriente (sin burlete) |
+| `interior_tight` | **21 cm²** | 0,0021 | clase interior provisional; extrapolada de puerta garaje/sótano |
 | override explícito | lo que diga el escenario | — | puerta vieja o muy desajustada; **nunca por defecto** |
 
-- NIST TN 2329 da **12 cm²** para una puerta exterior con burlete y **21 cm²**
-  sin él, como área efectiva a 4 Pa. Indica además que, para una puerta
-  cerrada, es más apropiado un **flujo de grieta por ley de potencia** que
-  tratarla como una abertura normal.
-- El trabajo experimental de NIST sobre fugas en puertas (*Estimating Air
-  Leakage Through Doors for Smoke Control*) insiste en que las grietas
-  estrechas no se comportan como un orificio uniforme.
+- NIST TN 2329 usa **12 cm²** para una puerta exterior y **21 cm²** para una
+  puerta entre vivienda y garaje y otra de sótano, como áreas efectivas a 4 Pa.
+  Son estimaciones ASHRAE para puertas completas, no una medición universal de
+  puertas interiores. El valor de 21 cm² se conserva como candidato
+  provisional y debe calibrarse.
+- Los trabajos NBSIR 81-2214 y *Analysis and Prediction of Air Leakage Through
+  Door Assemblies* insisten en que las grietas estrechas no se comportan como
+  un orificio uniforme.
 - **L1/L2/L3 (78/174/289 cm²) quedan descartados como valores.** Eran áreas
   geométricas de la sonda, entre 4 y 24 veces por encima de estos ELA. Siguen
   valiendo como sensibilidad (§4-§5).
 - Los valores son **provisionales** hasta medirlos con el modelo integrado
-  (§6.6, paso 4).
+  (§6.6, paso 6).
 
 **Efecto jugable esperado** (a comprobar tras la integración): humo débil y
 tardío tras una puerta cerrada; la habitación cerrada sigue siendo refugio
@@ -378,8 +412,8 @@ puerta entreabierta.
 - Guardarraíl mínimo de dos salas y guardarraíl integral del portal, en
   `check_product.py`.
 - Antes de integrar: tests del modelo puro con ΔP impuestas (caudal = ELA a
-  4 Pa; escala con el exponente n; signo y cota; tramo lineal cerca de 0;
-  reparto que conserva el total).
+  4 Pa; escala con el exponente n; signo y cota; regularización numérica
+  cerca de 0; reparto que conserva el total).
 - Tras integrar: ningún paso con ΔP entre salas por encima de unos cientos de
   Pa en los casos A, Aw y B, y el cinturón numérico sin activarse.
 - Mutaciones que deben morir: no se activa; se activa siempre; el editor no lo
@@ -394,23 +428,35 @@ puerta entreabierta.
 
 1. **Sobrepresión de kPa del recinto estanco (F2.2).** Se resuelve **antes** de
    integrar (§6.6). El cinturón numérico no la tapa.
-2. **Convención del ELA**: el coeficiente de descarga y el exponente asociados
-   a los valores de NIST hay que fijarlos con la fuente antes de codificar.
-3. **Doble conteo con la deformación térmica**, que hoy va por la heurística de
+2. **Representatividad del ELA**: 12/21 cm² siguen siendo clases
+   provisionales; falta una base experimental específica para puertas
+   interiores residenciales y sus estados de ajuste. El reparto 40/47/13 entre
+   holgura inferior, laterales y dintel tampoco está medido.
+3. **Convención ELA resuelta:** los ELA utilizados están referidos a 4 Pa y
+   emplean `Cd = 1,0`, según NIST TN 1887r1. El exponente `n = 0,65` queda
+   como candidato provisional dentro del intervalo 0,6-0,7 recomendado por
+   CONTAM cuando no existe medición específica. Sigue pendiente calibrarlo para
+   las clases reales de puerta.
+4. **Doble conteo con la deformación térmica**, que hoy va por la heurística de
    fondo. Con el interruptor encendido no deben actuar las dos a la vez.
-4. **Auditoría de escritores de O₂**: añadir propietarios y actualizar
+5. **Curva de deformación sin calibrar**: los 150-350 °C y 4 % actuales no
+   tienen respaldo localizado para puertas residenciales. Solo se implementan
+   primero huecos dinámicos prescritos.
+6. **Grieta no es desprendimiento**: abrir al primer fallo del vidrio
+   sobreventilaría el incendio. El área solo aparece cuando se pierde material.
+7. **Auditoría de escritores de O₂**: añadir propietarios y actualizar
    `writer_coverage` (47/25/22 desde el 2026-09-16).
-5. **Inventario P1R4**: clasificar el interruptor nuevo y subir
+8. **Inventario P1R4**: clasificar los interruptores nuevos y subir
    `EXPECTED_DECLARATION_COUNT`.
-6. **R2-1**: tocar `sim/core` obliga a regenerar los informes de referencia.
-7. **Rendimiento**: N bandas por puerta cerrada y paso; es barato.
-8. **La vista**: el humo bajo la puerta necesita su propio efecto. Queda fuera
-   de este trabajo.
+9. **R2-1**: tocar `sim/core` obliga a regenerar los informes de referencia.
+10. **Rendimiento**: N bandas por puerta cerrada y paso; es barato.
+11. **La vista**: el humo bajo la puerta y el vidrio roto necesitan efectos
+   propios. Quedan fuera de esta etapa de física.
 
 ## 10. Archivos de una implementación posterior
 
 - **Etapa 1 (modelo puro)**: `sim/core/ClosedDoorLeakageModel.gd` y sus tests
-  con ΔP impuestas;
+  con ΔP impuestas. **Hecha (2026-09-17, §12)**, sin integrar;
 - **Etapa F2.2**: por definir en su propio documento;
 - **Etapa de integración**:
 - `sim/core/GasExchangeSystem.gd` (paso de fuga, consumidor, exclusión de la
@@ -428,3 +474,211 @@ puerta entreabierta.
 - `scripts/simulation/audit_default_off_flags.py` y
   `tests/test_p1r4_flag_activation_inventory.py` (clasificación);
 - `sim/validation/reports/*` (regeneración R2-1) y la documentación.
+
+## 11. Ampliación de diseño: puertas deformables y paños acristalados
+
+Esta sección es normativa para la implementación futura y amplía el alcance
+original de fugas. Cuando haya conflicto, sustituye la interpretación anterior
+de `thermal_gap_fraction` como porcentaje uniforme.
+
+### 11.1 Componente de integridad
+
+La abertura necesita un estado de integridad independiente de su estado
+operativo. La propuesta es un componente `OpeningIntegrity` que mantenga:
+
+- fuga permanente en frío: clase, ELA, presión de referencia y override;
+- huecos dinámicos: lista de segmentos con cota, longitud/área efectiva y
+  origen (`prescribed`, `thermal`, `mechanical`);
+- paños acristalados: geometría local, tipo, espesor, número de hojas, borde
+  protegido, estado por hoja y fracción desprendida;
+- daño de hoja, marco, cerradura y bisagras, reservado para extensiones.
+
+`OpeningModel.open_fraction` sigue describiendo únicamente si una persona ha
+abierto la puerta o ventana. La integridad dañada no cambia ese valor.
+
+### 11.2 Contrato de los paños acristalados
+
+Una puerta y una ventana pueden contener cero o más `glazing_panels`. Cada
+panel sigue:
+
+`INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN`
+
+- `CRACKED` mantiene área de ventilación cero;
+- `PARTIAL_FALLOUT` abre solo el área ausente;
+- en vidrio múltiple se exige un camino libre coincidente a través de todas
+  las hojas antes de crear intercambio;
+- el rectángulo resultante conserva anchura, altura y cota reales y usa el
+  flujo de abertura grande, no la ley de rendijas;
+- la primera versión admite historias prescritas para validación y una
+  respuesta probabilista reproducible con semilla fija para escenarios.
+
+No se admite abrir toda la puerta por romper su cristal ni abrir toda la
+ventana al primer agrietamiento.
+
+### 11.3 Contrato de deformación
+
+- La deformación añade huecos localizados al dintel, laterales o suelo.
+- Esos huecos usan el mismo solver que la fuga fría y se suman sin doble
+  conteo de ELA.
+- La implementación inicial recibe huecos prescritos. No convierte todavía la
+  temperatura de la capa alta en milímetros de apertura.
+- La heurística heredada 150-350 °C/4 % queda intacta con los interruptores
+  apagados, pero no se reutiliza como calibración del modelo nuevo.
+- Los resultados de Prieler se usan para la topología (dintel/cerradura) y las
+  pruebas de interfaz, no como valores automáticos de una puerta residencial.
+
+### 11.4 Una única tubería de transporte
+
+Tanto una rendija como un paño perdido producen estados de flujo dirigidos que
+se consumen una sola vez. Cada parcela mueve simultáneamente masa de gas,
+entalpía, O₂, humo y todas las especies tóxicas. No entra en la igualación
+instantánea de presión ni activa la lógica de apertura voluntaria.
+
+### 11.5 Guardarraíles adicionales
+
+- mutación `CRACKED -> OPEN` debe morir;
+- mutación que ignora el tipo, espesor, borde o número de hojas debe morir en
+  su fixture específico;
+- vidrio multicapas con una hoja intacta no puede ventilar;
+- el área abierta debe coincidir con el desprendimiento y nunca superarlo;
+- un hueco localizado debe cambiar de sentido al invertir el perfil de ΔP;
+- deformación prescrita cero debe ser idéntica a la fuga fría sola;
+- con los interruptores apagados, la física heredada y los informes oficiales
+  permanecen idénticos byte a byte.
+
+### 11.6 Fuentes que gobiernan esta ampliación
+
+La revisión, los enlaces web, los datos extraídos y sus límites de uso están
+en [`RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md`](RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md).
+El manual de CONTAM (NIST TN 1887r1) fija la convención ELA a 4 Pa /
+C_d = 1,0 y el intervalo 0,6-0,7 del exponente sin dato experimental.
+Las copias abiertas se conservan en `docs/literature/NIST`,
+`docs/literature/Doors` y `docs/literature/Glass`, registradas en el índice y
+en el manifiesto de descargas.
+
+## 12. Fase 1 implementada: modelo puro de fuga (2026-09-16, corregida el 2026-09-17)
+
+`sim/core/ClosedDoorLeakageModel.gd` (sin `class_name`). **No está conectado**:
+ningún sistema del motor, el editor ni el lanzador de escenarios lo carga, y no
+hay interruptor nuevo. No modifica `open_fraction` ni ninguna entrada, y no
+transporta todavía humo, O₂, energía ni especies.
+
+### 12.1 Qué dicen las fuentes locales
+
+| cuestión | fuente | lo que fija |
+|---|---|---|
+| definición de ELA | NIST TN 2329, p. 26 (ec. 1 y leyenda) | ELA en m², con **presión de referencia de 4 Pa**; es el dato del elemento *one-way flow using powerlaw* de CONTAM |
+| **convención ELA / Cd** | **NIST TN 1887r1 (CONTAM User Guide), p. 266, ec. 28 y 29** | `L = Q_r·sqrt(ρ/2ΔP_r)/C_d`; dos convenciones habituales: **C_d = 1,0 con ΔP_r = 4 Pa** o C_d = 0,6 con ΔP_r = 10 Pa. `C_b = L·C_d·√2·ΔP_r^(1/2−n)` |
+| ley en masa | TN 1887r1, p. 265, ec. 24 | `F = C_b·sqrt(ρ_origen)·ΔP^n` |
+| **exponente sin dato experimental** | **TN 1887r1, p. 266** | un valor **entre 0,6 y 0,7 es razonable** si el ensayo no lo da |
+| valores | TN 2329, p. 28 | 12 cm² y 21 cm²: *best estimate* de ASHRAE 2001 para una puerta sencilla **con burlete** y **sin burlete**; NIST aplica 21 cm² a la puerta garaje-vivienda y a la de sótano. Son **ELA a 4 Pa**, así que su convención es **C_d = 1,0** |
+| uso para una puerta cerrada | TN 2329, p. 29 | la ley de potencia es la adecuada para la fuga de una puerta cerrada |
+| exponente en puertas | NBSIR 81-2214, p. 4 y tabla 1 (p. 17); Gross y Haberman 1989, pp. 169, 172-173 | n entre 0,5 y 1,0 según el régimen; 0,5 para holguras de puerta en la tabla; práctica habitual de 0,5/0,625; paso de lineal a raíz cuadrada |
+| segmentos en altura | Gross y Haberman, p. 177, observación 4 | dividir las holguras verticales en segmentos cuando la ΔP cambia con la altura |
+| dominio | NBSIR 81-2214, pp. 7 y 10 | la ΔP a través de una puerta interior raramente pasa de 50 Pa |
+
+### 12.2 Fórmula final
+
+Con ELA a 4 Pa y C_d = 1,0 (TN 1887r1, ec. 24, 28 y 29), para cada segmento k
+de área efectiva `A_k` y `ΔP_k = p_a(z_k) − p_b(z_k)`:
+
+    Q_ref,k = A_k · sqrt(2·ΔP_ref/ρ_origen)          (ΔP_ref = 4 Pa)
+    Q_k     = Q_ref,k · (|ΔP_k|/ΔP_ref)^n
+
+- Sentido según el signo de ΔP (positivo, de a a b); `ṁ_k = ρ_origen·Q_k`; masa
+  del paso = `ṁ_k·dt`. `ρ_origen` es la densidad de la zona de origen en esa
+  cota; la densidad aguas abajo no cambia el caudal.
+- **No hay coeficiente de descarga en la API ni en la fórmula**: la convención
+  ya lo lleva dentro, así que no se puede aplicar dos veces.
+  `discharge_coefficient` se rechaza, y también cualquier presión de referencia
+  distinta de 4 Pa. **La convención 10 Pa / C_d 0,6 no está implementada.**
+- Regularización numérica opcional: si `zero_pressure_regularization_pa > 0` y
+  `0 < |ΔP_k| < ese valor`, `Q_k = Q(valor)·|ΔP_k|/valor`.
+
+Perfil de presión de cada lado:
+`p(z) = p_suelo − g·[ρ_inf·min(z, h_i) + ρ_sup·max(0, z − h_i)]`, con g = 9,81.
+
+### 12.3 Parámetros
+
+Todos son obligatorios y ninguno tiene valor oculto.
+
+- `ela_reference_pressure_pa`: tiene que ser 4 Pa
+  (`NIST_ELA_REFERENCE_PRESSURE_PA`).
+- `flow_exponent`, en [0,5; 1,0]:
+  - las fuentes de puertas lo hacen depender del régimen;
+  - CONTAM considera razonable 0,6-0,7 sin dato experimental;
+  - **0,65 es el candidato provisional** para las futuras integraciones
+    (`PROVISIONAL_FLOW_EXPONENT_CANDIDATE`, solo informativo; el modelo no lo
+    usa y el llamante sigue pasándolo);
+  - **no es una calibración** de puertas interiores residenciales.
+- `zero_pressure_regularization_pa` ≥ 0:
+  - es un **recurso numérico**, no un dato físico medido ni una transición de
+    régimen calibrada;
+  - 0 significa ley de potencia pura, y es la configuración recomendada para la
+    primera integración salvo necesidad numérica demostrada;
+  - con un valor positivo, el empalme es continuo, monótono y conserva el
+    signo.
+- `pressure_domain_max_pa`: por encima se **marca** `domain_exceeded` y **no
+  se recorta**.
+
+Claves rechazadas: `discharge_coefficient`, `reference_pressure_pa` y
+`linear_regime_pressure_pa` (el nombre anterior). Las entradas inválidas (NaN,
+infinitos, densidad ≤ 0, n fuera de rango, áreas negativas, ids duplicados,
+dt < 0) → `valid = false`, sin flujos y con los errores listados; nunca se
+recortan.
+
+El reparto `PROVISIONAL_SPLIT` (40/47/13) y las clases `PLANNED_CLASS_ELA_M2`
+(`none` 0, `entry_tight` 0,0012 y `interior_tight` 0,0021 m², ELA a 4 Pa con
+C_d = 1,0) son constantes informativas. `OpeningModel` no las conoce todavía.
+
+### 12.4 API
+
+- `build_door_segments(ela_m2, sill_z_m, door_height_m, split, side_band_count)`
+  → `{valid, errors, segments}`. Los segmentos son `bottom`, `side_00`… y
+  `top`, cada uno con `{id, z_m, area_m2}`; la suma es el ELA total a precisión
+  de máquina.
+- `compute_flows(segments, side_a, side_b, params, dt_s)` →
+  `{valid, errors, flows, net_mass_a_to_b_kg_s, gross_mass_kg_s,
+  max_abs_dp_pa, domain_exceeded}`, ordenado por `(z_m, segment_id)`.
+- Cada lado es `{floor_z_m, interface_height_m, rho_lower_kg_m3,
+  rho_upper_kg_m3, p_floor_pa}`.
+- Cada flujo lleva:
+  - `segment_id`, `z_m`, `area_m2`, `dp_pa` y `direction`;
+  - `volume_flow_m3_s`, `signed_volume_flow_m3_s`, `mass_flow_kg_s` y
+    `mass_step_kg`;
+  - `source_side`, `source_zone` y `source_density_kg_m3`;
+  - `destination_side`, `destination_zone_at_height` y
+    `destination_density_at_height`.
+
+**El lado receptor solo describe el cruce.** `destination_zone_at_height` es la
+zona geométrica que ocupa la cota del segmento en el recinto receptor (medida
+desde su propio suelo), y `destination_density_at_height` es la densidad de esa
+zona. El solver **no decide** flotabilidad, mezcla, ascenso ni descenso de la
+parcela, ni su deposición definitiva en la capa alta o baja: eso corresponde al
+futuro consumidor único de transporte, cuando tenga temperatura, entalpía y
+composición. Queda retirada la regla anterior de §6.3, que mandaba el gas a la
+capa alta si era menos denso que la zona baja receptora.
+
+### 12.5 Pruebas y mutaciones
+
+- `tools/validate_closed_door_leakage_model.gd` (en `check_product.py`): 18
+  grupos con ΔP impuestas entre 0 y 50 Pa, más una por encima para el dominio.
+  Incluye la comparación directa con la forma de CONTAM (ec. 24 y 29, C_d = 1),
+  el rechazo de 10 Pa y de `discharge_coefficient`, la regularización con 0 y
+  con valores positivos, y la zona receptora por cota (debajo y encima de la
+  interfaz, gas ligero y pesado, suelo del receptor a otra cota).
+- `tests/test_closed_door_leakage_model.py`:
+  - pureza;
+  - convención 4 Pa / C_d 1,0 sin coeficiente en la fórmula;
+  - exponente y regularización sin valor oculto;
+  - el solver no decide la deposición;
+  - no integración;
+  - volcado idéntico byte a byte.
+- 30 mutaciones muertas (arnés local, sin versionar, en
+  `runs/leak_model_20260916/mutate.py`). Entre ellas:
+  - un factor 0,6 artificial (C_d aplicado dos veces);
+  - aceptar `discharge_coefficient` o la convención de 10 Pa;
+  - ignorar la regularización, o aplicarla con 0;
+  - restaurar la comparación de densidades;
+  - fijar la capa receptora siempre alta o siempre baja;
+  - ignorar la cota del segmento en el receptor.

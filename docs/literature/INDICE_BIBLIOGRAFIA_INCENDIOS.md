@@ -4,11 +4,11 @@
 
 Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con estudios publicados y casos a escala real.
 
-## Estado de recoleccion - 2026-04-19
+## Estado de recoleccion - 2026-09-16
 
-- Biblioteca tecnica organizada en `FSRI_ULRI`, `NIST`, `Journals_OpenAccess` y `Reviews_and_Models`.
+- Biblioteca tecnica organizada en `FSRI_ULRI`, `NIST`, `Journals_OpenAccess`, `Reviews_and_Models`, `Doors` y `Glass`.
 - Inventario reproducible guardado en `docs/literature/download_manifest_fire_literature.json`.
-- Resultado actual: `30` documentos curados disponibles localmente en subcarpetas tematicas, mas los documentos raiz ya existentes en `docs/literature`.
+- Resultado actual: `39` documentos curados disponibles localmente en subcarpetas tematicas, mas los documentos raiz ya existentes en `docs/literature`.
 - Nota operativa: los articulos abiertos sobre `HVAC` y `gas burner fires` requirieron captura a PDF desde navegador headless por protecciones anti-bot del sitio. Siguen siendo articulos abiertos, pero el binario local no proviene del boton oficial de descarga.
 - Nota de trazabilidad: no encontre un PDF publico directo para `Measurement of Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation`; en su lugar se incorporo el reporte publico relacionado `Evaluation of Heat Flux Profiles Through Walls in Support of Fire Model Validation`.
 - Pendientes menores: las Part I y Part II de `Search and Rescue Tactics in Single-Story Single-Family Homes` siguen catalogadas pero no localizadas todavia con URL publica estable.
@@ -19,6 +19,8 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 - `NIST`: modelos de compartimento, transporte de humo, especies y validacion.
 - `Journals_OpenAccess`: articulos revisados por pares con PDF abierto.
 - `Reviews_and_Models`: guias, revisiones y documentos de soporte para parametrizacion.
+- `Doors`: deformacion termica, integridad y fuga de gases en conjuntos de puerta.
+- `Glass`: fractura termica, desprendimiento y acristalamientos simples o multiples.
 
 ## Objetivos de calibracion para Simufire
 
@@ -36,6 +38,23 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 | disponible | NIST.SP.1018e6.pdf | `docs/literature/NIST.SP.1018e6.pdf` |
 | disponible | NIST.TN.1889v1.pdf | `docs/literature/NIST.TN.1889v1.pdf` |
 | disponible | nistir7080.pdf | `docs/literature/nistir7080.pdf` |
+
+## Coleccion focal: puertas cerradas, deformacion y vidrio
+
+La interpretacion y los limites de uso estan documentados en
+[`docs/RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md`](../RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md).
+
+| Fuente | Documento | Uso en Simufire | URL fuente | Ruta local |
+| --- | --- | --- | --- | --- |
+| NIST | TN 2329, *A Collection of Dwellings to Represent the U.S. Housing Stock: 2024 Update* | ELA a 4 Pa de 12/21 cm2; valores provisionales, no calibracion universal de puerta interior | https://doi.org/10.6028/NIST.TN.2329 | `docs/literature/NIST/NIST_TN_2329_US_Housing_Stock_2025.pdf` |
+| NIST | TN 1887r1, *CONTAM User Guide and Program Documentation, Version 3.4* | Convencion ELA: C_d = 1,0 con 4 Pa (o 0,6 con 10 Pa), ec. 28-29, p. 266; exponente razonable 0,6-0,7 sin dato experimental | https://doi.org/10.6028/NIST.TN.1887r1 | `docs/literature/NIST/NIST_TN_1887r1_CONTAM_User_Guide.pdf` |
+| NBS/NIST | NBSIR 81-2214, *A Review of Measurements, Calculations and Specifications of Air Leakage Through Interior Door Assemblies* | Variacion experimental por holgura, sello y configuracion | https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir81-2214.pdf | `docs/literature/NIST/NBSIR_81_2214_Door_Air_Leakage.pdf` |
+| IAFSS/NIST | Gross y Haberman, *Analysis and Prediction of Air Leakage Through Door Assemblies* | Ley de rendijas, transicion de regimen y posicion de huecos | https://publications.iafss.org/publications/fss/2/169/view/fss_2-169.pdf | `docs/literature/NIST/Gross_Haberman_Door_Air_Leakage_1989.pdf` |
+| TU Graz | Prieler et al., *Numerical Simulation of a Fire Resistance Test and Prediction of the Flue Gas Leakage Using CFD/FEM Coupling* | Topologia de deformacion en dintel/cerradura; no calibracion residencial | https://doi.org/10.1108/JSFE-01-2023-0011 | `docs/literature/Doors/Prieler_Door_Deformation_Flue_Gas_Leakage_2023.pdf` |
+| Virginia Tech | Skelly, Roby y Beyler, *Experimental Investigation of Glass Breakage in Compartment Fires* | Tension termica centro-borde, marco y primer agrietamiento | https://vtechworks.lib.vt.edu/bitstreams/291a09f0-774f-4d6d-b978-9bd1f3f89be5/download | `docs/literature/Glass/Skelly_Glass_Breakage_Compartment_Fires_1990.pdf` |
+| IAFSS | *Experimental Study on the Breakage of Toughened Glass in Enclosure Fires* | Diferencia entre vidrio flotado y templado; desprendimiento rapido tras rotura | https://publications.iafss.org/publications/aofst/7/92 | `docs/literature/Glass/Toughened_Glass_Enclosure_Fires_2007.pdf` |
+| DTU | Peng et al., *Fire-Induced Cracking of Modern Window Glazing* | 75 ensayos, tipos de vidrio y unidades de una a tres hojas | https://orbit.dtu.dk/en/publications/fire-induced-cracking-of-modern-window-glazing-an-experimental-st/ | `docs/literature/Glass/Peng_Modern_Window_Glazing_Fire_2024.pdf` |
+| VTT | *Probabilistic Simulation of Glass Fracture and Fallout in Fire* | Separacion de fractura y desprendimiento; modo probabilista reproducible | https://publications.vtt.fi/pdf/workingpapers/2005/W41.pdf | `docs/literature/Glass/VTT_Probabilistic_Glass_Fracture_Fallout_2005.pdf` |
 
 ## Catalogo priorizado
 

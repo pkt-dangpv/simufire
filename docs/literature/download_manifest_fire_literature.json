@@ -238,5 +238,78 @@
         "resolved_url":  null,
         "title":  "Design Fire Characteristics for Probabilistic Assessments of Dwellings in England",
         "status":  "skipped-existing"
+    },
+    {
+        "source": "https://doi.org/10.6028/NIST.TN.2329",
+        "destination": "docs/literature/NIST/NIST_TN_2329_US_Housing_Stock_2025.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2329.pdf",
+        "title": "A Collection of Dwellings to Represent the U.S. Housing Stock: 2024 Update",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir81-2214.pdf",
+        "destination": "docs/literature/NIST/NBSIR_81_2214_Door_Air_Leakage.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir81-2214.pdf",
+        "title": "A Review of Measurements, Calculations and Specifications of Air Leakage Through Interior Door Assemblies",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://publications.iafss.org/publications/fss/2/169/view/fss_2-169.pdf",
+        "destination": "docs/literature/NIST/Gross_Haberman_Door_Air_Leakage_1989.pdf",
+        "error": null,
+        "resolved_url": "https://publications.iafss.org/publications/fss/2/169/view/fss_2-169.pdf",
+        "title": "Analysis and Prediction of Air Leakage Through Door Assemblies",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://doi.org/10.1108/JSFE-01-2023-0011",
+        "destination": "docs/literature/Doors/Prieler_Door_Deformation_Flue_Gas_Leakage_2023.pdf",
+        "error": null,
+        "resolved_url": "https://tugraz.elsevierpure.com/ws/portalfiles/portal/68184308/10_1108_JSFE_01_2023_0011.pdf",
+        "title": "Numerical Simulation of a Fire Resistance Test and Prediction of the Flue Gas Leakage Using CFD/FEM Coupling",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://vtechworks.lib.vt.edu/bitstreams/291a09f0-774f-4d6d-b978-9bd1f3f89be5/download",
+        "destination": "docs/literature/Glass/Skelly_Glass_Breakage_Compartment_Fires_1990.pdf",
+        "error": null,
+        "resolved_url": "https://vtechworks.lib.vt.edu/bitstreams/291a09f0-774f-4d6d-b978-9bd1f3f89be5/download",
+        "title": "Experimental Investigation of Glass Breakage in Compartment Fires",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://publications.iafss.org/publications/aofst/7/92",
+        "destination": "docs/literature/Glass/Toughened_Glass_Enclosure_Fires_2007.pdf",
+        "error": null,
+        "resolved_url": "https://publications.iafss.org/publications/aofst/7/92/view/aofst_7-92.pdf",
+        "title": "Experimental Study on the Breakage of Toughened Glass in Enclosure Fires",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://orbit.dtu.dk/en/publications/fire-induced-cracking-of-modern-window-glazing-an-experimental-st/",
+        "destination": "docs/literature/Glass/Peng_Modern_Window_Glazing_Fire_2024.pdf",
+        "error": null,
+        "resolved_url": "https://backend.orbit.dtu.dk/ws/portalfiles/portal/354492390/FIRE-INDUCED_CRACKING_OF_MODERN_WINDOW_GLAZING_-_FINAL.pdf",
+        "title": "Fire-Induced Cracking of Modern Window Glazing: An Experimental Study",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://publications.vtt.fi/pdf/workingpapers/2005/W41.pdf",
+        "destination": "docs/literature/Glass/VTT_Probabilistic_Glass_Fracture_Fallout_2005.pdf",
+        "error": null,
+        "resolved_url": "https://publications.vtt.fi/pdf/workingpapers/2005/W41.pdf",
+        "title": "Probabilistic Simulation of Glass Fracture and Fallout in Fire",
+        "status": "downloaded-2026-09-16"
+    },
+    {
+        "source": "https://doi.org/10.6028/NIST.TN.1887r1",
+        "destination": "docs/literature/NIST/NIST_TN_1887r1_CONTAM_User_Guide.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1887r1.pdf",
+        "title": "CONTAM User Guide and Program Documentation Version 3.4 (NIST TN 1887r1)",
+        "sha256": "ccdca593a0b30da45bca32cadea73ba709212b08765e2b2247a36dc6d495be30",
+        "status": "downloaded-2026-09-17"
     }
 ]
