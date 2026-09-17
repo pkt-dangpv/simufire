@@ -281,7 +281,9 @@ el mismo estado de flujo y los ledgers deben cerrar.
    (§13 del documento de diseño): topología de Prieler, magnitudes
    prescritas y no calibradas.*
 3. **Modelo térmico y de estados del vidrio**, con ensayos unitarios de
-   agrietamiento, desprendimiento parcial y multicapas.
+   agrietamiento, desprendimiento parcial y multicapas. *Fase 3A (estados
+   prescritos por hoja, sin modelo térmico) implementada el 2026-09-17, sin
+   integrar; ver §11.*
 4. **Conversión de daño a aberturas**: rendija localizada o rectángulo
    desprendido, sin conectar al motor principal.
 5. **Resolver F2.2**, la sobrepresión irreal de recintos cerrados.
@@ -331,3 +333,30 @@ provisional** y **heurística jugable**.
 Estas páginas permanecen enlazadas para trazabilidad. Sus servidores no
 ofrecieron en esta sesión un PDF abierto descargable de forma estable, por lo
 que no se declara una copia local inexistente.
+
+## 11. Implementación de la fase 3A: integridad prescrita (2026-09-17)
+
+`sim/core/GlazingIntegrityModel.gd` implementa **solo la fase 3A**. Ver §14
+del documento de diseño para el contrato completo.
+
+- **Implementado**: validación del paño (geometría, tipo, espesor, hojas,
+  separación, marco y borde protegido) y estado de cada hoja
+  `INTACT → CRACKED → PARTIAL_FALLOUT → OPEN` a partir de una historia
+  **prescrita**, escalonada y sin interpolación. El modelo es **determinista**:
+  sin temperatura, presión ni aleatoriedad.
+- **`CRACKED` no ventila**: fracción desprendida 0 (§5 de este documento).
+- **No hay conversión espacial a aberturas** ni área de ventilación.
+- **Una fracción por hoja no demuestra coincidencia multicapa**: el modelo no
+  deduce ningún camino libre combinando fracciones. Esto recoge la
+  observación de Peng et al. de que una unidad multicapa puede seguir sin
+  ventilar.
+- **Sin integración** en el motor, el editor, la vista ni los escenarios.
+- **Fase 3B**: representar regiones desprendidas explícitas por hoja y
+  calcular su intersección antes de crear ninguna abertura.
+- **Pendientes**: el modelo térmico de rotura (BREAK1, Skelly et al.,
+  diferencia centro-borde) y el probabilista de caída (Hostikka et al., con
+  semilla fija). Los tiempos y temperaturas de FSRI, Peng y Wang siguen siendo
+  referencias de escala, no valores automáticos.
+- **Decisión pendiente**: el desprendimiento casi total y rápido del templado
+  (Wang et al.) podría justificar un salto `CRACKED → OPEN`. El contrato actual
+  no lo admite.

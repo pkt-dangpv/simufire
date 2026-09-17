@@ -377,6 +377,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot deformacion prescrita de puerta: " + (diagnostic or "failed"))
 
+    # Integridad prescrita de panos acristalados (fase 3A): aun sin conectar al motor.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_glazing_integrity_model.gd",
+        "GLAZING INTEGRITY MODEL VALIDATION PASS",
+    )
+    rows.append(("Integridad prescrita de acristalamiento, modelo puro Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot integridad prescrita de acristalamiento: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

@@ -1,6 +1,6 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-17): fases 1 y 2 cerradas.**
+> **Estado (2026-09-17): fases 1 y 2 cerradas; fase 3A implementada.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -9,9 +9,15 @@
 >   cerrada (§13). La
 >   topología de huecos está respaldada por los ensayos; las magnitudes no están
 >   calibradas y no hay ley automática temperatura-deformación.
+> - **Fase 3A**: la integridad prescrita de paños acristalados
+>   (`sim/core/GlazingIntegrityModel.gd`) está implementada (§14). Es
+>   determinista, `CRACKED` no ventila y todavía no hay conversión espacial a
+>   aberturas.
 > - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
 >   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
->   pendientes el vidrio, F2.2 y la integración (§6.6).
+>   pendientes la fase 3B (regiones desprendidas e intersección entre hojas),
+>   el modelo térmico y el probabilista del vidrio, F2.2 y la integración
+>   (§6.6).
 >
 > El diagnóstico de §2-§5 se midió con `main` en
 > `b0b31bb6` sin tocar `sim/`.
@@ -363,6 +369,8 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
 3. **Modelo puro de vidrio**, con estado por hoja
    `INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN` y conversión del área
    desprendida en una abertura situada en el paño. `CRACKED` ventila cero.
+   **Fase 3A (integridad prescrita) implementada el 2026-09-17 (§14), sin
+   integrar.** La conversión a aberturas es de la fase 3B.
 4. **No conectar todavía** esos modelos al portal ni activarlos en el editor.
 5. **Resolver F2.2** (magnitud física de la sobrepresión de recintos cerrados)
    como cambio separado, también detrás de interruptor. Referencia (CFAST Model
@@ -827,3 +835,145 @@ La salida combinada se pasa directamente a
 - Decidir cómo convive con el hueco térmico heredado sin doble conteo
   (riesgo 4 de §9).
 - Vidrio (§6.6, paso 3), F2.2 e integración.
+
+## 14. Fase 3A implementada: integridad prescrita de paños acristalados (2026-09-17)
+
+`sim/core/GlazingIntegrityModel.gd` (sin `class_name`). Es **solo la fase 3A:
+integridad prescrita**, no un modelo de vidrio completo. **No está
+conectado**: ningún sistema del motor, el editor, la vista ni los escenarios
+lo carga, y no hay interruptor nuevo.
+
+### 14.1 Qué hace y qué no
+
+- Describe, **hoja a hoja**, el estado de integridad y la fracción de material
+  desprendida que **prescribe** quien llama. Es **determinista**: sin
+  temperatura, presión, flujo térmico, tiempo del motor ni aleatoriedad.
+- **`CRACKED` no ventila**: la hoja agrietada sigue presente, con fracción 0.
+- **No produce aberturas**: ni rectángulos de ventilación, ni área, caudal,
+  sentido, diferencia de presión, zonas de origen o destino, ni transporte. No
+  toca la fracción de apertura operativa ni el hueco térmico del motor.
+- Tipo de vidrio, espesor, número y separación de hojas, marco y borde
+  protegido se **validan y se conservan como procedencia**, sin efecto
+  automático sobre el estado. Los tiempos y temperaturas de la bibliografía
+  (Skelly, Peng, Wang, FSRI) no se usan como valores automáticos.
+
+### 14.2 Contrato
+
+**Panel**: `{id, width_m, height_m, sill_z_m, glass_type, thickness_m,
+leaf_count, leaf_spacing_m, frame_material, edge_protection_depth_m, leaves,
+metadata?}`
+
+- `id`: texto no vacío. `width_m` y `height_m`: finitos y > 0. `sill_z_m`:
+  finito. `thickness_m`: finito y > 0.
+- `glass_type`: exactamente `annealed`, `toughened`, `laminated` u `other`,
+  sin recortar ni normalizar. `other` exige
+  `metadata.glass_type_description` (texto no vacío) y se conserva como
+  `other`.
+- `frame_material`: texto no vacío.
+- `leaf_count`: entero ≥ 1, igual al número real de hojas.
+- `leaf_spacing_m`: finito y ≥ 0; con una sola hoja tiene que ser 0.
+- `edge_protection_depth_m`: finito y ≥ 0, con
+  `2·profundidad < min(ancho, alto)`, para que quede vidrio expuesto.
+- `metadata`, si existe, es un diccionario.
+
+**Hoja**: `{id, index, events, metadata?}`, con `id` no vacío y único, e
+`index` entero, único y dentro de `[0, leaf_count)`. Con esas tres
+condiciones, los índices quedan consecutivos.
+
+**Evento**: `{time_s, state, fallout_fraction}`.
+
+| estado | fracción |
+|---|---|
+| `INTACT` | exactamente 0 |
+| `CRACKED` | exactamente 0 |
+| `PARTIAL_FALLOUT` | 0 < f < 1 |
+| `OPEN` | exactamente 1 |
+
+- Tiempos finitos, ≥ 0 y estrictamente crecientes. Fracciones finitas dentro
+  de [0, 1], que nunca disminuyen: el vidrio no se regenera.
+- **Transiciones (contrato estricto)**: `INTACT → CRACKED → PARTIAL_FALLOUT →
+  OPEN`, sin saltos ni retrocesos.
+  - El primer evento puede ser `INTACT` o `CRACKED`, porque antes de él la
+    hoja ya está `INTACT`.
+  - Solo `PARTIAL_FALLOUT` puede repetirse, con fracción que no disminuye.
+  - Se rechazan `INTACT → PARTIAL_FALLOUT`, `CRACKED → OPEN`, empezar en
+    `PARTIAL_FALLOUT` u `OPEN`, y repetir `INTACT`, `CRACKED` u `OPEN`.
+
+### 14.3 Evolución temporal
+
+- Antes del primer evento: `INTACT`, fracción 0, sin evento activo
+  (`event_index = -1`, `event_time_s = null`).
+- En el instante exacto de un evento entra en vigor su estado.
+- Entre eventos y después del último se mantiene el último estado,
+  **sin interpolar** ni estados ni fracciones.
+- El tiempo evaluado tiene que ser finito y ≥ 0.
+
+### 14.4 API
+
+- `validate_panel(panel)` → `{valid, errors}`.
+- `evaluate_panel(panel, time_s)` → `{valid, errors, time_s, panel, leaves,
+  damage_summary}`.
+  - `panel` conserva identidad, geometría, tipo, espesor, hojas, separación,
+    marco, borde y metadatos.
+  - `leaves` va ordenado por índice. Cada hoja lleva `{id, index, state,
+    fallout_fraction, source: "prescribed", event_index, event_time_s,
+    metadata}`.
+  - `damage_summary` es **solo diagnóstico**: cuántas hojas hay en cada
+    estado. **No hay fracción de ventilación agregada** ni suma de
+    fracciones.
+- `evaluate_panels(panels, time_s)` → `{valid, errors, time_s, panels}`,
+  ordenado por id; rechaza ids repetidos.
+
+La salida no comparte diccionarios con la entrada y las entradas no se
+modifican.
+
+### 14.5 Multicapa
+
+Cada hoja (una, dos o tres) tiene su propia historia. **Una fracción por hoja
+no demuestra coincidencia**: dos hojas con un 30 % perdido pueden no tener
+ningún agujero alineado. Por eso el modelo **no deduce** ningún camino libre ni
+ventilación con mínimos, máximos, productos o medias. Tampoco lo hace cuando
+una hoja está abierta y otra intacta, ni cuando todas tienen pérdida parcial.
+
+### 14.6 Pruebas
+
+- `tools/validate_glazing_integrity_model.gd`, registrado en
+  `check_product.py`, con 28 grupos:
+  - los 25 casos obligatorios;
+  - saltos de estado rechazados;
+  - claves de salida fijas y sin nada parecido a área, abertura, caudal,
+    camino o presión;
+  - pérdida parcial progresiva.
+- `tests/test_glazing_integrity_model.py`:
+  - pureza;
+  - sin física térmica, aleatoria ni de flujo;
+  - contrato estricto de estados;
+  - función escalonada;
+  - metadatos validados pero inertes;
+  - no integración en `sim`, `editor`, `view`, `tools`, `scripts`, `scenes`,
+    `ui`, `scenarios`, `tests`, `assets`, `i18n` y `project.godot`;
+  - validador en verde y volcado idéntico byte a byte.
+- **30 mutaciones muertas por fallos funcionales** (arnés local, sin versionar,
+  en `runs/glazing_3a/mutate_glazing.py`).
+
+### 14.7 Decisiones pendientes
+
+- **Saltos de estado**: Wang et al. describen vidrio templado que, una vez
+  roto, se desprende casi entero en poco tiempo. Eso podría justificar pasar
+  de `CRACKED` a `OPEN` sin `PARTIAL_FALLOUT`, pero **no se admite** mientras no
+  haya un contrato aprobado. Una historia prescrita puede representarlo con
+  eventos muy próximos.
+- **Laminado**: Peng et al. no observaron desprendimiento del vidrio laminado.
+  El modelo no lo impone; quien prescribe decide.
+
+### 14.8 Lo que queda para la fase 3B y después
+
+- **Fase 3B**: regiones desprendidas **explícitas** por hoja (rectángulos o
+  máscaras en coordenadas del paño), su **intersección** entre hojas para
+  obtener el camino libre real y la conversión de ese camino en aberturas
+  rectangulares situadas en su cota, para el solver de abertura grande.
+- Modelo térmico de rotura (tipo BREAK1, diferencia centro-borde, efecto del
+  espesor, del marco y del borde protegido) y modelo probabilista de caída con
+  semilla fija.
+- Impacto mecánico, agua, integración en puertas y ventanas reales, editor,
+  serialización y efectos visuales.
