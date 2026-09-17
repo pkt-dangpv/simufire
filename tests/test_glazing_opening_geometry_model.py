@@ -122,7 +122,7 @@ def test_geometry_is_exact_and_regions_are_never_clipped():
     assert "if x < 0.0 or z < 0.0 or x + w > width or z + h > height:" in region
     assert "if w <= 0.0 or h <= 0.0:" in region
     assert "if region_ids.has(region_id):" in region
-    assert "if region_id.is_empty():" in region
+    assert "if _is_blank_identifier(region_id):" in region
     main = _static_function("compute_open_geometry")
     assert "if union_area <= 0.0 or union_area >= panel_area:" in main
     assert "absf(geometric_fraction - prescribed) > FRACTION_TOLERANCE" in main
@@ -150,6 +150,38 @@ def test_output_is_canonical():
     leaves = _static_function("_validated_leaves")
     assert 'return int(left["index"]) < int(right["index"]))' in leaves
     assert "covering.sort()" in _static_function("_covering_regions")
+
+
+def test_identifiers_are_matched_and_returned_exactly():
+    # Emptiness and identity are different: strip_edges() only answers "is it blank?".
+    assert MODEL_CODE.count("strip_edges()") == 2
+    blank = _static_function("_is_blank_identifier")
+    assert "return text.strip_edges().is_empty()" in blank
+    exact = _static_function("_exact_text")
+    assert "return String(value)" in exact
+    assert "strip_edges" not in exact
+    # No trimmed view is ever used to match an identity.
+    assert "_text(" not in MODEL_CODE.replace("_exact_text(", "")
+    panel = _static_function("_validated_panel")
+    assert 'if _is_blank_identifier(_exact_text(panel["id"])):' in panel
+    spatial = _static_function("_validated_spatial")
+    assert 'if not spatial.has("panel_id") or _exact_text(spatial["panel_id"]) != _exact_text(panel["id"]):' in spatial
+    assert 'var leaf_id: String = _exact_text(entry["id"])' in spatial
+    leaves = _static_function("_validated_leaves")
+    assert 'var leaf_id: String = _exact_text(leaf["id"])' in leaves
+    # Only the phase 3A duplicate rule keeps looking at the trimmed text.
+    assert 'var duplicate_key: String = leaf_id.strip_edges()' in leaves
+    assert "ids.has(duplicate_key)" in leaves
+    region = _static_function("_validated_region")
+    assert 'var region_id: String = _exact_text(region["id"])' in region
+    assert "region_ids.has(region_id)" in region
+    # Identity reaches the output untouched.
+    main = _static_function("compute_open_geometry")
+    assert '"panel_id": _exact_text(panel["id"]),' in main
+    assert '"leaf_id": String(leaf["id"]),' in main
+    assert '"leaf_id": leaf_id,' in main
+    for forbidden in ("to_lower", "to_upper", "nocasecmp", "casecmp", "strip_escapes", "replace(\" \"", "validate_node_name"):
+        assert forbidden not in MODEL_CODE, forbidden
 
 
 def test_model_is_not_integrated_anywhere():

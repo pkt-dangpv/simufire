@@ -30,6 +30,25 @@ extends RefCounted
 ## desplazamientos: fuera del panel, dimensiones no positivas o no finitas, ids
 ## vacios o repetidos dentro de la hoja se rechazan.
 ##
+## Identificadores: "vacio" e "identidad" son cosas distintas.
+##   - Contenido: un id tiene que ser String o StringName y no puede quedarse
+##     vacio al quitarle los espacios exteriores. strip_edges() se usa SOLO para
+##     esa comprobacion (_is_blank_identifier).
+##   - Identidad: el id real es el texto ORIGINAL. No se recorta, no se
+##     normaliza, no se cambia de caja. Se compara caracter a caracter y se
+##     devuelve exactamente igual en panel_id, en leaf_union_areas_m2, en
+##     contributors y en los mensajes de error.
+##   - Por tanto "pane_a" y " pane_a " son paneles distintos, "leaf_0" y
+##     " leaf_0 " son hojas distintas, y "Leaf_0" no es "leaf_0". Si la
+##     instantanea 3A trae " leaf_0 ", la entrada espacial tiene que traer
+##     exactamente " leaf_0 ".
+##   - Los ids de region siguen la misma regla: identidad exacta, tambien para
+##     detectar repetidos dentro de la hoja y como procedencia.
+##   - Excepcion deliberada: los ids de hoja REPETIDOS de la instantanea se
+##     detectan sobre el texto recortado, porque la fase 3A ya rechaza dos hojas
+##     que solo se diferencien en espacios exteriores. Asi una instantanea
+##     fraudulenta no cuela por 3B.
+##
 ## Conservacion: en PARTIAL_FALLOUT la union de las regiones (sin doble conteo
 ## de solapes) tiene que valer area_panel * fallout_fraction con una tolerancia
 ## de FRACTION_TOLERANCE en fraccion, y estar estrictamente entre 0 y el area
@@ -162,7 +181,7 @@ static func compute_open_geometry(integrity_snapshot: Variant, spatial: Variant)
 	return {
 		"valid": true,
 		"errors": errors,
-		"panel_id": String(panel["id"]),
+		"panel_id": _exact_text(panel["id"]),
 		"panel_width_m": width,
 		"panel_height_m": height,
 		"panel_sill_z_m": sill,
@@ -271,7 +290,7 @@ static func _validated_panel(snapshot: Variant, errors: Array[String]) -> Dictio
 			errors.append("snapshot panel is missing '%s'" % key)
 	if not errors.is_empty():
 		return {}
-	if _text(panel["id"]).is_empty():
+	if _is_blank_identifier(_exact_text(panel["id"])):
 		errors.append("snapshot panel id must be a non-empty string")
 	for key in ["width_m", "height_m"]:
 		var value: float = _number(panel[key])
@@ -300,10 +319,13 @@ static func _validated_leaves(snapshot: Dictionary, errors: Array[String]) -> Ar
 				complete = false
 		if not complete:
 			continue
-		var leaf_id: String = _text(leaf["id"])
-		if leaf_id.is_empty() or ids.has(leaf_id):
+		var leaf_id: String = _exact_text(leaf["id"])
+		# Identidad exacta; los repetidos se miran sobre el texto recortado
+		# porque la fase 3A ya los rechaza asi.
+		var duplicate_key: String = leaf_id.strip_edges()
+		if _is_blank_identifier(leaf_id) or ids.has(duplicate_key):
 			errors.append("snapshot leaf ids must be non-empty and unique ('%s')" % leaf["id"])
-		ids[leaf_id] = true
+		ids[duplicate_key] = true
 		if typeof(leaf["index"]) != TYPE_INT or indices.has(int(leaf["index"])):
 			errors.append("snapshot leaf '%s' needs a unique integer index" % leaf_id)
 		else:
@@ -326,7 +348,7 @@ static func _validated_spatial(spatial: Variant, panel: Dictionary, leaves: Arra
 	if typeof(spatial) != TYPE_DICTIONARY:
 		errors.append("spatial input must be a dictionary")
 		return holes
-	if not spatial.has("panel_id") or _text(spatial["panel_id"]) != String(panel["id"]):
+	if not spatial.has("panel_id") or _exact_text(spatial["panel_id"]) != _exact_text(panel["id"]):
 		errors.append("spatial panel_id must match the snapshot panel id '%s'" % panel["id"])
 	if not spatial.has("leaves") or typeof(spatial["leaves"]) != TYPE_ARRAY:
 		errors.append("spatial input needs a leaves array")
@@ -340,7 +362,7 @@ static func _validated_spatial(spatial: Variant, panel: Dictionary, leaves: Arra
 		if typeof(entry) != TYPE_DICTIONARY or not entry.has("id") or not entry.has("index") or not entry.has("regions"):
 			errors.append("each spatial leaf needs id, index and regions")
 			continue
-		var leaf_id: String = _text(entry["id"])
+		var leaf_id: String = _exact_text(entry["id"])
 		if not by_id.has(leaf_id):
 			errors.append("spatial leaf '%s' is not in the snapshot" % entry["id"])
 			continue
@@ -380,9 +402,9 @@ static func _validated_region(region: Variant, leaf_id: String, width: float, he
 		if not region.has(key):
 			errors.append("leaf '%s' region is missing '%s'" % [leaf_id, key])
 			return {}
-	var region_id: String = _text(region["id"])
+	var region_id: String = _exact_text(region["id"])
 	var label: String = "leaf '%s' region '%s'" % [leaf_id, region_id]
-	if region_id.is_empty():
+	if _is_blank_identifier(region_id):
 		errors.append("leaf '%s' has a region with an empty id" % leaf_id)
 		return {}
 	if region_ids.has(region_id):
@@ -450,16 +472,17 @@ static func _invalid_result(errors: Array) -> Dictionary:
 	}
 
 
-static func _text(value: Variant) -> String:
-	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
-		return ""
-	return String(value).strip_edges()
-
-
+## Texto exacto de un valor de texto, sin tocar. "" si no es texto.
 static func _exact_text(value: Variant) -> String:
 	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
 		return ""
 	return String(value)
+
+
+## Unico sitio donde se recortan espacios: decidir si un identificador esta
+## vacio. Nunca se usa para emparejar identidades.
+static func _is_blank_identifier(text: String) -> bool:
+	return text.strip_edges().is_empty()
 
 
 static func _number(value: Variant) -> float:

@@ -1024,8 +1024,9 @@ La entrada tiene dos partes:
    {panel_id, leaves: [{id, index, regions: [{id, x_m, z_m, width_m, height_m, metadata?}]}]}
    ```
 
-   - `panel_id` igual al de la instantánea.
-   - **Exactamente una entrada por hoja**, con el mismo id y el mismo índice.
+   - `panel_id` **exactamente** igual al de la instantánea (§15.2.1).
+   - **Exactamente una entrada por hoja**, con el mismo id exacto y el mismo
+     índice.
      Se rechazan hojas ausentes, repetidas, desconocidas, sobrantes o con
      índice distinto, incluido un índice real en lugar de entero.
    - **Regiones**:
@@ -1041,6 +1042,34 @@ La entrada tiene dos partes:
      - `PARTIAL_FALLOUT` exige al menos una;
      - `OPEN` **no admite regiones**. Este es el único contrato: el paño
        completo se deduce del estado.
+
+#### 15.2.1 Identificadores: vacío e identidad son cosas distintas
+
+Corregido el 2026-09-17. La primera versión validaba los ids con la vista
+recortada y después emparejaba con ella, así que `"pane_a"` y `" pane_a "` se
+daban por el mismo panel, y un panel 3A llamado `" pane_a "` no podía
+emparejarse ni escribiendo exactamente `" pane_a "`. La fase 3A siempre
+conservó el texto original en su salida; ahora la 3B hace lo mismo.
+
+- **Contenido**: un identificador tiene que ser `String` o `StringName` y no
+  puede quedarse vacío al quitarle los espacios exteriores. `strip_edges()` se
+  usa **solo** para esa comprobación, en `_is_blank_identifier`. Un
+  identificador formado solo por espacios o tabuladores sigue siendo inválido.
+- **Identidad**: el identificador real es el **texto original**. No se recorta,
+  no se normaliza, no se cambia de caja. Se compara carácter a carácter y se
+  devuelve tal cual en `panel_id`, en `leaf_union_areas_m2`, en `contributors`
+  y en los mensajes de error.
+- Por tanto `"pane_a"` y `" pane_a "` son paneles distintos, `"leaf_0"` y
+  `" leaf_0 "` son hojas distintas y `"Leaf_0"` no es `"leaf_0"`. Si la
+  instantánea trae `" leaf_0 "`, la entrada espacial tiene que traer
+  exactamente `" leaf_0 "`.
+- **Regiones**: misma regla. La identidad es exacta, también para detectar
+  repetidos dentro de la hoja y como procedencia, así que `"r"` y `" r "` son
+  dos regiones distintas y ninguna se normaliza en la salida.
+- **Única excepción**: las hojas **repetidas** de la instantánea se detectan
+  sobre el texto recortado. La fase 3A ya rechaza dos hojas que solo se
+  diferencien en espacios exteriores, así que una instantánea fraudulenta
+  tampoco cuela por la 3B.
 
 ### 15.3 Coordenadas
 
@@ -1157,11 +1186,14 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
 ### 15.10 Pruebas
 
 - **`tools/validate_glazing_opening_geometry_model.gd`**, registrado en
-  `check_product.py`, con 33 grupos y 641 comprobaciones:
+  `check_product.py`, con 34 grupos y 674 comprobaciones:
   - los 30 casos obligatorios;
   - `OPEN` con regiones rechazado;
   - instantáneas 3A inválidas rechazadas;
-  - islas y huecos conservados.
+  - islas y huecos conservados;
+  - identidad exacta de paneles, hojas y regiones (§15.2.1): espacios
+    exteriores, mayúsculas, `StringName`, ids en blanco, procedencia
+    conservada e instantánea fraudulenta.
 
   Las instantáneas se construyen con el propio modelo 3A, lo que prueba
   también la cadena 3A → 3B. Por eso el test de aislamiento 3A permite el
@@ -1174,9 +1206,10 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
   - la geometría exacta, sin recortes;
   - que la tolerancia solo se usa en la conservación;
   - la salida canónica;
+  - la identidad exacta de los identificadores;
   - la no integración;
   - el validador en verde y el volcado idéntico byte a byte.
-- **22 mutaciones muertas por fallos funcionales** del validador (arnés local,
+- **30 mutaciones muertas por fallos funcionales** del validador (arnés local,
   sin versionar, en `runs/glazing_3b/mutate_geometry.py`). Cubren:
   - `CRACKED` abierto;
   - una hoja ignorada;
@@ -1194,7 +1227,13 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
   - dependencia del orden de las hojas o de las regiones;
   - entradas modificadas;
   - `open_fraction` escrita;
-  - presión y caudal calculados.
+  - presión y caudal calculados;
+  - paneles u hojas emparejados por el texto recortado;
+  - una versión recortada que se acepta como el identificador original;
+  - el id de hoja recortado en `contributors` o en las áreas por hoja;
+  - el id de panel recortado en la salida;
+  - un id de región normalizado en silencio;
+  - ids en blanco aceptados.
 
   Una mutación que quitaba la copia profunda de `contributors` se descartó por
   **equivalente**: esas listas se crean nuevas y nunca se comparten, así que

@@ -61,6 +61,7 @@ func _initialize() -> void:
 	_test_31_open_with_regions_rejected()
 	_test_32_bad_snapshots()
 	_test_33_islands_and_gaps()
+	_test_34_identifiers_are_exact()
 	if _failures.is_empty():
 		print("  %d checks" % _checks)
 		print("GLAZING OPENING GEOMETRY MODEL VALIDATION PASS")
@@ -781,3 +782,115 @@ func _test_33_islands_and_gaps() -> void:
 		if float(r["local_x_m"]) == 0.2:
 			column_parts += 1
 	_check(column_parts == 1, "33 an uninterrupted column is a single rectangle")
+
+
+## Identidad de los identificadores: exacta, sin recortar ni normalizar.
+## strip_edges() solo decide si un id esta vacio.
+func _test_34_identifiers_are_exact() -> void:
+	var hole: Dictionary = _region("r", 0.2, 0.2, 0.2, 0.2)
+	var base: Array = _case([["pane", "PARTIAL_FALLOUT", [hole]]])
+
+	# 1-3: identidad del panel.
+	var padded_panel: Dictionary = Dictionary(base[0]).duplicate(true)
+	padded_panel["panel"]["id"] = " pane_a "
+	var padded_spatial: Dictionary = Dictionary(base[1]).duplicate(true)
+	padded_spatial["panel_id"] = " pane_a "
+	var exact: Dictionary = Geometry.compute_open_geometry(padded_panel, padded_spatial)
+	_check(bool(exact["valid"]), "34 a padded panel id matches itself exactly")
+	_check(exact["panel_id"] == " pane_a ", "34 the panel id is returned untouched ('%s')" % exact["panel_id"])
+	_rejected(Geometry.compute_open_geometry(padded_panel, base[1]), "34 a trimmed spatial panel id does not match a padded one")
+	_rejected(Geometry.compute_open_geometry(base[0], padded_spatial), "34 a padded spatial panel id does not match a trimmed one")
+	_check(_canonical(Geometry.compute_open_geometry(base[0], base[1])["rectangles"]) == _canonical(exact["rectangles"]),
+			"34 the padding changes identity but not geometry")
+
+	# 4-6: identidad de la hoja.
+	var padded_leaf: Dictionary = Dictionary(base[0]).duplicate(true)
+	padded_leaf["leaves"][0]["id"] = " leaf_0 "
+	var padded_leaf_spatial: Dictionary = Dictionary(base[1]).duplicate(true)
+	padded_leaf_spatial["leaves"][0]["id"] = " leaf_0 "
+	var leaf_result: Dictionary = Geometry.compute_open_geometry(padded_leaf, padded_leaf_spatial)
+	_check(bool(leaf_result["valid"]), "34 a padded leaf id matches itself exactly")
+	if bool(leaf_result["valid"]):
+		_check(leaf_result["leaf_union_areas_m2"][0]["leaf_id"] == " leaf_0 ", "34 the leaf id is kept in the per-leaf areas")
+		var contributors: Array = _rect_contributors(leaf_result, 0)
+		_check(contributors.size() == 1 and contributors[0]["leaf_id"] == " leaf_0 ", "34 the leaf id is kept in the provenance")
+	# El mismo nombre con y sin espacios: son hojas distintas.
+	var trimmed_leaf_spatial: Dictionary = Dictionary(padded_leaf_spatial).duplicate(true)
+	trimmed_leaf_spatial["leaves"][0]["id"] = "leaf_0"
+	_rejected(Geometry.compute_open_geometry(padded_leaf, trimmed_leaf_spatial),
+			"34 a trimmed spatial leaf id does not match a padded one")
+	var trimmed_leaf: Dictionary = Dictionary(base[0]).duplicate(true)
+	trimmed_leaf["leaves"][0]["id"] = "leaf_0"
+	_rejected(Geometry.compute_open_geometry(trimmed_leaf, padded_leaf_spatial),
+			"34 a padded spatial leaf id does not match a trimmed one")
+	var matching: Dictionary = Geometry.compute_open_geometry(trimmed_leaf, trimmed_leaf_spatial)
+	_check(bool(matching["valid"]), "34 the trimmed pair matches itself")
+	var upper: Dictionary = Dictionary(base[1]).duplicate(true)
+	upper["leaves"][0]["id"] = "Pane"
+	_rejected(Geometry.compute_open_geometry(base[0], upper), "34 leaf ids are case sensitive")
+	var upper_panel: Dictionary = Dictionary(base[1]).duplicate(true)
+	upper_panel["panel_id"] = "PANE_A"
+	_rejected(Geometry.compute_open_geometry(base[0], upper_panel), "34 panel ids are case sensitive")
+
+	# 7: identificadores solo de espacios.
+	for blank in ["", " ", "\t", "  \n "]:
+		var blank_panel: Dictionary = Dictionary(base[0]).duplicate(true)
+		blank_panel["panel"]["id"] = blank
+		var blank_spatial: Dictionary = Dictionary(base[1]).duplicate(true)
+		blank_spatial["panel_id"] = blank
+		_rejected(Geometry.compute_open_geometry(blank_panel, blank_spatial), "34 a blank panel id is rejected")
+		var blank_leaf: Dictionary = Dictionary(base[0]).duplicate(true)
+		blank_leaf["leaves"][0]["id"] = blank
+		var blank_leaf_spatial: Dictionary = Dictionary(base[1]).duplicate(true)
+		blank_leaf_spatial["leaves"][0]["id"] = blank
+		_rejected(Geometry.compute_open_geometry(blank_leaf, blank_leaf_spatial), "34 a blank leaf id is rejected")
+		var blank_region: Array = _case([["pane", "PARTIAL_FALLOUT", [_region(blank, 0.2, 0.2, 0.2, 0.2)]]])
+		_rejected(Geometry.compute_open_geometry(blank_region[0], blank_region[1]), "34 a blank region id is rejected")
+
+	# 8: StringName conserva su texto.
+	var name_spatial: Dictionary = Dictionary(padded_leaf_spatial).duplicate(true)
+	name_spatial["panel_id"] = StringName("pane_a")
+	name_spatial["leaves"][0]["id"] = StringName(" leaf_0 ")
+	name_spatial["leaves"][0]["regions"][0]["id"] = StringName(" r ")
+	var name_result: Dictionary = Geometry.compute_open_geometry(padded_leaf, name_spatial)
+	_check(bool(name_result["valid"]), "34 a StringName identifier matches its text")
+	if bool(name_result["valid"]):
+		_check(name_result["panel_id"] == "pane_a", "34 a StringName panel id keeps its text")
+		var name_contributors: Array = _rect_contributors(name_result, 0)
+		_check(name_contributors.size() == 1 and name_contributors[0]["leaf_id"] == " leaf_0 "
+				and name_contributors[0]["region_ids"] == [" r "], "34 StringName ids are kept exactly")
+
+	# Regiones: identidad exacta tambien para repetidos y procedencia.
+	var two_regions: Array = _case([["pane", "PARTIAL_FALLOUT",
+			[_region("r", 0.1, 0.1, 0.2, 0.2), _region(" r ", 0.6, 0.6, 0.2, 0.2)]]])
+	var two_result: Dictionary = Geometry.compute_open_geometry(two_regions[0], two_regions[1])
+	_check(bool(two_result["valid"]), "34 'r' and ' r ' are different regions")
+	if bool(two_result["valid"]):
+		var ids: Array = []
+		for rectangle in two_result["rectangles"]:
+			ids.append(rectangle["contributors"][0]["region_ids"])
+		_check(ids == [["r"], [" r "]], "34 region provenance keeps both ids untouched (%s)" % [ids])
+	var repeated: Array = _case([["pane", "PARTIAL_FALLOUT",
+			[_region("r", 0.1, 0.1, 0.2, 0.2), _region("r", 0.6, 0.6, 0.2, 0.2)]]])
+	_rejected(Geometry.compute_open_geometry(repeated[0], repeated[1]), "34 the very same region id is still a duplicate")
+
+	# Instantanea fraudulenta: 3A ya rechaza dos hojas que solo difieren en
+	# espacios, asi que 3B tampoco las admite.
+	var fraudulent: Array = _case([["outer", "OPEN", []], ["inner", "OPEN", []]])
+	var fake: Dictionary = Dictionary(fraudulent[0]).duplicate(true)
+	fake["leaves"][0]["id"] = "leaf"
+	fake["leaves"][1]["id"] = " leaf "
+	var fake_spatial: Dictionary = Dictionary(fraudulent[1]).duplicate(true)
+	fake_spatial["leaves"][0]["id"] = "leaf"
+	fake_spatial["leaves"][1]["id"] = " leaf "
+	_rejected(Geometry.compute_open_geometry(fake, fake_spatial), "34 a snapshot with ids differing only in spaces is rejected")
+
+	# El orden inverso sigue dando la misma salida byte a byte.
+	var reversed_spatial: Dictionary = Dictionary(name_spatial).duplicate(true)
+	reversed_spatial["leaves"].reverse()
+	for entry in reversed_spatial["leaves"]:
+		entry["regions"].reverse()
+	var reversed_snapshot: Dictionary = Dictionary(padded_leaf).duplicate(true)
+	reversed_snapshot["leaves"].reverse()
+	_check(_canonical(Geometry.compute_open_geometry(reversed_snapshot, reversed_spatial)) == _canonical(name_result),
+			"34 padded ids still give order independent output")
