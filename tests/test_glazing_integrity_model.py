@@ -39,6 +39,9 @@ ALLOWED_REFERENCES = {
     Path("tools/validate_glazing_integrity_model.gd.uid"),
     Path("scripts/check_product.py"),
     Path("tests/test_glazing_integrity_model.py"),
+    # Phase 3B validator: builds its snapshots with this model, still outside the engine.
+    Path("tools/validate_glazing_opening_geometry_model.gd"),
+    Path("tests/test_glazing_opening_geometry_model.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

@@ -386,6 +386,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot integridad prescrita de acristalamiento: " + (diagnostic or "failed"))
 
+    # Geometria del camino libre por desprendimiento multicapa (fase 3B): aun sin conectar al motor.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_glazing_opening_geometry_model.gd",
+        "GLAZING OPENING GEOMETRY MODEL VALIDATION PASS",
+    )
+    rows.append(("Geometria de apertura por desprendimiento de vidrio, modelo puro Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot geometria de apertura de acristalamiento: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

@@ -1,6 +1,6 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-17): fases 1 y 2 cerradas; fase 3A implementada.**
+> **Estado (2026-09-17): fases 1 y 2 cerradas; fases 3A y 3B implementadas.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -11,13 +11,14 @@
 >   calibradas y no hay ley automática temperatura-deformación.
 > - **Fase 3A**: la integridad prescrita de paños acristalados
 >   (`sim/core/GlazingIntegrityModel.gd`) está implementada (§14). Es
->   determinista, `CRACKED` no ventila y todavía no hay conversión espacial a
->   aberturas.
+>   determinista y `CRACKED` no ventila.
+> - **Fase 3B**: la geometría del camino libre a través de todas las hojas
+>   (`sim/core/GlazingOpeningGeometryModel.gd`) está implementada (§15). Es la
+>   intersección exacta de las regiones desprendidas, sin caudal.
 > - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
 >   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
->   pendientes la fase 3B (regiones desprendidas e intersección entre hojas),
->   el modelo térmico y el probabilista del vidrio, F2.2 y la integración
->   (§6.6).
+>   pendientes el modelo térmico y el probabilista del vidrio, F2.2 y la
+>   integración (§6.6). No se puede integrar antes de resolver F2.2.
 >
 > El diagnóstico de §2-§5 se midió con `main` en
 > `b0b31bb6` sin tocar `sim/`.
@@ -370,7 +371,9 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
    `INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN` y conversión del área
    desprendida en una abertura situada en el paño. `CRACKED` ventila cero.
    **Fase 3A (integridad prescrita) implementada el 2026-09-17 (§14), sin
-   integrar.** La conversión a aberturas es de la fase 3B.
+   integrar.** **Fase 3B (geometría del camino libre multicapa) implementada
+   el 2026-09-17 (§15), sin integrar**: produce rectángulos, no aberturas del
+   motor ni caudales.
 4. **No conectar todavía** esos modelos al portal ni activarlos en el editor.
 5. **Resolver F2.2** (magnitud física de la sobrepresión de recintos cerrados)
    como cambio separado, también detrás de interruptor. Referencia (CFAST Model
@@ -968,6 +971,9 @@ una hoja está abierta y otra intacta, ni cuando todas tienen pérdida parcial.
 
 ### 14.8 Lo que queda para la fase 3B y después
 
+*Nota (2026-09-17): la geometría de la fase 3B ya está implementada (§15).
+Convertirla en aberturas del solver sigue pendiente y exige F2.2.*
+
 - **Fase 3B**: regiones desprendidas **explícitas** por hoja (rectángulos o
   máscaras en coordenadas del paño), su **intersección** entre hojas para
   obtener el camino libre real y la conversión de ese camino en aberturas
@@ -977,3 +983,219 @@ una hoja está abierta y otra intacta, ni cuando todas tienen pérdida parcial.
   semilla fija.
 - Impacto mecánico, agua, integración en puertas y ventanas reales, editor,
   serialización y efectos visuales.
+
+## 15. Fase 3B implementada: geometría del camino libre en acristalamiento multicapa (2026-09-17)
+
+`sim/core/GlazingOpeningGeometryModel.gd` (sin `class_name`). Es **solo
+geometría**: calcula por dónde queda un camino libre a través de **todas** las
+hojas de un paño. **No es un caudal**, **no está conectado** a ningún sistema
+del motor, el editor, la vista ni los escenarios, y no hay interruptor nuevo.
+
+### 15.1 Principio
+
+```text
+camino_libre = huecos_hoja_0 ∩ huecos_hoja_1 ∩ ... ∩ huecos_hoja_n
+```
+
+- **`INTACT` y `CRACKED`** no tienen hueco: bloquean todo el paño.
+  **`CRACKED` sigue sin ventilar.**
+- **`OPEN`** es el paño completo. Se normaliza dentro del modelo.
+- **`PARTIAL_FALLOUT`** deja libre solo la **unión** de sus regiones
+  desprendidas.
+- La intersección **nunca** se sustituye por mínimos, máximos, productos ni
+  promedios de fracciones. Dos hojas con la misma fracción y regiones
+  distintas pueden no dejar ningún camino.
+
+### 15.2 Contrato espacial
+
+La entrada tiene dos partes:
+
+1. **Instantánea de la fase 3A**: la salida válida de
+   `GlazingIntegrityModel.evaluate_panel`. El modelo 3B **no la reevalúa** ni
+   carga el modelo 3A; solo comprueba que sea coherente.
+   - `valid == true`;
+   - panel con id, ancho y alto finitos y positivos, y cota del alféizar
+     finita;
+   - hojas con id único, índice entero único, estado conocido y fracción
+     compatible con el estado.
+2. **Entrada espacial**:
+
+   ```text
+   {panel_id, leaves: [{id, index, regions: [{id, x_m, z_m, width_m, height_m, metadata?}]}]}
+   ```
+
+   - `panel_id` igual al de la instantánea.
+   - **Exactamente una entrada por hoja**, con el mismo id y el mismo índice.
+     Se rechazan hojas ausentes, repetidas, desconocidas, sobrantes o con
+     índice distinto, incluido un índice real en lugar de entero.
+   - **Regiones**:
+     - ids no vacíos y únicos **dentro de la hoja**; el mismo id en hojas
+       distintas se admite;
+     - coordenadas y tamaños finitos;
+     - ancho y alto mayores que 0;
+     - `metadata` opcional, pero si existe tiene que ser un diccionario;
+     - **enteramente dentro del paño**. No se recorta ni se desplaza nada: una
+       región que sobresale aunque sea 1e-9 m se rechaza.
+   - **Por estado de la hoja**:
+     - `INTACT` y `CRACKED` no admiten regiones;
+     - `PARTIAL_FALLOUT` exige al menos una;
+     - `OPEN` **no admite regiones**. Este es el único contrato: el paño
+       completo se deduce del estado.
+
+### 15.3 Coordenadas
+
+- **Locales**: el origen está en la esquina inferior izquierda del paño, con
+  `0 ≤ x ≤ ancho` y `0 ≤ z ≤ alto`.
+- **Cota global**: `global_sill_z_m = sill_z_m del panel + local_z_m`. Es la
+  cota de la **base** de cada rectángulo.
+
+### 15.4 Algoritmo exacto
+
+1. **Rejilla**: los bordes x y z de todas las regiones, más los bordes del
+   paño, se ordenan sin repetidos y forman una rejilla. Las celdas salen de los
+   propios bordes, así que **no hay rasterización, resolución fija ni
+   muestreo**.
+2. **Unión dentro de cada hoja**: una celda está en el hueco de una hoja
+   `PARTIAL_FALLOUT` si alguna región la **contiene entera**. Su procedencia
+   son los ids de esas regiones, ordenados. Si dos regiones se solapan, la
+   celda cuenta una sola vez. `OPEN` cubre todas las celdas sin regiones;
+   `INTACT` y `CRACKED` no cubren ninguna.
+3. **Intersección entre hojas**: una celda es libre si está en el hueco de
+   **todas** las hojas.
+4. **Fusión determinista** de las celdas libres:
+   1. primero, tramos horizontales de celdas contiguas con **la misma
+      procedencia**;
+   2. después, de abajo arriba, se apilan los tramos con el mismo intervalo x
+      y la misma procedencia.
+
+   Nunca se fusiona a través de una celda no libre ni se rellenan huecos. Las
+   islas desconectadas se conservan.
+
+### 15.5 Representación canónica
+
+- Los rectángulos son **disjuntos** y salen ordenados por
+  `(local_z_m, local_x_m, width_m, height_m)`. Dos rectángulos disjuntos no
+  comparten esquina inferior izquierda, así que el orden es total.
+- Se numeran en ese orden como `fallout_path_000`, `fallout_path_001`, etc.
+- Cada rectángulo lleva:
+  - `id`, `local_x_m`, `local_z_m`, `global_sill_z_m`, `width_m` y `height_m`;
+  - `area_m2 = width_m * height_m`;
+  - `source = "glazing_fallout"`;
+  - `contributors`: un elemento por hoja, en orden de índice, con
+    `{leaf_id, leaf_index, leaf_state, region_ids}`.
+- La hoja se ordena por índice, las regiones por id y el resto sale de la
+  rejilla ordenada. Por eso invertir el orden de las hojas o de las regiones
+  produce una salida **idéntica byte a byte**.
+- El resultado incluye además:
+  - `valid`, `errors`, `panel_id`, `panel_width_m`, `panel_height_m`,
+    `panel_sill_z_m` y `panel_area_m2`;
+  - `open_area_m2`: la suma de los rectángulos;
+  - `leaf_union_areas_m2`: por hoja,
+    `{leaf_id, leaf_index, state, union_area_m2, geometric_fallout_fraction, prescribed_fallout_fraction}`.
+- La salida es una copia: no comparte referencias con las entradas, y las
+  entradas no se modifican.
+- Una entrada inválida devuelve `valid = false`, sus errores, ningún
+  rectángulo y área 0.
+
+### 15.6 Conservación y tolerancia
+
+- En `PARTIAL_FALLOUT`, la unión geométrica de las regiones **sin doble
+  conteo** tiene que cumplir dos condiciones:
+  - valer más que 0 y menos que el área del paño;
+  - coincidir con `area_panel · fallout_fraction` con
+    `|fracción_geométrica − fallout_fraction| ≤ FRACTION_TOLERANCE = 1e-9`.
+- **La tolerancia solo se usa en esa comprobación.** No interviene en la
+  validación de límites, en la rejilla ni en la fusión.
+- La geometría es la fuente y la fracción prescrita es el guardarraíl: si no
+  coinciden, se rechaza. **Nada se escala** para forzar la coincidencia.
+- **Invariantes comprobados** en el validador para cada resultado válido:
+  - `0 ≤ open_area_m2 ≤ panel_area_m2`;
+  - `open_area_m2 ≤ union_area_m2` de cada hoja;
+  - con una sola hoja parcial, `open_area_m2` es igual a su unión;
+  - con todas las hojas abiertas, `open_area_m2 == panel_area_m2`;
+  - rectángulos disjuntos y dentro del paño;
+  - `open_area_m2` es igual a la suma de los rectángulos y al área de
+    intersección que el validador calcula aparte, con su propia rejilla y
+    prueba de punto medio.
+
+### 15.7 Limitaciones de esta primera versión
+
+- Hojas **rectangulares, alineadas y coextensivas** con el paño: todas tienen
+  el mismo ancho, alto y origen.
+- Regiones **rectangulares alineadas con los ejes**. No hay curvas, polígonos
+  arbitrarios ni hojas giradas, desplazadas o de tamaños distintos.
+- La separación entre hojas no interviene: el camino se trata como recto,
+  perpendicular al paño.
+- Las regiones son **prescritas**: ni rotura térmica automática, ni
+  probabilidad de caída, ni impacto mecánico, ni agua.
+- Los **modelos térmico** (tipo BREAK1) **y probabilista** del vidrio **no
+  están implementados**.
+
+### 15.8 Sin flujo ni integración
+
+- No hay Bernoulli, presión, caudal, sentido, velocidad, masa, volumen ni
+  transporte de humo, O₂, energía o especies.
+- No lee ni escribe la fracción de apertura operativa (`open_fraction`), el
+  hueco térmico (`thermal_gap_fraction`) ni el estado de puertas o ventanas.
+- **No lo carga** ningún sistema del motor (incluidos `SimulationEngine`,
+  `GasExchangeSystem`, `OxygenExchangeSystem`, `OpeningModel`,
+  `BuildingModel` y `ScenarioSerializer`), el editor, los escenarios, las
+  fixtures de juego, la vista ni `project.godot`. Un test lo comprueba.
+- **El siguiente paso no puede integrar todavía**. Convertir estos rectángulos
+  en aberturas del solver de abertura grande exige antes **resolver F2.2** (la
+  sobrepresión irreal de recintos cerrados, §6.6) y la tubería común de
+  intercambio.
+
+### 15.9 API
+
+```text
+compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
+    panel_width_m, panel_height_m, panel_sill_z_m, panel_area_m2, rectangles,
+    open_area_m2, leaf_union_areas_m2}
+```
+
+### 15.10 Pruebas
+
+- **`tools/validate_glazing_opening_geometry_model.gd`**, registrado en
+  `check_product.py`, con 33 grupos y 641 comprobaciones:
+  - los 30 casos obligatorios;
+  - `OPEN` con regiones rechazado;
+  - instantáneas 3A inválidas rechazadas;
+  - islas y huecos conservados.
+
+  Las instantáneas se construyen con el propio modelo 3A, lo que prueba
+  también la cadena 3A → 3B. Por eso el test de aislamiento 3A permite el
+  validador y el test de la fase 3B.
+- **`tests/test_glazing_opening_geometry_model.py`** comprueba:
+  - pureza;
+  - que no hay física de flujo, térmica ni aleatoria;
+  - que el camino libre es una intersección y no una fórmula de fracciones;
+  - la correspondencia entre estados y huecos;
+  - la geometría exacta, sin recortes;
+  - que la tolerancia solo se usa en la conservación;
+  - la salida canónica;
+  - la no integración;
+  - el validador en verde y el volcado idéntico byte a byte.
+- **22 mutaciones muertas por fallos funcionales** del validador (arnés local,
+  sin versionar, en `runs/glazing_3b/mutate_geometry.py`). Cubren:
+  - `CRACKED` abierto;
+  - una hoja ignorada;
+  - unión en vez de intersección;
+  - mínimo, producto y promedio de fracciones;
+  - caja envolvente;
+  - doble conteo de solapes;
+  - regiones fuera del paño, aceptadas o recortadas;
+  - tamaños nulos o negativos;
+  - regiones en una hoja intacta;
+  - fracción sin comprobar;
+  - dos errores de cota global;
+  - una isla perdida;
+  - fusión a través de un hueco;
+  - dependencia del orden de las hojas o de las regiones;
+  - entradas modificadas;
+  - `open_fraction` escrita;
+  - presión y caudal calculados.
+
+  Una mutación que quitaba la copia profunda de `contributors` se descartó por
+  **equivalente**: esas listas se crean nuevas y nunca se comparten, así que
+  solo la detectaba el test estático.

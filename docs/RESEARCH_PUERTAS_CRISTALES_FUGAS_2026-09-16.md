@@ -285,7 +285,9 @@ el mismo estado de flujo y los ledgers deben cerrar.
    prescritos por hoja, sin modelo térmico) implementada el 2026-09-17, sin
    integrar; ver §11.*
 4. **Conversión de daño a aberturas**: rendija localizada o rectángulo
-   desprendido, sin conectar al motor principal.
+   desprendido, sin conectar al motor principal. *Fase 3B (geometría del
+   camino libre entre hojas, sin caudal) implementada el 2026-09-17, sin
+   integrar; ver §12.*
 5. **Resolver F2.2**, la sobrepresión irreal de recintos cerrados.
 6. **Integrar una sola tubería de intercambio**, detrás de interruptores
    apagados por defecto y encendidos explícitamente por el editor.
@@ -360,3 +362,33 @@ del documento de diseño para el contrato completo.
 - **Decisión pendiente**: el desprendimiento casi total y rápido del templado
   (Wang et al.) podría justificar un salto `CRACKED → OPEN`. El contrato actual
   no lo admite.
+
+## 12. Implementación de la fase 3B: camino libre multicapa (2026-09-17)
+
+`sim/core/GlazingOpeningGeometryModel.gd` implementa **solo la fase 3B**. Ver
+§15 del documento de diseño para el contrato completo.
+
+- **Qué recibe**: la instantánea de la fase 3A y, aparte, las regiones
+  desprendidas de cada hoja. Son rectángulos en coordenadas locales del paño,
+  y la cota global es la del alféizar más la z local.
+- **Qué calcula**: el camino libre, que es la **intersección** entre hojas de
+  los huecos de cada hoja. El hueco de una hoja es la unión de sus regiones,
+  sin doble conteo de solapes.
+  - `INTACT` y `CRACKED` bloquean: **`CRACKED` sigue sin ventilar** (§5).
+  - `OPEN` es el paño completo y no admite regiones.
+- **Método**: exacto sobre la rejilla de bordes, sin rasterizar. La salida son
+  rectángulos disjuntos en orden canónico, con procedencia por hoja y región.
+- **Tolerancia**: 1e-9 en fracción, **solo** para comprobar que la unión
+  geométrica coincide con la `fallout_fraction` prescrita. No se recorta ni se
+  escala nada.
+- **Qué recoge de Peng et al.**: una unidad multicapa con hojas dañadas puede
+  seguir sin ventilar. El modelo nunca deduce un camino combinando fracciones
+  (mínimo, producto o promedio).
+- **Limitaciones**: hojas rectangulares, alineadas y coextensivas, con
+  regiones rectangulares alineadas. La separación entre hojas no interviene.
+- **Sin flujo ni integración**: no hay presión, caudal ni transporte, y no se
+  conecta al motor, al editor, a la vista ni a los escenarios.
+- **Próximo paso**: la conversión en aberturas del solver **no puede
+  integrarse antes de resolver F2.2**.
+- **Siguen pendientes**: el modelo térmico de rotura y el probabilista de
+  caída.
