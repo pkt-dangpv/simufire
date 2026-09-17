@@ -311,5 +311,16 @@
         "title": "CONTAM User Guide and Program Documentation Version 3.4 (NIST TN 1887r1)",
         "sha256": "ccdca593a0b30da45bca32cadea73ba709212b08765e2b2247a36dc6d495be30",
         "status": "downloaded-2026-09-17"
+    },
+    {
+        "source":  "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1889v2.pdf",
+        "destination":  "docs/literature/NIST/NIST_TN_1889v2_CFAST_Users_Guide.pdf",
+        "error":  null,
+        "resolved_url":  "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1889v2.pdf",
+        "title":  "CFAST Version 7 Volume 2: User's Guide (NIST TN 1889v2)",
+        "status":  "downloaded",
+        "downloaded_at":  "2026-09-17",
+        "bytes":  1730244,
+        "sha256":  "a2f638938e83ec8008946bdbc5b2e29e3700d4cf4162a2c01fcc2532810afb85"
     }
 ]

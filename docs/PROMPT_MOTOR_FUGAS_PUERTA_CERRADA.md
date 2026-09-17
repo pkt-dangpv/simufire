@@ -15,6 +15,10 @@
 > - **Fase 3B**: la geometría del camino libre a través de todas las hojas
 >   (`sim/core/GlazingOpeningGeometryModel.gd`) está implementada (§15). Es la
 >   intersección exacta de las regiones desprendidas, sin caudal.
+> - **F2.2-D (2026-09-17)**: el diagnóstico y el diseño de la sobrepresión de
+>   recintos cerrados están cerrados en
+>   [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md).
+>   No hay código nuevo: F2.2A-D siguen sin implementar.
 > - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
 >   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
 >   pendientes el modelo térmico y el probabilista del vidrio, F2.2 y la
@@ -376,7 +380,10 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
    motor ni caudales.
 4. **No conectar todavía** esos modelos al portal ni activarlos en el editor.
 5. **Resolver F2.2** (magnitud física de la sobrepresión de recintos cerrados)
-   como cambio separado, también detrás de interruptor. Referencia (CFAST Model
+   como cambio separado, también detrás de interruptor. **Diagnóstico y diseño
+   cerrados el 2026-09-17 en
+   [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md);
+   sin implementar.** Referencia (CFAST Model
    Evaluation Guide): en la validación con puerta cerrada se habla de
    sobrepresiones de **varios cientos de Pa**, no de los cientos de kPa medidos
    en §5.7.

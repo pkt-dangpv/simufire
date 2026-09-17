@@ -56,6 +56,20 @@ La interpretacion y los limites de uso estan documentados en
 | DTU | Peng et al., *Fire-Induced Cracking of Modern Window Glazing* | 75 ensayos, tipos de vidrio y unidades de una a tres hojas | https://orbit.dtu.dk/en/publications/fire-induced-cracking-of-modern-window-glazing-an-experimental-st/ | `docs/literature/Glass/Peng_Modern_Window_Glazing_Fire_2024.pdf` |
 | VTT | *Probabilistic Simulation of Glass Fracture and Fallout in Fire* | Separacion de fractura y desprendimiento; modo probabilista reproducible | https://publications.vtt.fi/pdf/workingpapers/2005/W41.pdf | `docs/literature/Glass/VTT_Probabilistic_Glass_Fracture_Fallout_2005.pdf` |
 
+## Coleccion focal: presion de recintos cerrados (F2.2)
+
+La interpretacion y los limites de uso estan documentados en
+[`docs/PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](../PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md).
+
+| Fuente | Documento | Uso en Simufire | URL fuente | Ruta local |
+| --- | --- | --- | --- | --- |
+| NIST | TN 1889v1, *CFAST - Consolidated Fire and Smoke Transport (Version 7), Volume 1: Technical Reference Guide* | Ecuacion de presion del compartimento (ec. 2.5, p. 9), conservacion de masa y energia (ec. 2.2-2.4, p. 8), flujo por aberturas verticales con plano neutro (ec. 4.1-4.5, p. 17-18, C = 0,7) | https://doi.org/10.6028/NIST.TN.1889v1 | `docs/literature/NIST.TN.1889v1.pdf` |
+| NIST | TN 1889v2, *CFAST - Consolidated Fire and Smoke Transport (Version 7), Volume 2: User's Guide* | Las fugas se declaran como aberturas explicitas, no como un termino implicito (p. 21 del texto, indice 34 del PDF) | https://doi.org/10.6028/NIST.TN.1889v2 | `docs/literature/NIST/NIST_TN_1889v2_CFAST_Users_Guide.pdf` |
+
+Descarga registrada de TN 1889v2: 2026-09-17, 1 730 244 bytes, SHA-256
+`a2f638938e83ec8008946bdbc5b2e29e3700d4cf4162a2c01fcc2532810afb85`, desde
+`https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1889v2.pdf`.
+
 ## Catalogo priorizado
 
 | Pri | Fuente | Documento | Ano | Tema clave | URL fuente | Destino previsto | Estado |
