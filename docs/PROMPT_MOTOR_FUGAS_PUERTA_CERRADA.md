@@ -1,11 +1,19 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-17): fase 1 cerrada.** El modelo puro de fuga de puerta
-> cerrada (`sim/core/ClosedDoorLeakageModel.gd`) está **implementado y
-> validado** (§12), pero **no está integrado**: ningún sistema lo carga en el
-> paso de simulación, no hay física nueva activa y ningún escenario usa todavía
-> esta física. Siguen pendientes la deformación, el vidrio, F2.2 y la
-> integración (§6.6). El diagnóstico de §2-§5 se midió con `main` en
+> **Estado (2026-09-17): fases 1 y 2 cerradas.**
+> - **Fase 1**: el modelo puro de fuga de puerta cerrada
+>   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
+>   cerrado (§12).
+> - **Fase 2**: la deformación prescrita pura
+>   (`sim/core/ClosedDoorDeformationModel.gd`) está implementada, validada y
+>   cerrada (§13). La
+>   topología de huecos está respaldada por los ensayos; las magnitudes no están
+>   calibradas y no hay ley automática temperatura-deformación.
+> - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
+>   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
+>   pendientes el vidrio, F2.2 y la integración (§6.6).
+>
+> El diagnóstico de §2-§5 se midió con `main` en
 > `b0b31bb6` sin tocar `sim/`.
 > La revisión bibliográfica trazable está en
 > [`RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md`](RESEARCH_PUERTAS_CRISTALES_FUGAS_2026-09-16.md).
@@ -349,7 +357,8 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
    sin capa caliente). Sin conectar al paso del motor. **Hecho y validado
    (2026-09-17, §12); sin integrar.**
 2. **Modelo puro de deformación prescrita**, con huecos independientes en
-   suelo, laterales y dintel. No se inventa aún una curva automática para
+   suelo, laterales y dintel. **Implementado (2026-09-17, §13); sin
+   integrar.** No se inventa aún una curva automática para
    puertas residenciales.
 3. **Modelo puro de vidrio**, con estado por hoja
    `INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN` y conversión del área
@@ -457,6 +466,8 @@ puerta entreabierta.
 
 - **Etapa 1 (modelo puro)**: `sim/core/ClosedDoorLeakageModel.gd` y sus tests
   con ΔP impuestas. **Hecha (2026-09-17, §12)**, sin integrar;
+- **Etapa 2 (deformación prescrita)**: `sim/core/ClosedDoorDeformationModel.gd`
+  y sus tests. **Implementada (2026-09-17, §13)**, sin integrar;
 - **Etapa F2.2**: por definir en su propio documento;
 - **Etapa de integración**:
 - `sim/core/GasExchangeSystem.gd` (paso de fuga, consumidor, exclusión de la
@@ -682,3 +693,137 @@ capa alta si era menos denso que la zona baja receptora.
   - restaurar la comparación de densidades;
   - fijar la capa receptora siempre alta o siempre baja;
   - ignorar la cota del segmento en el receptor.
+
+## 13. Fase 2 cerrada: deformación prescrita pura (2026-09-17)
+
+`sim/core/ClosedDoorDeformationModel.gd` (sin `class_name`). **No está
+conectado**: ningún sistema del motor, el editor ni el lanzador de escenarios
+lo carga, y no hay interruptor nuevo. No lee temperaturas, no escribe la
+fracción de apertura, no usa el hueco térmico heredado del motor
+(`_step_door_deform`, 150-350 °C / 4 %), no transporta masa, energía, O₂, humo
+ni especies y **no calcula caudales**: el único solver de flujo sigue siendo
+`ClosedDoorLeakageModel`.
+
+### 13.1 Qué respalda la evidencia y qué no
+
+- **Topología (respaldada)**: en el ensayo y la simulación de Prieler et al.
+  (2023, pp. 16-19, figs. 18-23), los huecos principales aparecen en el
+  **borde superior** y en el **lado de la cerradura, por encima de ella**. En
+  el lado de bisagras y pasadores los huecos y la fuga son menores. Gross y
+  Haberman (p. 177, observación 4) justifican tratar las holguras verticales
+  como segmentos a distintas cotas.
+- **Magnitudes (no calibradas)**: los valores de esos estudios corresponden a
+  una puerta cortafuegos de acero en un horno normalizado. Entre ellos, la
+  deformación central de unos 10 mm a los 10 min y los huecos de 0,83-3,7 mm
+  de Prieler 2020. **No son valores predeterminados** para puertas
+  residenciales, y el modelo no convierte milímetros, deformación central ni
+  porcentajes de hoja en área.
+- **No hay ley automática temperatura-deformación**: la deformación es una
+  historia **prescrita** por quien llama.
+
+### 13.2 Magnitud y pistas
+
+`additional_ela_m2` es **área efectiva adicional**, con la misma convención que
+la fuga fría (ELA a 4 Pa con C_d = 1,0). No es área geométrica.
+
+Cada pista es `{id, location, z_m, points, metadata?}`:
+
+- `location` ∈ {`bottom`, `top`, `hinge_side`, `latch_side`};
+- `id` es `bottom`, `top`, `hinge_side_NN` o `latch_side_NN` y tiene que ser
+  coherente con `location`. `NN` son **exactamente dos dígitos ASCII** `0`-`9`
+  (`00`-`99`). Se rechazan signos (`-1`, `+1`), espacios, decimales, letras,
+  dígitos Unicode de otros sistemas (de ancho completo, arábigo-índicos) y
+  cualquier otra longitud (`1`, `001`, sufijo vacío). No se usa
+  `is_valid_int()`, que aceptaría signos;
+- `points` es `[[time_s, additional_ela_m2], …]`, con tiempos finitos
+  estrictamente crecientes y áreas finitas ≥ 0;
+- `metadata` es un diccionario opcional que se conserva como procedencia y
+  **no** entra en el cálculo, como cualquier otra clave de la pista.
+
+### 13.3 Evolución temporal
+
+- Antes del primer punto: **0** (`BEFORE_FIRST_POINT_VALUE_M2`); la
+  prescripción empieza en su primer punto.
+- En cada punto: su valor exacto. Entre puntos: interpolación lineal,
+  continua en las uniones.
+- Después del último punto: se mantiene el último valor, sin extrapolar.
+- El área puede subir, bajar o ambas cosas: el modelo prescribe el estado y
+  no supone cómo responde la puerta al enfriarse.
+
+### 13.4 Combinación con la fuga fría
+
+`ELA_total_local = ELA_fría_local + ELA_adicional_deformación`
+
+- Un segmento con el mismo id y la misma cota se fusiona sumando áreas. Con el
+  mismo id y otra cota, la combinación se rechaza.
+- Un segmento de deformación nuevo (`hinge_side_NN`, `latch_side_NN`) solo se
+  inserta si su área evaluada es positiva. Así, una deformación cero deja
+  exactamente los segmentos, el total y los caudales de la fuga fría sola.
+- La salida va ordenada por `(z_m, id)`. Cada segmento lleva `area_m2`,
+  `cold_area_m2`, `additional_area_m2`, `location` y `contributions`
+  (procedencia: `cold` o `deformation` con su `track_id`).
+- Totales: `cold_ela_total_m2`, `additional_ela_total_m2` y
+  `combined_ela_total_m2 = frío + adicional`, a precisión de máquina.
+
+### 13.5 API
+
+- `validate_tracks(tracks)` → `{valid, errors}`.
+- `area_at(points, time_s)` evalúa una pista ya validada.
+- `evaluate_tracks(tracks, time_s)` →
+  `{valid, errors, time_s, segments, additional_ela_total_m2}`. Incluye
+  también las pistas de área 0.
+- `combine_with_cold(cold_segments, deformation_segments)` →
+  `{valid, errors, segments, cold_ela_total_m2, additional_ela_total_m2,
+  combined_ela_total_m2}`.
+- `evaluate_and_combine(cold_segments, tracks, time_s)` hace las dos cosas y
+  añade `time_s` al resultado.
+- `side_band_center(sill, height, band, count)` →
+  `{valid, errors, z_m}`, con la misma convención de bandas que la fuga fría.
+  Comprueba que `sill` sea finito, que `height` sea finita y > 0, que
+  `count` ≥ 1 y que 0 ≤ `band` < `count`. Si alguna falla, devuelve
+  `valid = false`, el motivo y `z_m = NAN`: nunca divide por cero ni da una
+  cota fuera de la puerta. Con entradas válidas, `sill < z_m < sill + height`.
+
+La salida combinada se pasa directamente a
+`ClosedDoorLeakageModel.compute_flows`, que solo lee `id`, `z_m` y `area_m2`.
+
+### 13.6 Pruebas
+
+- `tools/validate_closed_door_deformation_model.gd`, registrado en
+  `check_product.py`, con 28 grupos:
+  - los 25 obligatorios;
+  - identidad y ubicación de las pistas;
+  - identificadores laterales de exactamente dos dígitos ASCII (casos
+    positivos `00`, `01`, `09`, `10` y `99`, y negativos con signo, espacios,
+    decimales, letras, dígitos no ASCII y longitudes distintas);
+  - precondiciones del centro de banda (primera, última, intermedia, banda
+    única, `count` cero o negativo, índice negativo o igual a `count`, altura
+    no positiva o no finita);
+  - claves ajenas ignoradas (metadatos, temperaturas, hueco térmico);
+  - salida solo geométrica.
+- `tests/test_closed_door_deformation_model.py`:
+  - pureza;
+  - sin temperatura, sin fracción de apertura, sin hueco térmico y sin
+    caudales;
+  - contratos explícitos;
+  - no integración;
+  - validador en verde y volcado idéntico byte a byte.
+- El test de no integración de la fase 1 admite ahora el modelo y el validador
+  de la fase 2 como referencias a `ClosedDoorLeakageModel`: el modelo solo lo
+  nombra en su documentación y el validador le pasa los segmentos combinados.
+- **32 mutaciones muertas** (arnés local, sin versionar, en
+  `runs/leak_model_20260916/mutate_deformation.py`). Cada mutación ejecuta el
+  validador y los tests estáticos. Entre ellas:
+  - volver a aceptar enteros con signo (`-1`, `+1`), letras, dígitos no ASCII
+    u otras longitudes;
+  - calcular el centro de banda sin validar;
+  - aceptar `band == count`, bandas negativas o alturas no positivas.
+
+### 13.7 Pendiente
+
+- Magnitudes de `additional_ela_m2` por clase de puerta, material y exposición.
+- Cualquier ley automática temperatura-tiempo-deformación, que solo llegará
+  con una calibración defendible para puertas residenciales.
+- Decidir cómo convive con el hueco térmico heredado sin doble conteo
+  (riesgo 4 de §9).
+- Vidrio (§6.6, paso 3), F2.2 e integración.

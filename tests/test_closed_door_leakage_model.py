@@ -34,6 +34,11 @@ ALLOWED_REFERENCES = {
     Path("tools/validate_closed_door_leakage_model.gd"),
     # Registers the isolated validator among the product checks.
     Path("scripts/check_product.py"),
+    # Phase 2: the pure deformation model names the leakage model only in its
+    # documentation (its own test forbids loading it), and its validator feeds
+    # the combined segments to the leakage solver. Neither is engine code.
+    Path("sim/core/ClosedDoorDeformationModel.gd"),
+    Path("tools/validate_closed_door_deformation_model.gd"),
 }
 
 

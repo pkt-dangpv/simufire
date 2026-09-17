@@ -277,7 +277,9 @@ el mismo estado de flujo y los ledgers deben cerrar.
    *Implementado y validado el 2026-09-17, sin integrar (§12 del documento de
    diseño).*
 2. **Modelo puro de huecos de deformación prescritos**, sin inventar todavía
-   una curva automática residencial.
+   una curva automática residencial. *Implementado el 2026-09-17, sin integrar
+   (§13 del documento de diseño): topología de Prieler, magnitudes
+   prescritas y no calibradas.*
 3. **Modelo térmico y de estados del vidrio**, con ensayos unitarios de
    agrietamiento, desprendimiento parcial y multicapas.
 4. **Conversión de daño a aberturas**: rendija localizada o rectángulo

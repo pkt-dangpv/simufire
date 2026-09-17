@@ -368,6 +368,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot fuga de puerta cerrada: " + (diagnostic or "failed"))
 
+    # Deformacion prescrita de puerta cerrada (fase 2): aun sin conectar al motor.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_closed_door_deformation_model.gd",
+        "CLOSED DOOR DEFORMATION MODEL VALIDATION PASS",
+    )
+    rows.append(("Deformacion prescrita de puerta, modelo puro Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot deformacion prescrita de puerta: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",
