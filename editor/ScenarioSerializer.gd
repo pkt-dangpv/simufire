@@ -1,6 +1,9 @@
 extends RefCounted
 class_name ScenarioSerializer
 
+const ClosedDoorLeakageNetworkAdapterScript = preload(
+	"res://sim/core/ClosedDoorLeakageNetworkAdapter.gd"
+)
 const ScenarioValues := preload("res://sim/ScenarioValues.gd")
 
 const DEFAULT_VERSION: int = 1
@@ -363,6 +366,19 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 	opening["height_m"] = float(opening.get("height_m", 2.0))
 	opening["sill_m"] = float(opening.get("sill_m", 0.0))
 	opening["open_fraction"] = clampf(float(opening.get("open_fraction", 1.0)), 0.0, 1.0)
+	# F2.2D1: la clase de fuga se conserva tal cual si es conocida, y si no se
+	# normaliza a `none`. Abrir o cerrar la puerta no la borra: es una propiedad
+	# de la carpinteria, no de su estado operativo.
+	var leakage_class: String = String(opening.get("leakage_class", "none")).strip_edges()
+	if not ClosedDoorLeakageNetworkAdapterScript.is_known_class(leakage_class):
+		leakage_class = "none"
+	opening["leakage_class"] = leakage_class
+	if opening.has("leakage_area_override_m2"):
+		var override_m2: float = float(opening["leakage_area_override_m2"])
+		if is_finite(override_m2) and override_m2 >= 0.0:
+			opening["leakage_area_override_m2"] = override_m2
+		else:
+			opening.erase("leakage_area_override_m2")
 	var swing_direction: String = String(opening.get("swing_direction", "in")).strip_edges().to_lower()
 	opening["swing_direction"] = "out" if swing_direction == "out" else "in"
 	var hinge_side: String = String(opening.get("hinge_side", "left")).strip_edges().to_lower()

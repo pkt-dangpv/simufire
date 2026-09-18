@@ -101,11 +101,14 @@ def test_solver_never_reaches_engine_or_model_types():
         "make_atomic_bundle",
     ):
         assert forbidden not in SOLVER_CODE, forbidden
-    # F2.2B: the ONLY thing the solver may load is the pure compartment
-    # equations, which are its authoritative evaluator.
-    assert SOLVER_CODE.count("preload(") == 1
+    # F2.2B: the solver loads its authoritative evaluator. F2.2D1 adds the one
+    # other pure model it is allowed to load, the crack law, precisely so that
+    # it does not copy it. Two preloads, both pure models, and no engine type.
+    assert SOLVER_CODE.count("preload(") == 2
     assert "CompartmentPressureEquationsScript = preload(" in SOLVER_CODE
     assert '"res://sim/core/CompartmentPressureEquations.gd"' in SOLVER_CODE
+    assert "ClosedDoorLeakageModelScript = preload(" in SOLVER_CODE
+    assert '"res://sim/core/ClosedDoorLeakageModel.gd"' in SOLVER_CODE
 
 
 def test_solver_is_side_effect_free():

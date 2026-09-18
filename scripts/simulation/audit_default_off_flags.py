@@ -217,6 +217,8 @@ OUT_OF_RUNTIME_SCOPE = {
     # F2.2C: red de presion autoritativa. Fisica viva, fuera del alcance P1R4:
     # la enciende el escenario, no una activacion de diagnostico.
     "pressure_network_solver_enabled",
+    # F2.2D1: fuga fria de puerta cerrada. Fisica viva, la enciende el escenario.
+    "closed_door_leakage_enabled",
     "phase3_stairwell_heat_bridge_enabled",
     "phase3_suppression_lower_energy_sink_enabled",
     "phase3a_pressure_ode_enabled",
@@ -228,7 +230,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 77
+EXPECTED_DECLARATION_COUNT = 78
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

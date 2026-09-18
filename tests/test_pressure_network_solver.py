@@ -50,6 +50,10 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("sim/core/SimulationEngine.gd"),
     Path("tools/validate_pressure_network_integration.gd"),
     Path("tests/test_pressure_network_integration.py"),
+    # F2.2D1: la fuga fria vive dentro de la red, asi que su validador y su
+    # suite nombran el interruptor de la red y la resuelven con ella.
+    Path("tools/validate_closed_door_leakage_network.gd"),
+    Path("tests/test_closed_door_leakage_network.py"),
     Path("scripts/simulation/audit_default_off_flags.py"),
     Path("tests/test_p1r4_flag_activation_inventory.py"),
 }
@@ -154,7 +158,10 @@ def test_exterior_is_an_imposed_node_with_temperature_and_wind():
     # applied exactly once, as the exterior gauge offset.
     # Read twice (canonical validation and opening build) but APPLIED once: it
     # is the gauge of the exterior node, never added to anything else.
-    assert SOLVER_CODE.count('"exterior_gauge_pa": exterior_gauge_pa,') == 1
+    # F2.2D1: dos clases de elemento lo publican —la abertura grande y la
+    # rendija ELA—, cada una en su propio constructor. Sigue siendo el mismo
+    # valor, tomado de la misma variable, y aplicado una sola vez por elemento.
+    assert SOLVER_CODE.count('"exterior_gauge_pa": exterior_gauge_pa,') == 2
     assert "+ exterior_gauge_pa" not in SOLVER_CODE
     assert "exterior_gauge_pa +" not in SOLVER_CODE
     assert _function("_evaluate").count("exterior_gauge_pa") >= 3
@@ -220,12 +227,31 @@ def test_solver_is_only_reached_through_the_adapter():
     assert "@export var phase3_pressure_canonical_enabled: bool = false" in engine
 
 
-def test_leak_deformation_and_glazing_models_are_still_disconnected():
-    # The names are composed on purpose: writing them literally here would trip
-    # the isolation guards those phases own.
-    for name in ("ClosedDoorLeakage" + "Model", "ClosedDoorDeformation" + "Model",
+def test_deformation_and_glazing_models_are_still_disconnected():
+    """F2.2D1 conecta la fuga fria, y SOLO la fuga fria.
+
+    Hasta esta fase el solver no podia nombrar ninguno de los cuatro modelos.
+    Ahora carga el de fuga a proposito, para no copiar su ley; los otros tres
+    siguen prohibidos, y esta prueba es la que lo vigila. Los nombres se componen
+    aposta: escribirlos enteros dispararia las guardas de aislamiento de esas
+    fases."""
+    for name in ("ClosedDoorDeformation" + "Model",
                  "GlazingIntegrity" + "Model", "GlazingOpeningGeometry" + "Model"):
         assert name not in SOLVER_CODE, name
+    # La fuga si, y por una sola via: el ayudante del modelo puro.
+    leakage = "ClosedDoorLeakage" + "Model"
+    assert f"{leakage}Script = preload(" in SOLVER_CODE
+    # La unica FUNCION que el solver llama del modelo de fuga es el ayudante de
+    # un segmento; lo demas que toma de el son dos constantes (la referencia de
+    # la ELA y el exponente), que es justamente no copiarlas.
+    assert SOLVER_CODE.count(f"{leakage}Script.compute_segment_flow_from_dp(") == 1
+    uses = [line.split(f"{leakage}Script.", 1)[1].split("(")[0].split(")")[0].strip()
+            for line in SOLVER_CODE.splitlines() if f"{leakage}Script." in line]
+    assert sorted(uses) == [
+        "NIST_ELA_REFERENCE_PRESSURE_PA",
+        "PROVISIONAL_FLOW_EXPONENT_CANDIDATE",
+        "compute_segment_flow_from_dp",
+    ], uses
 
 
 def _run_validator(dump_path: Path | None = None):

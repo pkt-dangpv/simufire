@@ -1,6 +1,7 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-17): fases 1 y 2 cerradas; fases 3A y 3B implementadas.**
+> **Estado (2026-09-18): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1
+> integradas detrás de interruptores apagados por defecto.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -22,13 +23,19 @@
 >   (solver puro acoplado de presión y aberturas, que promueve
 >   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
 >   **F2.2C** las integró ese mismo día detrás del interruptor único
->   `pressure_network_solver_enabled`, apagado por defecto. **F2.2D sigue sin
->   implementar**: las puertas cerradas siguen siendo estancas y ni la fuga, ni
->   la deformación, ni el vidrio están conectados.
-> - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
->   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
->   pendientes el modelo térmico y el probabilista del vidrio, F2.2 y la
->   integración (§6.6). No se puede integrar antes de resolver F2.2.
+>   `pressure_network_solver_enabled`, apagado por defecto.
+> - **F2.2D se ha partido en cuatro** (§16): **D1** integra la fuga **fría** de
+>   puerta cerrada en la red autoritativa, **D2** la deformación prescrita,
+>   **D3** el vidrio y **D4** la calibración de clases. **D1 está integrada
+>   desde el 2026-09-18** detrás de `closed_door_leakage_enabled`, apagado por
+>   defecto y dependiente del interruptor de la red.
+> - **Qué está y qué no está integrado.** La fuga fría de puerta cerrada sí lo
+>   está, por la red de presión. La **deformación prescrita (D2) no**, el
+>   **vidrio (D3) no**, y el modelo térmico y el probabilista del vidrio
+>   **siguen sin existir**. Ningún escenario normal enciende la fuga: hay que
+>   pedirla con los dos interruptores y declarar la clase en la carpintería.
+>   La ELA, el reparto por cotas y el exponente siguen siendo **provisionales**
+>   (§7), pendientes de la calibración de D4.
 >
 > El diagnóstico de §2-§5 se midió con `main` en
 > `b0b31bb6` sin tocar `sim/`.
@@ -47,6 +54,8 @@
 > - **Orden**: primero el modelo puro con ΔP impuestas; **F2.2 (sobrepresión)
 >   se arregla antes de integrar**; después se integra (§6.6). El límite por
 >   paso es solo un cinturón numérico, no sustituye a la presión física.
+>   *(Cumplido: F2.2 se resolvió hasta F2.2C el 2026-09-18 y la integración de
+>   la fuga fría es F2.2D1, §16.)*
 > - **Integridad**: la fuga fría, los huecos por deformación y el
 >   desprendimiento de vidrio son mecanismos separados. Una puerta cerrada
 >   puede deformarse o perder un paño acristalado sin cambiar su
@@ -489,10 +498,13 @@ puerta entreabierta.
 ## 10. Archivos de una implementación posterior
 
 - **Etapa 1 (modelo puro)**: `sim/core/ClosedDoorLeakageModel.gd` y sus tests
-  con ΔP impuestas. **Hecha (2026-09-17, §12)**, sin integrar;
+  con ΔP impuestas. **Hecha (2026-09-17, §12)**, e **integrada el 2026-09-18**
+  por F2.2D1 (§16), que le añadió el ayudante canónico de un segmento;
 - **Etapa 2 (deformación prescrita)**: `sim/core/ClosedDoorDeformationModel.gd`
-  y sus tests. **Implementada (2026-09-17, §13)**, sin integrar;
-- **Etapa F2.2**: por definir en su propio documento;
+  y sus tests. **Implementada (2026-09-17, §13)**, **sigue sin integrar**: es
+  F2.2D2;
+- **Etapa F2.2**: cerrada hasta F2.2C en
+  [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md);
 - **Etapa de integración**:
 - `sim/core/GasExchangeSystem.gd` (paso de fuga, consumidor, exclusión de la
   igualación de presión);
@@ -1251,3 +1263,434 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
   Una mutación que quitaba la copia profunda de `contributors` se descartó por
   **equivalente**: esas listas se crean nuevas y nunca se comparten, así que
   solo la detectaba el test estático.
+
+## 16. Fase F2.2D1 implementada: fuga fría de puerta cerrada en la red autoritativa (2026-09-18)
+
+> **Estado: cerrada.** La fuga permanente de una puerta interior **cerrada y
+> fría** ya no es un modelo suelto: es un elemento más de la red autoritativa de
+> presión, detrás de `closed_door_leakage_enabled`, apagado por defecto y
+> dependiente de `pressure_network_solver_enabled`. La deformación (D2), el
+> vidrio (D3) y la calibración de las clases (D4) **siguen fuera**.
+
+### 16.1 El reparto de F2.2D en cuatro
+
+Lo que el diseño llamaba «F2.2D» eran cuatro trabajos distintos, con riesgos y
+evidencias distintas. Se separan para poder cerrarlos de uno en uno:
+
+| | qué integra | estado |
+|---|---|---|
+| **D1** | fuga **fría** permanente de puerta cerrada (rendijas ELA) | **cerrada (2026-09-18)** |
+| **D2** | deformación prescrita de puerta caliente (`ClosedDoorDeformationModel`) | sin integrar |
+| **D3** | paños acristalados (`GlazingIntegrityModel` + `GlazingOpeningGeometryModel`) | sin integrar |
+| **D4** | calibración de clases de ELA, reparto por cotas y exponente | sin hacer |
+
+A esos cuatro hay que añadir uno que **no estaba en el reparto** y que las
+mediciones de §16.12 destapan: la **fuga de envolvente**. F2.2C apagó la purga
+que daba área de fuga a las ventanas exteriores cerradas, la red no la
+sustituyó, y D1 rechaza expresamente una rendija contra el exterior. Hoy, con la
+red encendida, la envolvente queda perfectamente estanca.
+
+### 16.2 El interruptor y su dependencia
+
+`SimulationEngine.closed_door_leakage_enabled` es **uno solo** y nace apagado.
+La fuga fría solo existe dentro de la red, así que pedirla sin la red es un
+error de configuración explícito: el motor publica
+`pressure_network_failure = "closed_door_leakage_requires_pressure_network"` y
+un `push_error`. **No se ignora en silencio y no enciende el solver por detrás
+para taparlo.** Ningún escenario del producto enciende ninguno de los dos.
+
+### 16.3 Dónde vive cada cosa
+
+- `sim/core/ClosedDoorLeakageModel.gd` — la **ley**. Ya existía (fase 1); D1 le
+  añade `compute_segment_flow_from_dp()`, el ayudante canónico de un segmento.
+- `sim/core/ClosedDoorLeakageNetworkAdapter.gd` — **nuevo**. Traduce una puerta
+  a geometría de rendija. No resuelve presión, no calcula caudal, no toca
+  salas y no conoce el editor.
+- `sim/core/Phase3CoupledPressureSolver.gd` — integra la rendija **dentro** del
+  residuo de Newton, como una clase de elemento más.
+- `sim/core/PressureNetworkTransportSystem.gd` — decide qué puerta aporta qué y
+  aplica el transporte con el aplicador atómico de F2.2C, sin ruta nueva.
+
+### 16.4 Una sola ley, escrita una vez
+
+El solver **no** reimplementa la ley: llama a
+`ClosedDoorLeakageModel.compute_segment_flow_from_dp()`, el mismo ayudante que
+usa el modelo puro. Dos copias se habrían separado en cuanto una se corrigiera.
+Dentro de `_integrate_crack` no hay ni una potencia, ni una raíz, ni un
+coeficiente de descarga.
+
+Tres cosas que la ley **no** es:
+
+1. **No es Bernoulli.** Una rendija no es un orificio: el exponente es **0,65**,
+   no 0,5. A 12 Pa (tres veces la referencia) los dos exponentes ya difieren un
+   **18 %**, y a 40 Pa un **41 %**.
+2. **No lleva un segundo `Cd`.** La definición de ELA (NIST TN 1887r1) es
+   «el área que, con `C_d = 1,0` y **4 Pa**, da el caudal medido». Volver a
+   multiplicar por 0,61 haría que 21 cm² dejaran de significar lo que mide el
+   ensayo.
+3. **No usa la densidad ambiente.** La densidad es la del gas **de origen**, la
+   del lado del que sale, que es lo que decide cuánta masa lleva ese volumen.
+
+### 16.5 Geometría: la rendija tiene cotas
+
+La ELA se reparte en **40 % holgura inferior, 47 % laterales y 13 % dintel**
+(reparto provisional, §6.2), y los laterales se discretizan en **ocho bandas**.
+Cada segmento es un punto a su cota, con su propia `dp(z)`: por eso una misma
+puerta puede **meter aire frío por abajo y sacar gas caliente por arriba** en el
+mismo paso. Las cotas locales que devuelve `build_door_segments` se trasladan a
+cotas absolutas en el adaptador, y solo allí.
+
+Como una rendija son muestras discretas y no un vano continuo, el plano neutro
+se obtiene **interpolando entre las dos muestras contiguas en las que `dp`
+cambia de signo**, con el mismo convenio que una abertura grande: la cota es
+`NaN` cuando no hay cruce, y `neutral_plane_inside` exige que caiga
+estrictamente dentro de la hoja.
+
+### 16.6 Exclusividad, y la deformación heredada que se desconectó
+
+Una puerta es **o** una abertura grande **o** un conjunto de rendijas, nunca las
+dos a la vez. Un `HOLE` nunca tiene fuga; una ventana tampoco; una puerta con
+clase `none` y sin override es estanca.
+
+**F2.2C leía `effective_open_fraction()`**, que suma `thermal_gap_fraction`, la
+deformación térmica heredada. Esa suma era un acoplamiento accidental: una
+puerta cerrada y caliente entraba en la red **como abertura grande de
+Bernoulli**, con su vano completo y su `Cd`. D1 lee la fracción **operativa**
+(`open_fraction`, y 1,0 para un `HOLE`) y decide el caso cerrado con
+`is_closed()`. `effective_open_fraction()` no se borra: las rutas históricas
+siguen usándolo y D2 lo necesitará, pero ya no gobierna la red.
+
+### 16.7 Identificadores
+
+F2.2C identificaba una abertura como `op_<a>_<b>_<tipo>`. **Dos puertas iguales
+entre las mismas dos salas colisionaban**: la segunda pisaba a la primera. D1
+usa el índice canónico de la abertura en el edificio: `op_<i>` para una abertura
+grande y `crack_<i>` para su rendija. Único por construcción, estable y
+determinista.
+
+### 16.8 Escenario y editor
+
+`OpeningModel` gana `leakage_class` (por defecto `"none"`) y
+`leakage_area_override_m2` (por defecto `-1`, «sin override»). El override
+válido **manda** sobre la clase. Una clase desconocida o un override no finito o
+negativo **se rechazan** en la validación del escenario, no se corrigen por
+detrás. El serializador conserva la clase al abrir y cerrar la puerta: es una
+propiedad de la carpintería, no de su estado operativo.
+
+Ningún escenario histórico gana fuga sin pedirla: sin `leakage_class` declarada,
+el comportamiento es exactamente el de F2.2C.
+
+### 16.9 Compatibilidad: qué cambia y qué no
+
+Tres niveles, y conviene no confundirlos:
+
+1. **Los dos interruptores apagados** (lo que corre hoy en todo el producto):
+   byte a byte idéntico. D1 no toca ninguna ruta histórica.
+2. **Red encendida, fuga apagada**: **no** es byte a byte idéntico a F2.2C, y
+   no debe serlo. Difiere en exactamente dos cosas, y las dos son defectos
+   corregidos: el identificador de abertura (antes dos puertas iguales entre las
+   mismas salas colisionaban) y la fracción de apertura que lee la red (antes
+   sumaba `thermal_gap_fraction`). El contrato de F2.2C se sigue cumpliendo: su
+   validador pasa entero.
+3. **Los dos encendidos**: aparece la fuga, y solo en las puertas interiores
+   cerradas con clase declarada.
+
+### 16.10 Mediciones
+
+Los tres casos del §3 (A, Aw y B) se repitieron 600 s con la red encendida y
+cuatro variantes de puerta: **estanca** (cerrada, clase `none`), **12 cm²**,
+**21 cm²** y **abierta**. El arnes es `runs/f22d1_20260918/campaign.gd` y los
+JSON estan en `runs/f22d1_20260918/campaign/`.
+
+Dos avisos de lectura:
+
+- La columna **ΔP máx puerta** solo existe para una rendija: es un diagnostico
+  propio del elemento de grieta, y una abertura grande no lo publica.
+- **1 g** y **vis<10 m** son el primer instante en que la sala receptora pasa de
+  un gramo de humo y en que su visibilidad baja de 10 m.
+
+#### Caso A (dos salas, 600 s)
+
+| variante | quemado MJ | p máx fuego Pa | p máx receptor Pa | ΔP máx puerta Pa | masa transferida kg | humo receptor g | 1 g a los s | vis<10 m s | O₂ mín receptor | T máx receptor °C | pasos sin red | dominio>50 Pa |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| estanca | 67 | 0,00 | 0,00 | — | 0,000 | 0,0 | no llega | no llega | 0,2090 | 20,1 | 0 | 0 |
+| fuga 12 cm² | 70 | 0,00 | 0,70 | 12,77 | 0,773 | 15,6 | 139 | 146 | 0,1975 | 21,4 | 29 | 0 |
+| fuga 21 cm² | 70 | 0,00 | 1,04 | 12,05 | 1,383 | 25,6 | 128 | 135 | 0,1971 | 21,9 | 32 | 0 |
+| abierta | 148 | 0,65 | 0,28 | — | 286,659 | 1 814,2 | 49 | 52 | 0,1299 | 168,0 | 0 | 0 |
+
+#### Caso Aw (igual que A, con una ventana cerrada por sala)
+
+| variante | quemado MJ | p máx fuego Pa | p máx receptor Pa | ΔP máx puerta Pa | masa transferida kg | humo receptor g | 1 g a los s | vis<10 m s | O₂ mín receptor | T máx receptor °C | pasos sin red | dominio>50 Pa |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| estanca | 67 | 0,00 | 0,00 | — | 0,000 | 0,0 | no llega | no llega | 0,2090 | 20,1 | 0 | 0 |
+| fuga 12 cm² | 70 | 0,00 | 0,70 | 12,77 | 0,773 | 15,6 | 139 | 146 | 0,1975 | 21,4 | 29 | 0 |
+| fuga 21 cm² | 70 | 0,00 | 1,04 | 12,05 | 1,383 | 25,6 | 128 | 135 | 0,1971 | 21,9 | 32 | 0 |
+| abierta | 148 | 0,65 | 0,28 | — | 286,659 | 1 814,2 | 49 | 52 | 0,1299 | 168,0 | 0 | 0 |
+
+#### Caso B (portal D de tres plantas, 600 s)
+
+Fuego en la vivienda P0, con su puerta al portal **abierta**. Las dos
+puertas que llevan la variante son las de las viviendas P1 y P2 al
+rellano. El receptor de la tabla es la **vivienda P2**, la más lejana.
+
+| variante | quemado MJ | p máx fuego Pa | p máx receptor Pa | ΔP máx puerta Pa | masa transferida kg | humo receptor g | 1 g a los s | vis<10 m s | O₂ mín receptor | T máx receptor °C | pasos sin red | dominio>50 Pa |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| estanca | 68 | 25,09 | 0,00 | — | 577,247 | 0,0 | no llega | no llega | 0,2090 | 20,0 | 2476 | 0 |
+| fuga 12 cm² | 68 | 25,91 | -2,24 | 41,94 | 423,867 | 0,0 | no llega | no llega | 0,2090 | 20,0 | 4228 | 0 |
+| fuga 21 cm² | 68 | 26,45 | -3,77 | 39,73 | 432,534 | 0,0 | no llega | no llega | 0,2090 | 20,0 | 4202 | 0 |
+| abierta | 134 | 34,06 | -32,66 | — | 1 630,778 | 474,2 | 135 | 140 | 0,1509 | 35,0 | 0 | 0 |
+
+Y lo que llega al portal R+2, el rellano al que da esa vivienda:
+
+| variante | humo portal R+2 g | p máx portal R+2 Pa |
+|---|---|---|
+| estanca | 103,1 | -41,09 |
+| fuga 12 cm² | 201,3 | -40,30 |
+| fuga 21 cm² | 199,2 | -39,76 |
+| abierta | 1 457,3 | -32,90 |
+
+### 16.11 Lo que dicen las mediciones
+
+Antes de leer nada: **solo los casos A y Aw dan evidencia utilizable**. En el
+portal (B) la red no converge en más de un tercio de los pasos, y eso invalida
+sus números como medida de la fuga (§16.14). Lo que sigue se refiere a A y Aw.
+
+1. **El efecto queda claramente entre la puerta estanca y la abierta**, que es
+   el criterio de aceptación. La sala protegida pasa de **no recibir nada** a
+   recibir **15,6 g** (12 cm²) y **25,6 g** (21 cm²) de humo, frente a los
+   **1 814 g** de la puerta abierta. El primer gramo llega a los **139 s** y
+   **129 s** respectivamente, contra los **49 s** de la puerta abierta; y la
+   visibilidad baja de 10 m a los **146 s** y **135 s**, contra **52 s**.
+2. **La clase mayor fuga más**, en la dirección esperada: 21 cm² mueve
+   **1,383 kg** frente a los **0,773 kg** de 12 cm², casi el doble, que es lo
+   que cabe esperar de un área 1,75 veces mayor con una ley sublineal.
+3. **El O₂ baja poco, y eso también es lo esperado**: 0,1975 y 0,1971 frente al
+   0,2090 de la sala estanca y el **0,1299** de la puerta abierta. Una rendija
+   no ventila un incendio; deja pasar humo.
+4. **La puerta abierta no es una fuga grande.** Mueve **286,7 kg** —dos órdenes
+   de magnitud más— y mete calor de verdad en la sala receptora (**168 °C**
+   frente a los 21-22 °C de las variantes con rendija). Son fenómenos distintos,
+   y la tabla lo enseña.
+5. **La ΔP máxima en la rendija no llega a 50 Pa** (12,8 Pa con 12 cm² y 12,1
+   con 21 cm²), así que ninguna medición sale del dominio experimental. No se ha
+   impuesto ese límite: se ha medido, y la marca `domain_exceeded` existe
+   precisamente para cuando se supere.
+
+### 16.12 El caso Aw no aporta nada nuevo, y eso es un hallazgo
+
+**Aw sale idéntico a A hasta el último decimal** en las cuatro variantes
+(66,7361 MJ quemados con la puerta estanca, 15,6494 g de humo y 0,77263 kg
+movidos con 12 cm², O₂ mínimo 0,197474; y 148,1031 MJ, 1 814,1975 g y O₂ 0,129929
+con la puerta abierta). Aw solo se diferencia de A en que cada sala tiene una
+**ventana exterior cerrada**, así que el resultado dice algo concreto: **con la
+red autoritativa encendida, una ventana exterior cerrada es completamente
+inerte**.
+
+No es un fallo de D1; es una consecuencia de F2.2C que D1 deja al descubierto.
+La fuga de envolvente de una ventana cerrada vivía en la purga por presión de
+`GasExchangeSystem` (`window_leakage_area_m2`, 0,005 m²), y F2.2C la apagó junto
+con el resto de rutas de transporte para que la red fuera dueña única. La red no
+la sustituyó, y D1 **rechaza expresamente** una rendija contra el exterior
+porque la fuga de fachada no es esta fase.
+
+Resultado: con la red encendida, **la envolvente queda perfectamente estanca**.
+Hay que arreglarlo, y es trabajo aparte de D2 y D3: una fase de fuga de
+envolvente que vuelva a dar a ventanas y puertas exteriores cerradas su área de
+fuga, ahora dentro de la red.
+
+### 16.13 El límite honesto: la sala «estanca» pierde masa
+
+Con la puerta estanca, la sala del fuego del caso A **pierde alrededor de un
+tercio de su masa de gas mientras se calienta** (48,0 kg a 31,0 kg en 100 s), y
+por eso su presión manométrica de la EOS se queda pegada a cero en vez de subir
+a las centenas de kPa que tendría un recinto realmente estanco.
+
+Esto **no lo introduce D1 ni F2.2C**: la misma sonda con la red **apagada**
+pierde la misma masa hasta el kilogramo (31,0356 kg frente a 31,0348 kg a los
+100 s). El sumidero es una ruta histórica que la red autoritativa no posee, y
+que este encargo tenía prohibido tocar.
+
+La consecuencia conviene decirla con precisión, porque es fácil equivocarse
+al resumirla. Lo que se queda en **torno a 1 Pa** es la diferencia de presión
+**entre recintos**, la que produciría la sobrepresión del incendio. Lo que de
+verdad mueve la rendija en estas corridas es el término **hidrostático**: cada
+segmento ve su propia `dp(z)`, y por eso la ΔP máxima medida en la grieta llega
+a **12,8 Pa** aunque las dos salas estén casi a la misma presión. Dicho de otro
+modo, **lo que está funcionando es la flotabilidad, no la sobrepresión**.
+
+Por eso las cifras de fuga de §16.10 son una **cota inferior**: falta el empuje
+que aportaría un recinto que se presurizara de verdad. El orden entre estanca,
+12 cm², 21 cm² y abierta es sólido; las magnitudes se quedan cortas hasta que
+esa ruta histórica se arregle.
+
+### 16.14 Convergencia: los pasos en que la red no se aplica
+
+Cuando la red no converge **no se aplica nada**: no hay transporte ese paso, el
+motivo se publica en `pressure_network_failure` y no hay vuelta atrás silenciosa
+a las rutas históricas. Eso es política de F2.2C, y D1 no la cambia. Lo que sí
+hace D1 es dar la cifra:
+
+| caso | variante | pasos | sin aplicar | % | motivo |
+|---|---|---|---|---|---|
+| A | estanca | 7200 | 0 | 0.0 % | — |
+| A | 12 cm² | 7200 | 29 | 0.4 % | solver_iteration_cap (29) |
+| A | 21 cm² | 7200 | 32 | 0.4 % | solver_iteration_cap (32) |
+| A | abierta | 7200 | 0 | 0.0 % | — |
+| Aw | estanca | 7200 | 0 | 0.0 % | — |
+| Aw | 12 cm² | 7200 | 29 | 0.4 % | solver_iteration_cap (29) |
+| Aw | 21 cm² | 7200 | 32 | 0.4 % | solver_iteration_cap (32) |
+| Aw | abierta | 7200 | 0 | 0.0 % | — |
+| B | estanca | 7200 | 2476 | 34.4 % | solver_compartment_equations_rejected_candidate (2476) |
+| B | 12 cm² | 7200 | 4228 | 58.7 % | solver_compartment_equations_rejected_candidate (4228) |
+| B | 21 cm² | 7200 | 4202 | 58.4 % | solver_compartment_equations_rejected_candidate (4202) |
+| B | abierta | 7200 | 0 | 0.0 % | — |
+
+Hay que leerla en dos partes, porque son dos problemas distintos:
+
+**En dos recintos (A y Aw) el problema es de la rendija, y es pequeño.** Sin
+grieta no falla ni un paso; con grieta fallan **29 de 7 200** (12 cm²) y **32 de
+7 200** (21 cm²), un 0,4 %. La causa probable es la propia ley: la derivada de
+`|Δp|^0,65` es **infinita en Δp = 0**, así que cada vez que un segmento cruza el
+cero la iteración de Newton se encuentra un jacobiano que se dispara. El remedio
+ya está montado y validado —`zero_pressure_regularization_pa`, que empalma la
+ley con una recta desde el origen— pero D1 lo deja **en cero** a propósito, como
+pedía el encargo: primero medir sin él. Ajustarlo es trabajo de D4.
+
+**En el portal de tres plantas (B) el problema es anterior a D1, y es grande.**
+Con las dos puertas **estancas y sin ninguna rendija**, la red ya se niega a
+aplicarse en **2 476 de 7 200 pasos (34 %)**, y siempre por el mismo motivo:
+`solver_compartment_equations_rejected_candidate`, es decir, el evaluador de
+F2.2A rechaza el estado candidato.
+
+Aquí había que comprobar algo antes de echarle la culpa a nadie. D1 desconecta
+`thermal_gap_fraction` de la red (§16.6), y esa deformación **sigue activa por
+defecto** (desde 150 °C, hasta un 4 %); los rellanos de B pasan de 325 °C. Cabía
+la posibilidad de que, al dejar de contarla, las viviendas quedaran incomunicadas
+y eso rompiera la convergencia. **Se midió, y no es eso**: en las 7 200 llamadas
+del caso B el hueco por deformación existe en **84 pasos**, en **una sola
+puerta** y con un máximo del **3,6 %**, mientras que los fallos son **2 476**.
+Aunque los 84 se debieran enteramente a ese cambio, explicarían el **3 %** de
+los fallos. El resto es una limitación de **F2.2C** en una red de seis recintos,
+anterior a la fuga fría. Añadir la grieta la empeora
+casi al doble: **58,7 %** con 12 cm² y **58,4 %** con 21 cm², sin que el tamaño
+de la rendija cambie apenas nada. Lo que rompe la convergencia no es cuánto
+fuga, es que haya que resolver una grieta.
+
+Y hay un dato que apunta mejor todavía: **con las puertas abiertas del todo, el
+portal converge sin un solo fallo (0 de 7 200)**. Es decir, el problema no es el
+tamaño de la red ni el número de recintos, sino los recintos que quedan **casi
+o del todo incomunicados**: la vivienda P1 y la P2, cuya única conexión es una
+puerta cerrada y una ventana cerrada (que, por §16.12, no conduce nada). El
+evaluador de F2.2A rechaza el candidato justo ahí.
+
+La conclusión honesta es incómoda y conviene no maquillarla: **las cifras del
+caso B no sirven como evidencia**. Un escenario en el que más de la mitad de los
+pasos no transportan nada no mide la fuga, mide la falta de convergencia. La red
+autoritativa **todavía no está lista para un portal de varias plantas**, y
+arreglar eso es trabajo de F2.2 —del evaluador y del solver—, anterior y ajeno a
+D2, D3 y D4.
+
+Conviene además dejar dicho qué se vio en B, porque sorprende y porque alguien
+lo va a volver a mirar. Las rendijas **sí mueven masa**: la de la vivienda P2 al
+rellano mueve **4,05 kg** con 12 cm² y **6,90 kg** con 21 cm², con una ΔP máxima
+de **41,9 Pa**, tres veces la del caso A y aún dentro del dominio experimental.
+Y sin embargo **la vivienda P2 no recibe ni un gramo de humo** en ninguna de las
+tres variantes cerradas.
+
+No es una contradicción: es el sentido del flujo. Con la red encendida, el
+rellano R+2 se queda a presión **negativa** (−41 Pa con las puertas estancas),
+así que la rendija sopla **desde la vivienda hacia el rellano**, no al revés. La
+vivienda pierde aire limpio en vez de recibir humo.
+
+Y ese −41 Pa tiene una pista medida, que conviene dejar escrita porque acota
+mucho la búsqueda. Las tres plantas del portal están a **z = 0, 2,90 y 5,80 m**,
+y sus presiones manométricas con las puertas estancas son **+25,11**, **−8,14**
+y **−41,09 Pa**. Las diferencias entre plantas son **−33,2** y **−33,0 Pa**,
+mientras que la columna hidrostática del aire ambiente entre dos plantas es
+ρ·g·Δz = 1,2 · 9,81 · 2,90 = **34,1 Pa**. Coinciden dentro de un 3 %.
+
+Dicho de otro modo: **las tres plantas del portal están prácticamente a la misma
+presión absoluta**, y todo el gradiente manométrico que se ve es la columna del
+**exterior**. Eso es lo que saldría si la columna de gas **interior** del hueco
+de escalera no estuviera pesando en el balance, o si el origen de la presión
+manométrica no siguiera la cota. En un portal con un incendio abajo se esperaría
+lo contrario: gas caliente, columna interior más ligera que la exterior, y por
+tanto sobrepresión **creciente** hacia arriba.
+
+No se afirma aquí cuál de las dos cosas es: es una **hipótesis medida**, no un
+diagnóstico. Pero es la primera que hay que comprobar al retomar F2.2, y explica
+por qué B no vale todavía como evidencia.
+
+### 16.15 Mutaciones
+
+Las 26 mutaciones del encargo, cada una aplicada sola al código de producción y
+comprobada contra el validador que debe matarla. La campaña encontró **tres
+cosas que arreglar**, que es para lo que sirve:
+
+1. **`_integrate_opening` reventaba** si le llegaba un elemento de rendija,
+   leyendo un `coefficient` que una grieta no tiene. Desde que la red es
+   heterogénea, una ruta equivocada tiene que fallar limpiamente: ahora se
+   rechaza.
+2. **La conservación no distingue «no mover energía» de «mover cero»**: las
+   mutaciones que dejaban la energía o el O₂ fuera del transporte sobrevivían a
+   la validación de F2.2C. El caso 14 compara ahora lo que sale con lo que
+   llega, ruta por ruta.
+3. **Nadie contaba las aplicaciones.** Aplicar el transporte dos veces pasaba
+   desapercibido, porque dentro de un paso completo del motor las demás rutas
+   mueven más masa que la red. `commit_count` lo hace comprobable, y el caso 15
+   exige exactamente una aplicación por paso.
+
+También salió a la luz algo que **no** había que arreglar: la exclusividad
+abierta/cerrada y el ELA cero están protegidos por **dos guardas
+independientes** cada uno, así que ninguna mutación de un solo punto los rompe.
+Esas mutaciones se reescribieron para tocar las dos guardas a la vez; siguen
+siendo una sola mutación, porque el comportamiento que rompen es uno solo.
+
+| # | mutación | quién la mata | resultado |
+|---|---|---|---|
+| 1 | La fuga se activa siempre, ignorando el interruptor | validador D1 | **muere** — FAIL: 11 leakage off leaves the closed door sealed |
+| 2 | La fuga no se activa nunca | validador D1 | **muere** — FAIL: 08 a closed door only contributes a crack ([]) |
+| 3 | La puerta abierta conserva ademas la fuga (dos guardas) | validador D1 | **muere** — FAIL: transport applied (solver_invalid_input) |
+| 4 | Las ventanas tienen fuga de puerta | validador D1 | **muere** — FAIL: 11 a window is not a door for the cold leakage |
+| 5 | Los huecos tienen fuga | validador D1 | **muere** — FAIL: 11 a hole has no cold leakage |
+| 6 | Se ignora `leakage_class` y se usa siempre la interior | validador D1 | **muere** — FAIL: 08 a door with class none stays sealed |
+| 7 | Se ignora el override del area | validador D1 | **muere** — FAIL: 11 the override wins over the class (0.0021) |
+| 8 | Se intercambian las clases de 12 y 21 cm2 | validador D1 | **muere** — FAIL: 11 the entry class is 12 cm2 (0.0021) |
+| 9 | Se aplica Cd = 0,61 encima de la ELA | validador D1 | **muere** — FAIL: 02 12 cm2 at 4 Pa gives the ELA definition (0.001890016 vs 0.003098387 m3/s) |
+| 10 | La referencia de la ELA pasa a 10 Pa | validador D1 | **muere** — FAIL: 02 12 cm2 at 4 Pa gives the ELA definition (0.002700503 vs 0.003098387 m3/s) |
+| 11 | El exponente de la rendija pasa a 0,5 (orificio) | validador D1 | **muere** — FAIL: 03 the crack law is not the orifice law at 1.0 Pa |
+| 12 | Se usa densidad ambiente en vez de la del origen | validador D1 | **muere** — FAIL: 04 the upstream density is the source one |
+| 13 | Toda la ELA se coloca en una sola cota | validador D1 | **muere** — FAIL: 05 the crack carries both ways at different heights (0 out high, 0 in low) |
+| 14 | Se pierde un segmento lateral | validador D1 | **muere** — FAIL: 02 the segments add up to the full ELA |
+| 15 | La fuga se calcula solo al recoger, no en el residuo | validador D1 | **muere** — FAIL: 01 identical rooms converge (invalid) |
+| 16 | La rendija no entra en el residuo de Newton | validador D1 | **muere** — FAIL: 05 the crack carries both ways at different heights (4 out high, 0 in low) |
+| 17 | Vuelve `effective_open_fraction()` con la deformacion antigua | validador D1 | **muere** — FAIL: 11 a deformed closed door is still only a crack (["op_0"]) |
+| 18 | Se transporta masa pero no energia | validador D1 | **muere** — FAIL: 14 the receiver gains the energy the network moved (0.000000000 vs 2.506690265 kJ) |
+| 19 | Se transporta masa pero no O2 | validador D1 | **muere** — FAIL: 14 the receiver gains the oxygen that left the source (0.000000000 vs 0.006476414 kg) |
+| 20 | Se transporta masa pero no humo ni especies globales | validador F2.2C | **muere** — FAIL: 04 smoke reached the cold room |
+| 21 | El transporte se aplica dos veces | validador D1 | **muere** — FAIL: 15 step 1 leaves exactly 1 applications (2) |
+| 22 | La presion se iguala al instante | validador F2.2C | **muere** — FAIL: 04 the hot room keeps the higher pressure (0.000 vs 0.000) |
+| 23 | La fuga se permite con la red apagada | pytest D1 | **muere** — FAILED tests/test_closed_door_leakage_network.py::test_leakage_without_the_network_is_an_explicit_failure |
+| 24 | Vuelve el identificador que colisiona entre dos puertas | validador D1 | **muere** — FAIL: transport applied (solver_invalid_input) |
+| 25 | Un ELA de cero produce caudal (dos guardas) | validador D1 | **muere** — FAIL: 10 a zero ELA carries nothing |
+| 26 | La dp se recorta en silencio a 50 Pa | validador D1 | **muere** — FAIL: 10 the flow beyond the domain is not clamped (0.028000460 vs 0.049465509) |
+
+**26 de 26 mutaciones mueren.**
+
+### 16.16 Lo que D1 deja fuera
+
+- La **deformación** (D2): `thermal_gap_fraction` ya no entra en la red, pero
+  tampoco aporta todavía huecos propios.
+- El **vidrio** (D3), y sus modelos térmico y probabilista, que no existen.
+- La **calibración** (D4): ELA, reparto por cotas y exponente siguen siendo
+  provisionales, y con ellos la regularización de §16.14.
+- La **fuga de envolvente**: una rendija contra el exterior se rechaza. D1 es
+  fuga entre recintos.
+- El **encendido en escenarios normales**: sigue haciendo falta pedir los dos
+  interruptores y declarar la clase.
+
+Y una cosa que D1 no deja fuera porque no le toca, pero que **bloquea** el uso
+real de todo esto: la red autoritativa **no converge** en un portal de varias
+plantas (§16.14). Mientras la mitad de los pasos no transporten nada, ni la
+fuga fría ni lo que venga después se pueden medir ahí. Es trabajo de F2.2, del
+evaluador de F2.2A y del solver de F2.2B, y va **antes** que D2, D3 y D4.

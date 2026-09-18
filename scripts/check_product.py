@@ -422,6 +422,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot red de presion autoritativa: " + (diagnostic or "failed"))
 
+    # Fuga fria de puerta cerrada dentro de la red (fase F2.2D1): interruptor
+    # apagado por defecto y dependiente del de la red.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_closed_door_leakage_network.gd",
+        "CLOSED DOOR LEAKAGE NETWORK VALIDATION PASS",
+    )
+    rows.append(("Fuga fria de puerta cerrada en la red, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot fuga fria de puerta cerrada: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

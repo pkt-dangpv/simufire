@@ -41,10 +41,15 @@ class_name PressureNetworkTransportSystem
 #     la ruta historica de purga por aire;
 #   - PPV no esta representada como fuente ni contorno: con el
 #     interruptor encendido se rechaza de forma explicita;
-#   - las puertas cerradas siguen siendo estancas hasta F2.2D.
+#   - F2.2D1: una puerta interior CERRADA puede aportar rendijas ELA
+#     (fuga fria), y solo eso, y solo con `closed_door_leakage_enabled`;
+#     sin ese interruptor sigue siendo estanca, como en F2.2C. La
+#     deformacion prescrita (D2) y el vidrio (D3) siguen sin conectar.
 # ============================================================
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
+## F2.2D1: la puerta cerrada se describe aqui, no se calcula aqui.
+const LeakageAdapterScript = preload("res://sim/core/ClosedDoorLeakageNetworkAdapter.gd")
 
 const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
@@ -68,6 +73,15 @@ const CONSERVATION_TOLERANCE_KJ: float = 1.0e-3
 
 var _solver = SolverScript.new()
 var last_result: Dictionary = {}
+## F2.2D1: cuantas veces se ha APLICADO la transaccion. La invariante de F2.2C
+## es que la red es dueña unica y se aplica una sola vez por paso del motor;
+## este contador la hace comprobable desde fuera.
+var commit_count: int = 0
+
+
+## F2.2D1: la fuga fria de puerta cerrada solo se anade cuando el escenario la
+## pide expresamente. Falso por defecto y gobernado por el motor.
+var closed_door_leakage_enabled: bool = false
 
 
 ## Paso completo. Devuelve {applied, valid, errors, failure_reason, solution,
@@ -80,7 +94,7 @@ func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionar
 		last_result = result
 		return result
 
-	var snapshot: Dictionary = build_snapshot(building, outside_override)
+	var snapshot: Dictionary = build_snapshot(building, outside_override, dt_s)
 	if not bool(snapshot["valid"]):
 		result["failure_reason"] = "invalid_snapshot"
 		result["errors"] = snapshot["errors"]
@@ -119,6 +133,8 @@ func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionar
 		return result
 
 	var commit: Dictionary = commit_transaction(building, snapshot, transaction, solution)
+	if bool(commit["applied"]):
+		commit_count += 1
 	result["applied"] = bool(commit["applied"])
 	result["valid"] = bool(commit["applied"])
 	result["diagnostics"] = commit
@@ -135,7 +151,7 @@ func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionar
 
 ## Estado inmutable de partida. Todo lo que la transaccion lea sale de aqui:
 ## ninguna sala se consulta despues de empezar a calcular transferencias.
-func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
+func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0.0) -> Dictionary:
 	var errors: Array[String] = []
 	var rooms: Dictionary = {}
 	var order: Array[String] = []
@@ -183,6 +199,7 @@ func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
 	order.sort()
 
 	var openings: Array = []
+	var cracks: Array = []
 	for opening in building.get_openings():
 		if opening == null:
 			continue
@@ -195,10 +212,18 @@ func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
 			continue
 		if b_key != EXTERIOR_ROOM_ID and not rooms.has(b_key):
 			continue
-		var open_fraction: float = float(opening.effective_open_fraction())
-		if open_fraction <= 0.001:
-			# Una abertura cerrada no forma parte de la red. Las fugas de puerta
-			# cerrada son F2.2D y todavia no existen: la puerta es estanca.
+		# F2.2D1: la fraccion OPERATIVA, sin `thermal_gap_fraction`. F2.2C usaba
+		# `effective_open_fraction()`, que suma la deformacion termica heredada y
+		# podia meter una puerta cerrada en la red como abertura grande. La
+		# deformacion prescrita llega en D2, por sus propios segmentos.
+		var open_fraction: float = 1.0 if int(opening.type) == OpeningModel.Type.HOLE \
+				else float(opening.open_fraction)
+		if opening.is_closed() or open_fraction <= 0.001:
+			# Puerta cerrada: solo puede aportar rendijas ELA, nunca una abertura
+			# grande, y solo si la capacidad esta encendida.
+			var crack: Dictionary = _crack_element(opening, a_key, b_key, rooms, dt_s)
+			if not crack.is_empty():
+				cracks.append(crack)
 			continue
 		var anchor_floor_z_m: float = 0.0
 		if a_key != EXTERIOR_ROOM_ID:
@@ -206,7 +231,10 @@ func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
 		elif b_key != EXTERIOR_ROOM_ID:
 			anchor_floor_z_m = float(rooms[b_key]["floor_z_m"])
 		openings.append({
-			"opening_id": "op_%d_%d_%d" % [a_id, b_id, int(opening.type)],
+			# Identificador canonico: el indice de la abertura en el edificio.
+			# Unico, estable, determinista y trazable; dos puertas iguales entre
+			# las mismas salas ya no colisionan.
+			"opening_id": "op_%d" % int(opening.opening_index),
 			"room_a_id": a_key,
 			"room_b_id": b_key,
 			"bottom_z_m": anchor_floor_z_m + float(opening.sill_m),
@@ -215,6 +243,7 @@ func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
 			"open_fraction": clampf(open_fraction, 0.0, 1.0),
 			"discharge_coeff": 0.61,
 		})
+	openings.append_array(cracks)
 	openings.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["opening_id"]) < String(right["opening_id"]))
 
@@ -236,6 +265,46 @@ func build_snapshot(building, outside_override: Dictionary = {}) -> Dictionary:
 		"room_order": order,
 		"openings": openings,
 		"outside": outside,
+	}
+
+
+## F2.2D1: rendijas de una puerta cerrada, si la capacidad esta encendida. El
+## adaptador decide si la puerta aporta fuga; aqui solo se traslada al contrato
+## de la red y se le pone el identificador canonico.
+func _crack_element(opening, a_key: String, b_key: String, rooms: Dictionary,
+		dt_s: float) -> Dictionary:
+	if not closed_door_leakage_enabled:
+		return {}
+	if a_key == EXTERIOR_ROOM_ID or b_key == EXTERIOR_ROOM_ID:
+		return {}
+	if not rooms.has(a_key) or not rooms.has(b_key):
+		return {}
+	var floor_z_m: float = float(rooms[a_key]["floor_z_m"])
+	var element: Dictionary = LeakageAdapterScript.build_crack_element(
+		opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key, dt_s
+	)
+	if element.is_empty():
+		return {}
+	return {
+		"opening_id": "crack_%d" % int(opening.opening_index),
+		"room_a_id": a_key,
+		"room_b_id": b_key,
+		"flow_model": "ela_crack",
+		"crack_segments": element["crack_segments"],
+		"ela_reference_pressure_pa": float(element["ela_reference_pressure_pa"]),
+		"flow_exponent": float(element["flow_exponent"]),
+		"zero_pressure_regularization_pa": float(element["zero_pressure_regularization_pa"]),
+		"pressure_domain_max_pa": float(element["pressure_domain_max_pa"]),
+		"provenance": String(element["provenance"]),
+		"leakage_class": String(element["leakage_class"]),
+		"resolved_ela_m2": float(element["resolved_ela_m2"]),
+		# El solver exige estos campos en toda conexion; una rendija no tiene
+		# vano, asi que se declaran neutros y no se usan.
+		"width_m": 1.0,
+		"open_fraction": 1.0,
+		"discharge_coeff": 1.0,
+		"bottom_z_m": float(element["crack_segments"][0]["z_m"]),
+		"top_z_m": float(element["crack_segments"][element["crack_segments"].size() - 1]["z_m"]),
 	}
 
 

@@ -259,16 +259,20 @@ static func compute_flows(
 		if area_m2 > 0.0 and dp_pa != 0.0:
 			var source: Dictionary = side_a if dp_pa > 0.0 else side_b
 			var destination: Dictionary = side_b if dp_pa > 0.0 else side_a
-			var rho_source: float = density_at(source, z_m)
-			var volume_m3_s: float = crack_volume_flow_m3_s(
-				area_m2, absf(dp_pa), rho_source, reference_pa, exponent, regularization_pa
+			# Una sola ley, un solo sitio: el helper decide signo, densidad de
+			# origen, potencia y regularizacion. El solver de red usa este mismo.
+			var segment_flow: Dictionary = compute_segment_flow_from_dp(
+				area_m2, dp_pa, density_at(side_a, z_m), density_at(side_b, z_m),
+				reference_pa, exponent, regularization_pa, dt_s, domain_max_pa
 			)
-			var mass_kg_s: float = rho_source * volume_m3_s
-			flow["direction"] = DIRECTION_A_TO_B if dp_pa > 0.0 else DIRECTION_B_TO_A
+			var rho_source: float = float(segment_flow["source_density_kg_m3"])
+			var volume_m3_s: float = float(segment_flow["volume_flow_m3_s"])
+			var mass_kg_s: float = float(segment_flow["mass_flow_kg_s"])
+			flow["direction"] = String(segment_flow["direction"])
 			flow["volume_flow_m3_s"] = volume_m3_s
-			flow["signed_volume_flow_m3_s"] = volume_m3_s if dp_pa > 0.0 else -volume_m3_s
+			flow["signed_volume_flow_m3_s"] = float(segment_flow["signed_volume_flow_m3_s"])
 			flow["mass_flow_kg_s"] = mass_kg_s
-			flow["mass_step_kg"] = mass_kg_s * dt_s
+			flow["mass_step_kg"] = float(segment_flow["mass_step_kg"])
 			flow["source_side"] = SIDE_A if dp_pa > 0.0 else SIDE_B
 			flow["source_zone"] = zone_at(source, z_m)
 			flow["source_density_kg_m3"] = rho_source
@@ -277,7 +281,7 @@ static func compute_flows(
 			# acabe la parcela lo decide el consumidor de transporte.
 			flow["destination_zone_at_height"] = zone_at(destination, z_m)
 			flow["destination_density_at_height"] = density_at(destination, z_m)
-			net_mass_kg_s += mass_kg_s if dp_pa > 0.0 else -mass_kg_s
+			net_mass_kg_s += float(segment_flow["signed_mass_flow_kg_s"])
 			gross_mass_kg_s += mass_kg_s
 		flows.append(flow)
 
@@ -290,6 +294,90 @@ static func compute_flows(
 		"max_abs_dp_pa": max_abs_dp_pa,
 		"domain_exceeded": max_abs_dp_pa > domain_max_pa,
 	}
+
+
+## Flujo de UN segmento de grieta a partir de una diferencia de presion CON
+## SIGNO. Es el unico sitio donde viven, a la vez:
+##   - el sentido (dp > 0 va de A a B);
+##   - la eleccion de la densidad de ORIGEN (la del lado que empuja);
+##   - la ley de potencia con ELA a `reference_pa` y `C_d = 1,0` incorporado;
+##   - la regularizacion numerica cerca de dp = 0;
+##   - la marca de dominio experimental excedido.
+##
+## Lo usan `compute_flows` (modelo puro, presiones impuestas) y el solver de red
+## (F2.2B) dentro de su residuo de Newton. No hay una segunda copia de la ley.
+##
+## Devuelve {valid, errors, direction, abs_dp_pa, volume_flow_m3_s,
+## signed_volume_flow_m3_s, mass_flow_kg_s, signed_mass_flow_kg_s, mass_step_kg,
+## source_side, source_density_kg_m3, regularized, domain_exceeded}.
+static func compute_segment_flow_from_dp(
+	area_m2: float,
+	dp_pa: float,
+	rho_a_kg_m3: float,
+	rho_b_kg_m3: float,
+	reference_pa: float,
+	exponent: float,
+	regularization_pa: float,
+	dt_s: float = 0.0,
+	domain_max_pa: float = INF
+) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"errors": [],
+		"direction": DIRECTION_NONE,
+		"abs_dp_pa": 0.0,
+		"volume_flow_m3_s": 0.0,
+		"signed_volume_flow_m3_s": 0.0,
+		"mass_flow_kg_s": 0.0,
+		"signed_mass_flow_kg_s": 0.0,
+		"mass_step_kg": 0.0,
+		"source_side": "",
+		"source_density_kg_m3": 0.0,
+		"regularized": false,
+		"domain_exceeded": false,
+	}
+	var errors: Array[String] = []
+	if not _is_finite(area_m2) or area_m2 < 0.0:
+		errors.append("area_m2 must be finite and >= 0")
+	if not _is_finite(dp_pa):
+		errors.append("dp_pa must be finite")
+	if not _is_finite(rho_a_kg_m3) or rho_a_kg_m3 <= 0.0 \
+			or not _is_finite(rho_b_kg_m3) or rho_b_kg_m3 <= 0.0:
+		errors.append("both densities must be finite and > 0")
+	if not _is_finite(reference_pa) or reference_pa <= 0.0:
+		errors.append("reference_pa must be finite and > 0")
+	if not _is_finite(exponent) or exponent <= 0.0:
+		errors.append("flow_exponent must be finite and > 0")
+	if not _is_finite(regularization_pa) or regularization_pa < 0.0:
+		errors.append("zero_pressure_regularization_pa must be finite and >= 0")
+	if not _is_finite(dt_s) or dt_s < 0.0:
+		errors.append("dt_s must be finite and >= 0")
+	if not errors.is_empty():
+		result["errors"] = errors
+		return result
+
+	result["valid"] = true
+	var abs_dp_pa: float = absf(dp_pa)
+	result["abs_dp_pa"] = abs_dp_pa
+	result["domain_exceeded"] = abs_dp_pa > domain_max_pa
+	if area_m2 <= 0.0 or dp_pa == 0.0:
+		return result
+	var from_a: bool = dp_pa > 0.0
+	var rho_source: float = rho_a_kg_m3 if from_a else rho_b_kg_m3
+	var volume_m3_s: float = crack_volume_flow_m3_s(
+		area_m2, abs_dp_pa, rho_source, reference_pa, exponent, regularization_pa
+	)
+	var mass_kg_s: float = rho_source * volume_m3_s
+	result["direction"] = DIRECTION_A_TO_B if from_a else DIRECTION_B_TO_A
+	result["source_side"] = SIDE_A if from_a else SIDE_B
+	result["source_density_kg_m3"] = rho_source
+	result["volume_flow_m3_s"] = volume_m3_s
+	result["signed_volume_flow_m3_s"] = volume_m3_s if from_a else -volume_m3_s
+	result["mass_flow_kg_s"] = mass_kg_s
+	result["signed_mass_flow_kg_s"] = mass_kg_s if from_a else -mass_kg_s
+	result["mass_step_kg"] = mass_kg_s * dt_s
+	result["regularized"] = regularization_pa > 0.0 and abs_dp_pa < regularization_pa
+	return result
 
 
 ## Caudal volumetrico (m3/s, >= 0) por una grieta de ELA `area_m2` (a 4 Pa,

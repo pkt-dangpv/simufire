@@ -19,6 +19,10 @@ const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 # - emitir estado para UI
 # ============================================================
 
+const ClosedDoorLeakageNetworkAdapterScript = preload(
+	"res://sim/core/ClosedDoorLeakageNetworkAdapter.gd"
+)
+
 const OUTSIDE_ID: int = -1
 
 # Condiciones exteriores
@@ -414,6 +418,20 @@ func _validate_openings(raw_openings: Variant, room_ids: Dictionary, errors: Arr
 	if typeof(raw_openings) != TYPE_ARRAY:
 		errors.append("openings_data debe ser un array")
 		return
+	# F2.2D1: la fuga fria se declara de forma explicita o no existe. Una clase
+	# desconocida o un area invalida se rechazan aqui, no se corrigen por detras.
+	for raw_opening in Array(raw_openings):
+		if typeof(raw_opening) != TYPE_DICTIONARY:
+			continue
+		var opening_data: Dictionary = raw_opening
+		if opening_data.has("leakage_class"):
+			var leakage_class: String = String(opening_data["leakage_class"]).strip_edges()
+			if not ClosedDoorLeakageNetworkAdapterScript.is_known_class(leakage_class):
+				errors.append("unknown leakage_class '%s'" % leakage_class)
+		if opening_data.has("leakage_area_override_m2"):
+			var override_m2: float = float(opening_data["leakage_area_override_m2"])
+			if not is_finite(override_m2) or override_m2 < 0.0:
+				errors.append("leakage_area_override_m2 must be finite and >= 0")
 	var openings_data: Array = Array(raw_openings)
 	for i in range(openings_data.size()):
 		if typeof(openings_data[i]) != TYPE_DICTIONARY:
@@ -683,6 +701,17 @@ func _load_from_template(data: Dictionary) -> void:
 			op.has_balcony = false
 
 		_normalize_opening_visual_metadata(op)
+		# F2.2D1: fuga fria de puerta cerrada. Por defecto `none`, asi que
+		# ningun escenario historico gana fuga sin pedirla. Una clase
+		# desconocida o un override no finito se rechazan en la validacion.
+		if op_data.has("leakage_class"):
+			var leakage_class: String = String(op_data["leakage_class"]).strip_edges()
+			if ClosedDoorLeakageNetworkAdapterScript.is_known_class(leakage_class):
+				op.leakage_class = leakage_class
+		if op_data.has("leakage_area_override_m2"):
+			var override_m2: float = float(op_data["leakage_area_override_m2"])
+			if is_finite(override_m2) and override_m2 >= 0.0:
+				op.leakage_area_override_m2 = override_m2
 		openings.append(op)
 
 	_normalize_hvac_data(String(data.get("hvac_mode", hvac_data.get("mode", HVAC_MODE_NONE))))

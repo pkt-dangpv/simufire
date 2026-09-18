@@ -897,6 +897,13 @@ var _step_time_us: int = 0
 ## Apagado por defecto; ningun escenario distribuido lo enciende todavia.
 @export var pressure_network_solver_enabled: bool = false
 
+## F2.2D1: fuga fria permanente de puertas interiores cerradas, como rendijas
+## ELA dentro de la red autoritativa. Apagado por defecto. EXIGE
+## `pressure_network_solver_enabled`: pedir fuga sin red es un error de
+## configuracion explicito, no algo que se ignore ni que encienda el solver por
+## su cuenta. La deformacion prescrita y el vidrio son D2 y D3.
+@export var closed_door_leakage_enabled: bool = false
+
 @export var phase3_pressure_canonical_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
 @export var phase3_chi_conv: float = 0.70
@@ -1421,6 +1428,8 @@ func _sync_auxiliary_services() -> void:
 		"glass_break_hazard_temp_exp": glass_break_hazard_temp_exp,
 		"glass_break_hazard_exposure_tau_s": glass_break_hazard_exposure_tau_s
 	})
+	pressure_network_transport_system.closed_door_leakage_enabled = \
+			closed_door_leakage_enabled and pressure_network_solver_enabled
 	gas_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
 	oxygen_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
 	thermal_system.authoritative_transport_enabled = pressure_network_solver_enabled
@@ -3891,6 +3900,14 @@ func _step_gas_exchange(dt: float) -> void:
 	# F2.2C: la red autoritativa resuelve presion y transporte por aberturas
 	# justo aqui, antes de que ninguna ruta historica pueda moverlos. El
 	# snapshot se toma dentro, con la fisica local del paso ya incorporada.
+	if closed_door_leakage_enabled and not pressure_network_solver_enabled:
+		# Configuracion invalida: la fuga fria solo existe dentro de la red
+		# autoritativa. No se ignora en silencio y no se enciende el solver por
+		# detras para taparlo.
+		pressure_network_failure = "closed_door_leakage_requires_pressure_network"
+		push_error(
+			"closed_door_leakage_enabled requires pressure_network_solver_enabled"
+		)
 	if pressure_network_solver_enabled:
 		_step_pressure_network_transport(dt)
 	var use_canonical_pressure: bool = phase3_thermodynamic_pressure_enabled \
@@ -3925,6 +3942,10 @@ func _step_pressure_network_transport(dt: float) -> void:
 	pressure_network_failure = ""
 	if building == null:
 		return
+	# Misma expresion que en `_sync_auxiliary_services`, por si los interruptores
+	# cambian entre sincronizaciones: la fuga nunca vive fuera de la red.
+	pressure_network_transport_system.closed_door_leakage_enabled = \
+			closed_door_leakage_enabled and pressure_network_solver_enabled
 	var result: Dictionary = pressure_network_transport_system.step(building, dt)
 	pressure_network_last_result = result
 	if bool(result["applied"]):

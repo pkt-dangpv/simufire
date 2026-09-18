@@ -1,5 +1,121 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-18 - authoritative pressure network and cold door leakage
+
+- Checkpoint: `main` with **twelve** local commits on top of `origin/main`,
+  **none pushed**. The last six, in order: the F2.2 diagnosis and its
+  correction (`9388fc0d`, `362ca3eb`); the pure compartment pressure equations
+  F2.2A (`bee0c6a4`); the promoted coupled solver F2.2B (`29c060e4`); the
+  authoritative integration F2.2C (`785e2fe4`); and the cold closed-door
+  leakage F2.2D1. Before them: the closed-door leakage research and pure model
+  (`1df8719d`, `fa3263ac`), the prescribed deformation (`c03a2a6a`), the
+  prescribed glazing integrity (`564238f3`), the multilayer glazing geometry
+  (`abc96e0d`) and its identity fix (`cc917ac4`).
+- **The closed-door leakage handoff entry of 2026-09-16 is superseded.** It
+  said F2.2 had to be fixed before integrating and that the next allowed step
+  was the pure model with imposed pressures. Both are done: F2.2A, F2.2B and
+  F2.2C are implemented and integrated, and F2.2D1 connects the cold leakage.
+- **Two switches, both off by default, and no shipped scenario turns them on.**
+  `pressure_network_solver_enabled` makes the coupled network the single owner
+  of room pressure and of transport through openings.
+  `closed_door_leakage_enabled` adds the cold leakage of closed interior doors
+  as ELA cracks **inside** that network, and **requires** the first one: asking
+  for leakage without the network publishes
+  `pressure_network_failure = "closed_door_leakage_requires_pressure_network"`
+  and a `push_error`, instead of being ignored or silently enabling the solver.
+- **What the leakage is.** ELA at 4 Pa with `C_d = 1.0` (never a second
+  discharge coefficient), crack power law with exponent **0.65** (never the
+  0.5 of an orifice), upstream density, and the area split into bottom (40 %),
+  sides (47 %, eight bands) and lintel (13 %) so a single door can take cold air
+  in low and push hot gas out high in the same step. The law is written once,
+  in `ClosedDoorLeakageModel.compute_segment_flow_from_dp()`, and the solver
+  calls it rather than copying it. The crack participates in the Newton
+  residual, so its flow and the pressure that drives it are consistent.
+- **Two defects found and fixed while integrating.** F2.2C identified an
+  opening as `op_<a>_<b>_<type>`, so two identical doors between the same pair
+  of rooms **collided**; the canonical opening index is now used. F2.2C also
+  read `effective_open_fraction()`, which adds the inherited
+  `thermal_gap_fraction`, so a closed hot door could enter the network as a
+  full Bernoulli opening; the network now reads the operational fraction only,
+  and the prescribed deformation stays out until D2.
+- **Measured, not assumed.** Cases A, Aw and B were run for 600 s with the
+  network on and four door variants (sealed, 12 cm², 21 cm², open). In the
+  two-room cases the protected room goes from receiving **nothing** to
+  **15.6 g** of smoke (12 cm²) and **25.6 g** (21 cm²), against **1 814 g** with
+  the door open; the first gram arrives at 139 s and 129 s against 49 s, and
+  minimum O2 is 0.1975 and 0.1971 against 0.2090 sealed and 0.1299 open. Every
+  metric lands **between** the sealed door and the open one, which is the
+  acceptance criterion. The tables are in
+  `docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md` §16.
+- **Known limitation that bounds the measurement, and is NOT from this phase.**
+  In the sealed case A the fire room loses about a third of its gas mass while
+  it heats (48.0 to 31.0 kg in 100 s), so its EOS gauge pressure stays near
+  zero instead of the hundreds of kPa a sealed compartment would reach. The
+  same probe with the network **off** loses the same mass to the kilogram
+  (31.0356 vs 31.0348 kg at 100 s), so the sink is a historical route outside
+  the authoritative network, not something F2.2C or F2.2D1 introduced. Room to
+  room the gauge difference therefore stays near **1 Pa**; what actually drives
+  the cracks in these runs is the **hydrostatic** term, which reaches **12.8 Pa**
+  across the door height. In other words buoyancy is doing the work and
+  compartment overpressure is not, so every leakage figure here is a **lower
+  bound**.
+- **A second finding, and this one needs fixing.** Case Aw differs from case A
+  only in that each room has a **closed exterior window**, and under the
+  authoritative network the two cases come out **identical to the last decimal**
+  in all four variants. A closed exterior window is therefore completely inert
+  with the network on: its envelope leakage lived in the pressure purge of
+  `GasExchangeSystem` (`window_leakage_area_m2`, 0.005 m²), F2.2C gated that
+  route off so the network would be the single owner, and nothing replaced it.
+  D1 deliberately refuses a crack facing the exterior, so **with the network on
+  the building envelope is perfectly sealed**. That is a separate phase from D2
+  and D3: envelope leakage, back inside the network.
+- **The blocking problem is not in D1, and it is the next thing to fix.** In the
+  three-storey stair-lobby case (B), the authoritative network refuses to apply
+  itself on **2 476 of 7 200 steps (34 %)** with both doors sealed and **no
+  crack at all**, always with
+  `solver_compartment_equations_rejected_candidate`: the F2.2A evaluator
+  rejects the candidate state. Adding a 12 cm² crack takes it to **59 %**.
+  Before blaming anything, one thing had to be checked: D1 disconnects
+  `thermal_gap_fraction` from the network, that deformation is still **on by
+  default** (from 150 °C, up to 4 %), and B's lobbies pass 325 °C, so dropping
+  it could have been what leaves the dwellings cut off. **Measured, and it is
+  not**: over the 7 200 steps the deformation gap exists in **84 steps**, on
+  **one door**, peaking at **3.6 %**, against **2 476** failures. Even if all 84
+  were down to that change they would account for **3 %** of them. The rest is
+  an F2.2C limitation in a six-room network, and it makes case B's numbers
+  useless as evidence: a run where more
+  than half the steps transport nothing does not measure leakage, it measures
+  non-convergence. One measurement narrows it usefully: **with the doors fully
+  open the same lobby converges on every one of the 7 200 steps**. So the
+  trouble is not the size of the network, it is the rooms left nearly or wholly
+  cut off — dwellings P1 and P2, whose only openings are a closed door and a
+  closed window that (see the envelope finding above) conducts nothing. **The network is not ready for a multi-storey lobby**, and
+  fixing that belongs to F2.2 (the evaluator and the solver), ahead of D2, D3
+  and D4. Cases A and Aw converge cleanly and are the usable evidence.
+- **What case B did show, for whoever looks again.** The cracks do move mass
+  there: dwelling P2's door moves 4.05 kg at 12 cm² and 6.90 kg at 21 cm², with
+  a peak ΔP of 41.9 Pa, three times case A's and still inside the experimental
+  domain. And yet **P2 receives not one gram of smoke** in any closed variant.
+  That is the flow direction, not a contradiction: with the network on, lobby
+  R+2 sits at **negative** gauge (−41 Pa with the doors sealed), so the crack
+  blows from the dwelling into the lobby rather than the other way round.
+  That −41 Pa comes with a measured lead worth writing down. The three lobby
+  levels sit at z = 0, 2.90 and 5.80 m, and their gauge pressures with the doors
+  sealed are +25.11, −8.14 and −41.09 Pa: differences of **−33.2** and
+  **−33.0 Pa**, against an ambient hydrostatic column of
+  1.2·9.81·2.90 = **34.1 Pa** between floors. They match within 3 %, which means
+  the three levels are at essentially the **same absolute pressure** and the
+  whole gauge gradient is the **exterior** column. That is what you would get if
+  the stair shaft's own internal gas column were not weighing in, or if the
+  gauge datum did not follow height; a lobby with a fire below should show
+  overpressure **growing** upward instead. It is a measured hypothesis, not a
+  diagnosis, and it is the first thing to check when F2.2 is picked up again.
+- **Still not integrated**: the prescribed deformation (D2), the glazing (D3),
+  and the calibration of the ELA classes, the height split and the exponent
+  (D4). The glazing's thermal and probabilistic models still do not exist.
+  `Phase3ResidualProjection` keeps its own separate limitation on negative
+  energy.
+
 ## Current Program Update - 2026-09-16 - engine batch of 15-16 September
 
 - Checkpoint: `main` at `84849a2f` (one local maintenance commit on top of

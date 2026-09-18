@@ -99,10 +99,10 @@ def _fixture_links() -> dict[str, set[Path]]:
 
 def test_current_engine_inventory_is_complete_and_uniquely_partitioned():
     declared = _declared_flags()
-    assert len(declared) == 77
+    assert len(declared) == 78
     assert len(RUNTIME_SCOPE_FLAGS) == 41
     assert RUNTIME_SCOPE_FLAGS <= declared
-    assert len(declared - RUNTIME_SCOPE_FLAGS) == 36
+    assert len(declared - RUNTIME_SCOPE_FLAGS) == 37
 
 
 def test_every_retained_diagnostic_has_a_runtime_fixture_link():
@@ -115,9 +115,9 @@ def test_versioned_auditor_matches_the_independent_partition():
     assert report["pass"], report["errors"]
     assert set(RUNTIME_ACTIVATIONS) == RUNTIME_SCOPE_FLAGS
     assert OUT_OF_RUNTIME_SCOPE == _declared_flags() - RUNTIME_SCOPE_FLAGS
-    assert report["declaration_count"] == 77
+    assert report["declaration_count"] == 78
     assert report["runtime_backed_count"] == 41
-    assert report["out_of_runtime_scope_count"] == 36
+    assert report["out_of_runtime_scope_count"] == 37
 
 
 def test_runtime_evidence_tokens_are_present_in_every_selected_fixture():

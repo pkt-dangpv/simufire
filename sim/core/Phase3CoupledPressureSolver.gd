@@ -82,6 +82,13 @@ const CompartmentPressureEquationsScript = preload(
 	"res://sim/core/CompartmentPressureEquations.gd"
 )
 
+## F2.2D1: la ley de grieta vive en el modelo puro de fuga. El solver la USA,
+## no la copia: signo, densidad de origen, potencia, regularizacion y dominio
+## salen de `compute_segment_flow_from_dp`.
+const ClosedDoorLeakageModelScript = preload(
+	"res://sim/core/ClosedDoorLeakageModel.gd"
+)
+
 const AIR_PRESSURE_REF_PA: float = 101325.0
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
@@ -103,6 +110,11 @@ const DEFAULT_DP_REGULARIZATION_PA: float = 0.01
 const DEFAULT_JACOBIAN_STEP_PA: float = 1.0e-3
 const DEFAULT_BAND_SEGMENTS: int = 16
 const DEFAULT_MAX_DAMPING_HALVINGS: int = 12
+
+## F2.2D1: clases de conexion. Una entrada sin `flow_model` es una abertura
+## grande, exactamente como en F2.2B y F2.2C.
+const FLOW_MODEL_LARGE_OPENING: String = "large_opening"
+const FLOW_MODEL_ELA_CRACK: String = "ela_crack"
 
 ## F2.2B: tolerancias fisicas de la convergencia canonica. Son globales y
 ## justificadas por la precision doble, nunca knobs por caso.
@@ -1556,6 +1568,9 @@ func _build_opening(
 	var exterior_specific_kj_kg: float = float(
 		opening.get("exterior_specific_kj_kg", 0.0)
 	)
+	var flow_model: String = String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING))
+	if flow_model != FLOW_MODEL_LARGE_OPENING and flow_model != FLOW_MODEL_ELA_CRACK:
+		return {"valid": false}
 	var side_a: Dictionary = _side_profile(
 		room_a_key, room_context, exterior_density_kg_m3,
 		floor_b_z_m if room_a_key.is_empty() else floor_a_z_m,
@@ -1577,6 +1592,7 @@ func _build_opening(
 		return {"valid": false}
 	# Split the span at every density discontinuity so that within a band both
 	# profiles are constant and dp(z) is exactly linear.
+	var opening_id_int: int = int(opening.get("opening_id", -1))
 	var boundaries: Array[float] = [bottom_m, top_m]
 	for interface_z_m in [
 		float(side_a.get("interface_z_m", INF)),
@@ -1592,6 +1608,11 @@ func _build_opening(
 				or absf(boundary_m - unique_boundaries[-1]) > 1.0e-9:
 			unique_boundaries.append(boundary_m)
 
+	if flow_model == FLOW_MODEL_ELA_CRACK:
+		return _build_crack_element(
+			opening, opening_id_int, room_a_id, room_b_id, room_a_key, room_b_key,
+			index_by_key, side_a, side_b, exterior_gauge_pa, dt
+		)
 	var bands: Array[Dictionary] = []
 	for boundary_index in range(unique_boundaries.size() - 1):
 		var z0: float = unique_boundaries[boundary_index]
@@ -1611,14 +1632,14 @@ func _build_opening(
 			"zone_a": _zone_at(side_a, 0.5 * (z0 + z1)),
 			"zone_b": _zone_at(side_b, 0.5 * (z0 + z1)),
 		})
-	var opening_id: int = int(opening.get("opening_id", -1))
 	return {
 		"valid": true,
 		"skip": false,
+		"flow_model": FLOW_MODEL_LARGE_OPENING,
 		"sort_key": "%010d|%010d|%010d" % [
-			opening_id, mini(room_a_id, room_b_id), maxi(room_a_id, room_b_id)
+			opening_id_int, mini(room_a_id, room_b_id), maxi(room_a_id, room_b_id)
 		],
-		"opening_id": opening_id,
+		"opening_id": opening_id_int,
 		"room_a_id": room_a_id,
 		"room_b_id": room_b_id,
 		"room_a_key": room_a_key,
@@ -1635,6 +1656,214 @@ func _build_opening(
 		# inapplicable rather than labelled with an invented one.
 		"interior": not bool(side_a.get("exterior", false)) \
 				and not bool(side_b.get("exterior", false)),
+	}
+
+
+## F2.2D1: una rendija ELA. No tiene bandas ni integral de Bernoulli: son
+## segmentos puntuales a cotas dadas, cada uno con su ELA, y la ley de potencia
+## del modelo puro de fuga. Puede haber contraflujo entre segmentos a cotas
+## distintas, porque cada uno ve su propia dp(z).
+func _build_crack_element(
+		opening: Dictionary,
+		opening_id_int: int,
+		room_a_id: int,
+		room_b_id: int,
+		room_a_key: String,
+		room_b_key: String,
+		index_by_key: Dictionary,
+		side_a: Dictionary,
+		side_b: Dictionary,
+		exterior_gauge_pa: float,
+		dt: float
+	) -> Dictionary:
+	var raw_segments: Variant = opening.get("crack_segments", [])
+	if typeof(raw_segments) != TYPE_ARRAY or Array(raw_segments).is_empty():
+		return {"valid": false}
+	var reference_pa: float = float(opening.get(
+		"ela_reference_pressure_pa", ClosedDoorLeakageModelScript.NIST_ELA_REFERENCE_PRESSURE_PA
+	))
+	var exponent: float = float(opening.get(
+		"flow_exponent", ClosedDoorLeakageModelScript.PROVISIONAL_FLOW_EXPONENT_CANDIDATE
+	))
+	var regularization_pa: float = float(opening.get("zero_pressure_regularization_pa", 0.0))
+	var domain_max_pa: float = float(opening.get("pressure_domain_max_pa", INF))
+	for value in [reference_pa, exponent, regularization_pa]:
+		if not is_finite(value) or value < 0.0:
+			return {"valid": false}
+	if reference_pa <= 0.0 or exponent <= 0.0:
+		return {"valid": false}
+	var segments: Array[Dictionary] = []
+	var total_area_m2: float = 0.0
+	for raw_segment in raw_segments:
+		if typeof(raw_segment) != TYPE_DICTIONARY:
+			return {"valid": false}
+		var segment: Dictionary = raw_segment
+		var z_m: float = float(segment.get("z_m", NAN))
+		var area_m2: float = float(segment.get("area_m2", NAN))
+		var segment_id: String = String(segment.get("segment_id", ""))
+		if not is_finite(z_m) or not is_finite(area_m2) or area_m2 < 0.0 or segment_id.is_empty():
+			return {"valid": false}
+		total_area_m2 += area_m2
+		segments.append({
+			"segment_id": segment_id,
+			"z_m": z_m,
+			"area_m2": area_m2,
+			"hydrostatic_pa": _hydrostatic_offset_pa(side_a, side_b, z_m),
+			"density_a_kg_m3": _density_at(side_a, z_m),
+			"density_b_kg_m3": _density_at(side_b, z_m),
+			"specific_a_kj_kg": _specific_at(side_a, z_m),
+			"specific_b_kj_kg": _specific_at(side_b, z_m),
+			"zone_a": _zone_at(side_a, z_m),
+			"zone_b": _zone_at(side_b, z_m),
+		})
+	segments.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		if float(left["z_m"]) != float(right["z_m"]):
+			return float(left["z_m"]) < float(right["z_m"])
+		return String(left["segment_id"]) < String(right["segment_id"]))
+	return {
+		"valid": true,
+		"skip": total_area_m2 <= 0.0,
+		"flow_model": FLOW_MODEL_ELA_CRACK,
+		"sort_key": "%010d|%010d|%010d" % [
+			opening_id_int, mini(room_a_id, room_b_id), maxi(room_a_id, room_b_id)
+		],
+		"opening_id": opening_id_int,
+		"room_a_id": room_a_id,
+		"room_b_id": room_b_id,
+		"room_a_key": room_a_key,
+		"room_b_key": room_b_key,
+		"index_a": int(index_by_key.get(room_a_key, -1)),
+		"index_b": int(index_by_key.get(room_b_key, -1)),
+		"bottom_m": float(segments[0]["z_m"]),
+		"top_m": float(segments[segments.size() - 1]["z_m"]),
+		"exterior_gauge_pa": exterior_gauge_pa,
+		"crack_segments": segments,
+		"ela_reference_pressure_pa": reference_pa,
+		"flow_exponent": exponent,
+		"zero_pressure_regularization_pa": regularization_pa,
+		"pressure_domain_max_pa": domain_max_pa,
+		"dt": dt,
+		"bands": [],
+		"interior": not bool(side_a.get("exterior", false)) \
+				and not bool(side_b.get("exterior", false)),
+	}
+
+
+## Integracion de una rendija ELA. Misma forma de salida que la abertura grande,
+## para que el residuo, la transaccion y los diagnosticos no distingan el tipo.
+func _integrate_crack(
+		opening: Dictionary,
+		delta_p_pa: float,
+		collect_segments: bool
+	) -> Dictionary:
+	var a_to_b_kg: float = 0.0
+	var b_to_a_kg: float = 0.0
+	var a_to_b_kj: float = 0.0
+	var b_to_a_kj: float = 0.0
+	var regularization_active_count: float = 0.0
+	var domain_exceeded_count: float = 0.0
+	var max_abs_dp_pa: float = 0.0
+	var segments: Array[Dictionary] = []
+	var zone_flux: Dictionary = {}
+	var zonal_totals: Dictionary = {}
+	var dt: float = float(opening["dt"])
+	# Plano neutro de la rendija. Los segmentos son muestras discretas, pero
+	# dp(z) sigue siendo continua entre ellas, asi que el cruce se interpola
+	# igual que en una abertura grande y con el mismo convenio: la cota es NaN
+	# cuando no hay cruce, y `inside` exige que caiga estrictamente dentro de la
+	# hoja. Las muestras vienen ordenadas de menor a mayor cota.
+	var neutral_plane_m: float = NAN
+	var previous_z_m: float = NAN
+	var previous_dp_pa: float = NAN
+	for raw_segment in opening["crack_segments"]:
+		var segment: Dictionary = raw_segment
+		var dp_pa: float = delta_p_pa + float(segment["hydrostatic_pa"])
+		if not is_finite(dp_pa):
+			return {"valid": false}
+		max_abs_dp_pa = maxf(max_abs_dp_pa, absf(dp_pa))
+		if dp_pa == 0.0:
+			neutral_plane_m = float(segment["z_m"])
+		elif is_finite(previous_dp_pa) and previous_dp_pa * dp_pa < 0.0:
+			# dp(z) es continua entre dos muestras contiguas: el cruce se
+			# interpola linealmente, como en una banda de abertura grande.
+			var crossing_fraction: float = absf(previous_dp_pa) \
+					/ maxf(1.0e-30, absf(previous_dp_pa) + absf(dp_pa))
+			neutral_plane_m = lerpf(previous_z_m, float(segment["z_m"]), crossing_fraction)
+		previous_z_m = float(segment["z_m"])
+		previous_dp_pa = dp_pa
+		var flow: Dictionary = ClosedDoorLeakageModelScript.compute_segment_flow_from_dp(
+			float(segment["area_m2"]), dp_pa,
+			float(segment["density_a_kg_m3"]), float(segment["density_b_kg_m3"]),
+			float(opening["ela_reference_pressure_pa"]),
+			float(opening["flow_exponent"]),
+			float(opening["zero_pressure_regularization_pa"]),
+			dt, float(opening["pressure_domain_max_pa"])
+		)
+		if not bool(flow["valid"]):
+			return {"valid": false}
+		if bool(flow["regularized"]):
+			regularization_active_count += 1.0
+		if bool(flow["domain_exceeded"]):
+			domain_exceeded_count += 1.0
+		var mass_kg: float = float(flow["mass_flow_kg_s"]) * dt
+		if not is_finite(mass_kg):
+			return {"valid": false}
+		var from_a: bool = dp_pa > 0.0
+		var specific_kj_kg: float = float(segment["specific_a_kj_kg"]) if from_a \
+				else float(segment["specific_b_kj_kg"])
+		var energy_kj: float = mass_kg * specific_kj_kg
+		if from_a:
+			a_to_b_kg += mass_kg
+			a_to_b_kj += energy_kj
+		elif dp_pa < 0.0:
+			b_to_a_kg += mass_kg
+			b_to_a_kj += energy_kj
+		var source_zone: String = String(segment["zone_a"]) if from_a else String(segment["zone_b"])
+		var destination_zone: String = String(segment["zone_b"]) if from_a else String(segment["zone_a"])
+		if collect_segments and mass_kg > 0.0:
+			segments.append({
+				"segment_id": String(segment["segment_id"]),
+				"z_from_m": float(segment["z_m"]),
+				"z_to_m": float(segment["z_m"]),
+				"sample_z_m": float(segment["z_m"]),
+				"dp_pa": dp_pa,
+				"direction": "a_to_b" if from_a else "b_to_a",
+				"source_side": "a" if from_a else "b",
+				"destination_side": "b" if from_a else "a",
+				"source_zone": source_zone,
+				"destination_zone": destination_zone,
+				"source_density_kg_m3": float(flow["source_density_kg_m3"]),
+				"source_specific_kj_kg": specific_kj_kg,
+				"mass_kg": mass_kg,
+				"enthalpy_kj": energy_kj,
+				"regularized": bool(flow["regularized"]),
+				"domain_exceeded": bool(flow["domain_exceeded"]),
+				"provenance": "cold_leakage",
+			})
+			_accumulate_zone_flux(
+				zone_flux, "a" if from_a else "b", source_zone, -mass_kg, -energy_kj
+			)
+			_accumulate_zone_flux(
+				zone_flux, "b" if from_a else "a", destination_zone, mass_kg, energy_kj
+			)
+	return {
+		"valid": true,
+		"a_to_b_kg": a_to_b_kg,
+		"b_to_a_kg": b_to_a_kg,
+		"a_to_b_kj": a_to_b_kj,
+		"b_to_a_kj": b_to_a_kj,
+		"neutral_plane_m": neutral_plane_m,
+		"neutral_plane_inside": is_finite(neutral_plane_m) \
+				and neutral_plane_m > float(opening["bottom_m"]) + 1.0e-9 \
+				and neutral_plane_m < float(opening["top_m"]) - 1.0e-9,
+		"regularization_active_count": regularization_active_count,
+		"domain_exceeded_count": domain_exceeded_count,
+		"max_abs_dp_pa": max_abs_dp_pa,
+		"zonal_totals": zonal_totals,
+		"unclassified_interior_band_count": 0,
+		"exterior_unzoned_band_count": 0,
+		"segments": segments,
+		"zone_flux": zone_flux,
 	}
 
 
@@ -1839,13 +2068,19 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 				else exterior_gauge_pa
 		var pressure_b_pa: float = float(pressure[index_b]) if index_b >= 0 \
 				else exterior_gauge_pa
-		var flux: Dictionary = _integrate_opening(
-			opening,
-			pressure_a_pa - pressure_b_pa,
-			float(context["dp_regularization_pa"]),
-			int(context["band_segments"]),
-			collect_segments
-		)
+		# F2.2D1: la rendija entra en el MISMO residuo, en cada iteracion de
+		# Newton. No hay un segundo paso que calcule la fuga despues.
+		var flux: Dictionary = {}
+		if String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING)) == FLOW_MODEL_ELA_CRACK:
+			flux = _integrate_crack(opening, pressure_a_pa - pressure_b_pa, collect_segments)
+		else:
+			flux = _integrate_opening(
+				opening,
+				pressure_a_pa - pressure_b_pa,
+				float(context["dp_regularization_pa"]),
+				int(context["band_segments"]),
+				collect_segments
+			)
 		if not bool(flux.get("valid", false)):
 			return {"valid": false}
 		regularization_active_count += float(flux["regularization_active_count"])
@@ -1882,6 +2117,13 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 				flux["regularization_active_count"]
 			),
 		})
+		# F2.2D1: diagnostico exclusivo de la rendija. La abertura grande no gana
+		# ni una clave, para que su salida siga siendo la de F2.2B byte a byte.
+		if String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING)) == FLOW_MODEL_ELA_CRACK:
+			var crack_connection: Dictionary = connections[connections.size() - 1]
+			crack_connection["flow_model"] = FLOW_MODEL_ELA_CRACK
+			crack_connection["domain_exceeded_count"] = float(flux.get("domain_exceeded_count", 0.0))
+			crack_connection["max_abs_dp_pa"] = float(flux.get("max_abs_dp_pa", 0.0))
 		# H3.2a: attach the parallel decomposition. Purely additive - every
 		# aggregate above is already final and is never recomputed from it.
 		_attach_zonal_decomposition(
@@ -2010,6 +2252,11 @@ func _integrate_opening(
 		band_segments: int,
 		collect_segments: bool = false
 	) -> Dictionary:
+	# F2.2D1: desde que la red es heterogenea, este camino solo integra
+	# aberturas grandes. Un elemento de otra clase se rechaza de forma limpia:
+	# antes reventaba leyendo `coefficient`, que una rendija no tiene.
+	if String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING)) != FLOW_MODEL_LARGE_OPENING:
+		return {"valid": false}
 	# F2.2B reporting. Purely additive: the aggregates below are never read
 	# back from these lists, and collection is only enabled for the single
 	# final evaluation at the accepted pressure.
@@ -2498,7 +2745,7 @@ func _prepare_network(
 			wind_dp_pa = 0.0
 		if wind_dp_pa != 0.0 and not a_exterior and not b_exterior:
 			errors.append("opening '%s' is interior and cannot carry wind" % opening_id)
-		historical_openings.append({
+		var translated: Dictionary = {
 			"opening_id": position,
 			"room_a_id": EXTERIOR_ID if a_exterior else int(index_by_id[room_a_id]),
 			"room_b_id": EXTERIOR_ID if b_exterior else int(index_by_id[room_b_id]),
@@ -2508,7 +2755,25 @@ func _prepare_network(
 			"open_fraction": open_fraction,
 			"discharge_coeff": discharge_coeff,
 			"wind_dp_pa": wind_dp_pa,
-		})
+		}
+		# F2.2D1: una rendija ELA viaja con su propia descripcion. Sin
+		# `flow_model` la entrada sigue siendo una abertura grande, igual que en
+		# F2.2B y F2.2C.
+		var flow_model: String = String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING))
+		if flow_model == FLOW_MODEL_ELA_CRACK:
+			if a_exterior or b_exterior:
+				errors.append("opening '%s' is a crack and cannot face the exterior" % opening_id)
+				continue
+			translated["flow_model"] = FLOW_MODEL_ELA_CRACK
+			for key in ["crack_segments", "ela_reference_pressure_pa", "flow_exponent",
+					"zero_pressure_regularization_pa", "pressure_domain_max_pa",
+					"provenance", "leakage_class", "resolved_ela_m2"]:
+				if opening.has(key):
+					translated[key] = opening[key]
+		elif flow_model != FLOW_MODEL_LARGE_OPENING:
+			errors.append("opening '%s' has an unknown flow_model '%s'" % [opening_id, flow_model])
+			continue
+		historical_openings.append(translated)
 	if not errors.is_empty():
 		return {}
 
@@ -2848,4 +3113,12 @@ func _network_openings(
 			"wind_dp_pa": float(connection.get("exterior_gauge_pa", 0.0)),
 			"segments": segments_out,
 		})
+		# F2.2D1: diagnosticos propios de una rendija. Se publican SOLO para la
+		# rendija, despues del diccionario comun, para que una abertura grande
+		# siga saliendo exactamente igual que en F2.2C.
+		if connection.has("flow_model"):
+			var published: Dictionary = openings_out[openings_out.size() - 1]
+			published["flow_model"] = String(connection["flow_model"])
+			published["domain_exceeded_count"] = float(connection["domain_exceeded_count"])
+			published["max_abs_dp_pa"] = float(connection["max_abs_dp_pa"])
 	return openings_out

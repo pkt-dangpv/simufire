@@ -39,6 +39,20 @@ ALLOWED_REFERENCES = {
     # the combined segments to the leakage solver. Neither is engine code.
     Path("sim/core/ClosedDoorDeformationModel.gd"),
     Path("tools/validate_closed_door_deformation_model.gd"),
+    # F2.2D1 (2026-09-18): la fuga fria SI esta integrada, en la red
+    # autoritativa de presion. Estos son sus unicos consumidores, y la prueba
+    # sigue fallando si aparece cualquier otro.
+    Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),
+    Path("sim/core/Phase3CoupledPressureSolver.gd"),
+    Path("sim/core/PressureNetworkTransportSystem.gd"),
+    Path("sim/core/SimulationEngine.gd"),
+    Path("sim/BuildingModel.gd"),
+    Path("editor/ScenarioSerializer.gd"),
+    Path("tools/validate_closed_door_leakage_network.gd"),
+    # La carpinteria declara su clase, y su comentario nombra la tabla canonica.
+    Path("sim/building/OpeningModel.gd"),
+    # El auditor clasifica el interruptor `closed_door_leakage_enabled`.
+    Path("scripts/simulation/audit_default_off_flags.py"),
 }
 
 
@@ -156,7 +170,11 @@ def test_solver_describes_the_crossing_without_deciding_deposition():
     assert "rho_source >" not in MODEL_SOURCE
 
 
-def test_model_is_not_integrated_anywhere():
+def test_the_model_has_only_its_declared_consumers():
+    """Hasta F2.2D1 esta prueba exigia que NADIE cargara el modelo. Ahora la
+    fuga fria esta integrada, asi que lo que se vigila es que la lista de
+    consumidores sea exactamente la declarada: cualquier ruta nueva que se
+    cuelgue del modelo sin pasar por aqui hace fallar la prueba."""
     offenders = []
     for folder in ("sim", "editor", "view", "tools", "scripts", "scenes", "ui"):
         base = ROOT / folder

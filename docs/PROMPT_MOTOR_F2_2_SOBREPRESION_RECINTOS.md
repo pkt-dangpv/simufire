@@ -1132,8 +1132,41 @@ legítima (deposición, ACH, química) que no es transporte.
 `tests/test_pressure_network_integration.py` fija el contrato estático:
 interruptor único apagado, ningún escenario lo enciende, orden de ejecución,
 política de fallo, las ocho compuertas, el adaptador no es un segundo solver,
-atomicidad, estado transportado, propietario único de la presión y puertas
-cerradas estancas.
+atomicidad, estado transportado y propietario único de la presión.
+
+> **Corregido el 2026-09-18 por F2.2D1.** Esta sección decía además «puertas
+> cerradas estancas», y esa prueba se ha reescrito: una puerta cerrada sigue
+> siendo estanca **salvo** que el escenario encienda `closed_door_leakage_enabled`
+> y le declare una clase de fuga, en cuyo caso aporta rendijas ELA, y solo
+> rendijas. F2.2C tenía además dos defectos que D1 corrige: el identificador de
+> abertura hacía colisionar dos puertas iguales entre las mismas salas, y la red
+> leía `effective_open_fraction()`, que sumaba la deformación térmica heredada.
+
+## 16.bis. F2.2D1: fuga fría de puerta cerrada (2026-09-18)
+
+Integrada el mismo día, detrás de `closed_door_leakage_enabled`, apagado por
+defecto y **dependiente** del interruptor de la red: pedir fuga sin red es un
+error de configuración explícito, no algo que se ignore.
+
+El diseño, la geometría, las mediciones de los casos A, Aw y B, las dos
+limitaciones medidas y la campaña de 26 mutaciones están en
+[`PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`](PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md)
+§16, que es donde vive el modelo de fuga. Aquí solo interesa lo que le toca a la
+red:
+
+- la red es **heterogénea**: un elemento declara su `flow_model`, y una entrada
+  sin él es una abertura grande, exactamente como en F2.2B y F2.2C;
+- la rendija se integra **dentro del residuo de Newton**, no después de
+  resolver la presión;
+- un `flow_model` desconocido se **rechaza**, y un elemento que no es abertura
+  grande no entra en la integración de Bernoulli;
+- `commit_count` cuenta las aplicaciones del aplicador atómico, que es la
+  invariante de F2.2C —un solo dueño, una sola aplicación por paso— hecha
+  comprobable desde fuera.
+
+El recuento de interruptores del auditor pasa de 77 a **78**: §16.1 describe el
+salto de 76 a 77 que hizo F2.2C, y `closed_door_leakage_enabled` añade el
+siguiente.
 
 ## 17. Conservación de masa y energía
 
@@ -1342,12 +1375,26 @@ así que la entrada no ha cambiado desde entonces.
 
 ## 25. Qué queda expresamente sin implementar
 
-- La integración (F2.2C). F2.2A y F2.2B ya están implementadas (§14.1 y §15.2)
-  pero **sin integrar**: ningún sistema del motor aplica su resultado, no existe
-  `pressure_network_solver_enabled` y los interruptores antiguos siguen en su
-  sitio.
-- La integración tras interruptor (F2.2C) y la conexión de fuga, deformación y
-  vidrio (F2.2D).
+> **Actualizado el 2026-09-18.** F2.2A, F2.2B y F2.2C están implementadas e
+> integradas (§14.1, §15.2 y §16): `pressure_network_solver_enabled` existe,
+> está apagado por defecto y, cuando se enciende, la red es el único dueño de
+> la presión y del transporte por aberturas. **F2.2D1** (fuga fría de puerta
+> cerrada) se integró ese mismo día detrás de `closed_door_leakage_enabled`,
+> que además exige el interruptor de la red. Las frases de versiones anteriores
+> que decían que nada de esto estaba integrado, que no existía el interruptor o
+> que F2.2 había que resolverla antes de integrar **ya no son ciertas**.
+
+Lo que sigue sin implementar:
+
+- **F2.2D2**: la deformación prescrita de puerta caliente
+  (`ClosedDoorDeformationModel`) no está conectada a la red. D1 dejó de leer
+  `effective_open_fraction()` justamente para que `thermal_gap_fraction` no se
+  colara como abertura de Bernoulli; D2 tendrá que darle sus propios segmentos.
+- **F2.2D3**: el vidrio (`GlazingIntegrityModel`, `GlazingOpeningGeometryModel`)
+  tampoco está conectado, y su modelo térmico y su modelo probabilista **no
+  existen**.
+- **F2.2D4**: la calibración de las clases de ELA, del reparto por cotas y del
+  exponente. Los tres valores de D1 son **provisionales**.
 - La corrección de la purga por fracción de hollín (RC-4), abierta desde
   2026-07-12.
 - La representación de presiones negativas (criterios A y B de §21).
@@ -1356,6 +1403,11 @@ así que la entrada no ha cambiado desde entonces.
 - HVAC, F2.1, modelo térmico de rotura de vidrio y modelo probabilista.
 - Cualquier cambio de tolerancias, casos, resultados de referencia o
   clasificación de huecos.
+- La activación en escenarios normales: ningún escenario del producto enciende
+  la red ni la fuga.
+- `Phase3ResidualProjection` conserva su limitación independiente sobre energía
+  negativa, que ni F2.2C ni F2.2D1 han tocado.
 
-**En esta fase no se ha modificado ni una línea de `sim/`, de los casos, de los
-informes ni de los tests.**
+**La frase de la versión de diagnóstico —«en esta fase no se ha modificado ni
+una línea de `sim/`»— valía para F2.2-DIAG. Desde F2.2A el motor sí ha
+cambiado, y cada fase lo dice en su propia sección.**
