@@ -395,6 +395,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot geometria de apertura de acristalamiento: " + (diagnostic or "failed"))
 
+    # Ecuaciones locales de presion de recinto (fase F2.2A): aun sin conectar al motor.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_compartment_pressure_equations.gd",
+        "COMPARTMENT PRESSURE EQUATIONS VALIDATION PASS",
+    )
+    rows.append(("Ecuaciones de presion de recinto, modelo puro Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot ecuaciones de presion de recinto: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

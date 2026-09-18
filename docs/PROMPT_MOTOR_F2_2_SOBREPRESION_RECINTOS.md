@@ -8,7 +8,8 @@
 > vidrio). `F2.2-DIAG` nunca designa una etapa de código.
 > - **No hay código nuevo**: no se ha tocado `sim/`, ni el editor, ni los
 >   escenarios, ni los casos, ni las tolerancias, ni la clasificación de huecos.
-> - **F2.2A, F2.2B, F2.2C y F2.2D siguen sin implementar** (§19).
+> - **F2.2A implementada el 2026-09-18** (§14.1): `sim/core/CompartmentPressureEquations.gd`,
+>   modelo puro **sin integrar**. **F2.2B, F2.2C y F2.2D siguen sin implementar** (§19).
 > - Los modelos puros de las fases 1, 2, 3A y 3B siguen **sin integrar**, y no
 >   pueden integrarse antes de F2.2 (§15).
 
@@ -21,6 +22,7 @@
 | Procesos Godot al empezar | 0 |
 | Fases cerradas | 1 (fuga pura), 2 (deformación prescrita), 3A (integridad de vidrio), 3B (geometría multicapa) |
 | Fase de este documento | F2.2-DIAG (diagnóstico y diseño), cerrada el 2026-09-18 |
+| Implementación en marcha | F2.2A cerrada el 2026-09-18, sin integrar (§14.1) |
 | Mediciones nuevas | 22 corridas headless bajo `runs/pressure_f2_2_20260917/` (sin versionar) |
 | Fuente nueva | NIST TN 1889v2 (guía de usuario de CFAST) |
 
@@ -464,13 +466,104 @@ Principios:
   `phase3_canonical_fixed_gross_pressure_network_shadow_enabled`,
   `--phase3-coupled-pressure-solver-capture`). F2.2B debería **medirse contra
   ella** antes de sustituir nada.
-- **Pendiente antes de programar**: decidir si el vector de incógnitas de F2.2B
-  contiene **solo** las presiones de referencia o también variables de zona
-  (volumen de capa, temperaturas o energías), según la correspondencia
-  definitiva con el estado canónico de `Phase3ZoneMassSystem`. CFAST integra las
-  cuatro variables juntas (ec. 2.5-2.8), así que la opción "solo presiones"
-  solo vale si las variables de zona las sigue llevando el motor con el mismo
-  paso.
+- **Vector de incógnitas: decidido el 2026-09-18** (§13.1). Es la **opción A**,
+  una presión manométrica de referencia por recinto, porque la ecuación de
+  estado canónica de SimuFire es **afín** en la masa y la energía totales del
+  recinto. Las variables de zona no son incógnitas: son estados conservados que
+  avanzan con los flujos candidatos dentro del mismo paso.
+
+### 13.1 Estado canónico y vector de incógnitas (decidido el 2026-09-18)
+
+La decisión no se copió del diseño anterior: se comprobó contra las ecuaciones
+2.4-2.8 de TN 1889v1, contra `sim/building/RoomModel.gd`, contra
+`sim/core/Phase3ZoneMassSystem.gd` y contra `sim/core/Phase3CoupledPressureSolver.gd`.
+
+#### Correspondencia CFAST ↔ SimuFire
+
+| Variable de CFAST | Equivalente en SimuFire | Unidad | Papel | Propietario actual | Papel en F2.2B | Ambigüedades encontradas |
+| --- | --- | --- | --- | --- | --- | --- |
+| `P`, presión del compartimento (ec. 2.5) | `gauge_pressure_pa` deducida de la EOS canónica; hoy `RoomModel.overpressure_pa` y `pressure_pa_therm` | Pa | **Derivada** de masa y energía; manométrica respecto al exterior | `GasExchangeSystem` (dos campos distintos) | **Única incógnita** por recinto | Hoy hay dos campos y ninguno sale de la EOS (§11, RC-1 y RC-2) |
+| `m_i`, masa de cada capa (ec. 2.2) | `RoomModel.upper_gas_kg`, `lower_gas_kg` | kg | **Estado conservado** | `Phase3ZoneMassSystem` (sombra) y rutas heredadas | Avanza con los flujos candidatos, no se itera | El camino heredado la reconstruye por EOS (prohibido desde 2026-07-12) |
+| `T_i`, temperatura de capa (ec. 2.7-2.8) | Derivada: `T_z = T_ref + E_z /(m_z · c_p)` | K | **Derivada** | `ZoneFireSolver`, `ThermalSystem` | Coeficiente del paso | `RoomModel.temp_upper_c` y `temp_lower_c` son campos aparte que pueden divergir de `E_z/m_z` |
+| `c_v m_i T_i`, energía interna (ec. 2.3) | `RoomModel.upper_energy_kj`, `lower_energy_kj`, con `c_p = 1,0 kJ/(kg·K)` y origen en la temperatura ambiente | kJ | **Estado conservado** | ídem que la masa | Avanza con las entalpías candidatas | SimuFire usa `c_p` y energía **sensible relativa al ambiente**, no `c_v·T` absoluta |
+| `V_i`, volumen de capa (ec. 2.6) | Derivado: `V_z = m_z R T_z / p_abs` | m³ | **Derivado** | `Phase3CoupledPressureSolver._thermodynamic_state` | Coeficiente congelado dentro de un solve | `RoomModel.thermal_layer_m` es un campo paralelo que no siempre coincide |
+| Altura de interfaz | Derivada: `interface_m = V_inferior / área_suelo` | m | **Derivada** | ídem | Perfil hidrostático | ídem que `V_i` |
+| `ḣ_i`, entalpía añadida (ec. 2.5) | `sources.*_enthalpy_kw` más la entalpía de las aberturas | kW | Fuente | Combustión, paredes, radiación, aberturas | Entra en el residuo de energía | Hoy ninguna ruta suma las tres cosas en el mismo sitio |
+| `ṁ_i`, masa añadida (ec. 2.2) | `sources.*_mass_kg_s` más los caudales de aberturas | kg/s | Fuente | ídem | Entra en el residuo de masa | ídem |
+| `R`, constante del gas | `R = P_ref /(ρ_ref · T_ref)` = 101325/(1,2 · 293,15) ≈ **288,02 J/(kg·K)** | J/(kg·K) | Constante | `Phase3CoupledPressureSolver` y `Phase3ZoneMassSystem` | Constante | CFAST usa 289,14 J/(kg·K) (ec. 2.1): **0,4 % de diferencia**, asumida por coherencia interna |
+| `γ = c_p/c_v` | No aparece: la EOS afín sustituye a la forma `dP/dt` | — | — | — | — | La ODE heredada sí usa `γ`, pero se abandona (§11, RC-2) |
+
+#### Ecuación de cierre
+
+La EOS canónica de SimuFire es **exactamente afín** en la masa y la energía
+totales del recinto (documentada en `Phase3CoupledPressureSolver.gd`, líneas
+28-36):
+
+```text
+T_z      = T_ref + E_z / (m_z · c_p)                        [K]
+p_abs    = (R / V) · (M · T_ref + E / c_p)                  [Pa]
+p_gauge  = (R / V) · ((M − M_ref) · T_ref + E / c_p)        [Pa]
+M_ref    = p_ext_abs · V / (R · T_ref)                      [kg]
+```
+
+con `M = m_sup + m_inf`, `E = E_sup + E_inf`, `c_p = 1,0 kJ/(kg·K)` y `T_ref`
+la temperatura ambiente del escenario. La forma manométrica se escribe alrededor
+de `M_ref` para no restar dos números próximos a 101 325 Pa.
+
+#### Vector de incógnitas: opción A
+
+**Una presión manométrica de referencia por recinto.** La justificación no es
+estética:
+
+1. La EOS es **afín** en `M` y `E`, así que la presión de un recinto es una
+   función explícita de su inventario: no hace falta iterarla junto a la masa y
+   la energía, basta con iterar la presión hasta que el inventario que producen
+   los caudales candidatos la reproduzca.
+2. Las contribuciones de cada propietario **se superponen sin términos
+   cruzados**, así que hay exactamente una incógnita por recinto.
+3. Masa y energía **siguen siendo estados conservados**: avanzan en el mismo
+   paso con los caudales y entalpías candidatos, que a su vez dependen de la
+   presión. Ese es el acoplamiento, y por eso el punto fijo es de F2.2B.
+4. Las variables de zona derivadas (temperaturas, volúmenes de capa, interfaz,
+   densidades) se recalculan del inventario; dentro de un solve quedan
+   congeladas como coeficientes, que es una linealización documentada, no una
+   omisión de propietarios.
+5. **La EOS no crea masa**: es cierre y residuo diagnóstico. Reconstruir masa
+   desde la EOS sigue prohibido (diagnóstico de 2026-07-12).
+
+CFAST integra cuatro variables (`P`, `V_u`, `T_u`, `T_l`) porque su estado
+primario es ese; SimuFire tiene cuatro estados primarios equivalentes
+(`m_sup`, `m_inf`, `E_sup`, `E_inf`) y deriva de ellos `P`, `V_u`, `T_u` y `T_l`.
+No hay contradicción: es el mismo sistema con otro juego de variables
+independientes. Lo que **no** se admite es llevar los dos juegos a la vez como
+estado conservado, porque entonces habría dos verdades para la misma sala; por
+eso `temp_upper_c`, `temp_lower_c` y `thermal_layer_m` son, para F2.2A y F2.2B,
+**derivadas** y nunca entradas independientes.
+
+#### Qué recibe F2.2A
+
+- `previous_state`: identificador, geometría (`floor_z_m`, `height_m`,
+  `floor_area_m2`), `upper_gas_kg`, `lower_gas_kg`, `upper_energy_kj`,
+  `lower_energy_kj`.
+- `candidate_state`: lo mismo **más** `gauge_pressure_pa`, la presión candidata
+  que propone F2.2B.
+- `sources`: `upper_mass_kg_s`, `lower_mass_kg_s`, `upper_enthalpy_kw`,
+  `lower_enthalpy_kw` (todo lo que no entra por aberturas).
+- `opening_fluxes`: lista de `{opening_id, segment_id, zone, mass_flow_kg_s,
+  enthalpy_flow_kw}` **ya resueltos por F2.2B**.
+- `outside`: `pressure_abs_pa`, `temp_k`, `density_kg_m3`.
+- `dt_s`.
+
+#### Incompatibilidad encontrada
+
+`Phase3CoupledPressureSolver._thermodynamic_state` **rechaza energías de zona
+negativas**, así que el camino canónico actual no puede representar una sala
+por debajo de la temperatura ambiente, que es justo el caso de la depresión por
+enfriamiento (§21, criterio A). F2.2A **sí** admite energía de zona negativa
+—la energía es sensible y relativa al ambiente— y exige únicamente que la
+temperatura absoluta resultante sea mayor que 0 K y que la presión absoluta sea
+positiva. Reconciliar ambos criterios es trabajo de F2.2B/F2.2C y queda
+anotado en §22.
 
 ## 14. F2.2A: evaluador puro de ecuaciones locales
 
@@ -526,6 +619,133 @@ Estas variables son una **propuesta**: la lista definitiva sale de las
 ec. 2.5-2.8 de CFAST (presión, volumen de capa y dos temperaturas) y habrá que
 confirmarla contra el estado canónico de zonas de la fase 3 antes de programar
 (§13, pendiente del vector de incógnitas).
+
+### 14.1 Contrato implementado (2026-09-18)
+
+`sim/core/CompartmentPressureEquations.gd`, sin `class_name`, cargado solo por
+su validador y sus tests. **Sigue sin integrar**: no lo llama `SimulationEngine`,
+ni `GasExchangeSystem`, ni `OxygenExchangeSystem`, ni `ThermalSystem`, ni
+`Phase3ZoneMassSystem`, ni el editor, ni la vista, ni los escenarios, ni los
+casos de validación, y no se ha añadido ningún interruptor.
+
+**Firma**
+
+```text
+evaluate_compartment_residual(previous_state, candidate_state, sources,
+                              opening_fluxes, outside, dt_s) -> Dictionary
+```
+
+**Salida**: `valid`, `errors`, `room_id`, `pressure_residual_pa`,
+`pressure_residual_normalized`, `mass_residual_kg`, `energy_residual_kj`,
+`mass_residual_by_zone_kg`, `energy_residual_by_zone_kj`, `pressure_profile`
+y `diagnostics`. Una entrada inválida devuelve `valid = false`, los errores
+concretos, residuos `NaN` y perfil vacío: **no corrige nada en silencio**.
+
+**Ecuaciones implementadas** (todas en kelvin, con `c_p = 1,0 kJ/(kg·K)`,
+`P_ref = 101 325 Pa`, `ρ_ref = 1,2 kg/m³`, `g = 9,81 m/s²` y
+`R = P_ref /(ρ_ref · T_ref) ≈ 288,035 J/(kg·K)`):
+
+| Magnitud | Fórmula | Unidad |
+| --- | --- | --- |
+| Temperatura de zona | `T_z = T_ref + E_z /(m_z · c_p)` | K |
+| Presión absoluta | `p_abs = (R / V) · (M · T_ref + E / c_p)` | Pa |
+| Presión manométrica | `p_gauge = (R / V) · ((M − M_ref) · T_ref + E / c_p)` | Pa |
+| Masa de referencia | `M_ref = p_ext_abs · V /(R · T_ref)` | kg |
+| Volumen de zona | `V_z = m_z · R · T_z / p_abs` | m³ |
+| Interfaz | `interface_m = V_inferior / área_suelo` | m |
+| Perfil | `p(z) = p_suelo − g · Σ(ρ_zona · tramo)` | Pa |
+| Residuo de masa | `(m_z^cand − m_z^prev) − dt · (fuente_z + Σ flujos_z)` | kg |
+| Residuo de energía | `(E_z^cand − E_z^prev) − dt · (fuente_z + Σ entalpías_z)` | kJ |
+| Residuo de presión | `p_gauge^cand − p_gauge(EOS del inventario candidato)` | Pa |
+
+`pressure_residual_normalized` divide el residuo de presión por
+`max(1, |p_gauge(EOS)|)`; es adimensional y está declarado como tal.
+
+**Convención de signo, única para fuentes y flujos**: **positivo = entra** en
+el recinto y en la zona indicada; negativo = sale. La presión manométrica puede
+ser positiva, cero o **negativa**: no hay ni un solo recorte de signo, y la cota
+de referencia es el **suelo** (`reference_z_m = floor_z_m`).
+
+**Lo que no hace**: no calcula caudales, no itera, no declara convergencia, no
+elige la presión final, no muta sus entradas, no toca `RoomModel`, no usa nodos,
+escena, editor, singletons, archivos ni aleatoriedad, y no lee los interruptores
+`phase3_thermodynamic_pressure_enabled` ni `phase3_pressure_canonical_enabled`.
+
+**Estados rechazados**: `dt_s` no finito o ≤ 0; NaN o infinito en cualquier
+campo; falta de un campo obligatorio; `room_id` vacío o distinto entre estados;
+geometría no positiva o cambiada dentro del paso; masa de zona negativa;
+recinto sin masa; energía en una zona sin masa; temperatura de zona ≤ 0 K;
+presión absoluta candidata ≤ 0; volúmenes de zona que no cierran el volumen del
+recinto; zona desconocida, `opening_id` vacío o flujo repetido; interfaz
+declarada fuera del recinto.
+
+**Zona degenerada**: una zona con masa ≤ 1e-12 kg no tiene temperatura ni
+densidad propias; se extiende la densidad de la zona ocupada para que el perfil
+tenga densidad a cualquier cota, **sin inventar masa**, y se marca en
+`diagnostics` (`upper_degenerate`, `lower_degenerate`).
+
+**Determinismo**: los flujos se ordenan por `(opening_id, segment_id, zone)`
+antes de sumarse, así que el resultado no depende del orden de entrada ni
+siquiera con sumas catastróficamente sensibles al orden.
+
+**La interfaz no es una entrada**: es derivada. Si el llamante declara una
+(`declared_interface_height_m`), solo se valida que caiga dentro del recinto y
+se informa `declared_interface_divergence_m`; nunca se usa como estado, para no
+tener dos verdades de la misma sala.
+
+### 14.2 Pruebas de F2.2A
+
+- **`tools/validate_compartment_pressure_equations.gd`**, registrado en
+  `check_product.py`, con 12 grupos y 163 comprobaciones: equilibrio ambiente,
+  enfriamiento sellado, calentamiento sellado, fuentes, flujos candidatos, dos
+  zonas, zona degenerada, entradas inválidas, pureza y determinismo, presión
+  absoluta, límites del contrato y volcado determinista.
+- **`tests/test_compartment_pressure_equations.py`**: pureza, que no es un
+  solver, que el signo nunca se recorta, estado canónico y unidades, residuos
+  con `dt`, perfil hidrostático desde el suelo, independencia del orden, no
+  integración y volcado idéntico byte a byte.
+- **Resultados numéricos medidos** (volcado `341b5c8b…`):
+
+| Caso | `p_gauge` de la EOS | Referencia analítica | Residuos |
+| --- | ---: | ---: | --- |
+| Equilibrio ambiente (57,6 kg a 293,15 K) | −0,0000 Pa | 0 Pa | masa 0,0, energía 0,0 |
+| Enfriamiento sellado a 273,15 K | **−6 912,8433 Pa** | `101325·(273,15/293,15 − 1)` = **−6 912,8433 Pa** | masa 0,0; energía −1 152 kJ (denuncia el sumidero no declarado) |
+| Calentamiento sellado a 313,15 K | **+6 912,8433 Pa** | +6 912,8433 Pa | simétrico del anterior |
+| Dos zonas (493,15 K arriba, 298,15 K abajo) | +5 750,8615 Pa | — | interfaz 1,6041 m; ρ 0,7538 y 1,2468 kg/m³ |
+
+  El error relativo del enfriamiento sellado frente al gas ideal es de 2e-11,
+  muy por debajo del 1 % exigido en §21.
+
+### 14.3 Mutaciones de F2.2A
+
+**19 mutaciones, 19 muertas** por fallos funcionales (arnés local sin versionar
+en `runs/f22a_20260918/mutate_equations.py`):
+
+| Mutación | Muere por |
+| --- | --- |
+| N01 recorta a cero el residuo de presión | 10 candidata imposible con residuo negativo |
+| N02 recorta a cero la presión de la EOS | 02 el modelo mantiene el signo negativo |
+| N03 invierte el signo de un caudal | 05 los flujos de entrada y salida cuadran la masa |
+| N04 invierte el signo de una entalpía | 05 los flujos cuadran la energía |
+| N05 trata kW como kJ (se salta `dt`) | 04 fuente de 12 kW durante 4 s da 48 kJ |
+| N06 trata kg/s como kg | 04 fuente de 0,5 kg/s durante 4 s añade 2 kg |
+| N07 una sola densidad para las dos capas | 06 la pendiente superior es ρ_sup·g |
+| N08 referencia de presión en el techo | 06 el nodo del suelo lleva la presión candidata |
+| N09 ignora la fuente de masa | 04 la fuente de masa |
+| N10 ignora la fuente de entalpía | 04 la fuente de entalpía |
+| N11 muta `candidate_state` | 09 las entradas no se modifican |
+| N12 declara `valid` con una entrada NaN | 08 `dt = 0` se rechaza |
+| N13 usa Celsius en la temperatura de zona | 05 estado válido (temperatura ≤ 0 K) |
+| N14 usa Celsius en la temperatura de referencia | 01 el residuo de presión deja de ser cero |
+| N15 discontinuidad artificial en la interfaz | 06 la pendiente inferior es ρ_inf·g |
+| N16 el orden de los flujos cambia el resultado | 05 suma sensible al orden idéntica byte a byte |
+| N17 volumen de zona con la temperatura equivocada | 05 los volúmenes de zona no cierran |
+| N18 acepta masa de zona negativa | 08 masa de zona negativa con total positivo |
+| N19 acepta una presión absoluta imposible | 10 candidata en el cero absoluto |
+
+Una vigésima mutación —desactivar la comprobación de "energía sin masa" en la
+zona inferior— se retiró por **equivalente**: el cierre de volumen ya rechaza
+por sí solo cualquier zona que tenga energía sin masa.
 
 ## 15. F2.2B: solver puro acoplado de red
 
@@ -647,7 +867,7 @@ o de **tasa en kW**.
 
 | Etapa | Contenido | Entregable | Requisito previo |
 | --- | --- | --- | --- |
-| **F2.2A** | Evaluador puro de ecuaciones locales y residuos (§14) | `sim/core/CompartmentPressureEquations.gd`, validador, tests, mutaciones | F2.2-DIAG (este documento) |
+| **F2.2A** ✅ **hecha el 2026-09-18, sin integrar** | Evaluador puro de ecuaciones locales y residuos (§14, §14.1) | `sim/core/CompartmentPressureEquations.gd`, `tools/validate_compartment_pressure_equations.gd`, `tests/test_compartment_pressure_equations.py`, 19/19 mutaciones | F2.2-DIAG (este documento) |
 | **F2.2B** | Solver puro acoplado de red, dueño de la iteración (§15) | `sim/core/PressureOpeningNetworkSolver.gd`, validador con red de 1, 2 y N recintos | F2.2A |
 | **F2.2C** | Integración tras interruptor, un solo aplicador | Cambios en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` | F2.2A+B en verde y comparación de sombra |
 | **F2.2D** | Conexión de fuga (fase 1), deformación (fase 2) y vidrio (fase 3B) como fuentes de área | Adaptadores puros | F2.2C con la suite de referencia estable |
@@ -755,10 +975,16 @@ Decisiones que necesitan autorización antes de programar:
 5. Qué hacer, cuando el solver esté encendido, con **todas las rutas
    enumeradas en §4.2** que hoy inventan su propia escala de referencia (las
    siete rutas físicas de §4.3; las de sombra y observación solo leen).
-6. **Vector de incógnitas de F2.2B** (§13 y §15): solo presiones de referencia,
-   o también variables de zona (volumen de capa, temperaturas o energías),
-   según la correspondencia definitiva con el estado canónico de
-   `Phase3ZoneMassSystem`.
+6. ~~Vector de incógnitas de F2.2B~~ **decidido el 2026-09-18**: opción A,
+   una presión manométrica de referencia por recinto (§13.1).
+7. **Energía de zona negativa**: `Phase3CoupledPressureSolver` la rechaza y
+   F2.2A la admite (§13.1). Hay que unificar el criterio antes de que F2.2B
+   consuma el estado canónico, porque sin energía negativa no hay depresión por
+   enfriamiento.
+8. **Reutilización de `Phase3CoupledPressureSolver`**: es un solver puro,
+   sin punto de llamada, que ya resuelve una red con la misma EOS afín. Antes de
+   escribir F2.2B desde cero hay que decidir si se promueve ese componente, se
+   extiende o se sustituye.
 
 ## 23. Evidencia reproducible y comandos
 
@@ -794,8 +1020,8 @@ así que la entrada no ha cambiado desde entonces.
 
 ## 24. Qué queda expresamente sin implementar
 
-- El evaluador puro de ecuaciones locales (F2.2A) y el solver acoplado de red
-  (F2.2B).
+- El solver acoplado de red (F2.2B). F2.2A ya está implementada (§14.1) pero
+  **sin integrar**: hoy no la llama nadie.
 - La integración tras interruptor (F2.2C) y la conexión de fuga, deformación y
   vidrio (F2.2D).
 - La corrección de la purga por fracción de hollín (RC-4), abierta desde

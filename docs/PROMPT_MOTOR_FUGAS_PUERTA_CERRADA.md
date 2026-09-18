@@ -18,7 +18,9 @@
 > - **F2.2-DIAG (2026-09-17, corregida el 2026-09-18)**: el diagnóstico y el
 >   diseño de la sobrepresión de recintos cerrados están cerrados en
 >   [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md).
->   No hay código nuevo: F2.2A-D siguen sin implementar.
+>   **F2.2A** (evaluador puro de ecuaciones locales de presión) está
+>   implementada desde el 2026-09-18 y **sin integrar**; F2.2B, F2.2C y F2.2D
+>   siguen sin implementar.
 > - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
 >   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
 >   pendientes el modelo térmico y el probabilista del vidrio, F2.2 y la
