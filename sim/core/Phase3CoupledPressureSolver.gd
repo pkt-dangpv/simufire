@@ -75,6 +75,13 @@ class_name Phase3CoupledPressureSolver
 # what F3.3v3g3 lacked.
 # ============================================================
 
+## F2.2A es el evaluador AUTORITATIVO de las ecuaciones locales. El solver
+## conserva su propia aritmetica interna para construir el Jacobiano, pero
+## ningun candidato se acepta ni se devuelve sin que F2.2A lo confirme.
+const CompartmentPressureEquationsScript = preload(
+	"res://sim/core/CompartmentPressureEquations.gd"
+)
+
 const AIR_PRESSURE_REF_PA: float = 101325.0
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
@@ -96,6 +103,12 @@ const DEFAULT_DP_REGULARIZATION_PA: float = 0.01
 const DEFAULT_JACOBIAN_STEP_PA: float = 1.0e-3
 const DEFAULT_BAND_SEGMENTS: int = 16
 const DEFAULT_MAX_DAMPING_HALVINGS: int = 12
+
+## F2.2B: tolerancias fisicas de la convergencia canonica. Son globales y
+## justificadas por la precision doble, nunca knobs por caso.
+const DEFAULT_PRESSURE_TOLERANCE_PA: float = 1.0e-6
+const DEFAULT_MASS_TOLERANCE_KG: float = 1.0e-9
+const DEFAULT_ENERGY_TOLERANCE_KJ: float = 1.0e-6
 
 # ------------------------------------------------------------
 # F3.3v3h2.5g: bounded Levenberg-Marquardt recovery.
@@ -534,6 +547,9 @@ func solve_coupled_pressure(
 			previous_full_step_norm = NAN
 			previous_previous_full_step_norm = NAN
 			post_budget_cycle_streak = 0
+		result["pressure_change_history_pa"].append(
+			_max_abs_difference(pressure, candidate_pressure)
+		)
 		pressure = candidate_pressure
 		evaluation = candidate_evaluation
 		norm = float(evaluation["normalized_residual"])
@@ -598,6 +614,116 @@ func solve_coupled_pressure(
 
 ## H3.2a solve-level totals. Interior connections decide global validity;
 ## exterior ones are counted separately and never invalidate the network.
+## ============================================================
+## F2.2B: entrada canonica de la red presion-aberturas.
+##
+## `solve_coupled_pressure` sigue siendo la envoltura historica de la
+## maquinaria de sombra de la fase 3 y comparte exactamente este nucleo: aqui
+## no se reimplementa ninguna ecuacion.
+##
+## Convenciones:
+##   - presion manometrica respecto al exterior, referencia en el SUELO de cada
+##     recinto (`floor_z_m`), con signo: puede ser negativa;
+##   - alturas en cota ABSOLUTA del edificio; una abertura puede declararlas
+##     como locales, y entonces se convierten explicitamente;
+##   - positivo = entra en el recinto y en la zona indicada;
+##   - masa kg, caudal kg/s, energia kJ, entalpia kW, temperatura K, cotas m.
+##
+## El exterior es un nodo de presion impuesta, nunca una sala ficticia: aporta
+## presion absoluta, temperatura, densidad y, por abertura, presion de viento.
+func solve_pressure_network(
+		rooms: Array,
+		openings: Array,
+		outside: Dictionary,
+		sources: Dictionary,
+		dt_s: float,
+		options: Dictionary = {}
+	) -> Dictionary:
+	var result: Dictionary = _new_network_result()
+	var errors: Array[String] = []
+	var prepared: Dictionary = _prepare_network(
+		rooms, openings, outside, sources, dt_s, options, errors
+	)
+	if not errors.is_empty():
+		result["errors"] = errors
+		result["failure_reason"] = "invalid_input"
+		result["failure_code"] = FAILURE_BAD_ARGUMENTS
+		return result
+
+	var solved: Dictionary = solve_coupled_pressure(
+		prepared["rooms"], prepared["openings"], prepared["sources"],
+		dt_s, prepared["reference_temp_c"], prepared["options"]
+	)
+	result["iterations"] = float(solved["iterations"])
+	result["residual_history"] = solved["residual_history"]
+	result["pressure_change_history_pa"] = solved["pressure_change_history_pa"]
+	result["max_pressure_change_pa"] = _max_of(solved["pressure_change_history_pa"])
+	result["failure_code"] = float(solved["failure_code"])
+	result["solver_limiting_reason"] = String(solved["limiting_reason"])
+	if not bool(solved["valid"]):
+		result["failure_reason"] = String(solved["limiting_reason"])
+		result["errors"] = ["coupled solve did not converge: %s" % solved["limiting_reason"]]
+		return result
+
+	# Una unica reevaluacion en la MISMA presion aceptada, solo para recoger
+	# segmentos y flujo por zona. No cambia ninguna aritmetica.
+	var final_options: Dictionary = prepared["options"].duplicate(true)
+	final_options["collect_segments"] = true
+	var context: Dictionary = _build_context(
+		prepared["rooms"], prepared["openings"], prepared["sources"],
+		dt_s, prepared["reference_temp_c"], final_options
+	)
+	if not bool(context.get("valid", false)):
+		result["failure_reason"] = "context_rebuild_failed"
+		result["errors"] = ["the final evaluation context could not be rebuilt"]
+		return result
+	var pressure: Array[float] = []
+	for room_key in context["room_keys"]:
+		pressure.append(float(solved["gauge_pressure_by_room"][room_key]))
+	var evaluation: Dictionary = _evaluate(context, pressure)
+	if not bool(evaluation.get("valid", false)):
+		result["failure_reason"] = "final_evaluation_failed"
+		result["errors"] = ["the accepted pressure did not evaluate"]
+		return result
+
+	return _finish_network(result, prepared, context, evaluation, pressure, dt_s, solved)
+
+
+func _new_network_result() -> Dictionary:
+	return {
+		"valid": false,
+		"errors": [],
+		"converged": false,
+		"failure_reason": "invalid",
+		"failure_code": FAILURE_BAD_ARGUMENTS,
+		"solver_limiting_reason": "",
+		"iterations": 0.0,
+		"residual_history": [],
+		"pressure_change_history_pa": [],
+		"max_pressure_change_pa": 0.0,
+		"max_mass_residual_kg": 0.0,
+		"max_energy_residual_kj": 0.0,
+		"max_pressure_residual_pa": 0.0,
+		"owed_pressure_change_pa": 0.0,
+		"rooms": [],
+		"openings": [],
+	}
+
+
+func _max_of(values: Array) -> float:
+	var top: float = 0.0
+	for value in values:
+		top = maxf(top, absf(float(value)))
+	return top
+
+
+func _max_abs_difference(before: Array, after: Array) -> float:
+	var top: float = 0.0
+	for index in range(mini(before.size(), after.size())):
+		top = maxf(top, absf(float(after[index]) - float(before[index])))
+	return top
+
+
 func _summarize_zonal_decomposition(
 		result: Dictionary, evaluation: Dictionary
 	) -> void:
@@ -1027,6 +1153,9 @@ func _new_result() -> Dictionary:
 		"iterations": 0.0,
 		"residual_history": [],
 		"damping_history": [],
+		# F2.2B: max |dp| accepted at each iteration, for the canonical
+		# convergence test. Reporting only for the historical entry point.
+		"pressure_change_history_pa": [],
 		"pressure_by_room": {},
 		"gauge_pressure_by_room": {},
 		"mass_by_room": {},
@@ -1153,11 +1282,21 @@ func _build_context(
 		derived["source_energy_kj"] = source_energy_kj
 		room_context[room_key] = derived
 
+	# F2.2B: the exterior can sit at its own temperature. When the caller does
+	# not say otherwise it is the reference temperature, which is the historical
+	# behaviour and keeps the density and the carried enthalpy unchanged.
+	var exterior_temp_k: float = float(options.get("exterior_temp_k", reference_temp_k))
+	if not is_finite(exterior_temp_k) or exterior_temp_k <= 0.0:
+		return context
 	var exterior_density_kg_m3: float = exterior_pressure_abs_pa \
-			/ (gas_constant * reference_temp_k)
+			/ (gas_constant * exterior_temp_k)
+	var exterior_specific_kj_kg: float = AIR_CP_KJ_KG_K * (exterior_temp_k - reference_temp_k)
 	var opening_context: Array[Dictionary] = []
 	for raw_opening in openings:
 		var opening: Dictionary = raw_opening
+		if exterior_specific_kj_kg != 0.0 and not opening.has("exterior_specific_kj_kg"):
+			opening = opening.duplicate(true)
+			opening["exterior_specific_kj_kg"] = exterior_specific_kj_kg
 		var built: Dictionary = _build_opening(
 			opening,
 			room_context,
@@ -1206,6 +1345,12 @@ func _build_context(
 	context["max_damping_halvings"] = maxi(
 		0, int(options.get("max_damping_halvings", DEFAULT_MAX_DAMPING_HALVINGS))
 	)
+	context["exterior_temp_k"] = exterior_temp_k
+	context["exterior_density_kg_m3"] = exterior_density_kg_m3
+	context["exterior_specific_kj_kg"] = exterior_specific_kj_kg
+	# Reporting only, and only ever enabled for the single final evaluation at
+	# the accepted pressure: it changes no arithmetic.
+	context["collect_segments"] = bool(options.get("collect_segments", false))
 	return context
 
 
@@ -1216,6 +1361,11 @@ func _derive_room(
 		exterior_pressure_abs_pa: float
 	) -> Dictionary:
 	var state: Dictionary = raw_state
+	# F2.2B: the pressure datum of a room is its own floor. Callers that do not
+	# declare one keep the historical single-storey frame with every floor at 0.
+	var floor_z_m: float = float(state.get("floor_z_m", 0.0))
+	if not is_finite(floor_z_m):
+		return {"valid": false}
 	var volume_m3: float = float(state.get("volume_m3", 0.0))
 	var floor_area_m2: float = float(state.get("floor_area_m2", 0.0))
 	var height_m: float = float(state.get("height_m", 0.0))
@@ -1231,15 +1381,19 @@ func _derive_room(
 			return {"valid": false}
 	if volume_m3 <= VOLUME_EPS_M3 or floor_area_m2 <= 0.0 or height_m <= 0.0:
 		return {"valid": false}
-	if upper_gas_kg < 0.0 or lower_gas_kg < 0.0 \
-			or upper_energy_kj < 0.0 or lower_energy_kj < 0.0:
+	if upper_gas_kg < 0.0 or lower_gas_kg < 0.0:
 		return {"valid": false}
 	var total_mass_kg: float = upper_gas_kg + lower_gas_kg
 	if total_mass_kg <= MASS_EPS_KG:
 		return {"valid": false}
+	# F2.2B: the zone energy is SENSIBLE and measured from the reference
+	# temperature, so a zone colder than ambient holds negative energy and is
+	# physically valid. What is rejected is an unphysical state, never a sign:
+	# the zone temperature and the absolute pressure below still have to be
+	# finite and positive, exactly as CompartmentPressureEquations demands.
 	# A zone holding energy but no mass has no defined temperature.
-	if (upper_gas_kg <= MASS_EPS_KG and upper_energy_kj > 0.0) \
-			or (lower_gas_kg <= MASS_EPS_KG and lower_energy_kj > 0.0):
+	if (upper_gas_kg <= MASS_EPS_KG and absf(upper_energy_kj) > 0.0) \
+			or (lower_gas_kg <= MASS_EPS_KG and absf(lower_energy_kj) > 0.0):
 		return {"valid": false}
 	var total_energy_kj: float = upper_energy_kj + lower_energy_kj
 	var upper_temp_k: float = reference_temp_k
@@ -1248,6 +1402,11 @@ func _derive_room(
 	var lower_temp_k: float = reference_temp_k
 	if lower_gas_kg > MASS_EPS_KG:
 		lower_temp_k += lower_energy_kj / (lower_gas_kg * AIR_CP_KJ_KG_K)
+	# Physical floor: an absolute temperature has to be above 0 K. This is what
+	# replaces the old "energy must be non-negative" rule.
+	if not is_finite(upper_temp_k) or not is_finite(lower_temp_k) \
+			or upper_temp_k <= 0.0 or lower_temp_k <= 0.0:
+		return {"valid": false}
 	var pressure_abs_pa: float = gas_constant * (
 		total_mass_kg * reference_temp_k + total_energy_kj / AIR_CP_KJ_KG_K
 	) / volume_m3
@@ -1283,12 +1442,23 @@ func _derive_room(
 		"volume_m3": volume_m3,
 		"floor_area_m2": floor_area_m2,
 		"height_m": height_m,
+		# F2.2B: absolute frame. `interface_z_m` is the same interface expressed
+		# in building coordinates, so two rooms on different storeys compare at
+		# the same physical height.
+		"floor_z_m": floor_z_m,
+		"upper_gas_kg": upper_gas_kg,
+		"lower_gas_kg": lower_gas_kg,
+		"upper_energy_kj": upper_energy_kj,
+		"lower_energy_kj": lower_energy_kj,
+		"upper_temp_k": upper_temp_k,
+		"lower_temp_k": lower_temp_k,
 		"mass_kg": total_mass_kg,
 		"reference_mass_kg": reference_mass_kg,
 		"energy_kj": total_energy_kj,
 		"pressure_abs_pa": pressure_abs_pa,
 		"gauge_pressure_pa": gauge_pressure_pa,
 		"interface_m": interface_m,
+		"interface_z_m": floor_z_m + interface_m,
 		"upper_density_kg_m3": maxf(0.0, upper_density_kg_m3),
 		"lower_density_kg_m3": maxf(0.0, lower_density_kg_m3),
 		# Donor-cell specific sensible enthalpy carried out of each zone.
@@ -1297,24 +1467,41 @@ func _derive_room(
 	}
 
 
+## Perfil vertical de un lado de la abertura, en cota ABSOLUTA.
+##
+## `datum_z_m` es la cota desde la que se integra la columna. Para una sala es
+## su propio suelo; para el exterior es el suelo de la sala que hay al otro
+## lado, porque la presion manometrica de esa sala esta definida justo ahi. Con
+## todos los suelos en 0 (marco historico de una sola planta) esto reproduce
+## exactamente la formula anterior.
+##
+## `exterior_specific_kj_kg` es la entalpia sensible del aire exterior respecto
+## a la temperatura de referencia: 0 solo cuando el exterior esta a esa misma
+## temperatura.
 func _side_profile(
 		room_key: String,
 		room_context: Dictionary,
-		exterior_density_kg_m3: float
+		exterior_density_kg_m3: float,
+		datum_z_m: float = 0.0,
+		exterior_specific_kj_kg: float = 0.0
 	) -> Dictionary:
 	if room_key.is_empty():
 		return {
 			"exterior": true,
 			"interface_m": INF,
+			"interface_z_m": INF,
+			"floor_z_m": datum_z_m,
 			"upper_density_kg_m3": exterior_density_kg_m3,
 			"lower_density_kg_m3": exterior_density_kg_m3,
-			"upper_specific_kj_kg": 0.0,
-			"lower_specific_kj_kg": 0.0,
+			"upper_specific_kj_kg": exterior_specific_kj_kg,
+			"lower_specific_kj_kg": exterior_specific_kj_kg,
 		}
 	var room: Dictionary = room_context[room_key]
 	return {
 		"exterior": false,
 		"interface_m": float(room["interface_m"]),
+		"interface_z_m": float(room["interface_z_m"]),
+		"floor_z_m": float(room["floor_z_m"]),
 		"upper_density_kg_m3": float(room["upper_density_kg_m3"]),
 		"lower_density_kg_m3": float(room["lower_density_kg_m3"]),
 		"upper_specific_kj_kg": float(room["upper_specific_kj_kg"]),
@@ -1340,8 +1527,12 @@ func _build_opening(
 	if (not room_a_key.is_empty() and not room_context.has(room_a_key)) \
 			or (not room_b_key.is_empty() and not room_context.has(room_b_key)):
 		return {"valid": false}
-	var bottom_m: float = float(opening.get("bottom_m", 0.0))
-	var top_m: float = float(opening.get("top_m", 0.0))
+	# F2.2B: heights are ABSOLUTE building coordinates. `bottom_z_m`/`top_z_m`
+	# are the canonical keys; the historical `bottom_m`/`top_m` mean the same
+	# numbers in the single-storey frame where every floor sits at 0, and the
+	# canonical entry converts local spans before calling here.
+	var bottom_m: float = float(opening.get("bottom_z_m", opening.get("bottom_m", 0.0)))
+	var top_m: float = float(opening.get("top_z_m", opening.get("top_m", 0.0)))
 	var width_m: float = float(opening.get("width_m", 0.0))
 	var open_fraction: float = float(opening.get("open_fraction", 0.0))
 	var discharge_coeff: float = float(opening.get("discharge_coeff", 0.0))
@@ -1354,21 +1545,46 @@ func _build_opening(
 		# A shut opening is well formed and simply carries nothing.
 		return {"valid": true, "skip": true}
 
+	# The exterior integrates its column from the floor of the room it faces,
+	# because that is where that room's gauge pressure is defined.
+	var floor_a_z_m: float = 0.0
+	if not room_a_key.is_empty():
+		floor_a_z_m = float(room_context[room_a_key].get("floor_z_m", 0.0))
+	var floor_b_z_m: float = 0.0
+	if not room_b_key.is_empty():
+		floor_b_z_m = float(room_context[room_b_key].get("floor_z_m", 0.0))
+	var exterior_specific_kj_kg: float = float(
+		opening.get("exterior_specific_kj_kg", 0.0)
+	)
 	var side_a: Dictionary = _side_profile(
-		room_a_key, room_context, exterior_density_kg_m3
+		room_a_key, room_context, exterior_density_kg_m3,
+		floor_b_z_m if room_a_key.is_empty() else floor_a_z_m,
+		exterior_specific_kj_kg
 	)
 	var side_b: Dictionary = _side_profile(
-		room_b_key, room_context, exterior_density_kg_m3
+		room_b_key, room_context, exterior_density_kg_m3,
+		floor_a_z_m if room_b_key.is_empty() else floor_b_z_m,
+		exterior_specific_kj_kg
 	)
+	# Wind is a property of the exterior node at this opening, applied once as a
+	# constant gauge offset of the exterior side. An interior opening has no
+	# exterior side and therefore cannot carry wind.
+	var exterior_gauge_pa: float = float(opening.get("wind_dp_pa", 0.0))
+	if not is_finite(exterior_gauge_pa):
+		return {"valid": false}
+	if exterior_gauge_pa != 0.0 and not room_a_key.is_empty() \
+			and not room_b_key.is_empty():
+		return {"valid": false}
 	# Split the span at every density discontinuity so that within a band both
 	# profiles are constant and dp(z) is exactly linear.
 	var boundaries: Array[float] = [bottom_m, top_m]
-	for interface_m in [
-		float(side_a["interface_m"]), float(side_b["interface_m"])
+	for interface_z_m in [
+		float(side_a.get("interface_z_m", INF)),
+		float(side_b.get("interface_z_m", INF))
 	]:
-		if is_finite(interface_m) and interface_m > bottom_m + 1.0e-9 \
-				and interface_m < top_m - 1.0e-9:
-			boundaries.append(interface_m)
+		if is_finite(interface_z_m) and interface_z_m > bottom_m + 1.0e-9 \
+				and interface_z_m < top_m - 1.0e-9:
+			boundaries.append(interface_z_m)
 	boundaries.sort()
 	var unique_boundaries: Array[float] = []
 	for boundary_m in boundaries:
@@ -1411,6 +1627,7 @@ func _build_opening(
 		"index_b": int(index_by_key.get(room_b_key, -1)),
 		"bottom_m": bottom_m,
 		"top_m": top_m,
+		"exterior_gauge_pa": exterior_gauge_pa,
 		"coefficient": discharge_coeff * width_m * open_fraction * dt,
 		"bands": bands,
 		# H3.2a: an opening is zonable only when BOTH sides are rooms. The
@@ -1434,27 +1651,31 @@ func _hydrostatic_offset_pa(
 	)
 
 
+## Columna de masa por unidad de area entre el datum del lado y la cota z,
+## ambas ABSOLUTAS. Con el datum en 0 y la interfaz local coincide byte a byte
+## con la version anterior de una sola planta.
 func _column_mass_per_area(side: Dictionary, height_m: float) -> float:
-	var interface_m: float = float(side["interface_m"])
+	var datum_z_m: float = float(side.get("floor_z_m", 0.0))
+	var interface_z_m: float = float(side.get("interface_z_m", INF))
 	var lower_density_kg_m3: float = float(side["lower_density_kg_m3"])
 	var upper_density_kg_m3: float = float(side["upper_density_kg_m3"])
-	if not is_finite(interface_m) or height_m <= interface_m:
-		return lower_density_kg_m3 * height_m
-	return lower_density_kg_m3 * interface_m \
-			+ upper_density_kg_m3 * (height_m - interface_m)
+	if not is_finite(interface_z_m) or height_m <= interface_z_m:
+		return lower_density_kg_m3 * (height_m - datum_z_m)
+	return lower_density_kg_m3 * (interface_z_m - datum_z_m) \
+			+ upper_density_kg_m3 * (height_m - interface_z_m)
 
 
 func _density_at(side: Dictionary, height_m: float) -> float:
-	var interface_m: float = float(side["interface_m"])
+	var interface_z_m: float = float(side.get("interface_z_m", INF))
 	return float(side["lower_density_kg_m3"]) \
-			if (not is_finite(interface_m) or height_m <= interface_m) \
+			if (not is_finite(interface_z_m) or height_m <= interface_z_m) \
 			else float(side["upper_density_kg_m3"])
 
 
 func _specific_at(side: Dictionary, height_m: float) -> float:
-	var interface_m: float = float(side["interface_m"])
+	var interface_z_m: float = float(side.get("interface_z_m", INF))
 	return float(side["lower_specific_kj_kg"]) \
-			if (not is_finite(interface_m) or height_m <= interface_m) \
+			if (not is_finite(interface_z_m) or height_m <= interface_z_m) \
 			else float(side["upper_specific_kj_kg"])
 
 
@@ -1561,10 +1782,10 @@ func _attach_zonal_decomposition(
 func _zone_at(side: Dictionary, height_m: float) -> String:
 	if bool(side.get("exterior", false)):
 		return ""
-	var interface_m: float = float(side["interface_m"])
-	if not is_finite(interface_m):
+	var interface_z_m: float = float(side.get("interface_z_m", INF))
+	if not is_finite(interface_z_m):
 		return ""
-	return ZONE_LOWER if height_m <= interface_m else ZONE_UPPER
+	return ZONE_LOWER if height_m <= interface_z_m else ZONE_UPPER
 
 
 # ------------------------------------------------------------
@@ -1598,6 +1819,8 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		net_energy_kj[index] = 0.0
 		gross_mass_kg[index] = 0.0
 
+	var collect_segments: bool = bool(context.get("collect_segments", false))
+	var zone_flux_by_room: Dictionary = {}
 	var connections: Array[Dictionary] = []
 	var regularization_active_count: float = 0.0
 	var counterflow_connection_count: float = 0.0
@@ -1609,13 +1832,19 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		# Gauge by construction, so the exterior is exactly zero and the opening
 		# difference is a direct subtraction of two small numbers instead of two
 		# numbers near ambient.
-		var pressure_a_pa: float = float(pressure[index_a]) if index_a >= 0 else 0.0
-		var pressure_b_pa: float = float(pressure[index_b]) if index_b >= 0 else 0.0
+		# The exterior node is gauge zero by construction, plus the wind offset
+		# of this opening when it has one.
+		var exterior_gauge_pa: float = float(opening.get("exterior_gauge_pa", 0.0))
+		var pressure_a_pa: float = float(pressure[index_a]) if index_a >= 0 \
+				else exterior_gauge_pa
+		var pressure_b_pa: float = float(pressure[index_b]) if index_b >= 0 \
+				else exterior_gauge_pa
 		var flux: Dictionary = _integrate_opening(
 			opening,
 			pressure_a_pa - pressure_b_pa,
 			float(context["dp_regularization_pa"]),
-			int(context["band_segments"])
+			int(context["band_segments"]),
+			collect_segments
 		)
 		if not bool(flux.get("valid", false)):
 			return {"valid": false}
@@ -1658,6 +1887,23 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		_attach_zonal_decomposition(
 			connections[connections.size() - 1], opening, flux
 		)
+		if collect_segments:
+			connections[connections.size() - 1]["segments"] = flux["segments"]
+			connections[connections.size() - 1]["exterior_gauge_pa"] = exterior_gauge_pa
+			for raw_entry in flux["zone_flux"].values():
+				var entry: Dictionary = raw_entry
+				var side_key: String = String(opening["room_a_key"]) \
+						if String(entry["side"]) == "a" else String(opening["room_b_key"])
+				if side_key.is_empty():
+					continue
+				var by_zone: Dictionary = zone_flux_by_room.get(side_key, {})
+				var zone_entry: Dictionary = by_zone.get(String(entry["zone"]), {
+					"mass_kg": 0.0, "energy_kj": 0.0,
+				})
+				zone_entry["mass_kg"] = float(zone_entry["mass_kg"]) + float(entry["mass_kg"])
+				zone_entry["energy_kj"] = float(zone_entry["energy_kj"]) + float(entry["energy_kj"])
+				by_zone[String(entry["zone"])] = zone_entry
+				zone_flux_by_room[side_key] = by_zone
 
 	var residual_pa: Array[float] = []
 	var residual_pa_by_room: Dictionary = {}
@@ -1732,6 +1978,7 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 
 	return {
 		"valid": true,
+		"zone_flux_by_room": zone_flux_by_room,
 		"residual": residual_pa,
 		"residual_pa_by_room": residual_pa_by_room,
 		"residual_kg_by_room": residual_kg_by_room,
@@ -1760,8 +2007,14 @@ func _integrate_opening(
 		opening: Dictionary,
 		delta_p_pa: float,
 		dp_regularization_pa: float,
-		band_segments: int
+		band_segments: int,
+		collect_segments: bool = false
 	) -> Dictionary:
+	# F2.2B reporting. Purely additive: the aggregates below are never read
+	# back from these lists, and collection is only enabled for the single
+	# final evaluation at the accepted pressure.
+	var segments: Array[Dictionary] = []
+	var zone_flux: Dictionary = {}
 	var a_to_b_kg: float = 0.0
 	var b_to_a_kg: float = 0.0
 	var a_to_b_kj: float = 0.0
@@ -1843,6 +2096,41 @@ func _integrate_opening(
 				else:
 					b_to_a_kg += mass_kg
 					b_to_a_kj += mass_kg * specific_kj_kg
+				if collect_segments:
+					var sample_z_m: float = lerpf(
+						float(sub_band["z0"]), float(sub_band["z1"]), mid_fraction
+					)
+					var energy_kj: float = mass_kg * specific_kj_kg
+					var source_side: String = "a" if dp_pa >= 0.0 else "b"
+					var destination_side: String = "b" if dp_pa >= 0.0 else "a"
+					var source_zone_label: String = zone_a if dp_pa >= 0.0 else zone_b
+					var destination_zone_label: String = zone_b if dp_pa >= 0.0 else zone_a
+					segments.append({
+						"segment_id": "band%03d_seg%03d_%s" % [
+							band_index, segment_index,
+							"a_to_b" if dp_pa >= 0.0 else "b_to_a"
+						],
+						"z_from_m": float(sub_band["z0"]) + segment_height_m * float(segment_index),
+						"z_to_m": float(sub_band["z0"]) + segment_height_m * float(segment_index + 1),
+						"sample_z_m": sample_z_m,
+						"dp_pa": dp_pa,
+						"direction": "a_to_b" if dp_pa >= 0.0 else "b_to_a",
+						"source_side": source_side,
+						"destination_side": destination_side,
+						"source_zone": source_zone_label,
+						"destination_zone": destination_zone_label,
+						"source_density_kg_m3": density_kg_m3,
+						"source_specific_kj_kg": specific_kj_kg,
+						"mass_kg": mass_kg,
+						"enthalpy_kj": energy_kj,
+						"regularized": bool(factor["regularized"]),
+					})
+					_accumulate_zone_flux(
+						zone_flux, source_side, source_zone_label, -mass_kg, -energy_kj
+					)
+					_accumulate_zone_flux(
+						zone_flux, destination_side, destination_zone_label, mass_kg, energy_kj
+					)
 				# H3.2a: mirror the same branch into the zonal ledger. Zones are
 				# constant across a band, so the label is read once per band and
 				# reused for every segment inside it.
@@ -1881,7 +2169,29 @@ func _integrate_opening(
 		"zonal_totals": zonal_totals,
 		"unclassified_interior_band_count": unclassified_interior_band_count,
 		"exterior_unzoned_band_count": exterior_unzoned_band_count,
+		"segments": segments,
+		"zone_flux": zone_flux,
 	}
+
+
+## Suma con signo por (lado, zona): positivo entra en esa zona, negativo sale.
+## El lado exterior no tiene zonas y se ignora aqui.
+func _accumulate_zone_flux(
+		zone_flux: Dictionary,
+		side: String,
+		zone: String,
+		mass_kg: float,
+		energy_kj: float
+	) -> void:
+	if zone.is_empty():
+		return
+	var key: String = "%s|%s" % [side, zone]
+	var entry: Dictionary = zone_flux.get(key, {
+		"side": side, "zone": zone, "mass_kg": 0.0, "energy_kj": 0.0,
+	})
+	entry["mass_kg"] = float(entry["mass_kg"]) + mass_kg
+	entry["energy_kj"] = float(entry["energy_kj"]) + energy_kj
+	zone_flux[key] = entry
 
 
 ## sqrt(2 rho |dp|), linearised below `dp_regularization_pa`.
@@ -1990,3 +2300,552 @@ func _solve_linear_system(matrix: Array, rhs: Array) -> Array:
 		if not is_finite(solution[row_index]):
 			return []
 	return solution
+
+
+## ============================================================
+## F2.2B: preparacion canonica y cierre autoritativo con F2.2A.
+## ============================================================
+
+## Identificador del nodo exterior en la entrada canonica. El exterior no es
+## una sala: es una presion impuesta.
+const EXTERIOR_ROOM_ID: String = "outside"
+
+const NETWORK_ROOM_KEYS: Array[String] = [
+	"floor_z_m", "floor_area_m2", "height_m",
+	"upper_gas_kg", "lower_gas_kg", "upper_energy_kj", "lower_energy_kj",
+]
+const NETWORK_SOURCE_KEYS: Array[String] = [
+	"upper_mass_kg_s", "lower_mass_kg_s", "upper_enthalpy_kw", "lower_enthalpy_kw",
+]
+
+
+func _prepare_network(
+		rooms: Array,
+		openings: Array,
+		outside: Dictionary,
+		sources: Dictionary,
+		dt_s: float,
+		options: Dictionary,
+		errors: Array[String]
+	) -> Dictionary:
+	if not is_finite(dt_s) or dt_s <= 0.0:
+		errors.append("dt_s must be finite and > 0")
+	var exterior_pressure_abs_pa: float = float(outside.get("pressure_abs_pa", NAN))
+	var exterior_temp_k: float = float(outside.get("temp_k", NAN))
+	var reference_temp_k: float = float(outside.get("reference_temp_k", exterior_temp_k))
+	for pair in [["pressure_abs_pa", exterior_pressure_abs_pa],
+			["temp_k", exterior_temp_k], ["reference_temp_k", reference_temp_k]]:
+		if not is_finite(float(pair[1])) or float(pair[1]) <= 0.0:
+			errors.append("outside %s must be finite and > 0" % pair[0])
+	if outside.has("density_kg_m3"):
+		var declared_density: float = float(outside["density_kg_m3"])
+		if not is_finite(declared_density) or declared_density <= 0.0:
+			errors.append("outside density_kg_m3 must be finite and > 0")
+	if not errors.is_empty():
+		return {}
+
+	# --- salas ---------------------------------------------------------------
+	var by_id: Dictionary = {}
+	var ordered_ids: Array[String] = []
+	for raw_room in rooms:
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			errors.append("each room must be a dictionary")
+			continue
+		var room: Dictionary = raw_room
+		var room_id: String = String(room.get("room_id", ""))
+		if room_id.strip_edges().is_empty():
+			errors.append("each room needs a non-empty room_id")
+			continue
+		if room_id == EXTERIOR_ROOM_ID:
+			errors.append("'%s' is reserved for the exterior node" % EXTERIOR_ROOM_ID)
+			continue
+		if by_id.has(room_id):
+			errors.append("room '%s' is listed twice" % room_id)
+			continue
+		var checked: Dictionary = {"room_id": room_id}
+		for key in NETWORK_ROOM_KEYS:
+			if not room.has(key):
+				errors.append("room '%s' is missing '%s'" % [room_id, key])
+				continue
+			var value: float = float(room[key])
+			if not is_finite(value):
+				errors.append("room '%s' %s must be finite" % [room_id, key])
+				continue
+			checked[key] = value
+		if checked.size() != NETWORK_ROOM_KEYS.size() + 1:
+			continue
+		if float(checked["floor_area_m2"]) <= 0.0 or float(checked["height_m"]) <= 0.0:
+			errors.append("room '%s' needs floor_area_m2 and height_m > 0" % room_id)
+		if float(checked["upper_gas_kg"]) < 0.0 or float(checked["lower_gas_kg"]) < 0.0:
+			errors.append("room '%s' cannot hold negative mass" % room_id)
+		var volume_m3: float = float(checked["floor_area_m2"]) * float(checked["height_m"])
+		if room.has("volume_m3"):
+			var declared_volume: float = float(room["volume_m3"])
+			if not is_finite(declared_volume) or declared_volume <= 0.0 \
+					or absf(declared_volume - volume_m3) > 1.0e-9 * volume_m3:
+				errors.append("room '%s' volume_m3 must be floor_area_m2 * height_m" % room_id)
+			volume_m3 = declared_volume
+		checked["volume_m3"] = volume_m3
+		by_id[room_id] = checked
+		ordered_ids.append(room_id)
+	if ordered_ids.is_empty() and errors.is_empty():
+		errors.append("the network needs at least one room")
+	if not errors.is_empty():
+		return {}
+	ordered_ids.sort()
+
+	var index_by_id: Dictionary = {}
+	var historical_rooms: Dictionary = {}
+	var historical_sources: Dictionary = {}
+	var source_rates: Dictionary = {}
+	for position in range(ordered_ids.size()):
+		var room_id: String = ordered_ids[position]
+		index_by_id[room_id] = position
+		var room: Dictionary = by_id[room_id]
+		historical_rooms[str(position)] = {
+			"volume_m3": float(room["volume_m3"]),
+			"floor_area_m2": float(room["floor_area_m2"]),
+			"height_m": float(room["height_m"]),
+			"floor_z_m": float(room["floor_z_m"]),
+			"upper_gas_kg": float(room["upper_gas_kg"]),
+			"lower_gas_kg": float(room["lower_gas_kg"]),
+			"upper_energy_kj": float(room["upper_energy_kj"]),
+			"lower_energy_kj": float(room["lower_energy_kj"]),
+		}
+		var rates: Dictionary = {}
+		var declared_source: Variant = sources.get(room_id, {})
+		if typeof(declared_source) != TYPE_DICTIONARY:
+			errors.append("sources for room '%s' must be a dictionary" % room_id)
+			continue
+		var source_dict: Dictionary = declared_source
+		for key in NETWORK_SOURCE_KEYS:
+			var rate: float = float(source_dict.get(key, 0.0))
+			if not is_finite(rate):
+				errors.append("source '%s' of room '%s' must be finite" % [key, room_id])
+				rate = 0.0
+			rates[key] = rate
+		source_rates[room_id] = rates
+		# El nucleo historico recibe totales del paso; las tasas por zona se
+		# conservan para el estado candidato y para F2.2A.
+		historical_sources[str(position)] = {
+			"mass_kg": dt_s * (float(rates["upper_mass_kg_s"]) + float(rates["lower_mass_kg_s"])),
+			"energy_kj": dt_s * (float(rates["upper_enthalpy_kw"]) + float(rates["lower_enthalpy_kw"])),
+		}
+	for unknown_id in sources.keys():
+		if not by_id.has(String(unknown_id)):
+			errors.append("sources name unknown room '%s'" % unknown_id)
+	if not errors.is_empty():
+		return {}
+
+	# --- aberturas -----------------------------------------------------------
+	var opening_ids: Array[String] = []
+	var opening_by_id: Dictionary = {}
+	for raw_opening in openings:
+		if typeof(raw_opening) != TYPE_DICTIONARY:
+			errors.append("each opening must be a dictionary")
+			continue
+		var opening: Dictionary = raw_opening
+		var opening_id: String = String(opening.get("opening_id", ""))
+		if opening_id.strip_edges().is_empty():
+			errors.append("each opening needs a non-empty opening_id")
+			continue
+		if opening_by_id.has(opening_id):
+			errors.append("opening '%s' is listed twice" % opening_id)
+			continue
+		opening_by_id[opening_id] = opening
+		opening_ids.append(opening_id)
+	if not errors.is_empty():
+		return {}
+	opening_ids.sort()
+
+	var historical_openings: Array = []
+	var opening_index_by_id: Dictionary = {}
+	for position in range(opening_ids.size()):
+		var opening_id: String = opening_ids[position]
+		var opening: Dictionary = opening_by_id[opening_id]
+		opening_index_by_id[opening_id] = position
+		var room_a_id: String = String(opening.get("room_a_id", ""))
+		var room_b_id: String = String(opening.get("room_b_id", ""))
+		var a_exterior: bool = room_a_id == EXTERIOR_ROOM_ID
+		var b_exterior: bool = room_b_id == EXTERIOR_ROOM_ID
+		if a_exterior and b_exterior:
+			errors.append("opening '%s' cannot join the exterior to itself" % opening_id)
+			continue
+		if (not a_exterior and not by_id.has(room_a_id)) \
+				or (not b_exterior and not by_id.has(room_b_id)):
+			errors.append("opening '%s' names an unknown room" % opening_id)
+			continue
+		if room_a_id == room_b_id:
+			errors.append("opening '%s' joins a room to itself" % opening_id)
+			continue
+		var span: Dictionary = _network_opening_span(
+			opening, opening_id, room_a_id, room_b_id, a_exterior, b_exterior, by_id, errors
+		)
+		if span.is_empty():
+			continue
+		var width_m: float = float(opening.get("width_m", NAN))
+		var open_fraction: float = float(opening.get("open_fraction", NAN))
+		var discharge_coeff: float = float(opening.get("discharge_coeff", NAN))
+		if not is_finite(width_m) or width_m <= 0.0:
+			errors.append("opening '%s' needs width_m > 0" % opening_id)
+		if not is_finite(open_fraction) or open_fraction < 0.0 or open_fraction > 1.0:
+			errors.append("opening '%s' needs open_fraction in [0, 1]" % opening_id)
+		if not is_finite(discharge_coeff) or discharge_coeff <= 0.0:
+			errors.append("opening '%s' needs discharge_coeff > 0" % opening_id)
+		var wind_dp_pa: float = float(opening.get("wind_dp_pa", 0.0))
+		if not is_finite(wind_dp_pa):
+			errors.append("opening '%s' wind_dp_pa must be finite" % opening_id)
+			wind_dp_pa = 0.0
+		if wind_dp_pa != 0.0 and not a_exterior and not b_exterior:
+			errors.append("opening '%s' is interior and cannot carry wind" % opening_id)
+		historical_openings.append({
+			"opening_id": position,
+			"room_a_id": EXTERIOR_ID if a_exterior else int(index_by_id[room_a_id]),
+			"room_b_id": EXTERIOR_ID if b_exterior else int(index_by_id[room_b_id]),
+			"bottom_z_m": float(span["bottom_z_m"]),
+			"top_z_m": float(span["top_z_m"]),
+			"width_m": width_m,
+			"open_fraction": open_fraction,
+			"discharge_coeff": discharge_coeff,
+			"wind_dp_pa": wind_dp_pa,
+		})
+	if not errors.is_empty():
+		return {}
+
+	var historical_options: Dictionary = {
+		"exterior_pressure_abs_pa": exterior_pressure_abs_pa,
+		"exterior_temp_k": exterior_temp_k,
+	}
+	for key in ["max_iterations", "residual_tolerance", "dp_regularization_pa",
+			"jacobian_step_pa", "band_segments", "max_damping_halvings",
+			"pressure_tolerance_pa", "mass_tolerance_kg", "energy_tolerance_kj"]:
+		if options.has(key):
+			historical_options[key] = options[key]
+	return {
+		"rooms": historical_rooms,
+		"openings": historical_openings,
+		"sources": historical_sources,
+		"source_rates": source_rates,
+		"options": historical_options,
+		"reference_temp_c": reference_temp_k - 273.15,
+		"reference_temp_k": reference_temp_k,
+		"exterior_pressure_abs_pa": exterior_pressure_abs_pa,
+		"exterior_temp_k": exterior_temp_k,
+		"ordered_ids": ordered_ids,
+		"index_by_id": index_by_id,
+		"room_by_id": by_id,
+		"opening_ids": opening_ids,
+		"opening_index_by_id": opening_index_by_id,
+	}
+
+
+## Cota de una abertura. Se admite forma absoluta (`bottom_z_m`/`top_z_m`) o
+## local a la sala (`bottom_m`/`top_m` con `height_reference = "local"`), pero
+## NUNCA las dos a la vez: mezclarlas en silencio es exactamente el defecto que
+## esta convencion evita.
+func _network_opening_span(
+		opening: Dictionary,
+		opening_id: String,
+		room_a_id: String,
+		room_b_id: String,
+		a_exterior: bool,
+		b_exterior: bool,
+		room_by_id: Dictionary,
+		errors: Array[String]
+	) -> Dictionary:
+	var has_absolute: bool = opening.has("bottom_z_m") or opening.has("top_z_m")
+	var has_local: bool = opening.has("bottom_m") or opening.has("top_m")
+	if has_absolute and has_local:
+		errors.append("opening '%s' mixes absolute and local heights" % opening_id)
+		return {}
+	var declared_reference: String = String(opening.get("height_reference", ""))
+	if has_absolute and declared_reference == "local":
+		errors.append("opening '%s' declares local heights but gives absolute keys" % opening_id)
+		return {}
+	if has_local and declared_reference != "local":
+		errors.append("opening '%s' must declare height_reference = \"local\"" % opening_id)
+		return {}
+	if not has_absolute and not has_local:
+		errors.append("opening '%s' needs a vertical span" % opening_id)
+		return {}
+	var bottom_m: float = float(opening.get("bottom_z_m", opening.get("bottom_m", NAN)))
+	var top_m: float = float(opening.get("top_z_m", opening.get("top_m", NAN)))
+	if not is_finite(bottom_m) or not is_finite(top_m) or top_m <= bottom_m:
+		errors.append("opening '%s' needs a finite span with top above bottom" % opening_id)
+		return {}
+	if has_local:
+		# Una cota local solo es univoca si las dos salas tienen el mismo suelo.
+		var floor_a_z_m: float = 0.0
+		var floor_b_z_m: float = 0.0
+		if not a_exterior:
+			floor_a_z_m = float(room_by_id[room_a_id]["floor_z_m"])
+		if not b_exterior:
+			floor_b_z_m = float(room_by_id[room_b_id]["floor_z_m"])
+		if a_exterior:
+			floor_a_z_m = floor_b_z_m
+		if b_exterior:
+			floor_b_z_m = floor_a_z_m
+		if absf(floor_a_z_m - floor_b_z_m) > 1.0e-9:
+			errors.append(
+				"opening '%s' uses local heights between floors at different levels" % opening_id
+			)
+			return {}
+		bottom_m += floor_a_z_m
+		top_m += floor_a_z_m
+	return {"bottom_z_m": bottom_m, "top_z_m": top_m}
+
+
+## Cierre del punto fijo: estado candidato por zona, veredicto de F2.2A y
+## criterios de convergencia. Todo sale de la MISMA evaluacion aceptada.
+func _finish_network(
+		result: Dictionary,
+		prepared: Dictionary,
+		context: Dictionary,
+		evaluation: Dictionary,
+		pressure: Array,
+		dt_s: float,
+		solved: Dictionary
+	) -> Dictionary:
+	var equations = CompartmentPressureEquationsScript
+	var outside_state: Dictionary = {
+		"pressure_abs_pa": float(prepared["exterior_pressure_abs_pa"]),
+		"temp_k": float(prepared["exterior_temp_k"]),
+		"reference_temp_k": float(prepared["reference_temp_k"]),
+	}
+	var zone_flux_by_room: Dictionary = evaluation["zone_flux_by_room"]
+	var flux_by_room: Dictionary = _network_flux_by_room(prepared, context, evaluation, dt_s)
+
+	var rooms_out: Array = []
+	var max_mass_residual_kg: float = 0.0
+	var max_energy_residual_kj: float = 0.0
+	var max_pressure_residual_pa: float = 0.0
+	var all_valid: bool = true
+	var errors: Array[String] = []
+	for room_id in prepared["ordered_ids"]:
+		var index: int = int(prepared["index_by_id"][room_id])
+		var room_key: String = str(index)
+		var source: Dictionary = prepared["source_rates"][room_id]
+		var previous: Dictionary = prepared["room_by_id"][room_id]
+		var zone_flux: Dictionary = zone_flux_by_room.get(room_key, {})
+		var gauge_pressure_pa: float = float(pressure[index])
+		var candidate: Dictionary = {
+			"room_id": room_id,
+			"floor_z_m": float(previous["floor_z_m"]),
+			"height_m": float(previous["height_m"]),
+			"floor_area_m2": float(previous["floor_area_m2"]),
+			"gauge_pressure_pa": gauge_pressure_pa,
+		}
+		for zone in [ZONE_UPPER, ZONE_LOWER]:
+			var entry: Dictionary = zone_flux.get(zone, {"mass_kg": 0.0, "energy_kj": 0.0})
+			candidate["%s_gas_kg" % zone] = float(previous["%s_gas_kg" % zone]) \
+					+ dt_s * float(source["%s_mass_kg_s" % zone]) + float(entry["mass_kg"])
+			candidate["%s_energy_kj" % zone] = float(previous["%s_energy_kj" % zone]) \
+					+ dt_s * float(source["%s_enthalpy_kw" % zone]) + float(entry["energy_kj"])
+		var previous_state: Dictionary = {
+			"room_id": room_id,
+			"floor_z_m": float(previous["floor_z_m"]),
+			"height_m": float(previous["height_m"]),
+			"floor_area_m2": float(previous["floor_area_m2"]),
+			"upper_gas_kg": float(previous["upper_gas_kg"]),
+			"lower_gas_kg": float(previous["lower_gas_kg"]),
+			"upper_energy_kj": float(previous["upper_energy_kj"]),
+			"lower_energy_kj": float(previous["lower_energy_kj"]),
+		}
+		# F2.2A manda: si rechaza el candidato, el solver no lo acepta.
+		var verdict: Dictionary = equations.evaluate_compartment_residual(
+			previous_state, candidate, source, flux_by_room.get(room_id, []),
+			outside_state, dt_s
+		)
+		var room_out: Dictionary = {
+			"room_id": room_id,
+			"reference_z_m": float(previous["floor_z_m"]),
+			"gauge_pressure_pa": gauge_pressure_pa,
+			"pressure_abs_pa": float(prepared["exterior_pressure_abs_pa"]) + gauge_pressure_pa,
+			"candidate_upper_gas_kg": float(candidate["upper_gas_kg"]),
+			"candidate_lower_gas_kg": float(candidate["lower_gas_kg"]),
+			"candidate_upper_energy_kj": float(candidate["upper_energy_kj"]),
+			"candidate_lower_energy_kj": float(candidate["lower_energy_kj"]),
+			"net_mass_kg_s": float(evaluation["net_mass_by_room"].get(room_key, 0.0)) / dt_s,
+			"net_enthalpy_kw": float(evaluation["net_energy_by_room"].get(room_key, 0.0)) / dt_s,
+			"equations_valid": bool(verdict["valid"]),
+			"equations_errors": verdict["errors"],
+			"pressure_profile": verdict["pressure_profile"],
+			"mass_residual_kg": float(verdict["mass_residual_kg"]),
+			"energy_residual_kj": float(verdict["energy_residual_kj"]),
+			"pressure_residual_pa": float(verdict["pressure_residual_pa"]),
+			"diagnostics": verdict["diagnostics"],
+		}
+		if not bool(verdict["valid"]):
+			all_valid = false
+			errors.append("room '%s' rejected by the compartment equations: %s" % [
+				room_id, str(verdict["errors"])
+			])
+		else:
+			max_mass_residual_kg = maxf(max_mass_residual_kg, absf(float(verdict["mass_residual_kg"])))
+			max_energy_residual_kj = maxf(
+				max_energy_residual_kj, absf(float(verdict["energy_residual_kj"]))
+			)
+			max_pressure_residual_pa = maxf(
+				max_pressure_residual_pa, absf(float(verdict["pressure_residual_pa"]))
+			)
+		rooms_out.append(room_out)
+
+	result["rooms"] = rooms_out
+	result["openings"] = _network_openings(prepared, context, evaluation, dt_s)
+	result["max_mass_residual_kg"] = max_mass_residual_kg
+	result["max_energy_residual_kj"] = max_energy_residual_kj
+	result["max_pressure_residual_pa"] = max_pressure_residual_pa
+	result["errors"] = errors
+
+	var options: Dictionary = prepared["options"]
+	var pressure_tolerance_pa: float = float(options.get(
+		"pressure_tolerance_pa", DEFAULT_PRESSURE_TOLERANCE_PA))
+	var mass_tolerance_kg: float = float(options.get(
+		"mass_tolerance_kg", DEFAULT_MASS_TOLERANCE_KG))
+	var energy_tolerance_kj: float = float(options.get(
+		"energy_tolerance_kj", DEFAULT_ENERGY_TOLERANCE_KJ))
+
+	# Convergencia fisica: todos los criterios a la vez. Agotar iteraciones,
+	# bajar el residuo o dar un paso pequeño no bastan por si solos.
+	var unclassified: float = float(solved.get("zonal_unclassified_interior_band_count", 0.0))
+	var reasons: Array[String] = []
+	if not all_valid:
+		reasons.append("compartment_equations_rejected_candidate")
+	if max_pressure_residual_pa > pressure_tolerance_pa:
+		reasons.append("pressure_closure_above_tolerance")
+	if max_mass_residual_kg > mass_tolerance_kg:
+		reasons.append("mass_residual_above_tolerance")
+	if max_energy_residual_kj > energy_tolerance_kj:
+		reasons.append("energy_residual_above_tolerance")
+	if unclassified > 0.0:
+		reasons.append("unclassified_interior_band")
+	# El criterio de presion es el cambio que TODAVIA se debe, no el tamano del
+	# ultimo paso aceptado: un paso de Newton puede ser grande y aterrizar justo
+	# en la solucion. Ese cambio pendiente es exactamente el cierre de F2.2A en
+	# Pa, ya comprobado arriba. El historial de cambios se publica como
+	# diagnostico.
+	result["owed_pressure_change_pa"] = max_pressure_residual_pa
+	if reasons.is_empty():
+		result["valid"] = true
+		result["converged"] = true
+		result["failure_reason"] = ""
+		result["failure_code"] = FAILURE_NONE
+	else:
+		result["valid"] = false
+		result["converged"] = false
+		result["failure_reason"] = reasons[0]
+		result["failure_code"] = FAILURE_NOT_CONVERGED
+		for reason in reasons:
+			result["errors"].append(reason)
+	return result
+
+
+## Flujos por abertura y zona, en tasas, tal como los consume F2.2A.
+func _network_flux_by_room(
+		prepared: Dictionary,
+		context: Dictionary,
+		evaluation: Dictionary,
+		dt_s: float
+	) -> Dictionary:
+	var by_room: Dictionary = {}
+	var id_by_index: Dictionary = {}
+	for room_id in prepared["ordered_ids"]:
+		id_by_index[int(prepared["index_by_id"][room_id])] = room_id
+		by_room[room_id] = []
+	var opening_id_by_index: Dictionary = {}
+	for opening_id in prepared["opening_ids"]:
+		opening_id_by_index[int(prepared["opening_index_by_id"][opening_id])] = opening_id
+	for raw_connection in evaluation["connections"]:
+		var connection: Dictionary = raw_connection
+		var opening_label: String = String(opening_id_by_index.get(
+			int(connection["opening_id"]), str(connection["opening_id"])
+		))
+		var totals: Dictionary = {}
+		for raw_segment in connection.get("segments", []):
+			var segment: Dictionary = raw_segment
+			for side in ["source", "destination"]:
+				var side_letter: String = String(segment["%s_side" % side])
+				var zone: String = String(segment["%s_zone" % side])
+				if zone.is_empty():
+					continue
+				var room_index: int = int(connection["room_a_id"]) if side_letter == "a" \
+						else int(connection["room_b_id"])
+				if not id_by_index.has(room_index):
+					continue
+				var sign: float = 1.0 if side == "destination" else -1.0
+				var key: String = "%s|%d|%s" % [opening_label, room_index, zone]
+				var entry: Dictionary = totals.get(key, {
+					"room_index": room_index, "zone": zone,
+					"mass_kg": 0.0, "energy_kj": 0.0,
+				})
+				entry["mass_kg"] = float(entry["mass_kg"]) + sign * float(segment["mass_kg"])
+				entry["energy_kj"] = float(entry["energy_kj"]) + sign * float(segment["enthalpy_kj"])
+				totals[key] = entry
+		var keys: Array = totals.keys()
+		keys.sort()
+		for key in keys:
+			var entry: Dictionary = totals[key]
+			var room_id: String = String(id_by_index[int(entry["room_index"])])
+			by_room[room_id].append({
+				"opening_id": opening_label,
+				"segment_id": String(entry["zone"]),
+				"zone": String(entry["zone"]),
+				"mass_flow_kg_s": float(entry["mass_kg"]) / dt_s,
+				"enthalpy_flow_kw": float(entry["energy_kj"]) / dt_s,
+			})
+	return by_room
+
+
+## Salida canonica por abertura y por segmento, con identificadores del
+## llamante y no con los indices internos.
+func _network_openings(
+		prepared: Dictionary,
+		context: Dictionary,
+		evaluation: Dictionary,
+		dt_s: float
+	) -> Array:
+	var id_by_index: Dictionary = {}
+	for room_id in prepared["ordered_ids"]:
+		id_by_index[int(prepared["index_by_id"][room_id])] = room_id
+	var opening_id_by_index: Dictionary = {}
+	for opening_id in prepared["opening_ids"]:
+		opening_id_by_index[int(prepared["opening_index_by_id"][opening_id])] = opening_id
+	var openings_out: Array = []
+	for raw_connection in evaluation["connections"]:
+		var connection: Dictionary = raw_connection
+		var room_a_id: String = String(id_by_index.get(
+			int(connection["room_a_id"]), EXTERIOR_ROOM_ID))
+		var room_b_id: String = String(id_by_index.get(
+			int(connection["room_b_id"]), EXTERIOR_ROOM_ID))
+		var segments_out: Array = []
+		for raw_segment in connection.get("segments", []):
+			var segment: Dictionary = raw_segment
+			var source_is_a: bool = String(segment["source_side"]) == "a"
+			segments_out.append({
+				"segment_id": String(segment["segment_id"]),
+				"z_from_m": float(segment["z_from_m"]),
+				"z_to_m": float(segment["z_to_m"]),
+				"sample_z_m": float(segment["sample_z_m"]),
+				"dp_pa": float(segment["dp_pa"]),
+				"direction": String(segment["direction"]),
+				"source_room_id": room_a_id if source_is_a else room_b_id,
+				"source_zone": String(segment["source_zone"]),
+				"destination_room_id": room_b_id if source_is_a else room_a_id,
+				"destination_zone": String(segment["destination_zone"]),
+				"source_density_kg_m3": float(segment["source_density_kg_m3"]),
+				"mass_flow_kg_s": float(segment["mass_kg"]) / dt_s,
+				"enthalpy_flow_kw": float(segment["enthalpy_kj"]) / dt_s,
+				"regularized": bool(segment["regularized"]),
+			})
+		openings_out.append({
+			"opening_id": String(opening_id_by_index.get(
+				int(connection["opening_id"]), str(connection["opening_id"]))),
+			"room_a_id": room_a_id,
+			"room_b_id": room_b_id,
+			"neutral_plane_z_m": float(connection["neutral_plane_m"]),
+			"neutral_plane_inside": bool(connection["neutral_plane_inside"]),
+			"net_mass_kg_s": float(connection["net_mass_a_to_b_kg"]) / dt_s,
+			"wind_dp_pa": float(connection.get("exterior_gauge_pa", 0.0)),
+			"segments": segments_out,
+		})
+	return openings_out

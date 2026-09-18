@@ -525,9 +525,13 @@ func _test_malformed_input_fails_closed(solver) -> void:
 func _test_negative_inventory_fails_closed(solver) -> void:
 	for state in [
 		_room(60.0, 20.0, 3.0, -1.0, 0.0, 0.0, 0.0),
-		_room(60.0, 20.0, 3.0, 72.0, -5.0, 0.0, 0.0),
+		# F2.2B: what is rejected is a non-physical state, never the sign of the
+		# sensible energy. 72 kg at -72 * 293.15 kJ would sit at 0 K.
+		_room(60.0, 20.0, 3.0, 72.0, -72.0 * (AMBIENT_C + 273.15), 0.0, 0.0),
+		_room(60.0, 20.0, 3.0, 72.0, -72.0 * (AMBIENT_C + 273.15 + 10.0), 0.0, 0.0),
 		# a zone holding energy but no mass has no defined temperature
 		_two_layer_room(60.0, 20.0, 3.0, 0.0, 100.0, 72.0, 0.0),
+		_two_layer_room(60.0, 20.0, 3.0, 0.0, -100.0, 72.0, 0.0),
 		# an empty room has no EOS at all
 		_room(60.0, 20.0, 3.0, 0.0, 0.0, 0.0, 0.0),
 	]:
@@ -539,6 +543,16 @@ func _test_negative_inventory_fails_closed(solver) -> void:
 			float(result["failure_code"]), 2.0,
 			"invalid inventory reports the room-state code"
 		)
+	# A room colder than ambient holds NEGATIVE sensible energy and is valid:
+	# it is exactly how an under-pressure compartment is represented.
+	var cold: Dictionary = solver.solve_coupled_pressure(
+		{"0": _room(60.0, 20.0, 3.0, 72.0, -5.0, 0.0, 0.0)}, [], {}, 0.1, AMBIENT_C
+	)
+	_assert_true(bool(cold["valid"]), "a compartment below ambient stays valid")
+	_assert_true(
+		float(cold["gauge_pressure_by_room"]["0"]) < 0.0,
+		"a compartment below ambient reports a negative gauge pressure"
+	)
 
 
 func _test_degenerate_geometry_fails_closed(solver) -> void:

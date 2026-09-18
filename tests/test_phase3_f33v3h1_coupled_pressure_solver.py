@@ -94,7 +94,6 @@ def test_solver_never_reaches_engine_or_model_types():
         "BuildingModel",
         "SimulationEngine",
         "Phase3ZoneMassSystem",
-        "preload(",
         "get_room",
         "_snapshots",
         "_persistent",
@@ -102,6 +101,11 @@ def test_solver_never_reaches_engine_or_model_types():
         "make_atomic_bundle",
     ):
         assert forbidden not in SOLVER_CODE, forbidden
+    # F2.2B: the ONLY thing the solver may load is the pure compartment
+    # equations, which are its authoritative evaluator.
+    assert SOLVER_CODE.count("preload(") == 1
+    assert "CompartmentPressureEquationsScript = preload(" in SOLVER_CODE
+    assert '"res://sim/core/CompartmentPressureEquations.gd"' in SOLVER_CODE
 
 
 def test_solver_is_side_effect_free():
@@ -290,7 +294,13 @@ def test_invalid_geometry_and_inventory_fail_closed():
     assert "upper_gas_kg < 0.0 or lower_gas_kg < 0.0" in body
     assert "total_mass_kg <= MASS_EPS_KG" in body
     # a zone with energy but no mass has no defined temperature
-    assert "upper_gas_kg <= MASS_EPS_KG and upper_energy_kj > 0.0" in body
+    assert "upper_gas_kg <= MASS_EPS_KG and absf(upper_energy_kj) > 0.0" in body
+    # F2.2B: the sensible energy of a zone may be negative, because it is
+    # measured from the reference temperature. What is rejected is a
+    # non-physical state, never the sign.
+    assert "upper_energy_kj < 0.0 or lower_energy_kj < 0.0" not in body
+    assert "upper_temp_k <= 0.0 or lower_temp_k <= 0.0" in body
+    assert "pressure_abs_pa) or pressure_abs_pa <= 0.0" in body
 
 
 def test_invalid_opening_fails_closed_and_shut_opening_is_skipped():

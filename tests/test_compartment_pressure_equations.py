@@ -40,6 +40,12 @@ ALLOWED_REFERENCES = {
     Path("tools/validate_compartment_pressure_equations.gd.uid"),
     Path("scripts/check_product.py"),
     Path("tests/test_compartment_pressure_equations.py"),
+    # F2.2B loads the equations as its authoritative evaluator. That is a pure
+    # model calling a pure model, not engine integration.
+    Path("sim/core/Phase3CoupledPressureSolver.gd"),
+    Path("tools/validate_pressure_network_solver.gd"),
+    Path("tests/test_pressure_network_solver.py"),
+    Path("tests/test_phase3_f33v3h1_coupled_pressure_solver.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

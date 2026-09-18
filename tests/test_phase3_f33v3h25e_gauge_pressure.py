@@ -69,8 +69,12 @@ def test_evaluate_reads_the_reference_from_the_context():
 def test_opening_difference_is_a_direct_gauge_subtraction():
     body = _function("_evaluate")
     # the exterior side is exactly zero in gauge, never the ambient constant
-    assert "float(pressure[index_a]) if index_a >= 0 else 0.0" in body
-    assert "float(pressure[index_b]) if index_b >= 0 else 0.0" in body
+    # F2.2B: the exterior node is still gauge zero; it only carries the wind
+    # offset of this opening when it has one.
+    assert "float(pressure[index_a]) if index_a >= 0" in body
+    assert 'var exterior_gauge_pa: float = float(opening.get("exterior_gauge_pa", 0.0))' in body
+    assert "float(pressure[index_b]) if index_b >= 0" in body
+    assert "else exterior_gauge_pa" in body
     assert "pressure_a_pa - pressure_b_pa," in body
 
 

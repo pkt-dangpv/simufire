@@ -9,7 +9,11 @@
 > - **No hay código nuevo**: no se ha tocado `sim/`, ni el editor, ni los
 >   escenarios, ni los casos, ni las tolerancias, ni la clasificación de huecos.
 > - **F2.2A implementada el 2026-09-18** (§14.1): `sim/core/CompartmentPressureEquations.gd`,
->   modelo puro **sin integrar**. **F2.2B, F2.2C y F2.2D siguen sin implementar** (§19).
+>   modelo puro **sin integrar**.
+> - **F2.2B cerrada el 2026-09-18** (§15.2): **promueve** el solver puro que ya
+>   existía, `sim/core/Phase3CoupledPressureSolver.gd`, con la entrada canónica
+>   `solve_pressure_network`. **Sigue sin integrar**: nadie aplica su resultado.
+> - **F2.2C y F2.2D siguen sin implementar** (§19).
 > - Los modelos puros de las fases 1, 2, 3A y 3B siguen **sin integrar**, y no
 >   pueden integrarse antes de F2.2 (§15).
 
@@ -22,7 +26,7 @@
 | Procesos Godot al empezar | 0 |
 | Fases cerradas | 1 (fuga pura), 2 (deformación prescrita), 3A (integridad de vidrio), 3B (geometría multicapa) |
 | Fase de este documento | F2.2-DIAG (diagnóstico y diseño), cerrada el 2026-09-18 |
-| Implementación en marcha | F2.2A cerrada el 2026-09-18, sin integrar (§14.1) |
+| Implementación en marcha | F2.2A y F2.2B cerradas el 2026-09-18, ambas sin integrar (§14.1 y §15.2) |
 | Mediciones nuevas | 22 corridas headless bajo `runs/pressure_f2_2_20260917/` (sin versionar) |
 | Fuente nueva | NIST TN 1889v2 (guía de usuario de CFAST) |
 
@@ -802,6 +806,197 @@ presión "ya resuelta" antes de que existan los caudales que la sostienen.
 - La convergencia se declara con un residuo de masa por recinto, no por número
   de iteraciones.
 
+### 15.2 Implementación: promoción del solver existente (2026-09-18)
+
+**No hay un segundo solver.** El nombre conceptual de la etapa sigue siendo
+`PressureOpeningNetworkSolver`, pero la implementación promovida **conserva el
+nombre histórico** `sim/core/Phase3CoupledPressureSolver.gd` y su
+`class_name Phase3CoupledPressureSolver`, para no romper la evidencia y los
+tests de la fase 3. `PressureOpeningNetworkSolver.gd` **no existe** y un test lo
+comprueba.
+
+#### Dos entradas, un solo núcleo
+
+| Entrada | Quién la usa | Qué hace |
+| --- | --- | --- |
+| `solve_coupled_pressure(rooms, openings, sources, dt, reference_temp_c, options)` | Envoltura **histórica** de la maquinaria de sombra de la fase 3 | Marco de una sola planta: suelos en 0, exterior a la temperatura de referencia, sin viento. Sin cambios de comportamiento |
+| `solve_pressure_network(rooms, openings, outside, sources, dt_s, options)` | Entrada **canónica** de F2.2B | Identificadores de texto, cota absoluta, exterior con temperatura y viento, fuentes por zona en tasas, salida por segmentos y estado candidato |
+
+La canónica **delega en la histórica**: mismas ecuaciones, mismo Jacobiano,
+misma ley de flujo, misma integración por bandas. Está prohibido duplicarlas y
+un test cuenta que cada función del núcleo aparece una sola vez.
+
+#### F2.2A es el evaluador autoritativo
+
+El solver carga `sim/core/CompartmentPressureEquations.gd` (su **único**
+`preload`) y somete a F2.2A el estado candidato de **cada recinto** antes de
+aceptar el resultado y antes de declarar convergencia. Los residuos que publica
+son los que devuelve F2.2A, no una copia privada. Si F2.2A rechaza un
+candidato, el resultado sale con `valid = false`,
+`failure_reason = "compartment_equations_rejected_candidate"` y el error
+concreto. El aritmética interna del solver (residuo de la EOS para el Jacobiano)
+se conserva porque es la misma ecuación afín: quien manda al final es F2.2A.
+
+#### Energía sensible negativa
+
+Criterio unificado con F2.2A. La energía de zona es **sensible y relativa a la
+temperatura de referencia**, así que puede ser negativa. Se acepta si y solo si
+la masa de la zona es positiva, `T_z = T_ref + E_z /(m_z·c_p)` es finita y mayor
+que 0 K, la presión absoluta es finita y positiva, los volúmenes derivados
+cierran el volumen del recinto, no hay masa negativa y ninguna zona sin masa
+tiene energía. **Nunca** se recorta, ni se toma el valor absoluto, ni se rechaza
+por el signo. El fixture histórico que exigía "energía negativa siempre
+inválida" se sustituyó por este contrato, añadiendo el caso positivo de una sala
+por debajo del ambiente con presión manométrica negativa.
+
+`Phase3ResidualProjection.gd` mantiene su propio criterio antiguo: queda fuera
+del alcance de F2.2B y anotado como decisión para F2.2C.
+
+#### Convención vertical
+
+- La presión de referencia de cada recinto vive en su **suelo** (`floor_z_m`).
+- Los perfiles y las aberturas se expresan en **cota absoluta** del edificio.
+- Una abertura declara `bottom_z_m`/`top_z_m` (absoluta) **o**
+  `bottom_m`/`top_m` con `height_reference = "local"`. Mezclar las dos formas se
+  **rechaza**, y una cota local entre recintos con suelos distintos también,
+  porque sería ambigua.
+- La columna hidrostática de cada lado se integra desde su propio suelo; el
+  exterior se integra desde el suelo del recinto al que da, que es donde está
+  definida su presión manométrica. Con todos los suelos en 0 esto reproduce la
+  fórmula histórica **byte a byte**.
+- Trasladar el edificio entero en vertical no cambia ningún caudal (probado).
+
+#### Exterior y viento
+
+El exterior es un **nodo de presión impuesta**, no una sala: aporta
+`pressure_abs_pa`, `temp_k` y, por abertura, `wind_dp_pa`. Su densidad sale de
+su propia temperatura y la entalpía sensible que transporta el aire que entra es
+`c_p·(T_ext − T_ref)`, que solo vale 0 cuando el exterior está a la temperatura
+de referencia. El viento es el desplazamiento manométrico del nodo exterior de
+**esa** abertura y se aplica **una sola vez**; una abertura interior con viento
+se rechaza. **Todavía no se conecta al viento del motor**: es interfaz pura.
+
+#### Criterios de convergencia
+
+Se declara convergencia solo si se cumplen **todos** a la vez:
+
+- el núcleo de Newton convergió (residuo normalizado bajo su tolerancia);
+- F2.2A acepta el estado candidato de **todos** los recintos;
+- cierre de presión de F2.2A ≤ `pressure_tolerance_pa` (1e-6 Pa por defecto);
+- residuo de masa ≤ `mass_tolerance_kg` (1e-9 kg);
+- residuo de energía ≤ `energy_tolerance_kj` (1e-6 kJ);
+- ninguna banda interior queda sin clasificar por zonas.
+
+El criterio de presión es el **cambio que todavía se debe**, que es exactamente
+el cierre de F2.2A en Pa; el tamaño del último paso aceptado se publica como
+diagnóstico (`pressure_change_history_pa`, `max_pressure_change_pa`) porque un
+paso de Newton puede ser grande y aterrizar justo en la solución. Agotar
+iteraciones, bajar el residuo o producir un candidato finito **no** son
+convergencia: el resultado sale con `converged = false` y un `failure_reason`
+visible, y nunca se aplica nada.
+
+#### Resultado canónico
+
+Por red: `valid`, `errors`, `converged`, `failure_reason`, `failure_code`,
+`solver_limiting_reason`, `iterations`, `residual_history`,
+`pressure_change_history_pa`, `max_pressure_change_pa`, `max_mass_residual_kg`,
+`max_energy_residual_kj`, `max_pressure_residual_pa` y
+`owed_pressure_change_pa`.
+
+Por recinto: `room_id`, `reference_z_m`, `gauge_pressure_pa`, `pressure_abs_pa`,
+`pressure_profile`, `candidate_upper_gas_kg`, `candidate_lower_gas_kg`,
+`candidate_upper_energy_kj`, `candidate_lower_energy_kj`, `net_mass_kg_s`,
+`net_enthalpy_kw`, `mass_residual_kg`, `energy_residual_kj`,
+`pressure_residual_pa`, `equations_valid`, `equations_errors` y el
+`diagnostics` de F2.2A.
+
+Por abertura: `opening_id`, `room_a_id`, `room_b_id`, `neutral_plane_z_m`,
+`neutral_plane_inside`, `net_mass_kg_s`, `wind_dp_pa` y sus segmentos.
+
+Por segmento: `segment_id`, `z_from_m`, `z_to_m`, `sample_z_m`, `dp_pa`,
+`direction`, `source_room_id`, `source_zone`, `destination_room_id`,
+`destination_zone`, `source_density_kg_m3`, `mass_flow_kg_s`,
+`enthalpy_flow_kw` y `regularized`. F2.2C no tendrá que reconstruir el
+transporte por zonas: ya viene resuelto.
+
+#### Estado candidato
+
+Se construye de forma conservativa, zona a zona:
+`m_z' = m_z + dt·fuente_z + entradas − salidas`, y lo mismo con la energía. Lo
+que sale de un recinto entra exactamente en el otro, no hay ninguna purga por
+fracción de hollín, y **humo, O₂ y especies no viajan todavía** en F2.2B.
+
+#### Comparación con la sombra, antes y después
+
+| Corpus | Resultado |
+| --- | --- |
+| 18 casos del solver histórico (6 capturas reales incluidas), volcado canónico | **byte a byte idéntico** (`2fbc21ef…`) antes y después de la promoción |
+| 13 fixtures `phase3_f33v3h*` ejecutados uno a uno en Godot headless | 13/13 PASS antes; 13/13 PASS después |
+| 308 tests Python del solver histórico | 308/308, con los asserts estructurales actualizados a la grafía absoluta |
+
+Las únicas diferencias documentadas son de **contrato**, no numéricas: el
+fixture y el test que exigían rechazar la energía negativa por su signo ahora
+exigen el contrato físico, y los asserts que fijaban `interface_m` ahora fijan
+`interface_z_m`.
+
+#### Pruebas de F2.2B
+
+`tools/validate_pressure_network_solver.gd`, registrado en `check_product.py`,
+con 16 grupos y 487 comprobaciones: equilibrio sellado, enfriamiento
+(−6 912,84 Pa), calentamiento simétrico, fuga exterior en los dos sentidos, dos
+recintos con conservación global, contraflujo con plano neutro interior, dos
+plantas con traslación vertical, viento, independencia del orden, once modos de
+fallo explícito, independencia del paso recorriendo el mismo intervalo con 1, 2
+y 4 pasos, comparación con la entrada histórica, reevaluación independiente con
+F2.2A y estados de referencia, incluido un **estado capturado** de
+`cfast_two_room_door_open` (R0 a 360 s). Eso último es una reproducción **de
+estado**, no de la curva temporal del caso.
+
+`tests/test_pressure_network_solver.py` fija el contrato estático: un solo
+solver, F2.2A como autoridad, criterios de convergencia, energía negativa,
+convención vertical, exterior y viento, transporte por segmentos, estado
+candidato conservativo y **no integración**.
+
+#### Mutaciones de F2.2B
+
+**25 mutaciones, 24 muertas** por fallos funcionales (arnés local sin versionar
+en `runs/f22b_20260918/mutate_solver.py`, que ejecuta el validador de F2.2B, el
+de F2.2A y los tests estáticos):
+
+| Mutación | Muere por |
+| --- | --- |
+| P01 presión manométrica publicada recortada a cero | 02 el enfriamiento sellado deja de cerrar |
+| P02 energía negativa rechazada por el signo | 02 el recinto frío deja de converger |
+| P03 exterior siempre a la temperatura de referencia | contrato estático del exterior |
+| P04 ΔP invertido | 04 la fuga deja de aliviar la presión |
+| P05 densidad del destino en vez de la del origen | 06 la densidad aguas arriba |
+| P06 entalpía sin signo | 04 el residuo de energía se dispara |
+| P07 kW tratados como kJ | 09 el cierre de presión se rompe |
+| P08 `dt` omitido en la fuente de masa | 09 el cierre de presión se rompe |
+| P09 masa debitada sin crédito | 04 el cierre de presión se rompe |
+| P10 energía debitada sin crédito | 04 el cierre de presión se rompe |
+| P11 viento sumado dos veces | 08 el interior nunca supera la presión del viento |
+| P12 cotas locales y absolutas mezcladas en silencio | 07 el motivo exacto del rechazo |
+| P13 cotas locales entre plantas distintas aceptadas | 07 cotas locales entre plantas |
+| P14 el datum se ignora en la columna hidrostática | 07 trasladar el edificio cambia los caudales |
+| P15 plano neutro fijado en el suelo | 06 el plano neutro a una altura razonable |
+| P16 bandas sin partir en las interfaces | 11 independencia del paso |
+| P17 convergencia declarada solo por iteraciones | 10b la puerta con tolerancia cero |
+| P18 residuo de energía ignorado | 10b tolerancia de energía cero |
+| P19 residuo de masa ignorado | 10b tolerancia de masa cero |
+| P20 no se consulta a F2.2A | 15 el solver pregunta a F2.2A |
+| P21 un caudal alterado después del solve | 04 el residuo de masa lo denuncia |
+| P22 el orden de las aberturas no se normaliza | test estructural de orden |
+| P24 temperatura ≤ 0 K aceptada | contrato estático de energía negativa |
+| P25 las ecuaciones igualan la densidad de las dos capas | 06 la pendiente superior (validador de F2.2A) |
+
+**P23 sobrevive y se declara como tal**: quita la guarda que rechaza un
+*iterante* de Newton cuya presión absoluta sería ≤ 0. Con masas no negativas y
+temperaturas positivas, la EOS nunca produce un estado así, y F2.2A rechaza
+igualmente cualquier candidato con presión absoluta no positiva, de modo que el
+corpus actual no puede alcanzarla. La guarda se conserva por defensiva, y aquí
+queda dicho que ninguna prueba la mata.
+
 ### 15.1 Unidades del solver
 
 | Magnitud | Unidad | Dónde |
@@ -868,7 +1063,7 @@ o de **tasa en kW**.
 | Etapa | Contenido | Entregable | Requisito previo |
 | --- | --- | --- | --- |
 | **F2.2A** ✅ **hecha el 2026-09-18, sin integrar** | Evaluador puro de ecuaciones locales y residuos (§14, §14.1) | `sim/core/CompartmentPressureEquations.gd`, `tools/validate_compartment_pressure_equations.gd`, `tests/test_compartment_pressure_equations.py`, 19/19 mutaciones | F2.2-DIAG (este documento) |
-| **F2.2B** | Solver puro acoplado de red, dueño de la iteración (§15) | `sim/core/PressureOpeningNetworkSolver.gd`, validador con red de 1, 2 y N recintos | F2.2A |
+| **F2.2B** ✅ **hecha el 2026-09-18, sin integrar** | Solver puro acoplado de red, dueño de la iteración (§15, §15.2) | `sim/core/Phase3CoupledPressureSolver.gd` **promovido** (entrada `solve_pressure_network`), `tools/validate_pressure_network_solver.gd`, `tests/test_pressure_network_solver.py`, 25 mutaciones | F2.2A |
 | **F2.2C** | Integración tras interruptor, un solo aplicador | Cambios en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` | F2.2A+B en verde y comparación de sombra |
 | **F2.2D** | Conexión de fuga (fase 1), deformación (fase 2) y vidrio (fase 3B) como fuentes de área | Adaptadores puros | F2.2C con la suite de referencia estable |
 
@@ -977,14 +1172,17 @@ Decisiones que necesitan autorización antes de programar:
    siete rutas físicas de §4.3; las de sombra y observación solo leen).
 6. ~~Vector de incógnitas de F2.2B~~ **decidido el 2026-09-18**: opción A,
    una presión manométrica de referencia por recinto (§13.1).
-7. **Energía de zona negativa**: `Phase3CoupledPressureSolver` la rechaza y
-   F2.2A la admite (§13.1). Hay que unificar el criterio antes de que F2.2B
-   consuma el estado canónico, porque sin energía negativa no hay depresión por
-   enfriamiento.
-8. **Reutilización de `Phase3CoupledPressureSolver`**: es un solver puro,
-   sin punto de llamada, que ya resuelve una red con la misma EOS afín. Antes de
-   escribir F2.2B desde cero hay que decidir si se promueve ese componente, se
-   extiende o se sustituye.
+7. ~~Energía de zona negativa en el solver~~ **resuelta el 2026-09-18**: el
+   solver promovido usa el mismo contrato físico que F2.2A (§15.2). Queda
+   pendiente el mismo criterio en `Phase3ResidualProjection.gd`, que sigue
+   rechazándola por el signo; se decide en F2.2C.
+8. ~~Reutilización de `Phase3CoupledPressureSolver`~~ **resuelta el 2026-09-18**:
+   se **promueve** ese componente como implementación de F2.2B, conservando su
+   nombre histórico (§15.2). No hay un segundo solver.
+9. **Qué hace F2.2C con la envoltura histórica** cuando el interruptor esté
+   encendido: la maquinaria de sombra sigue llamando a `solve_coupled_pressure`
+   y no puede aplicar resultados; hay que decidir si se migra a la entrada
+   canónica o se retira.
 
 ## 23. Evidencia reproducible y comandos
 
@@ -1020,8 +1218,10 @@ así que la entrada no ha cambiado desde entonces.
 
 ## 24. Qué queda expresamente sin implementar
 
-- El solver acoplado de red (F2.2B). F2.2A ya está implementada (§14.1) pero
-  **sin integrar**: hoy no la llama nadie.
+- La integración (F2.2C). F2.2A y F2.2B ya están implementadas (§14.1 y §15.2)
+  pero **sin integrar**: ningún sistema del motor aplica su resultado, no existe
+  `pressure_network_solver_enabled` y los interruptores antiguos siguen en su
+  sitio.
 - La integración tras interruptor (F2.2C) y la conexión de fuga, deformación y
   vidrio (F2.2D).
 - La corrección de la purga por fracción de hollín (RC-4), abierta desde

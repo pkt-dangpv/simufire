@@ -303,6 +303,8 @@ ALLOWED_REFERENCES = {
     "docs/HANDOFF_CURRENT_STATE.md",
     "docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md",
     "docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md",
+    # F2.2 names it as the remaining owner of the old negative-energy rule.
+    "docs/PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md",
     "docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md",
     "docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md",
 }

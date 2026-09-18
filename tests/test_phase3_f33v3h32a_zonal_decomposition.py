@@ -135,9 +135,9 @@ def test_zonal_block_is_guarded_by_band_zoning():
 def test_zone_convention_mirrors_the_density_convention():
     zone = _function(SOLVER, "_zone_at")
     density = _function(SOLVER, "_density_at")
-    assert "height_m <= interface_m" in zone
-    assert "height_m <= interface_m" in density
-    assert "ZONE_LOWER if height_m <= interface_m else ZONE_UPPER" in zone
+    assert "height_m <= interface_z_m" in zone
+    assert "height_m <= interface_z_m" in density
+    assert "ZONE_LOWER if height_m <= interface_z_m else ZONE_UPPER" in zone
 
 
 def test_zone_is_read_at_the_same_midpoint_as_the_density():
@@ -150,8 +150,8 @@ def test_zone_is_read_at_the_same_midpoint_as_the_density():
 def test_bands_are_still_split_at_both_interfaces():
     """The whole decomposition rests on this pre-existing invariant."""
     build = _function(SOLVER, "_build_opening")
-    assert 'float(side_a["interface_m"]), float(side_b["interface_m"])' in build
-    assert "boundaries.append(interface_m)" in build
+    assert 'float(side_a.get("interface_z_m", INF)),' in build
+    assert "boundaries.append(interface_z_m)" in build
     assert "boundaries.sort()" in build
 
 
@@ -164,7 +164,7 @@ def test_exterior_is_never_labelled_with_a_layer():
     assert 'if bool(side.get("exterior", false)):' in zone
     assert 'return ""' in zone
     # And a non-finite interface also yields no label rather than lower.
-    assert "if not is_finite(interface_m):" in zone
+    assert "if not is_finite(interface_z_m):" in zone
 
 
 def test_exterior_connections_are_counted_separately():
@@ -296,7 +296,7 @@ def test_mutation_labelling_the_exterior_lower_is_detectable():
 def test_mutation_dropping_an_interface_invalidates_the_split():
     """Removing an interface from the boundary list would let a band cross it."""
     build = _function(SOLVER, "_build_opening")
-    anchor = 'float(side_a["interface_m"]), float(side_b["interface_m"])'
+    anchor = 'float(side_a.get("interface_z_m", INF)),'
     assert anchor in build
     mutated = build.replace(anchor, 'float(side_a["interface_m"])', 1)
     assert 'float(side_b["interface_m"])' not in mutated.split(
