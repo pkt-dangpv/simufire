@@ -29,6 +29,10 @@ var vent_bernoulli_enabled: bool = false
 # no vertical al exterior repone O2 con el mismo caudal de Bernoulli de dos zonas
 # que una puerta interior, con el exterior como sala infinita a temperatura
 # ambiente. false = la heuristica de siempre (_step_outside_opening_o2).
+## F2.2C: con la red autoritativa, el O2 que cruza una abertura lo mueve la
+## transacción canónica. Este sistema conserva su química local.
+var authoritative_transport_enabled: bool = false
+
 var exterior_opening_bernoulli_o2_enabled: bool = false
 var _outside_virtual_room: RoomModel = null
 var doorway_o2_active_max_fraction_per_step: float = 0.08
@@ -758,6 +762,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 
 	var g_gravity: float = 9.8
 	for op in building.get_openings():
+		# F2.2C: ninguna entrada exterior ni intercambio entre salas por aquí.
+		if authoritative_transport_enabled:
+			continue
 		var _guard_frac: float = op.open_fraction_smooth if op.is_exterior_opening() else op.open_fraction
 		if _guard_frac <= 0.0:
 			continue

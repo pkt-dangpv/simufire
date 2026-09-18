@@ -89,6 +89,11 @@ var upper_radiative_loss_full_c: float = -1.0
 var upper_radiative_loss_emissivity: float = 0.90
 var upper_radiative_loss_area_factor: float = 1.10
 var upper_radiative_loss_max_fraction_per_step: float = 0.45
+## F2.2C: con la red autoritativa, el derrame de gases por puertas y la
+## escritura de presión dejan de pertenecer a este sistema. La conducción, la
+## radiación y las pérdidas a cerramientos siguen siendo suyas.
+var authoritative_transport_enabled: bool = false
+
 var doorway_heat_exchange_coeff: float = 1.0
 var doorway_source_upper_weight: float = 0.60
 var smoke_heat_mix_coeff: float = 0.025
@@ -1266,7 +1271,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		# No-op cuando phase3a_pressure_ode_enabled=false (default): no toca pressure_pa_therm.
 		# GasExchangeSystem.step_thermodynamic_pressure() puede escribir en el mismo campo;
 		# el else branch (= 0.0) destruia esa acumulacion -- eliminado.
-		if phase3a_pressure_ode_enabled:
+		# F2.2C: con la red autoritativa hay un unico propietario de la presion.
+		if phase3a_pressure_ode_enabled and not authoritative_transport_enabled:
 			var _p3a_v: float = maxf(1.0, room.volume_m3())
 			var _p3a_source: float = 0.4 * room.hrr_kw * 1000.0 / _p3a_v  # Pa/s; 0.4 = γ-1
 			var _p3a_loss: float = phase3a_pressure_vent_loss_coeff * room.pressure_pa_therm
@@ -2865,6 +2871,8 @@ func _compute_upper_radiative_loss_kj(
 	return minf(requested_loss_kj, max_loss_kj)
 
 
+## F2.2C: este intercambio de fondo mueve gas y entalpia a traves de una
+## abertura, asi que con la red autoritativa deja de ser su propietario.
 func _apply_outside_assisted_background_heat_exchange(
 	room_a: RoomModel,
 	room_b: RoomModel,
@@ -2873,6 +2881,8 @@ func _apply_outside_assisted_background_heat_exchange(
 	ambient_c: float,
 	outside_open_path_factor_callable: Callable = Callable()
 ) -> void:
+	if authoritative_transport_enabled:
+		return
 	if room_a == null or room_b == null or op == null or dt <= 0.0:
 		return
 	if outside_open_background_heat_exchange_kg_s_m2 <= 0.0:
@@ -3053,6 +3063,7 @@ func _apply_outside_assisted_background_heat_exchange(
 	sync_room_upper_layer(target, dt, "exterior_background_target_sync")
 
 
+## F2.2C: idem para el intercambio de fondo entre salas.
 func _apply_interior_background_heat_exchange(
 	room_a: RoomModel,
 	room_b: RoomModel,
@@ -3060,6 +3071,8 @@ func _apply_interior_background_heat_exchange(
 	dt: float,
 	ambient_c: float
 ) -> void:
+	if authoritative_transport_enabled:
+		return
 	if room_a == null or room_b == null or op == null or dt <= 0.0:
 		return
 	if interior_background_heat_exchange_kg_s_m2 <= 0.0:

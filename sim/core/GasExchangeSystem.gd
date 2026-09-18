@@ -131,6 +131,11 @@ var phase3_pressure_canonical_enabled: bool = false
 # Esto evita saltos no físicos sala-a-sala dentro de un mismo volumen conectado.
 var phase3_pressure_component_equalization_enabled: bool = true
 # Área efectiva de infiltración [m²]. 0.0 = derivar de ach_infiltration (ver fórmula).
+## F2.2C: cuando la red de presion es autoritativa, este sistema deja de ser
+## propietario de la presion y del transporte por aberturas. Las fisicas locales
+## (generacion de humo, deposicion, renovacion ACH) siguen ejecutandose.
+var authoritative_transport_enabled: bool = false
+
 var phase3_leak_area_m2: float = 0.0
 # Fracción convectiva del HRR para la ODE de presión.
 # CFAST/SFPE standard: 0.70 convectivo (chi_rad=0.30 radiativo).
@@ -301,6 +306,9 @@ func configure(settings: Dictionary) -> void:
 
 func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
 	## Phase 3 — ODE de presión termodinámica (campo room.pressure_pa_therm).
+	# F2.2C: con la red autoritativa encendida la presión la publica el solver.
+	if authoritative_transport_enabled:
+		return
 	## Default no-op cuando phase3_thermodynamic_pressure_enabled = false.
 	## Solo modifica room.overpressure_pa si phase3_pressure_canonical_enabled = true.
 	if not phase3_thermodynamic_pressure_enabled:
@@ -1462,6 +1470,10 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 	var result: Dictionary = {
 		"smoke_vented_kg": 0.0
 	}
+	# F2.2C: el venteo por presión es transporte por aberturas y presión a la vez.
+	# Con la red autoritativa lo hace el solver, y esta ruta no vuelve a tocarlo.
+	if authoritative_transport_enabled:
+		return result
 	if building == null:
 		return result
 
@@ -1652,6 +1664,17 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 	return result
 
 
+## F2.2C: ¿la PPV movería algo en este paso? Se usa solo para rechazar la
+## combinación con la red autoritativa, nunca para aplicar su caudal.
+func _ppv_would_act(building: BuildingModel) -> bool:
+	if building == null:
+		return false
+	for op in building.get_openings():
+		if op != null and float(op.ppv_flow_m3_s) > 0.000001 and op.open_fraction >= 0.01:
+			return true
+	return false
+
+
 func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hooks: Dictionary) -> Dictionary:
 	var result: Dictionary = {
 		"smoke_generated_kg": 0.0,
@@ -1712,6 +1735,11 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 	var room_transfers: Array[Dictionary] = []
 	for op in building.get_openings():
+		# F2.2C: el transporte por aberturas pertenece a la red autoritativa.
+		# Los deltas quedan a cero y el bucle de sala sigue haciendo su física
+		# local (generación de humo, deposición, renovación ACH).
+		if authoritative_transport_enabled:
+			continue
 		if op.effective_open_fraction() <= 0.0:
 			continue
 
@@ -2667,6 +2695,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 
 func _compute_postfire_cleanup_factor(room: RoomModel) -> float:
+	# F2.2C: la limpieza postincendio es ventilación por aberturas ya resuelta
+	# por la red; con ella encendida no puede duplicarla.
+	if authoritative_transport_enabled:
+		return 0.0
 	if room == null:
 		return 0.0
 	if room.fire != null or room.hrr_kw > 0.0:
@@ -4196,7 +4228,12 @@ func _call_room_dt(callable: Callable, room: RoomModel, dt: float) -> void:
 #     todas las demás aberturas exteriores de la sala según Q = Cd·A·√(2·ΔP/ρ).
 #   - La purga de humo/especies sigue la proporción volumétrica exhaustida.
 # ============================================================
+## F2.2C: la PPV todavía no está representada como fuente ni como contorno del
+## solver. Con la red autoritativa encendida se rechaza de forma explícita en vez
+## de simular una compatibilidad que no existe.
 func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
+	if authoritative_transport_enabled:
+		return {"ppv_unsupported": _ppv_would_act(building)}
 	var result: Dictionary = {
 		"ppv_smoke_purged_kg": 0.0,
 		"ppv_fresh_air_injected_kg": 0.0

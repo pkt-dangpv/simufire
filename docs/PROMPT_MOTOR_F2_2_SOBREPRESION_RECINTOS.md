@@ -13,7 +13,12 @@
 > - **F2.2B cerrada el 2026-09-18** (§15.2): **promueve** el solver puro que ya
 >   existía, `sim/core/Phase3CoupledPressureSolver.gd`, con la entrada canónica
 >   `solve_pressure_network`. **Sigue sin integrar**: nadie aplica su resultado.
-> - **F2.2C y F2.2D siguen sin implementar** (§19).
+> - **F2.2C cerrada el 2026-09-18** (§16): la red es autoritativa dentro del
+>   paso real del motor, detrás del interruptor único
+>   `pressure_network_solver_enabled`, **apagado por defecto**. Ningún escenario
+>   distribuido lo enciende.
+> - **F2.2D sigue sin implementar**: las puertas cerradas siguen siendo
+>   estancas, y la deformación y el vidrio siguen sin integrarse (§19).
 > - Los modelos puros de las fases 1, 2, 3A y 3B siguen **sin integrar**, y no
 >   pueden integrarse antes de F2.2 (§15).
 
@@ -26,7 +31,7 @@
 | Procesos Godot al empezar | 0 |
 | Fases cerradas | 1 (fuga pura), 2 (deformación prescrita), 3A (integridad de vidrio), 3B (geometría multicapa) |
 | Fase de este documento | F2.2-DIAG (diagnóstico y diseño), cerrada el 2026-09-18 |
-| Implementación en marcha | F2.2A y F2.2B cerradas el 2026-09-18, ambas sin integrar (§14.1 y §15.2) |
+| Implementación en marcha | F2.2A, F2.2B y F2.2C cerradas el 2026-09-18 (§14.1, §15.2 y §16) |
 | Mediciones nuevas | 22 corridas headless bajo `runs/pressure_f2_2_20260917/` (sin versionar) |
 | Fuente nueva | NIST TN 1889v2 (guía de usuario de CFAST) |
 
@@ -1011,7 +1016,126 @@ queda dicho que ninguna prueba la mata.
 Los criterios de §21 dicen expresamente si hablan de **balance por paso en kJ**
 o de **tasa en kW**.
 
-## 16. Conservación de masa y energía
+## 16. F2.2C: integración autoritativa (2026-09-18)
+
+### 16.1 Interruptor y frontera del paso
+
+- Interruptor **único**: `pressure_network_solver_enabled`, `@export` en
+  `SimulationEngine`, **`false` por defecto**, clasificado como física viva
+  fuera del alcance P1R4 en `audit_default_off_flags.py`. El recuento de flags
+  sube de 76 a 77. No hay interruptores auxiliares por magnitud.
+- **Apagado**: el motor recorre exactamente la ruta histórica. El adaptador no
+  se ejecuta y `pressure_network_last_result` queda vacío. Comprobado byte a
+  byte en un escenario real de 600 s con fuego, humo, especies y O₂, y en la
+  suite de referencia completa.
+- **Encendido**: el adaptador `sim/core/PressureNetworkTransportSystem.gd`
+  resuelve presión y transporte dentro de `_step_gas_exchange`, **antes** de
+  cualquier ruta histórica de transporte y después de la física local del paso
+  (combustión, térmica). Por eso el snapshot ya incorpora esos efectos y las
+  **fuentes del solver son nulas**: declararlos otra vez sería contarlos dos
+  veces.
+
+### 16.2 Seis operaciones separadas
+
+`build_snapshot` → `build_solver_input` → `solve` → `build_transport_transaction`
+→ `validate_transaction` → `commit_transaction`. El adaptador **no** es un
+solver: no tiene Bernoulli, ni Jacobiano, ni plano neutro, ni recorte de
+presiones propio, y llama una sola vez a `solve_pressure_network`.
+
+### 16.3 Propietarios de la presión
+
+| Escritor histórico | OFF | ON |
+| --- | --- | --- |
+| `GasExchangeSystem.step_thermodynamic_pressure` | igual que siempre | no se ejecuta |
+| `GasExchangeSystem` promoción e igualación | igual | no se ejecuta (cuelga del anterior) |
+| `GasExchangeSystem.step_pressure_venting` (relajación y factor posterior) | igual | no se ejecuta |
+| `GasExchangeSystem.step_ppv` | igual | rechazo explícito si la PPV actuaría |
+| `OxygenExchangeSystem` (dilución de presión) | igual | no se ejecuta: cuelga del bucle de aberturas |
+| `ThermalSystem` ODE de presión de fase 3A | igual | no se ejecuta |
+| `CombustionSystem` sobrepresión de deflagración | igual | no escribe presión |
+| `RoomModel.reset` | igual | igual |
+| **Red autoritativa** | no existe | **único propietario**: publica `overpressure_pa` con signo y refleja `pressure_pa_therm` |
+
+### 16.4 Las siete rutas históricas
+
+| Ruta | Qué es | Con ON |
+| --- | --- | --- |
+| 1. Purga o venteo por presión | presión + transporte al exterior | anulada |
+| 2. Bernoulli con el exterior (O₂) | transporte por abertura | anulada |
+| 3. Limpieza postincendio | ventilación por aberturas | anulada (factor 0) |
+| 4. Mezcla entre recintos | transporte por abertura | anulada |
+| 5. Especies al exterior y entre recintos | transporte por abertura | anulada |
+| 6. Entrada de O₂ exterior y O₂ entre recintos | transporte por abertura | anulada |
+| 7. Derrame de gases por puertas (térmico) | transporte por abertura | anulado |
+
+Siguen ejecutándose una sola vez, porque **no** son transporte por aberturas:
+combustión, generación y deposición de humo, química de CO/CO₂, radiación,
+conducción a cerramientos, extinción y la renovación **ACH**, que representa
+fugas del edificio no modeladas como abertura y no toca la presión.
+
+### 16.5 Transacción atómica
+
+Se transportan, desde la **zona de origen real** de cada segmento: masa de gas,
+energía sensible, O₂ y las especies con estado zonal (CO, CO₂, HCN). El humo,
+el HCl, la acroleína y el formaldehído **solo tienen masa global** en
+`RoomModel`, así que se transportan con **mezcla completa** del recinto, que es
+la semántica que ya usaba la ruta histórica de purga por aire. Queda declarado
+como limitación: representarlos por zonas exigiría ampliar el estado.
+
+- Todos los inventarios se leen del snapshot: el estado ya modificado de un
+  recinto nunca es el origen de la siguiente abertura.
+- Las salidas se agrupan por `(recinto, zona)` y, si piden más masa de la
+  disponible, se escalan **colectivamente**, así que el resultado no depende del
+  orden de aberturas ni de segmentos.
+- El O₂ viaja como masa y las fracciones se **derivan** de las masas finales.
+- La masa superior de una especie nunca supera su total, y ninguna queda
+  negativa fuera de la tolerancia declarada (1e-9 kg, corregida de forma
+  determinista).
+- El exterior aporta su composición de contorno; una salida no se reinyecta por
+  ninguna segunda ruta.
+
+### 16.6 Política de fallo
+
+Una solución no convergida, una presión absoluta imposible, una transacción no
+finita, un inventario final imposible o un error de conservación dejan el paso
+**sin aplicar nada**: el estado anterior queda íntegro, `pressure_network_failure`
+nombra el motivo y se emite un `push_error`. **No hay vuelta atrás silenciosa** a
+las rutas históricas.
+
+### 16.7 PPV, ACH y limpieza postincendio
+
+- **PPV**: no está representada como fuente ni como contorno del solver. Con la
+  red encendida, si la PPV fuese a actuar, se rechaza con
+  `failure_reason = "ppv_unsupported"`. No se simula compatibilidad.
+- **ACH**: renovación ambiental independiente de las aberturas modeladas; sigue
+  activa, no escribe presión y no duplica ningún caudal de la red.
+- **Limpieza postincendio**: es ventilación por aberturas, así que con ON su
+  factor es 0.
+
+### 16.8 Pruebas de F2.2C
+
+`tools/validate_pressure_network_integration.gd` (registrado en
+`check_product.py`) con 16 grupos y 91 comprobaciones: la red no corre con el
+flag apagado; equilibrio sellado; dos recintos iguales; dos recintos con
+diferencia de presión (conservación de masa, energía, humo y CO); abertura
+exterior en los dos sentidos; abertura bidireccional con origen zonal correcto;
+limitación colectiva; energía sensible negativa; estado imposible sin commit;
+O₂ conservado con fracciones derivadas; especies conservadas con coherencia
+total/superior; ninguna escritura tardía sobre la presión canónica; PPV
+rechazada; transacción inválida que no toca ninguna sala; puerta que se cierra y
+deja de formar parte de la red sin salto de kPa.
+
+La conservación se comprueba sobre la **transacción**, que es el nivel en el que
+tiene que ser exacta; el paso completo del motor incluye además física local
+legítima (deposición, ACH, química) que no es transporte.
+
+`tests/test_pressure_network_integration.py` fija el contrato estático:
+interruptor único apagado, ningún escenario lo enciende, orden de ejecución,
+política de fallo, las ocho compuertas, el adaptador no es un segundo solver,
+atomicidad, estado transportado, propietario único de la presión y puertas
+cerradas estancas.
+
+## 17. Conservación de masa y energía
 
 - Cada intercambio produce una tupla `{masa, entalpía, O₂, humo, especies}` con
   un único origen y un único destino.
@@ -1039,7 +1163,7 @@ o de **tasa en kW**.
 - Ningún recorte de presión en el estado: si aparece una presión imposible, es
   un fallo que hay que ver, no que ocultar.
 
-## 18. Interruptor futuro y compatibilidad
+## 19. Interruptor futuro y compatibilidad
 
 - **Recomendación pendiente de autorización** (§22, decisión 3): un **único**
   interruptor nuevo, apagado por defecto, con el nombre provisional
@@ -1058,13 +1182,13 @@ o de **tasa en kW**.
   quedan marcados como obsoletos y se retiran solo cuando el solver pase las
   comprobaciones de referencia.
 
-## 19. Plan de implementación por etapas
+## 20. Plan de implementación por etapas
 
 | Etapa | Contenido | Entregable | Requisito previo |
 | --- | --- | --- | --- |
 | **F2.2A** ✅ **hecha el 2026-09-18, sin integrar** | Evaluador puro de ecuaciones locales y residuos (§14, §14.1) | `sim/core/CompartmentPressureEquations.gd`, `tools/validate_compartment_pressure_equations.gd`, `tests/test_compartment_pressure_equations.py`, 19/19 mutaciones | F2.2-DIAG (este documento) |
 | **F2.2B** ✅ **hecha el 2026-09-18, sin integrar** | Solver puro acoplado de red, dueño de la iteración (§15, §15.2) | `sim/core/Phase3CoupledPressureSolver.gd` **promovido** (entrada `solve_pressure_network`), `tools/validate_pressure_network_solver.gd`, `tests/test_pressure_network_solver.py`, 25 mutaciones | F2.2A |
-| **F2.2C** | Integración tras interruptor, un solo aplicador | Cambios en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` | F2.2A+B en verde y comparación de sombra |
+| **F2.2C** ✅ **hecha el 2026-09-18** | Integración tras el interruptor único, un solo aplicador (§16) | `sim/core/PressureNetworkTransportSystem.gd`, compuertas en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` y `CombustionSystem`, validador y tests | F2.2A+B en verde y comparación de sombra |
 | **F2.2D** | Conexión de fuga (fase 1), deformación (fase 2) y vidrio (fase 3B) como fuentes de área | Adaptadores puros | F2.2C con la suite de referencia estable |
 
 Ninguna etapa integra antes de tener los dos modelos puros validados. La regla
@@ -1072,7 +1196,7 @@ Ninguna etapa integra antes de tener los dos modelos puros validados. La regla
 es la fase documental que cierra este documento y **no** produce código; no
 debe confundirse con `F2.2D`, que es la conexión de fuga, deformación y vidrio.
 
-## 20. Guardarraíles y mutaciones
+## 21. Guardarraíles y mutaciones
 
 Pruebas que la solución tendrá que superar, cada una diseñada para matar un
 defecto concreto:
@@ -1100,7 +1224,7 @@ saltarse la iteración y declarar convergencia, ignorar una abertura, usar la
 densidad ambiente en vez de la del recinto aguas arriba, y aplicar el solver con
 el interruptor apagado.
 
-## 21. Criterios cuantitativos de aceptación (candidatos)
+## 22. Criterios cuantitativos de aceptación (candidatos)
 
 No son definitivos: son **candidatos** respaldados por CFAST, por la resolución
 temporal del motor (1/12 s) y por la sensibilidad medida en §7.
@@ -1147,7 +1271,7 @@ orden de magnitud experimental; los **numéricos** comprueban el solver; los de
 **regresión** protegen la física heredada; los **huecos** se documentan y no
 bloquean, pero dejan de ser una excusa para 500 kPa.
 
-## 22. Riesgos y decisiones pendientes
+## 23. Riesgos y decisiones pendientes
 
 | Riesgo | Mitigación |
 | --- | --- |
@@ -1184,7 +1308,7 @@ Decisiones que necesitan autorización antes de programar:
    y no puede aplicar resultados; hay que decidir si se migra a la entrada
    canónica o se retira.
 
-## 23. Evidencia reproducible y comandos
+## 24. Evidencia reproducible y comandos
 
 Todo bajo `runs/pressure_f2_2_20260917/` (sin versionar):
 
@@ -1216,7 +1340,7 @@ Entradas de referencia (SHA-256):
 Los hashes de los tres primeros son los mismos que registró la evidencia P1R8,
 así que la entrada no ha cambiado desde entonces.
 
-## 24. Qué queda expresamente sin implementar
+## 25. Qué queda expresamente sin implementar
 
 - La integración (F2.2C). F2.2A y F2.2B ya están implementadas (§14.1 y §15.2)
   pero **sin integrar**: ningún sistema del motor aplica su resultado, no existe

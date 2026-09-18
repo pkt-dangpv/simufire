@@ -20,8 +20,11 @@
 >   [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md).
 >   **F2.2A** (evaluador puro de ecuaciones locales de presión) y **F2.2B**
 >   (solver puro acoplado de presión y aberturas, que promueve
->   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18 y
->   **sin integrar**; F2.2C y F2.2D siguen sin implementar.
+>   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
+>   **F2.2C** las integró ese mismo día detrás del interruptor único
+>   `pressure_network_solver_enabled`, apagado por defecto. **F2.2D sigue sin
+>   implementar**: las puertas cerradas siguen siendo estancas y ni la fuga, ni
+>   la deformación, ni el vidrio están conectados.
 > - **Nada está integrado**: ningún sistema carga estos modelos en el paso de
 >   simulación, no hay física nueva activa y ningún escenario la usa. Siguen
 >   pendientes el modelo térmico y el probabilista del vidrio, F2.2 y la

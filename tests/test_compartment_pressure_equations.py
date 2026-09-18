@@ -46,6 +46,10 @@ ALLOWED_REFERENCES = {
     Path("tools/validate_pressure_network_solver.gd"),
     Path("tests/test_pressure_network_solver.py"),
     Path("tests/test_phase3_f33v3h1_coupled_pressure_solver.py"),
+    # F2.2C: el adaptador de integracion tambien es un consumidor legitimo.
+    Path("sim/core/PressureNetworkTransportSystem.gd"),
+    Path("tools/validate_pressure_network_integration.gd"),
+    Path("tests/test_pressure_network_integration.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}
@@ -195,10 +199,12 @@ def test_model_is_not_integrated_anywhere():
             assert "pressure_network_solver_enabled" not in text, str(path)
 
 
-def test_no_new_engine_flag_was_added():
+def test_the_single_new_flag_is_off_by_default():
     engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
-    assert "pressure_network_solver_enabled" not in engine
-    # The legacy phase 3 flags stay exactly as they are until F2.2C.
+    # F2.2C introduced exactly one flag, off by default, and it is the only one.
+    assert "@export var pressure_network_solver_enabled: bool = false" in engine
+    assert engine.count("@export var pressure_network_solver_enabled") == 1
+    # The legacy phase 3 flags are still there: F2.2C does not retire them.
     assert "@export var phase3_thermodynamic_pressure_enabled: bool = true" in engine
     assert "@export var phase3_pressure_canonical_enabled: bool = false" in engine
 

@@ -45,6 +45,13 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("tests/test_pressure_network_solver.py"),
     # F2.2A's own test also asserts the flag does not exist yet.
     Path("tests/test_compartment_pressure_equations.py"),
+    # F2.2C: el adaptador es el unico consumidor runtime, y lo prueba su suite.
+    Path("sim/core/PressureNetworkTransportSystem.gd"),
+    Path("sim/core/SimulationEngine.gd"),
+    Path("tools/validate_pressure_network_integration.gd"),
+    Path("tests/test_pressure_network_integration.py"),
+    Path("scripts/simulation/audit_default_off_flags.py"),
+    Path("tests/test_p1r4_flag_activation_inventory.py"),
 }
 
 
@@ -180,7 +187,8 @@ def test_candidate_state_is_built_conservatively():
         assert forbidden not in finish.lower(), forbidden
 
 
-def test_solver_is_not_integrated_and_has_no_flag():
+def test_solver_is_only_reached_through_the_adapter():
+    # F2.2B stays pure: the flag lives in the engine and the adapter, never here.
     assert "pressure_network_solver_enabled" not in SOLVER_CODE
     offenders = []
     for folder in SCANNED_FOLDERS:

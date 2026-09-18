@@ -3,6 +3,9 @@ class_name SimulationEngine
 
 const CombustionSystemScript = preload("res://sim/fire/CombustionSystem.gd")
 const GasExchangeSystemScript = preload("res://sim/core/GasExchangeSystem.gd")
+const PressureNetworkTransportSystemScript = preload(
+	"res://sim/core/PressureNetworkTransportSystem.gd"
+)
 const OxygenExchangeSystemScript = preload("res://sim/core/OxygenExchangeSystem.gd")
 const SimulationLogWriterScript = preload("res://sim/core/SimulationLogWriter.gd")
 const SimulationStateBuilderScript = preload("res://sim/core/SimulationStateBuilder.gd")
@@ -38,6 +41,11 @@ var building: BuildingModel
 var smoke_model: SmokeModel = SmokeModel.new()
 var combustion_system: CombustionSystem = CombustionSystemScript.new()
 var gas_exchange_system = GasExchangeSystemScript.new()
+var pressure_network_transport_system = PressureNetworkTransportSystemScript.new()
+## Diagnostico del ultimo fallo de la red autoritativa. Vacio mientras todo va
+## bien. Nunca provoca una vuelta atras a la ruta historica.
+var pressure_network_failure: String = ""
+var pressure_network_last_result: Dictionary = {}
 var oxygen_exchange_system = OxygenExchangeSystemScript.new()
 var log_writer = SimulationLogWriterScript.new()
 var state_builder = SimulationStateBuilderScript.new()
@@ -883,6 +891,12 @@ var _step_time_us: int = 0
 # R2-1: ambas flags activadas por default como parte del perfil TwoZoneV1.
 @export var phase3_thermodynamic_pressure_enabled: bool = true
 # Usa pressure_pa_therm como presión canónica para venting/doorways.
+## F2.2C: interruptor UNICO de la red de presion autoritativa. Gobierna a la vez
+## la presion y el transporte por aberturas: no existe forma de encender uno sin
+## el otro, porque eso reproduciria el desacoplamiento que F2.2 diagnostico.
+## Apagado por defecto; ningun escenario distribuido lo enciende todavia.
+@export var pressure_network_solver_enabled: bool = false
+
 @export var phase3_pressure_canonical_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
 @export var phase3_chi_conv: float = 0.70
@@ -1407,6 +1421,9 @@ func _sync_auxiliary_services() -> void:
 		"glass_break_hazard_temp_exp": glass_break_hazard_temp_exp,
 		"glass_break_hazard_exposure_tau_s": glass_break_hazard_exposure_tau_s
 	})
+	gas_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
+	oxygen_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
+	thermal_system.authoritative_transport_enabled = pressure_network_solver_enabled
 	gas_exchange_system.configure({
 		"o2_nominal": o2_nominal,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
@@ -3755,6 +3772,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_backdraft_fuel_heat_kj_kg": fire_backdraft_fuel_heat_kj_kg,
 		"fire_backdraft_fuel_gas_density": fire_backdraft_fuel_gas_density,
 		"fire_backdraft_deflagration_overpressure_pa": fire_backdraft_deflagration_overpressure_pa,
+		"authoritative_transport_enabled": pressure_network_solver_enabled,
 		"fire_extinction_hrr_kw": fire_extinction_hrr_kw,
 		"fire_extinction_delay_s": fire_extinction_delay_s,
 		"fire_latent_enabled": fire_latent_enabled,
@@ -3870,6 +3888,11 @@ func _step_gas_exchange(dt: float) -> void:
 			room.mdot_vent_kg_s = 0.0
 
 	var hooks: Dictionary = _build_gas_exchange_hooks()
+	# F2.2C: la red autoritativa resuelve presion y transporte por aberturas
+	# justo aqui, antes de que ninguna ruta historica pueda moverlos. El
+	# snapshot se toma dentro, con la fisica local del paso ya incorporada.
+	if pressure_network_solver_enabled:
+		_step_pressure_network_transport(dt)
 	var use_canonical_pressure: bool = phase3_thermodynamic_pressure_enabled \
 			and phase3_pressure_canonical_enabled
 	if use_canonical_pressure:
@@ -3882,12 +3905,34 @@ func _step_gas_exchange(dt: float) -> void:
 
 	# SF-AUD-036: PPV mechanical ventilation
 	var ppv_result: Dictionary = gas_exchange_system.step_ppv(building, dt, hooks)
+	# F2.2C: la PPV no esta representada en la red. Si intentase actuar con la
+	# red encendida, se rechaza de forma explicita y diagnosticable.
+	if pressure_network_solver_enabled and bool(ppv_result.get("ppv_unsupported", false)):
+		pressure_network_failure = "ppv_unsupported"
+		push_error("pressure network transport does not support PPV yet")
 	smoke_vented_total_kg += float(ppv_result.get("ppv_smoke_purged_kg", 0.0))
 
 	var smoke_result: Dictionary = gas_exchange_system.step_smoke(building, smoke_model, dt, hooks)
 	smoke_generated_total_kg += float(smoke_result.get("smoke_generated_kg", 0.0))
 	smoke_vented_total_kg += float(smoke_result.get("smoke_vented_kg", 0.0))
 	smoke_deposited_total_kg += float(smoke_result.get("smoke_deposited_kg", 0.0))
+
+
+## F2.2C: un unico propietario de la presion y del transporte por aberturas.
+## Si la red falla no hay vuelta atras silenciosa: se registra el diagnostico y
+## no se aplica nada.
+func _step_pressure_network_transport(dt: float) -> void:
+	pressure_network_failure = ""
+	if building == null:
+		return
+	var result: Dictionary = pressure_network_transport_system.step(building, dt)
+	pressure_network_last_result = result
+	if bool(result["applied"]):
+		return
+	pressure_network_failure = String(result["failure_reason"])
+	push_error("pressure network transport failed: %s %s" % [
+		pressure_network_failure, str(result["errors"])
+	])
 
 
 func _step_hvac(dt: float) -> void:

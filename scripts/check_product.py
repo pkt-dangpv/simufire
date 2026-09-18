@@ -413,6 +413,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot solver acoplado presion-aberturas: " + (diagnostic or "failed"))
 
+    # Integracion autoritativa de la red de presion (fase F2.2C): interruptor apagado por defecto.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_pressure_network_integration.gd",
+        "PRESSURE NETWORK INTEGRATION VALIDATION PASS",
+    )
+    rows.append(("Red de presion autoritativa, integracion Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot red de presion autoritativa: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

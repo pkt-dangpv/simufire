@@ -1819,7 +1819,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				var def_pa: float = float(context.get(
 					"fire_backdraft_deflagration_overpressure_pa", 500.0
 				))
-				room.overpressure_pa += def_pa
+				# F2.2C: con la red autoritativa hay un único propietario de la
+				# presión; la deflagración no puede escribir encima del solver.
+				if not bool(context.get("authoritative_transport_enabled", false)):
+					room.overpressure_pa += def_pa
 
 		# M7: solo liberar pool cuando hay suficiente O₂ para quemar.
 		# Con O₂ < umbral de backdraft, el pool acumula gas sin quemar hasta que
