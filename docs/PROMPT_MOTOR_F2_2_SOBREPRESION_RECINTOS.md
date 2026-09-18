@@ -1,6 +1,11 @@
 # Diagnóstico y diseño: sobrepresión de recintos cerrados (F2.2)
 
-> **Estado (2026-09-17): F2.2-D cerrada. Solo diagnóstico y diseño.**
+> **Estado (2026-09-18): F2.2-DIAG cerrada. Solo diagnóstico y diseño.**
+>
+> `F2.2-DIAG` es **esta fase documental**. Las etapas de implementación son
+> `F2.2A` (ecuaciones locales puras), `F2.2B` (solver acoplado de red), `F2.2C`
+> (integración tras interruptor) y `F2.2D` (conexión de fuga, deformación y
+> vidrio). `F2.2-DIAG` nunca designa una etapa de código.
 > - **No hay código nuevo**: no se ha tocado `sim/`, ni el editor, ni los
 >   escenarios, ni los casos, ni las tolerancias, ni la clasificación de huecos.
 > - **F2.2A, F2.2B, F2.2C y F2.2D siguen sin implementar** (§19).
@@ -15,10 +20,12 @@
 | HEAD al empezar | `cc917ac4` (6 por delante de `origin/main`, árbol limpio) |
 | Procesos Godot al empezar | 0 |
 | Fases cerradas | 1 (fuga pura), 2 (deformación prescrita), 3A (integridad de vidrio), 3B (geometría multicapa) |
+| Fase de este documento | F2.2-DIAG (diagnóstico y diseño), cerrada el 2026-09-18 |
 | Mediciones nuevas | 22 corridas headless bajo `runs/pressure_f2_2_20260917/` (sin versionar) |
 | Fuente nueva | NIST TN 1889v2 (guía de usuario de CFAST) |
 
-Las mediciones de este documento son **nuevas** (2026-09-17). Cuando se cita
+Las mediciones de este documento son **nuevas** (2026-09-17; correcciones de
+redacción y criterios el 2026-09-18, sin repetir mediciones). Cuando se cita
 una cifra heredada (evidencia P1R8, `reference_checks.json`, diagnóstico F2.2a
 de 2026-07-12) se dice expresamente.
 
@@ -102,8 +109,23 @@ pasan por `maxf(0.0, …)`.
 | `CaseRunner.gd:1029-1035` | `room_N_max_overpressure_pa`, `..._pressure_pa_therm` | — |
 | `scripts/generate_fire_graphs.py:300` | Gráficas | — |
 
-**Cada consumidor aplica su propia escala de referencia y produce su propio
-caudal.** No hay un solo intercambio por abertura: hay tantos como sistemas.
+### 4.3 Recuento explícito de lectores
+
+La tabla anterior tiene **12 rutas de lectura**. No todas son equivalentes, así
+que el documento las cuenta siempre así:
+
+| Grupo | Rutas | Sistemas | Nombres |
+| --- | ---: | ---: | --- |
+| **Sistemas que modifican física** | 7 | 3 | `GasExchangeSystem` (umbral de purga, Bernoulli exterior, limpieza posincendio, mezcla entre salas, transporte de especies), `OxygenExchangeSystem` (entrada de aire y O₂), `ThermalSystem` (derrame y sentido del intercambio) |
+| **Maquinaria de sombra** | 1 | 1 | `Phase3ZoneMassSystem:9122` |
+| **Publicación y observadores** | 4 | 4 | `SimulationStateBuilder`, `SimulationLogWriter`, `CaseRunner`, `scripts/generate_fire_graphs.py` |
+
+Cuando este documento dice "las rutas físicas" se refiere a las **7 rutas** de
+los **3 sistemas** de la primera fila. Las de sombra y observación leen la
+presión pero no fabrican caudal.
+
+**Cada ruta física aplica su propia escala de referencia y produce su propio
+caudal.** No hay un solo intercambio por abertura: hay tantos como rutas.
 
 ## 5. Convenciones actuales de unidades y signo
 
@@ -167,7 +189,7 @@ caudales.
 | F | Cierre de puerta a mitad de incendio | **567 022,25** | 320 | 567 003,11 | 7,103 | 188,5 | 0,0408 |
 | G1 | Crecimiento rápido, recinto cerrado | 8 377,73 | 170 | 8 377,48 | 3,173 | 564,9 | 0,1112 |
 | G2 | Crecimiento lento, recinto sellado | 7 129,57 | 340 | 7 129,80 | 7,745 | 228,4 | 0,0196 |
-| G3 | **Sin fuego**, exterior a 0 °C | 0,00 | — | 0,00 | 0,000 | 0,0 | 0,2090 |
+| G3 | **Sin fuego**, edificio **inicializado en equilibrio** con el exterior a 0 °C | 0,00 | — | 0,00 | 0,000 | 0,0 | 0,2090 |
 
 Serie temporal de la sonda B (sala 0):
 
@@ -182,6 +204,16 @@ Serie temporal de la sonda B (sala 0):
 | 360 | 1 270,11 | 1 271,83 | 6,749 | 6,776 | 179,3 | 37,5 | 301,4 | 0,0878 | 0,0099 |
 | 480 | 428,12 | 428,19 | 4,058 | 4,091 | 100,8 | 33,4 | 176,8 | 0,0612 | 0,0084 |
 | 600 | 420,26 | 420,26 | 3,635 | 3,710 | 88,4 | 31,9 | 175,3 | 0,0500 | 0,0081 |
+
+Sobre G3: el escenario fija `outside_temp_c = 0` y el edificio **arranca ya a
+0 °C** (primera fila del CSV: `temp_upper_c = temp_lower_c = 0,00`,
+`air_mass_kg = 57,60`, constante hasta 600 s). **No** es una historia de
+enfriamiento desde 20 °C. Por tanto 0 Pa es el resultado **físicamente
+correcto**, y la sonda demuestra **ausencia de deriva numérica en equilibrio
+frío**, no incapacidad de producir depresión. La incapacidad de representar
+presiones negativas está demostrada por otras dos vías: los `maxf(0.0, …)` de
+**todos** los escritores (§4.1) y los casos CFAST que sí publican presión
+negativa (§2 y §21).
 
 Dos hechos que cierran el diagnóstico:
 
@@ -309,7 +341,8 @@ fuga. SimuFire, con **más** fuga declarada (300 cm²), publica 2 417 Pa.
 | H-9 | Presión relajada hacia un objetivo físico incorrecto | `step_pressure_venting:1500` | El objetivo es una presión hidrostática, no termodinámica | B | Confirmado en la serie: `P_flujo ≈ P_boyanza` | **Confirmada** |
 | H-10 | Presión de referencia inadecuada en las aperturas | §4.2 | Cada consumidor divide por una constante distinta | inventario | 1,5 / 0,35·ref / `outside_open_species_pressure_ref_pa` / 0,2 Pa | **Confirmada** |
 | H-11 | Diferencia estructural intencionada frente a CFAST | disposiciones de huecos | Los huecos están clasificados como limitación de modelo | `gap_dispositions.json` | `VERIFIED_MODEL_LIMITATION`, no gating | **Confirmada como clasificación**, pero la magnitud no está justificada físicamente |
-| H-12 | Signo: el motor no puede representar depresión | todos los escritores | Un recinto que se enfría publica 0 Pa | G3 | 0,00 Pa con exterior a 0 °C; CFAST publica −38,7 Pa en casos análogos | **Confirmada** |
+| H-12 | Signo: el motor no puede representar depresión | todos los escritores (§4.1) | Ningún camino puede escribir un valor < 0 | inspección de código + `cfast_two_room_door_open` | Todos los escritores pasan por `maxf(0.0, …)`; CFAST publica −186,5 Pa (300 s) y −38,7 Pa (360 s) en R0 de ese caso, y SimuFire publica +198,4 Pa | **Confirmada** |
+| H-15 | Deriva numérica en equilibrio sin fuego | `step_thermodynamic_pressure`, `step_pressure_venting` | Un edificio inicializado en equilibrio se queda en 0 Pa | A, G3 | 0,00 Pa durante 600 s, con temperatura y masa de aire constantes | **Descartada** (no hay deriva) |
 | H-13 | El campo publicado no es el que gobierna los flujos | `SimulationStateBuilder:262` | `P_pub ≡ P_ODE ≫ P_flujo` | B, D, F, G | Factor 860 (B), 309 (D), 79 800 (F) | **Confirmada** |
 | H-14 | La sensibilidad al área de fuga es la de la fórmula, no ruido | `step_thermodynamic_pressure` | `P ∝ 1/A²` | S_leak000/0084/010 | 44 022 / 82 651 / 656 Pa, coherente con `P_eq` en cada caso | **Confirmada** |
 
@@ -349,9 +382,11 @@ defecto que ya documentó
 el 2026-07-12 y que sigue abierto.
 
 **RC-5. No hay una presión única ni un intercambio único.**
-Siete rutas distintas leen la presión con siete escalas de referencia y cada
-una fabrica su propio caudal (§4.2). Además el estado se recorta a ≥ 0, así que
-la depresión no existe.
+**Siete rutas físicas**, repartidas en **tres sistemas** (`GasExchangeSystem`,
+`OxygenExchangeSystem`, `ThermalSystem`), leen la presión con escalas de
+referencia distintas y cada una fabrica su propio caudal (§4.2 y §4.3). A ellas
+se suman una ruta de sombra y cuatro de observación, que leen pero no mueven
+masa. Además el estado se recorta a ≥ 0, así que la depresión no existe.
 
 ## 12. Requisitos físicos de la solución
 
@@ -376,16 +411,32 @@ la depresión no existe.
 
 ## 13. Arquitectura recomendada
 
+**Presión y caudales son un solo problema acoplado.** La ecuación de presión
+de CFAST (ec. 2.5) depende de la entalpía que entra y sale por las aberturas, y
+esa entalpía depende de las presiones. Por eso el reparto **no** es una cadena
+"primero presión, después caudales": es un bucle de punto fijo cuyo dueño es
+F2.2B.
+
 ```text
-  estado de zonas (masa, energía, temperatura, volumen)
+  estado de zonas (masa, energía, temperatura, volumen) + fuentes + dt
             │
             ▼
-  [F2.2A] CompartmentPressureModel  ── P_ref por recinto + perfil P(z)
-            │                            (puro, sin estado, sin nodos)
-            ▼
-  [F2.2B] OpeningFlowSolver ─── red de recintos y aberturas
-            │                   caudales convergidos, un solo ΔP por cota
-            ▼
+  ┌──────────────────────── [F2.2B] PressureOpeningNetworkSolver ────────────────────────┐
+  │  propone estado candidato (presiones de referencia y, si procede, variables de zona)  │
+  │            │                                                                          │
+  │            ▼                                                                          │
+  │  perfiles hidrostáticos P(z)  →  ΔP por segmento  →  caudales y entalpías candidatos   │
+  │            │                                                                          │
+  │            ▼                                                                          │
+  │  [F2.2A] CompartmentPressureEquations.evaluate_compartment_residual(…)                │
+  │            │  residuos de presión, masa y energía por recinto                         │
+  │            ▼                                                                          │
+  │  actualiza las incógnitas  ──────────────► (realimentación: vuelve a proponer)        │
+  │            │                                                                          │
+  │            └── converge cuando residuos y cambios de presión bajan de tolerancia      │
+  └───────────────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼  presiones + perfiles + caudales + entalpías, todo del mismo punto fijo
   [F2.2C] integración tras interruptor: un único aplicador que reparte
             masa, entalpía, O₂, humo y especies
             │
@@ -396,76 +447,154 @@ la depresión no existe.
 
 Principios:
 
-- El solver es **puro**: recibe el estado, devuelve presiones y caudales, y no
-  muta nada. El motor aplica.
+- **F2.2A no resuelve la presión**: evalúa las ecuaciones locales de un recinto
+  para un estado candidato y devuelve residuos. No inventa caudales ni decide la
+  presión final.
+- **F2.2B es el dueño de la iteración**: propone, construye perfiles, calcula
+  ΔP y caudales, llama al evaluador, actualiza y repite. La presión definitiva y
+  los caudales definitivos salen **a la vez**, del mismo punto fijo.
+- Ambos son **puros**: reciben el estado, devuelven resultados y no mutan nada.
+  El motor aplica.
 - El área de una abertura es un **dato de entrada**, venga de una puerta, de una
   rendija o de un rectángulo de vidrio desprendido. El solver no sabe de vidrio.
-- La presión se resuelve **antes** de mover masa, en una etapa propia, no dentro
-  del bucle de purga.
+- La presión y los caudales se resuelven **antes** de mover masa, en una etapa
+  propia, no dentro del bucle de purga.
 - Ya existe maquinaria de sombra reutilizable en `Phase3ZoneMassSystem`
   (`coupled_pressure_solver_shadow_enabled`,
   `phase3_canonical_fixed_gross_pressure_network_shadow_enabled`,
   `--phase3-coupled-pressure-solver-capture`). F2.2B debería **medirse contra
   ella** antes de sustituir nada.
+- **Pendiente antes de programar**: decidir si el vector de incógnitas de F2.2B
+  contiene **solo** las presiones de referencia o también variables de zona
+  (volumen de capa, temperaturas o energías), según la correspondencia
+  definitiva con el estado canónico de `Phase3ZoneMassSystem`. CFAST integra las
+  cuatro variables juntas (ec. 2.5-2.8), así que la opción "solo presiones"
+  solo vale si las variables de zona las sigue llevando el motor con el mismo
+  paso.
 
-## 14. Interfaz de un futuro modelo puro (F2.2A)
+## 14. F2.2A: evaluador puro de ecuaciones locales
+
+Nombre provisional: `sim/core/CompartmentPressureEquations.gd`.
+
+**No resuelve nada.** Recibe un estado candidato y los flujos candidatos por
+aberturas, y responde si ese candidato satisface la conservación de masa y
+energía y las ecuaciones termodinámicas del recinto.
 
 ```text
-compute_compartment_pressure(rooms, outside, dt_s) -> {
-  valid, errors,
-  rooms: [{
-    room_id,
-    gauge_pressure_pa,          # en la cota de referencia declarada
-    reference_z_m,              # cota de la presión de referencia
-    profile: [{z_m, gauge_pressure_pa, density_kg_m3, zone}],
-    mass_residual_kg,
-    energy_residual_kj,
-  }],
-  outside_reference_pa,
+evaluate_compartment_residual(
+  previous_state,        # estado del recinto al principio del paso
+  candidate_state,       # incluye candidate_gauge_pressure_pa y variables de zona
+  sources,               # fuentes de masa y energía ajenas a las aberturas
+  opening_fluxes,        # flujos candidatos de masa y entalpía de este recinto
+  outside,
+  dt_s
+) -> {
+  valid,
+  errors,
+  pressure_residual_pa,      # o su equivalente adimensional, ver más abajo
+  mass_residual_kg,          # masa acumulada del paso [kg]
+  energy_residual_kj,        # energía acumulada del paso [kJ]
+  pressure_profile: [{z_m, gauge_pressure_pa, density_kg_m3, zone}],
+  diagnostics,
 }
 ```
 
-Entradas por recinto: `volume_m3`, `floor_z_m`, `height_m`,
-`mass_upper_kg`, `mass_lower_kg`, `energy_upper_kj`, `energy_lower_kj`,
-`temp_upper_k`, `temp_lower_k`, `interface_height_m`,
-`enthalpy_source_kw` (fuego, paredes, radiación, ya netos),
-`mass_source_kg_s`, `previous_gauge_pressure_pa`, `dt_s`.
-Entradas del exterior: `pressure_pa`, `temp_k`, `density_kg_m3`,
-`wind_dp_pa` por cara y altura del edificio.
+Entradas explícitas:
 
-Salidas: presión manométrica de referencia, perfil con altura, residuos y
-diagnóstico. **Nunca** caudales: eso es F2.2B.
+- `previous_state`: `gauge_pressure_pa`, `mass_upper_kg`, `mass_lower_kg`,
+  `energy_upper_kj`, `energy_lower_kj`, `temp_upper_k`, `temp_lower_k`,
+  `interface_height_m`, `volume_m3`, `floor_z_m`, `height_m`.
+- `candidate_state`: **la presión candidata** (`candidate_gauge_pressure_pa`) y
+  las mismas variables de zona que se estén tratando como incógnitas.
+- `sources`: `enthalpy_source_kw` (fuego, conducción a paredes y radiación, ya
+  netos) y `mass_source_kg_s`.
+- `opening_fluxes`: por abertura y segmento, `mass_flow_kg_s` y
+  `enthalpy_flow_kw` con signo, tal como los ha propuesto F2.2B.
+- `outside`: `pressure_pa`, `temp_k`, `density_kg_m3`, `wind_dp_pa` por cara y
+  altura del edificio.
+- `dt_s`.
+
+Salidas: residuos y perfil hidrostático. **Nunca** caudales: no los calcula ni
+los inventa. Tampoco declara una presión definitiva: la presión final es la que
+F2.2B acepta cuando el punto fijo converge.
+
+`pressure_residual_pa` es el desajuste de la ec. 2.5 de CFAST expresado en Pa
+por paso; si al programarlo resulta más estable normalizarlo, el documento
+admite un equivalente adimensional, pero la unidad tiene que quedar declarada.
 
 Estas variables son una **propuesta**: la lista definitiva sale de las
 ec. 2.5-2.8 de CFAST (presión, volumen de capa y dos temperaturas) y habrá que
-confirmarla contra el estado canónico de zonas de la fase 3 antes de programar.
+confirmarla contra el estado canónico de zonas de la fase 3 antes de programar
+(§13, pendiente del vector de incógnitas).
 
-## 15. Estrategia de acoplamiento presión-aperturas (F2.2B)
+## 15. F2.2B: solver puro acoplado de red
+
+Nombre provisional: `sim/core/PressureOpeningNetworkSolver.gd`. **Es el dueño
+del solve.** Su bucle:
+
+1. Propone presiones de referencia (y, si procede, variables de zona) como
+   estado candidato.
+2. Construye los perfiles hidrostáticos `P(z)` de cada recinto y del exterior.
+3. Calcula `ΔP(z)` y los caudales de cada **segmento** de cada abertura.
+4. Agrega masa y entalpía netas por recinto.
+5. Llama a `CompartmentPressureEquations.evaluate_compartment_residual` (F2.2A).
+6. Actualiza las incógnitas con los residuos devueltos.
+7. Repite hasta que residuos y cambios de presión bajen de tolerancia, o hasta
+   agotar el presupuesto de iteraciones.
 
 ```text
-solve_openings(pressure_state, openings, dt_s, tolerances) -> {
+solve_pressure_network(rooms, openings, outside, sources, dt_s, tolerances) -> {
   valid, errors,
+  rooms: [{
+    room_id,
+    gauge_pressure_pa,            # presión convergida, en la cota de referencia
+    reference_z_m,
+    pressure_profile: [{z_m, gauge_pressure_pa, density_kg_m3, zone}],
+    net_mass_kg_s, net_enthalpy_kw,
+    mass_residual_kg,             # acumulado del paso [kg]
+    energy_residual_kj,           # acumulado del paso [kJ]
+  }],
   openings: [{
-    opening_id, segments: [{z_from_m, z_to_m, dp_pa, direction,
-                            mass_flow_kg_s, enthalpy_flow_kw,
-                            source_room_id, source_zone,
-                            destination_room_id, destination_zone}],
-    neutral_plane_z_m, net_mass_kg_s,
+    opening_id, neutral_plane_z_m, net_mass_kg_s,
+    segments: [{z_from_m, z_to_m, dp_pa, direction,
+                mass_flow_kg_s, enthalpy_flow_kw,
+                source_room_id, source_zone,
+                destination_room_id, destination_zone}],
   }],
   iterations, converged, failure_reason,
-  mass_residual_kg, energy_residual_kg,
+  max_mass_residual_kg, max_energy_residual_kj,
 }
 ```
 
+La salida lleva **a la vez** presiones convergidas, perfiles por altura,
+caudales, plano neutro, masa y entalpía por intercambio, residuos por recinto,
+iteraciones, convergencia y motivo de fallo. Ningún consumidor recibe una
+presión "ya resuelta" antes de que existan los caudales que la sostienen.
+
 - Segmentación por bordes de la abertura, interfaces de las dos salas y **plano
   neutro**, como CFAST (ec. 4.1-4.5).
-- Iteración sobre la red completa: las presiones de los recintos son las
-  incógnitas y el caudal neto de cada recinto es el residuo.
+- Iteración sobre la red completa: las incógnitas son las presiones de los
+  recintos (y, pendiente de decisión, sus variables de zona), y los residuos de
+  masa y energía que devuelve F2.2A son lo que se anula.
 - El exterior es un nodo de presión fija (con viento y altura).
 - Una sola dirección y magnitud por segmento; los consumidores reciben el
   resultado, no lo recalculan.
 - La convergencia se declara con un residuo de masa por recinto, no por número
   de iteraciones.
+
+### 15.1 Unidades del solver
+
+| Magnitud | Unidad | Dónde |
+| --- | --- | --- |
+| Masa | kg | `mass_residual_kg`, masa por intercambio |
+| Caudal másico | kg/s | `mass_flow_kg_s`, `net_mass_kg_s`, `mass_source_kg_s` |
+| Entalpía transportada | kW | `enthalpy_flow_kw`, `net_enthalpy_kw`, `enthalpy_source_kw` |
+| Energía acumulada del paso | kJ | `energy_residual_kj`, `max_energy_residual_kj`, `energy_upper_kj`, `energy_lower_kj`. El residuo energético **nunca** se expresa en kg |
+| Tasa residual de energía, si alguna vez hace falta | kW | `energy_residual_kw`, declarado aparte y nunca mezclado con `energy_residual_kj` |
+| Presión | Pa | presiones, perfiles y `ΔP` |
+
+Los criterios de §21 dicen expresamente si hablan de **balance por paso en kJ**
+o de **tasa en kW**.
 
 ## 16. Conservación de masa y energía
 
@@ -484,8 +613,12 @@ solve_openings(pressure_state, openings, dt_s, tolerances) -> {
 - El sistema es rígido (TN 1889v1, p. 9): el paso del motor (1/12 s) no puede
   resolver la presión con Euler explícito en casos de fuga pequeña.
   Se propone integración implícita o subpasos con control de residuo.
-- Criterio de parada: residuo de masa por recinto ≤ tolerancia **y** cambio de
-  presión entre iteraciones ≤ tolerancia.
+- Criterio de parada: residuo de masa por recinto (kg) ≤ tolerancia, residuo de
+  energía por recinto (kJ) ≤ tolerancia **y** cambio de presión entre
+  iteraciones (Pa) ≤ tolerancia. Los tres a la vez: converger en presión con
+  residuo de masa alto es el fallo que el guardarraíl del §20 tiene que cazar.
+- El punto fijo es de F2.2B (§15). F2.2A no se declara convergido por su cuenta
+  ni devuelve una presión definitiva.
 - Límite de iteraciones y detección de no convergencia con `failure_reason`.
   Un límite numérico solo puede **parar y avisar**, nunca sustituir a la física.
 - Ningún recorte de presión en el estado: si aparece una presión imposible, es
@@ -493,7 +626,8 @@ solve_openings(pressure_state, openings, dt_s, tolerances) -> {
 
 ## 18. Interruptor futuro y compatibilidad
 
-- Un único interruptor nuevo, apagado por defecto, con el nombre provisional
+- **Recomendación pendiente de autorización** (§22, decisión 3): un **único**
+  interruptor nuevo, apagado por defecto, con el nombre provisional
   `pressure_network_solver_enabled`, declarado en `SimulationEngine` y
   clasificado en `audit_default_off_flags.py` y en
   `tests/test_p1r4_flag_activation_inventory.py` (el recuento sube de 76 a 77).
@@ -501,6 +635,10 @@ solve_openings(pressure_state, openings, dt_s, tolerances) -> {
 - Encendido: la presión del solver sustituye a `overpressure_pa` **y** a
   `pressure_pa_therm` como única fuente; `SimulationStateBuilder` deja de elegir
   entre campos.
+- **Un solo interruptor porque presión y caudales son inseparables** (§13).
+  Queda prohibido un interruptor que encienda la presión nueva dejando los
+  caudales heredados, o al revés: eso reproduciría exactamente el
+  desacoplamiento diagnosticado en RC-1 y RC-5.
 - `phase3_thermodynamic_pressure_enabled` y `phase3_pressure_canonical_enabled`
   quedan marcados como obsoletos y se retiran solo cuando el solver pase las
   comprobaciones de referencia.
@@ -509,13 +647,15 @@ solve_openings(pressure_state, openings, dt_s, tolerances) -> {
 
 | Etapa | Contenido | Entregable | Requisito previo |
 | --- | --- | --- | --- |
-| **F2.2A** | Modelo puro de presión de compartimento (§14) | `sim/core/CompartmentPressureModel.gd`, validador, tests, mutaciones | Este documento |
-| **F2.2B** | Solver puro presión-aperturas (§15) | `sim/core/OpeningFlowSolver.gd`, validador con red de 1, 2 y N recintos | F2.2A |
+| **F2.2A** | Evaluador puro de ecuaciones locales y residuos (§14) | `sim/core/CompartmentPressureEquations.gd`, validador, tests, mutaciones | F2.2-DIAG (este documento) |
+| **F2.2B** | Solver puro acoplado de red, dueño de la iteración (§15) | `sim/core/PressureOpeningNetworkSolver.gd`, validador con red de 1, 2 y N recintos | F2.2A |
 | **F2.2C** | Integración tras interruptor, un solo aplicador | Cambios en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` | F2.2A+B en verde y comparación de sombra |
 | **F2.2D** | Conexión de fuga (fase 1), deformación (fase 2) y vidrio (fase 3B) como fuentes de área | Adaptadores puros | F2.2C con la suite de referencia estable |
 
-Ninguna etapa integra antes de tener el modelo puro validado. La regla
-"integrar primero y corregir después" está expresamente prohibida.
+Ninguna etapa integra antes de tener los dos modelos puros validados. La regla
+"integrar primero y corregir después" está expresamente prohibida. `F2.2-DIAG`
+es la fase documental que cierra este documento y **no** produce código; no
+debe confundirse con `F2.2D`, que es la conexión de fuga, deformación y vidrio.
 
 ## 20. Guardarraíles y mutaciones
 
@@ -552,18 +692,40 @@ temporal del motor (1/12 s) y por la sensibilidad medida en §7.
 
 | Escenario | Criterio candidato | Tipo | Respaldo |
 | --- | --- | --- | --- |
-| Recinto sin fuego, sellado | \|P\| ≤ 1 Pa durante 600 s | físico | Sonda A: deriva 0,00 Pa |
-| Recinto sin fuego, exterior 20 K más frío | P < 0 y \|P\| ≤ 50 Pa | físico | CFAST publica −38,7 Pa en casos análogos |
+| Recinto sin fuego, sellado, **inicializado en equilibrio** | \|P\| ≤ 1 Pa durante 600 s | numérico (ausencia de deriva) | Sondas A y G3: 0,00 Pa con masa y temperatura constantes |
+| **A. Enfriamiento de un recinto realmente sellado** (masa y volumen constantes, 293,15 K → 273,15 K) | `P_gauge` final = `101325 · (273,15/293,15 − 1) ≈ −6,9 kPa`, con signo correcto y acuerdo con el gas ideal dentro del 1 % | físico | Ec. de estado (TN 1889v1, ec. 2.4, p. 8). **No** se le aplica ninguna banda de decenas de Pa: sin fuga, la depresión es de kPa |
+| **B. Recinto con fuga o conectado al exterior** | Ver §21.1: depresión de decenas de Pa reproducida con el signo correcto | físico | `cfast_two_room_door_open`, R0, 300-420 s |
 | Sellado con fuego (fuga 84 cm²) | P dentro de un factor 2 de CFAST en t = 360 y 480 s; nunca > 5 kPa | físico | CFAST 167,9 y 168,2 Pa |
 | Recinto con fuga de 12-21 cm² | Renovaciones equivalentes entre 0,1 y 2 h⁻¹ mientras P < 20 Pa | físico | Sonda C con la presión de flujo: 0,34-0,59 h⁻¹ |
 | Abertura exterior grande | P por debajo de 10 Pa en menos de 10 s tras abrir | físico | Sonda D: la presión de flujo ya se queda en 2,0 Pa |
 | Dos recintos conectados | Signo del caudal coherente con el signo de ΔP en cada cota; presiones igualadas con τ < 30 s | físico | CFAST ec. 4.1-4.5 |
 | Cierre de puerta | Sin salto de presión por encima de 1 kPa en el paso del cierre | numérico | Sonda F: hoy 567 kPa |
-| Conservación de masa | Residuo por paso ≤ 1e-9 de la masa del recinto | numérico | Precisión doble |
-| Conservación de energía | Residuo por paso ≤ 1e-9 de la energía del recinto | numérico | ídem |
+| Conservación de masa | `mass_residual_kg` **por paso** ≤ 1e-9 de la masa del recinto | numérico | Precisión doble |
+| Conservación de energía | `energy_residual_kj` **por paso** ≤ 1e-9 de la energía del recinto; si se mide como tasa, `energy_residual_kw` con el mismo umbral relativo, declarado aparte | numérico | ídem |
 | Independencia del paso | Halvar `dt` cambia la presión máxima menos del 2 % | numérico | Sonda B: 0,12 % en la ODE actual, ya independiente |
 | Regresión | Con el interruptor apagado, todos los informes byte a byte idénticos salvo `generated_at` | regresión | Práctica de las fases 1-3B |
 | Hueco estructural aceptado | La diferencia con CFAST en los casos con extinción distinta sigue clasificada como hueco, pero con **magnitud acotada** | hueco | `gap_dispositions.json` |
+
+### 21.1 Criterio B: la depresión medida por CFAST
+
+No es un "caso análogo": es un caso concreto de la suite.
+
+| Concepto | Valor |
+| --- | --- |
+| Caso | `cfast_two_room_door_open` (`sim/validation/cfast/cfast_two_room_door_open.in`) |
+| Recinto | `R0`, 5,0 × 4,0 × 2,4 m (48 m³) |
+| Conexión | Puerta a `Hall` de 0,9 m de ancho, de 0,0 a 2,0 m, abierta |
+| Fuga | `LEAK_AREA_RATIO = 0,00017` (paredes) y `5,2e-5` (suelo) en ambos recintos: ≈ 0,0084 m² en R0 |
+| Fuego | Madera, rampa tabulada hasta 1 280 kW, en R0 |
+| Condiciones térmicas en el tramo | 300 s: T_sup 237,3 °C, T_inf 134,1 °C, interfaz 0,583 m; 360 s: T_sup 99,8 °C, T_inf 70,4 °C, interfaz 0,857 m |
+| Valores esperados (CFAST) | 240 s: **+163,079 Pa**; 300 s: **−186,460 Pa**; 360 s: **−38,719 Pa**; 420 s: **−0,308 Pa**; 480 s: **+6,017 Pa** |
+| SimuFire hoy | 360 s: **+198,42 Pa** (signo contrario) |
+
+Criterio candidato: reproducir el **cambio de signo** entre 240 y 300 s y
+mantenerse dentro de un factor 2 del valor de CFAST en 360 y 420 s. Aquí la
+depresión es de decenas de Pa, y no de kPa, precisamente porque la puerta y la
+fuga alivian la contracción; por eso este criterio y el A son distintos y no se
+mezclan.
 
 Distinción explícita: los criterios **físicos** comparan con CFAST o con el
 orden de magnitud experimental; los **numéricos** comprueban el solver; los de
@@ -574,10 +736,11 @@ bloquean, pero dejan de ser una excusa para 500 kPa.
 
 | Riesgo | Mitigación |
 | --- | --- |
-| El estado canónico de zonas todavía reconstruye masa por EOS | F2.2A solo lee; la sustitución de la reconstrucción se decide en F2.2C |
+| El estado canónico de zonas todavía reconstruye masa por EOS | F2.2A y F2.2B solo leen; la sustitución de la reconstrucción se decide en F2.2C |
+| El vector de incógnitas puede cambiar la interfaz de F2.2A | La interfaz de §14 recibe el estado candidato completo, no solo la presión, para que ampliarlo no rompa la firma |
 | El solver implícito puede ser caro en escenarios grandes | Medir con `--phase3-coupled-pressure-solver-capture` antes de integrar |
 | Cambiar la presión cambia humo, O₂ y temperatura a la vez | La suite de referencia completa se regenera solo al integrar, no en las fases puras |
-| Las tolerancias actuales de los casos CFAST de presión son enormes (hasta 7 200 Pa) | No se tocan en F2.2-D; se revisan al final de F2.2C, como cambio documentado aparte |
+| Las tolerancias actuales de los casos CFAST de presión son enormes (hasta 7 200 Pa) | No se tocan en F2.2-DIAG; se revisan al final de F2.2C, como cambio documentado aparte |
 
 Decisiones que necesitan autorización antes de programar:
 
@@ -589,8 +752,13 @@ Decisiones que necesitan autorización antes de programar:
 3. **Un interruptor o dos**: uno solo para presión y caudales, o separados.
 4. Si F2.2B debe **sustituir** la maquinaria de sombra de `Phase3ZoneMassSystem`
    o construirse encima de ella.
-5. Qué hacer con los tres consumidores que hoy inventan su propia escala de
-   referencia (§4.2) cuando el solver esté encendido.
+5. Qué hacer, cuando el solver esté encendido, con **todas las rutas
+   enumeradas en §4.2** que hoy inventan su propia escala de referencia (las
+   siete rutas físicas de §4.3; las de sombra y observación solo leen).
+6. **Vector de incógnitas de F2.2B** (§13 y §15): solo presiones de referencia,
+   o también variables de zona (volumen de capa, temperaturas o energías),
+   según la correspondencia definitiva con el estado canónico de
+   `Phase3ZoneMassSystem`.
 
 ## 23. Evidencia reproducible y comandos
 
@@ -626,13 +794,15 @@ así que la entrada no ha cambiado desde entonces.
 
 ## 24. Qué queda expresamente sin implementar
 
-- El modelo puro de presión (F2.2A) y el solver de aberturas (F2.2B).
+- El evaluador puro de ecuaciones locales (F2.2A) y el solver acoplado de red
+  (F2.2B).
 - La integración tras interruptor (F2.2C) y la conexión de fuga, deformación y
   vidrio (F2.2D).
 - La corrección de la purga por fracción de hollín (RC-4), abierta desde
   2026-07-12.
-- La representación de presiones negativas.
-- La unificación de las escalas de referencia de los siete consumidores.
+- La representación de presiones negativas (criterios A y B de §21).
+- La unificación de las escalas de referencia de las siete rutas físicas
+  enumeradas en §4.2 y clasificadas en §4.3.
 - HVAC, F2.1, modelo térmico de rotura de vidrio y modelo probabilista.
 - Cualquier cambio de tolerancias, casos, resultados de referencia o
   clasificación de huecos.
