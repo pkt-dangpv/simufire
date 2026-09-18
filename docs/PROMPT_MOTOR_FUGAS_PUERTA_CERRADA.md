@@ -1556,6 +1556,15 @@ ya está montado y validado —`zero_pressure_regularization_pa`, que empalma la
 ley con una recta desde el origen— pero D1 lo deja **en cero** a propósito, como
 pedía el encargo: primero medir sin él. Ajustarlo es trabajo de D4.
 
+> **Resuelto el 2026-09-18 por F2.2C-R1.** Lo que sigue describe lo que se
+> midió con D1 y sigue siendo el registro fiel de aquel momento. La causa quedó
+> demostrada después: la red metía el hueco de escalera como vano de Bernoulli
+> anclado al suelo del recinto de abajo, y una zona sin inventario podía donar.
+> Corregido eso, **P0, P1 y P2 convergen con 0 pasos descartados de 7 200**. La
+> pista de las plantas a la misma presión absoluta era real pero secundaria: el
+> defecto de datum existía y está corregido, pero no era lo que descartaba los
+> pasos. Ver §17 del documento de sobrepresión.
+
 **En el portal de tres plantas (B) el problema es anterior a D1, y es grande.**
 Con las dos puertas **estancas y sin ninguna rendija**, la red ya se niega a
 aplicarse en **2 476 de 7 200 pasos (34 %)**, y siempre por el mismo motivo:

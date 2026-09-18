@@ -422,6 +422,15 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot red de presion autoritativa: " + (diagnostic or "failed"))
 
+    # Referencia hidrostatica multiplanta de la red (fase F2.2C-R1).
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_multistorey_pressure_datum.gd",
+        "MULTISTOREY PRESSURE DATUM VALIDATION PASS",
+    )
+    rows.append(("Referencia de presion multiplanta, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot referencia multiplanta: " + (diagnostic or "failed"))
+
     # Fuga fria de puerta cerrada dentro de la red (fase F2.2D1): interruptor
     # apagado por defecto y dependiente del de la red.
     rc, count, fails, diagnostic = _run_godot_script(

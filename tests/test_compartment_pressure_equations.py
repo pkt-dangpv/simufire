@@ -50,6 +50,10 @@ ALLOWED_REFERENCES = {
     Path("sim/core/PressureNetworkTransportSystem.gd"),
     Path("tools/validate_pressure_network_integration.gd"),
     Path("tests/test_pressure_network_integration.py"),
+    # F2.2C-R1: la referencia hidrostatica multiplanta resuelve redes reales,
+    # y por tanto ejerce el evaluador de compartimento.
+    Path("tools/validate_multistorey_pressure_datum.gd"),
+    Path("tests/test_multistorey_pressure_datum.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

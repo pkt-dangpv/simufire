@@ -1168,6 +1168,12 @@ El recuento de interruptores del auditor pasa de 77 a **78**: §16.1 describe el
 salto de 76 a 77 que hizo F2.2C, y `closed_door_leakage_enabled` añade el
 siguiente.
 
+> **Corregido el 2026-09-18 por F2.2C-R1.** Hasta esa fase, la presión exterior
+> absoluta se reutilizaba como cero de la manométrica en **todas** las plantas,
+> sin ajustar la columna. Eso era un defecto, no un convenio: un recinto a 6 m en
+> equilibrio con su exterior publicaba −70,61 Pa. La convención correcta, el
+> perfil `p_ext(z)` y el significado exacto de `gauge_pressure_pa` están en §17.
+
 ## 17. Conservación de masa y energía
 
 - Cada intercambio produce una tupla `{masa, entalpía, O₂, humo, especies}` con
@@ -1411,3 +1417,207 @@ Lo que sigue sin implementar:
 **La frase de la versión de diagnóstico —«en esta fase no se ha modificado ni
 una línea de `sim/`»— valía para F2.2-DIAG. Desde F2.2A el motor sí ha
 cambiado, y cada fase lo dice en su propia sección.**
+
+## 17. F2.2C-R1: referencia hidrostática multiplanta y convergencia del portal (2026-09-18)
+
+> **Estado: cerrada.** El portal de tres plantas converge en las tres variantes,
+> 0 pasos descartados de 7 200. La hipótesis de partida —que el fallo venía de la
+> columna exterior— resultó **cierta como defecto pero falsa como causa**, y la
+> causa real quedó demostrada antes de tocar ninguna tolerancia.
+
+### 17.1 Lo que se midió antes de cambiar nada
+
+El encargo exigía reproducir el fallo y clasificarlo, no agruparlo bajo «no
+converge». Reproducción exacta con `runs/f22c_r1_20260918/diagnose.gd`:
+
+| variante | pasos sin aplicar | código |
+|---|---|---|
+| **P0** puertas estancas, sin rendijas | **2 476 / 7 200 (34,4 %)** | `solver_compartment_equations_rejected_candidate` |
+| **P1** con la fuga fría de D1 | **4 228 / 7 200 (58,7 %)** | el mismo |
+| **P2** puertas abiertas | 0 / 7 200 | — |
+
+Las 2 476 de P0 tienen **un solo** mensaje, sin una sola excepción:
+
+```
+candidate_state lower_gas_kg must be >= 0
+```
+
+Primer fallo en **t = 177,08 s**, último a los 600 s, hasta **697 fallos
+consecutivos**. En ese primer paso el rellano superior (sala 6, suelo a 5,8 m)
+entra con `lower_gas_kg = 0,0000` y `upper_gas_kg = 51,38` —la capa caliente
+ocupa todo el recinto— y el paso le pide donar **−0,023 kg**, que son
+exactamente los 0,278 kg/s netos de `op_7` por el paso de tiempo.
+
+### 17.2 La causa raíz, demostrada
+
+`op_7` es un **hueco vertical de escalera** (`is_vertical = true`).
+`OpeningModel` lo documenta desde SF-R7: «cuando `is_vertical = true`, el flujo
+está impulsado por flotabilidad térmica en lugar de por Bernoulli horizontal con
+plano neutro», y la ruta histórica tiene su rama dedicada.
+
+**F2.2C perdió esa distinción.** El adaptador metía el hueco en la red como un
+vano de Bernoulli anclado al suelo de `room_a`, con lo que el vano quedaba entre
+z = 2,9 y 4,3 m, es decir **entero por debajo del suelo de la sala 6**, que está
+a 5,8 m. El perfil de esa sala se extrapolaba 2,9 m por debajo de su propia
+losa, toda esa cota caía del lado «inferior», y su zona inferior vacía tenía que
+donar el caudal completo.
+
+A eso se sumaban tres cosas más, que el diagnóstico fue destapando en orden:
+
+1. **El datum exterior era global.** `reference_mass_kg` se construía con la
+   presión exterior de la cota de referencia en todas las plantas.
+2. **La etiqueta de zona podía elegir la zona vacía.** En un borde la decidía un
+   empate de coma flotante.
+3. **El residuo no conoce el inventario por zonas.** El solver trabaja con
+   totales de sala y F2.2A valida **por zona**: entre ambas cosas cabe un estado
+   que parece bueno en total y es imposible por zonas.
+
+Conviene registrar que **la primera corrección empeoró el portal al 64,4 %**. El
+modelo nuevo de hueco mueve mucho más gas que el vano mal colocado al que
+sustituía (≈5 kg/s frente a 0,28), así que vaciaba antes la zona inferior. El
+defecto (3) seguía intacto, y es el que finalmente cerró el caso.
+
+### 17.3 Lo que M1–M6 midieron, antes y después
+
+| fixture | qué separa | antes | después |
+|---|---|---|---|
+| **M1** | recintos sellados a 0, 3 y 6 m | gauge **−35,30** y **−70,61 Pa** (= ρ·g·z) | 0 Pa |
+| **M2** | una abertura exterior por planta | **0,25** y **0,50 kg/s** inventados | 0 |
+| **M3** | columna interior isoterma | chimenea espuria | sin intercambio |
+| **M4** | columna interior caliente | no converge | converge |
+| **M5** | edificio desplazado +20 m | absolutas incoherentes | invariante |
+| **M6** | conexión entre plantas | no converge | converge en los dos órdenes |
+
+En total, de **47 fallos** a **99 comprobaciones PASS**.
+
+### 17.4 Convención exterior, ya inequívoca
+
+El contorno se declara con una presión absoluta **en una cota**:
+
+```
+outside = {pressure_abs_pa, reference_z_m, temp_k, reference_temp_k}
+```
+
+y la presión a cualquier otra cota es
+
+```
+p_ext(z) = p_ext(z_ref) - rho_ext * g * (z - z_ref)
+```
+
+`sim/core/ExteriorPressureProfile.gd` es el **único dueño** de esa fórmula. La
+usan F2.2A, el solver, el adaptador y los validadores; copiarla en cada sistema
+es exactamente lo que produjo el defecto.
+
+**`reference_z_m` ausente significa 0 m**, que es lo que valía implícitamente en
+todos los casos históricos, y por eso un escenario de una sola planta a cota
+cero da exactamente los mismos números que antes.
+
+**Convención declarada:** densidad exterior **constante**, evaluada a la
+temperatura del contorno. Es la aproximación que ya usaba el motor. Su magnitud
+es `g·H·ρ·(ρ·g·z/P)`: a 5 m de altura y 2,5 m de columna son **0,02 Pa**. Las
+tolerancias de M3 y M5 **se derivan de esa fórmula**, no se eligen: el defecto
+que esta fase corrige valía ρ·g·z, tres órdenes de magnitud más.
+
+### 17.5 Qué significa exactamente `gauge_pressure_pa`
+
+```
+p_gauge_floor = p_room(floor_z) - p_ext(floor_z)
+```
+
+Es decir, **el exterior de su propio suelo**, no el de la cota de referencia. Por
+tanto:
+
+```
+p_room_abs_floor = p_ext(floor_z) + p_gauge_floor
+M_ref_room       = p_ext(floor_z) * V / (R * T_ref)
+```
+
+Y como cada manométrica se mide contra un exterior distinto, comparar dos
+recintos de plantas distintas necesita devolverlas a la misma cota:
+
+```
+dp(z) = (p_a - p_b) + [p_ext(suelo_a) - p_ext(suelo_b)]
+        - g * integral ( rho_a - rho_b ) dz'
+```
+
+El corchete vale **exactamente cero** cuando los dos suelos están a la misma
+altura, así que ningún escenario de una planta cambia ni un bit.
+
+**Consecuencia medida y verificada:** subir un edificio 10 m dejando la
+referencia en el suelo sube toda manométrica en **117,679800000 Pa**, frente a
+ρ·g·h = **117,679800000 Pa**, con la presión absoluta intacta. La prueba 07 de
+F2.2B afirmaba lo contrario —«subir el edificio no cambia ninguna presión»— y
+eso *era* el defecto; ahora exige esa igualdad y añade la invariancia que sí es
+cierta: mover el edificio **y** su referencia juntos no cambia nada.
+
+### 17.6 El hueco de suelo/techo, clase de elemento propia
+
+`sim/core/VerticalShaftFlowModel.gd`. Dos términos, físicamente distintos:
+
+1. **Neto por presión**, que es lo que acopla las dos presiones en el residuo:
+   `m_p = Cd · A · sqrt(2 · rho_origen · |dp|)`.
+2. **Intercambio por flotabilidad**, solo si el gas de abajo es **más ligero**:
+   `m_b = Cd · A · sqrt(2 · g · sqrt(A) · |d_rho| · rho_media)`.
+   La raíz del área es la escala de longitud: no hay altura de vano, hay un
+   agujero. Sube esa masa y baja esa masa; no es caudal neto.
+
+Lo decide la **densidad**, no la temperatura: con gases de distinta composición
+la temperatura sola mentiría. Si lo de abajo pesa más, la estratificación es
+estable y el intercambio es cero.
+
+Cada lado se evalúa **en su propio borde** —el techo del de abajo y el suelo del
+de arriba—, y cuando las plantas no son contiguas el hueco atraviesa la losa y
+su columna entra en el balance. Un hueco contra el exterior se rechaza; entre
+dos recintos de la misma planta, también.
+
+### 17.7 Una zona sin inventario no dona
+
+Dos reglas, y las dos hacían falta:
+
+- la **etiqueta** de zona a una cota cae a la otra zona cuando la geométrica
+  está vacía (antes lo decidía un empate de coma flotante);
+- la **donación** se reparte entre las dos zonas según lo que cada una puede
+  entregar en el paso. Ni se inventa masa ni se recorta caudal: cambia de dónde
+  sale.
+
+### 17.8 Estabilización numérica: la que ya existía
+
+El hueco usa **la misma** linealización por debajo de `dp_regularization_pa` que
+el vano de Bernoulli ya usaba, porque la derivada del orificio no está acotada
+en el origen y dos huecos en serie hacen oscilar a Newton. **No se ha añadido
+ningún knob, ni subido ninguna tolerancia, ni ampliado el número de
+iteraciones.** Las tolerancias canónicas siguen siendo 1e−6 Pa, 1e−9 kg y
+1e−6 kJ, y hay una prueba que las fija.
+
+### 17.9 Resultado
+
+| variante | antes | después |
+|---|---|---|
+| **P0** | 34,4 % | **0 / 7 200** |
+| **P1** | 58,7 % | **0 / 7 200** |
+| **P2** | 0 % | **0 / 7 200** |
+
+Sin fallbacks, sin aplicaciones parciales, sin presiones absolutas inválidas y
+sin residuos fuera de tolerancia.
+
+### 17.10 Las otras dos incidencias siguen abiertas y separadas
+
+Ninguna se ha tocado en esta fase, y **no deben mezclarse** con ella:
+
+- **R2 — pérdida histórica de masa.** Una sala pierde alrededor de un tercio de
+  su masa de gas mientras se calienta (48,0 → 31,0 kg en 100 s). Con la red
+  **apagada** pierde lo mismo al kilogramo (31,0356 frente a 31,0348), así que
+  la ruta propietaria es histórica y está **sin identificar**. Efecto: las
+  medidas de fuga de D1 son una **cota inferior**. No atribuible a la rendija ni
+  al solver.
+- **R3 — envolvente exterior cerrada ausente.** Con la red activa, una ventana
+  exterior cerrada es inerte y el caso Aw coincide exactamente con A. F2.2C
+  desactivó la purga exterior histórica (`window_leakage_area_m2`) y la red
+  canónica no incorporó un elemento equivalente. Hace falta una fase separada de
+  fuga de envolvente **dentro** de la red; no se debe resolver reactivando la
+  purga histórica en paralelo.
+
+### 17.11 Qué queda bloqueado hasta cerrar esas dos
+
+**D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
+iniciado.** El orden de trabajo es: R2, después R3, y solo entonces D2/D3/D4.

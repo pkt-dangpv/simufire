@@ -89,6 +89,15 @@ const ClosedDoorLeakageModelScript = preload(
 	"res://sim/core/ClosedDoorLeakageModel.gd"
 )
 
+## F2.2C-R1: la columna atmosferica vive en un solo sitio.
+const ExteriorPressureProfileScript = preload(
+	"res://sim/core/ExteriorPressureProfile.gd"
+)
+## F2.2C-R1: hueco horizontal entre plantas.
+const VerticalShaftFlowModelScript = preload(
+	"res://sim/core/VerticalShaftFlowModel.gd"
+)
+
 const AIR_PRESSURE_REF_PA: float = 101325.0
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
@@ -115,6 +124,9 @@ const DEFAULT_MAX_DAMPING_HALVINGS: int = 12
 ## grande, exactamente como en F2.2B y F2.2C.
 const FLOW_MODEL_LARGE_OPENING: String = "large_opening"
 const FLOW_MODEL_ELA_CRACK: String = "ela_crack"
+## F2.2C-R1: hueco de suelo/techo. No es un vano: las dos salas solo comparten
+## el plano de la losa.
+const FLOW_MODEL_VERTICAL_SHAFT: String = "vertical_shaft"
 
 ## F2.2B: tolerancias fisicas de la convergencia canonica. Son globales y
 ## justificadas por la precision doble, nunca knobs por caso.
@@ -1267,6 +1279,20 @@ func _build_context(
 	))
 	if not is_finite(exterior_pressure_abs_pa) or exterior_pressure_abs_pa <= 0.0:
 		return context
+	# F2.2C-R1: esa presion esta declarada EN UNA COTA. Sin `reference_z_m` la
+	# cota es 0 m, que es lo que valia implicitamente en todos los casos de una
+	# sola planta y los deja intactos.
+	var exterior_reference_z_m: float = float(options.get("exterior_reference_z_m", 0.0))
+	if not is_finite(exterior_reference_z_m):
+		return context
+	var exterior_profile: Dictionary = ExteriorPressureProfileScript.resolve({
+		"pressure_abs_pa": exterior_pressure_abs_pa,
+		"reference_z_m": exterior_reference_z_m,
+		"temp_k": float(options.get("exterior_temp_k", reference_temp_k)),
+		"reference_temp_k": reference_temp_k,
+	})
+	if not bool(exterior_profile["valid"]):
+		return context
 
 	var room_keys: Array = rooms.keys()
 	room_keys.sort()
@@ -1279,7 +1305,7 @@ func _build_context(
 			rooms[room_keys[position]],
 			reference_temp_k,
 			gas_constant,
-			exterior_pressure_abs_pa
+			exterior_profile
 		)
 		if not bool(derived.get("valid", false)):
 			context["failure_code"] = FAILURE_BAD_ROOM_STATE
@@ -1300,8 +1326,7 @@ func _build_context(
 	var exterior_temp_k: float = float(options.get("exterior_temp_k", reference_temp_k))
 	if not is_finite(exterior_temp_k) or exterior_temp_k <= 0.0:
 		return context
-	var exterior_density_kg_m3: float = exterior_pressure_abs_pa \
-			/ (gas_constant * exterior_temp_k)
+	var exterior_density_kg_m3: float = float(exterior_profile["density_kg_m3"])
 	var exterior_specific_kj_kg: float = AIR_CP_KJ_KG_K * (exterior_temp_k - reference_temp_k)
 	var opening_context: Array[Dictionary] = []
 	for raw_opening in openings:
@@ -1338,6 +1363,7 @@ func _build_context(
 	context["reference_temp_k"] = reference_temp_k
 	context["gas_constant"] = gas_constant
 	context["exterior_pressure_abs_pa"] = exterior_pressure_abs_pa
+	context["exterior_profile"] = exterior_profile
 	context["residual_tolerance"] = maxf(
 		0.0, float(options.get("residual_tolerance", DEFAULT_RESIDUAL_TOLERANCE))
 	)
@@ -1370,7 +1396,7 @@ func _derive_room(
 		raw_state: Dictionary,
 		reference_temp_k: float,
 		gas_constant: float,
-		exterior_pressure_abs_pa: float
+		exterior_profile: Dictionary
 	) -> Dictionary:
 	var state: Dictionary = raw_state
 	# F2.2B: the pressure datum of a room is its own floor. Callers that do not
@@ -1440,10 +1466,16 @@ func _derive_room(
 	var lower_density_kg_m3: float = lower_gas_kg / lower_volume_m3 \
 			if lower_volume_m3 > VOLUME_EPS_M3 and lower_gas_kg > MASS_EPS_KG \
 			else upper_gas_kg / maxf(VOLUME_EPS_M3, upper_volume_m3)
-	# Mass that would sit at exactly the exterior pressure at the reference
-	# temperature. Expressing the EOS around it is what lets the residual be
-	# built in gauge terms without ever forming `implied_abs - exterior_abs`.
-	var reference_mass_kg: float = exterior_pressure_abs_pa * volume_m3 \
+	# F2.2C-R1: masa que llenaria el recinto a la presion exterior DE SU PROPIA
+	# COTA y a la temperatura de referencia. Es el cero de su manometrica. Usar
+	# la presion de la cota de referencia para todas las plantas hacia que un
+	# recinto elevado en equilibrio con su exterior publicara -rho*g*z.
+	var local_exterior_pressure_pa: float = ExteriorPressureProfileScript.pressure_at(
+		exterior_profile, floor_z_m
+	)
+	if is_nan(local_exterior_pressure_pa):
+		return {"valid": false}
+	var reference_mass_kg: float = local_exterior_pressure_pa * volume_m3 \
 			/ (gas_constant * reference_temp_k)
 	var gauge_pressure_pa: float = gas_constant * (
 		(total_mass_kg - reference_mass_kg) * reference_temp_k
@@ -1466,6 +1498,8 @@ func _derive_room(
 		"lower_temp_k": lower_temp_k,
 		"mass_kg": total_mass_kg,
 		"reference_mass_kg": reference_mass_kg,
+		"exterior_pressure_abs_pa": local_exterior_pressure_pa,
+		"datum_reference_pressure_pa": float(exterior_profile["pressure_abs_pa"]),
 		"energy_kj": total_energy_kj,
 		"pressure_abs_pa": pressure_abs_pa,
 		"gauge_pressure_pa": gauge_pressure_pa,
@@ -1495,14 +1529,23 @@ func _side_profile(
 		room_context: Dictionary,
 		exterior_density_kg_m3: float,
 		datum_z_m: float = 0.0,
-		exterior_specific_kj_kg: float = 0.0
+		exterior_specific_kj_kg: float = 0.0,
+		datum_pressure_pa: float = NAN
 	) -> Dictionary:
 	if room_key.is_empty():
 		return {
 			"exterior": true,
+			"upper_degenerate": false,
+			"lower_degenerate": false,
+			# El exterior es un deposito: no se agota.
+			"upper_gas_kg": INF,
+			"lower_gas_kg": INF,
 			"interface_m": INF,
 			"interface_z_m": INF,
 			"floor_z_m": datum_z_m,
+			# El exterior tiene gauge cero EN SU PROPIO DATUM, que es el suelo
+			# del recinto al que da: su presion de datum es la exterior alli.
+			"datum_pressure_pa": datum_pressure_pa,
 			"upper_density_kg_m3": exterior_density_kg_m3,
 			"lower_density_kg_m3": exterior_density_kg_m3,
 			"upper_specific_kj_kg": exterior_specific_kj_kg,
@@ -1511,6 +1554,16 @@ func _side_profile(
 	var room: Dictionary = room_context[room_key]
 	return {
 		"exterior": false,
+		"datum_pressure_pa": float(room["exterior_pressure_abs_pa"]),
+		# F2.2C-R1: su propia altura, para que ningun elemento evalue este perfil
+		# por encima del techo del recinto.
+		"height_m": float(room["height_m"]),
+		# F2.2C-R1: que zonas tienen gas de verdad, y cuanto. Una zona vacia no
+		# dona, y una que se agota dentro del paso no dona mas de lo que tiene.
+		"upper_degenerate": float(room["upper_gas_kg"]) <= MASS_EPS_KG,
+		"lower_degenerate": float(room["lower_gas_kg"]) <= MASS_EPS_KG,
+		"upper_gas_kg": float(room["upper_gas_kg"]),
+		"lower_gas_kg": float(room["lower_gas_kg"]),
 		"interface_m": float(room["interface_m"]),
 		"interface_z_m": float(room["interface_z_m"]),
 		"floor_z_m": float(room["floor_z_m"]),
@@ -1569,17 +1622,39 @@ func _build_opening(
 		opening.get("exterior_specific_kj_kg", 0.0)
 	)
 	var flow_model: String = String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING))
-	if flow_model != FLOW_MODEL_LARGE_OPENING and flow_model != FLOW_MODEL_ELA_CRACK:
+	if flow_model != FLOW_MODEL_LARGE_OPENING \
+			and flow_model != FLOW_MODEL_ELA_CRACK \
+			and flow_model != FLOW_MODEL_VERTICAL_SHAFT:
 		return {"valid": false}
+	# La presion exterior en el suelo de cada lado. Para el exterior es la de la
+	# cota del recinto al que da, con lo que su termino de datum se cancela.
+	var datum_a_pa: float = NAN
+	if not room_a_key.is_empty():
+		datum_a_pa = float(room_context[room_a_key]["exterior_pressure_abs_pa"])
+	var datum_b_pa: float = NAN
+	if not room_b_key.is_empty():
+		datum_b_pa = float(room_context[room_b_key]["exterior_pressure_abs_pa"])
+	# F2.2C-R1: la densidad del exterior se evalua en el datum del elemento, igual
+	# que la de cada zona de una sala se evalua a su propia presion. Con una
+	# densidad global, una sala en equilibrio con su exterior local seguia viendo
+	# una dp de milesimas de pascal a lo largo del vano, porque su columna y la
+	# del exterior usaban densidades distintas.
+	if room_a_key.is_empty() and room_b_key.is_empty():
+		return {"valid": false}
+	var local_exterior_density_kg_m3: float = _exterior_density_at(
+		room_context, room_a_key, room_b_key, exterior_density_kg_m3
+	)
 	var side_a: Dictionary = _side_profile(
-		room_a_key, room_context, exterior_density_kg_m3,
+		room_a_key, room_context, local_exterior_density_kg_m3,
 		floor_b_z_m if room_a_key.is_empty() else floor_a_z_m,
-		exterior_specific_kj_kg
+		exterior_specific_kj_kg,
+		datum_b_pa if room_a_key.is_empty() else datum_a_pa
 	)
 	var side_b: Dictionary = _side_profile(
-		room_b_key, room_context, exterior_density_kg_m3,
+		room_b_key, room_context, local_exterior_density_kg_m3,
 		floor_a_z_m if room_b_key.is_empty() else floor_b_z_m,
-		exterior_specific_kj_kg
+		exterior_specific_kj_kg,
+		datum_a_pa if room_b_key.is_empty() else datum_b_pa
 	)
 	# Wind is a property of the exterior node at this opening, applied once as a
 	# constant gauge offset of the exterior side. An interior opening has no
@@ -1608,6 +1683,11 @@ func _build_opening(
 				or absf(boundary_m - unique_boundaries[-1]) > 1.0e-9:
 			unique_boundaries.append(boundary_m)
 
+	if flow_model == FLOW_MODEL_VERTICAL_SHAFT:
+		return _build_shaft_element(
+			opening, opening_id_int, room_a_id, room_b_id, room_a_key, room_b_key,
+			index_by_key, side_a, side_b, exterior_gauge_pa, dt
+		)
 	if flow_model == FLOW_MODEL_ELA_CRACK:
 		return _build_crack_element(
 			opening, opening_id_int, room_a_id, room_b_id, room_a_key, room_b_key,
@@ -1656,6 +1736,294 @@ func _build_opening(
 		# inapplicable rather than labelled with an invented one.
 		"interior": not bool(side_a.get("exterior", false)) \
 				and not bool(side_b.get("exterior", false)),
+	}
+
+
+## F2.2C-R1: hueco de suelo/techo entre dos plantas. Las dos salas NO comparten
+## un pano vertical: comparten el plano de la losa, y el intercambio ocurre ahi
+## y solo ahi. Modelarlo como un vano anclado al suelo de una de ellas ponia el
+## vano entero por debajo del suelo de la otra.
+func _build_shaft_element(
+		opening: Dictionary,
+		opening_id_int: int,
+		room_a_id: int,
+		room_b_id: int,
+		room_a_key: String,
+		room_b_key: String,
+		index_by_key: Dictionary,
+		side_a: Dictionary,
+		side_b: Dictionary,
+		exterior_gauge_pa: float,
+		dt: float
+	) -> Dictionary:
+	# Un hueco entre plantas es cosa de dos recintos: contra el exterior no
+	# significa nada y se rechaza en vez de inventarse una losa al aire.
+	if room_a_key.is_empty() or room_b_key.is_empty():
+		return {"valid": false}
+	var floor_a_z_m: float = float(side_a["floor_z_m"])
+	var floor_b_z_m: float = float(side_b["floor_z_m"])
+	if not is_finite(floor_a_z_m) or not is_finite(floor_b_z_m):
+		return {"valid": false}
+	# La losa es el suelo del recinto de ARRIBA. Con los dos suelos a la misma
+	# cota no hay losa entre ellos y el hueco no esta bien planteado.
+	if absf(floor_a_z_m - floor_b_z_m) <= 1.0e-9:
+		return {"valid": false}
+	var below_is_a: bool = floor_a_z_m < floor_b_z_m
+	var side_below: Dictionary = side_a if below_is_a else side_b
+	var side_above: Dictionary = side_b if below_is_a else side_a
+	# Cada lado se evalua en SU borde: el techo del de abajo y el suelo del de
+	# arriba. Evaluar los dos en una misma cota obligaria a extrapolar uno de
+	# los dos perfiles fuera de su recinto, que es justo el defecto que esta
+	# fase corrige.
+	var ceiling_below_z_m: float = float(side_below["floor_z_m"]) \
+			+ float(side_below.get("height_m", 0.0))
+	var floor_above_z_m: float = float(side_above["floor_z_m"])
+	if not is_finite(ceiling_below_z_m) or ceiling_below_z_m > floor_above_z_m + 1.0e-9:
+		# El recinto de abajo llegaria por encima del suelo del de arriba: la
+		# geometria no describe dos plantas apiladas.
+		return {"valid": false}
+	# Espesor de losa que el hueco atraviesa. Cero cuando las plantas son
+	# contiguas, que es el caso normal.
+	var slab_thickness_m: float = maxf(0.0, floor_above_z_m - ceiling_below_z_m)
+
+	var area_m2: float = float(opening.get("shaft_area_m2", 0.0))
+	var discharge_coeff: float = float(opening.get("discharge_coeff", 0.0))
+	if not is_finite(area_m2) or area_m2 < 0.0 \
+			or not is_finite(discharge_coeff) or discharge_coeff <= 0.0:
+		return {"valid": false}
+	return {
+		"valid": true,
+		"skip": area_m2 <= 0.0,
+		"flow_model": FLOW_MODEL_VERTICAL_SHAFT,
+		"sort_key": "%010d|%010d|%010d" % [
+			opening_id_int, mini(room_a_id, room_b_id), maxi(room_a_id, room_b_id)
+		],
+		"opening_id": opening_id_int,
+		"room_a_id": room_a_id,
+		"room_b_id": room_b_id,
+		"room_a_key": room_a_key,
+		"room_b_key": room_b_key,
+		"index_a": int(index_by_key.get(room_a_key, -1)),
+		"index_b": int(index_by_key.get(room_b_key, -1)),
+		"bottom_m": ceiling_below_z_m,
+		"top_m": floor_above_z_m,
+		"ceiling_below_z_m": ceiling_below_z_m,
+		"floor_above_z_m": floor_above_z_m,
+		"slab_thickness_m": slab_thickness_m,
+		"below_is_a": below_is_a,
+		"shaft_area_m2": area_m2,
+		"discharge_coeff": discharge_coeff,
+		"exterior_gauge_pa": exterior_gauge_pa,
+		"side_a": side_a,
+		"side_b": side_b,
+		"dt": dt,
+		"bands": [],
+		"interior": true,
+	}
+
+
+## Integracion de un hueco horizontal. Misma forma de salida que las otras dos
+## clases, para que el residuo, la transaccion y los diagnosticos no distingan.
+func _integrate_shaft(
+		opening: Dictionary,
+		delta_p_pa: float,
+		dp_regularization_pa: float,
+		collect_segments: bool
+	) -> Dictionary:
+	var side_a: Dictionary = opening["side_a"]
+	var side_b: Dictionary = opening["side_b"]
+	var dt: float = float(opening["dt"])
+	var below_is_a: bool = bool(opening["below_is_a"])
+	var side_below: Dictionary = side_a if below_is_a else side_b
+	var side_above: Dictionary = side_b if below_is_a else side_a
+	var ceiling_below_z_m: float = float(opening["ceiling_below_z_m"])
+	var floor_above_z_m: float = float(opening["floor_above_z_m"])
+
+	# Presion de cada lado EN SU PROPIO BORDE, con su propia columna. La
+	# diferencia de manometricas viene referida a los dos exteriores locales,
+	# asi que hay que devolverla a una comparacion absoluta con el termino de
+	# datum, exactamente igual que en un vano.
+	var gauge_below_pa: float = delta_p_pa if below_is_a else -delta_p_pa
+	var datum_offset_pa: float = _datum_offset_pa(side_below, side_above)
+	var column_below_pa: float = GRAVITY_M_S2 \
+			* _column_mass_per_area(side_below, ceiling_below_z_m)
+	var rho_below: float = _density_at(side_below, ceiling_below_z_m)
+	var rho_above: float = _density_at(side_above, floor_above_z_m)
+	# El hueco atraviesa la losa con el gas que lo esta llenando. Con plantas
+	# contiguas el espesor es cero y el termino no existe.
+	var shaft_column_pa: float = GRAVITY_M_S2 * float(opening["slab_thickness_m"]) \
+			* 0.5 * (rho_below + rho_above)
+	var dp_below_above_pa: float = gauge_below_pa + datum_offset_pa \
+			- column_below_pa - shaft_column_pa
+	if not is_finite(dp_below_above_pa):
+		return {"valid": false}
+	var slab_z_m: float = floor_above_z_m
+	var flows: Dictionary = VerticalShaftFlowModelScript.compute_flows(
+		float(opening["shaft_area_m2"]), float(opening["discharge_coeff"]),
+		dp_below_above_pa, rho_below, rho_above, dp_regularization_pa
+	)
+	if not bool(flows["valid"]):
+		return {"valid": false}
+
+	var up_kg: float = float(flows["up_mass_kg_s"]) * dt
+	var down_kg: float = float(flows["down_mass_kg_s"]) * dt
+	if not is_finite(up_kg) or not is_finite(down_kg):
+		return {"valid": false}
+	var zone_below: String = _zone_at(side_below, ceiling_below_z_m)
+	var zone_above: String = _zone_at(side_above, floor_above_z_m)
+	var specific_below: float = _specific_at(side_below, ceiling_below_z_m)
+	var specific_above: float = _specific_at(side_above, floor_above_z_m)
+	var below_side: String = "a" if below_is_a else "b"
+	var above_side: String = "b" if below_is_a else "a"
+
+
+	# Cada sentido se reparte entre las zonas del lado que dona, segun lo que
+	# cada una puede entregar en este paso. El caudal total no cambia; lo que
+	# cambia es de donde sale, y eso es lo que impide un candidato imposible.
+	var up_parcels: Array[Dictionary] = _split_donation_by_inventory(
+		side_below, zone_below, up_kg)
+	var down_parcels: Array[Dictionary] = _split_donation_by_inventory(
+		side_above, zone_above, down_kg)
+	var segments: Array[Dictionary] = []
+	var zone_flux: Dictionary = {}
+	if collect_segments:
+		for raw_parcel in up_parcels:
+			var parcel: Dictionary = raw_parcel
+			var parcel_zone: String = String(parcel["zone"])
+			var parcel_kg: float = float(parcel["mass_kg"])
+			var parcel_specific: float = _zone_specific(side_below, parcel_zone)
+			segments.append(_shaft_segment(
+				"shaft_up_%s" % parcel_zone, slab_z_m, dp_below_above_pa,
+				below_side, above_side, parcel_zone, zone_above,
+				rho_below, parcel_specific, parcel_kg))
+			_accumulate_zone_flux(zone_flux, below_side, parcel_zone,
+					-parcel_kg, -parcel_kg * parcel_specific)
+			_accumulate_zone_flux(zone_flux, above_side, zone_above,
+					parcel_kg, parcel_kg * parcel_specific)
+		for raw_parcel in down_parcels:
+			var parcel: Dictionary = raw_parcel
+			var parcel_zone: String = String(parcel["zone"])
+			var parcel_kg: float = float(parcel["mass_kg"])
+			var parcel_specific: float = _zone_specific(side_above, parcel_zone)
+			segments.append(_shaft_segment(
+				"shaft_down_%s" % parcel_zone, slab_z_m, -dp_below_above_pa,
+				above_side, below_side, parcel_zone, zone_below,
+				rho_above, parcel_specific, parcel_kg))
+			_accumulate_zone_flux(zone_flux, above_side, parcel_zone,
+					-parcel_kg, -parcel_kg * parcel_specific)
+			_accumulate_zone_flux(zone_flux, below_side, zone_below,
+					parcel_kg, parcel_kg * parcel_specific)
+
+	# Los agregados salen de las parcelas repartidas, para que el residuo vea
+	# exactamente lo mismo que vera la transaccion.
+	var up_total_kg: float = 0.0
+	var up_total_kj: float = 0.0
+	for raw_parcel in up_parcels:
+		var parcel: Dictionary = raw_parcel
+		up_total_kg += float(parcel["mass_kg"])
+		up_total_kj += float(parcel["mass_kg"]) \
+				* _zone_specific(side_below, String(parcel["zone"]))
+	var down_total_kg: float = 0.0
+	var down_total_kj: float = 0.0
+	for raw_parcel in down_parcels:
+		var parcel: Dictionary = raw_parcel
+		down_total_kg += float(parcel["mass_kg"])
+		down_total_kj += float(parcel["mass_kg"]) \
+				* _zone_specific(side_above, String(parcel["zone"]))
+
+	var a_to_b_kg: float = up_total_kg if below_is_a else down_total_kg
+	var b_to_a_kg: float = down_total_kg if below_is_a else up_total_kg
+	var a_to_b_kj: float = up_total_kj if below_is_a else down_total_kj
+	var b_to_a_kj: float = down_total_kj if below_is_a else up_total_kj
+
+	return {
+		"valid": true,
+		"a_to_b_kg": a_to_b_kg,
+		"b_to_a_kg": b_to_a_kg,
+		"a_to_b_kj": a_to_b_kj,
+		"b_to_a_kj": b_to_a_kj,
+		# Un hueco horizontal no tiene plano neutro: no hay vano que cruzar.
+		"neutral_plane_m": NAN,
+		"neutral_plane_inside": false,
+		"regularization_active_count": 0.0,
+		"domain_exceeded_count": 0.0,
+		"max_abs_dp_pa": absf(dp_below_above_pa),
+		"shaft_unstable": bool(flows["unstable"]),
+		# F2.2C-R1: la geometria que el elemento uso de verdad. Sin publicarla,
+		# un desplazamiento de las cotas se absorbe en el equilibrio y no se ve.
+		"shaft_slab_z_m": floor_above_z_m,
+		"shaft_ceiling_below_z_m": ceiling_below_z_m,
+		"shaft_thickness_m": float(opening["slab_thickness_m"]),
+		"shaft_exchange_kg_s": float(flows["exchange_mass_up_kg_s"]),
+		"shaft_pressure_kg_s": float(flows["pressure_mass_kg_s"]),
+		"zonal_totals": {},
+		"unclassified_interior_band_count": 0,
+		"exterior_unzoned_band_count": 0,
+		"segments": segments,
+		"zone_flux": zone_flux,
+	}
+
+
+## Reparte una donacion de `mass_kg` desde el lado `side` entre sus dos zonas,
+## empezando por la que ocupa la cota y siguiendo por la otra cuando la primera
+## se agota dentro del paso. Devuelve una lista de parcelas {zone, mass_kg}.
+##
+## Lo que NO hace: inventar masa, recortar el caudal ni dejar una zona negativa.
+func _split_donation_by_inventory(
+		side: Dictionary,
+		preferred_zone: String,
+		mass_kg: float
+	) -> Array[Dictionary]:
+	var parcels: Array[Dictionary] = []
+	if mass_kg <= 0.0:
+		return parcels
+	var other_zone: String = ZONE_LOWER if preferred_zone == ZONE_UPPER else ZONE_UPPER
+	var available_preferred: float = float(side.get("%s_gas_kg" % preferred_zone, INF))
+	if not is_finite(available_preferred):
+		parcels.append({"zone": preferred_zone, "mass_kg": mass_kg})
+		return parcels
+	var from_preferred: float = minf(mass_kg, maxf(0.0, available_preferred))
+	if from_preferred > 0.0:
+		parcels.append({"zone": preferred_zone, "mass_kg": from_preferred})
+	var remainder: float = mass_kg - from_preferred
+	if remainder <= 0.0:
+		return parcels
+	var available_other: float = float(side.get("%s_gas_kg" % other_zone, 0.0))
+	var from_other: float = minf(remainder, maxf(0.0, available_other))
+	if from_other > 0.0:
+		parcels.append({"zone": other_zone, "mass_kg": from_other})
+	return parcels
+
+
+## Entalpia sensible especifica de UNA zona concreta de un lado.
+func _zone_specific(side: Dictionary, zone: String) -> float:
+	return float(side.get("%s_specific_kj_kg" % zone, 0.0))
+
+
+func _shaft_segment(
+		segment_id: String, z_m: float, dp_pa: float,
+		source_side: String, destination_side: String,
+		source_zone: String, destination_zone: String,
+		source_density: float, source_specific: float, mass_kg: float
+	) -> Dictionary:
+	return {
+		"segment_id": segment_id,
+		"z_from_m": z_m,
+		"z_to_m": z_m,
+		"sample_z_m": z_m,
+		"dp_pa": dp_pa,
+		"direction": "a_to_b" if source_side == "a" else "b_to_a",
+		"source_side": source_side,
+		"destination_side": destination_side,
+		"source_zone": source_zone,
+		"destination_zone": destination_zone,
+		"source_density_kg_m3": source_density,
+		"source_specific_kj_kg": source_specific,
+		"mass_kg": mass_kg,
+		"enthalpy_kj": mass_kg * source_specific,
+		"regularized": false,
+		"domain_exceeded": false,
+		"provenance": "vertical_shaft",
 	}
 
 
@@ -1867,17 +2235,32 @@ func _integrate_crack(
 	}
 
 
-## Hydrostatic part of dp(z), i.e. everything except the (p_a - p_b) term:
-##   dp(z) = (p_a - p_b) - g * integral_0^z ( rho_a - rho_b ) dz'
+## Todo lo que no es la diferencia de manometricas:
+##
+##   dp(z) = (p_a - p_b) + [p_ext(suelo_a) - p_ext(suelo_b)]
+##           - g * integral ( rho_a - rho_b ) dz'
+##
+## F2.2C-R1: el corchete es el que lleva las dos manometricas, definidas cada una
+## contra el exterior de su propio suelo, a una comparacion en la misma cota
+## absoluta. Vale exactamente 0 cuando los dos suelos estan a la misma altura,
+## asi que ningun escenario de una planta cambia ni un bit.
 func _hydrostatic_offset_pa(
 		side_a: Dictionary,
 		side_b: Dictionary,
 		height_m: float
 	) -> float:
-	return -GRAVITY_M_S2 * (
+	return _datum_offset_pa(side_a, side_b) - GRAVITY_M_S2 * (
 		_column_mass_per_area(side_a, height_m)
 		- _column_mass_per_area(side_b, height_m)
 	)
+
+
+func _datum_offset_pa(side_a: Dictionary, side_b: Dictionary) -> float:
+	var datum_a_pa: float = float(side_a.get("datum_pressure_pa", NAN))
+	var datum_b_pa: float = float(side_b.get("datum_pressure_pa", NAN))
+	if is_nan(datum_a_pa) or is_nan(datum_b_pa):
+		return 0.0
+	return datum_a_pa - datum_b_pa
 
 
 ## Columna de masa por unidad de area entre el datum del lado y la cota z,
@@ -1892,6 +2275,28 @@ func _column_mass_per_area(side: Dictionary, height_m: float) -> float:
 		return lower_density_kg_m3 * (height_m - datum_z_m)
 	return lower_density_kg_m3 * (interface_z_m - datum_z_m) \
 			+ upper_density_kg_m3 * (height_m - interface_z_m)
+
+
+## Densidad del exterior en el datum del elemento: la del recinto al que da,
+## evaluada a la presion exterior de SU suelo. Para un elemento interior no se
+## usa, y entonces vale la global.
+func _exterior_density_at(
+		room_context: Dictionary,
+		room_a_key: String,
+		room_b_key: String,
+		fallback_kg_m3: float
+	) -> float:
+	var facing_key: String = room_b_key if room_a_key.is_empty() else room_a_key
+	if room_a_key.is_empty() == room_b_key.is_empty():
+		return fallback_kg_m3
+	if not room_context.has(facing_key):
+		return fallback_kg_m3
+	var room: Dictionary = room_context[facing_key]
+	var local_pressure_pa: float = float(room["exterior_pressure_abs_pa"])
+	var reference_pressure_pa: float = float(room.get("datum_reference_pressure_pa", 0.0))
+	if reference_pressure_pa <= 0.0:
+		return fallback_kg_m3
+	return fallback_kg_m3 * local_pressure_pa / reference_pressure_pa
 
 
 func _density_at(side: Dictionary, height_m: float) -> float:
@@ -2008,7 +2413,21 @@ func _attach_zonal_decomposition(
 ## hold the same density, but it is NOT a statement that the exterior has a
 ## lower layer. Zoning therefore returns an empty label and the caller marks
 ## the connection inapplicable rather than inventing a layer.
+## Zona DONANTE a una cota: la geometrica, salvo que este vacia. Una zona sin
+## inventario no puede entregar masa, y etiquetarla como origen era lo que
+## producia candidatos con masa de zona negativa.
 func _zone_at(side: Dictionary, height_m: float) -> String:
+	var zone: String = _geometric_zone_at(side, height_m)
+	if zone == ZONE_UPPER and bool(side.get("upper_degenerate", false)) \
+			and not bool(side.get("lower_degenerate", false)):
+		return ZONE_LOWER
+	if zone == ZONE_LOWER and bool(side.get("lower_degenerate", false)) \
+			and not bool(side.get("upper_degenerate", false)):
+		return ZONE_UPPER
+	return zone
+
+
+func _geometric_zone_at(side: Dictionary, height_m: float) -> String:
 	if bool(side.get("exterior", false)):
 		return ""
 	var interface_z_m: float = float(side.get("interface_z_m", INF))
@@ -2071,7 +2490,14 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		# F2.2D1: la rendija entra en el MISMO residuo, en cada iteracion de
 		# Newton. No hay un segundo paso que calcule la fuga despues.
 		var flux: Dictionary = {}
-		if String(opening.get("flow_model", FLOW_MODEL_LARGE_OPENING)) == FLOW_MODEL_ELA_CRACK:
+		var element_model: String = String(
+			opening.get("flow_model", FLOW_MODEL_LARGE_OPENING))
+		if element_model == FLOW_MODEL_VERTICAL_SHAFT:
+			flux = _integrate_shaft(
+				opening, pressure_a_pa - pressure_b_pa,
+				float(context["dp_regularization_pa"]), collect_segments
+			)
+		elif element_model == FLOW_MODEL_ELA_CRACK:
 			flux = _integrate_crack(opening, pressure_a_pa - pressure_b_pa, collect_segments)
 		else:
 			flux = _integrate_opening(
@@ -2124,6 +2550,13 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 			crack_connection["flow_model"] = FLOW_MODEL_ELA_CRACK
 			crack_connection["domain_exceeded_count"] = float(flux.get("domain_exceeded_count", 0.0))
 			crack_connection["max_abs_dp_pa"] = float(flux.get("max_abs_dp_pa", 0.0))
+		if element_model == FLOW_MODEL_VERTICAL_SHAFT:
+			var shaft_connection: Dictionary = connections[connections.size() - 1]
+			shaft_connection["shaft_slab_z_m"] = float(flux["shaft_slab_z_m"])
+			shaft_connection["shaft_ceiling_below_z_m"] = float(flux["shaft_ceiling_below_z_m"])
+			shaft_connection["shaft_thickness_m"] = float(flux["shaft_thickness_m"])
+			shaft_connection["shaft_unstable"] = bool(flux["shaft_unstable"])
+			shaft_connection["shaft_exchange_kg_s"] = float(flux["shaft_exchange_kg_s"])
 		# H3.2a: attach the parallel decomposition. Purely additive - every
 		# aggregate above is already final and is never recomputed from it.
 		_attach_zonal_decomposition(
@@ -2770,6 +3203,18 @@ func _prepare_network(
 					"provenance", "leakage_class", "resolved_ela_m2"]:
 				if opening.has(key):
 					translated[key] = opening[key]
+		elif flow_model == FLOW_MODEL_VERTICAL_SHAFT:
+			# F2.2C-R1: hueco de suelo/techo. Es cosa de dos recintos en plantas
+			# distintas; contra el exterior no significa nada.
+			if a_exterior or b_exterior:
+				errors.append(
+					"opening '%s' is a vertical shaft and cannot face the exterior"
+					% opening_id)
+				continue
+			translated["flow_model"] = FLOW_MODEL_VERTICAL_SHAFT
+			for key in ["shaft_area_m2", "provenance"]:
+				if opening.has(key):
+					translated[key] = opening[key]
 		elif flow_model != FLOW_MODEL_LARGE_OPENING:
 			errors.append("opening '%s' has an unknown flow_model '%s'" % [opening_id, flow_model])
 			continue
@@ -2777,8 +3222,16 @@ func _prepare_network(
 	if not errors.is_empty():
 		return {}
 
+	# F2.2C-R1: la presion exterior esta declarada EN UNA COTA. Sin
+	# `reference_z_m` esa cota es 0 m, que es lo que valia implicitamente antes
+	# de que el campo existiera.
+	var exterior_reference_z_m: float = float(outside.get("reference_z_m", 0.0))
+	if not is_finite(exterior_reference_z_m):
+		errors.append("outside reference_z_m must be finite")
+		return {}
 	var historical_options: Dictionary = {
 		"exterior_pressure_abs_pa": exterior_pressure_abs_pa,
+		"exterior_reference_z_m": exterior_reference_z_m,
 		"exterior_temp_k": exterior_temp_k,
 	}
 	for key in ["max_iterations", "residual_tolerance", "dp_regularization_pa",
@@ -2872,7 +3325,11 @@ func _finish_network(
 		solved: Dictionary
 	) -> Dictionary:
 	var equations = CompartmentPressureEquationsScript
-	var outside_state: Dictionary = {
+	# F2.2C-R1: el contorno que ve F2.2A es el de la cota de CADA sala. Si se le
+	# pasara la presion de la cota de referencia para todas, su masa de
+	# referencia no coincidiria con la del solver y el residuo de presion
+	# saldria desviado exactamente la columna atmosferica de la planta.
+	var outside_template: Dictionary = {
 		"pressure_abs_pa": float(prepared["exterior_pressure_abs_pa"]),
 		"temp_k": float(prepared["exterior_temp_k"]),
 		"reference_temp_k": float(prepared["reference_temp_k"]),
@@ -2917,6 +3374,10 @@ func _finish_network(
 			"lower_energy_kj": float(previous["lower_energy_kj"]),
 		}
 		# F2.2A manda: si rechaza el candidato, el solver no lo acepta.
+		var outside_state: Dictionary = outside_template.duplicate()
+		outside_state["pressure_abs_pa"] = float(
+			context["rooms"][room_key]["exterior_pressure_abs_pa"]
+		)
 		var verdict: Dictionary = equations.evaluate_compartment_residual(
 			previous_state, candidate, source, flux_by_room.get(room_id, []),
 			outside_state, dt_s
@@ -2925,7 +3386,13 @@ func _finish_network(
 			"room_id": room_id,
 			"reference_z_m": float(previous["floor_z_m"]),
 			"gauge_pressure_pa": gauge_pressure_pa,
-			"pressure_abs_pa": float(prepared["exterior_pressure_abs_pa"]) + gauge_pressure_pa,
+			# F2.2C-R1: absoluta = exterior LOCAL del suelo de ESA sala + gauge.
+			"pressure_abs_pa": float(
+				context["rooms"][room_key]["exterior_pressure_abs_pa"]
+			) + gauge_pressure_pa,
+			"exterior_pressure_abs_pa": float(
+				context["rooms"][room_key]["exterior_pressure_abs_pa"]
+			),
 			"candidate_upper_gas_kg": float(candidate["upper_gas_kg"]),
 			"candidate_lower_gas_kg": float(candidate["lower_gas_kg"]),
 			"candidate_upper_energy_kj": float(candidate["upper_energy_kj"]),
@@ -3121,4 +3588,11 @@ func _network_openings(
 			published["flow_model"] = String(connection["flow_model"])
 			published["domain_exceeded_count"] = float(connection["domain_exceeded_count"])
 			published["max_abs_dp_pa"] = float(connection["max_abs_dp_pa"])
+		if connection.has("shaft_slab_z_m"):
+			var shaft_out: Dictionary = openings_out[openings_out.size() - 1]
+			shaft_out["shaft_slab_z_m"] = float(connection["shaft_slab_z_m"])
+			shaft_out["shaft_ceiling_below_z_m"] = float(connection["shaft_ceiling_below_z_m"])
+			shaft_out["shaft_thickness_m"] = float(connection["shaft_thickness_m"])
+			shaft_out["shaft_unstable"] = bool(connection["shaft_unstable"])
+			shaft_out["shaft_exchange_kg_s"] = float(connection["shaft_exchange_kg_s"])
 	return openings_out

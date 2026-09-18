@@ -1,5 +1,61 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-18 - multistorey pressure datum
+
+- Checkpoint: `main` with **thirteen** local commits on top of `origin/main`,
+  **none pushed**. This one is F2.2C-R1, on top of F2.2D1 (`f659a6d2`).
+- **The portal converges.** The three-storey stair-lobby case went from
+  discarding 34.4 % of its steps (doors sealed, no cracks) and 58.7 % (with the
+  cold leakage) to **0 of 7 200 in all three variants**, with no fallback, no
+  partial commit and no tolerance touched.
+- **The stated hypothesis was a real defect but not the cause.** The exterior
+  datum WAS wrong —a room sealed at 6 m in equilibrium with its own exterior
+  published a gauge of −70.61 Pa, exactly rho*g*z— but case P0 has no active
+  exterior opening, so it could not be what failed. All 2 476 failures carried
+  one single message, `candidate_state lower_gas_kg must be >= 0`.
+- **The real cause.** `OpeningModel.is_vertical` has documented since SF-R7 that
+  a stairwell hole moves by buoyancy rather than by a Bernoulli vane, and the
+  historical path has its own branch. F2.2C lost that distinction and fed the
+  hole into the vane model anchored at `room_a`'s floor, which put the whole
+  vane **below the upper room's floor**: that room's profile was extrapolated
+  2.9 m under its own slab and its empty lower zone had to donate every
+  kilogram. Three more defects compounded it: the reference mass used the global
+  exterior pressure at every storey, the zone label at a boundary was decided by
+  a floating-point tie and could pick the empty zone, and the Newton residual
+  works on room totals while F2.2A validates **per zone**.
+- **Worth recording: the first fix made it worse**, to 64.4 %, because the new
+  shaft model moves far more gas than the misplaced vane it replaced (~5 kg/s
+  against 0.28). It was not accepted as progress; the zone-inventory defect was
+  still there and is what finally closed it.
+- **What changed.** `ExteriorPressureProfile` is now the single owner of the
+  atmospheric column, with `outside.reference_z_m` (absent = 0 m, so historical
+  cases are intact). `VerticalShaftFlowModel` is a third element class that
+  exchanges at the slab plane. Each side is evaluated at its own boundary, a
+  zone with no inventory never donates, and a donation is split between the two
+  zones by what each can supply.
+- **`gauge_pressure_pa` now means** `p_room(floor_z) - p_ext(floor_z)`, the
+  exterior at the room's OWN floor. Comparing two storeys adds
+  `p_ext(floor_a) - p_ext(floor_b)`, which is exactly zero when both floors sit
+  at the same height, so single-storey scenarios are untouched. Measured:
+  lifting a building 10 m with the datum left behind raises every gauge by
+  **117.679800000 Pa** against rho*g*h = **117.679800000 Pa**, absolute pressure
+  unchanged. The F2.2B test that claimed lifting changes nothing encoded the
+  defect and now asserts that equality.
+- **No numerical knob was touched.** The shaft reuses the vane's existing
+  linearisation near dp = 0; tolerances stay at 1e-6 Pa, 1e-9 kg and 1e-6 kJ,
+  and a test pins them.
+- **Verified**: OFF byte-identical against the pre-change tree on two scenarios
+  at 17 significant digits; shadow corpus byte-identical; F2.2A 163, F2.2B 530,
+  F2.2C 126, D1 437, multi-storey 99; 13/13 phase-3 fixtures; 20/20 datum
+  mutations dead; reference suite regenerated under R2-1.
+- **R2 and R3 remain open and separate.** R2: a room loses about a third of its
+  gas mass while heating, identically with the network off, owning route still
+  unidentified, which makes every D1 leakage figure a lower bound. R3: with the
+  network on a closed exterior window is inert because F2.2C gated off the
+  envelope purge and nothing replaced it; it needs its own phase inside the
+  network, not the historical purge switched back on in parallel.
+- **D2, D3 and D4 have not been started.** Order of work: R2, then R3, then them.
+
 ## Current Program Update - 2026-09-18 - authoritative pressure network and cold door leakage
 
 - Checkpoint: `main` with **twelve** local commits on top of `origin/main`,

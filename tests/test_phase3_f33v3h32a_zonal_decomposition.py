@@ -135,9 +135,15 @@ def test_zonal_block_is_guarded_by_band_zoning():
 def test_zone_convention_mirrors_the_density_convention():
     zone = _function(SOLVER, "_zone_at")
     density = _function(SOLVER, "_density_at")
-    assert "height_m <= interface_z_m" in zone
+    # F2.2C-R1: el convenio geometrico vive ahora en `_geometric_zone_at`, y
+    # `_zone_at` le anade una sola regla: una zona sin inventario no dona.
+    geometric = _function(SOLVER, "_geometric_zone_at")
+    assert "height_m <= interface_z_m" in geometric
     assert "height_m <= interface_z_m" in density
-    assert "ZONE_LOWER if height_m <= interface_z_m else ZONE_UPPER" in zone
+    assert "ZONE_LOWER if height_m <= interface_z_m else ZONE_UPPER" in geometric
+    # Y la unica regla que `_zone_at` anade encima es la del inventario.
+    assert "_geometric_zone_at(side, height_m)" in zone
+    assert "upper_degenerate" in zone and "lower_degenerate" in zone
 
 
 def test_zone_is_read_at_the_same_midpoint_as_the_density():
@@ -160,11 +166,17 @@ def test_bands_are_still_split_at_both_interfaces():
 # -------------------------------------------------------------------
 
 def test_exterior_is_never_labelled_with_a_layer():
-    zone = _function(SOLVER, "_zone_at")
-    assert 'if bool(side.get("exterior", false)):' in zone
-    assert 'return ""' in zone
+    # F2.2C-R1: el convenio geometrico vive en `_geometric_zone_at`; `_zone_at`
+    # solo le anade la regla de que una zona vacia no dona, que no puede
+    # inventar una etiqueta para el exterior.
+    geometric = _function(SOLVER, "_geometric_zone_at")
+    assert 'if bool(side.get("exterior", false)):' in geometric
+    assert 'return ""' in geometric
     # And a non-finite interface also yields no label rather than lower.
-    assert "if not is_finite(interface_z_m):" in zone
+    assert "if not is_finite(interface_z_m):" in geometric
+    zone = _function(SOLVER, "_zone_at")
+    assert "ZONE_LOWER" in zone and "ZONE_UPPER" in zone
+    assert '""' not in zone
 
 
 def test_exterior_connections_are_counted_separately():
@@ -287,7 +299,9 @@ def test_probe_is_read_only():
 # -------------------------------------------------------------------
 
 def test_mutation_labelling_the_exterior_lower_is_detectable():
-    zone = _function(SOLVER, "_zone_at")
+    # F2.2C-R1: el convenio geometrico —y con el la regla de que el exterior no
+    # tiene capas— vive en `_geometric_zone_at`.
+    zone = _function(SOLVER, "_geometric_zone_at")
     mutated = zone.replace('return ""', "return ZONE_LOWER")
     assert mutated != zone
     assert 'return ""' in zone, "the shipped code must not label the exterior"

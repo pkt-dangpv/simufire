@@ -54,6 +54,9 @@ ALLOWED_NETWORK_REFERENCES = {
     # suite nombran el interruptor de la red y la resuelven con ella.
     Path("tools/validate_closed_door_leakage_network.gd"),
     Path("tests/test_closed_door_leakage_network.py"),
+    # F2.2C-R1: los fixtures multiplanta resuelven redes reales con el solver.
+    Path("tools/validate_multistorey_pressure_datum.gd"),
+    Path("tests/test_multistorey_pressure_datum.py"),
     Path("scripts/simulation/audit_default_off_flags.py"),
     Path("tests/test_p1r4_flag_activation_inventory.py"),
 }
@@ -149,7 +152,12 @@ def test_vertical_convention_is_absolute_and_explicit():
 def test_exterior_is_an_imposed_node_with_temperature_and_wind():
     context = _function("_build_context")
     assert 'var exterior_temp_k: float = float(options.get("exterior_temp_k", reference_temp_k))' in context
-    assert "exterior_pressure_abs_pa \\\n\t\t\t/ (gas_constant * exterior_temp_k)" in context
+    # F2.2C-R1: la densidad del contorno la da el helper canonico de la columna
+    # atmosferica, no una division suelta en el contexto. Que exista un unico
+    # dueno de esa formula es justamente lo que esta fase arregla.
+    assert 'float(exterior_profile["density_kg_m3"])' in context
+    assert "ExteriorPressureProfileScript.resolve(" in context
+    assert 'exterior_reference_z_m' in context
     assert "var exterior_specific_kj_kg: float = AIR_CP_KJ_KG_K * (exterior_temp_k - reference_temp_k)" in context
     build = _function("_build_opening")
     assert 'var exterior_gauge_pa: float = float(opening.get("wind_dp_pa", 0.0))' in build
@@ -158,10 +166,11 @@ def test_exterior_is_an_imposed_node_with_temperature_and_wind():
     # applied exactly once, as the exterior gauge offset.
     # Read twice (canonical validation and opening build) but APPLIED once: it
     # is the gauge of the exterior node, never added to anything else.
-    # F2.2D1: dos clases de elemento lo publican —la abertura grande y la
-    # rendija ELA—, cada una en su propio constructor. Sigue siendo el mismo
-    # valor, tomado de la misma variable, y aplicado una sola vez por elemento.
-    assert SOLVER_CODE.count('"exterior_gauge_pa": exterior_gauge_pa,') == 2
+    # F2.2D1 y F2.2C-R1: TRES clases de elemento lo publican —la abertura
+    # grande, la rendija ELA y el hueco horizontal entre plantas—, cada una en
+    # su propio constructor. Sigue siendo el mismo valor, tomado de la misma
+    # variable, y aplicado una sola vez por elemento.
+    assert SOLVER_CODE.count('"exterior_gauge_pa": exterior_gauge_pa,') == 3
     assert "+ exterior_gauge_pa" not in SOLVER_CODE
     assert "exterior_gauge_pa +" not in SOLVER_CODE
     assert _function("_evaluate").count("exterior_gauge_pa") >= 3

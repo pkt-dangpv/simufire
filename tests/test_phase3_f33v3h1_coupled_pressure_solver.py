@@ -101,10 +101,13 @@ def test_solver_never_reaches_engine_or_model_types():
         "make_atomic_bundle",
     ):
         assert forbidden not in SOLVER_CODE, forbidden
-    # F2.2B: the solver loads its authoritative evaluator. F2.2D1 adds the one
-    # other pure model it is allowed to load, the crack law, precisely so that
-    # it does not copy it. Two preloads, both pure models, and no engine type.
-    assert SOLVER_CODE.count("preload(") == 2
+    # F2.2B: the solver loads its authoritative evaluator. F2.2D1 added the
+    # crack law and F2.2C-R1 the atmospheric column and the floor/ceiling vent,
+    # precisely so that it does not copy any of them. Four preloads, all four
+    # pure models, and no engine type.
+    assert SOLVER_CODE.count("preload(") == 4
+    assert "ExteriorPressureProfileScript = preload(" in SOLVER_CODE
+    assert "VerticalShaftFlowModelScript = preload(" in SOLVER_CODE
     assert "CompartmentPressureEquationsScript = preload(" in SOLVER_CODE
     assert '"res://sim/core/CompartmentPressureEquations.gd"' in SOLVER_CODE
     assert "ClosedDoorLeakageModelScript = preload(" in SOLVER_CODE

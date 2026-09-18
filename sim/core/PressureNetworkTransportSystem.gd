@@ -44,7 +44,14 @@ class_name PressureNetworkTransportSystem
 #   - F2.2D1: una puerta interior CERRADA puede aportar rendijas ELA
 #     (fuga fria), y solo eso, y solo con `closed_door_leakage_enabled`;
 #     sin ese interruptor sigue siendo estanca, como en F2.2C. La
-#     deformacion prescrita (D2) y el vidrio (D3) siguen sin conectar.
+#     deformacion prescrita (D2) y el vidrio (D3) siguen sin conectar;
+#   - F2.2C-R1: un hueco de suelo/techo (`is_vertical`) es una clase de
+#     elemento propia que intercambia EN EL PLANO DE LA LOSA. F2.2C lo
+#     metia como vano de Bernoulli anclado al suelo de `room_a`, lo que
+#     lo dejaba por debajo del suelo del recinto de arriba;
+#   - F2.2C-R1: la envolvente exterior cerrada sigue SIN elemento en la
+#     red (incidencia R3), y la perdida historica de masa de una sala
+#     sigue sin ruta propietaria identificada (incidencia R2).
 # ============================================================
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
@@ -200,6 +207,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 
 	var openings: Array = []
 	var cracks: Array = []
+	var shafts: Array = []
 	for opening in building.get_openings():
 		if opening == null:
 			continue
@@ -225,6 +233,14 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			if not crack.is_empty():
 				cracks.append(crack)
 			continue
+		# F2.2C-R1: un hueco de suelo/techo no es un vano. Sus dos recintos solo
+		# comparten el plano de la losa, y anclar el vano al suelo de `room_a`
+		# lo dejaba por debajo del suelo del de arriba.
+		if bool(opening.is_vertical):
+			var shaft: Dictionary = _shaft_element(opening, a_key, b_key, rooms, open_fraction)
+			if not shaft.is_empty():
+				shafts.append(shaft)
+			continue
 		var anchor_floor_z_m: float = 0.0
 		if a_key != EXTERIOR_ROOM_ID:
 			anchor_floor_z_m = float(rooms[a_key]["floor_z_m"])
@@ -244,6 +260,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			"discharge_coeff": 0.61,
 		})
 	openings.append_array(cracks)
+	openings.append_array(shafts)
 	openings.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["opening_id"]) < String(right["opening_id"]))
 
@@ -265,6 +282,45 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 		"room_order": order,
 		"openings": openings,
 		"outside": outside,
+	}
+
+
+## F2.2C-R1: hueco horizontal entre dos plantas. El intercambio ocurre en la
+## losa, no en un vano, y su area es la de la boca del hueco en planta.
+func _shaft_element(opening, a_key: String, b_key: String, rooms: Dictionary,
+		open_fraction: float) -> Dictionary:
+	# Un hueco entre plantas necesita sus dos recintos: contra el exterior no
+	# tiene sentido y se deja fuera de la red en vez de inventarse una losa.
+	if a_key == EXTERIOR_ROOM_ID or b_key == EXTERIOR_ROOM_ID:
+		return {}
+	if not rooms.has(a_key) or not rooms.has(b_key):
+		return {}
+	var floor_a_z_m: float = float(rooms[a_key]["floor_z_m"])
+	var floor_b_z_m: float = float(rooms[b_key]["floor_z_m"])
+	if absf(floor_a_z_m - floor_b_z_m) <= 1.0e-9:
+		# Dos recintos en la misma planta no tienen losa entre ellos.
+		return {}
+	var area_m2: float = float(opening.width_m) * float(opening.height_m) \
+			* clampf(open_fraction, 0.0, 1.0)
+	if not is_finite(area_m2) or area_m2 <= 0.0:
+		return {}
+	var slab_z_m: float = maxf(floor_a_z_m, floor_b_z_m)
+	# El tramo describe el grosor de la losa alrededor del plano de intercambio.
+	# El integrador solo usa `slab_z_m`; el tramo esta para que el elemento sea
+	# una conexion bien formada como cualquier otra.
+	var half_thickness_m: float = 0.5 * maxf(0.05, float(opening.height_m))
+	return {
+		"opening_id": "shaft_%d" % int(opening.opening_index),
+		"room_a_id": a_key,
+		"room_b_id": b_key,
+		"flow_model": "vertical_shaft",
+		"shaft_area_m2": area_m2,
+		"provenance": "vertical_shaft",
+		"bottom_z_m": slab_z_m - half_thickness_m,
+		"top_z_m": slab_z_m + half_thickness_m,
+		"width_m": maxf(1.0e-6, float(opening.width_m)),
+		"open_fraction": 1.0,
+		"discharge_coeff": 0.61,
 	}
 
 

@@ -46,7 +46,12 @@ def test_gauge_reference_comes_from_the_solve_not_a_global_constant():
         in build or '"exterior_pressure_abs_pa", AIR_PRESSURE_REF_PA' in build
     assert 'context["exterior_pressure_abs_pa"] = exterior_pressure_abs_pa' in build
     # the exterior air density must follow the same reference
-    assert "var exterior_density_kg_m3: float = exterior_pressure_abs_pa" in build
+    # F2.2C-R1: la densidad del contorno la da el helper canonico de la columna
+    # atmosferica. La referencia sigue saliendo del solve, nunca de una
+    # constante escrita a mano, que es lo que esta prueba vigila.
+    assert 'float(exterior_profile["density_kg_m3"])' in build
+    assert "ExteriorPressureProfileScript.resolve(" in build
+    assert "101325" not in build
 
 
 def test_reference_is_validated():
@@ -94,7 +99,12 @@ def test_residual_is_built_around_a_reference_mass():
 
 def test_reference_mass_is_derived_from_the_supplied_reference():
     body = _function("_derive_room")
-    assert "var reference_mass_kg: float = exterior_pressure_abs_pa * volume_m3" in body
+    # F2.2C-R1: la masa de referencia se sigue derivando de la presion exterior
+    # que el llamante entrego, ahora evaluada en el SUELO de cada recinto. Con
+    # todos los suelos en cota cero es exactamente el mismo numero de antes.
+    assert "var reference_mass_kg: float = local_exterior_pressure_pa * volume_m3" in body
+    assert "ExteriorPressureProfileScript.pressure_at(" in body
+    assert "101325" not in body
     assert "gas_constant * reference_temp_k" in body
     assert '"reference_mass_kg": reference_mass_kg,' in body
 

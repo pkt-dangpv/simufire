@@ -360,7 +360,8 @@ func _test_07_two_storeys() -> void:
 	var profile: Array = _room_out(result, "upstairs")["pressure_profile"]
 	_check(_close(float(profile[0]["z_m"]), 3.0) and _close(float(profile[2]["z_m"]), 5.4),
 			"07 the upstairs profile lives between 3,0 and 5,4 m")
-	# Trasladar el edificio entero no cambia los caudales.
+	# Trasladar el edificio entero no cambia los caudales, pero SI cambia las
+	# manometricas: cada recinto pasa a compararse con un exterior mas ligero.
 	var lifted_ground: Dictionary = ground.duplicate(true)
 	lifted_ground["floor_z_m"] = 10.0
 	var lifted_upstairs: Dictionary = upstairs.duplicate(true)
@@ -373,9 +374,32 @@ func _test_07_two_storeys() -> void:
 	_check(_close(float(_opening_out(lifted, "stair")["net_mass_kg_s"]),
 			float(_opening_out(result, "stair")["net_mass_kg_s"]), 1.0e-12),
 			"07 lifting the whole building changes no flow")
-	_check(_close(float(_room_out(lifted, "ground")["gauge_pressure_pa"]),
-			float(_room_out(result, "ground")["gauge_pressure_pa"]), 1.0e-12),
-			"07 lifting the whole building changes no pressure")
+	# F2.2C-R1: subir 10 m sin mover la referencia sube toda manometrica en
+	# exactamente rho*g*h, porque el exterior local de cada suelo baja esa misma
+	# columna. Antes esta prueba exigia que no cambiara nada, que era el defecto.
+	var lift_column_pa: float = 1.2 * 9.80665 * 10.0
+	for room_id in ["ground", "upstairs"]:
+		_check(_close(float(_room_out(lifted, room_id)["gauge_pressure_pa"]),
+				float(_room_out(result, room_id)["gauge_pressure_pa"]) + lift_column_pa,
+				1.0e-9),
+				"07 lifting the building raises '%s' by exactly the atmospheric column (%.9f vs %.9f Pa)" % [
+					room_id, _room_out(lifted, room_id)["gauge_pressure_pa"],
+					float(_room_out(result, room_id)["gauge_pressure_pa"]) + lift_column_pa])
+		# Y su estado no ha cambiado, asi que su presion ABSOLUTA es la misma.
+		_check(_close(float(_room_out(lifted, room_id)["pressure_abs_pa"]),
+				float(_room_out(result, room_id)["pressure_abs_pa"]), 1.0e-9),
+				"07 lifting the building leaves '%s' at the same absolute pressure" % room_id)
+	# La invariancia de datum de verdad: subir el edificio Y la referencia con el
+	# no cambia absolutamente nada.
+	var lifted_with_datum: Dictionary = _solve(
+		[lifted_ground, lifted_upstairs], [lifted_stair], {},
+		{"pressure_abs_pa": 101325.0, "reference_z_m": 10.0,
+			"temp_k": T_REF_K, "reference_temp_k": T_REF_K})
+	_check_converged(lifted_with_datum, "07 lifted with its datum")
+	for room_id in ["ground", "upstairs"]:
+		_check(_close(float(_room_out(lifted_with_datum, room_id)["gauge_pressure_pa"]),
+				float(_room_out(result, room_id)["gauge_pressure_pa"]), 1.0e-12),
+				"07 moving the building and its datum together changes nothing for '%s'" % room_id)
 	# Cotas locales entre plantas distintas: rechazadas.
 	var local_stair: Dictionary = {
 		"opening_id": "stair", "room_a_id": "ground", "room_b_id": "upstairs",
