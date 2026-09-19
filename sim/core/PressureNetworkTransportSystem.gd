@@ -396,6 +396,13 @@ func build_solver_input(snapshot: Dictionary, dt_s: float) -> Dictionary:
 			"pressure_abs_pa": float(snapshot["outside"]["pressure_abs_pa"]),
 			"temp_k": float(snapshot["outside"]["temp_k"]),
 			"reference_temp_k": float(snapshot["outside"]["reference_temp_k"]),
+			# F2.2C-R1.1: la cota a la que se declara la presion exterior. Se
+			# perdia aqui —este diccionario se reconstruia con tres claves— y el
+			# solver volvia al valor por defecto de 0 m, de modo que un recinto
+			# elevado publicaba su gauge contra la presion del suelo del
+			# edificio: rho*g*z de sobrepresion inventada, con o sin aberturas.
+			# Ausente sigue significando 0 m, que es el comportamiento historico.
+			"reference_z_m": float(snapshot["outside"].get("reference_z_m", 0.0)),
 		},
 		"sources": {},
 		"dt_s": dt_s,

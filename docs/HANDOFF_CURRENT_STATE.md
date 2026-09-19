@@ -1,5 +1,41 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-19 - exterior pressure reference datum
+
+- Checkpoint: `main`, one local commit on top of `34aa06f6`. **Not pushed.**
+- **A room with no openings at all reported overpressure it did not have.** At
+  6 m, with the exterior datum also declared at 6 m and an interior absolute
+  pressure of 101 325 Pa, it published `gauge_pressure_pa = +70.6078800 Pa` —
+  digit for digit `1.2 * 9.80665 * 6`, the six-metre air column.
+- **The signature was that declaring the datum changed nothing.** A room at 6 m
+  read the same gauge whether its datum was at 6 m or at 0 m. That is what
+  happens when the value is ignored.
+- **Where it was lost.** `PressureNetworkTransportSystem.build_solver_input()`
+  rebuilt the `outside` dictionary from three keys — `pressure_abs_pa`,
+  `temp_k`, `reference_temp_k` — and dropped `reference_z_m`.
+  `ExteriorPressureProfile` then fell back to its documented default of 0 m.
+  The snapshot carried the datum; the solver input did not.
+- **The fix is one line**, propagating the key with `.get(..., 0.0)` so that an
+  absent datum still means 0 m. No second hydrostatic formula, no copy of
+  `ExteriorPressureProfile`, no change to the gauge definition or the reference
+  mass, and no new flag.
+- **Why 99 checks missed it.** The multistorey validator calls the solver
+  *directly* and hand-builds its input with the datum set correctly. It proved
+  the solver *uses* the datum, which was true. It never proved anyone *hands* it
+  over. The defect lived in the one stretch no case walked.
+- **Now protected by 111 checks** (was 99). The new case walks the whole path —
+  building, snapshot, solver input, solution — **with no openings**, so the
+  propagation cannot accidentally depend on element construction. It fixes D0
+  (room level with its datum reads zero), D1 (room above its datum reads the
+  column), D2 (translating building and datum together changes nothing), D3
+  (translating only the building adds exactly rho*g*dz), D4 (an absent datum
+  still means 0 m), and asserts explicitly that D0 and D1 cannot coincide.
+- All eight datum mutations die by functional failure. Portal P0/P1/P2 stay at
+  0 of 7 200.
+- **This defect predates R3 and is not attributed to it.** R3-ENVELOPE exposed
+  it through its R3-M8 fixture and is **paused, not cancelled**: its work is
+  preserved and resumes on top of this fix.
+
 ## Current Program Update - 2026-09-19 - canonical zonal mass conservation
 
 - Checkpoint: `main` with **fourteen** local commits on top of `origin/main`,

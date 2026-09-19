@@ -1877,3 +1877,107 @@ canónica `lower_density_kg_m3` **es** `lower_gas_kg / lower_volume_m3`, y
 que una mutación escrita con esas expresiones se convierte en la identidad. Que
 fueran no-ops es, en el fondo, una comprobación más de que el cierre geométrico
 es exacto, pero como mutaciones no probaban nada.
+
+## 19. F2.2C-R1.1: la cota exterior no llegaba al solver (2026-09-19)
+
+> **Estado: cerrada.** Un recinto elevado publicaba una sobrepresión que no
+> existía, exactamente igual a la columna de aire que lo separaba del suelo del
+> edificio. La cota de referencia exterior se declaraba en el snapshot y se
+> perdía al construir la entrada del solver.
+
+### 19.1 El caso mínimo
+
+Un recinto **sin ninguna abertura**, a 6 m, con el datum exterior también a 6 m
+y presión absoluta interior de 101 325 Pa, debe leer gauge cero: está en
+equilibrio con su propio exterior local. Publicaba:
+
+```
+gauge_pressure_pa = +70,6078800 Pa
+```
+
+que es, al dígito, `1,2 × 9,80665 × 6`: la columna de aire de seis metros.
+
+La firma del defecto era que **D0 y D1 daban lo mismo**:
+
+| caso | suelo | datum | antes | después | esperado |
+|---|---|---|---|---|---|
+| **D0** | 6 m | 6 m | +70,6078 Pa | **0 Pa** | 0 Pa |
+| **D1** | 6 m | 0 m | +70,6078 Pa | **+70,6078 Pa** | +70,6078 Pa |
+
+Declarar el datum no cambiaba la respuesta, que es justo lo que ocurre cuando el
+valor se ignora.
+
+### 19.2 Dónde se perdía
+
+`PressureNetworkTransportSystem.build_solver_input()` reconstruía el diccionario
+`outside` copiando tres claves:
+
+```gdscript
+"outside": {
+	"pressure_abs_pa": ...,
+	"temp_k": ...,
+	"reference_temp_k": ...,
+},
+```
+
+`reference_z_m` no estaba, de modo que `ExteriorPressureProfile` recibía un
+estado sin cota y aplicaba su valor por defecto documentado de 0 m. El trazado
+lo enseña en una línea:
+
+```
+snapshot.outside      = { ..., "reference_z_m": 6.0 }
+solver_input.outside  = { "pressure_abs_pa", "temp_k", "reference_temp_k" }
+```
+
+La corrección es propagar la clave, con `.get(..., 0.0)` para que la ausencia
+siga significando 0 m. No se ha añadido ninguna fórmula hidrostática, no se ha
+duplicado `ExteriorPressureProfile`, no se ha tocado la definición de gauge ni
+la masa de referencia, y no hay ningún interruptor nuevo.
+
+### 19.3 Por qué 99 comprobaciones no lo vieron
+
+El validador multiplanta de C-R1 llama a `Phase3CoupledPressureSolver`
+**directamente** y le construye la entrada a mano, con `reference_z_m` puesto
+del derecho. Comprobaba, con razón, que el solver **usa** bien la cota. Lo que
+no comprobaba es que alguien se la **entregue**: el tramo entre el snapshot y la
+entrada del solver no lo recorría ningún caso.
+
+Es un recordatorio útil: un modelo puro verificado a conciencia no protege del
+adaptador que lo alimenta mal.
+
+### 19.4 El contrato que queda protegido
+
+R3-M7 amplía el validador a **111 comprobaciones** (antes 99) y recorre el
+camino completo —edificio, snapshot, entrada del solver, solución—, **sin
+aberturas**, para que la propagación no pueda depender por accidente de la
+construcción de elementos:
+
+| caso | qué fija |
+|---|---|
+| **D0** | recinto y datum a la misma cota leen gauge cero |
+| **D1** | recinto sobre su datum lee exactamente la columna |
+| **D2** | trasladar edificio y datum juntos no cambia nada |
+| **D3** | trasladar solo el edificio añade exactamente `ρ·g·Δz` |
+| **D4** | sin cota declarada, sigue valiendo 0 m |
+| **D5** | todo lo anterior, sin una sola abertura |
+
+Y una comprobación explícita de que **D0 y D1 no pueden coincidir**: si
+coinciden, la cota se está ignorando.
+
+### 19.5 Mutaciones
+
+Las ocho del encargo mueren por fallo funcional. Conviene señalar una: la
+mutación «usar el suelo del recinto como referencia» murió primero por un
+**error de sintaxis del propio mutante**, no del motor. Eso no es una muerte
+válida —el encargo lo prohíbe expresamente— y hubo que reescribirla para que
+alterara de verdad la física antes de contarla.
+
+### 19.6 Relación con R3
+
+Este defecto es **anterior a R3** y no se le atribuye. Lo destapó el fixture
+R3-M8, que exige que una fuga de envolvente sea invariante al trasladar edificio
+y datum a la vez. Sin esa invariancia, una fuga exterior produciría caudales
+falsos que dependerían de la altura a la que alguien haya dibujado el modelo.
+
+**R3 queda pausada, no cancelada.** Su trabajo está preservado y se reanuda
+sobre esta corrección.

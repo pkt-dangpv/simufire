@@ -15,6 +15,10 @@ extends SceneTree
 ##   <godot> --headless --path . --script res://tools/validate_multistorey_pressure_datum.gd
 
 const SolverScript := preload("res://sim/core/Phase3CoupledPressureSolver.gd")
+## M7 recorre el camino REAL, no solo el solver: el defecto de C-R1.1 vivia en
+## el tramo que va del snapshot a la entrada del solver.
+const BuildingModelScript := preload("res://sim/BuildingModel.gd")
+const TransportScript := preload("res://sim/core/PressureNetworkTransportSystem.gd")
 
 const T_REF_K: float = 293.15
 const P_REF_PA: float = 101325.0
@@ -44,6 +48,7 @@ func _initialize() -> void:
 	_m4_hot_vertical_column()
 	_m5_translating_the_whole_building()
 	_m6_connection_between_storeys()
+	_m7_datum_reaches_the_solver()
 	if _failures.is_empty():
 		print("  %d checks" % _checks)
 		print("MULTISTOREY PRESSURE DATUM VALIDATION PASS")
@@ -480,3 +485,116 @@ func _absolute_at(result: Dictionary, room: Dictionary, z_m: float) -> float:
 			return float(point["pressure_abs_pa"])
 	var density: float = float(room.get("lower_density_kg_m3", RHO_REF))
 	return float(room["pressure_abs_pa"]) - density * GRAVITY * (z_m - floor_z_m)
+
+
+# ---------------------------------------------------------------- M7
+
+## Edificio de un solo recinto, a la cota pedida y SIN aberturas.
+##
+## Sin aberturas a proposito: si la propagacion de la cota dependiera de la
+## construccion de elementos, este caso lo destaparia.
+func _datum_building(floor_z_m: float):
+	var template: Dictionary = {
+		"building_type": "house",
+		"floors": [{"level_m": floor_z_m, "name": "R"}],
+		"rooms_data": [{
+			"id": 0, "name": "R0", "kind": "salon", "floor_level_z_m": floor_z_m,
+			"height_m": HEIGHT_M, "fuel_energy_MJ": 0.0, "max_hrr_kw": 0.0,
+			"fuel_objects": [], "rotation_deg": 0.0,
+		}],
+		"room_rect_m": {"0": {"x": 0.0, "y": 0.0, "w": 5.0, "h": 4.0}},
+		"openings_data": [],
+	}
+	var building = BuildingModelScript.new()
+	building.load_template_data(template)
+	root.add_child(building)
+	var room = building.get_room(0)
+	# Masa que da exactamente la presion de referencia a T_ref.
+	room.upper_gas_kg = 0.0
+	room.lower_gas_kg = RHO_REF * room.volume_m3()
+	room.upper_energy_kj = 0.0
+	room.lower_energy_kj = 0.0
+	return building
+
+
+## Recorre el camino entero y devuelve {snapshot_z, input_z, gauge_pa, abs_pa}.
+func _datum_trace(floor_z_m: float, datum_z_m: Variant) -> Dictionary:
+	var building = _datum_building(floor_z_m)
+	var system = TransportScript.new()
+	var override: Dictionary = {}
+	if datum_z_m != null:
+		override["reference_z_m"] = float(datum_z_m)
+	var snapshot: Dictionary = system.build_snapshot(building, override, DT_S)
+	var solver_input: Dictionary = system.build_solver_input(snapshot, DT_S)
+	var solution: Dictionary = system.solve(solver_input)
+	var gauge_pa: float = NAN
+	var abs_pa: float = NAN
+	for raw_room in solution.get("rooms", []):
+		var room: Dictionary = raw_room
+		gauge_pa = float(room.get("gauge_pressure_pa", NAN))
+		abs_pa = float(room.get("pressure_abs_pa", NAN))
+	var trace: Dictionary = {
+		"snapshot_has": snapshot["outside"].has("reference_z_m"),
+		"snapshot_z": float(snapshot["outside"].get("reference_z_m", 0.0)),
+		"input_has": solver_input["outside"].has("reference_z_m"),
+		"input_z": float(solver_input["outside"].get("reference_z_m", 0.0)),
+		"gauge_pa": gauge_pa,
+		"abs_pa": abs_pa,
+	}
+	building.queue_free()
+	return trace
+
+
+## La cota declarada tiene que llegar al solver, y el gauge tiene que medirse
+## contra el exterior LOCAL del recinto.
+func _m7_datum_reaches_the_solver() -> void:
+	var column_6m_pa: float = RHO_REF * GRAVITY * 6.0
+
+	# D0: recinto y datum a 6 m. En equilibrio con su exterior local.
+	var d0: Dictionary = _datum_trace(6.0, 6.0)
+	_check(bool(d0["snapshot_has"]), "M7 D0 the snapshot declares the datum")
+	# La asercion que faltaba: el snapshot la tenia y la entrada la perdia.
+	_check(bool(d0["input_has"]),
+			"M7 D0 the solver input keeps the datum")
+	_check(_close(float(d0["input_z"]), 6.0, 0.0),
+			"M7 D0 the datum arrives unchanged (%.6f m)" % d0["input_z"])
+	_check(_close(float(d0["gauge_pa"]), 0.0, PRESSURE_TOL_PA),
+			"M7 D0 a room level with its datum reads zero gauge (%.7f Pa)" % d0["gauge_pa"])
+	_check(_close(float(d0["abs_pa"]), P_REF_PA, PRESSURE_TOL_PA),
+			"M7 D0 its absolute pressure is the reference (%.6f Pa)" % d0["abs_pa"])
+
+	# D1: mismo recinto, datum en el suelo del edificio. Ahora SI esta
+	# sobrepresionado respecto a su exterior local, y por la columna exacta.
+	var d1: Dictionary = _datum_trace(6.0, 0.0)
+	_check(_close(float(d1["gauge_pa"]), column_6m_pa, PRESSURE_TOL_PA),
+			"M7 D1 a room above its datum reads the column (%.7f vs %.7f Pa)" % [
+				d1["gauge_pa"], column_6m_pa])
+	# Y D0 y D1 NO pueden coincidir: si coinciden, la cota se esta ignorando.
+	_check(absf(float(d0["gauge_pa"]) - float(d1["gauge_pa"])) > 1.0,
+			"M7 the datum changes the answer (%.7f vs %.7f Pa)" % [
+				d0["gauge_pa"], d1["gauge_pa"]])
+
+	# D2: trasladar edificio y datum juntos no cambia nada.
+	var d2: Dictionary = _datum_trace(16.0, 16.0)
+	_check(_close(float(d2["gauge_pa"]), float(d0["gauge_pa"]), PRESSURE_TOL_PA),
+			"M7 D2 translating building and datum together keeps the gauge (%.7f vs %.7f Pa)" % [
+				d2["gauge_pa"], d0["gauge_pa"]])
+	_check(_close(float(d2["abs_pa"]), float(d0["abs_pa"]), PRESSURE_TOL_PA),
+			"M7 D2 and keeps the absolute pressure (%.6f vs %.6f Pa)" % [
+				d2["abs_pa"], d0["abs_pa"]])
+
+	# D3: mover solo el edificio cambia el gauge en exactamente rho*g*10.
+	var d3: Dictionary = _datum_trace(16.0, 6.0)
+	var expected_pa: float = RHO_REF * GRAVITY * 10.0
+	_check(_close(float(d3["gauge_pa"]), expected_pa, PRESSURE_TOL_PA),
+			"M7 D3 raising only the building adds exactly rho*g*10 (%.7f vs %.7f Pa)" % [
+				d3["gauge_pa"], expected_pa])
+
+	# D4: sin cota declarada, el comportamiento historico es 0 m.
+	var d4: Dictionary = _datum_trace(6.0, null)
+	_check(_close(float(d4["gauge_pa"]), column_6m_pa, PRESSURE_TOL_PA),
+			"M7 D4 an absent datum still means 0 m (%.7f vs %.7f Pa)" % [
+				d4["gauge_pa"], column_6m_pa])
+	var ground: Dictionary = _datum_trace(0.0, null)
+	_check(_close(float(ground["gauge_pa"]), 0.0, PRESSURE_TOL_PA),
+			"M7 D4 a ground-floor room is unaffected (%.7f Pa)" % ground["gauge_pa"])
