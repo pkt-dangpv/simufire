@@ -215,18 +215,44 @@ def test_projection_evidence_is_code_proven_not_csv_inferred(tmp_path):
 
 
 def test_code_claims_match_zone_fire_solver():
+    """El analizador afirma cosas sobre el codigo, y aqui se comprueban.
+
+    F2.2-R2-MASS partio la proyeccion en dos rutas. Las afirmaciones del
+    analizador —reconstruccion de la masa inferior y tope superior— describen la
+    ruta HISTORICA, que sigue existiendo intacta y es la que el analizador mira
+    cuando lee un CSV producido con la red apagada. Lo que ya no es cierto es
+    que ocurran incondicionalmente: ahora estan guardadas.
+    """
     solver = (ROOT / "sim/core/ZoneFireSolver.gd").read_text(encoding="utf-8")
-    # Lower mass is overwritten unconditionally from the remaining volume.
+    # La ruta historica sigue reconstruyendo la masa inferior...
     assert "room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)" in solver
-    assert "var target_lower_mass_kg: float = lower_volume_m3 * lower_density_kg_m3" in solver
+    assert "else lower_volume_m3 * lower_density_kg_m3" in solver
+    # ...pero solo cuando la red autoritativa NO manda.
+    assert "if not canonical_mass_conservation_enabled:" in solver
     # Upper mass is capped only when it exceeds the whole-room mass.
-    assert "if room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:" in solver
+    assert "and room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:" in solver
     assert "room.upper_gas_kg = max_upper_mass_kg" in solver
     # Both record their correction in the boundary accumulator.
     assert "room.two_zone_boundary_mass_kg += room.upper_gas_kg - upper_mass_before_kg" in solver
     assert "room.two_zone_boundary_mass_kg += room.lower_gas_kg - lower_mass_before_kg" in solver
     # And the interface follows the upper mass, not the reverse.
-    assert "var upper_volume_m3: float = room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)" in solver
+    assert "else room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)" in solver
+
+
+def test_canonical_route_does_not_reconstruct_mass():
+    """La otra cara del contrato anterior, y la razon de ser de F2.2-R2-MASS.
+
+    Con la red autoritativa la masa zonal es estado: la geometria se deriva de
+    la ecuacion de estado del propio recinto y no se reescribe nada. Si alguien
+    vuelve a colgar una reconstruccion de esa rama, este test cae.
+    """
+    solver = (ROOT / "sim/core/ZoneFireSolver.gd").read_text(encoding="utf-8")
+    assert "canonical_mass_conservation_enabled" in solver
+    # La geometria canonica sale del unico dueno de la ecuacion de estado.
+    assert "EquationsScript.zone_geometry_from_state(" in solver
+    # Y la masa inferior, bajo esa ruta, es el estado que ya habia.
+    assert "var target_lower_mass_kg: float = room.lower_gas_kg" in solver
+    assert "var max_upper_mass_kg: float = room.upper_gas_kg if canonical_mass_conservation_enabled" in solver
 
 
 def test_boundary_accumulator_is_reported_and_is_not_self_derived(tmp_path):

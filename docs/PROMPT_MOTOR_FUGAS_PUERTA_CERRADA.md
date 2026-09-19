@@ -1703,3 +1703,106 @@ real de todo esto: la red autoritativa **no converge** en un portal de varias
 plantas (§16.14). Mientras la mitad de los pasos no transporten nada, ni la
 fuga fría ni lo que venga después se pueden medir ahí. Es trabajo de F2.2, del
 evaluador de F2.2A y del solver de F2.2B, y va **antes** que D2, D3 y D4.
+
+## 17. F2.2-R2-MASS: por qué las cifras de §16 eran una cota inferior (2026-09-19)
+
+§16.13 dejó escrito que las medidas de fuga de D1 eran una **cota inferior**
+porque la sala del fuego perdía alrededor de un tercio de su masa de gas
+mientras se calentaba, y su presión se quedaba cerca de la ambiente. Esa pérdida
+ya está identificada y corregida, y conviene decir con precisión qué cambia y
+qué no.
+
+### 17.1 La causa no estaba en la rendija
+
+No estaba en la ELA, ni en el exponente 0,65, ni en el reparto de bandas, ni en
+el elemento de grieta. Estaba en la **proyección de zonas**, que reconstruía la
+masa inferior del recinto como «volumen libre por densidad del aire a presión
+ambiente». Con la red **apagada** la pérdida era la misma al kilogramo, que es
+justo lo que §16.13 observó y no pudo explicar entonces.
+
+El balance causal cerró exacto: de los −16,9652 kg perdidos en 100 s, los nueve
+propietarios físicos aportaban **0,0000 kg** y `two_zone_boundary_mass_kg`
+−16,9652 kg. El tope de la capa superior aportaba **0,0000 kg**: toda la pérdida
+venía de la reescritura de la masa inferior. El detalle está en
+`docs/PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md` §18.
+
+### 17.2 Lo que cambia para la fuga
+
+Con la masa conservada, el recinto **sí se presuriza**. Eso mueve el régimen de
+trabajo de la rendija de sitio:
+
+- Antes, lo que empujaba la grieta era casi solo el término **hidrostático**:
+  ΔP entre recintos en torno a 1 Pa, y hasta 12,8 Pa por la altura de la puerta.
+- Ahora la **sobrepresión** domina, y la ΔP a través de la rendija sube en
+  varios órdenes de magnitud.
+
+Las cifras de §16.10 —15,6 g y 25,6 g de humo transferido— **no se han
+retocado, ni se ha recalibrado nada para acercarse a ellas**. Se vuelven a medir
+en las mismas condiciones y el resultado se recoge en §17.4. Lo que ya no es
+cierto es la razón por la que eran una cota inferior.
+
+### 17.3 Una advertencia nueva, y es importante
+
+Al presurizarse el recinto, la ΔP a través de la rendija se sale del **dominio
+experimental** de los datos de los que sale la ley de potencia (NBSIR 81-2214,
+hasta unos 50 Pa) durante la mayor parte de la simulación, y por márgenes
+grandes.
+
+El motor **no recorta**: registra `domain_exceeded` y sigue aplicando la misma
+ley, exactamente como decidió D1. Pero conviene entender qué significa esa
+bandera aquí:
+
+- **No** es un fallo numérico. La red converge y la masa se conserva.
+- **Sí** es una extrapolación. La ley `Q ∝ ΔP^0,65` se está evaluando muy lejos
+  de donde se midió, y nada garantiza que el exponente siga valiendo allí.
+- La causa de esas ΔP enormes **no es la rendija**: es que la envolvente
+  exterior cerrada sigue siendo inerte con la red encendida (**R3**, abierta).
+  Un recinto real tiene fugas por fachada que impiden llegar a esas presiones.
+
+Por eso las cifras de fuga **siguen sin ser definitivas**, aunque ya no por el
+motivo de §16.13. No son una calibración, no son una cota definitiva y no son
+todavía comportamiento publicable.
+
+### 17.4 Medidas nuevas
+
+Caso A, dos salas, 600 s, mismas clases de fuga que §16.10 (12 y 21 cm²):
+
+| variante | quemado kJ | p máx sala fuego Pa | ΔP máx rendija Pa | masa transferida kg | humo en la receptora g | O₂ mín | T máx °C | pasos sin aplicar | pasos > 50 Pa |
+|---|---|---|---|---|---|---|---|---|---|
+| estanca (A1) | 59 219 | 121 656 | — | 0,000 | 0,000 | 0,1321 | 423,1 | 0 | 0 |
+| fuga 12 cm² (A2) | 85 009 | 53 787 | 2 272,2 | 33,925 | **165,836** | 0,1311 | 486,6 | 0 | 5 290 |
+| fuga 21 cm² (A3) | 85 511 | 53 608 | 970,1 | 33,161 | **149,031** | 0,1315 | 487,4 | 0 | 3 854 |
+| abierta (A4) | 176 008 | 35 909 | — | 591,478 | 2 100,310 | 0,1087 | 565,6 | 0 | 0 |
+
+El orden que exige el criterio de aceptación se mantiene donde importa: las dos
+variantes con rendija quedan **entre** la puerta estanca (0 g) y la puerta
+abierta (2 100 g), y la abierta sigue siendo claramente la más ventilada.
+
+Frente a §16.10, el humo transferido pasa de 15,6 g a **165,8 g** con 12 cm², y
+de 25,6 g a **149,0 g** con 21 cm². No se ha tocado la ELA, ni el exponente, ni
+ninguna tolerancia: lo que ha cambiado es que el recinto ahora se presuriza.
+
+### 17.5 El orden entre 12 y 21 cm² se invierte, y eso dice algo
+
+En §16.10 la rendija mayor transfería más humo (25,6 frente a 15,6 g). Ahora
+transfiere **menos** (149,0 frente a 165,8 g). No es un fallo: es la consecuencia
+de haber cambiado de régimen, y conviene entenderla.
+
+Las dos variantes generan casi el mismo humo (2 934 frente a 2 914 g) y queman
+casi lo mismo, así que la diferencia no está en el fuego. Está en el transporte.
+Con `Q ∝ A·ΔP^0,65`, al pasar de 12 a 21 cm² el área sube ×1,75 y la ΔP baja
+×2,34, con lo que `ΔP^0,65` baja ×1,75: **se cancelan**. Por eso la masa
+transportada es casi idéntica (33,9 frente a 33,2 kg). La fuga **se autolimita**
+y el área ha dejado de mandar. La diferencia en humo viene del instante en que
+ocurre el transporte: la rendija pequeña aguanta presión más tiempo y mueve gas
+cuando la sala ya está más cargada.
+
+En §16.10 la ΔP era de unos 12 Pa y la movía la flotabilidad, así que el caudal
+lo dominaba el área y más área daba más trasiego. Ahora el recinto es un depósito
+a presión y la rendija es su única válvula.
+
+**Esta inversión es, por sí sola, el mejor argumento de que estas cifras no son
+una calibración.** El orden cualitativo se da la vuelta en un régimen que los
+datos experimentales nunca cubrieron. Hasta que R3 devuelva la fuga de envolvente
+y las presiones vuelvan a un rango físico razonable, estas magnitudes describen
+el modelo, no una vivienda.

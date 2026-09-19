@@ -1620,4 +1620,260 @@ Ninguna se ha tocado en esta fase, y **no deben mezclarse** con ella:
 ### 17.11 Qué queda bloqueado hasta cerrar esas dos
 
 **D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
-iniciado.** El orden de trabajo es: R2, después R3, y solo entonces D2/D3/D4.
+iniciado.** El orden de trabajo era: R2, después R3, y solo entonces
+D2/D3/D4. **R2 está cerrada** (§18). Queda R3.
+
+## 18. F2.2-R2-MASS: la masa zonal es estado conservado (2026-09-19)
+
+> **Estado: cerrada.** Un recinto sellado que se calienta ya no pierde masa. La
+> pérdida histórica de −16,9652 kg en 100 s no venía de ninguna fuga ni de la
+> red: venía de la **proyección de zonas**, que reconstruía la masa inferior
+> para imponer la densidad del aire a presión ambiente. La ruta con la red
+> apagada se conserva intacta.
+
+### 18.1 El balance causal, antes de tocar nada
+
+El encargo exigía cerrar el balance por propietario antes de proponer causa. Con
+`runs/f22r2_20260919/diagnose_mass.gd` sobre la sala sellada, a 100 s:
+
+| concepto | kg |
+|---|---|
+| masa inicial | 48,0000 |
+| masa final | 31,0348 |
+| **pérdida observada** | **−16,9652** |
+| suma de los nueve propietarios físicos | **0,0000** |
+| `two_zone_boundary_mass_kg` | **−16,9652** |
+
+Ningún propietario físico —combustión, intercambio de oxígeno, térmico,
+extinción, intercambio de gases, HVAC, otros, reconciliación, clamp de
+proyección— movía un solo gramo. Toda la pérdida estaba anotada en la frontera
+entre capas, que es el sumidero que la proyección usa cuando reescribe masa.
+
+La traza por llamada (`Phase3ProjectionTraceRecord`) separa además **qué parte**
+de la proyección la movía, y **en qué familia de llamada**:
+
+| familia de llamada | kg acumulados |
+|---|---|
+| `thermal_post_combustion_sync` | −21,6945 |
+| `thermal_energy_projection` | +4,0464 |
+| `thermal_post_losses_sync` | +0,5568 |
+| `reconcile_layer_sync` | +0,1048 |
+| `gas_exchange_sync` | +0,0203 |
+| `final_clamp_active` | +0,0010 |
+| **suma** | **−16,9652** |
+
+Y dentro de cada llamada, separando los dos mecanismos que la proyección tiene
+para mover masa:
+
+- **tope de la capa superior: 0,0000 kg.** No aportaba nada.
+- **reescritura de la masa inferior: −16,9652 kg.** Toda la pérdida.
+
+Es decir: **la causa era una sola línea**, y las seis familias de llamada la
+ejecutaban.
+
+### 18.2 La línea
+
+`ZoneFireSolver.project_room_state()` cerraba el volumen del recinto **a presión
+de referencia**:
+
+```gdscript
+var lower_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / lower_k
+var target_lower_mass_kg: float = lower_volume_m3 * lower_density_kg_m3
+...
+room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)
+room.two_zone_boundary_mass_kg += room.lower_gas_kg - lower_mass_before_kg
+```
+
+La masa inferior no era estado: era una **incógnita geométrica** que se
+recalculaba cada paso como «volumen libre por densidad del aire a 101 325 Pa».
+En cuanto el recinto se calienta y se presuriza, su gas es **más denso** que el
+aire a presión ambiente a esa misma temperatura, así que esa fórmula devuelve
+sistemáticamente menos masa de la que hay, y la diferencia se tiraba.
+
+El efecto se realimenta: menos masa ⇒ menos presión ⇒ el recinto se queda cerca
+de la ambiente ⇒ los caudales de fuga que dependen de ΔP salen pequeños.
+
+### 18.3 La corrección: la geometría se deriva del estado
+
+Con la red autoritativa, la presión absoluta del recinto sale de la ecuación de
+estado canónica, que **ya tiene dueño** desde F2.2A —
+`CompartmentPressureEquations`— y allí es donde se ha añadido el cierre
+geométrico, no en una segunda ecuación escrita en el solver de zonas:
+
+```
+p_abs   = (R / V) · (M·T_ref + E/c_p)
+V_zona  = m_zona · R · T_zona / p_abs
+```
+
+Con **esa** presión —la del propio recinto, no la ambiente— los dos volúmenes
+zonales suman exactamente el del recinto, porque
+
+```
+m_u·T_u + m_l·T_l ≡ M·T_ref + E/c_p
+```
+
+es una identidad, no un ajuste. **No queda nada que cuadrar y, por tanto,
+ninguna masa que borrar.** La función nueva es
+`CompartmentPressureEquations.zone_geometry_from_state()`, y `ZoneFireSolver` la
+consume.
+
+Al levantar la reconstrucción aparecieron tres sitios más de la misma familia,
+todos ellos imponiendo un **suelo de energía sensible en cero**
+(`maxf(0.0, temp − ambient)`). Ese suelo borra el estado de un recinto **más
+frío que el ambiente**, que F2.2A acepta como válido: la energía sensible
+negativa es física. Se levanta también, y solo bajo la ruta canónica.
+
+Lo que **no** se ha tocado:
+
+- El **tope térmico** de la capa superior sigue siendo un sumidero numérico
+  explícito, en las dos rutas: es una pérdida declarada, no una reconstrucción
+  silenciosa.
+- La **masa negativa** se sigue cortando en cero en las dos rutas. No es un
+  estado físico y F2.2A la rechaza.
+
+### 18.4 No hay un interruptor nuevo
+
+Conservar la masa no es una opción: es parte del contrato de la red
+autoritativa. Por eso el modo **no** es un `@export` ni una bandera de escenario.
+`SimulationEngine` lo deriva del interruptor que ya existe:
+
+```gdscript
+zone_fire_solver.canonical_mass_conservation_enabled = pressure_network_solver_enabled
+```
+
+Con la red **apagada**, la ruta histórica queda byte a byte intacta, incluida su
+reconstrucción documentada de la masa inferior. Eso no es una regresión
+tolerada: es la compatibilidad que el encargo exige, y R2-M8 y R2-M9 la
+comprueban por separado —incluido el valor exacto que la ruta histórica
+produce, «volumen por densidad a presión ambiente»—.
+
+### 18.5 Los 42 kPa no se recortan
+
+Un recinto **ideal y completamente sellado** que se calienta hasta el orden de
+los 500 °C llega a decenas de kPa: es lo que dice el gas ideal, y es lo que la
+red publica ahora. No se recorta, no se clampa y no se compensa reabriendo la
+purga histórica.
+
+Esa cifra **no** es la predicción de una vivienda real. Es la del caso ideal sin
+envolvente, y la envolvente es justamente lo que falta: **R3** sigue abierta.
+
+### 18.6 Resultados
+
+**Campaña A0–A4, caso de dos salas, 600 s.** Masa total del edificio (96 kg):
+
+| t (s) | A0 red OFF | A1 ON estanco | A2 12 cm² | A3 21 cm² | A4 abierta |
+|---|---|---|---|---|---|
+| 0 | 96,000000 | 96,000000 | 96,000000 | 96,000000 | 96,000000 |
+| 60 | 91,996166 | 96,000000 | 96,000000 | 96,000000 | 96,000000 |
+| **100** | **79,034725** | **96,000000** | 96,000000 | 96,000000 | 96,000000 |
+| 300 | 88,491011 | 96,000000 | 96,000000 | 96,000000 | 96,000000 |
+| 600 | 95,459239 | 96,000000 | 96,000000 | 96,000000 | 96,000000 |
+
+En la sala del fuego, la ruta histórica va de 48,0000 a **31,0356 kg a 100 s** y
+luego recupera hasta 47,48 kg al enfriarse: la pérdida no era permanente, era
+**función de la temperatura**, que es justo lo que predice «volumen por densidad
+a presión ambiente». Con la red autoritativa la sala se queda en **48,000000 kg
+constantes y 42 028,3 Pa** a 100 s.
+
+`two_zone_boundary_mass_kg` acumulado a 600 s: A0 anota −0,4039 y −0,1368 kg;
+A1, A2, A3 y A4 anotan **exactamente 0,000000000 kg** en las dos salas.
+
+| | p máx (Pa) | p a 100 s (Pa) | transportado (kg) | residuo de masa (kg) |
+|---|---|---|---|---|
+| A0 OFF | 17,34 | 7,50 | 0 | −0,540760833 |
+| A1 ON estanco | 121 656,48 | 42 028,29 | 0 | −0,000000000 |
+| A2 12 cm² | 53 787,14 | 22 043,10 | 33,92 | −0,000000000 |
+| A3 21 cm² | 53 608,02 | 21 444,75 | 33,16 | 0,000000000 |
+| A4 abierta | 35 909,33 | 17 671,01 | 591,48 | 0,000000000 |
+
+**Campaña sobre el portal de tres plantas** (347,04 kg, seis salas): A1, A2, A3 y
+A4 conservan la masa con residuos de 1·10⁻¹³ kg y frontera cero en las seis
+salas; A0 pierde 0,4393 kg y se queda en 2,93 Pa de máxima.
+
+**Salud de la red.** En las cinco variantes: 0 anomalías de commit, 0 commits sin
+aplicación y 0 aplicaciones sin commit. `commit_count` vale exactamente 7 200 en
+las cuatro variantes con la red y 0 con la red apagada. La transacción de F2.2C
+es atómica y ahora está comprobado desde fuera.
+
+Con la red apagada el motor no publica resultado de red, de modo que el arnés
+registra los 7 200 pasos como «sin aplicar». **No son 7 200 no convergencias**:
+son 7 200 pasos en los que la red no corre.
+
+### 18.7 Portal y regresiones
+
+P0, P1 y P2: **0 de 7 200 pasos descartados** los tres, sobre el árbol final.
+
+Validadores: R2-M **64**, F2.2A 163, F2.2B 530, F2.2C 126, D1 437, multiplanta
+99. Todos PASS.
+
+**Identidad con la red apagada**, contra un worktree limpio en `fd9031ed`, sobre
+patrones de bits IEEE754 y no sobre decimales redondeados:
+
+| escenario | contenido | veredicto |
+|---|---|---|
+| `A_closed` dos salas con fuego y especies | 120 líneas × 18 campos | idéntico byte a byte |
+| `A_open` dos salas, puerta abierta | 120 líneas × 18 campos | idéntico byte a byte |
+| `B_closed` portal de tres plantas | 360 líneas × 18 campos | idéntico byte a byte |
+
+> **Nota sobre la evidencia anterior.** La comprobación de identidad OFF que
+> acompañaba a F2.2C-R1 **no demostraba nada**: su arnés usaba `%.17g`, un
+> especificador que el operador `%` de GDScript no acepta, así que Godot emitía
+> «String formatting error» en cada línea y escribía la plantilla sin rellenar.
+> Los dos ficheros comparados eran copias de la misma cadena. La conclusión de
+> C-R1 era correcta —solo tocó cuatro ficheros de la red, inertes con la red
+> apagada— pero la prueba que la respaldaba era vacía. La de esta fase no lo es.
+
+### 18.8 Dominio experimental de la rendija
+
+Con la masa conservada y sin fuga de envolvente, el recinto se presuriza y la ΔP
+a través de la rendija se sale del dominio de los datos de los que procede la ley
+de potencia (NBSIR 81-2214, hasta unos 50 Pa) durante buena parte de la corrida:
+
+| caso | pasos > 50 Pa | % | primer instante | último | ΔP máx | caudal bruto máx | coinciden con pasos sin aplicar |
+|---|---|---|---|---|---|---|---|
+| A2 12 cm², dos salas | 5 290 | 73,5 % | 29,00 s | 600,00 s | 2 272,16 Pa | 0,208742 kg/s | 0 |
+| A3 21 cm², dos salas | 3 854 | 53,5 % | 36,00 s | 573,50 s | 970,11 Pa | 0,236953 kg/s | 0 |
+| A2 12 cm², portal | 6 304 | 87,6 % | 24,75 s | 600,00 s | 5 865,18 Pa | 0,360640 kg/s | 0 |
+| A3 21 cm², portal | 5 612 | 77,9 % | — | — | — | — | 0 |
+
+A1 y A4 no superan los 50 Pa en ningún paso: A1 no tiene rendija y A4 tiene la
+puerta abierta, que es una abertura grande y no una grieta.
+
+El motor **no recorta**: registra la bandera y sigue aplicando la misma ley, como
+decidió D1. Pero la bandera significa algo concreto:
+
+- **no** es un fallo numérico: la red converge y la masa se conserva;
+- **sí** es extrapolación, y muy lejos del sitio donde se midió el exponente;
+- la causa de esas ΔP no es la rendija, es que la envolvente exterior cerrada
+  sigue inerte con la red encendida (**R3**, abierta).
+
+Ninguno de los pasos fuera de dominio coincide con un paso sin aplicar, en
+ninguna variante: el problema es de validez experimental, no de convergencia.
+
+### 18.9 Mutaciones
+
+Las 22 mutaciones del encargo mueren, cada una por un fallo funcional
+identificable y ninguna por error de compilación o de arnés. La campaña destapó
+**cinco huecos de aserción reales en los propios fixtures de esta fase**, que se
+cerraron antes de darla por buena:
+
+| hueco | qué no se comprobaba | mutaciones que sobrevivían |
+|---|---|---|
+| 1 | la interfaz y los volúmenes zonales derivados | M12, M13 |
+| 2 | que las seis familias de llamada coincidan en la interfaz | M08, M09 |
+| 3 | que una masa zonal negativa se recorte | M18 |
+| 4 | que el tope superior histórico mueva la energía con la masa | M19 |
+| 5 | **qué parámetros emite el adaptador de fuga** | M22 |
+
+El quinto merece subrayarse: los 437 checks de D1 comparan contra las constantes
+del modelo **puro**, de modo que no ven un adaptador que emita otra cosa. Se
+podía cambiar el exponente de 0,65 a 0,5 y toda la suite seguía en verde. Esta
+fase prohíbe expresamente tocar la ELA y el exponente, así que la prohibición
+ahora tiene una prueba detrás (R2-M11) y no solo una línea en el encargo.
+
+También hubo que rediseñar cinco mutaciones que eran **no-ops**: bajo la ruta
+canónica `lower_density_kg_m3` **es** `lower_gas_kg / lower_volume_m3`, y
+`volumen − V_sup − V_inf` es **cero exacto** por la identidad de la EOS, de modo
+que una mutación escrita con esas expresiones se convierte en la identidad. Que
+fueran no-ops es, en el fondo, una comprobación más de que el cierre geométrico
+es exacto, pero como mutaciones no probaban nada.

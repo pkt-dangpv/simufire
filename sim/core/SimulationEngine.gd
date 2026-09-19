@@ -1265,6 +1265,11 @@ func _sync_auxiliary_services() -> void:
 
 	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
 	zone_fire_solver.thin_upper_layer_min_mass_fraction = _effective_thin_upper_layer_min_mass_fraction()
+	# F2.2-R2-MASS: conservar la masa zonal no es una opcion aparte, es parte
+	# del contrato de la red autoritativa. Por eso no hay un interruptor nuevo:
+	# el modo se deriva del de la red y se comunica al solver de zonas, que es
+	# quien proyecta la geometria.
+	zone_fire_solver.canonical_mass_conservation_enabled = pressure_network_solver_enabled
 	zone_fire_solver.projection_diagnostics_enabled = _phase3_projection_diagnostics_active()
 	zone_fire_solver.set_building(building)
 	_configure_phase3_o2_zonal_mass_shadow()

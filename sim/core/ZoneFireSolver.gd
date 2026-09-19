@@ -2,6 +2,9 @@ extends RefCounted
 class_name ZoneFireSolver
 
 const TraceRecordScript = preload("res://sim/core/Phase3ProjectionTraceRecord.gd")
+## F2.2-R2-MASS: la geometria zonal se deriva de la ecuacion de estado, y esa
+## ecuacion tiene un unico dueno. Aqui no se escribe una segunda.
+const EquationsScript = preload("res://sim/core/CompartmentPressureEquations.gd")
 
 # ============================================================
 # ZONE FIRE SOLVER  (SF-R6 — Consolidado)
@@ -51,6 +54,15 @@ var two_zone_energy_enabled: bool = false
 var thin_upper_layer_min_mass_fraction: float = 0.0
 ## F3.1d: trace pasivo por llamada de project_room_state(). Solo telemetria.
 var projection_diagnostics_enabled: bool = false
+
+## F2.2-R2-MASS: modo interno, NO un interruptor de usuario. Lo fija
+## `SimulationEngine` desde `pressure_network_solver_enabled`, porque conservar
+## la masa no es una opcion aparte: es parte del contrato de la red
+## autoritativa. Apagado, la ruta historica queda intacta byte a byte.
+##
+## Encendido, la proyeccion no puede reescribir masa para cerrar el volumen a
+## presion de referencia.
+var canonical_mass_conservation_enabled: bool = false
 var _projection_trace_records: Array = []
 var _projection_trace_record_pool: Array = []
 var _projection_call_index: int = 0
@@ -124,14 +136,20 @@ func ensure_room_state(room: RoomModel, ambient_c: float) -> void:
 	if not two_zone_energy_enabled or room == null:
 		return
 
+	# La masa negativa no es un estado fisico y se corta en las dos rutas.
 	room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
-	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
 	room.lower_gas_kg = maxf(0.0, room.lower_gas_kg)
-	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj)
+	# F2.2-R2-MASS: la energia sensible NEGATIVA si es un estado valido —el
+	# gas esta por debajo de la temperatura de referencia— y F2.2A la acepta.
+	# Cortarla en cero borraba el enfriamiento de un recinto sellado.
+	if not canonical_mass_conservation_enabled:
+		room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
+		room.lower_energy_kj = maxf(0.0, room.lower_energy_kj)
 
 	if room.zone_total_mass_kg() <= ZONE_MASS_EPS_KG:
 		room.lower_gas_kg = maxf(0.0, room.volume_m3() * AIR_DENSITY_REF_KG_M3)
-	if room.lower_energy_kj <= 0.0 and room.temp_lower_c > ambient_c:
+	if not canonical_mass_conservation_enabled \
+			and room.lower_energy_kj <= 0.0 and room.temp_lower_c > ambient_c:
 		room.lower_energy_kj = room.lower_gas_kg \
 				* maxf(0.0, room.temp_lower_c - ambient_c) \
 				* AIR_CP_KJ_KG_K
@@ -253,16 +271,21 @@ func project_room_state(
 		var total_mass_kg: float = room.zone_total_mass_kg()
 		var mixed_temp_c: float = ambient_c + room.zone_total_energy_kj() \
 				/ maxf(ZONE_MASS_EPS_KG, total_mass_kg * AIR_CP_KJ_KG_K)
-		room.upper_energy_kj = room.upper_gas_kg \
-				* maxf(0.0, mixed_temp_c - ambient_c) \
-				* AIR_CP_KJ_KG_K
-		room.lower_energy_kj = room.lower_gas_kg \
-				* maxf(0.0, mixed_temp_c - ambient_c) \
-				* AIR_CP_KJ_KG_K
+		# F2.2-R2-MASS: la mezcla reparte la energia que hay; con la red
+		# autoritativa no la recorta en cero.
+		var mixed_rise_c: float = mixed_temp_c - ambient_c
+		if not canonical_mass_conservation_enabled:
+			mixed_rise_c = maxf(0.0, mixed_rise_c)
+		room.upper_energy_kj = room.upper_gas_kg * mixed_rise_c * AIR_CP_KJ_KG_K
+		room.lower_energy_kj = room.lower_gas_kg * mixed_rise_c * AIR_CP_KJ_KG_K
 		lower_temp_c = mixed_temp_c
 		upper_temp_raw_c = mixed_temp_c
 
-	room.temp_lower_c = maxf(ambient_c, lower_temp_c)
+	# F2.2-R2-MASS: con la red autoritativa la temperatura sale del estado, sin
+	# suelo ambiente. Un recinto puede estar mas frio que el exterior, y su
+	# energia sensible negativa es un estado valido para F2.2A.
+	room.temp_lower_c = lower_temp_c if canonical_mass_conservation_enabled \
+			else maxf(ambient_c, lower_temp_c)
 	room.temp_upper_raw_c = maxf(room.temp_lower_c, upper_temp_raw_c)
 	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
 	room.temp_upper_c = minf(room.temp_upper_raw_c, max_upper_temp_c)
@@ -271,45 +294,80 @@ func project_room_state(
 		room.temp_upper_raw_c = room.temp_upper_c
 		room.temp_upper_clamped = false
 
-	# El cap termico es un sumidero numerico explicito, igual que en legacy.
-	room.upper_energy_kj = room.upper_gas_kg \
-			* maxf(0.0, room.temp_upper_c - ambient_c) \
-			* AIR_CP_KJ_KG_K
-	room.lower_energy_kj = room.lower_gas_kg \
-			* maxf(0.0, room.temp_lower_c - ambient_c) \
-			* AIR_CP_KJ_KG_K
+	# El cap termico es un sumidero numerico explicito, igual que en legacy: esa
+	# perdida esta declarada y se mantiene en las dos rutas. Lo que NO se
+	# mantiene con la red autoritativa es el suelo en cero, que borraba la
+	# energia sensible negativa de un recinto mas frio que el ambiente.
+	if canonical_mass_conservation_enabled:
+		room.upper_energy_kj = room.upper_gas_kg \
+				* (room.temp_upper_c - ambient_c) * AIR_CP_KJ_KG_K
+		room.lower_energy_kj = room.lower_gas_kg \
+				* (room.temp_lower_c - ambient_c) * AIR_CP_KJ_KG_K
+	else:
+		room.upper_energy_kj = room.upper_gas_kg \
+				* maxf(0.0, room.temp_upper_c - ambient_c) \
+				* AIR_CP_KJ_KG_K
+		room.lower_energy_kj = room.lower_gas_kg \
+				* maxf(0.0, room.temp_lower_c - ambient_c) \
+				* AIR_CP_KJ_KG_K
 	if trace_enabled:
 		TraceRecordScript.capture_state(
 			trace_record, TraceRecordScript.Field.PRE_GEOMETRY_UPPER_GAS_KG, room)
 
 	var ambient_k: float = ambient_c + 273.15
+	# F2.2-R2-MASS: con la red autoritativa, la geometria sale de la ecuacion de
+	# estado del propio recinto. Los dos volumenes zonales suman EXACTAMENTE el
+	# del recinto —es una identidad, no un ajuste—, asi que no hay nada que
+	# cuadrar y ninguna masa que borrar.
+	var canonical_geometry: Dictionary = {}
+	if canonical_mass_conservation_enabled:
+		canonical_geometry = EquationsScript.zone_geometry_from_state(
+			room.upper_gas_kg, room.lower_gas_kg,
+			room.upper_energy_kj, room.lower_energy_kj,
+			room.floor_area_m2(), room.height_m, ambient_k
+		)
+	var canonical_valid: bool = bool(canonical_geometry.get("valid", false))
 	var upper_k: float = maxf(ambient_k, room.temp_upper_c + 273.15)
-	var upper_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / upper_k
-	var max_upper_mass_kg: float = room.volume_m3() * upper_density_kg_m3
+	var upper_density_kg_m3: float = float(canonical_geometry["upper_density_kg_m3"]) \
+			if canonical_valid else AIR_DENSITY_REF_KG_M3 * ambient_k / upper_k
+	# Sin imposicion de densidad ambiente no existe una capacidad superior que
+	# recortar: la capa ocupa el volumen que le corresponde a su propia presion.
+	var max_upper_mass_kg: float = room.upper_gas_kg if canonical_mass_conservation_enabled \
+			else room.volume_m3() * upper_density_kg_m3
 	var upper_mass_before_cap_kg: float = room.upper_gas_kg
 	var upper_energy_before_cap_kj: float = room.upper_energy_kj
-	if room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:
+	if not canonical_mass_conservation_enabled \
+			and room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:
 		var upper_mass_before_kg: float = room.upper_gas_kg
 		room.upper_energy_kj *= max_upper_mass_kg / upper_mass_before_kg
 		room.upper_gas_kg = max_upper_mass_kg
 		room.two_zone_boundary_mass_kg += room.upper_gas_kg - upper_mass_before_kg
-	var upper_volume_m3: float = room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)
+	var upper_volume_m3: float = float(canonical_geometry["upper_volume_m3"]) \
+			if canonical_valid else room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)
 	var upper_depth_m: float = upper_volume_m3 / maxf(0.01, room.floor_area_m2())
 	room.thermal_layer_m = clampf(room.height_m - upper_depth_m, 0.0, room.height_m)
 
 	# Cierre de volumen a presión de referencia. Mientras M3 no resuelva cada
 	# apertura por zonas, la diferencia se trata como intercambio con el contorno:
 	# entrada a temperatura ambiente o salida con la entalpía especifica lower.
-	var lower_volume_m3: float = maxf(0.0, room.volume_m3() - minf(room.volume_m3(), upper_volume_m3))
+	var lower_volume_m3: float = float(canonical_geometry["lower_volume_m3"]) \
+			if canonical_valid \
+			else maxf(0.0, room.volume_m3() - minf(room.volume_m3(), upper_volume_m3))
 	var lower_k: float = maxf(ambient_k, room.temp_lower_c + 273.15)
-	var lower_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / lower_k
-	var target_lower_mass_kg: float = lower_volume_m3 * lower_density_kg_m3
+	var lower_density_kg_m3: float = float(canonical_geometry["lower_density_kg_m3"]) \
+			if canonical_valid else AIR_DENSITY_REF_KG_M3 * ambient_k / lower_k
+	# F2.2-R2-MASS: con la red autoritativa la masa inferior es estado, no una
+	# incognita geometrica. Reescribirla con `volumen * densidad ambiente` era lo
+	# que borraba los 16,9652 kg del recinto sellado.
+	var target_lower_mass_kg: float = room.lower_gas_kg \
+			if canonical_mass_conservation_enabled else lower_volume_m3 * lower_density_kg_m3
 	var lower_mass_before_kg: float = room.lower_gas_kg
 	var lower_energy_before_kj: float = room.lower_energy_kj
-	if target_lower_mass_kg < lower_mass_before_kg and lower_mass_before_kg > ZONE_MASS_EPS_KG:
-		room.lower_energy_kj *= target_lower_mass_kg / lower_mass_before_kg
-	room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)
-	room.two_zone_boundary_mass_kg += room.lower_gas_kg - lower_mass_before_kg
+	if not canonical_mass_conservation_enabled:
+		if target_lower_mass_kg < lower_mass_before_kg and lower_mass_before_kg > ZONE_MASS_EPS_KG:
+			room.lower_energy_kj *= target_lower_mass_kg / lower_mass_before_kg
+		room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)
+		room.two_zone_boundary_mass_kg += room.lower_gas_kg - lower_mass_before_kg
 	if room.lower_gas_kg > ZONE_MASS_EPS_KG:
 		room.temp_lower_c = ambient_c + room.lower_energy_kj \
 				/ (room.lower_gas_kg * AIR_CP_KJ_KG_K)

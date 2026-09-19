@@ -441,6 +441,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot fuga fria de puerta cerrada: " + (diagnostic or "failed"))
 
+    # Conservacion canonica de masa zonal (fase F2.2-R2-MASS): con la red
+    # autoritativa, la proyeccion deriva la geometria del estado en vez de
+    # reescribir masa para imponer presion ambiente.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_canonical_mass_conservation.gd",
+        "CANONICAL MASS CONSERVATION VALIDATION PASS",
+    )
+    rows.append(("Conservacion canonica de masa zonal, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot conservacion canonica de masa: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

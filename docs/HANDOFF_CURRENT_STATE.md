@@ -1,5 +1,83 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-19 - canonical zonal mass conservation
+
+- Checkpoint: `main` with **fourteen** local commits on top of `origin/main`,
+  **none pushed**. This one is F2.2-R2-MASS, on top of F2.2C-R1 (`fd9031ed`).
+- **A sealed room no longer loses its gas.** The historical loss flagged in the
+  previous two handoffs —48.0 to 31.0 kg in 100 s— is identified and fixed. With
+  the authoritative network on, the six-room portal keeps **347.04 kg** across
+  7 200 steps with a residual of **-2.3e-13 kg** and **zero** booked at the
+  two-zone boundary in every room.
+- **The causal balance closed exactly before anything was changed.** Of the
+  -16.9652 kg lost at 100 s, the nine physical owners contributed **0.0000 kg**
+  and `two_zone_boundary_mass_kg` carried **-16.9652 kg**. Split by projection
+  call family: `thermal_post_combustion_sync` -21.6945, `thermal_energy_
+  projection` +4.0464, `thermal_post_losses_sync` +0.5568, `reconcile_layer_
+  sync` +0.1048, `gas_exchange_sync` +0.0203, `final_clamp_active` +0.0010.
+  Split by mechanism: the **upper cap contributed exactly 0.0000 kg**; all of it
+  came from the lower-mass overwrite.
+- **The cause was one line.** `ZoneFireSolver.project_room_state()` closed the
+  room volume **at reference pressure**: `target_lower_mass_kg = lower_volume_m3
+  * lower_density_kg_m3`, with the density taken at 101 325 Pa. Lower mass was
+  not state, it was a geometric unknown recomputed every step. A heated,
+  pressurised room holds gas **denser** than ambient air at the same
+  temperature, so that formula always returns less mass than is there, and the
+  difference was discarded into the boundary.
+- **The fix derives geometry from state.** The canonical EOS keeps its single
+  owner, `CompartmentPressureEquations`, where the new
+  `zone_geometry_from_state()` lives. Using the room's **own** absolute
+  pressure, the two zone volumes sum to the room volume exactly, because
+  `m_u*T_u + m_l*T_l = M*T_ref + E/c_p` is an identity. There is nothing to
+  reconcile, so no mass is created or destroyed.
+- **No new switch.** Conserving mass is part of the authoritative network's
+  contract, so `SimulationEngine` derives the mode from
+  `pressure_network_solver_enabled`. With the network off the historical route
+  is byte-for-byte unchanged, including its documented reconstruction.
+- **The crack got the solver's existing regularisation.** With mass conserved,
+  crack dp collapses toward zero in the portal and the derivative of
+  `|dp|^0.65`, which is `0.65*m/dp`, stops being bounded; Newton then hit its
+  iteration cap on 2 of 7 200 steps. The crack now uses
+  `DEFAULT_DP_REGULARIZATION_PA` (0.01 Pa), the **same global constant** the
+  Bernoulli vane has used since F2.2B and that F2.2C-R1 reused for the vertical
+  shaft. No new number, no tolerance, no change to the ELA or to the 0.65
+  exponent. Portal P0/P1/P2 are back to **0 of 7 200**.
+- **A warning that is new, and matters.** With mass conserved and the exterior
+  envelope still inert, the building pressurises to the order of 10 kPa and
+  crack dp runs **far beyond the 50 Pa experimental domain** of the power law
+  for most of the run. The engine records `domain_exceeded` and does not clamp,
+  exactly as D1 decided. This is an extrapolation warning, not a numerical
+  failure: the network converges and mass is conserved. The reason the pressures
+  get that high is **R3**, still open.
+- **What this does and does not settle about the leakage figures.** The reason
+  D1's numbers were a lower bound is gone. They are still **not final**, because
+  the closed exterior envelope is still inert under the network. They are not a
+  calibration, not a definitive bound and not publishable behaviour yet.
+- **The mutation campaign found five real assertion gaps in this phase's own
+  fixtures**, and they were closed before calling it done: the derived interface
+  and zone volumes were never checked; the six projection call families could
+  disagree on the interface; nothing fed a negative zonal mass; nothing checked
+  that the historical upper cap moves energy with mass; and nothing checked
+  **what parameters the leakage adapter emits** — D1's 437 checks compare
+  against the *pure* model's constants, so the exponent could be changed from
+  0.65 to 0.5 and the whole suite stayed green. The validator went from 43 to
+  **64 checks**. All 22 mutations now die by an identifiable functional failure.
+- **Five mutations had to be redesigned because they were no-ops.** Under the
+  canonical route `lower_density_kg_m3` *is* `lower_gas_kg / lower_volume_m3`,
+  and `volume - V_upper - V_lower` is **exactly zero** by the EOS identity, so a
+  mutation written with those expressions collapses to the identity. That they
+  were no-ops is itself further evidence the geometric closure is exact, but as
+  mutations they proved nothing.
+- **A correction to the previous handoff.** The OFF byte-identity evidence
+  reported for F2.2C-R1 was vacuous: its harness used `%.17g`, which GDScript's
+  `%` operator does not accept, so Godot emitted a formatting error on every
+  line and wrote the unfilled template. The two compared files were copies of
+  the same string. C-R1's *conclusion* was right — it touched only four network
+  files, inert with the network off — but the proof behind it was empty. This
+  phase's OFF identity is real: IEEE754 bit patterns, 18 fields per room, three
+  scenarios, against a clean worktree at `fd9031ed`.
+- **R3 remains open. D2, D3 and D4 have not been started.**
+
 ## Current Program Update - 2026-09-18 - multistorey pressure datum
 
 - Checkpoint: `main` with **thirteen** local commits on top of `origin/main`,

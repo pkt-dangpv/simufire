@@ -163,6 +163,102 @@ static func evaluate_compartment_residual(
 	}
 
 
+## F2.2-R2-MASS: geometria de las dos capas A PARTIR DEL ESTADO, sin tocarlo.
+##
+## El volumen especifico de un gas depende de su masa, su temperatura y su
+## presion ABSOLUTA, y esa presion sale de la propia ecuacion de estado del
+## recinto:
+##
+##     p_abs = (R / V) * (M * T_ref + E / cp)
+##     V_zona = m_zona * R * T_zona / p_abs
+##
+## Con esa presion los dos volumenes suman EXACTAMENTE el del recinto, porque
+## m_u*T_u + m_l*T_l = M*T_ref + E/cp es una identidad. No hay nada que cuadrar
+## y, por tanto, ninguna masa que anadir ni que borrar.
+##
+## Imponer en su lugar la densidad a presion ambiente es lo que obligaba a
+## reescribir la masa inferior, y era la causa de que un recinto sellado
+## perdiera un tercio de su gas al calentarse.
+##
+## Devuelve {valid, pressure_abs_pa, upper_volume_m3, lower_volume_m3,
+## interface_m, upper_temp_k, lower_temp_k, upper_density_kg_m3,
+## lower_density_kg_m3}. `valid` falso significa que el estado no define una
+## geometria: el llamante conserva la que tenia en vez de inventarse una.
+static func zone_geometry_from_state(
+	upper_gas_kg: float,
+	lower_gas_kg: float,
+	upper_energy_kj: float,
+	lower_energy_kj: float,
+	floor_area_m2: float,
+	height_m: float,
+	reference_temp_k: float
+) -> Dictionary:
+	var invalid: Dictionary = {"valid": false}
+	for value in [upper_gas_kg, lower_gas_kg, upper_energy_kj, lower_energy_kj,
+			floor_area_m2, height_m, reference_temp_k]:
+		if not _is_finite(value):
+			return invalid
+	if floor_area_m2 <= 0.0 or height_m <= 0.0 or reference_temp_k <= 0.0:
+		return invalid
+	if upper_gas_kg < 0.0 or lower_gas_kg < 0.0:
+		return invalid
+
+	var volume_m3: float = floor_area_m2 * height_m
+	var total_mass_kg: float = upper_gas_kg + lower_gas_kg
+	if total_mass_kg <= MASS_EPS_KG:
+		return invalid
+	var gas_constant: float = AIR_PRESSURE_REF_PA \
+			/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)
+
+	var upper_temp_k: float = reference_temp_k
+	if upper_gas_kg > MASS_EPS_KG:
+		upper_temp_k += upper_energy_kj / (upper_gas_kg * AIR_CP_KJ_KG_K)
+	var lower_temp_k: float = reference_temp_k
+	if lower_gas_kg > MASS_EPS_KG:
+		lower_temp_k += lower_energy_kj / (lower_gas_kg * AIR_CP_KJ_KG_K)
+	if upper_temp_k <= 0.0 or lower_temp_k <= 0.0:
+		return invalid
+
+	var pressure_abs_pa: float = gas_constant * (
+		total_mass_kg * reference_temp_k
+		+ (upper_energy_kj + lower_energy_kj) / AIR_CP_KJ_KG_K
+	) / volume_m3
+	if not _is_finite(pressure_abs_pa) or pressure_abs_pa <= 0.0:
+		return invalid
+
+	var upper_volume_m3: float = upper_gas_kg * gas_constant * upper_temp_k / pressure_abs_pa
+	var lower_volume_m3: float = lower_gas_kg * gas_constant * lower_temp_k / pressure_abs_pa
+	if not _is_finite(upper_volume_m3) or not _is_finite(lower_volume_m3):
+		return invalid
+
+	# Una zona degenerada no tiene densidad propia: se extiende la de la otra,
+	# sin inventar masa, igual que hace el evaluador de residuos.
+	var upper_density_kg_m3: float = 0.0
+	if upper_gas_kg > MASS_EPS_KG and upper_volume_m3 > 0.0:
+		upper_density_kg_m3 = upper_gas_kg / upper_volume_m3
+	var lower_density_kg_m3: float = 0.0
+	if lower_gas_kg > MASS_EPS_KG and lower_volume_m3 > 0.0:
+		lower_density_kg_m3 = lower_gas_kg / lower_volume_m3
+	if upper_density_kg_m3 <= 0.0:
+		upper_density_kg_m3 = lower_density_kg_m3
+	if lower_density_kg_m3 <= 0.0:
+		lower_density_kg_m3 = upper_density_kg_m3
+	if upper_density_kg_m3 <= 0.0 or lower_density_kg_m3 <= 0.0:
+		return invalid
+
+	return {
+		"valid": true,
+		"pressure_abs_pa": pressure_abs_pa,
+		"upper_volume_m3": upper_volume_m3,
+		"lower_volume_m3": lower_volume_m3,
+		"interface_m": clampf(lower_volume_m3 / floor_area_m2, 0.0, height_m),
+		"upper_temp_k": upper_temp_k,
+		"lower_temp_k": lower_temp_k,
+		"upper_density_kg_m3": upper_density_kg_m3,
+		"lower_density_kg_m3": lower_density_kg_m3,
+	}
+
+
 ## Estado termodinamico derivado del inventario candidato. La EOS es cierre:
 ## no devuelve masa ni energia nuevas.
 static func _thermodynamic_state(state: Dictionary, outside_state: Dictionary,

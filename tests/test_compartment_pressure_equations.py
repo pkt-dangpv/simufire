@@ -54,6 +54,16 @@ ALLOWED_REFERENCES = {
     # y por tanto ejerce el evaluador de compartimento.
     Path("tools/validate_multistorey_pressure_datum.gd"),
     Path("tests/test_multistorey_pressure_datum.py"),
+    # F2.2-R2-MASS: el solver de zonas deriva su geometria de la ecuacion de
+    # estado canonica en vez de escribir una segunda. Es un consumidor NUEVO y
+    # deliberado: la EOS tiene un unico dueno, y `zone_geometry_from_state` es
+    # la funcion que ese dueno expone. No es que el modelo puro haya dejado de
+    # serlo; es que ahora hay una sala del motor que lo llama en vez de
+    # reimplementarlo peor.
+    Path("sim/core/ZoneFireSolver.gd"),
+    Path("sim/core/ZoneFireSolver.gd.uid"),
+    Path("tools/validate_canonical_mass_conservation.gd"),
+    Path("tools/validate_canonical_mass_conservation.gd.uid"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

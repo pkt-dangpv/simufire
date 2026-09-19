@@ -53,6 +53,11 @@ ALLOWED_REFERENCES = {
     Path("sim/building/OpeningModel.gd"),
     # El auditor clasifica el interruptor `closed_door_leakage_enabled`.
     Path("scripts/simulation/audit_default_off_flags.py"),
+    # F2.2-R2-MASS: R2-M11 comprueba QUE parametros emite el adaptador, porque
+    # los checks de D1 comparan contra las constantes del modelo puro y por eso
+    # no veian un adaptador que emitiera otro exponente.
+    Path("tools/validate_canonical_mass_conservation.gd"),
+    Path("tools/validate_canonical_mass_conservation.gd.uid"),
 }
 
 

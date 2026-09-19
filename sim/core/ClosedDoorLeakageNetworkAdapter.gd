@@ -18,12 +18,18 @@ extends RefCounted
 ## `thermal_gap_fraction` NO participa: la deformacion prescrita es F2.2D2.
 
 const LeakageModel = preload("res://sim/core/ClosedDoorLeakageModel.gd")
+## Solo para la constante de condicionamiento: el adaptador no resuelve nada.
+const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 
 const CLASS_NONE: String = "none"
 ## Ocho bandas laterales, como pide el diseno provisional de D1.
 const SIDE_BAND_COUNT: int = 8
 ## Dominio experimental senalado (NBSIR 81-2214). No recorta nada: se registra.
 const PRESSURE_DOMAIN_MAX_PA: float = 50.0
+## Linealizacion de la ley cerca de dp = 0. Es la constante global del solver,
+## no un valor propio de la fuga: se toma de alli para que las tres clases de
+## elemento compartan el mismo criterio de condicionamiento.
+const DP_REGULARIZATION_PA: float = SolverScript.DEFAULT_DP_REGULARIZATION_PA
 
 
 ## ¿Esta puerta aporta rendijas en este paso? Es la misma pregunta que responde
@@ -102,8 +108,13 @@ static func build_crack_element(
 		"crack_segments": segments,
 		"ela_reference_pressure_pa": LeakageModel.NIST_ELA_REFERENCE_PRESSURE_PA,
 		"flow_exponent": LeakageModel.PROVISIONAL_FLOW_EXPONENT_CANDIDATE,
-		# Se empieza midiendo SIN regularizacion, como pide el encargo.
-		"zero_pressure_regularization_pa": 0.0,
+		# F2.2-R2-MASS: D1 empezo midiendo SIN regularizacion, y la medida ya
+		# esta hecha: con la masa conservada, el dp de la rendija colapsa a
+		# ~1e-3 Pa y la derivada de |dp|^0,65, que vale 0,65*m/dp, deja de estar
+		# acotada. Se usa la MISMA constante global que el vano de Bernoulli ya
+		# usaba y que el hueco vertical reutiliza: no es un numero nuevo, no es
+		# una tolerancia, y la ley por encima del umbral no cambia.
+		"zero_pressure_regularization_pa": DP_REGULARIZATION_PA,
 		"pressure_domain_max_pa": PRESSURE_DOMAIN_MAX_PA,
 		"provenance": "cold_leakage",
 		"leakage_class": String(opening.leakage_class),

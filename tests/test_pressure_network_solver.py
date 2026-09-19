@@ -57,6 +57,16 @@ ALLOWED_NETWORK_REFERENCES = {
     # F2.2C-R1: los fixtures multiplanta resuelven redes reales con el solver.
     Path("tools/validate_multistorey_pressure_datum.gd"),
     Path("tests/test_multistorey_pressure_datum.py"),
+    # F2.2-R2-MASS: conservar la masa zonal es parte del contrato de la red, no
+    # un interruptor aparte, asi que el solver de zonas NOMBRA el de la red para
+    # documentar de donde sale su modo. Sigue sin leerlo: se lo fija el motor.
+    Path("sim/core/ZoneFireSolver.gd"),
+    Path("sim/core/ZoneFireSolver.gd.uid"),
+    Path("tools/validate_canonical_mass_conservation.gd"),
+    Path("tools/validate_canonical_mass_conservation.gd.uid"),
+    # Y el adaptador de fuga toma de alli la constante global de
+    # condicionamiento, para que las tres clases de elemento compartan criterio.
+    Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),
     Path("scripts/simulation/audit_default_off_flags.py"),
     Path("tests/test_p1r4_flag_activation_inventory.py"),
 }
