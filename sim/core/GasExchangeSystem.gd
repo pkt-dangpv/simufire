@@ -2,6 +2,7 @@ extends RefCounted
 class_name GasExchangeSystem
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+const ExteriorWindPressureModelScript = preload("res://sim/core/ExteriorWindPressureModel.gd")
 const Phase3PhysicalOwnerLedger = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 ## H3.2-S0d6: ledger compartido de aceptacion de O2. Default OFF.
 const Phase3O2AcceptanceLedger = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
@@ -4092,35 +4093,12 @@ func _compute_wind_dp_pa(op: OpeningModel, building: BuildingModel) -> float:
 	if building.wind_height_profile_enabled:
 		v = building.wind_speed_at_height_m_s(_opening_center_z_m(op, building))
 
-	# Vector unitario que apunta HACIA el origen del viento (de donde viene).
-	# En mapa 2D (y-abajo): N=top→(0,-1), E=right→(+1,0), S=bottom→(0,+1), W=left→(-1,0).
-	var dir_rad: float = deg_to_rad(building.wind_direction_deg)
-	var wfx: float = sin(dir_rad)   # componente x del vector "from-wind"
-	var wfy: float = -cos(dir_rad)  # componente y del vector "from-wind"
-
-	# Normal exterior de la cara (hacia fuera del edificio) según wall_side.
-	var nx: float
-	var ny: float
-	match op.wall_side:
-		"top":    nx = 0.0;  ny = -1.0  # cara norte
-		"bottom": nx = 0.0;  ny = 1.0   # cara sur
-		"left":   nx = -1.0; ny = 0.0   # cara oeste
-		"right":  nx = 1.0;  ny = 0.0   # cara este
-		_:
-			return 0.0  # sin wall_side conocido → sin efecto de viento
-
-	# cos(incidencia) = proyección del viento de origen sobre la normal.
-	# Positivo → barlovento; negativo → sotavento.
-	var cos_inc: float = nx * wfx + ny * wfy
-
-	# Coeficiente de presión simplificado (Eurocode EN 1991-1-4, valores ref.).
-	var cp: float
-	if cos_inc >= 0.0:
-		cp = 0.6 * cos_inc   # barlovento
-	else:
-		cp = 0.4 * cos_inc   # sotavento (Cp negativo → succión)
-
-	return 0.5 * 1.2 * v * v * cp
+	# F2.2-R3: la formula vive ahora en `ExteriorWindPressureModel`, que es su
+	# unico dueno. Aqui no se ha cambiado ni una constante: se delega para que la
+	# ruta historica y la red autoritativa no tengan cada una su copia.
+	return ExteriorWindPressureModelScript.wind_dp_pa(
+		String(op.wall_side), float(building.wind_direction_deg), v
+	)
 
 
 # Altura del centro de la apertura sobre el terreno: base del edificio + suelo

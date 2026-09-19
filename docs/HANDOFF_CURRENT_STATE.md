@@ -1,5 +1,52 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-19 - exterior envelope leakage
+
+- Checkpoint: `main`, two local commits on top of `34aa06f6`. **Not pushed.**
+- **A closed exterior window is no longer perfectly airtight** under the
+  authoritative network. It contributes a leakage element that takes part in
+  Newton's residual and moves mass, energy, O2, smoke and species through the
+  existing atomic applier. The historical purge stays off; nothing was
+  calibrated.
+- **R3 is not D1.** R3 is an orifice law on a geometric area with `Cd = 0.61`
+  applied separately; D1 is a power law on an ELA that carries its coefficient
+  by definition. Mixing them would be a physics error.
+- **The area and the coefficient come from the historical purge** —
+  `0.61 * window_leakage_area_m2 * sqrt(2*dp/rho)` — where `Cd` sits apart from
+  the area in both the legacy route and the shadow block. So 0.005 m2 is
+  geometric and does **not** include `Cd`. Resolving that was a stop criterion
+  and it was settled by audit before any code was written.
+- **No new owner of physics.** The element is handed over as a large opening
+  with an equivalent open fraction, so the solver's own integrator applies the
+  orifice law, the C-R1 hydrostatic profile and the band split. The equivalence
+  is exact, not approximate: measured 0.005000000 m2 integrated. Wind moved to
+  `ExteriorWindPressureModel`, now its single owner, applied exactly once.
+- **What R3 does not inherit**: `flow_path_factor`, a heuristic that shrank the
+  area by fire strength to emulate flow paths the network now resolves properly;
+  and the legacy outflow-only direction — R3 allows inflow, outflow and
+  counterflow by height.
+- **44 checks** in the R3 validator, **20 of 20 mutations dead**, portal
+  P0/P1/P2 at 0 of 7 200, and **8 of 8 scenarios byte-identical** with the
+  switch off against `d9205066`, over IEEE754 bit patterns, with and without
+  wind, in both the legacy and the authoritative route.
+- **Final verification is green:** reference suite **346/346** with the same
+  **78** documented non-gating gaps (only `generated_at` changed), global
+  Python suite **2,842 passed**, **4 skipped**, **42 subtests passed**, and
+  `check_product.py` **150/150**.
+- **Two defects were found in the patch itself.** The wind extraction was not
+  bit-identical because `Vector2` stores `real_t` at 32 bits while the original
+  arithmetic ran in doubles — 80 of 160 combinations differed by ~1e-6 Pa,
+  physically nothing but enough to break the OFF contract. And three mutations
+  were dead mutants hidden behind redundant guards.
+- **What the measurement shows.** The sealed room's peak stays around 31 kPa;
+  R3 lowers it by 0.6 %, because 0.005 m2 at `Cd` 0.61 is a tiny leak against a
+  room heating 300 K. What changes completely is the **final state**: from
+  sitting at 131 Pa of permanent overpressure to settling at about zero. The
+  room stops being a sealed pot. The peak is **not publishable** and is left for
+  D4; the area and the coefficient were not recalibrated.
+- **R3 is not enabled in editor scenarios.** That is D4.
+- **D2, D3 and D4 have not been started.**
+
 ## Current Program Update - 2026-09-19 - exterior pressure reference datum
 
 - Checkpoint: `main`, one local commit on top of `34aa06f6`. **Not pushed.**

@@ -99,10 +99,13 @@ def _fixture_links() -> dict[str, set[Path]]:
 
 def test_current_engine_inventory_is_complete_and_uniquely_partitioned():
     declared = _declared_flags()
-    assert len(declared) == 78
+    # F2.2-R3 anade `exterior_envelope_leakage_enabled`: 78 -> 79 declaraciones
+    # y 37 -> 38 fuera del alcance P1R4. El recuento de runtime no cambia,
+    # porque es fisica viva que enciende el escenario, no un diagnostico.
+    assert len(declared) == 79
     assert len(RUNTIME_SCOPE_FLAGS) == 41
     assert RUNTIME_SCOPE_FLAGS <= declared
-    assert len(declared - RUNTIME_SCOPE_FLAGS) == 37
+    assert len(declared - RUNTIME_SCOPE_FLAGS) == 38
 
 
 def test_every_retained_diagnostic_has_a_runtime_fixture_link():
@@ -115,9 +118,9 @@ def test_versioned_auditor_matches_the_independent_partition():
     assert report["pass"], report["errors"]
     assert set(RUNTIME_ACTIVATIONS) == RUNTIME_SCOPE_FLAGS
     assert OUT_OF_RUNTIME_SCOPE == _declared_flags() - RUNTIME_SCOPE_FLAGS
-    assert report["declaration_count"] == 78
+    assert report["declaration_count"] == 79
     assert report["runtime_backed_count"] == 41
-    assert report["out_of_runtime_scope_count"] == 37
+    assert report["out_of_runtime_scope_count"] == 38
 
 
 def test_runtime_evidence_tokens_are_present_in_every_selected_fixture():

@@ -1756,7 +1756,10 @@ bandera aquí:
 - **Sí** es una extrapolación. La ley `Q ∝ ΔP^0,65` se está evaluando muy lejos
   de donde se midió, y nada garantiza que el exponente siga valiendo allí.
 - La causa de esas ΔP enormes **no es la rendija**: es que la envolvente
-  exterior cerrada sigue siendo inerte con la red encendida (**R3**, abierta).
+  exterior cerrada era inerte con la red encendida. **R3 lo cerró** el mismo
+  19 de septiembre: la envolvente aporta su fuga dentro del residuo del
+  solver, y las mediciones de §16.10 y §17.4 son ANTERIORES a ese cambio.
+  Se conservan como historia, no como comportamiento actual.
   Un recinto real tiene fugas por fachada que impiden llegar a esas presiones.
 
 Por eso las cifras de fuga **siguen sin ser definitivas**, aunque ya no por el

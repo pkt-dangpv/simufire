@@ -903,6 +903,11 @@ var _step_time_us: int = 0
 ## configuracion explicito, no algo que se ignore ni que encienda el solver por
 ## su cuenta. La deformacion prescrita y el vidrio son D2 y D3.
 @export var closed_door_leakage_enabled: bool = false
+## F2.2-R3: fuga de envolvente exterior cerrada dentro de la red autoritativa.
+## Apagado por defecto y dependiente del interruptor de la red, como D1: una
+## ventana exterior cerrada solo puede fugar si hay quien resuelva su presion.
+## No requiere D1: son dos mecanismos distintos sobre aberturas distintas.
+@export var exterior_envelope_leakage_enabled: bool = false
 
 @export var phase3_pressure_canonical_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
@@ -1435,6 +1440,11 @@ func _sync_auxiliary_services() -> void:
 	})
 	pressure_network_transport_system.closed_door_leakage_enabled = \
 			closed_door_leakage_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.exterior_envelope_leakage_enabled = \
+			exterior_envelope_leakage_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.exterior_envelope_leakage_area_m2 = \
+			window_leakage_area_m2
+	pressure_network_transport_system.wind_effect_enabled = wind_effect_enabled
 	gas_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
 	oxygen_exchange_system.authoritative_transport_enabled = pressure_network_solver_enabled
 	thermal_system.authoritative_transport_enabled = pressure_network_solver_enabled
@@ -1457,6 +1467,7 @@ func _sync_auxiliary_services() -> void:
 				phase3_co2_zonal_transport_consistency_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
+		"exterior_envelope_leakage_enabled": exterior_envelope_leakage_enabled,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
 		"ach_infiltration": ach_infiltration,
 		"interior_transport_enabled": interior_transport_enabled,
@@ -3913,6 +3924,14 @@ func _step_gas_exchange(dt: float) -> void:
 		push_error(
 			"closed_door_leakage_enabled requires pressure_network_solver_enabled"
 		)
+	if exterior_envelope_leakage_enabled and not pressure_network_solver_enabled:
+		# F2.2-R3: mismo criterio. La fuga de envolvente vive DENTRO del residuo
+		# del solver; sin red no hay donde ponerla, y reactivar la purga
+		# historica para taparlo crearia un segundo dueno del mismo estado.
+		pressure_network_failure = "exterior_envelope_leakage_requires_pressure_network"
+		push_error(
+			"exterior_envelope_leakage_enabled requires pressure_network_solver_enabled"
+		)
 	if pressure_network_solver_enabled:
 		_step_pressure_network_transport(dt)
 	var use_canonical_pressure: bool = phase3_thermodynamic_pressure_enabled \
@@ -3951,6 +3970,11 @@ func _step_pressure_network_transport(dt: float) -> void:
 	# cambian entre sincronizaciones: la fuga nunca vive fuera de la red.
 	pressure_network_transport_system.closed_door_leakage_enabled = \
 			closed_door_leakage_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.exterior_envelope_leakage_enabled = \
+			exterior_envelope_leakage_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.exterior_envelope_leakage_area_m2 = \
+			window_leakage_area_m2
+	pressure_network_transport_system.wind_effect_enabled = wind_effect_enabled
 	var result: Dictionary = pressure_network_transport_system.step(building, dt)
 	pressure_network_last_result = result
 	if bool(result["applied"]):

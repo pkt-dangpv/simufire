@@ -219,6 +219,11 @@ OUT_OF_RUNTIME_SCOPE = {
     "pressure_network_solver_enabled",
     # F2.2D1: fuga fria de puerta cerrada. Fisica viva, la enciende el escenario.
     "closed_door_leakage_enabled",
+    # F2.2-R3: fuga de envolvente exterior cerrada. Fisica viva, fuera del
+    # alcance P1R4, igual que las dos anteriores: la enciende el escenario y
+    # depende de la red autoritativa. Su activacion en escenarios distribuidos
+    # es D4, no esta fase.
+    "exterior_envelope_leakage_enabled",
     "phase3_stairwell_heat_bridge_enabled",
     "phase3_suppression_lower_energy_sink_enabled",
     "phase3a_pressure_ode_enabled",
@@ -230,7 +235,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 78
+EXPECTED_DECLARATION_COUNT = 79
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

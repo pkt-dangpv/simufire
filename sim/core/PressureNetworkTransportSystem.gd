@@ -57,6 +57,8 @@ class_name PressureNetworkTransportSystem
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 ## F2.2D1: la puerta cerrada se describe aqui, no se calcula aqui.
 const LeakageAdapterScript = preload("res://sim/core/ClosedDoorLeakageNetworkAdapter.gd")
+const EnvelopeAdapterScript = preload("res://sim/core/ExteriorEnvelopeLeakageAdapter.gd")
+const WindModelScript = preload("res://sim/core/ExteriorWindPressureModel.gd")
 
 const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
@@ -89,6 +91,15 @@ var commit_count: int = 0
 ## F2.2D1: la fuga fria de puerta cerrada solo se anade cuando el escenario la
 ## pide expresamente. Falso por defecto y gobernado por el motor.
 var closed_door_leakage_enabled: bool = false
+
+## F2.2-R3: fuga de envolvente exterior cerrada. Mismo contrato: falso por
+## defecto y lo gobierna el motor, que ya exige la red para encenderlo.
+var exterior_envelope_leakage_enabled: bool = false
+## Efecto del viento sobre la fuga de envolvente. Espeja el del motor.
+var wind_effect_enabled: bool = true
+## Area de orificio por abertura exterior cerrada. Es el valor historico de
+## `window_leakage_area_m2`, area GEOMETRICA: el Cd va aparte.
+var exterior_envelope_leakage_area_m2: float = 0.0
 
 
 ## Paso completo. Devuelve {applied, valid, errors, failure_reason, solution,
@@ -208,6 +219,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 	var openings: Array = []
 	var cracks: Array = []
 	var shafts: Array = []
+	var envelopes: Array = []
 	for opening in building.get_openings():
 		if opening == null:
 			continue
@@ -232,6 +244,14 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			var crack: Dictionary = _crack_element(opening, a_key, b_key, rooms, dt_s)
 			if not crack.is_empty():
 				cracks.append(crack)
+			# F2.2-R3: y una abertura EXTERIOR cerrada aporta fuga de envolvente.
+			# Son exclusivas por construccion: D1 rechaza las exteriores y R3
+			# solo mira exteriores, asi que una misma abertura no puede dar las
+			# dos cosas. Cerrada nunca aporta ademas abertura grande: el `continue`
+			# de abajo es el mismo que ya impedia eso en F2.2D1.
+			var envelope: Dictionary = _envelope_element(opening, a_key, b_key, rooms, building)
+			if not envelope.is_empty():
+				envelopes.append(envelope)
 			continue
 		# F2.2C-R1: un hueco de suelo/techo no es un vano. Sus dos recintos solo
 		# comparten el plano de la losa, y anclar el vano al suelo de `room_a`
@@ -261,6 +281,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 		})
 	openings.append_array(cracks)
 	openings.append_array(shafts)
+	openings.append_array(envelopes)
 	openings.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["opening_id"]) < String(right["opening_id"]))
 
@@ -322,6 +343,61 @@ func _shaft_element(opening, a_key: String, b_key: String, rooms: Dictionary,
 		"open_fraction": 1.0,
 		"discharge_coeff": 0.61,
 	}
+
+
+## F2.2-R3: fuga de envolvente de una abertura EXTERIOR cerrada.
+##
+## Se entrega como abertura grande con la fraccion equivalente que calcula el
+## adaptador, de modo que la integra el mismo `_integrate_opening` que ya aplica
+## el perfil hidrostatico de C-R1, reparte por bandas y suma el viento una sola
+## vez. No hay una segunda ley de Bernoulli en el motor.
+func _envelope_element(opening, a_key: String, b_key: String,
+		rooms: Dictionary, building) -> Dictionary:
+	if not exterior_envelope_leakage_enabled:
+		return {}
+	# Contra el exterior, y con el recinto del lado de dentro conocido.
+	var interior_key: String = ""
+	if a_key == EXTERIOR_ROOM_ID and b_key != EXTERIOR_ROOM_ID:
+		interior_key = b_key
+	elif b_key == EXTERIOR_ROOM_ID and a_key != EXTERIOR_ROOM_ID:
+		interior_key = a_key
+	else:
+		return {}
+	if not rooms.has(interior_key):
+		return {}
+	var floor_z_m: float = float(rooms[interior_key]["floor_z_m"])
+	var element: Dictionary = EnvelopeAdapterScript.build_leakage_element(
+		opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key,
+		exterior_envelope_leakage_area_m2
+	)
+	if element.is_empty():
+		return {}
+	# F2.2-R3 §9: el viento se anade UNA sola vez, aqui, y solo porque esta
+	# abertura da al exterior. El solver ya rechaza un `wind_dp_pa` no nulo en
+	# una conexion interior, asi que la invariante esta comprobada por las dos
+	# partes. La altura del centro del hueco se calcula igual que en la ruta
+	# historica: base del edificio + suelo de la sala + alfeizar + medio hueco.
+	element["wind_dp_pa"] = _envelope_wind_dp_pa(opening, floor_z_m, building)
+	return element
+
+
+## Presion de viento sobre una abertura exterior, con el unico dueno de la
+## formula. Devuelve 0 si el efecto esta apagado o la fachada no se conoce.
+func _envelope_wind_dp_pa(opening, floor_z_m: float, building) -> float:
+	if not wind_effect_enabled or building == null:
+		return 0.0
+	var speed_m_s: float = float(building.wind_speed_m_s)
+	if building.wind_height_profile_enabled:
+		var center_z_m: float = (
+			float(building.building_base_z_m)
+			+ floor_z_m
+			+ float(opening.sill_m)
+			+ float(opening.height_m) * 0.5
+		)
+		speed_m_s = building.wind_speed_at_height_m_s(center_z_m)
+	return WindModelScript.wind_dp_pa(
+		String(opening.wall_side), float(building.wind_direction_deg), speed_m_s
+	)
 
 
 ## F2.2D1: rendijas de una puerta cerrada, si la capacidad esta encendida. El

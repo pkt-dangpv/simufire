@@ -441,6 +441,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot fuga fria de puerta cerrada: " + (diagnostic or "failed"))
 
+    # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
+    # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
+    # como elemento del solver, no como una purga posterior.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_exterior_envelope_leakage.gd",
+        "EXTERIOR ENVELOPE LEAKAGE VALIDATION PASS",
+    )
+    rows.append(("Fuga de envolvente exterior en la red, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot fuga de envolvente exterior: " + (diagnostic or "failed"))
+
     # Conservacion canonica de masa zonal (fase F2.2-R2-MASS): con la red
     # autoritativa, la proyeccion deriva la geometria del estado en vez de
     # reescribir masa para imponer presion ambiente.

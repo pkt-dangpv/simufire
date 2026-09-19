@@ -1621,7 +1621,7 @@ Ninguna se ha tocado en esta fase, y **no deben mezclarse** con ella:
 
 **D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
 iniciado.** El orden de trabajo era: R2, después R3, y solo entonces
-D2/D3/D4. **R2 está cerrada** (§18). Queda R3.
+D2/D3/D4. **R2 está cerrada** (§18) y **R3 también** (§20). Quedan D2, D3 y D4.
 
 ## 18. F2.2-R2-MASS: la masa zonal es estado conservado (2026-09-19)
 
@@ -1755,7 +1755,9 @@ red publica ahora. No se recorta, no se clampa y no se compensa reabriendo la
 purga histórica.
 
 Esa cifra **no** es la predicción de una vivienda real. Es la del caso ideal sin
-envolvente, y la envolvente es justamente lo que falta: **R3** sigue abierta.
+envolvente, y la envolvente llegó en **R3** (§20). El pico sigue siendo alto:
+la fuga de marco es diminuta frente a un recinto que se calienta 300 K, y
+calibrarla es D4.
 
 ### 18.6 Resultados
 
@@ -1845,7 +1847,8 @@ decidió D1. Pero la bandera significa algo concreto:
 - **no** es un fallo numérico: la red converge y la masa se conserva;
 - **sí** es extrapolación, y muy lejos del sitio donde se midió el exponente;
 - la causa de esas ΔP no es la rendija, es que la envolvente exterior cerrada
-  sigue inerte con la red encendida (**R3**, abierta).
+  era inerte con la red encendida. **R3 (§20) lo cerró**: una ventana exterior
+  cerrada aporta ahora su fuga de marco dentro del residuo del solver.
 
 Ninguno de los pasos fuera de dominio coincide con un paso sin aplicar, en
 ninguna variante: el problema es de validez experimental, no de convergencia.
@@ -1981,3 +1984,166 @@ falsos que dependerían de la altura a la que alguien haya dibujado el modelo.
 
 **R3 queda pausada, no cancelada.** Su trabajo está preservado y se reanuda
 sobre esta corrección.
+
+## 20. F2.2-R3: la envolvente exterior cerrada deja de ser inerte (2026-09-19)
+
+> **Estado: cerrada.** Con la red autoritativa, una ventana exterior cerrada ya
+> no es perfectamente estanca: aporta un elemento de fuga que participa en el
+> residuo de Newton y transporta masa, energía y especies por el aplicador
+> atómico de F2.2C. La purga histórica sigue apagada, y no se ha calibrado nada.
+
+### 20.1 R3 no es D1, y la diferencia es física
+
+Son dos mecanismos distintos sobre aberturas distintas, y mezclarlos sería un
+error:
+
+| concepto | D1, puerta cerrada | R3, envolvente exterior |
+|---|---|---|
+| ley | potencia, `\|Δp\|^0,65` | orificio, `√\|Δp\|` |
+| área | ELA a 4 Pa (NIST) | área de orificio geométrica |
+| `Cd` | 1,0, por el convenio de la ELA | **0,61, factor aparte** |
+| reparto | 40/47/13 por bandas | uniforme por el hueco |
+| contra | otro recinto | el exterior |
+
+Una ELA lleva el coeficiente dentro por definición; un área de orificio, no.
+
+### 20.2 Procedencia del área y del coeficiente
+
+Los 0,005 m² y el 0,61 son los de la purga histórica de
+`GasExchangeSystem.step_pressure_venting`, que aplicaba
+`0.61 * window_leakage_area_m2 * sqrt(2*dp/rho)`. El coeficiente va **separado**
+del área tanto ahí como en el bloque shadow de `Phase3ZoneMassSystem`
+(`EXTERIOR_DISCHARGE_COEFF = 0.61`), de modo que **los 0,005 m² son área
+geométrica y no incorporan `Cd`**. Esa ambigüedad era un criterio de parada del
+encargo y quedó resuelta por auditoría antes de escribir una línea.
+
+R3 conserva esa convención. **No la calibra**: eso es D4.
+
+Lo que R3 **no** hereda de la ruta histórica:
+
+- **`flow_path_factor`**, que reducía el área según `hrr_kw` y la existencia de
+  un camino exterior remoto. Era una heurística para emular caminos de flujo que
+  la red resuelve de verdad.
+- **La dirección única de salida** (`maxf(0.0, overpressure - dp_wind)`). R3
+  permite entrada, salida y contraflujo por altura.
+
+### 20.3 Arquitectura: ningún dueño nuevo de física
+
+`ExteriorEnvelopeLeakageAdapter` describe geometría, área y procedencia. No
+resuelve presión, no calcula caudal, no toca recintos ni `open_fraction`.
+
+El elemento se entrega como **abertura grande con una fracción equivalente**:
+
+```
+open_fraction = leak_area / (width · height)
+```
+
+y la equivalencia es **exacta**, no aproximada: el solver integra
+`Cd · width · open_fraction · dz` y `lintel_height_m() = sill_m + height_m`, así
+que el área total integrada vale exactamente el área declarada. Medido:
+**0,005000000 m²**.
+
+Esto da gratis, y sin copiar una sola fórmula:
+
+- la ley de orificio del solver;
+- el perfil hidrostático de C-R1, con `reference_z_m`;
+- el reparto por bandas y el plano neutro;
+- la participación en el residuo y en el jacobiano.
+
+El **viento** se extrajo a `ExteriorWindPressureModel`, que pasa a ser su único
+dueño; `GasExchangeSystem` delega. Se aplica **una sola vez**, en el elemento, y
+el solver ya rechazaba un `wind_dp_pa` no nulo en una conexión interior, así que
+la invariante está comprobada por los dos lados.
+
+### 20.4 Un solo propietario del estado
+
+Con la red autoritativa, `step_pressure_venting` retorna antes de tocar nada:
+su guarda es `authoritative_transport_enabled`, que el motor fija desde
+`pressure_network_solver_enabled`. La purga histórica **no puede** correr en
+paralelo, y R3 no la reactiva.
+
+`exterior_envelope_leakage_enabled` está apagado por defecto y **exige** la red:
+pedirlo sin ella produce un error de configuración explícito, no un silencio, y
+no enciende el solver por detrás para taparlo. No depende de D1.
+
+### 20.5 Resultados
+
+**R3-M1…M11: 44 comprobaciones PASS.** M11 se añadió después de que la campaña
+de mutaciones destapara dos huecos: ningún caso corría con R3 **apagada**, y
+casi todos los recintos estaban a cota 0, así que colocar el hueco en una cota
+equivocada no cambiaba ningún resultado.
+
+**Mutaciones: 20 de 20 muertas** por fallo funcional, en una sola ejecución.
+
+**Campaña física OFF/ON**, 600 s, sin calibrar nada. «Masa neta expulsada por la
+ruta R3» es la que atraviesa el elemento de envolvente; un cero significa que
+esa ruta no actúa, no que la abertura no transporte:
+
+| caso | p máx OFF → ON (Pa) | p a 600 s OFF → ON (Pa) | masa neta R3 (kg) |
+|---|---|---|---|
+| sellado, sin ventana | 31 060,9 → 31 060,9 | 131,02 → 131,02 | 0 |
+| 1 ventana cerrada | 31 060,9 → 30 890,2 | 131,02 → **−0,03** | 20,428 |
+| 3 ventanas cerradas | 31 060,9 → **30 551,8** | 131,02 → **−0,02** | **22,484** |
+| ventana abierta | 8 963,1 → 8 963,1 | −0,00 → −0,00 | 0 |
+| planta a 12 m | 31 202,1 → 31 031,1 | 272,24 → **−0,03** | 20,463 |
+| barlovento, 10 m/s | 31 060,9 → 30 890,3 | 131,02 → **+35,98** | 20,419 |
+| sotavento, 10 m/s | 31 060,9 → 30 890,2 | 131,02 → **−24,03** | 20,434 |
+
+Lo que demuestra cada control:
+
+- **Sellado sin ventana, idéntico OFF/ON**: R3 no inventa fugas donde no hay
+  envolvente.
+- **Ventana abierta, idéntica OFF/ON**: no se suma fuga de marco a un vano
+  abierto. La exclusividad queda demostrada **midiendo**, no solo por estructura.
+- **Tres ventanas alivian más que una**: las áreas se suman.
+- **El viento decide el signo del equilibrio final**: +35,98 Pa a barlovento y
+  −24,03 Pa a sotavento, partiendo ambos de los mismos 131,02 Pa.
+- **La planta elevada también se alivia**, gracias al datum corregido en R1.1.
+
+Cero pasos sin aplicar en las catorce corridas, y 7 200 commits en 7 200 pasos.
+El humo baja de 0,050 a 0,039 kg: la envolvente transporta especies, no solo
+masa de gas.
+
+**Identidad con R3 apagada: 8 de 8 escenarios idénticos byte a byte** contra
+`d9205066`, sobre patrones de bits IEEE754 de 19 campos por sala, en ruta
+histórica y en red autoritativa, con y sin viento.
+
+### 20.6 Dos defectos encontrados en el propio parche
+
+Conviene dejarlos escritos, porque los dos habrían pasado inadvertidos:
+
+1. **La extracción del modelo de viento no era bit a bit idéntica.** Usaba
+   `Vector2.dot()`, y `Vector2` guarda sus componentes en `real_t`, que en las
+   compilaciones estándar de Godot es de **32 bits**, mientras que la fórmula
+   original iba en dobles. Medido: **80 de 160 combinaciones** de fachada,
+   dirección y velocidad diferían, con deltas de ~1e-6 Pa. Físicamente nada,
+   pero habría roto la identidad con la ruta histórica. Reescrito en doble puro:
+   160 de 160 idénticas, y un test lo protege.
+2. **Tres mutaciones eran mutantes muertos** por guardas redundantes: quitar la
+   comprobación de `HOLE` del adaptador no cambia nada, porque `is_closed()` ya
+   devuelve falso para un hueco. Hubo que reapuntarlas a la guarda que de verdad
+   decide.
+
+### 20.7 Lo que queda para D4
+
+- El pico de presión del recinto sellado sigue en el orden de **31 kPa**. R3 lo
+  baja un 0,6 %, porque 0,005 m² con `Cd` 0,61 es una fuga diminuta frente a un
+  recinto que se calienta 300 K. Lo que sí cambia por completo es el **estado
+  final**: de quedarse a 131 Pa de sobrepresión permanente a equilibrarse en ~0.
+  El recinto deja de ser una olla cerrada, pero **el pico no es publicable y no
+  se recalibra aquí**.
+- CFAST usa, en un caso concreto, 0,007344 m² de fuga de pared más 0,001040 m²
+  de suelo, con `Cd` 0,7. Es referencia de orden de magnitud y topología, **no
+  autorización para recalibrar**.
+- R3 **no** se activa todavía en los escenarios distribuidos con el editor.
+- **D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
+  iniciado.**
+
+### 20.8 Cierre de verificación
+
+- Suite de referencia: **346/346 required PASS**, con los mismos **78** gaps
+  documentados; en `reference_checks.json` solo cambió `generated_at`.
+- Guardarraíles científicos: **ALL PASS**, incluida la frescura R2-1.
+- Suite Python global: **2.842 passed**, **4 skipped**, **42 subtests passed**.
+- `check_product.py`: **150/150**.
+- Al terminar no quedaba ningún proceso Godot activo.
