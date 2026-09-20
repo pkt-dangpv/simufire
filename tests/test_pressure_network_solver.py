@@ -54,6 +54,10 @@ ALLOWED_NETWORK_REFERENCES = {
     # suite nombran el interruptor de la red y la resuelven con ella.
     Path("tools/validate_closed_door_leakage_network.gd"),
     Path("tests/test_closed_door_leakage_network.py"),
+    # F2.2D2: la deformacion prescrita produce segmentos del mismo elemento
+    # ELA y por eso su suite nombra expresamente la red.
+    Path("tools/validate_closed_door_deformation_network.gd"),
+    Path("tests/test_closed_door_deformation_network.py"),
     # F2.2-R3: la fuga de envolvente vive dentro de la misma red; su suite
     # nombra el interruptor para fijar la dependencia y el default OFF.
     Path("tools/validate_exterior_envelope_leakage.gd"),

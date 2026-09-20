@@ -1,7 +1,7 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-18): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1
-> integradas detrás de interruptores apagados por defecto.**
+> **Estado (2026-09-20): fases 1, 2, 3A y 3B cerradas; F2.2C, F2.2D1 y
+> F2.2D2 integradas detrás de interruptores apagados por defecto.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -28,12 +28,15 @@
 >   puerta cerrada en la red autoritativa, **D2** la deformación prescrita,
 >   **D3** el vidrio y **D4** la calibración de clases. **D1 está integrada
 >   desde el 2026-09-18** detrás de `closed_door_leakage_enabled`, apagado por
->   defecto y dependiente del interruptor de la red.
+>   defecto y dependiente del interruptor de la red. **D2 está integrada desde
+>   el 2026-09-20** detrás de `closed_door_deformation_enabled`, también apagado
+>   por defecto y dependiente de la red; D1 y D2 son independientes.
 > - **Qué está y qué no está integrado.** La fuga fría de puerta cerrada sí lo
->   está, por la red de presión. La **deformación prescrita (D2) no**, el
+>   está, por la red de presión. La **deformación prescrita (D2) también**; el
 >   **vidrio (D3) no**, y el modelo térmico y el probabilista del vidrio
 >   **siguen sin existir**. Ningún escenario normal enciende la fuga: hay que
->   pedirla con los dos interruptores y declarar la clase en la carpintería.
+>   pedir explícitamente los interruptores y declarar la clase o las pistas en
+>   la carpintería.
 >   La ELA, el reparto por cotas y el exponente siguen siendo **provisionales**
 >   (§7), pendientes de la calibración de D4.
 >
@@ -381,10 +384,10 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
 1. **Modelo puro de fuga** (`ClosedDoorLeakageModel.gd`), probado con
    diferencias de presión **impuestas y razonables** (0-50 Pa, perfiles con y
    sin capa caliente). Sin conectar al paso del motor. **Hecho y validado
-   (2026-09-17, §12); sin integrar.**
+   (2026-09-17, §12); integrado después por D1 (§16).**
 2. **Modelo puro de deformación prescrita**, con huecos independientes en
-   suelo, laterales y dintel. **Implementado (2026-09-17, §13); sin
-   integrar.** No se inventa aún una curva automática para
+   suelo, laterales y dintel. **Implementado (2026-09-17, §13); integrado
+   después por D2 (§18).** No se inventa aún una curva automática para
    puertas residenciales.
 3. **Modelo puro de vidrio**, con estado por hoja
    `INTACT -> CRACKED -> PARTIAL_FALLOUT -> OPEN` y conversión del área
@@ -398,7 +401,7 @@ propagación del fuego, el PPV ni la búsqueda de camino al exterior.
    como cambio separado, también detrás de interruptor. **Diagnóstico y diseño
    cerrados el 2026-09-17 en
    [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md);
-   sin implementar.** Referencia (CFAST Model
+   e implementados después hasta F2.2C.** Referencia (CFAST Model
    Evaluation Guide): en la validación con puerta cerrada se habla de
    sobrepresiones de **varios cientos de Pa**, no de los cientos de kPa medidos
    en §5.7.
@@ -501,8 +504,8 @@ puerta entreabierta.
   con ΔP impuestas. **Hecha (2026-09-17, §12)**, e **integrada el 2026-09-18**
   por F2.2D1 (§16), que le añadió el ayudante canónico de un segmento;
 - **Etapa 2 (deformación prescrita)**: `sim/core/ClosedDoorDeformationModel.gd`
-  y sus tests. **Implementada (2026-09-17, §13)**, **sigue sin integrar**: es
-  F2.2D2;
+  y sus tests. **Implementada (2026-09-17, §13) e integrada el 2026-09-20**
+  por F2.2D2 (§18);
 - **Etapa F2.2**: cerrada hasta F2.2C en
   [`PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md`](PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md);
 - **Etapa de integración**:
@@ -605,10 +608,11 @@ en el manifiesto de descargas.
 
 ## 12. Fase 1 implementada: modelo puro de fuga (2026-09-16, corregida el 2026-09-17)
 
-`sim/core/ClosedDoorLeakageModel.gd` (sin `class_name`). **No está conectado**:
-ningún sistema del motor, el editor ni el lanzador de escenarios lo carga, y no
-hay interruptor nuevo. No modifica `open_fraction` ni ninguna entrada, y no
-transporta todavía humo, O₂, energía ni especies.
+`sim/core/ClosedDoorLeakageModel.gd` (sin `class_name`). Este párrafo describe
+el cierre original de la fase pura: desde F2.2D1 (§16) el modelo sí lo consume
+la red autoritativa, detrás de un interruptor apagado por defecto. No modifica
+`open_fraction`; el transporte de humo, O₂, energía y especies pertenece al
+aplicador atómico de la red.
 
 ### 12.1 Qué dicen las fuentes locales
 
@@ -732,9 +736,9 @@ capa alta si era menos denso que la zona baja receptora.
 
 ## 13. Fase 2 cerrada: deformación prescrita pura (2026-09-17)
 
-`sim/core/ClosedDoorDeformationModel.gd` (sin `class_name`). **No está
-conectado**: ningún sistema del motor, el editor ni el lanzador de escenarios
-lo carga, y no hay interruptor nuevo. No lee temperaturas, no escribe la
+`sim/core/ClosedDoorDeformationModel.gd` (sin `class_name`). Este texto conserva
+el contrato del modelo puro. Desde F2.2D2 (§18), un adaptador explícito lo
+consume en la red, pero el modelo sigue sin leer temperaturas ni escribir la
 fracción de apertura, no usa el hueco térmico heredado del motor
 (`_step_door_deform`, 150-350 °C / 4 %), no transporta masa, energía, O₂, humo
 ni especies y **no calcula caudales**: el único solver de flujo sigue siendo
@@ -860,9 +864,10 @@ La salida combinada se pasa directamente a
 - Magnitudes de `additional_ela_m2` por clase de puerta, material y exposición.
 - Cualquier ley automática temperatura-tiempo-deformación, que solo llegará
   con una calibración defendible para puertas residenciales.
-- Decidir cómo convive con el hueco térmico heredado sin doble conteo
-  (riesgo 4 de §9).
-- Vidrio (§6.6, paso 3), F2.2 e integración.
+- Calibrar magnitudes y decidir una ley térmica futura sin doble conteo con el
+  hueco térmico heredado (riesgo 4 de §9). La integración prescrita ya está
+  cerrada en F2.2D2 (§18) y el campo heredado se ignora expresamente.
+- Vidrio (§6.6, paso 3) y su integración F2.2D3.
 
 ## 14. Fase 3A implementada: integridad prescrita de paños acristalados (2026-09-17)
 
@@ -1269,8 +1274,9 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
 > **Estado: cerrada.** La fuga permanente de una puerta interior **cerrada y
 > fría** ya no es un modelo suelto: es un elemento más de la red autoritativa de
 > presión, detrás de `closed_door_leakage_enabled`, apagado por defecto y
-> dependiente de `pressure_network_solver_enabled`. La deformación (D2), el
-> vidrio (D3) y la calibración de las clases (D4) **siguen fuera**.
+> dependiente de `pressure_network_solver_enabled`. Este estado histórico de D1
+> fue ampliado por D2 el 2026-09-20 (§18); el vidrio (D3) y la calibración de
+> las clases (D4) **siguen fuera**.
 
 ### 16.1 El reparto de F2.2D en cuatro
 
@@ -1280,7 +1286,7 @@ evidencias distintas. Se separan para poder cerrarlos de uno en uno:
 | | qué integra | estado |
 |---|---|---|
 | **D1** | fuga **fría** permanente de puerta cerrada (rendijas ELA) | **cerrada (2026-09-18)** |
-| **D2** | deformación prescrita de puerta caliente (`ClosedDoorDeformationModel`) | sin integrar |
+| **D2** | deformación prescrita de puerta caliente (`ClosedDoorDeformationModel`) | **cerrada (2026-09-20)** |
 | **D3** | paños acristalados (`GlazingIntegrityModel` + `GlazingOpeningGeometryModel`) | sin integrar |
 | **D4** | calibración de clases de ELA, reparto por cotas y exponente | sin hacer |
 
@@ -1688,8 +1694,8 @@ siendo una sola mutación, porque el comportamiento que rompen es uno solo.
 
 ### 16.16 Lo que D1 deja fuera
 
-- La **deformación** (D2): `thermal_gap_fraction` ya no entra en la red, pero
-  tampoco aporta todavía huecos propios.
+- La **deformación** era trabajo de D2 en el cierre histórico de D1; quedó
+  integrada el 2026-09-20 (§18). `thermal_gap_fraction` sigue fuera de la red.
 - El **vidrio** (D3), y sus modelos térmico y probabilista, que no existen.
 - La **calibración** (D4): ELA, reparto por cotas y exponente siguen siendo
   provisionales, y con ellos la regularización de §16.14.
@@ -1702,7 +1708,8 @@ Y una cosa que D1 no deja fuera porque no le toca, pero que **bloquea** el uso
 real de todo esto: la red autoritativa **no converge** en un portal de varias
 plantas (§16.14). Mientras la mitad de los pasos no transporten nada, ni la
 fuga fría ni lo que venga después se pueden medir ahí. Es trabajo de F2.2, del
-evaluador de F2.2A y del solver de F2.2B, y va **antes** que D2, D3 y D4.
+  evaluador de F2.2A y del solver de F2.2B. Este bloqueo quedó resuelto por
+  F2.2C-R1 antes de integrar D2; se conserva aquí como historia de D1.
 
 ## 17. F2.2-R2-MASS: por qué las cifras de §16 eran una cota inferior (2026-09-19)
 
@@ -1809,3 +1816,87 @@ una calibración.** El orden cualitativo se da la vuelta en un régimen que los
 datos experimentales nunca cubrieron. Hasta que R3 devuelva la fuga de envolvente
 y las presiones vuelvan a un rango físico razonable, estas magnitudes describen
 el modelo, no una vivienda.
+
+## 18. F2.2D2: deformación prescrita integrada en la red (2026-09-20)
+
+> **Estado: cerrada.** D2 conecta el modelo puro de §13 con la red autoritativa
+> de presión. No añade una ley térmica, no calibra áreas y no activa esta física
+> en escenarios distribuidos.
+
+### 18.1 Contrato y arquitectura
+
+- `closed_door_deformation_enabled` está apagado por defecto y exige
+  `pressure_network_solver_enabled`. Pedir D2 sin la red es un error explícito.
+- `OpeningModel.deformation_tracks` es un estado de ejecución deliberadamente
+  no persistido. D4 decidirá el contrato de producto, serialización y editor.
+- `ClosedDoorDeformationNetworkAdapter` evalúa las pistas en el `sim_time_s`
+  autoritativo, convierte una sola vez sus cotas locales a cotas absolutas y
+  entrega segmentos al mismo elemento `ela_crack` que usa D1.
+- La ley de flujo no se repite: siguen gobernando ELA a 4 Pa, `Cd = 1`, el
+  exponente 0,65 provisional, la densidad del gas de origen y la regularización
+  canónica de D1. El elemento participa en el residuo de Newton y el aplicador
+  atómico mueve masa, energía, O2, humo y especies.
+- D1 y D2 son independientes. D2 funciona sin clase de fuga fría; si ambas se
+  piden, las áreas fría y adicional se combinan por segmento. D2 no modifica
+  `open_fraction` y una puerta abierta excluye la ruta de rendija.
+- `thermal_gap_fraction` y la heurística heredada de deformación automática no
+  intervienen. Una pista inválida falla cerrada; no se acepta parcialmente.
+
+### 18.2 Identidades protegidas
+
+- D2 apagada conserva exactamente la ruta anterior.
+- Una historia cuya área adicional evaluada es cero devuelve el elemento frío
+  original sin reconstruirlo: identidad fuerte con D1 sola.
+- Una puerta sin pistas no inventa deformación.
+- La presión de cada segmento se evalúa en su cota física; no se colapsan
+  `bottom`, `top` y los tramos laterales en una única abertura.
+
+Durante la validación apareció un defecto real: una única pista localizada
+producía un elemento común con `bottom == top`, que el solver rechazaba aunque
+la grieta puntual fuera válida. El elemento conserva ahora el tramo físico
+completo entre umbral y dintel, mientras el segmento de grieta permanece en la
+cota prescrita. Esto evita inventar altura y mantiene la localización del flujo.
+
+### 18.3 Evidencia funcional
+
+El validador dedicado cierra **41 comprobaciones**. La batería relacionada
+cierra **77 pruebas Python**, incluidas las rutas históricas D1 y de red. La
+campaña mata **17 de 17 mutaciones válidas**. Dos sustituciones iniciales
+afectaban dos coincidencias a la vez y eran mutaciones inválidas del arnés: se
+descartaron, se reescribieron con alcance único y murieron por fallo funcional.
+
+Campaña diagnóstica de 600 s, 7 200 pasos, con una historia prescrita de ejemplo
+deliberadamente **no calibrada** (ELA superior hasta 0,003 m2 y lado de
+cerradura hasta 0,001 m2):
+
+| variante | masa neta a la receptora (kg) | humo en receptora (g) | dp máxima de segmento (Pa) | pasos sin aplicar |
+|---|---:|---:|---:|---:|
+| estanca | 0,0000 | 0,000 | — | 0 |
+| fuga fría D1 | 1,2083 | 6,594 | 5 519,0 | 0 |
+| solo D2 prescrita | 0,7513 | 5,603 | 5 751,7 | 0 |
+| D1 + D2 | 0,6525 | 9,565 | 5 519,1 | 0 |
+
+Que la masa neta combinada sea menor que con D1 sola no implica menos
+intercambio: los segmentos a distintas cotas admiten contraflujo. El humo sí
+aumenta en el caso combinado. Las cifras solo demuestran que la topología, el
+tiempo, el solver y el transporte están conectados; **no autorizan calibración**.
+
+### 18.4 Límites y siguiente fase
+
+- Las ELA prescritas del ensayo no representan una clase de puerta residencial.
+- Las dp de 5,5-5,8 kPa están muy fuera del dominio experimental de unos 50 Pa;
+  el motor registra la extrapolación y no recorta el flujo.
+- No existe todavía una relación temperatura-tiempo-deformación defendible, ni
+  una respuesta automática al calentamiento o al enfriamiento.
+- Ningún escenario normal ni el editor activa o serializa D2.
+- El siguiente trabajo es **D3**, integración de la geometría de vidrio ya
+  modelada. Después viene **D4**, calibración y activación conjunta.
+
+### 18.5 Cierre de verificación
+
+- Suite de referencia: **346/346 required PASS**, con los mismos **78** gaps
+  documentados; en `reference_checks.json` solo cambió `generated_at`.
+- Guardarraíles científicos: **ALL PASS**, incluida la frescura R2-1.
+- Suite Python global: **2.855 passed**, **4 skipped**, **42 subtests passed**.
+- `check_product.py`: **151/151**.
+- Al terminar no quedaba ningún proceso Godot activo.

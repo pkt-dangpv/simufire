@@ -50,9 +50,15 @@ var sill_m: float = 0.0           # para ventanas (altura del alféizar)
 # F2.2D1: fuga fría permanente de puerta cerrada. La clase nombra un ELA a 4 Pa
 # de la tabla canónica de ClosedDoorLeakageModel; el override, si es finito y no
 # negativo, manda sobre ella. `none` sin override = puerta estanca. No tiene nada
-# que ver con `thermal_gap_fraction`, que es la deformación térmica de D2.
+# que ver con `thermal_gap_fraction`, que es la heurística térmica heredada y
+# queda expresamente fuera de la deformación prescrita de D2.
 var leakage_class: String = "none"
 var leakage_area_override_m2: float = -1.0
+# F2.2D2: historias prescritas de ELA adicional por deformacion. Son datos
+# runtime deliberadamente separados de `thermal_gap_fraction`: no convierten
+# temperatura en hueco, no cambian `open_fraction` y no se persisten todavia en
+# los escenarios distribuidos. D4 decidira su interfaz de producto.
+var deformation_tracks: Array = []
 var open_fraction: float = 1.0    # 0..1
 var opening_index: int = -1
 var wall_side: String = ""

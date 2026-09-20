@@ -62,9 +62,9 @@ def test_single_flag_is_declared_off_by_default():
         assert forbidden not in ENGINE, forbidden
     auditor = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
     assert f'"{FLAG}"' in auditor
-    # F2.2D1 anade `closed_door_leakage_enabled` y R3 la fuga exterior:
-    # 77 -> 78 -> 79.
-    assert "EXPECTED_DECLARATION_COUNT = 79" in auditor
+    # F2.2D1, R3 y F2.2D2 anaden tres capacidades vivas:
+    # 77 -> 78 -> 79 -> 80.
+    assert "EXPECTED_DECLARATION_COUNT = 80" in auditor
 
 
 def test_no_distributed_scenario_turns_the_flag_on():
@@ -176,22 +176,23 @@ def test_canonical_pressure_has_one_owner_and_keeps_its_sign():
         assert forbidden not in ADAPTER_CODE, forbidden
 
 
-def test_closed_doors_are_sealed_unless_d1_leakage_is_enabled():
-    """F2.2C sellaba toda puerta cerrada. F2.2D1 le permite aportar rendijas,
-    pero solo rendijas y solo con su capacidad encendida: sin ella el
-    comportamiento es exactamente el de F2.2C."""
+def test_closed_doors_are_sealed_unless_d1_or_d2_is_enabled():
+    """D1 aporta fuga fria y D2 huecos prescritos, siempre como rendijas.
+    Sin ninguna de las dos capacidades, el comportamiento sigue siendo
+    exactamente el de F2.2C."""
     snapshot = _function(ADAPTER_CODE, "build_snapshot")
     assert "if opening.is_closed() or open_fraction <= 0.001:" in snapshot
     assert "_crack_element(" in snapshot
     assert "continue" in snapshot
     crack = _function(ADAPTER_CODE, "_crack_element")
-    assert "if not closed_door_leakage_enabled:" in crack
-    assert crack.index("if not closed_door_leakage_enabled:") < crack.index("build_crack_element")
+    guard = "if not closed_door_leakage_enabled and not closed_door_deformation_enabled:"
+    assert guard in crack
+    assert crack.index(guard) < crack.index("build_crack_element")
     # Una puerta cerrada nunca entra ademas como abertura grande.
     assert "cracks.append(crack)" in snapshot
     assert snapshot.index("cracks.append(crack)") < snapshot.index("openings.append({")
     # El adaptador sigue sin ser un modelo: describe la carpinteria, no calcula
-    # la ley, y la deformacion y el vidrio siguen fuera (D2 y D3).
+    # la ley. D2 entra por un adaptador puro; el vidrio sigue fuera (D3).
     for forbidden in ("ClosedDoorDeformation" + "Model", "GlazingIntegrity" + "Model",
                       "GlazingOpeningGeometry" + "Model", "thermal_gap_fraction",
                       "pow(", "sqrt("):

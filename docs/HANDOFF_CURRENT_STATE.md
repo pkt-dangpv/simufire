@@ -1,5 +1,41 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-20 - prescribed closed-door deformation (F2.2D2)
+
+- Checkpoint: `main` at `031cd5c0`. Work remains local and **has not been
+  pushed**.
+- A closed interior door can now contribute a **prescribed additional ELA** at
+  bottom, top, hinge-side and latch-side locations inside the authoritative
+  pressure network. The feature is behind `closed_door_deformation_enabled`,
+  off by default, and fails explicitly if the pressure network is not enabled.
+- D1 and D2 are independent. D2 can run without a cold-leakage class; when both
+  are active their segment areas add before the existing crack law is evaluated.
+  There is still one owner of flow, residual and atomic transport.
+- `SimulationEngine` passes authoritative `sim_time_s` to the prescribed
+  tracks. Zero prescribed area is exactly identical to D1 alone, and D2 off is
+  exactly identical to the previous engine path.
+- `thermal_gap_fraction`, `effective_open_fraction()` and the legacy automatic
+  150-350 C deformation heuristic remain outside the network. D2 does **not**
+  introduce a temperature-to-deformation law, editor serialization or normal
+  scenario activation.
+- Focused verification: **41** validator checks, **77** related pytest tests and
+  **17/17 valid mutations killed**. Two initial textual replacements were
+  invalid harness mutations and were discarded and rerun correctly.
+- A 600 s diagnostic with a deliberately uncalibrated prescribed history had
+  zero unapplied steps. Receiver smoke was 0 g sealed, 6.59 g with cold D1,
+  5.60 g with D2 alone and 9.57 g combined. These are integration checks, not
+  calibration results: segment pressure differences reached 5.5-5.8 kPa, far
+  outside the roughly 50 Pa experimental domain.
+- One real integration defect was found and fixed: a single localized segment
+  originally gave the network a zero-height common element. The element now
+  keeps the physical sill-to-lintel span while the crack remains localized at
+  its prescribed height.
+- Final verification is green: reference suite **346/346** with the same **78**
+  documented gaps (only `generated_at` changed), all scientific guardrails
+  pass, global Python suite **2,855 passed**, **4 skipped**, **42 subtests
+  passed**, and `check_product.py` **151/151**. No Godot process remained.
+- Still pending: D3 glazing integration, then D4 calibration and activation.
+
 ## Current Program Update - 2026-09-19 - exterior envelope leakage
 
 - Checkpoint: `main`, two local commits on top of `34aa06f6`. **Not pushed.**
@@ -45,7 +81,8 @@
   room stops being a sealed pot. The peak is **not publishable** and is left for
   D4; the area and the coefficient were not recalibrated.
 - **R3 is not enabled in editor scenarios.** That is D4.
-- **D2, D3 and D4 have not been started.**
+- Historical status at the R3 checkpoint: D2, D3 and D4 had not been started.
+  D2 is now closed in the update above.
 
 ## Current Program Update - 2026-09-19 - exterior pressure reference datum
 
@@ -159,7 +196,8 @@
   files, inert with the network off — but the proof behind it was empty. This
   phase's OFF identity is real: IEEE754 bit patterns, 18 fields per room, three
   scenarios, against a clean worktree at `fd9031ed`.
-- **R3 remains open. D2, D3 and D4 have not been started.**
+- Historical status at this checkpoint: R3 was open and D2/D3/D4 had not been
+  started. R3 and D2 are closed in the newer updates above.
 
 ## Current Program Update - 2026-09-18 - multistorey pressure datum
 
@@ -215,7 +253,8 @@
   network on a closed exterior window is inert because F2.2C gated off the
   envelope purge and nothing replaced it; it needs its own phase inside the
   network, not the historical purge switched back on in parallel.
-- **D2, D3 and D4 have not been started.** Order of work: R2, then R3, then them.
+- Historical status at this checkpoint: D2, D3 and D4 had not been started.
+  R2, R3 and D2 are closed in the newer updates above.
 
 ## Current Program Update - 2026-09-18 - authoritative pressure network and cold door leakage
 

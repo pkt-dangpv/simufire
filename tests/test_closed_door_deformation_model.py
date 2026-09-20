@@ -1,8 +1,8 @@
 """Prescribed closed-door deformation: pure model contract and runtime tests.
 
 Phase 2 of docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md: localized additional
-ELA prescribed over time and combined with the cold leakage segments. Nothing
-in the engine, the editor or the scenario runner loads it.
+ELA prescribed over time and combined with the cold leakage segments. F2.2D2
+integrates it through one adapter; the pure model remains stateless.
 """
 
 from __future__ import annotations
@@ -35,8 +35,13 @@ GODOT_CANDIDATES = (
 # The only files allowed to mention the deformation model while it is not integrated.
 ALLOWED_REFERENCES = {
     Path("sim/core/ClosedDoorDeformationModel.gd"),
+    Path("sim/core/ClosedDoorDeformationNetworkAdapter.gd"),
+    Path("sim/core/PressureNetworkTransportSystem.gd"),
+    Path("sim/core/SimulationEngine.gd"),
     Path("tools/validate_closed_door_deformation_model.gd"),
+    Path("tools/validate_closed_door_deformation_network.gd"),
     Path("scripts/check_product.py"),
+    Path("scripts/simulation/audit_default_off_flags.py"),
 }
 
 
@@ -148,7 +153,7 @@ def test_band_center_validates_its_preconditions():
     assert center.index("if not errors.is_empty():") < center.index("/ float(count)")
 
 
-def test_model_is_not_integrated_anywhere():
+def test_model_has_one_explicit_integration_path():
     offenders = []
     for folder in ("sim", "editor", "view", "tools", "scripts", "scenes", "ui"):
         base = ROOT / folder
@@ -164,9 +169,16 @@ def test_model_is_not_integrated_anywhere():
             if "ClosedDoorDeformationModel" in text or "closed_door_deformation" in text:
                 offenders.append(str(relative))
     assert offenders == []
-    # No new engine switch either.
+    adapter = (ROOT / "sim/core/ClosedDoorDeformationNetworkAdapter.gd").read_text(
+        encoding="utf-8"
+    )
+    transport = (ROOT / "sim/core/PressureNetworkTransportSystem.gd").read_text(
+        encoding="utf-8"
+    )
     engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
-    assert "deformation_model" not in engine
+    assert 'preload("res://sim/core/ClosedDoorDeformationModel.gd")' in adapter
+    assert 'preload("res://sim/core/ClosedDoorDeformationNetworkAdapter.gd")' in transport
+    assert "ClosedDoorDeformationModel.gd" not in engine
 
 
 def _run_validator(dump_path: Path | None = None):

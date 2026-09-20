@@ -15,7 +15,8 @@ extends RefCounted
 ##   - `HOLE` nunca tiene fuga; una ventana tampoco;
 ##   - clase `none` sin override: estanca.
 ##
-## `thermal_gap_fraction` NO participa: la deformacion prescrita es F2.2D2.
+## `thermal_gap_fraction` NO participa: la deformacion prescrita de F2.2D2
+## entra por `ClosedDoorDeformationNetworkAdapter` y sus propios segmentos.
 
 const LeakageModel = preload("res://sim/core/ClosedDoorLeakageModel.gd")
 ## Solo para la constante de condicionamiento: el adaptador no resuelve nada.

@@ -441,6 +441,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot fuga fria de puerta cerrada: " + (diagnostic or "failed"))
 
+    # Deformacion prescrita de puerta cerrada dentro del mismo elemento ELA
+    # de la red (fase F2.2D2). Sin ley automatica temperatura-deformacion.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_closed_door_deformation_network.gd",
+        "CLOSED DOOR DEFORMATION NETWORK VALIDATION PASS",
+    )
+    rows.append(("Deformacion prescrita de puerta cerrada en la red, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot deformacion prescrita de puerta cerrada: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

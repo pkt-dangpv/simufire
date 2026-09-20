@@ -1,8 +1,8 @@
-"""Pure closed-door leakage model: runtime tests and non-integration contract.
+"""Pure closed-door leakage model: runtime and closed-consumer contracts.
 
-Phase 1 of docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md: the model exists and is
-tested with imposed pressure differences, but nothing in the engine, the
-editor or the scenario runner loads it yet.
+The pure model is exercised with imposed pressure differences. D1 and D2 now
+consume it through their declared pressure-network adapters; any undeclared
+consumer remains a test failure.
 """
 
 from __future__ import annotations
@@ -28,7 +28,8 @@ GODOT_CANDIDATES = (
     Path(r"F:\OneDrive\Escritorio\Godot_v4.7.1-stable_win64_console.exe"),
 )
 
-# Files allowed to mention the model while it is not integrated.
+# Exact files allowed to mention the model. This stays fail-closed: each new
+# consumer must be classified here deliberately.
 ALLOWED_REFERENCES = {
     Path("sim/core/ClosedDoorLeakageModel.gd"),
     Path("tools/validate_closed_door_leakage_model.gd"),
@@ -49,6 +50,10 @@ ALLOWED_REFERENCES = {
     Path("sim/BuildingModel.gd"),
     Path("editor/ScenarioSerializer.gd"),
     Path("tools/validate_closed_door_leakage_network.gd"),
+    # F2.2D2 (2026-09-20): prescribed deformation combines its additional ELA
+    # with the cold segments, then delegates to this same canonical crack law.
+    Path("sim/core/ClosedDoorDeformationNetworkAdapter.gd"),
+    Path("tools/validate_closed_door_deformation_network.gd"),
     # La carpinteria declara su clase, y su comentario nombra la tabla canonica.
     Path("sim/building/OpeningModel.gd"),
     # El auditor clasifica el interruptor `closed_door_leakage_enabled`.

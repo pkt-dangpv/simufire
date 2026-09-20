@@ -42,21 +42,23 @@ class_name PressureNetworkTransportSystem
 #   - PPV no esta representada como fuente ni contorno: con el
 #     interruptor encendido se rechaza de forma explicita;
 #   - F2.2D1: una puerta interior CERRADA puede aportar rendijas ELA
-#     (fuga fria), y solo eso, y solo con `closed_door_leakage_enabled`;
-#     sin ese interruptor sigue siendo estanca, como en F2.2C. La
-#     deformacion prescrita (D2) y el vidrio (D3) siguen sin conectar;
+#     frias con `closed_door_leakage_enabled`; F2.2D2 puede sumar segmentos
+#     de deformacion prescrita con `closed_door_deformation_enabled`. Sin
+#     ninguna de las dos sigue siendo estanca, como en F2.2C. El vidrio (D3)
+#     sigue sin conectar;
 #   - F2.2C-R1: un hueco de suelo/techo (`is_vertical`) es una clase de
 #     elemento propia que intercambia EN EL PLANO DE LA LOSA. F2.2C lo
 #     metia como vano de Bernoulli anclado al suelo de `room_a`, lo que
 #     lo dejaba por debajo del suelo del recinto de arriba;
-#   - F2.2C-R1: la envolvente exterior cerrada sigue SIN elemento en la
-#     red (incidencia R3), y la perdida historica de masa de una sala
-#     sigue sin ruta propietaria identificada (incidencia R2).
+#   - R2 y R3 ya estan cerradas: la masa zonal se conserva y la envolvente
+#     exterior cerrada aporta su elemento propio cuando su flag esta activo.
 # ============================================================
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 ## F2.2D1: la puerta cerrada se describe aqui, no se calcula aqui.
 const LeakageAdapterScript = preload("res://sim/core/ClosedDoorLeakageNetworkAdapter.gd")
+## F2.2D2: combina las pistas prescritas con D1 sin crear otra ley de flujo.
+const DeformationAdapterScript = preload("res://sim/core/ClosedDoorDeformationNetworkAdapter.gd")
 const EnvelopeAdapterScript = preload("res://sim/core/ExteriorEnvelopeLeakageAdapter.gd")
 const WindModelScript = preload("res://sim/core/ExteriorWindPressureModel.gd")
 
@@ -92,6 +94,10 @@ var commit_count: int = 0
 ## pide expresamente. Falso por defecto y gobernado por el motor.
 var closed_door_leakage_enabled: bool = false
 
+## F2.2D2: huecos ELA adicionales de deformacion prescrita. Independiente de
+## D1, falso por defecto y gobernado por el motor.
+var closed_door_deformation_enabled: bool = false
+
 ## F2.2-R3: fuga de envolvente exterior cerrada. Mismo contrato: falso por
 ## defecto y lo gobierna el motor, que ya exige la red para encenderlo.
 var exterior_envelope_leakage_enabled: bool = false
@@ -104,7 +110,8 @@ var exterior_envelope_leakage_area_m2: float = 0.0
 
 ## Paso completo. Devuelve {applied, valid, errors, failure_reason, solution,
 ## transaction, diagnostics}. No aplica nada si algo falla.
-func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionary:
+func step(building, dt_s: float, outside_override: Dictionary = {},
+		time_s: float = 0.0) -> Dictionary:
 	var result: Dictionary = _new_result()
 	if building == null:
 		result["failure_reason"] = "no_building"
@@ -112,7 +119,7 @@ func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionar
 		last_result = result
 		return result
 
-	var snapshot: Dictionary = build_snapshot(building, outside_override, dt_s)
+	var snapshot: Dictionary = build_snapshot(building, outside_override, dt_s, time_s)
 	if not bool(snapshot["valid"]):
 		result["failure_reason"] = "invalid_snapshot"
 		result["errors"] = snapshot["errors"]
@@ -169,8 +176,11 @@ func step(building, dt_s: float, outside_override: Dictionary = {}) -> Dictionar
 
 ## Estado inmutable de partida. Todo lo que la transaccion lea sale de aqui:
 ## ninguna sala se consulta despues de empezar a calcular transferencias.
-func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0.0) -> Dictionary:
+func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0.0,
+		time_s: float = 0.0) -> Dictionary:
 	var errors: Array[String] = []
+	if closed_door_deformation_enabled and not is_finite(time_s):
+		errors.append("closed-door deformation time_s must be finite")
 	var rooms: Dictionary = {}
 	var order: Array[String] = []
 	for raw_room_id in building.get_rooms().keys():
@@ -235,13 +245,26 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 		# F2.2D1: la fraccion OPERATIVA, sin `thermal_gap_fraction`. F2.2C usaba
 		# `effective_open_fraction()`, que suma la deformacion termica heredada y
 		# podia meter una puerta cerrada en la red como abertura grande. La
-		# deformacion prescrita llega en D2, por sus propios segmentos.
+		# deformacion prescrita de D2 llega por sus propios segmentos ELA.
 		var open_fraction: float = 1.0 if int(opening.type) == OpeningModel.Type.HOLE \
 				else float(opening.open_fraction)
 		if opening.is_closed() or open_fraction <= 0.001:
 			# Puerta cerrada: solo puede aportar rendijas ELA, nunca una abertura
 			# grande, y solo si la capacidad esta encendida.
-			var crack: Dictionary = _crack_element(opening, a_key, b_key, rooms, dt_s)
+			if closed_door_deformation_enabled \
+					and not Array(opening.deformation_tracks).is_empty():
+				var checked: Dictionary = DeformationAdapterScript.validate_opening(
+					opening, BuildingModel.OUTSIDE_ID, time_s
+				)
+				if not bool(checked["valid"]):
+					for error in checked["errors"]:
+						errors.append("opening %d: %s" % [
+							int(opening.opening_index), String(error)
+						])
+					continue
+			var crack: Dictionary = _crack_element(
+				opening, a_key, b_key, rooms, dt_s, time_s
+			)
 			if not crack.is_empty():
 				cracks.append(crack)
 			# F2.2-R3: y una abertura EXTERIOR cerrada aporta fuga de envolvente.
@@ -404,20 +427,29 @@ func _envelope_wind_dp_pa(opening, floor_z_m: float, building) -> float:
 ## adaptador decide si la puerta aporta fuga; aqui solo se traslada al contrato
 ## de la red y se le pone el identificador canonico.
 func _crack_element(opening, a_key: String, b_key: String, rooms: Dictionary,
-		dt_s: float) -> Dictionary:
-	if not closed_door_leakage_enabled:
+		dt_s: float, time_s: float = 0.0) -> Dictionary:
+	if not closed_door_leakage_enabled and not closed_door_deformation_enabled:
 		return {}
 	if a_key == EXTERIOR_ROOM_ID or b_key == EXTERIOR_ROOM_ID:
 		return {}
 	if not rooms.has(a_key) or not rooms.has(b_key):
 		return {}
 	var floor_z_m: float = float(rooms[a_key]["floor_z_m"])
-	var element: Dictionary = LeakageAdapterScript.build_crack_element(
-		opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key, dt_s
-	)
+	var element: Dictionary = {}
+	if closed_door_deformation_enabled:
+		element = DeformationAdapterScript.build_crack_element(
+			opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key, dt_s,
+			time_s, closed_door_leakage_enabled
+		)
+	else:
+		# Ruta D1 historica intacta cuando D2 esta apagada: esta separacion es
+		# la que permite exigir identidad byte a byte OFF.
+		element = LeakageAdapterScript.build_crack_element(
+			opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key, dt_s
+		)
 	if element.is_empty():
 		return {}
-	return {
+	var output: Dictionary = {
 		"opening_id": "crack_%d" % int(opening.opening_index),
 		"room_a_id": a_key,
 		"room_b_id": b_key,
@@ -435,9 +467,18 @@ func _crack_element(opening, a_key: String, b_key: String, rooms: Dictionary,
 		"width_m": 1.0,
 		"open_fraction": 1.0,
 		"discharge_coeff": 1.0,
-		"bottom_z_m": float(element["crack_segments"][0]["z_m"]),
-		"top_z_m": float(element["crack_segments"][element["crack_segments"].size() - 1]["z_m"]),
+		# El solver integra las muestras puntuales de `crack_segments`; este
+		# tramo solo satisface el contrato geometrico comun de una conexion. Si
+		# D2 prescribe un unico hueco, usar primera/ultima muestra daria altura
+		# cero y rechazaria una rendija perfectamente valida.
+		"bottom_z_m": floor_z_m + float(opening.sill_m),
+		"top_z_m": floor_z_m + float(opening.lintel_height_m()),
 	}
+	for key in ["cold_ela_total_m2", "additional_ela_total_m2",
+			"combined_ela_total_m2", "deformation_time_s"]:
+		if element.has(key):
+			output[key] = element[key]
+	return output
 
 
 # ------------------------------------------------------------

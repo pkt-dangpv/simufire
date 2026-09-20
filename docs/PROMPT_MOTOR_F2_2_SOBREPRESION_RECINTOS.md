@@ -1,6 +1,6 @@
 # Diagnóstico y diseño: sobrepresión de recintos cerrados (F2.2)
 
-> **Estado (2026-09-18): F2.2-DIAG cerrada. Solo diagnóstico y diseño.**
+> **Estado actualizado (2026-09-20): F2.2-DIAG, A, B, C, D1 y D2 cerradas.**
 >
 > `F2.2-DIAG` es **esta fase documental**. Las etapas de implementación son
 > `F2.2A` (ecuaciones locales puras), `F2.2B` (solver acoplado de red), `F2.2C`
@@ -9,18 +9,21 @@
 > - **No hay código nuevo**: no se ha tocado `sim/`, ni el editor, ni los
 >   escenarios, ni los casos, ni las tolerancias, ni la clasificación de huecos.
 > - **F2.2A implementada el 2026-09-18** (§14.1): `sim/core/CompartmentPressureEquations.gd`,
->   modelo puro **sin integrar**.
+>   modelo puro consumido después por la integración F2.2C.
 > - **F2.2B cerrada el 2026-09-18** (§15.2): **promueve** el solver puro que ya
 >   existía, `sim/core/Phase3CoupledPressureSolver.gd`, con la entrada canónica
->   `solve_pressure_network`. **Sigue sin integrar**: nadie aplica su resultado.
+>   `solve_pressure_network`, consumido después por F2.2C.
 > - **F2.2C cerrada el 2026-09-18** (§16): la red es autoritativa dentro del
 >   paso real del motor, detrás del interruptor único
 >   `pressure_network_solver_enabled`, **apagado por defecto**. Ningún escenario
 >   distribuido lo enciende.
-> - **F2.2D sigue sin implementar**: las puertas cerradas siguen siendo
->   estancas, y la deformación y el vidrio siguen sin integrarse (§19).
-> - Los modelos puros de las fases 1, 2, 3A y 3B siguen **sin integrar**, y no
->   pueden integrarse antes de F2.2 (§15).
+> - **F2.2D1** integra la fuga fría desde el 2026-09-18 y **F2.2D2** integra la
+>   deformación prescrita desde el 2026-09-20. Ambas exigen la red y están
+>   apagadas por defecto. El vidrio (D3) y la calibración/activación (D4) siguen
+>   pendientes.
+> - Las frases históricas posteriores que describen A, B o los modelos puros
+>   como «sin integrar» deben leerse en su fecha; §§16, 18, 20 y 21 las
+>   superseden.
 
 ## 1. Estado y checkpoint
 
@@ -631,11 +634,10 @@ confirmarla contra el estado canónico de zonas de la fase 3 antes de programar
 
 ### 14.1 Contrato implementado (2026-09-18)
 
-`sim/core/CompartmentPressureEquations.gd`, sin `class_name`, cargado solo por
-su validador y sus tests. **Sigue sin integrar**: no lo llama `SimulationEngine`,
-ni `GasExchangeSystem`, ni `OxygenExchangeSystem`, ni `ThermalSystem`, ni
-`Phase3ZoneMassSystem`, ni el editor, ni la vista, ni los escenarios, ni los
-casos de validación, y no se ha añadido ningún interruptor.
+`sim/core/CompartmentPressureEquations.gd`, sin `class_name`. En el cierre
+original de A solo lo cargaban su validador y sus tests; desde F2.2B/C lo
+consume el solver de la red, no los sistemas físicos, el editor ni la vista de
+forma directa.
 
 **Firma**
 
@@ -1225,10 +1227,11 @@ siguiente.
 
 | Etapa | Contenido | Entregable | Requisito previo |
 | --- | --- | --- | --- |
-| **F2.2A** ✅ **hecha el 2026-09-18, sin integrar** | Evaluador puro de ecuaciones locales y residuos (§14, §14.1) | `sim/core/CompartmentPressureEquations.gd`, `tools/validate_compartment_pressure_equations.gd`, `tests/test_compartment_pressure_equations.py`, 19/19 mutaciones | F2.2-DIAG (este documento) |
-| **F2.2B** ✅ **hecha el 2026-09-18, sin integrar** | Solver puro acoplado de red, dueño de la iteración (§15, §15.2) | `sim/core/Phase3CoupledPressureSolver.gd` **promovido** (entrada `solve_pressure_network`), `tools/validate_pressure_network_solver.gd`, `tests/test_pressure_network_solver.py`, 25 mutaciones | F2.2A |
+| **F2.2A** ✅ **hecha el 2026-09-18; consumida por B/C** | Evaluador puro de ecuaciones locales y residuos (§14, §14.1) | `sim/core/CompartmentPressureEquations.gd`, `tools/validate_compartment_pressure_equations.gd`, `tests/test_compartment_pressure_equations.py`, 19/19 mutaciones | F2.2-DIAG (este documento) |
+| **F2.2B** ✅ **hecha el 2026-09-18; integrada por C** | Solver puro acoplado de red, dueño de la iteración (§15, §15.2) | `sim/core/Phase3CoupledPressureSolver.gd` **promovido** (entrada `solve_pressure_network`), `tools/validate_pressure_network_solver.gd`, `tests/test_pressure_network_solver.py`, 25 mutaciones | F2.2A |
 | **F2.2C** ✅ **hecha el 2026-09-18** | Integración tras el interruptor único, un solo aplicador (§16) | `sim/core/PressureNetworkTransportSystem.gd`, compuertas en `SimulationEngine`, `GasExchangeSystem`, `OxygenExchangeSystem`, `ThermalSystem` y `CombustionSystem`, validador y tests | F2.2A+B en verde y comparación de sombra |
-| **F2.2D** | Conexión de fuga (fase 1), deformación (fase 2) y vidrio (fase 3B) como fuentes de área | Adaptadores puros | F2.2C con la suite de referencia estable |
+| **F2.2D1/D2** ✅ **cerradas 2026-09-18/20** | Conexión de fuga fría y deformación prescrita como fuentes ELA | Adaptadores puros | F2.2C con la suite de referencia estable |
+| **F2.2D3/D4** | Conexión de vidrio; calibración y activación | Adaptadores y contrato de producto | D1/D2 y evidencia experimental |
 
 Ninguna etapa integra antes de tener los dos modelos puros validados. La regla
 "integrar primero y corregir después" está expresamente prohibida. `F2.2-DIAG`
@@ -1392,10 +1395,9 @@ así que la entrada no ha cambiado desde entonces.
 
 Lo que sigue sin implementar:
 
-- **F2.2D2**: la deformación prescrita de puerta caliente
-  (`ClosedDoorDeformationModel`) no está conectada a la red. D1 dejó de leer
-  `effective_open_fraction()` justamente para que `thermal_gap_fraction` no se
-  colara como abertura de Bernoulli; D2 tendrá que darle sus propios segmentos.
+- **F2.2D2 está cerrada (2026-09-20)**: la deformación prescrita de puerta
+  caliente entra como segmentos ELA propios. No reutiliza
+  `effective_open_fraction()` ni `thermal_gap_fraction`; véase §21.
 - **F2.2D3**: el vidrio (`GlazingIntegrityModel`, `GlazingOpeningGeometryModel`)
   tampoco está conectado, y su modelo térmico y su modelo probabilista **no
   existen**.
@@ -1619,9 +1621,9 @@ Ninguna se ha tocado en esta fase, y **no deben mezclarse** con ella:
 
 ### 17.11 Qué queda bloqueado hasta cerrar esas dos
 
-**D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
-iniciado.** El orden de trabajo era: R2, después R3, y solo entonces
-D2/D3/D4. **R2 está cerrada** (§18) y **R3 también** (§20). Quedan D2, D3 y D4.
+El orden de trabajo era R2, después R3 y solo entonces D2/D3/D4. **R2 está
+cerrada** (§18), **R3 también** (§20) y **D2 se cerró el 2026-09-20** (§21).
+Quedan D3 y D4.
 
 ## 18. F2.2-R2-MASS: la masa zonal es estado conservado (2026-09-19)
 
@@ -2136,8 +2138,8 @@ Conviene dejarlos escritos, porque los dos habrían pasado inadvertidos:
   de suelo, con `Cd` 0,7. Es referencia de orden de magnitud y topología, **no
   autorización para recalibrar**.
 - R3 **no** se activa todavía en los escenarios distribuidos con el editor.
-- **D2 (deformación), D3 (vidrio) y D4 (activación y calibración) no se han
-  iniciado.**
+- **D2 se cerró el 2026-09-20** (§21). D3 (vidrio) y D4 (activación y
+  calibración) no se han iniciado.
 
 ### 20.8 Cierre de verificación
 
@@ -2147,3 +2149,32 @@ Conviene dejarlos escritos, porque los dos habrían pasado inadvertidos:
 - Suite Python global: **2.842 passed**, **4 skipped**, **42 subtests passed**.
 - `check_product.py`: **150/150**.
 - Al terminar no quedaba ningún proceso Godot activo.
+
+## 21. F2.2D2: conexión de deformación prescrita (2026-09-20)
+
+> **Estado: cerrada.** El detalle de diseño, medidas y limitaciones está en
+> `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §18.
+
+D2 añade a la red segmentos ELA de deformación prescrita en la parte inferior,
+superior, lado de bisagras y lado de cerradura de una puerta interior cerrada.
+Está detrás de `closed_door_deformation_enabled`, apagado por defecto y
+dependiente de `pressure_network_solver_enabled`. No depende de D1: puede
+funcionar sola o sumar sus áreas a la fuga fría antes de que la única ley de
+grieta y el único aplicador atómico actúen.
+
+No se ha introducido una segunda física de presión ni una segunda fórmula de
+caudal. El adaptador solo traduce el resultado geométrico del modelo puro a los
+elementos existentes, con el tiempo autoritativo de simulación y cotas
+absolutas. `thermal_gap_fraction`, `effective_open_fraction()` y la heurística
+térmica histórica siguen fuera de la red para evitar doble conteo.
+
+La integración queda protegida por 41 comprobaciones del validador, 77 pruebas
+relacionadas y 17/17 mutaciones válidas muertas. En una campaña de 7 200 pasos
+no hubo ningún paso sin aplicar. Las áreas prescritas y los resultados son
+diagnósticos sin calibrar; las diferencias de presión alcanzaron 5,5-5,8 kPa,
+muy por encima del dominio experimental. D3 y D4 siguen pendientes.
+
+El cierre completo conserva **346/346** comprobaciones de referencia y los
+mismos 78 gaps documentados, con todos los guardarraíles científicos en verde.
+La suite global cierra **2.855 passed, 4 skipped y 42 subtests**, y producto
+**151/151**.
