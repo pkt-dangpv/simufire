@@ -222,6 +222,9 @@ OUT_OF_RUNTIME_SCOPE = {
     # F2.2D2: deformacion prescrita de puerta cerrada dentro de la red. Fisica
     # viva, separada de D1 y todavia no activada en escenarios distribuidos.
     "closed_door_deformation_enabled",
+    # F2.2D3: desprendimiento prescrito de vidrio dentro de la red. Fisica viva,
+    # sin ley termica/probabilista ni activacion en escenarios distribuidos.
+    "glazing_fallout_enabled",
     # F2.2-R3: fuga de envolvente exterior cerrada. Fisica viva, fuera del
     # alcance P1R4, igual que las dos anteriores: la enciende el escenario y
     # depende de la red autoritativa. Su activacion en escenarios distribuidos
@@ -238,7 +241,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 80
+EXPECTED_DECLARATION_COUNT = 81
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

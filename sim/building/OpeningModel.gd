@@ -59,6 +59,14 @@ var leakage_area_override_m2: float = -1.0
 # temperatura en hueco, no cambian `open_fraction` y no se persisten todavia en
 # los escenarios distribuidos. D4 decidira su interfaz de producto.
 var deformation_tracks: Array = []
+# F2.2D3: paños prescritos y su geometria espacial, ambos runtime. Cada panel
+# conserva el contrato puro 3A y anade `host_x_m`, su posicion horizontal
+# dentro del hueco. `sill_z_m` es local a la base de la abertura. La entrada
+# espacial correspondiente vive en `glazing_spatial` como instantaneas
+# prescritas `{time_s, leaves}` y se empareja por id exacto. D4 decidira
+# serializacion/editor y la activacion de producto.
+var glazing_panels: Array = []
+var glazing_spatial: Array = []
 var open_fraction: float = 1.0    # 0..1
 var opening_index: int = -1
 var wall_side: String = ""

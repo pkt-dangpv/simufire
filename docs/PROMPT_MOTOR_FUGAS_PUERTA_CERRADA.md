@@ -1,7 +1,7 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-20): fases 1, 2, 3A y 3B cerradas; F2.2C, F2.2D1 y
-> F2.2D2 integradas detrás de interruptores apagados por defecto.**
+> **Estado (2026-09-21): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
+> integradas detrás de interruptores apagados por defecto.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -30,13 +30,15 @@
 >   desde el 2026-09-18** detrás de `closed_door_leakage_enabled`, apagado por
 >   defecto y dependiente del interruptor de la red. **D2 está integrada desde
 >   el 2026-09-20** detrás de `closed_door_deformation_enabled`, también apagado
->   por defecto y dependiente de la red; D1 y D2 son independientes.
+>   por defecto y dependiente de la red. **D3 está integrada desde el
+>   2026-09-21** detrás de `glazing_fallout_enabled`, también apagado por
+>   defecto y dependiente de la red. D1, D2 y D3 son independientes.
 > - **Qué está y qué no está integrado.** La fuga fría de puerta cerrada sí lo
 >   está, por la red de presión. La **deformación prescrita (D2) también**; el
->   **vidrio (D3) no**, y el modelo térmico y el probabilista del vidrio
->   **siguen sin existir**. Ningún escenario normal enciende la fuga: hay que
->   pedir explícitamente los interruptores y declarar la clase o las pistas en
->   la carpintería.
+>   **desprendimiento prescrito de vidrio (D3) también**. Los modelos térmico y
+>   probabilista de rotura **siguen sin existir**: D3 no decide cuándo rompe el
+>   vidrio. Ningún escenario normal enciende estas rutas: hay que pedir
+>   explícitamente los interruptores y declarar clases, pistas o historias.
 >   La ELA, el reparto por cotas y el exponente siguen siendo **provisionales**
 >   (§7), pendientes de la calibración de D4.
 >
@@ -1001,8 +1003,9 @@ una hoja está abierta y otra intacta, ni cuando todas tienen pérdida parcial.
 
 ### 14.8 Lo que queda para la fase 3B y después
 
-*Nota (2026-09-17): la geometría de la fase 3B ya está implementada (§15).
-Convertirla en aberturas del solver sigue pendiente y exige F2.2.*
+*Nota actualizada (2026-09-21): la geometría de 3B está implementada (§15) y
+D3 ya la convierte en aberturas del solver (§19). Siguen fuera el modelo
+térmico/probabilista, la persistencia, el editor y la activación de producto.*
 
 - **Fase 3B**: regiones desprendidas **explícitas** por hoja (rectángulos o
   máscaras en coordenadas del paño), su **intersección** entre hojas para
@@ -1275,8 +1278,8 @@ compute_open_geometry(integrity_snapshot, spatial) -> {valid, errors, panel_id,
 > fría** ya no es un modelo suelto: es un elemento más de la red autoritativa de
 > presión, detrás de `closed_door_leakage_enabled`, apagado por defecto y
 > dependiente de `pressure_network_solver_enabled`. Este estado histórico de D1
-> fue ampliado por D2 el 2026-09-20 (§18); el vidrio (D3) y la calibración de
-> las clases (D4) **siguen fuera**.
+> fue ampliado por D2 el 2026-09-20 (§18) y por D3 el 2026-09-21 (§19); la
+> calibración y activación de producto (D4) **siguen fuera**.
 
 ### 16.1 El reparto de F2.2D en cuatro
 
@@ -1287,7 +1290,7 @@ evidencias distintas. Se separan para poder cerrarlos de uno en uno:
 |---|---|---|
 | **D1** | fuga **fría** permanente de puerta cerrada (rendijas ELA) | **cerrada (2026-09-18)** |
 | **D2** | deformación prescrita de puerta caliente (`ClosedDoorDeformationModel`) | **cerrada (2026-09-20)** |
-| **D3** | paños acristalados (`GlazingIntegrityModel` + `GlazingOpeningGeometryModel`) | sin integrar |
+| **D3** | paños acristalados (`GlazingIntegrityModel` + `GlazingOpeningGeometryModel`) | **cerrada (2026-09-21)** |
 | **D4** | calibración de clases de ELA, reparto por cotas y exponente | sin hacer |
 
 A esos cuatro hay que añadir uno que **no estaba en el reparto** y que las
@@ -1696,7 +1699,8 @@ siendo una sola mutación, porque el comportamiento que rompen es uno solo.
 
 - La **deformación** era trabajo de D2 en el cierre histórico de D1; quedó
   integrada el 2026-09-20 (§18). `thermal_gap_fraction` sigue fuera de la red.
-- El **vidrio** (D3), y sus modelos térmico y probabilista, que no existen.
+- El cierre histórico de D1 dejaba fuera el **vidrio**; D3 quedó integrada el
+  2026-09-21 (§19). Siguen sin existir sus modelos térmico y probabilista.
 - La **calibración** (D4): ELA, reparto por cotas y exponente siguen siendo
   provisionales, y con ellos la regularización de §16.14.
 - La **fuga de envolvente**: una rendija contra el exterior se rechaza. D1 es
@@ -1889,8 +1893,8 @@ tiempo, el solver y el transporte están conectados; **no autorizan calibración
 - No existe todavía una relación temperatura-tiempo-deformación defendible, ni
   una respuesta automática al calentamiento o al enfriamiento.
 - Ningún escenario normal ni el editor activa o serializa D2.
-- El siguiente trabajo es **D3**, integración de la geometría de vidrio ya
-  modelada. Después viene **D4**, calibración y activación conjunta.
+- **D3 quedó cerrada el 2026-09-21** (§19). El siguiente trabajo es **D4**:
+  calibración, persistencia, editor y activación conjunta.
 
 ### 18.5 Cierre de verificación
 
@@ -1900,3 +1904,89 @@ tiempo, el solver y el transporte están conectados; **no autorizan calibración
 - Suite Python global: **2.855 passed**, **4 skipped**, **42 subtests passed**.
 - `check_product.py`: **151/151**.
 - Al terminar no quedaba ningún proceso Godot activo.
+
+## 19. F2.2D3: desprendimiento prescrito de vidrio integrado en la red (2026-09-21)
+
+> **Estado: cerrada.** D3 conecta los estados prescritos de 3A y la geometría
+> exacta multicapa de 3B con la red autoritativa. No predice rotura por
+> temperatura, no usa probabilidad y no activa esta física en el producto.
+
+### 19.1 Contrato y arquitectura
+
+- `glazing_fallout_enabled` está apagado por defecto y exige
+  `pressure_network_solver_enabled`; pedir D3 sin la red falla explícitamente.
+- `OpeningModel.glazing_panels` y `glazing_spatial` son datos de ejecución, no
+  persistidos. Cada historial espacial empieza en 0 s y selecciona la última
+  instantánea anterior o igual al `sim_time_s` autoritativo.
+- `GlazingFalloutNetworkAdapter` llama primero a `GlazingIntegrityModel` y
+  después a `GlazingOpeningGeometryModel`. No copia la intersección geométrica
+  ni contiene una segunda ley de caudal.
+- Cada rectángulo libre se entrega como `large_opening`, con su ancho, alto y
+  cota absolutos, `open_fraction = 1` y el `Cd = 0,61` ya usado por las
+  aberturas grandes. El solver conserva la propiedad de Bernoulli, el plano
+  neutro, el contraflujo y el transporte atómico.
+- En vidrio multicapa solo ventila la intersección espacial realmente libre a
+  través de todas las hojas. `CRACKED` sigue dando área cero.
+- Una puerta o ventana operativamente abierta aporta solo su vano completo; el
+  vidrio se valida pero no se suma. D3 puede coexistir con D1/D2 en puertas y
+  con R3 en marcos exteriores cerrados sin sustituir esas rutas.
+- En fachada, el viento se aplica una vez y a la altura real del centro de cada
+  rectángulo desprendido.
+
+### 19.2 Validación funcional y mutaciones
+
+El validador cubre estados `CRACKED`, `PARTIAL_FALLOUT` y `OPEN`, geometría
+absoluta, multicapa alineada y desalineada, límites del hueco anfitrión,
+paneles solapados, exclusividad operativa, coexistencia con fuga de marco,
+transporte conservativo de humo, viento, tiempo no finito y cableado del motor.
+
+La campaña mata **24 de 24 mutaciones válidas** y restaura los archivos byte a
+byte. Entre ellas: interruptor encendido por defecto, dependencia de la red
+silenciada, reloj congelado, resultado inválido aceptado, viento omitido,
+doble conteo al abrir el vano, cota o umbral perdidos, ancho/alto incorrectos,
+clase de flujo equivocada, solape aceptado e instantánea espacial obsoleta.
+
+### 19.3 Medición diagnóstica de 600 s
+
+Caso de dos recintos sin fuego, con un panel de 0,60 x 1,00 m y un estado
+inicial deliberadamente presurizado. Son medidas de integración, **no una
+calibración ni una predicción de cuándo se rompe el vidrio**:
+
+| variante | pico de presión (Pa) | caudal de pico (kg/s) | humo receptor (g) | pasos rechazados |
+|---|---:|---:|---:|---:|
+| D3 apagada | 16 485,57 | 0,000 | 0,000 | 0/7 200 |
+| `CRACKED` | 16 485,57 | 0,000 | 0,000 | 0/7 200 |
+| `PARTIAL_FALLOUT`, 0,30 m² | 12 376,66 | 1,723 | 45,324 | 0/7 200 |
+| `OPEN`, 0,60 m² | 10 446,33 | 2,456 | 46,386 | 0/7 200 |
+| vano operativo abierto, 2,40 m² | 8 457,02 | 2,315 | 100,084 | 0/7 200 |
+
+OFF y `CRACKED` son idénticos. Todos los casos conservan la masa total dentro
+de 2,9e-14 kg y el humo dentro de 4,8e-16 kg. La distribución final de masa y
+humo no tiene por qué ser monótona con el área: una abertura grande admite
+contraflujo por altura; el pico de caudal tampoco es una medida de flujo neto.
+
+### 19.4 Límites y siguiente fase
+
+- La historia de integridad y las regiones desprendidas se prescriben; no hay
+  acoplamiento temperatura-tiempo-rotura, impacto, agua ni azar.
+- Tipo de vidrio, espesor, marco y protección de borde conservan procedencia,
+  pero todavía no deciden automáticamente el fallo.
+- No hay serialización, controles de editor, activación en escenarios normales
+  ni efectos visuales.
+- El tamaño y posición del panel se validan dentro del hueco anfitrión, pero la
+  campaña no calibra un producto de carpintería real.
+- El siguiente trabajo es **D4**, con calibración, contrato persistente,
+  editor, activación controlada y criterios publicables.
+
+### 19.5 Cierre de verificación
+
+- Campaña dedicada: **24/24 mutaciones válidas muertas**, con restauración
+  byte a byte.
+- Suite de referencia: **346/346 required PASS**, con los mismos **78 gaps**
+  documentados; en `reference_checks.json` solo cambia `generated_at`.
+- Guardarraíles científicos: **ALL PASS**.
+- `check_product.py`: **152/152**.
+- Suite Python global autoritativa (`tests/`): **2.867 passed**, **4 skipped**
+  y **42 subtests passed**.
+- Las ejecuciones finales se hicieron bajo el monitor de procesos: cero cuadros
+  de error y cero procesos Godot residuales.

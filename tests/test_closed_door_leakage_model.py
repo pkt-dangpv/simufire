@@ -54,6 +54,10 @@ ALLOWED_REFERENCES = {
     # with the cold segments, then delegates to this same canonical crack law.
     Path("sim/core/ClosedDoorDeformationNetworkAdapter.gd"),
     Path("tools/validate_closed_door_deformation_network.gd"),
+    # F2.2D3 (2026-09-21): su validador enciende D1 junto al vidrio para
+    # demostrar que ambas rutas coexisten sin sustituirse ni duplicarse. No es
+    # un consumidor nuevo del motor; la referencia queda limitada al fixture.
+    Path("tools/validate_glazing_fallout_network.gd"),
     # La carpinteria declara su clase, y su comentario nombra la tabla canonica.
     Path("sim/building/OpeningModel.gd"),
     # El auditor clasifica el interruptor `closed_door_leakage_enabled`.

@@ -1,5 +1,35 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-21 - prescribed glazing fallout (F2.2D3)
+
+- D3 is integrated locally behind `glazing_fallout_enabled`, default OFF and
+  explicitly dependent on the authoritative pressure network. No push has been
+  made in this phase.
+- The integration consumes the already validated 3A integrity histories and
+  3B multilayer free-path geometry. It does not add thermal or probabilistic
+  breakage, does not mutate `open_fraction`, and does not connect the legacy
+  `GlassFailureSystem`.
+- Each free rectangle becomes a canonical `large_opening` at its absolute
+  height. Exterior wind is applied once at the rectangle centre; pressure,
+  flow and atomic mass/energy/O2/smoke/species transport remain owned by the
+  existing network.
+- Operationally open doors/windows exclude glass elements. D3 can coexist with
+  D1/D2 frame cracks and R3 exterior-frame leakage without replacing them.
+- Dedicated verification passes 12 D3 pytest tests and 24/24 valid mutations,
+  with byte-for-byte restoration after the campaign.
+- A five-variant, 600 s diagnostic had 0/7,200 rejected steps in every case.
+  OFF and CRACKED were identical. Peak pressure was 16.49 kPa OFF/CRACKED,
+  12.38 kPa PARTIAL, 10.45 kPa OPEN glass and 8.46 kPa for the full operational
+  opening. Total mass and smoke closed at numerical precision.
+- Remaining scope is D4: calibration, persistence, editor/product activation
+  and publishable acceptance criteria. Thermal/probabilistic glass failure also
+  remains unimplemented.
+- Final verification is green: reference suite **346/346** with the same **78**
+  documented gaps (only `generated_at` changed), all scientific guardrails
+  pass, `check_product.py` is **152/152**, and the authoritative global Python
+  suite is **2,867 passed**, **4 skipped**, **42 subtests passed**. The monitored
+  runs ended with no error dialogs and no residual Godot processes.
+
 ## Current Program Update - 2026-09-20 - prescribed closed-door deformation (F2.2D2)
 
 - Checkpoint: `main` at `031cd5c0`. Work remains local and **has not been
@@ -34,7 +64,8 @@
   documented gaps (only `generated_at` changed), all scientific guardrails
   pass, global Python suite **2,855 passed**, **4 skipped**, **42 subtests
   passed**, and `check_product.py` **151/151**. No Godot process remained.
-- Still pending: D3 glazing integration, then D4 calibration and activation.
+- Historical note: D3 was still pending at this checkpoint. It closed on
+  2026-09-21 in the update above; D4 remains.
 
 ## Current Program Update - 2026-09-19 - exterior envelope leakage
 

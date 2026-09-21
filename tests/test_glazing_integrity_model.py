@@ -1,9 +1,4 @@
-"""Prescribed glazing integrity (phase 3A): pure model contract and runtime tests.
-
-The model only tracks, leaf by leaf, the prescribed integrity state and fallout
-fraction. It produces no openings or flows, and nothing in the engine, the
-editor, the view or the scenarios loads it.
-"""
+"""Prescribed glazing integrity (phase 3A): pure-model and consumer contracts."""
 
 from __future__ import annotations
 
@@ -42,6 +37,11 @@ ALLOWED_REFERENCES = {
     # Phase 3B validator: builds its snapshots with this model, still outside the engine.
     Path("tools/validate_glazing_opening_geometry_model.gd"),
     Path("tests/test_glazing_opening_geometry_model.py"),
+    # F2.2D3: exact declared integration path. The adapter consumes 3A and 3B;
+    # the validator and static suite protect that path.
+    Path("sim/core/GlazingFalloutNetworkAdapter.gd"),
+    Path("tools/validate_glazing_fallout_network.gd"),
+    Path("tests/test_glazing_fallout_network.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}
@@ -124,7 +124,7 @@ def test_panel_metadata_is_validated_but_inert():
     assert '"diagnostic_only": true' in summary
 
 
-def test_model_is_not_integrated_anywhere():
+def test_model_has_only_its_declared_consumers():
     offenders = []
     for folder in SCANNED_FOLDERS:
         base = ROOT / folder
@@ -145,7 +145,7 @@ def test_model_is_not_integrated_anywhere():
     project = (ROOT / "project.godot").read_text(encoding="utf-8", errors="ignore")
     assert "GlazingIntegrityModel" not in project
     engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
-    assert "glazing" not in engine.lower()
+    assert "GlazingIntegrityModel" not in engine
 
 
 def _run_validator(dump_path: Path | None = None):

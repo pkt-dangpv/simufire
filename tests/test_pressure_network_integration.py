@@ -62,9 +62,9 @@ def test_single_flag_is_declared_off_by_default():
         assert forbidden not in ENGINE, forbidden
     auditor = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
     assert f'"{FLAG}"' in auditor
-    # F2.2D1, R3 y F2.2D2 anaden tres capacidades vivas:
-    # 77 -> 78 -> 79 -> 80.
-    assert "EXPECTED_DECLARATION_COUNT = 80" in auditor
+    # F2.2D1, R3, D2 y D3 anaden cuatro capacidades vivas:
+    # 77 -> 78 -> 79 -> 80 -> 81.
+    assert "EXPECTED_DECLARATION_COUNT = 81" in auditor
 
 
 def test_no_distributed_scenario_turns_the_flag_on():

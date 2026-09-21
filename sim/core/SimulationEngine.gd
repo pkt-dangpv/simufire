@@ -907,6 +907,10 @@ var _step_time_us: int = 0
 ## cerradas. No depende de D1, pero si de la red autoritativa. No lee
 ## temperatura ni reutiliza `thermal_gap_fraction`.
 @export var closed_door_deformation_enabled: bool = false
+## F2.2D3: estados y regiones de vidrio prescritos convertidos en aberturas
+## grandes de la red. Independiente del GlassFailureSystem heredado; no cambia
+## `open_fraction` ni activa una ley termica o probabilista.
+@export var glazing_fallout_enabled: bool = false
 ## F2.2-R3: fuga de envolvente exterior cerrada dentro de la red autoritativa.
 ## Apagado por defecto y dependiente del interruptor de la red, como D1: una
 ## ventana exterior cerrada solo puede fugar si hay quien resuelva su presion.
@@ -1446,6 +1450,8 @@ func _sync_auxiliary_services() -> void:
 			closed_door_leakage_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.closed_door_deformation_enabled = \
 			closed_door_deformation_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.glazing_fallout_enabled = \
+			glazing_fallout_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.exterior_envelope_leakage_enabled = \
 			exterior_envelope_leakage_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.exterior_envelope_leakage_area_m2 = \
@@ -1474,6 +1480,7 @@ func _sync_auxiliary_services() -> void:
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"closed_door_deformation_enabled": closed_door_deformation_enabled,
+		"glazing_fallout_enabled": glazing_fallout_enabled,
 		"exterior_envelope_leakage_enabled": exterior_envelope_leakage_enabled,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
 		"ach_infiltration": ach_infiltration,
@@ -3938,6 +3945,11 @@ func _step_gas_exchange(dt: float) -> void:
 		push_error(
 			"closed_door_deformation_enabled requires pressure_network_solver_enabled"
 		)
+	if glazing_fallout_enabled and not pressure_network_solver_enabled:
+		pressure_network_failure = "glazing_fallout_requires_pressure_network"
+		push_error(
+			"glazing_fallout_enabled requires pressure_network_solver_enabled"
+		)
 	if exterior_envelope_leakage_enabled and not pressure_network_solver_enabled:
 		# F2.2-R3: mismo criterio. La fuga de envolvente vive DENTRO del residuo
 		# del solver; sin red no hay donde ponerla, y reactivar la purga
@@ -3986,6 +3998,8 @@ func _step_pressure_network_transport(dt: float) -> void:
 			closed_door_leakage_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.closed_door_deformation_enabled = \
 			closed_door_deformation_enabled and pressure_network_solver_enabled
+	pressure_network_transport_system.glazing_fallout_enabled = \
+			glazing_fallout_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.exterior_envelope_leakage_enabled = \
 			exterior_envelope_leakage_enabled and pressure_network_solver_enabled
 	pressure_network_transport_system.exterior_envelope_leakage_area_m2 = \

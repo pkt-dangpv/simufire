@@ -1,6 +1,6 @@
 # Diagnóstico y diseño: sobrepresión de recintos cerrados (F2.2)
 
-> **Estado actualizado (2026-09-20): F2.2-DIAG, A, B, C, D1 y D2 cerradas.**
+> **Estado actualizado (2026-09-21): F2.2-DIAG, A, B, C y D1-D3 cerradas.**
 >
 > `F2.2-DIAG` es **esta fase documental**. Las etapas de implementación son
 > `F2.2A` (ecuaciones locales puras), `F2.2B` (solver acoplado de red), `F2.2C`
@@ -17,10 +17,10 @@
 >   paso real del motor, detrás del interruptor único
 >   `pressure_network_solver_enabled`, **apagado por defecto**. Ningún escenario
 >   distribuido lo enciende.
-> - **F2.2D1** integra la fuga fría desde el 2026-09-18 y **F2.2D2** integra la
->   deformación prescrita desde el 2026-09-20. Ambas exigen la red y están
->   apagadas por defecto. El vidrio (D3) y la calibración/activación (D4) siguen
->   pendientes.
+> - **F2.2D1** integra la fuga fría desde el 2026-09-18, **F2.2D2** la
+>   deformación prescrita desde el 2026-09-20 y **F2.2D3** el desprendimiento
+>   prescrito de vidrio desde el 2026-09-21. Las tres exigen la red y están
+>   apagadas por defecto. Solo D4 (calibración/activación) sigue pendiente.
 > - Las frases históricas posteriores que describen A, B o los modelos puros
 >   como «sin integrar» deben leerse en su fecha; §§16, 18, 20 y 21 las
 >   superseden.
@@ -1398,9 +1398,9 @@ Lo que sigue sin implementar:
 - **F2.2D2 está cerrada (2026-09-20)**: la deformación prescrita de puerta
   caliente entra como segmentos ELA propios. No reutiliza
   `effective_open_fraction()` ni `thermal_gap_fraction`; véase §21.
-- **F2.2D3**: el vidrio (`GlazingIntegrityModel`, `GlazingOpeningGeometryModel`)
-  tampoco está conectado, y su modelo térmico y su modelo probabilista **no
-  existen**.
+- **F2.2D3 está cerrada (2026-09-21)**: conecta el vidrio prescrito
+  (`GlazingIntegrityModel`, `GlazingOpeningGeometryModel`) con aberturas grandes
+  de la red; véase §22. Sus modelos térmico y probabilista **no existen**.
 - **F2.2D4**: la calibración de las clases de ELA, del reparto por cotas y del
   exponente. Los tres valores de D1 son **provisionales**.
 - La corrección de la purga por fracción de hollín (RC-4), abierta desde
@@ -1623,7 +1623,8 @@ Ninguna se ha tocado en esta fase, y **no deben mezclarse** con ella:
 
 El orden de trabajo era R2, después R3 y solo entonces D2/D3/D4. **R2 está
 cerrada** (§18), **R3 también** (§20) y **D2 se cerró el 2026-09-20** (§21).
-Quedan D3 y D4.
+Quedaban D3 y D4 en este checkpoint histórico. **D3 está cerrada desde el
+2026-09-21 (§22); queda D4.**
 
 ## 18. F2.2-R2-MASS: la masa zonal es estado conservado (2026-09-19)
 
@@ -2138,8 +2139,8 @@ Conviene dejarlos escritos, porque los dos habrían pasado inadvertidos:
   de suelo, con `Cd` 0,7. Es referencia de orden de magnitud y topología, **no
   autorización para recalibrar**.
 - R3 **no** se activa todavía en los escenarios distribuidos con el editor.
-- **D2 se cerró el 2026-09-20** (§21). D3 (vidrio) y D4 (activación y
-  calibración) no se han iniciado.
+- **D2 se cerró el 2026-09-20** (§21) y **D3 el 2026-09-21** (§22). D4
+  (calibración y activación) no se ha iniciado.
 
 ### 20.8 Cierre de verificación
 
@@ -2172,9 +2173,41 @@ La integración queda protegida por 41 comprobaciones del validador, 77 pruebas
 relacionadas y 17/17 mutaciones válidas muertas. En una campaña de 7 200 pasos
 no hubo ningún paso sin aplicar. Las áreas prescritas y los resultados son
 diagnósticos sin calibrar; las diferencias de presión alcanzaron 5,5-5,8 kPa,
-muy por encima del dominio experimental. D3 y D4 siguen pendientes.
+muy por encima del dominio experimental. D3 quedó cerrada el 2026-09-21;
+queda D4.
 
 El cierre completo conserva **346/346** comprobaciones de referencia y los
 mismos 78 gaps documentados, con todos los guardarraíles científicos en verde.
 La suite global cierra **2.855 passed, 4 skipped y 42 subtests**, y producto
 **151/151**.
+
+## 22. F2.2D3: conexión del vidrio prescrito (2026-09-21)
+
+> **Estado: cerrada.** El diseño completo, las medidas y las limitaciones están
+> en `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §19.
+
+D3 traduce la salida prescrita de integridad y la intersección geométrica
+multicapa a elementos `large_opening` de la red autoritativa. Está detrás de
+`glazing_fallout_enabled`, apagado por defecto y dependiente de
+`pressure_network_solver_enabled`. No introduce otra ecuación de caudal ni
+modifica `open_fraction`; el vano operativo abierto excluye la ruta de vidrio.
+
+El adaptador valida paneles, historias espaciales, colocación y solapes, usa el
+tiempo autoritativo, conserva cotas absolutas y aplica el viento exterior una
+sola vez a la altura de cada rectángulo. El solver y el aplicador atómico siguen
+siendo los únicos propietarios de presión, caudal y transporte.
+
+La campaña dedicada mata **24/24 mutaciones**. En 5 corridas de 600 s no hubo
+pasos rechazados; OFF y `CRACKED` fueron idénticos, y los picos bajaron de
+16,49 kPa a 12,38 kPa (parcial), 10,45 kPa (panel abierto) y 8,46 kPa (vano
+operativo completo). Masa y humo se conservaron a precisión numérica.
+
+D3 sigue siendo prescripción, no predicción: no hay ley térmica o probabilista
+de rotura, persistencia, editor ni activación en escenarios normales. Eso,
+junto con la calibración de D1/D2 y del producto de vidrio, pertenece a D4.
+
+El cierre completo de D3 deja **24/24 mutaciones válidas muertas**, referencia
+**346/346** con los mismos **78 gaps** y solo `generated_at` modificado,
+guardarraíles científicos en verde, producto **152/152** y suite Python global
+**2.867 passed, 4 skipped y 42 subtests passed**. El monitor no detectó cuadros
+de error ni procesos Godot residuales.

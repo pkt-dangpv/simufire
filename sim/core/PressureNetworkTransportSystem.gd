@@ -59,6 +59,8 @@ const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 const LeakageAdapterScript = preload("res://sim/core/ClosedDoorLeakageNetworkAdapter.gd")
 ## F2.2D2: combina las pistas prescritas con D1 sin crear otra ley de flujo.
 const DeformationAdapterScript = preload("res://sim/core/ClosedDoorDeformationNetworkAdapter.gd")
+## F2.2D3: convierte el camino libre multicapa en aberturas grandes.
+const GlazingAdapterScript = preload("res://sim/core/GlazingFalloutNetworkAdapter.gd")
 const EnvelopeAdapterScript = preload("res://sim/core/ExteriorEnvelopeLeakageAdapter.gd")
 const WindModelScript = preload("res://sim/core/ExteriorWindPressureModel.gd")
 
@@ -97,6 +99,10 @@ var closed_door_leakage_enabled: bool = false
 ## F2.2D2: huecos ELA adicionales de deformacion prescrita. Independiente de
 ## D1, falso por defecto y gobernado por el motor.
 var closed_door_deformation_enabled: bool = false
+
+## F2.2D3: desprendimiento prescrito de vidrio. Falso por defecto; no conecta
+## el modelo termico/probabilista heredado ni modifica la apertura operativa.
+var glazing_fallout_enabled: bool = false
 
 ## F2.2-R3: fuga de envolvente exterior cerrada. Mismo contrato: falso por
 ## defecto y lo gobierna el motor, que ya exige la red para encenderlo.
@@ -181,6 +187,8 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 	var errors: Array[String] = []
 	if closed_door_deformation_enabled and not is_finite(time_s):
 		errors.append("closed-door deformation time_s must be finite")
+	if glazing_fallout_enabled and (not is_finite(time_s) or time_s < 0.0):
+		errors.append("glazing fallout time_s must be finite and >= 0")
 	var rooms: Dictionary = {}
 	var order: Array[String] = []
 	for raw_room_id in building.get_rooms().keys():
@@ -230,6 +238,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 	var cracks: Array = []
 	var shafts: Array = []
 	var envelopes: Array = []
+	var glazing_openings: Array = []
 	for opening in building.get_openings():
 		if opening == null:
 			continue
@@ -242,6 +251,29 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			continue
 		if b_key != EXTERIOR_ROOM_ID and not rooms.has(b_key):
 			continue
+		var anchor_floor_z_m: float = 0.0
+		if a_key != EXTERIOR_ROOM_ID:
+			anchor_floor_z_m = float(rooms[a_key]["floor_z_m"])
+		elif b_key != EXTERIOR_ROOM_ID:
+			anchor_floor_z_m = float(rooms[b_key]["floor_z_m"])
+		var glazing_elements: Array = []
+		if glazing_fallout_enabled and GlazingAdapterScript.has_declaration(opening):
+			var glazing: Dictionary = GlazingAdapterScript.build_opening_elements(
+				opening, BuildingModel.OUTSIDE_ID, anchor_floor_z_m,
+				a_key, b_key, time_s
+			)
+			if not bool(glazing["valid"]):
+				for error in glazing["errors"]:
+					errors.append("opening %d: %s" % [
+						int(opening.opening_index), String(error)
+					])
+				continue
+			glazing_elements = Array(glazing["elements"])
+			if a_key == EXTERIOR_ROOM_ID or b_key == EXTERIOR_ROOM_ID:
+				for element in glazing_elements:
+					element["wind_dp_pa"] = _glazing_wind_dp_pa(
+						opening, element, building
+					)
 		# F2.2D1: la fraccion OPERATIVA, sin `thermal_gap_fraction`. F2.2C usaba
 		# `effective_open_fraction()`, que suma la deformacion termica heredada y
 		# podia meter una puerta cerrada en la red como abertura grande. La
@@ -275,6 +307,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			var envelope: Dictionary = _envelope_element(opening, a_key, b_key, rooms, building)
 			if not envelope.is_empty():
 				envelopes.append(envelope)
+			glazing_openings.append_array(glazing_elements)
 			continue
 		# F2.2C-R1: un hueco de suelo/techo no es un vano. Sus dos recintos solo
 		# comparten el plano de la losa, y anclar el vano al suelo de `room_a`
@@ -284,11 +317,6 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 			if not shaft.is_empty():
 				shafts.append(shaft)
 			continue
-		var anchor_floor_z_m: float = 0.0
-		if a_key != EXTERIOR_ROOM_ID:
-			anchor_floor_z_m = float(rooms[a_key]["floor_z_m"])
-		elif b_key != EXTERIOR_ROOM_ID:
-			anchor_floor_z_m = float(rooms[b_key]["floor_z_m"])
 		openings.append({
 			# Identificador canonico: el indice de la abertura en el edificio.
 			# Unico, estable, determinista y trazable; dos puertas iguales entre
@@ -305,6 +333,7 @@ func build_snapshot(building, outside_override: Dictionary = {}, dt_s: float = 0
 	openings.append_array(cracks)
 	openings.append_array(shafts)
 	openings.append_array(envelopes)
+	openings.append_array(glazing_openings)
 	openings.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["opening_id"]) < String(right["opening_id"]))
 
@@ -417,6 +446,22 @@ func _envelope_wind_dp_pa(opening, floor_z_m: float, building) -> float:
 			+ float(opening.sill_m)
 			+ float(opening.height_m) * 0.5
 		)
+		speed_m_s = building.wind_speed_at_height_m_s(center_z_m)
+	return WindModelScript.wind_dp_pa(
+		String(opening.wall_side), float(building.wind_direction_deg), speed_m_s
+	)
+
+
+## Viento sobre un rectangulo de vidrio desprendido. La formula sigue teniendo
+## un unico propietario (`ExteriorWindPressureModel`); aqui solo se elige la
+## velocidad a la cota real del centro del rectangulo.
+func _glazing_wind_dp_pa(opening, element: Dictionary, building) -> float:
+	if not wind_effect_enabled or building == null:
+		return 0.0
+	var speed_m_s: float = float(building.wind_speed_m_s)
+	if building.wind_height_profile_enabled:
+		var center_z_m: float = float(building.building_base_z_m) \
+				+ 0.5 * (float(element["bottom_z_m"]) + float(element["top_z_m"]))
 		speed_m_s = building.wind_speed_at_height_m_s(center_z_m)
 	return WindModelScript.wind_dp_pa(
 		String(opening.wall_side), float(building.wind_direction_deg), speed_m_s

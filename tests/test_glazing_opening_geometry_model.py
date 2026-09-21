@@ -1,10 +1,4 @@
-"""Multilayer glazing opening geometry (phase 3B): pure model contract and runtime tests.
-
-The model turns a phase 3A integrity snapshot plus explicit fallen regions per
-leaf into the rectangles of the free path through every leaf. It produces
-geometry only (no flow), and nothing in the engine, the editor, the view or the
-scenarios loads it.
-"""
+"""Multilayer glazing geometry (phase 3B): pure-model and consumer contracts."""
 
 from __future__ import annotations
 
@@ -42,6 +36,10 @@ ALLOWED_REFERENCES = {
     Path("tests/test_glazing_opening_geometry_model.py"),
     # The phase 3A isolation test allow-lists the phase 3B validator by path.
     Path("tests/test_glazing_integrity_model.py"),
+    # F2.2D3: exact declared integration path.
+    Path("sim/core/GlazingFalloutNetworkAdapter.gd"),
+    Path("tools/validate_glazing_fallout_network.gd"),
+    Path("tests/test_glazing_fallout_network.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}
@@ -184,7 +182,7 @@ def test_identifiers_are_matched_and_returned_exactly():
         assert forbidden not in MODEL_CODE, forbidden
 
 
-def test_model_is_not_integrated_anywhere():
+def test_model_has_only_its_declared_consumers():
     offenders = []
     for folder in SCANNED_FOLDERS:
         base = ROOT / folder
@@ -206,7 +204,7 @@ def test_model_is_not_integrated_anywhere():
     assert "GlazingOpeningGeometryModel" not in project
     assert "glazing_opening_geometry" not in project
     engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
-    assert "glazing" not in engine.lower()
+    assert "GlazingOpeningGeometryModel" not in engine
 
 
 def _run_validator(dump_path: Path | None = None):

@@ -451,6 +451,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot deformacion prescrita de puerta cerrada: " + (diagnostic or "failed"))
 
+    # F2.2D3: los rectangulos libres coincidentes a traves de todas las hojas
+    # se integran como aberturas grandes, sin ley termica ni probabilista.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_glazing_fallout_network.gd",
+        "GLAZING FALLOUT NETWORK VALIDATION PASS",
+    )
+    rows.append(("Desprendimiento prescrito de vidrio en la red, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot desprendimiento prescrito de vidrio: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

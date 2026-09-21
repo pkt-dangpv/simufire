@@ -213,10 +213,29 @@ def test_the_wind_model_avoids_vector2_to_stay_bit_identical():
     assert ".dot(" not in code
 
 
-def test_the_wind_is_applied_once_and_only_to_the_envelope_element():
-    occurrences = re.findall(r'element\["wind_dp_pa"\] = ', TRANSPORT_SRC)
-    assert len(occurrences) == 1, occurrences
-    assert "_envelope_wind_dp_pa(opening, floor_z_m, building)" in TRANSPORT_SRC
+def test_each_exterior_path_applies_wind_exactly_once_to_its_own_element():
+    """R3 y D3 tienen elementos distintos y mutuamente exclusivos.
+
+    Cada ruta fija una sola vez el termino de viento, mientras que la formula
+    sigue teniendo un unico propietario en ``ExteriorWindPressureModel``.
+    """
+    assignments = re.findall(r'element\["wind_dp_pa"\] = ', TRANSPORT_SRC)
+    assert len(assignments) == 2, assignments
+    assert TRANSPORT_SRC.count(
+        "_envelope_wind_dp_pa(opening, floor_z_m, building)"
+    ) == 1
+    assert TRANSPORT_SRC.count(
+        'element["wind_dp_pa"] = _glazing_wind_dp_pa('
+    ) == 1
+
+    envelope_block = TRANSPORT_SRC.split("func _envelope_element", 1)[1]
+    envelope_block = envelope_block.split("\nfunc ", 1)[0]
+    glazing_build = TRANSPORT_SRC.split(
+        "if glazing_fallout_enabled and GlazingAdapterScript.has_declaration(opening):",
+        1,
+    )[1].split("# F2.2D1:", 1)[0]
+    assert envelope_block.count('element["wind_dp_pa"] = ') == 1
+    assert glazing_build.count('element["wind_dp_pa"] = ') == 1
 
 
 def test_the_exterior_reference_datum_is_propagated():
