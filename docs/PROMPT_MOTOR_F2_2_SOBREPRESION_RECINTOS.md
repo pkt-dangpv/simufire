@@ -2309,3 +2309,47 @@ cinco validadores de D1, D2, D3, D4A y R3 intactos.
 
 Queda **D4B2**: editor, política de producto, persistencia de perfiles de
 deformación y vidrio, y activación controlada.
+
+## 25. F2.2D4B2A: configuración de perfiles desde el editor (2026-09-22)
+
+> **Estado: cerrada la configuración, no la activación.** El detalle, la
+> política de selección y las migraciones están en
+> `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §22.
+
+D4B2A no toca la red de presión ni ninguna ley. Conecta el catálogo de D4B1 al
+editor: una ficha nueva en las propiedades de la abertura enseña los perfiles
+que encajan con ella, su clasificación científica en texto, su dominio, su
+fuente, sus advertencias y sus parámetros efectivos congelados, y permite
+elegir uno o quitarlo.
+
+La política de selección vive en `sim/building/OpeningProfileSelection.gd`,
+junto al catálogo, para que la interfaz no duplique los estados de evidencia; la
+compatibilidad entre categoría y abertura la pone el catálogo, leída de los
+adaptadores del motor. El editor solo pinta y pide: `ScenarioDocument` escribe,
+con su paso de deshacer.
+
+El esquema persistente sube a **3** con dos ranuras nuevas de procedencia,
+`deformation_profile` y `glazing_profile`. A diferencia de las dos de D4B1, no
+aportan ningún número al motor: D2 y D3 son prescripción y las magnitudes las
+escribe el escenario. La marca sube al mínimo que exige el contenido y nunca
+baja, de modo que un escenario de esquema 1 o 2 sigue cargando y, sin perfiles
+nuevos, se vuelve a guardar con su marca de siempre sin ganar ni una clave.
+
+**Configurar no es activar, y está medido:** con los cuatro interruptores
+apagados y dos aberturas configuradas, la red no emite ningún elemento de
+rendija, de vidrio ni de envolvente. Ningún fichero del editor nombra un
+interruptor, ninguno toca `open_fraction`, y los quince perfiles siguen con
+`product_activation = false`.
+
+Verificación: **859 comprobaciones** del validador dedicado, **22 pruebas**
+Python, y los guardarraíles de escena intactos —UI del editor 100 % en escena y
+127 controles con explicación, unidad, foco de teclado y tildes—.
+
+El cierre completo deja **18/18 mutaciones válidas muertas**, referencia
+**346/346** con los mismos **78 gaps** y solo `generated_at` actualizado,
+guardarraíles científicos **ALL PASS**, producto **155/155** y suite global
+**2.922 passed, 4 skipped y 42 subtests passed**. El monitor no detectó
+cuadros de error ni procesos Godot residuales.
+
+Queda **D4B2B**: decidir si algún perfil puede encenderse en producto, con qué
+criterio, y el mando que lo haga.

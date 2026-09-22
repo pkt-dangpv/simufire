@@ -238,7 +238,11 @@ func _test_03_evidence_and_product_gate() -> void:
 
 func _test_04_profile_round_trip() -> void:
 	var path: String = WORK_DIR + "/profile_round_trip.json"
-	var source: Dictionary = _editor_data(true, true)
+	# F2.2D4B2A anadio la regla de compatibilidad: una fuga de MARCO no encaja
+	# en una puerta interior, porque R3 es de envolvente exterior. El fixture
+	# pasa a llevar solo el perfil de fuga fria, que es el que si le toca; la
+	# fuga de marco se comprueba en su sitio, sobre la ventana del grupo 07.
+	var source: Dictionary = _editor_data(true, false)
 	_check(Serializer.save_scenario(path, source), "04 the scenario could not be saved")
 	var loaded: Dictionary = Serializer.load_scenario(path)
 	var door: Dictionary = Array(loaded["openings_data"])[0]
@@ -275,8 +279,8 @@ func _test_04_profile_round_trip() -> void:
 		_check(String(opening.leakage_profile_ref)
 				== "door.interior.not_weatherstripped.ashrae2001@1",
 				"04 the profile provenance was lost")
-		_check(float(opening.frame_leakage_area_m2) == 0.005,
-				"04 the engine did not receive the frozen frame area")
+		_check(float(opening.frame_leakage_area_m2) == -1.0,
+				"04 an interior door received a frame leakage area")
 		# La fisica sale de la COPIA, no de una consulta al catalogo en caliente.
 		_check(float(opening.leakage_area_override_m2)
 				== float(Dictionary(Catalog.find(
@@ -447,6 +451,14 @@ func _test_07_frame_leakage_precedence() -> void:
 		var transport = TransportScript.new()
 		transport.exterior_envelope_leakage_enabled = true
 		transport.exterior_envelope_leakage_area_m2 = global_area_m2
+		if declares_own:
+			var openings: Array = building.get_openings()
+			if openings.size() == 1:
+				_check(float(openings[0].frame_leakage_area_m2) == own_area_m2,
+						"07 the engine did not receive the frozen frame area")
+				_check(String(openings[0].frame_leakage_profile_ref)
+						== "frame.exterior.window.legacy_engine_value@1",
+						"07 the frame profile provenance was lost")
 		var snapshot: Dictionary = transport.build_snapshot(building, {}, 0.25, 0.0)
 		_check(bool(snapshot["valid"]), "07 the snapshot is invalid")
 		var areas: Array = []
@@ -699,10 +711,18 @@ func _test_11_no_new_formula_and_no_editor_consumer() -> void:
 	]:
 		_check(not catalog_code.contains(forbidden),
 				"11 the catalogue contains '%s'" % forbidden)
-	# El catalogo no se lee desde el editor ni desde la vista.
-	for directory in ["res://editor", "res://view", "res://ui", "res://scenes"]:
+	# La VISTA sigue sin leer el catalogo, y nunca debe leerlo.
+	for directory in ["res://view", "res://ui", "res://scenes"]:
 		_check(not _directory_mentions(directory, "OpeningPhysicsProfileCatalog"),
 				"11 %s already consumes the catalogue" % directory)
+	# F2.2D4B2A conecto el catalogo al EDITOR, que es lo que esa fase venia a
+	# hacer, pero por UN solo fichero: el controlador de configuracion. Si
+	# apareciera un segundo consumidor en `editor/`, la politica de seleccion
+	# habria empezado a repartirse y esto lo detecta.
+	var editor_consumers: PackedStringArray = []
+	_collect_mentions("res://editor", "OpeningPhysicsProfileCatalog", editor_consumers)
+	_check(editor_consumers.size() == 1 			and String(editor_consumers[0]).ends_with("OpeningPhysicsEditor.gd"),
+			"11 the catalogue is consumed from editor/ by %s" % str(editor_consumers))
 	# Y el unico sitio que resuelve un perfil es el esquema persistente.
 	var schema_code: String = _code_only(FileAccess.get_file_as_string(
 		"res://sim/building/PrescribedOpeningPhysicsSchema.gd"
@@ -711,6 +731,18 @@ func _test_11_no_new_formula_and_no_editor_consumer() -> void:
 			"11 the schema no longer resolves profiles against the catalogue")
 	_check(not _directory_mentions("res://sim/core", "OpeningPhysicsProfileCatalog"),
 			"11 sim/core consumes the catalogue directly")
+
+
+## Los ficheros de un arbol que nombran algo, con su ruta. Se usa para poder
+## exigir no solo "cuantos" sino "cual".
+func _collect_mentions(directory: String, needle: String, out: PackedStringArray) -> void:
+	for file_name in DirAccess.get_files_at(directory):
+		if not file_name.ends_with(".gd"):
+			continue
+		if FileAccess.get_file_as_string(directory + "/" + file_name).contains(needle):
+			out.append(directory + "/" + file_name)
+	for sub in DirAccess.get_directories_at(directory):
+		_collect_mentions(directory + "/" + sub, needle, out)
 
 
 func _directory_mentions(directory: String, needle: String) -> bool:

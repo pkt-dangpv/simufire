@@ -119,7 +119,31 @@ extends RefCounted
 ## perfiles o versiones nuevas nunca afecta a un escenario antiguo.
 ##
 ## Un perfil `blocked` no puede aparecer en un escenario: no produce
-## configuracion. Un perfil sin parametros tampoco.
+## configuracion. Un perfil sin parametros tampoco. Y un perfil de una
+## categoria que no encaja con la abertura -la fuga de marco de R3 en un tabique
+## interior, por ejemplo- se rechaza: la regla de compatibilidad la pone el
+## catalogo, leida de los adaptadores del motor, y no se duplica aqui.
+##
+## ## Esquema 3 (F2.2D4B2A): deformacion y vidrio con procedencia
+##
+## El esquema 3 anade otras dos ranuras opcionales, `deformation_profile` y
+## `glazing_profile`, con la MISMA forma que las dos de D4B1.
+##
+## La diferencia importa: en D4B1 el perfil aportaba el NUMERO que el motor
+## consume -la ELA de la rendija, el area del marco-. En estas dos no aporta
+## ninguno, porque D2 y D3 son PRESCRIPCION: las magnitudes las escribe quien
+## monta el escenario, en `deformation_tracks`, `glazing_panels` y
+## `glazing_spatial`. Lo que el perfil aporta es la PROCEDENCIA: con que
+## ensayo, en que dominio y con que estado de evidencia hay que leer esa
+## prescripcion. Por eso su ranura no declara parametro obligatorio, y aun asi
+## la copia congelada tiene que coincidir con el catalogo entera.
+##
+## **Migracion 1 -> 3 y 2 -> 3, explicitas.** La marca sube al minimo que exige
+## el contenido y nunca baja: sin perfiles se queda en 1, con perfiles de D4B1
+## en 2 y con perfiles de deformacion o vidrio en 3. Un escenario de esquema 1
+## o 2 sigue cargando tal cual, y si no declara nada nuevo se vuelve a guardar
+## con su marca de siempre, sin ganar ni una clave. Ninguna migracion enciende
+## fisica: solo mueve el numero de version.
 ##
 ## **Migracion 1 -> 2, explicita.** Un escenario del esquema 1 sigue siendo
 ## valido y, si no declara perfiles, se vuelve a guardar como 1: no gana ni una
@@ -133,8 +157,9 @@ const ProfileCatalog = preload("res://sim/building/OpeningPhysicsProfileCatalog.
 
 ## Version del sub-esquema por abertura. Subirla es un cambio de contrato y
 ## exige actualizar la politica de migracion de la cabecera y los documentos.
-## 1 = F2.2D4A (fisica prescrita); 2 = F2.2D4B1 (perfiles del catalogo).
-const SCHEMA_VERSION: int = 2
+## 1 = F2.2D4A (fisica prescrita); 2 = F2.2D4B1 (perfiles de fuga);
+## 3 = F2.2D4B2A (perfiles de deformacion y de vidrio).
+const SCHEMA_VERSION: int = 3
 ## Version minima que sigue siendo valida al cargar. Un escenario de D4A se
 ## carga y se vuelve a guardar como 1 mientras no declare perfiles.
 const MIN_SCHEMA_VERSION: int = 1
@@ -147,17 +172,31 @@ const SPATIAL_KEY: String = "glazing_spatial"
 ## F2.2D4B1: referencias al catalogo. Aparecieron en el esquema 2.
 const LEAKAGE_PROFILE_KEY: String = "leakage_profile"
 const FRAME_PROFILE_KEY: String = "frame_leakage_profile"
-const PROFILE_KEYS: Array[String] = [LEAKAGE_PROFILE_KEY, FRAME_PROFILE_KEY]
+## F2.2D4B2A: procedencia de la prescripcion. Aparecieron en el esquema 3.
+const DEFORMATION_PROFILE_KEY: String = "deformation_profile"
+const GLAZING_PROFILE_KEY: String = "glazing_profile"
+const PROFILE_KEYS: Array[String] = [
+	LEAKAGE_PROFILE_KEY, FRAME_PROFILE_KEY,
+	DEFORMATION_PROFILE_KEY, GLAZING_PROFILE_KEY,
+]
+## Ranuras que existen ya en el esquema 2. Las demas exigen el 3.
+const SCHEMA_2_PROFILE_KEYS: Array[String] = [LEAKAGE_PROFILE_KEY, FRAME_PROFILE_KEY]
 ## Categoria del catalogo que admite cada ranura. Una fuga de marco en la
 ## ranura de la puerta es un error, no una conversion.
 const PROFILE_SLOT_CATEGORY: Dictionary = {
 	LEAKAGE_PROFILE_KEY: "door_leakage",
 	FRAME_PROFILE_KEY: "frame_leakage",
+	DEFORMATION_PROFILE_KEY: "deformation",
+	GLAZING_PROFILE_KEY: "glazing",
 }
-## Parametro que cada ranura congela y entrega al motor.
+## Parametro que cada ranura congela y entrega al motor. Cadena vacia = la
+## ranura no aporta ningun numero al motor y solo guarda procedencia: es el
+## caso de D2 y D3, donde las magnitudes las prescribe el escenario.
 const PROFILE_SLOT_PARAMETER: Dictionary = {
 	LEAKAGE_PROFILE_KEY: "ela_m2",
 	FRAME_PROFILE_KEY: "leak_area_m2",
+	DEFORMATION_PROFILE_KEY: "",
+	GLAZING_PROFILE_KEY: "",
 }
 const PROFILE_ID_KEY: String = "profile_id"
 const PROFILE_VERSION_KEY: String = "profile_version"
@@ -198,11 +237,13 @@ static func declares(opening_data: Dictionary) -> bool:
 ## Version minima de esquema que EXIGE el contenido de esta abertura. Es lo que
 ## convierte la migracion en una regla y no en una costumbre.
 static func required_schema_version(opening_data: Dictionary) -> int:
+	var required: int = MIN_SCHEMA_VERSION
 	for key in PROFILE_KEYS:
 		var profile: Variant = opening_data.get(key, null)
-		if typeof(profile) == TYPE_DICTIONARY and not Dictionary(profile).is_empty():
-			return 2
-	return MIN_SCHEMA_VERSION
+		if typeof(profile) != TYPE_DICTIONARY or Dictionary(profile).is_empty():
+			continue
+		required = maxi(required, 2 if SCHEMA_2_PROFILE_KEYS.has(key) else 3)
+	return required
 
 
 ## Normaliza en sitio la parte D4A de UNA abertura ya duplicada.
@@ -361,6 +402,17 @@ static func _validate_profiles(
 				label, profile_id, String(profile["evidence"])
 			])
 			continue
+		# F2.2D4B2A: la categoria tiene que encajar con ESTA abertura. La regla
+		# la pone el catalogo, leida de los adaptadores del motor; cambiar el
+		# tipo de una abertura con perfil deja de cargar en vez de arrastrar
+		# una carpinteria que ya no significa nada.
+		var category: String = String(profile["category"])
+		if not ProfileCatalog.category_applies_to(category, opening_data):
+			errors.append("%s: el perfil '%s' no encaja con esta abertura: %s" % [
+				label, profile_id,
+				ProfileCatalog.incompatibility_reason(category, opening_data)
+			])
+			continue
 		if typeof(block.get(PROFILE_EFFECTIVE_KEY, null)) != TYPE_DICTIONARY:
 			errors.append("%s: falta la copia congelada '%s'" % [label, PROFILE_EFFECTIVE_KEY])
 			continue
@@ -376,7 +428,9 @@ static func _compare_frozen_parameters(
 	frozen: Dictionary, catalog: Dictionary, required_parameter: String,
 	label: String, errors: Array[String]
 ) -> void:
-	if not frozen.has(required_parameter):
+	# Una ranura sin parametro obligatorio no aporta numero al motor; aun asi su
+	# copia congelada tiene que coincidir entera con el catalogo.
+	if not required_parameter.is_empty() and not frozen.has(required_parameter):
 		errors.append("%s: la copia congelada no trae '%s'" % [label, required_parameter])
 	for key in frozen.keys():
 		var name: String = String(key)
@@ -435,6 +489,15 @@ static func _apply_profiles(opening_data: Dictionary, opening: OpeningModel) -> 
 		opening.frame_leakage_area_m2 = float(
 			Dictionary(frame[PROFILE_EFFECTIVE_KEY])[PROFILE_SLOT_PARAMETER[FRAME_PROFILE_KEY]]
 		)
+	# F2.2D4B2A: estas dos NO aportan ningun numero al motor. Solo dejan escrito
+	# con que ensayo hay que leer la prescripcion que ya viaja en
+	# `deformation_tracks`, `glazing_panels` y `glazing_spatial`.
+	var deformation: Dictionary = _profile_block(opening_data, DEFORMATION_PROFILE_KEY)
+	if not deformation.is_empty():
+		opening.deformation_profile_ref = _profile_reference(deformation)
+	var glazing: Dictionary = _profile_block(opening_data, GLAZING_PROFILE_KEY)
+	if not glazing.is_empty():
+		opening.glazing_profile_ref = _profile_reference(glazing)
 
 
 static func _profile_block(opening_data: Dictionary, key: String) -> Dictionary:
@@ -449,7 +512,13 @@ static func _profile_block(opening_data: Dictionary, key: String) -> Dictionary:
 	# reventar por un dato que no esta.
 	var effective: Dictionary = block[PROFILE_EFFECTIVE_KEY]
 	var parameter: String = String(PROFILE_SLOT_PARAMETER.get(key, ""))
-	if parameter.is_empty() or not effective.has(parameter):
+	# Una ranura de solo procedencia no exige parametro, pero si exige que el
+	# bloque nombre un perfil: sin eso no hay nada que anotar.
+	if parameter.is_empty():
+		if String(block.get(PROFILE_ID_KEY, "")).strip_edges().is_empty():
+			return {}
+		return block
+	if not effective.has(parameter):
 		return {}
 	var magnitude: Variant = effective[parameter]
 	if typeof(magnitude) != TYPE_FLOAT and typeof(magnitude) != TYPE_INT:

@@ -1,5 +1,66 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-22 - experimental opening profiles in the editor (F2.2D4B2A)
+
+- Checkpoint: `main` at `4600608b` (D4B1) when the phase started; D4B2A is
+  closed in one local commit and **has not been pushed**.
+- The editor now shows the traceable catalogue, lets an opening be configured
+  with a **compatible** profile, and explains its evidence, domain, source,
+  warnings and frozen effective parameters. The whole UI lives in
+  `scenes/ScenarioEditorScene.tscn`: the U7c guardrail still reports **UI del
+  editor 100% en escena**, and the affordances guardrail **127 controls** with
+  tooltip, unit, keyboard focus and accented text.
+- **Selection policy.** `validated` and `derived` are selectable, `validated`
+  carrying the warning that its experimental domain does not cover a dwelling;
+  `research_only` is selectable **only after confirming experimental mode**;
+  `blocked` is shown but disabled, with its reason in text; an incompatible
+  category is shown but disabled; **no profile is the default**. Every state is
+  carried in **text**, never colour alone, and no label says "calibrado",
+  "realista", "estándar residencial" or "seguro".
+- **Compatibility is owned by the catalogue**, read off the engine's own
+  adapters: door leakage and deformation need an interior door, frame leakage an
+  exterior non-hole opening, glazing a door or window, and a vertical shaft none
+  of them. Changing an opening's type with a profile that would stop fitting
+  **asks for confirmation** and names the conflicting slots instead of dropping
+  them silently.
+- **Schema 3** adds `deformation_profile` and `glazing_profile`. Unlike D4B1's
+  two slots these carry **no number** for the engine — D2 and D3 are
+  prescription, and the magnitudes are written by the scenario — only the
+  provenance needed to read that prescription. Migrations **1 → 3** and
+  **2 → 3** are explicit and tested: the marker rises to the minimum the content
+  demands and never falls, so a schema 1 or 2 scenario still loads and, without
+  new profiles, is re-saved with its own marker and gains no key.
+- **Configuring is not activating, and it is measured.** With the four switches
+  off and two configured openings, the network emits no crack, glazing or
+  envelope element at all. No editor file names a switch, none touches
+  `open_fraction`, and all fifteen profiles still carry
+  `product_activation = false`.
+- `ScenarioDocument.replace_opening()` owns the write, with its undo step.
+- Prescription editing covers what D2 and D3 already execute: deformation points
+  (position, height, instant, additional ELA in m²) and glazing panels, leaf
+  states and spatial regions. Duplicate instants, out-of-order times, negative
+  or non-finite areas, panels outside the host opening, overlapping panels and
+  forbidden state jumps are all rejected **by the pure models**, not by the UI.
+  No temperature-to-deformation curve is filled in, and toughened glass stays
+  blocked.
+- One guardrail defect was noted, not changed: `validate_editor_scene_complete`
+  walks **every** node rather than only `Control`s, so a `Tree` trips it through
+  Godot's internal `@Timer@` child. An `ItemList` was used instead, as the two
+  lists that scene already had.
+- Dedicated verification: **859** validator checks in fifteen groups, **22**
+  pytest tests and **18 of 18 valid mutations killed**, restored byte for byte.
+  A first campaign round had two survivors and three crashes on unguarded
+  indexing; all five were real weaknesses in the guardrails and were fixed.
+- Final verification is green: the reference suite is **346/346** with the
+  same **78** documented gaps and only `generated_at` changed; all scientific
+  guardrails pass, including R2-1. `check_product.py` is **155/155**, and the
+  authoritative global Python suite is **2,922 passed**, **4 skipped** and
+  **42 subtests passed**. Monitored runs ended with no error dialogs and no
+  residual Godot processes.
+- Remaining scope is **D4B2B**: deciding whether any profile may be switched on
+  in a product scenario, with what acceptance criterion, and the control that
+  does it. That control does not exist yet, on purpose.
+
 ## Current Program Update - 2026-09-22 - traceable opening physics profiles (F2.2D4B1)
 
 - Checkpoint: `main` at `c87db333` (D4A) when the phase started; the work is one

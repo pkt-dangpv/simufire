@@ -66,7 +66,7 @@ def test_schema_declares_one_version_and_one_owner():
     # F2.2D4B1 subio el esquema a 2 para los perfiles del catalogo. El 1 de D4A
     # sigue siendo valido y es el minimo admitido: un escenario sin perfiles se
     # guarda como 1 y no gana ninguna clave.
-    assert "const SCHEMA_VERSION: int = 2" in SCHEMA
+    assert "const SCHEMA_VERSION: int = 3" in SCHEMA
     assert "const MIN_SCHEMA_VERSION: int = 1" in SCHEMA
     assert f'const SCHEMA_KEY: String = "{SCHEMA_KEY}"' in SCHEMA
     for key in PAYLOAD_KEYS:
@@ -139,10 +139,15 @@ def test_consumer_list_stays_closed():
     # F2.2D4B1 anade UNO deliberado: el validador del catalogo comprueba que un
     # perfil se congela en el escenario y que un perfil bloqueado o manipulado
     # se rechaza, y eso solo se puede comprobar a traves de este esquema.
+    # F2.2D4B2A anade otros dos: el controlador con el que el editor configura
+    # una abertura -que le pide al esquema que normalice y valide cada borrador-
+    # y su validador.
     assert consumers == [
+        "editor/OpeningPhysicsEditor.gd",
         "editor/ScenarioSerializer.gd",
         "sim/BuildingModel.gd",
         "tools/validate_opening_physics_profiles.gd",
+        "tools/validate_opening_profile_editor.gd",
         "tools/validate_prescribed_physics_persistence.gd",
     ], consumers
 

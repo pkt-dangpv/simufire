@@ -74,6 +74,11 @@ var glazing_spatial: Array = []
 # modo que el catalogo no crea una segunda fuente de verdad.
 var leakage_profile_ref: String = ""
 var frame_leakage_profile_ref: String = ""
+# F2.2D4B2A: procedencia del perfil con el que se prescribieron la deformacion
+# y el vidrio. Estos dos NO aportan ningun numero al motor -las magnitudes las
+# prescribe el escenario-, solo dejan escrito con que ensayo hay que leerlas.
+var deformation_profile_ref: String = ""
+var glazing_profile_ref: String = ""
 # F2.2D4B1: area de fuga de marco PROPIA de esta abertura, en m2 geometricos y
 # con el Cd aparte, igual que el valor global historico. -1 = sin declarar, y
 # entonces manda el global `window_leakage_area_m2`. Nunca se suman: la

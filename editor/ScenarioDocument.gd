@@ -689,6 +689,24 @@ func delete_opening(opening_index: int) -> bool:
 ## un tabique interior se rechaza y el resto de la ficha se aplica igual.
 ##
 ## Devuelve `window_rejected`; vacio si el indice no existe.
+## F2.2D4B2A: sustituye una abertura entera por la que devuelve el controlador
+## de fisica experimental.
+##
+## El controlador ya la ha normalizado y validada contra el esquema, asi que el
+## documento no vuelve a tocarla: solo la coloca con su paso de deshacer. Esta
+## funcion NO enciende fisica; escribe datos.
+func replace_opening(opening_index: int, opening: Dictionary) -> bool:
+	var openings: Array = data.get("openings_data", [])
+	if opening_index < 0 or opening_index >= openings.size():
+		return false
+	begin("edit_opening_physics")
+	openings[opening_index] = opening.duplicate(true)
+	data["openings_data"] = openings
+	commit()
+	changed.emit("edit_opening_physics")
+	return true
+
+
 func apply_opening_fields(opening_index: int, fields: Dictionary) -> Dictionary:
 	var openings: Array = data.get("openings_data", [])
 	if opening_index < 0 or opening_index >= openings.size():

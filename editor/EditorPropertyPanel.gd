@@ -23,6 +23,11 @@ const ACTION_OPENING_APPLY: String = "opening_apply"
 ## Orden de los tipos en el desplegable de la ficha de la abertura. Tiene que
 ## coincidir con los `popup/item_N` de la escena.
 const OPENING_TYPES: Array[String] = ["door", "window", "hole"]
+## F2.2D4B2A: los tres mandos de la ficha de fisica experimental. El panel los
+## PIDE; quien toca datos sigue siendo ScenarioEditor.
+const ACTION_OPENING_PHYSICS_PROFILE: String = "opening_physics_profile"
+const ACTION_OPENING_PHYSICS_ADD: String = "opening_physics_add"
+const ACTION_OPENING_PHYSICS_REMOVE: String = "opening_physics_remove"
 const ACTION_DETECTOR_APPLY: String = "detector_apply"
 const ACTION_VICTIM_APPLY: String = "victim_apply"
 ## Borrar objeto, apertura, detector, victima o muro: el editor ya sabe cual esta
@@ -76,6 +81,37 @@ var _opening_balcony_check: CheckBox
 var _opening_balcony_width_spin: SpinBox
 var _opening_balcony_depth_spin: SpinBox
 var _opening_balcony_parapet_spin: SpinBox
+# ── Fisica experimental de la abertura (F2.2D4B2A) ─────────────────────────
+var _physics_status_label: Label
+var _physics_experimental_check: CheckBox
+var _physics_slot_option: OptionButton
+var _physics_profile_option: OptionButton
+var _physics_evidence_label: Label
+var _physics_product_label: Label
+var _physics_domain_label: Label
+var _physics_source_label: Label
+var _physics_warnings_label: Label
+var _physics_effective_label: Label
+var _physics_list: ItemList
+var _physics_kind_option: OptionButton
+var _physics_id_edit: LineEdit
+var _physics_child_id_edit: LineEdit
+var _physics_location_option: OptionButton
+var _physics_state_option: OptionButton
+var _physics_glass_option: OptionButton
+var _physics_time_spin: SpinBox
+var _physics_area_spin: SpinBox
+var _physics_fraction_spin: SpinBox
+var _physics_x_spin: SpinBox
+var _physics_z_spin: SpinBox
+var _physics_width_spin: SpinBox
+var _physics_height_spin: SpinBox
+var _physics_leaf_count_spin: SpinBox
+var _physics_feedback_label: Label
+## Lo que el desplegable de perfiles tiene puesto ahora, fila a fila. El panel
+## no decide cual se puede elegir: se lo dan hecho y solo lo pinta.
+var _physics_rows: Array = []
+var _physics_slots: Array = []
 
 # ── Detector ────────────────────────────────────────────────────────────────
 var _detector_props_container: Control
@@ -170,6 +206,7 @@ func _bind_opening() -> void:
 	if _opening_hinge_option != null and _opening_hinge_option.get_item_count() == 0:
 		_opening_hinge_option.add_item("Izquierda", 0)
 		_opening_hinge_option.add_item("Derecha", 1)
+	_bind_opening_physics()
 	_opening_balcony_check = _control("OpeningProps/OpeningBalconyRow/OpeningBalconyCheck") as CheckBox
 	_opening_balcony_width_spin = _spin("OpeningProps/OpeningBalconyWidthRow/OpeningBalconyWidthSpin", 0.0, 8.0, 0.05)
 	_opening_balcony_depth_spin = _spin(
@@ -345,6 +382,7 @@ func fill_object(obj: Dictionary, visual_pos: Vector2, size_m: Vector2, rotation
 
 
 func _fill_opening(state: Dictionary) -> void:
+	_fill_opening_physics(state)
 	if _opening_width_spin == null:
 		return
 	var opening: Dictionary = state.get("opening", {})
@@ -574,6 +612,231 @@ func read_object() -> Dictionary:
 		"elevation_m": _value(_obj_elevation_spin),
 		"fuel_energy_MJ": _value(_obj_fuel_spin),
 		"max_hrr_kw": _value(_obj_hrr_spin)
+	}
+
+
+## F2.2D4B2A: los mandos de la ficha de fisica experimental.
+##
+## El panel no sabe que perfiles existen, ni cual se puede elegir, ni por que.
+## Todo eso llega en el estado, ya decidido por `OpeningPhysicsEditor`.
+func _bind_opening_physics() -> void:
+	var base: String = "OpeningProps/"
+	_physics_status_label = _control(base + "OpeningPhysicsStatusLabel") as Label
+	_physics_experimental_check = _control(
+		base + "OpeningPhysicsExperimentalRow/OpeningPhysicsExperimentalCheck"
+	) as CheckBox
+	_physics_slot_option = _control(
+		base + "OpeningPhysicsSlotRow/OpeningPhysicsSlotOption"
+	) as OptionButton
+	_physics_profile_option = _control(
+		base + "OpeningPhysicsProfileRow/OpeningPhysicsProfileOption"
+	) as OptionButton
+	_physics_evidence_label = _control(base + "OpeningPhysicsEvidenceLabel") as Label
+	_physics_product_label = _control(base + "OpeningPhysicsProductLabel") as Label
+	_physics_domain_label = _control(base + "OpeningPhysicsDomainLabel") as Label
+	_physics_source_label = _control(base + "OpeningPhysicsSourceLabel") as Label
+	_physics_warnings_label = _control(base + "OpeningPhysicsWarningsLabel") as Label
+	_physics_effective_label = _control(base + "OpeningPhysicsEffectiveLabel") as Label
+	_physics_list = _control(base + "OpeningPhysicsList") as ItemList
+	_physics_kind_option = _control(
+		base + "OpeningPhysicsEntryKindRow/OpeningPhysicsEntryKindOption"
+	) as OptionButton
+	_physics_id_edit = _control(
+		base + "OpeningPhysicsEntryIdRow/OpeningPhysicsEntryIdEdit"
+	) as LineEdit
+	_physics_child_id_edit = _control(
+		base + "OpeningPhysicsEntryChildIdRow/OpeningPhysicsEntryChildIdEdit"
+	) as LineEdit
+	_physics_location_option = _control(
+		base + "OpeningPhysicsEntryLocationRow/OpeningPhysicsEntryLocationOption"
+	) as OptionButton
+	_physics_state_option = _control(
+		base + "OpeningPhysicsEntryStateRow/OpeningPhysicsEntryStateOption"
+	) as OptionButton
+	_physics_glass_option = _control(
+		base + "OpeningPhysicsEntryGlassRow/OpeningPhysicsEntryGlassOption"
+	) as OptionButton
+	_physics_time_spin = _control(
+		base + "OpeningPhysicsEntryTimeRow/OpeningPhysicsEntryTimeSpin"
+	) as SpinBox
+	_physics_area_spin = _control(
+		base + "OpeningPhysicsEntryAreaRow/OpeningPhysicsEntryAreaSpin"
+	) as SpinBox
+	_physics_fraction_spin = _control(
+		base + "OpeningPhysicsEntryFractionRow/OpeningPhysicsEntryFractionSpin"
+	) as SpinBox
+	_physics_x_spin = _control(
+		base + "OpeningPhysicsEntryXRow/OpeningPhysicsEntryXSpin"
+	) as SpinBox
+	_physics_z_spin = _control(
+		base + "OpeningPhysicsEntryZRow/OpeningPhysicsEntryZSpin"
+	) as SpinBox
+	_physics_width_spin = _control(
+		base + "OpeningPhysicsEntryWidthRow/OpeningPhysicsEntryWidthSpin"
+	) as SpinBox
+	_physics_height_spin = _control(
+		base + "OpeningPhysicsEntryHeightRow/OpeningPhysicsEntryHeightSpin"
+	) as SpinBox
+	_physics_leaf_count_spin = _control(
+		base + "OpeningPhysicsEntryLeafCountRow/OpeningPhysicsEntryLeafCountSpin"
+	) as SpinBox
+	_physics_feedback_label = _control(base + "OpeningPhysicsEntryFeedbackLabel") as Label
+	_on_pressed(_control(base + "BtnApplyOpeningPhysicsProfile") as Button,
+			ACTION_OPENING_PHYSICS_PROFILE)
+	_on_pressed(_control(base + "BtnAddOpeningPhysicsEntry") as Button,
+			ACTION_OPENING_PHYSICS_ADD)
+	_on_pressed(_control(base + "BtnRemoveOpeningPhysicsEntry") as Button,
+			ACTION_OPENING_PHYSICS_REMOVE)
+
+
+## Pinta la ficha de fisica experimental con el estado que le dan.
+##
+## Cada perfil se enseña con su clasificacion EN TEXTO, su dominio, su fuente y
+## sus avisos. Los bloqueados y los incompatibles aparecen deshabilitados con su
+## motivo: se ven para explicar que falta, no para elegirlos.
+func _fill_opening_physics(state: Dictionary) -> void:
+	if _physics_slot_option == null:
+		return
+	var physics: Dictionary = state.get("opening_physics", {})
+	_physics_slots = Array(physics.get("slots", []))
+	var has_any: bool = not _physics_slots.is_empty()
+	for control in [
+		_physics_slot_option, _physics_profile_option, _physics_experimental_check,
+		_physics_list, _physics_kind_option, _physics_id_edit, _physics_child_id_edit,
+		_physics_location_option, _physics_state_option, _physics_glass_option,
+		_physics_time_spin, _physics_area_spin, _physics_fraction_spin,
+		_physics_x_spin, _physics_z_spin, _physics_width_spin, _physics_height_spin,
+		_physics_leaf_count_spin,
+	]:
+		set_row_visible(control, has_any)
+	_set_label(_physics_status_label, String(physics.get("status_text", "")))
+	if not has_any:
+		_fill_physics_detail({})
+		return
+	if _physics_experimental_check != null:
+		_physics_experimental_check.set_pressed_no_signal(
+			bool(physics.get("experimental_confirmed", false))
+		)
+	var slot_index: int = clampi(int(physics.get("slot_index", 0)), 0, _physics_slots.size() - 1)
+	_physics_slot_option.clear()
+	for index in range(_physics_slots.size()):
+		_physics_slot_option.add_item(
+			String(Dictionary(_physics_slots[index]).get("label", "")), index
+		)
+	_physics_slot_option.select(slot_index)
+	var slot: Dictionary = _physics_slots[slot_index]
+	_physics_rows = Array(slot.get("rows", []))
+	_physics_profile_option.clear()
+	var selected_row: int = 0
+	for index in range(_physics_rows.size()):
+		var row: Dictionary = _physics_rows[index]
+		_physics_profile_option.add_item(String(row["title"]), index)
+		if not bool(row["selectable"]):
+			_physics_profile_option.set_item_disabled(index, true)
+			_physics_profile_option.set_item_tooltip(index, String(row["disabled_reason"]))
+		if String(row["versioned_id"]) == String(slot.get("selected_id", "")):
+			selected_row = index
+	_physics_profile_option.select(selected_row)
+	_fill_physics_detail(_physics_rows[selected_row] if selected_row < _physics_rows.size() else {})
+	_fill_physics_list(Array(physics.get("prescription", [])))
+	_fill_physics_entry(physics)
+
+
+func _fill_physics_detail(row: Dictionary) -> void:
+	_set_label(_physics_evidence_label, String(row.get("evidence_label", "Sin perfil.")))
+	var note: String = String(row.get("evidence_note", ""))
+	var reason: String = String(row.get("disabled_reason", ""))
+	if not reason.is_empty():
+		note = "%s No se puede elegir: %s." % [note, reason]
+	_set_label(_physics_product_label, "%s %s" % [String(row.get("product_label", "")), note])
+	_set_label(_physics_domain_label, String(row.get("domain_text", "")))
+	_set_label(_physics_source_label, String(row.get("source_text", "")))
+	var warnings: Array = row.get("warnings", [])
+	_set_label(_physics_warnings_label, "· " + "\n· ".join(
+		PackedStringArray(warnings)
+	) if not warnings.is_empty() else "")
+	_set_label(_physics_effective_label, String(row.get("effective_text", "")))
+
+
+func _fill_physics_list(rows: Array) -> void:
+	if _physics_list == null:
+		return
+	_physics_list.clear()
+	for raw_row in rows:
+		var row: Dictionary = raw_row
+		var indent: String = "    ".repeat(int(row.get("depth", 0)))
+		var detail: String = String(row.get("detail", ""))
+		var text: String = indent + String(row.get("text", ""))
+		if not detail.is_empty():
+			text += "  —  " + detail
+		_physics_list.add_item(text)
+
+
+func _fill_physics_entry(physics: Dictionary) -> void:
+	if _physics_kind_option == null:
+		return
+	if _physics_kind_option.get_item_count() == 0:
+		for entry in Array(physics.get("entry_kinds", [])):
+			var kind: Dictionary = entry
+			_physics_kind_option.add_item(String(kind["label"]))
+	if _physics_location_option != null and _physics_location_option.get_item_count() == 0:
+		for name in Array(physics.get("locations", [])):
+			_physics_location_option.add_item(String(name))
+	if _physics_state_option != null and _physics_state_option.get_item_count() == 0:
+		for name in Array(physics.get("states", [])):
+			_physics_state_option.add_item(String(name))
+	if _physics_glass_option != null and _physics_glass_option.get_item_count() == 0:
+		for name in Array(physics.get("glass_types", [])):
+			_physics_glass_option.add_item(String(name))
+	_set_label(_physics_feedback_label, String(physics.get("feedback_text", "")))
+
+
+func _set_label(label: Label, text: String) -> void:
+	if label == null:
+		return
+	label.text = text
+	set_row_visible(label, not text.strip_edges().is_empty())
+
+
+## Lo que el usuario ha dejado puesto en la ficha de fisica experimental.
+func read_opening_physics() -> Dictionary:
+	var slot_index: int = _physics_slot_option.selected if _physics_slot_option != null else -1
+	var row_index: int = _physics_profile_option.selected if _physics_profile_option != null else -1
+	var slot: Dictionary = {}
+	if slot_index >= 0 and slot_index < _physics_slots.size():
+		slot = _physics_slots[slot_index]
+	var row: Dictionary = {}
+	if row_index >= 0 and row_index < _physics_rows.size():
+		row = _physics_rows[row_index]
+	return {
+		"slot": String(slot.get("slot", "")),
+		"slot_index": slot_index,
+		"profile_id": String(row.get("profile_id", "")),
+		"profile_version": int(row.get("version", 0)),
+		"experimental_confirmed": _physics_experimental_check.button_pressed if (
+			_physics_experimental_check != null
+		) else false,
+		"entry_kind_index": _physics_kind_option.selected if _physics_kind_option != null else 0,
+		"id": _physics_id_edit.text.strip_edges() if _physics_id_edit != null else "",
+		"child_id": _physics_child_id_edit.text.strip_edges() if (
+			_physics_child_id_edit != null
+		) else "",
+		"location_index": _physics_location_option.selected if (
+			_physics_location_option != null
+		) else 0,
+		"state_index": _physics_state_option.selected if _physics_state_option != null else 0,
+		"glass_index": _physics_glass_option.selected if _physics_glass_option != null else 0,
+		"time_s": _value(_physics_time_spin),
+		"additional_ela_m2": _value(_physics_area_spin),
+		"fallout_percent": _value(_physics_fraction_spin),
+		"x_m": _value(_physics_x_spin),
+		"z_m": _value(_physics_z_spin),
+		"width_m": _value(_physics_width_spin),
+		"height_m": _value(_physics_height_spin),
+		"leaf_count": int(_value(_physics_leaf_count_spin)),
+		"selected_entry": _physics_list.get_selected_items()[0] if (
+			_physics_list != null and _physics_list.get_selected_items().size() > 0
+		) else -1,
 	}
 
 

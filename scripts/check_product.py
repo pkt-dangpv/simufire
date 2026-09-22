@@ -483,6 +483,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot perfiles trazables de aberturas: " + (diagnostic or "failed"))
 
+    # F2.2D4B2A: configuracion de perfiles desde el editor. Comprueba que
+    # elegir un perfil no enciende fisica, que los bloqueados no se pueden
+    # elegir y que la prescripcion sobrevive a la ida y vuelta.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_opening_profile_editor.gd",
+        "OPENING PROFILE EDITOR VALIDATION PASS",
+    )
+    rows.append(("Perfiles de abertura en el editor, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot perfiles de abertura en el editor: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

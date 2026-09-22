@@ -1774,6 +1774,473 @@ min_value = 0.6
 max_value = 1.6
 step = 0.05
 
+[node name="OpeningPhysicsTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001001]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 14
+text = "FÍSICA EXPERIMENTAL"
+
+[node name="OpeningPhysicsStatusLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001002]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = "Esta abertura no declara física experimental."
+
+[node name="OpeningPhysicsExperimentalRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001004]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsExperimentalRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsExperimentalRow" unique_id=2200001005]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "MODO"
+
+[node name="OpeningPhysicsExperimentalCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsExperimentalRow" unique_id=2200001003]
+tooltip_text = "Confirma que esta abertura se está configurando para investigación. Hace falta para elegir un perfil experimental, y no enciende ninguna física."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "Modo experimental"
+
+[node name="OpeningPhysicsSlotRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001007]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsSlotRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsSlotRow" unique_id=2200001008]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "FAMILIA"
+
+[node name="OpeningPhysicsSlotOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsSlotRow" unique_id=2200001006]
+tooltip_text = "Qué familia de física experimental se configura: fuga fría de la hoja, fuga del marco, deformación prescrita o vidrio prescrito. Solo se ofrecen las que encajan con esta abertura."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsProfileRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001010]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsProfileRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsProfileRow" unique_id=2200001011]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "PERFIL"
+
+[node name="OpeningPhysicsProfileOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsProfileRow" unique_id=2200001009]
+tooltip_text = "Perfil del catálogo trazable. Los bloqueados se ven pero no se pueden elegir, y los experimentales exigen confirmar antes el modo experimental."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsEvidenceLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001012]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = "Sin perfil."
+
+[node name="OpeningPhysicsProductLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001013]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
+[node name="OpeningPhysicsDomainLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001014]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
+[node name="OpeningPhysicsSourceLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001015]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
+[node name="OpeningPhysicsWarningsLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001016]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
+[node name="OpeningPhysicsEffectiveLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001017]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
+[node name="BtnApplyOpeningPhysicsProfile" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001018]
+tooltip_text = "Guarda en la abertura el perfil elegido, con su versión y una copia congelada de sus parámetros. No activa la física."
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR PERFIL"
+
+[node name="OpeningPhysicsPrescriptionTitle" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001019]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 14
+text = "PRESCRIPCIÓN"
+
+[node name="OpeningPhysicsPrescriptionNote" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001020]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = "Las magnitudes de abajo las escribe quien monta el escenario: son prescritas, no predichas. No hay ley térmica ni probabilística de deformación ni de rotura de vidrio."
+
+[node name="OpeningPhysicsList" type="ItemList" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001021]
+tooltip_text = "Historia prescrita de esta abertura, en su orden: pistas de deformación con sus instantes, y paños de vidrio con sus hojas, sus estados y sus regiones desprendidas."
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+allow_reselect = true
+
+[node name="OpeningPhysicsEntryKindRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001023]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryKindRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryKindRow" unique_id=2200001024]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO"
+
+[node name="OpeningPhysicsEntryKindOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryKindRow" unique_id=2200001022]
+tooltip_text = "Qué se añade: un instante de deformación prescrita, un paño de vidrio, un estado de hoja o una región desprendida."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsEntryIdRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001026]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryIdRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryIdRow" unique_id=2200001027]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "IDENT."
+
+[node name="OpeningPhysicsEntryIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryIdRow" unique_id=2200001025]
+tooltip_text = "Identificador de la pista de deformación o del paño de vidrio. Se compara carácter a carácter, sin recortar ni cambiar de caja."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+placeholder_text = "top, pane_a…"
+
+[node name="OpeningPhysicsEntryChildIdRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001029]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryChildIdRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryChildIdRow" unique_id=2200001030]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "HOJA"
+
+[node name="OpeningPhysicsEntryChildIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryChildIdRow" unique_id=2200001028]
+tooltip_text = "Identificador de la hoja del paño, para los estados y las regiones desprendidas."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+placeholder_text = "leaf_0…"
+
+[node name="OpeningPhysicsEntryLocationRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001032]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryLocationRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryLocationRow" unique_id=2200001033]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "POSICIÓN"
+
+[node name="OpeningPhysicsEntryLocationOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryLocationRow" unique_id=2200001031]
+tooltip_text = "Dónde aparece el hueco de deformación. La topología de dintel y lado de cerradura está respaldada por el ensayo; las magnitudes no."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsEntryStateRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001035]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryStateRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryStateRow" unique_id=2200001036]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ESTADO"
+
+[node name="OpeningPhysicsEntryStateOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryStateRow" unique_id=2200001034]
+tooltip_text = "Estado prescrito de la hoja. Agrietada no crea área de ventilación; desprendimiento parcial ventila solo la geometría libre real; paño abierto es la hoja entera perdida."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsEntryGlassRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001038]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryGlassRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryGlassRow" unique_id=2200001039]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "VIDRIO"
+
+[node name="OpeningPhysicsEntryGlassOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryGlassRow" unique_id=2200001037]
+tooltip_text = "Tipo de vidrio del paño. Se conserva como procedencia: por sí solo no decide cuándo rompe."
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+
+[node name="OpeningPhysicsEntryTimeRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001041]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryTimeRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryTimeRow" unique_id=2200001042]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "INSTANTE"
+
+[node name="OpeningPhysicsEntryTimeSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryTimeRow" unique_id=2200001040]
+tooltip_text = "Instante de la historia prescrita. Los instantes de una misma historia tienen que crecer y no pueden repetirse."
+suffix = " s"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 36000.0
+step = 0.1
+
+[node name="OpeningPhysicsEntryAreaRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001044]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryAreaRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryAreaRow" unique_id=2200001045]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ELA EXTRA"
+
+[node name="OpeningPhysicsEntryAreaSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryAreaRow" unique_id=2200001043]
+tooltip_text = "Área efectiva de fuga añadida por la deformación en ese instante, con la convención de 4 Pa y Cd = 1. No es área geométrica."
+suffix = " m²"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1.0
+step = 0.0001
+
+[node name="OpeningPhysicsEntryFractionRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001047]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryFractionRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryFractionRow" unique_id=2200001048]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "DESPRENDIDO"
+
+[node name="OpeningPhysicsEntryFractionSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryFractionRow" unique_id=2200001046]
+tooltip_text = "Fracción del paño que se ha perdido en ese instante. El ensayo de referencia nunca observó el 100 %: su máximo fue el 90 %."
+suffix = " %"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+
+[node name="OpeningPhysicsEntryXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001050]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryXRow" unique_id=2200001051]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "X"
+
+[node name="OpeningPhysicsEntryXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryXRow" unique_id=2200001049]
+tooltip_text = "Posición horizontal dentro del hueco, medida desde su borde izquierdo."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 10.0
+step = 0.01
+
+[node name="OpeningPhysicsEntryZRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001053]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryZRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryZRow" unique_id=2200001054]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Z"
+
+[node name="OpeningPhysicsEntryZSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryZRow" unique_id=2200001052]
+tooltip_text = "Cota dentro del hueco, medida desde su base. En una pista de deformación es la cota del hueco prescrito."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 10.0
+step = 0.01
+
+[node name="OpeningPhysicsEntryWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001056]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryWidthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryWidthRow" unique_id=2200001057]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO"
+
+[node name="OpeningPhysicsEntryWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryWidthRow" unique_id=2200001055]
+tooltip_text = "Ancho del paño o de la región desprendida."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 10.0
+step = 0.01
+
+[node name="OpeningPhysicsEntryHeightRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001059]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryHeightRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryHeightRow" unique_id=2200001060]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ALTO"
+
+[node name="OpeningPhysicsEntryHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryHeightRow" unique_id=2200001058]
+tooltip_text = "Alto del paño o de la región desprendida."
+suffix = " m"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 10.0
+step = 0.01
+
+[node name="OpeningPhysicsEntryLeafCountRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001062]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningPhysicsEntryLeafCountRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryLeafCountRow" unique_id=2200001063]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "HOJAS"
+
+[node name="OpeningPhysicsEntryLeafCountSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps/OpeningPhysicsEntryLeafCountRow" unique_id=2200001061]
+tooltip_text = "Número de hojas del paño. En vidrio múltiple solo ventila el camino libre a través de todas."
+suffix = " hojas"
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 3.0
+step = 1.0
+
+[node name="BtnAddOpeningPhysicsEntry" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001064]
+tooltip_text = "Añade a la prescripción lo que describen los campos de arriba. Si la historia resultante no es válida, no se guarda nada."
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "AÑADIR A LA PRESCRIPCIÓN"
+
+[node name="BtnRemoveOpeningPhysicsEntry" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001065]
+tooltip_text = "Quita de la prescripción lo que esté seleccionado en el árbol."
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "QUITAR LO SELECCIONADO"
+
+[node name="OpeningPhysicsEntryFeedbackLabel" type="Label" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=2200001066]
+custom_minimum_size = Vector2(0, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.88, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 3
+text = ""
+
 [node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/Scroll/VBox/OpeningProps" unique_id=1200648205]
 tooltip_text = "Guarda en la abertura seleccionada los valores de este panel."
 layout_mode = 2

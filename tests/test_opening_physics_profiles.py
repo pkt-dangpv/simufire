@@ -195,7 +195,10 @@ def test_unknown_profile_and_incompatible_version_are_rejected():
 
 
 def test_schema_2_keeps_d4a_scenarios_valid():
-    assert "const SCHEMA_VERSION: int = 2" in SCHEMA
+    # F2.2D4B2A subio el esquema a 3 para las dos ranuras de procedencia de
+    # deformacion y vidrio. El 1 de D4A y el 2 de D4B1 siguen siendo validos y
+    # la marca solo sube cuando el contenido lo exige.
+    assert "const SCHEMA_VERSION: int = 3" in SCHEMA
     assert "const MIN_SCHEMA_VERSION: int = 1" in SCHEMA
     assert "static func required_schema_version(" in SCHEMA
     # La marca sube solo cuando el contenido lo exige, y nunca baja.
@@ -238,10 +241,16 @@ def test_no_editor_or_view_file_consumes_the_catalogue():
         if "runs" not in path.parts
         and "OpeningPhysicsProfileCatalog" in path.read_text(encoding="utf-8")
     )
-    # Cerrada a proposito: el esquema persistente y su validador, nada mas.
+    # Cerrada a proposito. F2.2D4B2A anade DOS consumidores deliberados: la
+    # politica de seleccion, que es quien decide que se ofrece y con que aviso,
+    # y el controlador con el que el editor configura una abertura. La VISTA
+    # sigue sin tocarlo, y la regla 11 del validador lo comprueba por ruta.
     assert consumers == [
+        "editor/OpeningPhysicsEditor.gd",
+        "sim/building/OpeningProfileSelection.gd",
         "sim/building/PrescribedOpeningPhysicsSchema.gd",
         "tools/validate_opening_physics_profiles.gd",
+        "tools/validate_opening_profile_editor.gd",
     ], consumers
 
 

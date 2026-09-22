@@ -65,6 +65,13 @@ ALLOWED_NETWORK_REFERENCES = {
     # nombra el interruptor para fijar la dependencia y el default OFF.
     Path("tools/validate_exterior_envelope_leakage.gd"),
     Path("tests/test_exterior_envelope_leakage.py"),
+    # F2.2D4B2A: el controlador del editor nombra los interruptores SOLO en su
+    # documentacion, para dejar escrito que no los toca, y su validador y su
+    # suite los nombran para medir que siguen apagados. Que no aparezcan en
+    # CODIGO lo vigila test_the_editor_never_writes_a_switch.
+    Path("editor/OpeningPhysicsEditor.gd"),
+    Path("tools/validate_opening_profile_editor.gd"),
+    Path("tests/test_opening_profile_editor.py"),
     # F2.2D4B1: el catalogo y su suite nombran el interruptor para demostrar
     # que publicar un perfil NO enciende fisica y que ningun escenario
     # distribuido lo activa.

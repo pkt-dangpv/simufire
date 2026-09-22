@@ -2,11 +2,13 @@
 
 > **Estado (2026-09-22): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
 > integradas detrás de interruptores apagados por defecto; F2.2D4A cierra la
-> PERSISTENCIA de esa física prescrita (§20) y F2.2D4B1 publica el CATÁLOGO
-> trazable de perfiles y el gate científico (§21). Ninguna de las dos calibra:
-> ELA, reparto, exponente, deformación y vidrio siguen provisionales, cinco
-> perfiles quedan BLOQUEADOS por falta de evidencia o por evidencia
-> contradictoria, y ningún escenario distribuido declara ni enciende nada.**
+> PERSISTENCIA de esa física prescrita (§20), F2.2D4B1 publica el CATÁLOGO
+> trazable de perfiles y el gate científico (§21), y F2.2D4B2A lo conecta al
+> EDITOR para configurarlo e inspeccionarlo (§22). Ninguna de las tres calibra
+> ni activa: ELA, reparto, exponente, deformación y vidrio siguen
+> provisionales, cinco perfiles siguen BLOQUEADOS, los quince siguen con
+> `product_activation = false`, y ningún escenario distribuido los declara ni
+> los enciende.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -29,6 +31,12 @@
 >   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
 >   **F2.2C** las integró ese mismo día detrás del interruptor único
 >   `pressure_network_solver_enabled`, apagado por defecto.
+> - **F2.2D4B2A** (§22): el editor enseña el catálogo, deja elegir un perfil
+>   compatible con la abertura, explica su evidencia, su dominio, su fuente y
+>   sus advertencias, y guarda la referencia versionada con su copia congelada.
+>   Los bloqueados se ven pero no se eligen; los experimentales exigen
+>   confirmar el modo experimental. Configurar NO activa: con los interruptores
+>   apagados una abertura configurada no aporta ni un elemento a la red.
 > - **F2.2D4B1** (§21): catálogo versionado de 15 perfiles con su procedencia a
 >   nivel de página, tabla o ecuación, su dominio de ensayo y su estado de
 >   evidencia. La relectura BAJÓ de categoría los 12 y 21 cm² (la tabla ASHRAE
@@ -2353,5 +2361,188 @@ calibración.
   paso residencial (ASTM E283 / ISO 5925-1, por sentido, 5–100 Pa), ley térmica
   de deformación, y una decisión de contrato sobre `CRACKED → OPEN` antes de
   tocar el templado.
+- Siguen sin existir BREAK1 y el modelo probabilista, y `GlassFailureSystem`
+  sigue sin conectarse.
+
+## 22. F2.2D4B2A: configuración de perfiles desde el editor (2026-09-22)
+
+> **Estado: cerrada la CONFIGURACIÓN, no la activación.** El editor ya enseña el
+> catálogo, deja elegir un perfil compatible, explica su evidencia y su dominio,
+> y guarda la referencia versionada con su copia congelada. **Nada de esto
+> enciende física**: los cinco interruptores siguen apagados, ningún escenario
+> distribuido declara nada y con los interruptores apagados una abertura
+> configurada no aporta ni un elemento a la red.
+
+### 22.1 Qué se añadió al editor
+
+Una ficha nueva, **FÍSICA EXPERIMENTAL**, dentro de las propiedades de la
+abertura. Toda ella vive en `scenes/ScenarioEditorScene.tscn`: el guardarraíl
+U7c exige que no haya un solo `Control` inyectado por código, y se sigue
+cumpliendo (127 controles, todos con explicación, unidad, foco de teclado y
+tildes).
+
+| mando | qué hace |
+|---|---|
+| `OpeningPhysicsExperimentalCheck` | confirma el modo experimental; hace falta para elegir un perfil `research_only` |
+| `OpeningPhysicsSlotOption` | familia a configurar: fuga fría, fuga de marco, deformación o vidrio. Solo aparecen las que encajan con la abertura |
+| `OpeningPhysicsProfileOption` | perfiles de esa familia. Los no seleccionables salen **deshabilitados con su motivo en el tooltip** |
+| seis etiquetas | evidencia, aptitud de producto, dominio, fuente, advertencias y parámetros efectivos congelados |
+| `OpeningPhysicsStatusLabel` | «Configuración experimental guardada; física no activada en simulación normal.» |
+| `OpeningPhysicsList` | la prescripción ya guardada, en su orden: pistas con sus instantes, paños con sus hojas y estados, e instantáneas con sus regiones |
+| trece mandos de entrada | identificador, hoja, posición, estado, tipo de vidrio, instante (s), ELA adicional (m²), desprendido (%), X/Z/ancho/alto (m) y número de hojas |
+| tres botones | aplicar perfil, añadir a la prescripción, quitar lo seleccionado |
+
+Se usó un `ItemList` y no un `Tree` por un motivo concreto: un `Tree` crea en
+tiempo de ejecución un `@Timer@` propio, y el guardarraíl de escena completa
+—que recorre **todos** los nodos, no solo los `Control`, pese a lo que dice su
+propia documentación— lo cuenta como nodo inyectado por código. Queda anotado
+como defecto menor del guardarraíl; no se tocó.
+
+### 22.2 Política de selección
+
+La decide `sim/building/OpeningProfileSelection.gd`, que vive junto al catálogo
+para que la interfaz no acabe con su propia copia de los estados de evidencia.
+
+| evidencia | se ve | se elige | condición |
+|---|---|---|---|
+| `validated` | sí | sí | con el aviso de que su dominio de ensayo **no cubre una vivienda** |
+| `derived` | sí | sí | identificado como derivado de un cálculo reproducible |
+| `research_only` | sí | sí | **solo con el modo experimental confirmado** |
+| `blocked` | sí | **no** | se enseña para explicar qué evidencia falta |
+| incompatible con la abertura | sí | **no** | con el motivo concreto |
+| sin perfil | sí | sí | **es la opción por defecto** |
+
+Cada fila lleva su estado **en texto** (`MEDIDO`, `DERIVADO`, `EXPERIMENTAL`,
+`BLOQUEADO`), su aptitud de producto en texto y, si no se puede elegir, el
+motivo en texto. El color, si se usa, es refuerzo. Ninguna etiqueta dice
+«seguro», «realista», «estándar residencial» ni «calibrado», y una prueba lee
+todos los textos de la escena y del vocabulario para comprobarlo.
+
+Los quince perfiles siguen con `product_activation = false`, y el editor lo
+enseña en cada fila.
+
+### 22.3 Compatibilidad, y qué pasa al cambiar el tipo
+
+La regla la pone el **catálogo**, leída de los adaptadores del motor y escrita
+una sola vez: `door_leakage` y `deformation` piden puerta interior;
+`frame_leakage`, abertura exterior que no sea hueco; `glazing`, puerta o
+ventana; un hueco vertical no admite ninguna.
+
+Cambiar el tipo de una abertura con un perfil que dejaría de encajar **no borra
+nada en silencio**: `change_type` devuelve `needs_confirmation` y nombra las
+ranuras en conflicto. Solo con la confirmación explícita se quitan esos
+perfiles, y la prescripción se conserva siempre.
+
+### 22.4 Esquema 3 y migraciones
+
+El esquema sube a **3** con dos ranuras nuevas, `deformation_profile` y
+`glazing_profile`. La diferencia con las dos de D4B1 importa: aquellas aportaban
+**el número** que el motor consume; estas no aportan ninguno, porque D2 y D3 son
+prescripción y las magnitudes las escribe quien monta el escenario. Lo que estas
+dos aportan es **procedencia**: con qué ensayo y en qué dominio hay que leer esa
+prescripción. Por eso su ranura no declara parámetro obligatorio, y aun así la
+copia congelada tiene que coincidir entera con el catálogo.
+
+**Migración 1 → 3 y 2 → 3.** La marca sube al mínimo que exige el contenido y
+**nunca baja**: sin perfiles se queda en 1, con perfiles de D4B1 en 2 y con
+perfiles de deformación o vidrio en 3. Un escenario de esquema 1 o 2 sigue
+cargando tal cual y, si no declara nada nuevo, se vuelve a guardar con su marca
+de siempre sin ganar ni una clave. **Ninguna migración enciende física**: solo
+mueve el número de versión, y una prueba lo comprueba cargando el escenario en
+un motor recién creado.
+
+Se rechazan, de forma explícita: perfil desconocido, versión no publicada,
+categoría que no encaja con la abertura, perfil bloqueado, perfil sin
+parámetros, copia congelada alterada y número que el fichero no devuelve exacto.
+
+### 22.5 Configuración frente a activación
+
+Cinco cosas separadas, y el código lo hace cumplir:
+
+1. **perfil configurado** — `leakage_profile`, `frame_leakage_profile`,
+   `deformation_profile`, `glazing_profile`;
+2. **datos físicos persistidos** — `deformation_tracks`, `glazing_panels`,
+   `glazing_spatial`, más `leakage_class` y los dos overrides;
+3. **estado operativo** — `open_fraction`, `glass_broken`,
+   `thermal_gap_fraction`, que el editor de física **no toca**;
+4. **interruptores** — los cinco de `SimulationEngine`, que siguen naciendo
+   apagados y que ningún fichero del editor nombra;
+5. **autorización de producto** — `product_activation`, `false` en los quince.
+
+Medido, no solo afirmado: con los cuatro interruptores apagados y dos aberturas
+configuradas —puerta con perfil de fuga y ventana con vidrio prescrito, perfil
+de marco y perfil de vidrio—, la red no emite **ningún** elemento de rendija,
+de vidrio ni de envolvente.
+
+`ScenarioDocument.replace_opening()` es quien escribe, con su paso de deshacer:
+el editor no toca `editor_data` a mano en esta ruta.
+
+### 22.6 Edición de la prescripción
+
+El editor edita **lo que D2 y D3 ya sabían ejecutar**, y no inventa ninguna ley.
+
+- **Deformación**: identificador de la pista, posición (`bottom`, `top`,
+  `hinge_side`, `latch_side`), cota, instante en segundos y **ELA adicional en
+  m²** —área efectiva, no geométrica—. El punto se inserta en su sitio para que
+  la historia siga creciendo en el tiempo. Un instante repetido, un tiempo
+  desordenado o un área negativa o no finita **los rechaza el modelo puro**, no
+  el editor. No se rellena ninguna curva temperatura-deformación: esa ley sigue
+  bloqueada.
+- **Vidrio**: paño con su posición dentro del hueco, ancho, alto, tipo y número
+  de hojas; estado prescrito por hoja con su instante y su fracción; y regiones
+  desprendidas por hoja e instante. El listado explica que `CRACKED` **no crea
+  área de ventilación**, que `PARTIAL_FALLOUT` ventila solo la geometría libre
+  real a través de todas las hojas y que `OPEN` es el paño entero perdido. Un
+  paño fuera del hueco, dos paños solapados o un salto de estado prohibido los
+  rechaza D3. El editor **no decide cuándo rompe el vidrio**, y el templado
+  sigue bloqueado desde D4B1.
+
+### 22.7 Verificación
+
+- Validador `tools/validate_opening_profile_editor.gd`: **859 comprobaciones**
+  en quince grupos, registrado en `check_product.py`.
+- `tests/test_opening_profile_editor.py`: **22 pruebas**, con las listas de
+  consumidores cerradas y el barrido de los escenarios distribuidos.
+- Guardarraíles de escena intactos: **UI del editor 100 % en escena** y
+  **127 controles** con explicación, unidad, foco y tildes.
+- Campaña de mutaciones: **18 de 18 muertas**, con restauración byte a byte.
+  Cubre perfil bloqueado habilitado, advertencia eliminada, `product_activation`
+  ignorado, perfil que enciende D3 por su cuenta, perfil incompatible aceptado,
+  confirmación experimental omitida, referencia versionada perdida, copia
+  congelada vaciada, migración que acepta un perfil bajo el esquema viejo,
+  instante duplicado fusionado en silencio, área negativa recortada, paño
+  metido a la fuerza dentro del hueco, `CRACKED` descrito como abertura, estado
+  operativo que borra el perfil, fuga global y específica sumadas, fórmula de
+  caudal copiada al controlador del editor, escenario legado que gana la marca
+  de versión y perfil experimental presentado como medido.
+  En la primera vuelta dos sobrevivieron y tres reventaban el validador con un
+  error de ejecución: las cinco eran debilidades reales de los guardarraíles
+  -no se comprobaban las advertencias de la fila ni el rechazo de un área
+  negativa tecleada en el mando, y cuatro comprobaciones indexaban un resultado
+  sin comprobar antes que existiera- y las cinco quedaron corregidas.
+- D1, D2, D3, D4A, D4B1 y R3: sus validadores siguen en verde.
+- Cierre final tras regenerar la referencia: **346/346 required PASS**, los
+  mismos **78 gaps** y solo `generated_at` modificado en
+  `reference_checks.json`; guardarraíles científicos **ALL PASS**, incluido
+  R2-1. `check_product.py`: **155/155**. Suite Python global autoritativa
+  (`tests/`): **2.922 passed**, **4 skipped** y **42 subtests passed**. El
+  monitor terminó sin cuadros de error ni procesos Godot residuales.
+- Las cinco listas cerradas de consumidores de D1, D2, 3A, 3B y de la red se
+  ampliaron con el controlador del editor, su validador y su suite. La regla que
+  vigila que los interruptores no aparezcan en CODIGO es
+  `test_the_editor_never_writes_a_switch`; la barrida de escenarios de
+  `test_pressure_network_integration` pasa a mirar codigo y no documentacion,
+  porque el controlador nombra los interruptores en su cabecera justamente para
+  dejar escrito que no los toca.
+
+### 22.8 Lo que queda para D4B2B
+
+- **Activación**: decidir si algún perfil puede encenderse en un escenario de
+  producto, con qué criterio de aceptación, y el mando que lo haga. Hoy no
+  existe ese mando a propósito.
+- **Calibración**: sigue sin cambiar nada. Los quince perfiles siguen con
+  `product_activation = false` y cinco siguen bloqueados.
+- **Autoría de geometría de vidrio** más cómoda que los mandos actuales, si se
+  decide que hace falta.
 - Siguen sin existir BREAK1 y el modelo probabilista, y `GlassFailureSystem`
   sigue sin conectarse.

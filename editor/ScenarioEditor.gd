@@ -99,6 +99,9 @@ const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const EditorPreview3DScript = preload("res://editor/EditorPreview3D.gd")
 const EditorObjectCatalogScript = preload("res://editor/EditorObjectCatalog.gd")
+## F2.2D4B2A: quien configura la fisica experimental de una abertura. El
+## editor solo le pasa lo que el usuario ha tecleado; las reglas son suyas.
+const OpeningPhysicsEditorScript = preload("res://editor/OpeningPhysicsEditor.gd")
 ## El valor vive en el modulo; el editor lo reexpone porque el guardarrail del
 ## 3D en vivo lo lee por aqui desde antes del traslado (D-1).
 const PREVIEW_3D_MIN_SIZE_PX := EditorPreview3DScript.MIN_SIZE_PX
@@ -186,6 +189,11 @@ var current_tool: int = Tool.SELECT
 
 var selected_room_id: int = -1
 var selected_opening_index: int = -1
+## F2.2D4B2A: estado de la ficha de fisica experimental. Es de la interfaz,
+## no del escenario: no se guarda en el fichero y no enciende nada.
+var _physics_experimental_confirmed: bool = false
+var _physics_slot_index: int = 0
+var _physics_feedback: String = ""
 var selected_object_room_id: int = -1
 var selected_object_index: int = -1
 var selected_detector_index: int = -1
@@ -4606,6 +4614,7 @@ func _refresh_property_panel() -> void:
 			_get_room_rect(int(opening.get("a", -1))),
 			String(opening.get("wall", "top"))
 		)
+		state["opening_physics"] = _opening_physics_state(opening)
 		state["opening_accepts_balcony"] = _opening_accepts_balcony(opening)
 		state["opening_balcony_max_width_m"] = ScenarioWalls.max_balcony_width_for_opening(editor_data, opening)
 	_props.show(state)
@@ -4633,6 +4642,12 @@ func _on_property_panel_action(action: String) -> void:
 			_apply_object_properties()
 		PropertyPanelScript.ACTION_OPENING_APPLY:
 			_apply_opening_properties()
+		PropertyPanelScript.ACTION_OPENING_PHYSICS_PROFILE:
+			_apply_opening_physics_profile()
+		PropertyPanelScript.ACTION_OPENING_PHYSICS_ADD:
+			_apply_opening_physics_entry(true)
+		PropertyPanelScript.ACTION_OPENING_PHYSICS_REMOVE:
+			_apply_opening_physics_entry(false)
 		PropertyPanelScript.ACTION_DETECTOR_APPLY:
 			_apply_detector_properties()
 		PropertyPanelScript.ACTION_VICTIM_APPLY:
@@ -5755,6 +5770,116 @@ func _apply_opening_properties() -> void:
 	if bool(result.get("window_rejected", false)):
 		_set_status(tr("Una ventana da al exterior: en un tabique interior solo cabe puerta o hueco."))
 	_set_status(tr("Apertura actualizada."))
+	queue_redraw()
+
+
+## F2.2D4B2A: lo que la ficha de fisica experimental enseña de esta abertura.
+##
+## El editor no decide nada aqui: pregunta al controlador y añade lo que es
+## suyo -si el modo experimental esta confirmado y que familia se esta
+## mirando-, que es estado de interfaz y no viaja al fichero.
+func _opening_physics_state(opening: Dictionary) -> Dictionary:
+	var view: Dictionary = OpeningPhysicsEditorScript.inspect(
+		opening, _physics_experimental_confirmed
+	)
+	var slots: Array = view.get("slots", [])
+	for index in range(slots.size()):
+		var slot: Dictionary = slots[index]
+		slot["label"] = _opening_physics_slot_label(String(slot.get("category", "")))
+		slots[index] = slot
+	view["slots"] = slots
+	view["experimental_confirmed"] = _physics_experimental_confirmed
+	view["slot_index"] = clampi(_physics_slot_index, 0, maxi(0, slots.size() - 1))
+	view["feedback_text"] = _physics_feedback
+	view["entry_kinds"] = OpeningPhysicsEditorScript.ENTRY_KINDS
+	view["locations"] = OpeningPhysicsEditorScript.TRACK_LOCATIONS
+	view["states"] = OpeningPhysicsEditorScript.GLAZING_STATES
+	view["glass_types"] = OpeningPhysicsEditorScript.GLASS_TYPES
+	return view
+
+
+## El nombre de cada familia en la ficha. Vive aqui porque es vocabulario de
+## interfaz; la categoria de verdad la nombra el catalogo.
+func _opening_physics_slot_label(category: String) -> String:
+	match category:
+		"door_leakage":
+			return "Fuga fría de la hoja"
+		"frame_leakage":
+			return "Fuga del marco"
+		"deformation":
+			return "Deformación prescrita"
+		"glazing":
+			return "Vidrio prescrito"
+		_:
+			return category
+
+
+## Guarda -o quita- el perfil elegido. No enciende ninguna física.
+func _apply_opening_physics_profile() -> void:
+	var opening: Dictionary = _selected_opening_for_physics()
+	if opening.is_empty():
+		return
+	var request: Dictionary = _props.read_opening_physics()
+	_physics_experimental_confirmed = bool(request.get("experimental_confirmed", false))
+	_physics_slot_index = int(request.get("slot_index", 0))
+	var result: Dictionary = OpeningPhysicsEditorScript.set_profile(
+		opening, String(request.get("slot", "")),
+		String(request.get("profile_id", "")), int(request.get("profile_version", 0)),
+		_physics_experimental_confirmed
+	)
+	_commit_opening_physics(result, tr("Perfil guardado. La física sigue sin activarse."))
+
+
+## Añade o quita lo que describan los mandos de la prescripción.
+func _apply_opening_physics_entry(adding: bool) -> void:
+	var opening: Dictionary = _selected_opening_for_physics()
+	if opening.is_empty():
+		return
+	var request: Dictionary = _props.read_opening_physics()
+	_physics_experimental_confirmed = bool(request.get("experimental_confirmed", false))
+	_physics_slot_index = int(request.get("slot_index", 0))
+	var result: Dictionary = {}
+	if adding:
+		result = OpeningPhysicsEditorScript.add_entry(opening, request)
+	else:
+		var selected: int = int(request.get("selected_entry", -1))
+		var rows: Array = OpeningPhysicsEditorScript.describe_prescription(opening)
+		if selected < 0 or selected >= rows.size():
+			_physics_feedback = tr("Selecciona antes algo de la lista.")
+			_refresh_property_panel()
+			return
+		result = OpeningPhysicsEditorScript.remove_entry(
+			opening, Array(Dictionary(rows[selected]).get("path", []))
+		)
+	_commit_opening_physics(
+		result,
+		tr("Prescripción actualizada.") if adding else tr("Prescripción recortada.")
+	)
+
+
+## La abertura seleccionada, o {} avisando por la línea de estado.
+func _selected_opening_for_physics() -> Dictionary:
+	if selected_opening_index < 0:
+		_set_status(tr("Selecciona una puerta o ventana primero."))
+		return {}
+	var openings: Array = Array(editor_data.get("openings_data", []))
+	if selected_opening_index >= openings.size():
+		return {}
+	return Dictionary(openings[selected_opening_index]).duplicate(true)
+
+
+## Escribe el resultado del controlador, o enseña por qué no se pudo.
+func _commit_opening_physics(result: Dictionary, success_text: String) -> void:
+	if not bool(result.get("ok", false)):
+		var errors: Array = result.get("errors", [])
+		_physics_feedback = String(errors[0]) if not errors.is_empty() else tr("No se pudo guardar.")
+		_set_status(_physics_feedback)
+		_refresh_property_panel()
+		return
+	_physics_feedback = ""
+	_doc.replace_opening(selected_opening_index, Dictionary(result["opening"]))
+	_set_status(success_text)
+	_refresh_property_panel()
 	queue_redraw()
 
 

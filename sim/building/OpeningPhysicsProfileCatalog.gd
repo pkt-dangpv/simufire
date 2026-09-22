@@ -76,10 +76,13 @@ const CATEGORIES: Array[String] = [
 	CATEGORY_GLAZING, CATEGORY_VERTICAL_SHAFT,
 ]
 
-## Categorias que hoy pueden colgarse de una abertura en el escenario. Las
-## demas existen como referencia cientifica: su interfaz de producto es D4B2.
+## Categorias que pueden colgarse de una abertura en el escenario. Desde
+## F2.2D4B2A son cuatro: D4B1 abrio las dos de fuga y D4B2A anade la
+## deformacion prescrita y el vidrio prescrito. El hueco vertical sigue fuera
+## porque su unico perfil esta bloqueado y no hay nada que colgar.
 const PERSISTABLE_CATEGORIES: Array[String] = [
 	CATEGORY_DOOR_LEAKAGE, CATEGORY_FRAME_LEAKAGE,
+	CATEGORY_DEFORMATION, CATEGORY_GLAZING,
 ]
 
 ## Aire seco a 20 C y 101 325 Pa, el mismo valor con el que NBSIR 81-2214
@@ -653,6 +656,73 @@ const PROFILES: Array = [
 		],
 	},
 ]
+
+
+# ------------------------------------------------------------
+# Compatibilidad entre categoria y abertura
+# ------------------------------------------------------------
+
+## ¿Tiene sentido colgar un perfil de esta categoria de esta abertura?
+##
+## No es una regla nueva: es la que YA aplica el motor para decidir si una
+## abertura puede aportar ese elemento, leida de sus adaptadores y escrita aqui
+## una sola vez para que el editor y el esquema persistente no la dupliquen.
+##
+##   - `door_leakage` (D1) y `deformation` (D2): puerta INTERIOR. Lo exigen
+##     `ClosedDoorLeakageNetworkAdapter.provides_leakage` y
+##     `ClosedDoorDeformationNetworkAdapter.provides_deformation`.
+##   - `frame_leakage` (R3): abertura EXTERIOR que no sea un hueco, segun
+##     `ExteriorEnvelopeLeakageAdapter.provides_leakage`.
+##   - `glazing` (D3): puerta o ventana, dentro o fuera; un hueco no lleva
+##     carpinteria y `GlazingFalloutNetworkAdapter` lo rechaza.
+##   - `vertical_shaft`: solo un hueco vertical.
+##
+## Un hueco vertical no admite ninguna de las cuatro categorias persistibles:
+## no tiene hoja, ni marco, ni pano.
+static func category_applies_to(category: String, opening_data: Dictionary) -> bool:
+	var type_name: String = String(opening_data.get("type", "door")).strip_edges().to_lower()
+	var vertical: bool = bool(opening_data.get("is_vertical", false))
+	var exterior: bool = int(opening_data.get("a", 0)) == -1 \
+			or int(opening_data.get("b", -1)) == -1
+	if category == CATEGORY_VERTICAL_SHAFT:
+		return vertical
+	if vertical:
+		return false
+	match category:
+		CATEGORY_DOOR_LEAKAGE, CATEGORY_DEFORMATION:
+			return type_name == "door" and not exterior
+		CATEGORY_FRAME_LEAKAGE:
+			return exterior and type_name != "hole"
+		CATEGORY_GLAZING:
+			return type_name == "door" or type_name == "window"
+		_:
+			return false
+
+
+## Por que una categoria no encaja, en texto para el editor. Vacio = encaja.
+static func incompatibility_reason(category: String, opening_data: Dictionary) -> String:
+	if category_applies_to(category, opening_data):
+		return ""
+	if bool(opening_data.get("is_vertical", false)):
+		return "un hueco vertical no tiene hoja, marco ni paño"
+	var type_name: String = String(opening_data.get("type", "door")).strip_edges().to_lower()
+	var exterior: bool = int(opening_data.get("a", 0)) == -1 \
+			or int(opening_data.get("b", -1)) == -1
+	match category:
+		CATEGORY_DOOR_LEAKAGE:
+			return "la fuga fría de D1 exige una puerta interior"
+		CATEGORY_DEFORMATION:
+			return "la deformación prescrita de D2 exige una puerta interior"
+		CATEGORY_FRAME_LEAKAGE:
+			if not exterior:
+				return "la fuga de marco de R3 exige una abertura exterior"
+			return "un hueco no lleva marco"
+		CATEGORY_GLAZING:
+			return "el vidrio prescrito exige una puerta o una ventana"
+		CATEGORY_VERTICAL_SHAFT:
+			return "esta categoría solo existe en un hueco vertical"
+		_:
+			return "categoría desconocida"
 
 
 # ------------------------------------------------------------

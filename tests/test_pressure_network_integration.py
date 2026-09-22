@@ -76,7 +76,16 @@ def test_no_distributed_scenario_turns_the_flag_on():
         for path in base.rglob("*"):
             if not path.is_file() or path.suffix not in {".json", ".gd", ".tscn", ".tres"}:
                 continue
-            if FLAG in path.read_text(encoding="utf-8", errors="ignore"):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            # F2.2D4B2A: en un `.gd` se mira el CODIGO, no la documentacion. El
+            # controlador que configura la fisica experimental nombra los
+            # interruptores en su cabecera justamente para dejar escrito que no
+            # los toca, y castigar esa frase empujaria a no escribirla.
+            if path.suffix == ".gd":
+                text = "\n".join(
+                    line for line in text.splitlines() if not line.lstrip().startswith("#")
+                )
+            if FLAG in text:
                 offenders.append(str(path.relative_to(ROOT)))
     assert offenders == []
 

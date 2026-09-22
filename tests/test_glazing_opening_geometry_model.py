@@ -48,6 +48,13 @@ ALLOWED_REFERENCES = {
     # limites- y su validador comprueba ese gate. Ninguno de los dos ejecuta
     # el modelo ni crea una segunda ruta de fisica.
     Path("sim/building/OpeningPhysicsProfileCatalog.gd"),
+    # F2.2D4B2A (2026-09-22): el controlador con el que el editor configura
+    # la fisica experimental de una abertura NOMBRA este modelo -o su
+    # interruptor- solo en su documentacion, para dejar escrito que no lo
+    # ejecuta. Su validador y su suite lo nombran para medir ese contrato.
+    # Quien vigila que no aparezca en CODIGO es
+    # test_opening_profile_editor.test_the_editor_never_writes_a_switch.
+    Path("editor/OpeningPhysicsEditor.gd"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}
