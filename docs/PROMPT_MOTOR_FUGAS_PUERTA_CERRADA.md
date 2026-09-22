@@ -1,7 +1,10 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-21): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
-> integradas detrás de interruptores apagados por defecto.**
+> **Estado (2026-09-22): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
+> integradas detrás de interruptores apagados por defecto; F2.2D4A cierra la
+> PERSISTENCIA de esa física prescrita y congela el gate de calibración (§20).
+> D4A no calibra nada: ELA, reparto, exponente, deformación y vidrio siguen
+> provisionales, y ningún escenario distribuido los declara ni los enciende.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -24,6 +27,12 @@
 >   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
 >   **F2.2C** las integró ese mismo día detrás del interruptor único
 >   `pressure_network_solver_enabled`, apagado por defecto.
+> - **F2.2D4A** (§20): contrato persistente versionado para la clase de fuga, la
+>   deformación prescrita, los paños de vidrio y sus historias espaciales.
+>   Ausencia = física desactivada; guardar y cargar no toca ningún interruptor;
+>   el editor sigue sin mandos. Encontró y cerró dos defectos del formato JSON
+>   de Godot (todo número vuelve como `float`, y `stringify` guarda 15 cifras)
+>   y uno ajeno (`ignition_room_id` rompía la estabilidad byte a byte).
 > - **F2.2D se ha partido en cuatro** (§16): **D1** integra la fuga **fría** de
 >   puerta cerrada en la red autoritativa, **D2** la deformación prescrita,
 >   **D3** el vidrio y **D4** la calibración de clases. **D1 está integrada
@@ -1990,3 +1999,167 @@ contraflujo por altura; el pico de caudal tampoco es una medida de flujo neto.
   y **42 subtests passed**.
 - Las ejecuciones finales se hicieron bajo el monitor de procesos: cero cuadros
   de error y cero procesos Godot residuales.
+
+## 20. F2.2D4A: contrato persistente y gate de calibración (2026-09-22)
+
+> **Estado: cerrada la PERSISTENCIA, no la calibración.** D4A guarda y carga la
+> física prescrita que D1, D2 y D3 ya sabían ejecutar, la deja apagada por
+> defecto y congela qué parámetros tienen respaldo experimental y cuáles no.
+> **D4A no calibra nada**: ni un solo valor ha cambiado de estado de
+> «provisional» a «medido», y ninguno se ha retocado.
+
+### 20.1 Gate de evidencia y calibración
+
+Esta es la tabla que congela el estado de la evidencia. Es el criterio de
+entrada de D4B: nada de lo marcado **provisional** puede publicarse como
+comportamiento de producto sin una calibración propia.
+
+| parámetro | propietario en código | unidad | valor actual | fuente experimental | rango de validez | estado | decisión D4A |
+|---|---|---|---|---|---|---|---|
+| ELA clase `entry_tight` | `ClosedDoorLeakageModel.PLANNED_CLASS_ELA_M2` | m² | 0,0012 | NIST TN 2329 p. 28 (*best estimate* ASHRAE 2001, puerta sencilla con burlete) | puerta exterior completa, a 4 Pa | **derivado** (estimación normativa, no ensayo propio) | se persiste sin tocar |
+| ELA clase `interior_tight` | `ClosedDoorLeakageModel.PLANNED_CLASS_ELA_M2` | m² | 0,0021 | NIST TN 2329 p. 28, aplicado a puerta garaje-vivienda y de sótano | **no hay** medición de puerta interior residencial | **provisional** (extrapolación) | se persiste sin tocar; **queda expresamente abierto** |
+| ELA clase `none` | `ClosedDoorLeakageModel.PLANNED_CLASS_ELA_M2` | m² | 0,0 | — | elemento deliberadamente estanco | **medido por definición** | default; ningún escenario distribuido declara otra cosa |
+| `leakage_area_override_m2` | `OpeningModel` | m² | −1 = sin override | lo que aporte quien lo declare | el del ensayo que lo respalde | **desconocido** hasta declararlo | se persiste; nunca es un default |
+| reparto inferior/laterales/dintel | `ClosedDoorLeakageModel.PROVISIONAL_SPLIT` | — | 0,40 / 0,47 / 0,13 | proporción **geométrica** de una puerta de paso | ninguno: no está medido | **provisional** | sin cambios; D4A no lo persiste por abertura |
+| bandas laterales | `ClosedDoorLeakageNetworkAdapter.SIDE_BAND_COUNT` | — | 8 | Gross y Haberman 1989 p. 177 obs. 4 (segmentar en altura) | cualitativo | **derivado** (discretización, no dato) | sin cambios |
+| exponente `n` de la ley de potencia | `ClosedDoorLeakageModel.PROVISIONAL_FLOW_EXPONENT_CANDIDATE` | — | 0,65 | NIST TN 1887r1 p. 266 (0,6-0,7 razonable **sin** ensayo); NBSIR 81-2214 tabla 1 usa 0,5 | depende del régimen | **provisional** | sin cambios; sigue sin calibrar por clase de puerta |
+| presión de referencia del ELA | `ClosedDoorLeakageModel.NIST_ELA_REFERENCE_PRESSURE_PA` | Pa | 4,0 | NIST TN 1887r1 ec. 28-29; TN 2329 p. 26 | convención cerrada | **medido** (convención normativa; se rechaza cualquier otra) | sin cambios |
+| convención `Cd` de la rendija | misma fórmula | — | 1,0, dentro del ELA | NIST TN 1887r1 ec. 28-29 | convención cerrada | **medido** | sin cambios; la convención 10 Pa / 0,6 sigue sin implementarse |
+| regularización en Δp ≈ 0 | `Phase3CoupledPressureSolver.DEFAULT_DP_REGULARIZATION_PA` | Pa | 0,01 | ninguna: es acondicionamiento numérico | — | **derivado** (numérico, no físico) | sin cambios |
+| dominio experimental de presión | `ClosedDoorLeakageNetworkAdapter.PRESSURE_DOMAIN_MAX_PA` | Pa | 50 | NBSIR 81-2214 pp. 7 y 10 | Δp a través de una puerta interior | **medido** | sin cambios; **se marca y no se recorta**, y hoy se rebasa por órdenes de magnitud (§17.3, §18.4) |
+| área adicional por deformación | `OpeningModel.deformation_tracks` (prescrito) | m² | lo que declare el escenario | Prieler 2023 pp. 16-19 da **topología** (dintel y lado de cerradura); Prieler 2020 da 0,83-3,7 mm en **puerta de acero en horno** | ninguno para puerta residencial | **provisional** / **desconocido** | **se persiste**; sigue sin ley temperatura-deformación |
+| curva heredada 150-350 °C / 4 % | `GasExchangeSystem._step_door_deform` | — | 4 % a 350 °C | **ninguna** localizada | — | **desconocido** (heurística heredada) | no se toca y sigue **fuera** de la red |
+| fuga del marco exterior | `SimulationEngine.window_leakage_area_m2` | m² | 0,005, con `Cd` 0,61 aparte | purga histórica; CFAST usa 0,007344 m² de pared + 0,001040 m² de suelo con `Cd` 0,7 como orden de magnitud | ninguno propio | **provisional** | sin cambios; sigue siendo **global**, no por abertura. Hacerlo por abertura es D4B |
+| `Cd` de abertura grande | `Phase3CoupledPressureSolver` y `GlazingFalloutNetworkAdapter.DISCHARGE_COEFFICIENT` | — | 0,61 | valor clásico de orificio, heredado de la purga | orificio | **derivado** | sin cambios |
+| geometría, capas y estado de los paños | `OpeningModel.glazing_panels` / `glazing_spatial` (prescrito) | m, — | lo que declare el escenario | Skelly 1990, Peng 2024, Wang 2007, FSRI: describen **cuándo y cómo** rompe, no un valor por defecto | ninguno automático | **provisional** / **desconocido** | **se persiste**; sigue sin ley térmica ni probabilista |
+| `Cd` y área del hueco vertical | `PressureNetworkTransportSystem` | —, m² | 0,61 y el área declarada | ninguna | — | **provisional**, **sin calibrar** | sin cambios; queda para D4B |
+
+**Nada de esta tabla se ha recalibrado en D4A.** En particular no se ha tocado
+ningún coeficiente para bajar las presiones observadas, y los resultados fuera
+del dominio experimental siguen publicándose con su bandera `domain_exceeded`.
+
+### 20.2 El esquema persistente
+
+Vive en `sim/building/PrescribedOpeningPhysicsSchema.gd`, único propietario, y
+guarda dentro de cada entrada de `openings_data`:
+
+| clave | qué es | desde |
+|---|---|---|
+| `leakage_class` | clase de fuga fría (D1) | 2026-09-18 |
+| `leakage_area_override_m2` | ELA explícito (D1), opcional | 2026-09-18 |
+| `prescribed_physics_schema` | versión del sub-esquema, hoy **1** | **D4A** |
+| `deformation_tracks` | historias prescritas de ELA adicional (D2) | **D4A** |
+| `glazing_panels` | carpintería del paño e historia de estados por hoja (D3) | **D4A** |
+| `glazing_spatial` | instantáneas `{time_s, leaves[].regions[]}` (D3) | **D4A** |
+
+**Defaults y migración.** Ausencia = lista vacía = física desactivada. Un
+escenario anterior a D4A no gana ni una clave al volver a guardarlo, y una lista
+vacía se borra por la misma razón. La marca de versión se escribe **solo** si
+sobrevive alguna lista no vacía, y se borra si no sobrevive ninguna. Una versión
+declarada se conserva tal cual; una versión desconocida, unos datos sin versión
+y una versión sin datos se **rechazan**, no se degradan en silencio. Subir
+`SCHEMA_VERSION` es un cambio de contrato.
+
+**Carpintería frente a estado operativo.** `open_fraction`, `glass_broken` y
+`thermal_gap_fraction` son estado operativo. Todo lo anterior es carpintería:
+abrir o cerrar la puerta no borra nada, y una puerta guardada abierta conserva
+sus paños y sus pistas. Que la física exija puerta cerrada lo decide el paso de
+simulación, no el fichero.
+
+**Claves desconocidas.** Se conservan tal cual, en la abertura, la pista, el
+paño, la hoja y la región: son procedencia. Lo que se rechaza son los **valores**
+fuera de un enumerado conocido (`leakage_class`, `glass_type`, `state`,
+`location`) y las claves conocidas con el tipo equivocado.
+
+**Quién valida qué.** El esquema no reimplementa nada: delega en
+`ClosedDoorDeformationModel.validate_tracks` para D2 y en
+`GlazingFalloutNetworkAdapter.build_opening_elements` —y por tanto en
+`GlazingIntegrityModel` y `GlazingOpeningGeometryModel`— para D3, evaluado en
+**cada instante declarado** de la historia. Así, un evento de integridad sin su
+instantánea espacial se rechaza al cargar y no a mitad de una simulación. El
+resultado se descarta entero: no se emite ni se consume ningún elemento.
+
+**Dos propietarios, una sola regla.** `ScenarioSerializer.normalize_opening`
+escribe, y es el dueño de la marca de versión; `BuildingModel._validate_openings`
+lee y **falla cerrado**. La ruta real de `tools/run_scenario_headless.gd` mete el
+JSON directamente en `BuildingModel` sin pasar por el normalizador, así que ahí
+el rechazo es explícito y determinista.
+
+### 20.3 Dos defectos del formato, encontrados y cerrados
+
+Los dos son de `JSON` en Godot 4.7.1 y los dos rompían la persistencia de D3.
+
+1. **`JSON.parse_string` devuelve todo número como `float`.** Un `2` escrito en
+   el fichero vuelve como `2.0`. `GlazingIntegrityModel` exige `TYPE_INT` en
+   `leaf_count` y en el `index` de cada hoja, y `GlazingOpeningGeometryModel`
+   rechaza un índice real: **sin corregirlo, una declaración de D3 se guardaba
+   bien y se rechazaba al volver a leerla.** El esquema descodifica el tipo
+   entero de la lista cerrada de campos enteros, y **solo** cuando el valor es
+   exactamente entero: un 2,5 se deja intacto para que lo rechace el modelo
+   puro. Esto no repara un escenario malformado, descodifica el formato.
+2. **`JSON.stringify` escribe 15 cifras significativas y hunde a cero lo muy
+   pequeño.** Medido: 1/3, e, 0,30000000000000004 y 1e-300 no sobreviven al
+   viaje. Como una historia prescrita no se puede redondear en silencio, el
+   contrato **rechaza** cualquier número que el fichero no devuelva exacto, con
+   su ruta y su valor, en vez de guardarlo mutilado.
+
+Y un tercero, ajeno a D4A pero destapado por su prueba de estabilidad:
+`ignition_room_id` era el único entero que el normalizador escribía sin
+restituir su tipo, así que **guardar, cargar y volver a guardar cualquier
+escenario, incluso uno anterior a D4A, no era byte a byte estable**. Se corrige
+con una coerción de tipo que solo actúa si la clave ya existe: ningún escenario
+gana una clave y ningún valor cambia.
+
+Con los tres cerrados, ida y vuelta es exacta y el fichero es estable byte a
+byte **desde la primera escritura**.
+
+### 20.4 Verificación
+
+- `tools/validate_prescribed_physics_persistence.gd`, registrado en
+  `check_product.py`: **229 comprobaciones** en once grupos, entre ellos la
+  identidad del escenario antiguo, la ida y vuelta exacta, la estabilidad byte a
+  byte, la carpintería frente a abrir y cerrar, que ningún interruptor se toca,
+  el orden y los instantes de las historias, la identidad exacta de paño y hoja
+  —incluidos mayúsculas y espacios exteriores—, **veinticinco rechazos
+  explícitos**, las claves desconocidas conservadas, la identidad del motor con
+  la física apagada y la ausencia de rutas nuevas de caudal.
+- `tests/test_prescribed_physics_persistence.py`: **12 pruebas**, con las listas
+  de propietarios y consumidores **cerradas** y el barrido de los catorce
+  escenarios distribuidos y las tres fixtures.
+- Campaña de mutaciones: **20 de 20 mutaciones válidas muertas**, con
+  restauración byte a byte comprobada por SHA-256 tras cada una. Cubre default
+  activado, campo omitido al guardar, campo ignorado al cargar, tiempo
+  reordenado, cota de paño alterada, panel equivocado, solape aceptado, dato no
+  finito aceptado, clase de fuga desconocida aceptada, versión desconocida
+  aceptada, estado operativo confundido con carpintería, migración que añade la
+  marca de versión, identidad de paño reescrita, entero fraccionario truncado,
+  carga sin validar, aliasing del diccionario del escenario, descodificación de
+  enteros eliminada, marca de versión sin tipo y la regresión de
+  `ignition_room_id`.
+  Cinco supervivientes de la primera vuelta y cuatro mutaciones que reventaban
+  el validador con un error de ejecución obligaron a reforzar las pruebas: se
+  añadió un segundo paño de identidad exacta, la comprobación de aliasing contra
+  el diccionario que de verdad entra en el motor, los casos de entero
+  fraccionario y de no finito dentro de metadatos inertes, y accesos defensivos
+  para que una carga fallida marque el fallo en vez de reventar.
+- Suite de referencia completa, obligatoria porque D4A toca `sim/building`:
+  **346/346 required PASS** con los mismos **78 gaps** documentados; en
+  `reference_checks.json` solo cambió `generated_at`. Todos los guardarraíles
+  científicos en verde, R2-1 incluido.
+
+### 20.5 Lo que D4A deja fuera, y es exactamente D4B
+
+- **Calibración.** Todo lo marcado provisional en §20.1 sigue provisional. D4A
+  **no** puede declararse calibrada: solo ha cerrado la persistencia.
+- **Editor.** No hay ni un control nuevo: ni clase de fuga, ni pistas, ni paños,
+  ni regiones. La herramienta del portal tampoco escribe nada de esto.
+- **Perfiles calibrados** por clase de puerta, material y ajuste, y por tipo de
+  vidrio, espesor, número de hojas y protección de borde.
+- **Activación controlada** en escenarios distribuidos: los cinco interruptores
+  siguen apagados y ningún escenario los enciende ni declara datos.
+- **Fuga de marco por abertura**: hoy `window_leakage_area_m2` es global.
+- **Criterios publicables**: el pico de presión del recinto sellado sigue en el
+  orden de decenas de kPa y las Δp de la rendija siguen fuera del dominio
+  experimental. Eso no se arregla persistiendo datos.
+- Siguen sin existir el modelo térmico (tipo BREAK1) y el probabilista de rotura
+  de vidrio, y `GlassFailureSystem` sigue sin conectarse.

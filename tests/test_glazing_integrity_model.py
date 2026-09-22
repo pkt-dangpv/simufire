@@ -42,6 +42,9 @@ ALLOWED_REFERENCES = {
     Path("sim/core/GlazingFalloutNetworkAdapter.gd"),
     Path("tools/validate_glazing_fallout_network.gd"),
     Path("tests/test_glazing_fallout_network.py"),
+    # F2.2D4A: el contrato persistente nombra este modelo en su
+    # documentacion y delega en el adaptador de D3 toda la validacion.
+Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

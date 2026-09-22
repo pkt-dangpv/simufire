@@ -4,6 +4,9 @@ class_name ScenarioSerializer
 const ClosedDoorLeakageNetworkAdapterScript = preload(
 	"res://sim/core/ClosedDoorLeakageNetworkAdapter.gd"
 )
+const PrescribedPhysicsSchema := preload(
+	"res://sim/building/PrescribedOpeningPhysicsSchema.gd"
+)
 const ScenarioValues := preload("res://sim/ScenarioValues.gd")
 
 const DEFAULT_VERSION: int = 1
@@ -166,6 +169,13 @@ static func _resolve_ignition_room_id(data: Dictionary) -> int:
 static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	var data: Dictionary = raw_data.duplicate(true)
 	data["version"] = int(data.get("version", DEFAULT_VERSION))
+	# F2.2D4A: `JSON.parse_string` devuelve todo numero como `float`, asi que un
+	# `"ignition_room_id": 0` volvia del fichero como `0.0` y la SEGUNDA
+	# escritura ya no era igual a la primera. Es el unico entero que el
+	# normalizador escribia sin restituir su tipo. Solo se toca si la clave ya
+	# existe: un escenario que no la trae no la gana.
+	if data.has("ignition_room_id"):
+		data["ignition_room_id"] = int(data["ignition_room_id"])
 	data["outside_temp_c"] = float(data.get("outside_temp_c", 20.0))
 	data["outside_o2"] = float(data.get("outside_o2", 0.209))
 	var building_type: String = String(data.get("building_type", "single_family")).to_lower()
@@ -379,6 +389,10 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 			opening["leakage_area_override_m2"] = override_m2
 		else:
 			opening.erase("leakage_area_override_m2")
+	# F2.2D4A: la deformacion prescrita y el vidrio prescrito se conservan tal
+	# cual, sin redondear ni reordenar. Una lista vacia se borra, asi que un
+	# escenario anterior a D4A no gana ninguna clave al volver a guardarlo.
+	PrescribedPhysicsSchema.normalize(opening)
 	var swing_direction: String = String(opening.get("swing_direction", "in")).strip_edges().to_lower()
 	opening["swing_direction"] = "out" if swing_direction == "out" else "in"
 	var hinge_side: String = String(opening.get("hinge_side", "left")).strip_edges().to_lower()
@@ -499,5 +513,8 @@ static func validate_scenario(data: Dictionary) -> Array:
 			errors.append("Apertura [%d]: sala a=%d no existe en rooms_data" % [i, a])
 		if b != -1 and not room_ids.has(b):
 			errors.append("Apertura [%d]: sala b=%d no existe en rooms_data (usa -1 para exterior)" % [i, b])
+		# F2.2D4A: el mismo contrato persistente que exige BuildingModel, para
+		# que el editor no pueda guardar algo que el motor rechazaria al cargar.
+		errors.append_array(PrescribedPhysicsSchema.validate(op, i))
 
 	return errors

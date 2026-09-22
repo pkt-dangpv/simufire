@@ -461,6 +461,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot desprendimiento prescrito de vidrio: " + (diagnostic or "failed"))
 
+    # F2.2D4A: contrato persistente de la fisica prescrita. Guardar y cargar
+    # conserva carpinteria e historias sin activarlas, y los datos invalidos se
+    # rechazan de forma explicita.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_prescribed_physics_persistence.gd",
+        "PRESCRIBED PHYSICS PERSISTENCE VALIDATION PASS",
+    )
+    rows.append(("Persistencia de la fisica prescrita, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot persistencia de la fisica prescrita: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

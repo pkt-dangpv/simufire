@@ -65,6 +65,10 @@ ALLOWED_NETWORK_REFERENCES = {
     # nombra el interruptor para fijar la dependencia y el default OFF.
     Path("tools/validate_exterior_envelope_leakage.gd"),
     Path("tests/test_exterior_envelope_leakage.py"),
+    # F2.2D4A: la persistencia nombra el interruptor de la red para demostrar
+    # que guardar y cargar NO lo enciende, y que el fichero no lo contiene.
+    Path("tools/validate_prescribed_physics_persistence.gd"),
+    Path("tests/test_prescribed_physics_persistence.py"),
     # F2.2C-R1: los fixtures multiplanta resuelven redes reales con el solver.
     Path("tools/validate_multistorey_pressure_datum.gd"),
     Path("tests/test_multistorey_pressure_datum.py"),

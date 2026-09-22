@@ -1,5 +1,55 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-22 - persistent contract for prescribed physics (F2.2D4A)
+
+- Checkpoint: `main` at `9f6cf96e` (D3) when the phase started; the work is one
+  local commit on top and **has not been pushed**.
+- D4A gives D1, D2 and D3 a **versioned persistent contract** inside each
+  `openings_data` entry: `prescribed_physics_schema` (today 1),
+  `deformation_tracks`, `glazing_panels` and `glazing_spatial`, next to the
+  `leakage_class` and `leakage_area_override_m2` that D1 already stored.
+- **Absence is disablement.** A pre-D4A scenario gains no key when re-saved, an
+  empty list is erased, and loading or saving never touches a switch. The five
+  live-physics flags still default OFF and no distributed scenario enables them
+  or declares any of the new data.
+- **Carpentry is not operational state.** Opening or closing a door keeps its
+  leakage class, its deformation tracks and its glazing panels. Only
+  `open_fraction`, `glass_broken` and the legacy `thermal_gap_fraction` are
+  operational.
+- **No duplicated physics.** `sim/building/PrescribedOpeningPhysicsSchema.gd`
+  owns the schema and delegates every substantive check to the pure models:
+  `ClosedDoorDeformationModel.validate_tracks` for D2, and
+  `GlazingFalloutNetworkAdapter.build_opening_elements` — and through it
+  `GlazingIntegrityModel` and `GlazingOpeningGeometryModel` — for D3, evaluated
+  at **every declared instant**, so an integrity event without its spatial
+  snapshot is rejected at load time instead of mid-simulation. No crack law, no
+  Bernoulli, no solver and no atomic applier were modified, and no new flow or
+  transport route exists.
+- `ScenarioSerializer` writes and owns the version marker; `BuildingModel`
+  reads and **fails closed**, which is the real path used by
+  `tools/run_scenario_headless.gd` when it feeds raw JSON to the engine.
+- **Three format defects were found.** Godot's JSON parser returns every number
+  as `float`, so `leaf_count` and each leaf `index` stopped being integers and
+  D3 rejected on reload exactly what it had just written; `JSON.stringify`
+  keeps 15 significant digits and flushes very small magnitudes to zero, so the
+  contract now **rejects** any number the file cannot return exactly instead of
+  rounding a prescribed history in silence; and `ignition_room_id` was the one
+  integer the normaliser never restored, which meant **no** scenario — not even
+  a pre-D4A one — was byte-stable when written, read and written again.
+- **D4A is not calibration.** The evidence gate in §20.1 of
+  `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md` freezes what is backed and what is not:
+  the 21 cm² interior ELA, the 40/47/13 split, the 0.65 exponent, the prescribed
+  deformation magnitudes, the glazing carpentry, the 0.005 m² frame leak and the
+  vertical shaft all remain **provisional**. Nothing was re-tuned to lower the
+  observed pressures, and out-of-domain results are still flagged, not clipped.
+- Dedicated verification: **229** validator checks, **12** pytest tests and
+  **20 of 20 valid mutations killed**, with byte-for-byte restoration verified
+  by SHA-256 after each one. Five first-round survivors and four validator
+  crashes forced real hardening of the guardrails.
+- Remaining scope is **D4B**: calibration, editor controls, calibrated profiles
+  per door and glazing class, per-opening frame leakage, controlled activation
+  in distributed scenarios and publishable acceptance criteria.
+
 ## Current Program Update - 2026-09-21 - prescribed glazing fallout (F2.2D3)
 
 - D3 is integrated locally behind `glazing_fallout_enabled`, default OFF and

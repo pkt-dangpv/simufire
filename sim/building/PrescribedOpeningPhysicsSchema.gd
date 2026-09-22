@@ -1,0 +1,499 @@
+extends RefCounted
+
+## F2.2D4A: contrato PERSISTENTE de la fisica prescrita de puertas y vidrio.
+##
+## Esta clase es el unico propietario del ESQUEMA con el que un escenario guarda
+## y carga lo que hoy solo existia en memoria:
+##
+##   - D1, fuga fria: `leakage_class` y `leakage_area_override_m2` (ya se
+##     persistian desde el 2026-09-18; aqui solo se documentan como parte del
+##     mismo contrato, no se vuelven a normalizar);
+##   - D2, deformacion prescrita: `deformation_tracks`;
+##   - D3, vidrio prescrito: `glazing_panels` (carpinteria + historia de estados
+##     por hoja) y `glazing_spatial` (instantaneas de regiones desprendidas).
+##
+## Lo que esta clase NO hace, y no debe hacer nunca:
+##
+##   - no calcula caudal, presion, area de flujo ni transporte;
+##   - no reimplementa la ley de rendijas, la geometria multicapa, la seleccion
+##     temporal, la validacion de integridad, la formula de viento ni el
+##     aplicador atomico: DELEGA en los modelos puros y en el adaptador D3;
+##   - no enciende `closed_door_leakage_enabled`,
+##     `closed_door_deformation_enabled` ni `glazing_fallout_enabled`, que
+##     siguen naciendo apagados en `SimulationEngine`. Guardar y cargar mueve
+##     DATOS, nunca interruptores;
+##   - no conoce la vista ni los mandos del editor. D4B decidira esa capa.
+##
+## ## Version del esquema, defaults y migracion
+##
+## `prescribed_physics_schema` vale hoy 1 y vive dentro de cada entrada de
+## `openings_data`. Reglas:
+##
+##   - **Default = ausencia = fisica desactivada.** Un escenario sin ninguna de
+##     las tres listas se comporta exactamente como antes de D4A, y al volver a
+##     guardarlo no gana ni una clave: un escenario antiguo conserva su
+##     identidad byte a byte.
+##   - Una lista presente pero VACIA equivale a ausente y se borra al
+##     normalizar, por la misma razon.
+##   - La clave de version se escribe SOLO cuando sobrevive al menos una lista
+##     no vacia, y se borra cuando no sobrevive ninguna.
+##   - Una version declarada se conserva tal cual: `normalize()` nunca la
+##     reescribe. Una version desconocida se RECHAZA en la validacion; no se
+##     degrada en silencio.
+##   - Datos declarados sin la clave de version se RECHAZAN: el escenario esta
+##     fuera del contrato y no se adivina cual era.
+##
+## ## Carpinteria frente a estado operativo
+##
+## `open_fraction` (y `glass_broken`, y el heredado `thermal_gap_fraction`) son
+## ESTADO OPERATIVO: los cambia el jugador o el motor. Todo lo que gobierna esta
+## clase es CARPINTERIA: describe como esta hecha la hoja, no si alguien la ha
+## abierto. Abrir o cerrar una puerta no borra su clase de fuga, sus pistas de
+## deformacion ni sus paños. Es la misma regla que D1 ya aplicaba a
+## `leakage_class`, extendida a D2 y D3.
+##
+## ## Claves desconocidas
+##
+## Politica documentada y deliberada:
+##
+##   - las claves DESCONOCIDAS de una abertura, de una pista, de un paño, de una
+##     hoja o de una region se CONSERVAN tal cual (procedencia; es lo que ya
+##     hacian los modelos puros con `metadata`);
+##   - los VALORES de un enumerado conocido (`leakage_class`, `glass_type`,
+##     `state`, `location`) se rechazan si no pertenecen al enumerado;
+##   - una clave conocida con el TIPO equivocado se rechaza.
+##
+## ## Representabilidad numerica (defecto encontrado en D4A)
+##
+## `JSON.stringify` de Godot 4.7.1 escribe los dobles con 15 cifras
+## significativas y ademas lleva a `0.0` las magnitudes muy pequeñas. Medido:
+## `1/3`, `e`, `0.30000000000000004` y `1e-300` NO sobreviven al viaje, y el
+## texto no es estable hasta la SEGUNDA escritura.
+##
+## Como una historia prescrita no se puede redondear en silencio, el contrato
+## RECHAZA cualquier numero que el formato no represente exactamente, en vez de
+## guardarlo mutilado. Con esa puerta cerrada, ida y vuelta es exacta y el
+## fichero es estable byte a byte desde la primera escritura.
+##
+## ## Enteros: el fichero solo tiene un tipo numerico (segundo defecto de D4A)
+##
+## `JSON.parse_string` devuelve TODO numero como `float`: un `2` escrito en el
+## fichero vuelve como `2.0`. `GlazingIntegrityModel` exige `TYPE_INT` en
+## `leaf_count` y en el `index` de cada hoja, y `GlazingOpeningGeometryModel`
+## rechaza un indice real, asi que SIN esta clase una declaracion de D3 no
+## sobrevive a un viaje por el fichero: se guarda bien y se rechaza al volver.
+##
+## `decode()` restituye el tipo entero de los campos que el esquema declara
+## enteros, y SOLO cuando el valor es exactamente entero: un `2.5` se deja como
+## esta para que el modelo puro lo rechace con su propio mensaje. Esto no es
+## reparar un escenario malformado, es descodificar el formato: el fichero no
+## distingue `2` de `2.0` y el esquema si sabe cual de los dos queria decir.
+##
+## Efecto colateral necesario: `normalize()` descodifica, de modo que la
+## siguiente escritura vuelve a poner `2` y no `2.0`, y el fichero es estable
+## desde la primera vuelta.
+
+const DeformationModel = preload("res://sim/core/ClosedDoorDeformationModel.gd")
+const GlazingAdapter = preload("res://sim/core/GlazingFalloutNetworkAdapter.gd")
+
+## Version del sub-esquema por abertura. Subirla es un cambio de contrato y
+## exige actualizar la politica de migracion de la cabecera y los documentos.
+const SCHEMA_VERSION: int = 1
+const SCHEMA_KEY: String = "prescribed_physics_schema"
+
+const DEFORMATION_KEY: String = "deformation_tracks"
+const PANELS_KEY: String = "glazing_panels"
+const SPATIAL_KEY: String = "glazing_spatial"
+
+## Las tres listas del esquema, en orden estable. `leakage_class` y
+## `leakage_area_override_m2` NO estan aqui: los normaliza y valida D1 desde el
+## 2026-09-18 y este modulo no los toca para no crear un segundo propietario.
+const PAYLOAD_KEYS: Array[String] = [DEFORMATION_KEY, PANELS_KEY, SPATIAL_KEY]
+
+## Campos que el esquema declara ENTEROS. Es la lista cerrada que `decode()`
+## restituye tras pasar por el fichero. No hay ninguno en las pistas de D2.
+const PANEL_INT_KEY: String = "leaf_count"
+const LEAF_INT_KEY: String = "index"
+
+## Tipos que el fichero representa de forma nativa. Cualquier otro (Vector2,
+## objetos, callables) no es dato de escenario y se rechaza.
+const JSON_NATIVE_TYPES: Array[int] = [
+	TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING,
+	TYPE_STRING_NAME, TYPE_ARRAY, TYPE_DICTIONARY,
+]
+
+
+## ¿Esta abertura trae datos de D4A? Una lista vacia no cuenta: es lo mismo que
+## no traer nada.
+static func declares(opening_data: Dictionary) -> bool:
+	for key in PAYLOAD_KEYS:
+		var value: Variant = opening_data.get(key, null)
+		if typeof(value) == TYPE_ARRAY and not Array(value).is_empty():
+			return true
+	return false
+
+
+## Normaliza en sitio la parte D4A de UNA abertura ya duplicada.
+##
+## No redondea, no reordena, no rellena y no repara: solo decide que claves
+## sobreviven, para que un escenario antiguo no gane campos y uno nuevo declare
+## su version. Los datos malformados se conservan intactos y los rechaza
+## `validate()`, que es quien falla de forma explicita.
+static func normalize(opening: Dictionary) -> void:
+	for key in PAYLOAD_KEYS:
+		if not opening.has(key):
+			continue
+		var value: Variant = opening[key]
+		# Una lista vacia es exactamente "sin datos": se borra para que guardar
+		# un escenario antiguo no le añada claves que no tenia.
+		if typeof(value) == TYPE_ARRAY and Array(value).is_empty():
+			opening.erase(key)
+			continue
+		# Restituye el tipo entero que el fichero no sabe distinguir. Los
+		# valores no cambian: solo deja de escribirse `2.0` donde iba un `2`.
+		opening[key] = _decoded(key, value)
+	if not declares(opening):
+		# Sin carga util, la marca de version sobra. Nunca se deja colgada.
+		opening.erase(SCHEMA_KEY)
+		return
+	if not opening.has(SCHEMA_KEY):
+		opening[SCHEMA_KEY] = SCHEMA_VERSION
+		return
+	# La marca de version tambien vuelve del fichero como `1.0`. Se le restituye
+	# el tipo sin tocar el valor: una version fraccionaria se deja intacta y la
+	# rechaza `validate()`.
+	opening[SCHEMA_KEY] = _as_integer(opening[SCHEMA_KEY])
+
+
+## Valida la parte D4A de una abertura. Devuelve los errores, ya prefijados con
+## el indice de la abertura. Lista vacia = contrato cumplido.
+static func validate(opening_data: Dictionary, index: int) -> Array[String]:
+	var errors: Array[String] = []
+	var prefix: String = "openings_data[%d]" % index
+	var has_any_key: bool = opening_data.has(SCHEMA_KEY)
+	for key in PAYLOAD_KEYS:
+		if opening_data.has(key):
+			has_any_key = true
+			if typeof(opening_data[key]) != TYPE_ARRAY:
+				errors.append("%s: %s debe ser un array" % [prefix, key])
+	if not has_any_key:
+		return errors
+	if not errors.is_empty():
+		return errors
+
+	var has_payload: bool = declares(opening_data)
+	if opening_data.has(SCHEMA_KEY):
+		var raw_version: Variant = opening_data[SCHEMA_KEY]
+		if typeof(raw_version) != TYPE_INT and typeof(raw_version) != TYPE_FLOAT:
+			errors.append("%s: %s debe ser un entero" % [prefix, SCHEMA_KEY])
+			return errors
+		var version: int = int(raw_version)
+		if float(raw_version) != float(version):
+			errors.append("%s: %s debe ser un entero" % [prefix, SCHEMA_KEY])
+			return errors
+		if version < 1 or version > SCHEMA_VERSION:
+			errors.append("%s: %s %d no esta soportado (maximo %d)" % [
+				prefix, SCHEMA_KEY, version, SCHEMA_VERSION
+			])
+			return errors
+		if not has_payload:
+			errors.append("%s: %s sin datos prescritos declarados" % [prefix, SCHEMA_KEY])
+			return errors
+	elif has_payload:
+		errors.append("%s: la fisica prescrita exige declarar %s" % [prefix, SCHEMA_KEY])
+		return errors
+	else:
+		# Solo listas vacias y sin version: equivale a no declarar nada.
+		return errors
+
+	# Se valida la carga DESCODIFICADA, que es la que vera el motor: el fichero
+	# no distingue `2` de `2.0` y el esquema sabe cual de los dos es.
+	var decoded: Dictionary = opening_data.duplicate(true)
+	for key in PAYLOAD_KEYS:
+		if decoded.has(key):
+			decoded[key] = _decoded(key, decoded[key])
+			_check_json_stable(decoded[key], "%s.%s" % [prefix, key], errors)
+	if not errors.is_empty():
+		return errors
+
+	_validate_deformation(decoded, prefix, errors)
+	_validate_glazing(decoded, prefix, errors)
+	return errors
+
+
+## Vuelca los datos ya validados en una `OpeningModel`. Copia profunda: el
+## escenario y la abertura no comparten memoria, asi que el motor no puede
+## reescribir el escenario cargado por accidente.
+##
+## Cargar NO enciende nada: los tres interruptores viven en `SimulationEngine`,
+## nacen apagados y son los unicos que deciden si esta fisica se consume.
+static func apply_to_opening(opening_data: Dictionary, opening: OpeningModel) -> void:
+	if opening == null:
+		return
+	opening.deformation_tracks = _duplicated_array(opening_data, DEFORMATION_KEY)
+	opening.glazing_panels = _duplicated_array(opening_data, PANELS_KEY)
+	opening.glazing_spatial = _duplicated_array(opening_data, SPATIAL_KEY)
+
+
+static func _duplicated_array(opening_data: Dictionary, key: String) -> Array:
+	var value: Variant = opening_data.get(key, null)
+	if typeof(value) != TYPE_ARRAY:
+		return []
+	return Array(_decoded(key, Array(value).duplicate(true)))
+
+
+## Descodificacion del formato: restituye el tipo entero de los campos que el
+## esquema declara enteros. Ver la cabecera, "Enteros".
+##
+## Devuelve SIEMPRE una copia: ni el escenario ni la abertura comparten memoria
+## con la otra. Un valor que no sea exactamente entero se deja intacto para que
+## lo rechace el modelo puro, con su propio mensaje.
+static func _decoded(key: String, value: Variant) -> Variant:
+	if typeof(value) != TYPE_ARRAY:
+		return value
+	match key:
+		PANELS_KEY:
+			return _decoded_panels(Array(value))
+		SPATIAL_KEY:
+			return _decoded_spatial(Array(value))
+		_:
+			# Las pistas de D2 no declaran ningun entero.
+			return Array(value).duplicate(true)
+
+
+static func _decoded_panels(panels: Array) -> Array:
+	var decoded: Array = []
+	for raw_panel in panels:
+		if typeof(raw_panel) != TYPE_DICTIONARY:
+			decoded.append(raw_panel)
+			continue
+		var panel: Dictionary = Dictionary(raw_panel).duplicate(true)
+		if panel.has(PANEL_INT_KEY):
+			panel[PANEL_INT_KEY] = _as_integer(panel[PANEL_INT_KEY])
+		if typeof(panel.get("leaves", null)) == TYPE_ARRAY:
+			panel["leaves"] = _decoded_leaves(Array(panel["leaves"]))
+		decoded.append(panel)
+	return decoded
+
+
+static func _decoded_spatial(spatial: Array) -> Array:
+	var decoded: Array = []
+	for raw_entry in spatial:
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			decoded.append(raw_entry)
+			continue
+		var entry: Dictionary = Dictionary(raw_entry).duplicate(true)
+		if typeof(entry.get("snapshots", null)) != TYPE_ARRAY:
+			decoded.append(entry)
+			continue
+		var snapshots: Array = []
+		for raw_snapshot in Array(entry["snapshots"]):
+			if typeof(raw_snapshot) != TYPE_DICTIONARY:
+				snapshots.append(raw_snapshot)
+				continue
+			var snapshot: Dictionary = Dictionary(raw_snapshot).duplicate(true)
+			if typeof(snapshot.get("leaves", null)) == TYPE_ARRAY:
+				snapshot["leaves"] = _decoded_leaves(Array(snapshot["leaves"]))
+			snapshots.append(snapshot)
+		entry["snapshots"] = snapshots
+		decoded.append(entry)
+	return decoded
+
+
+static func _decoded_leaves(leaves: Array) -> Array:
+	var decoded: Array = []
+	for raw_leaf in leaves:
+		if typeof(raw_leaf) != TYPE_DICTIONARY:
+			decoded.append(raw_leaf)
+			continue
+		var leaf: Dictionary = Dictionary(raw_leaf).duplicate(true)
+		if leaf.has(LEAF_INT_KEY):
+			leaf[LEAF_INT_KEY] = _as_integer(leaf[LEAF_INT_KEY])
+		decoded.append(leaf)
+	return decoded
+
+
+## `2.0` era un `2` que paso por el fichero. `2.5` no lo era: se devuelve tal
+## cual para que el modelo puro lo rechace en vez de truncarlo en silencio.
+static func _as_integer(value: Variant) -> Variant:
+	if typeof(value) != TYPE_FLOAT:
+		return value
+	var number: float = float(value)
+	if not is_finite(number) or number != floorf(number) or absf(number) > 9007199254740992.0:
+		return value
+	return int(number)
+
+
+## D2: las pistas las valida su modelo puro. Aqui solo se añade lo que el
+## fichero puede decir y el modelo puro no ve: de que abertura cuelgan.
+##
+## La apertura operativa NO se mira. Una puerta guardada abierta conserva su
+## deformacion prescrita igual que conserva su clase de fuga; que una pista
+## exija puerta cerrada es cosa del paso de simulacion, no del fichero.
+static func _validate_deformation(
+	opening_data: Dictionary, prefix: String, errors: Array[String]
+) -> void:
+	var tracks: Array = Array(opening_data.get(DEFORMATION_KEY, []))
+	if tracks.is_empty():
+		return
+	var type_name: String = String(opening_data.get("type", "door")).strip_edges().to_lower()
+	if type_name != "door":
+		errors.append("%s: %s solo existe en una puerta" % [prefix, DEFORMATION_KEY])
+	if _is_exterior(opening_data):
+		errors.append("%s: %s exige dos salas interiores" % [prefix, DEFORMATION_KEY])
+	var checked: Dictionary = DeformationModel.validate_tracks(tracks)
+	for error in checked["errors"]:
+		errors.append("%s: %s" % [prefix, String(error)])
+
+
+## D3: la cadena completa 3A -> 3B -> colocacion la valida el adaptador de D3,
+## que es su unico propietario. Aqui se construye una abertura de trabajo con la
+## geometria declarada y se pide esa validacion en CADA instante declarado, de
+## forma que una historia incoherente -un estado que cambia sin su instantanea
+## espacial- se rechace al cargar y no en mitad de una simulacion.
+##
+## No se emite ni se consume ningun elemento: el resultado se descarta entero.
+static func _validate_glazing(
+	opening_data: Dictionary, prefix: String, errors: Array[String]
+) -> void:
+	var panels: Array = Array(opening_data.get(PANELS_KEY, []))
+	var spatial: Array = Array(opening_data.get(SPATIAL_KEY, []))
+	if panels.is_empty() and spatial.is_empty():
+		return
+	var width_m: float = float(opening_data.get("width_m", NAN))
+	var height_m: float = float(opening_data.get("height_m", NAN))
+	if not is_finite(width_m) or width_m <= 0.0 \
+			or not is_finite(height_m) or height_m <= 0.0:
+		errors.append("%s: el vidrio prescrito exige un hueco anfitrion valido" % prefix)
+		return
+	var probe = OpeningModel.new(
+		int(opening_data.get("a", 0)),
+		int(opening_data.get("b", -1)),
+		_opening_type(opening_data),
+		width_m,
+		height_m,
+		0.0
+	)
+	probe.sill_m = float(opening_data.get("sill_m", 0.0))
+	probe.opening_index = 0
+	probe.glazing_panels = panels
+	probe.glazing_spatial = spatial
+	for time_s in _declared_times(panels, spatial):
+		var checked: Dictionary = GlazingAdapter.build_opening_elements(
+			probe, BuildingModel.OUTSIDE_ID, 0.0, "a", "b", time_s
+		)
+		if bool(checked["valid"]):
+			continue
+		for error in checked["errors"]:
+			var message: String = "%s: vidrio en t=%s s: %s" % [
+				prefix, String.num(time_s, 9), String(error)
+			]
+			if not errors.has(message):
+				errors.append(message)
+
+
+## Instantes declarados por la historia: los de cada instantanea espacial y los
+## de cada evento de integridad, mas el origen. Ordenados y sin repetidos, para
+## que la validacion sea determinista y no dependa del orden de escritura.
+static func _declared_times(panels: Array, spatial: Array) -> Array[float]:
+	var seen: Dictionary = {0.0: true}
+	for raw_entry in spatial:
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			continue
+		var snapshots: Variant = Dictionary(raw_entry).get("snapshots", null)
+		if typeof(snapshots) != TYPE_ARRAY:
+			continue
+		for raw_snapshot in Array(snapshots):
+			if typeof(raw_snapshot) != TYPE_DICTIONARY:
+				continue
+			_collect_time(Dictionary(raw_snapshot).get("time_s", null), seen)
+	for raw_panel in panels:
+		if typeof(raw_panel) != TYPE_DICTIONARY:
+			continue
+		var leaves: Variant = Dictionary(raw_panel).get("leaves", null)
+		if typeof(leaves) != TYPE_ARRAY:
+			continue
+		for raw_leaf in Array(leaves):
+			if typeof(raw_leaf) != TYPE_DICTIONARY:
+				continue
+			var events: Variant = Dictionary(raw_leaf).get("events", null)
+			if typeof(events) != TYPE_ARRAY:
+				continue
+			for raw_event in Array(events):
+				if typeof(raw_event) != TYPE_DICTIONARY:
+					continue
+				_collect_time(Dictionary(raw_event).get("time_s", null), seen)
+	var times: Array[float] = []
+	for key in seen.keys():
+		times.append(float(key))
+	times.sort()
+	return times
+
+
+static func _collect_time(value: Variant, seen: Dictionary) -> void:
+	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
+		return
+	var time_s: float = float(value)
+	if not is_finite(time_s) or time_s < 0.0:
+		return
+	seen[time_s] = true
+
+
+static func _opening_type(opening_data: Dictionary) -> int:
+	match String(opening_data.get("type", "door")).strip_edges().to_lower():
+		"window":
+			return OpeningModel.Type.WINDOW
+		"hole":
+			return OpeningModel.Type.HOLE
+		_:
+			return OpeningModel.Type.DOOR
+
+
+static func _is_exterior(opening_data: Dictionary) -> bool:
+	return int(opening_data.get("a", 0)) == BuildingModel.OUTSIDE_ID \
+			or int(opening_data.get("b", BuildingModel.OUTSIDE_ID)) == BuildingModel.OUTSIDE_ID
+
+
+## Comprueba que el fichero puede devolver EXACTAMENTE lo que se le da.
+##
+## `JSON.stringify` escribe 15 cifras significativas y hunde a cero lo muy
+## pequeño, asi que hay dobles legitimos que no sobreviven. Redondearlos en
+## silencio falsificaria una historia prescrita, de modo que se rechazan con el
+## valor y la ruta concretos y quien escribe el escenario decide.
+static func _check_json_stable(value: Variant, path: String, errors: Array[String]) -> void:
+	var type_id: int = typeof(value)
+	if not JSON_NATIVE_TYPES.has(type_id):
+		errors.append("%s: tipo %d no es representable en el escenario" % [path, type_id])
+		return
+	if type_id == TYPE_ARRAY:
+		var array: Array = value
+		for i in range(array.size()):
+			_check_json_stable(array[i], "%s[%d]" % [path, i], errors)
+		return
+	if type_id == TYPE_DICTIONARY:
+		var dictionary: Dictionary = value
+		for key in dictionary.keys():
+			if typeof(key) != TYPE_STRING and typeof(key) != TYPE_STRING_NAME:
+				errors.append("%s: las claves del escenario deben ser texto" % path)
+				continue
+			_check_json_stable(dictionary[key], "%s.%s" % [path, String(key)], errors)
+		return
+	if type_id != TYPE_INT and type_id != TYPE_FLOAT:
+		return
+	if type_id == TYPE_FLOAT and not is_finite(float(value)):
+		errors.append("%s: un numero no finito no es representable" % path)
+		return
+	if type_id == TYPE_INT:
+		# El fichero guarda el entero como doble y `decode()` le devuelve el
+		# tipo, asi que solo hay perdida por encima de 2^53.
+		var as_float: float = float(int(value))
+		if int(as_float) != int(value):
+			errors.append("%s: el entero es demasiado grande para el escenario" % path)
+		return
+	var round_tripped: Variant = JSON.parse_string(JSON.stringify(value))
+	if typeof(round_tripped) != TYPE_FLOAT or float(round_tripped) != float(value):
+		errors.append(
+			"%s: el valor no sobrevive exactamente al fichero (%s -> %s); "
+			% [path, JSON.stringify(value), JSON.stringify(round_tripped)]
+			+ "el escenario guarda 15 cifras significativas y no se redondea en silencio"
+		)

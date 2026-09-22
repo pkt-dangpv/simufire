@@ -2211,3 +2211,57 @@ El cierre completo de D3 deja **24/24 mutaciones válidas muertas**, referencia
 guardarraíles científicos en verde, producto **152/152** y suite Python global
 **2.867 passed, 4 skipped y 42 subtests passed**. El monitor no detectó cuadros
 de error ni procesos Godot residuales.
+
+## 23. F2.2D4A: persistencia de la física prescrita (2026-09-22)
+
+> **Estado: cerrada la persistencia.** El diseño completo, el gate de evidencia
+> y los defectos encontrados están en
+> `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §20.
+
+D4A da a la fuga fría (D1), a la deformación prescrita (D2) y al vidrio
+prescrito (D3) un contrato persistente versionado dentro de `openings_data`:
+`prescribed_physics_schema`, `deformation_tracks`, `glazing_panels` y
+`glazing_spatial`, junto a la `leakage_class` que D1 ya guardaba.
+
+No toca la red de presión. No añade ni un interruptor, no modifica la ley de
+rendijas, ni Bernoulli, ni el solver, ni el aplicador atómico, y no crea una
+segunda ruta de caudal ni de transporte: los únicos lectores de esas
+declaraciones siguen siendo `ClosedDoorDeformationNetworkAdapter`,
+`GlazingFalloutNetworkAdapter` y `PressureNetworkTransportSystem`, cada uno
+detrás de su interruptor apagado por defecto. Ausencia de datos equivale a
+física desactivada, y cargar y guardar no enciende nada.
+
+`sim/building/PrescribedOpeningPhysicsSchema.gd` es el único propietario del
+esquema y no reimplementa ninguna validación: delega en
+`ClosedDoorDeformationModel` y en el adaptador de D3 —y por tanto en
+`GlazingIntegrityModel` y `GlazingOpeningGeometryModel`—, evaluados en cada
+instante declarado, de modo que una historia incoherente se rechaza al cargar y
+no a mitad de una simulación. `ScenarioSerializer` escribe; `BuildingModel` lee
+y falla cerrado, que es la ruta real de `tools/run_scenario_headless.gd`.
+
+La fase encontró tres defectos, los tres del formato y los dos primeros
+bloqueantes para D3: el parser de Godot devuelve todo número como `float`, con
+lo que `leaf_count` y el `index` de cada hoja dejaban de ser enteros y el propio
+D3 rechazaba al recargar lo que acababa de guardar; `JSON.stringify` guarda 15
+cifras significativas y hunde a cero lo muy pequeño, así que hay dobles que no
+sobreviven y ahora se rechazan en vez de redondearse en silencio; y
+`ignition_room_id` era el único entero que el normalizador no restituía, de
+modo que **ningún** escenario, ni siquiera uno anterior a D4A, era byte a byte
+estable al reescribirlo.
+
+D4A **no calibra**. La tabla de §20.1 congela qué parámetros tienen respaldo y
+cuáles no: la ELA interior de 21 cm², el reparto 40/47/13, el exponente 0,65,
+las magnitudes de deformación, la carpintería del vidrio, la fuga de marco de
+0,005 m² y el hueco vertical siguen siendo **provisionales**. Las presiones
+fuera del dominio experimental se siguen marcando y no se recortan, y no se ha
+tocado ningún coeficiente para bajarlas.
+
+Verificación: **229 comprobaciones** del validador dedicado, **12 pruebas**
+Python con las listas de propietarios y consumidores cerradas, y **20 de 20
+mutaciones válidas muertas** con restauración byte a byte. La suite de
+referencia sigue en **346/346** con los mismos **78 gaps**, y en
+`reference_checks.json` solo cambia `generated_at`.
+
+Queda **D4B**: calibración, mandos del editor, perfiles por clase de puerta y de
+vidrio, fuga de marco por abertura, activación controlada en escenarios
+distribuidos y criterios publicables.

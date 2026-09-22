@@ -67,6 +67,12 @@ ALLOWED_REFERENCES = {
     # no veian un adaptador que emitiera otro exponente.
     Path("tools/validate_canonical_mass_conservation.gd"),
     Path("tools/validate_canonical_mass_conservation.gd.uid"),
+    # F2.2D4A (2026-09-22): el contrato persistente documenta la clase de fuga
+    # y el interruptor de D1 como parte del mismo esquema, y su validador los
+    # nombra para probar que guardar y cargar no enciende nada. Ninguno de los
+    # dos evalua la ley: no hay un segundo consumidor del modelo puro.
+    Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
+    Path("tools/validate_prescribed_physics_persistence.gd"),
 }
 
 

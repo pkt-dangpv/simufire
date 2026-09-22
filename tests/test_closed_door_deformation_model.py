@@ -42,6 +42,12 @@ ALLOWED_REFERENCES = {
     Path("tools/validate_closed_door_deformation_network.gd"),
     Path("scripts/check_product.py"),
     Path("scripts/simulation/audit_default_off_flags.py"),
+    # F2.2D4A (2026-09-22): el contrato persistente valida las pistas con
+    # ESTE modelo en vez de copiar sus reglas, y su validador nombra el
+    # interruptor de D2 para probar que guardar y cargar no lo enciende.
+    # Ninguno de los dos ejecuta la deformacion: solo la guarda y la lee.
+Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
+Path("tools/validate_prescribed_physics_persistence.gd"),
 }
 
 

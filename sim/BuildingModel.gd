@@ -22,6 +22,9 @@ const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 const ClosedDoorLeakageNetworkAdapterScript = preload(
 	"res://sim/core/ClosedDoorLeakageNetworkAdapter.gd"
 )
+const PrescribedPhysicsSchemaScript = preload(
+	"res://sim/building/PrescribedOpeningPhysicsSchema.gd"
+)
 
 const OUTSIDE_ID: int = -1
 
@@ -433,6 +436,13 @@ func _validate_openings(raw_openings: Variant, room_ids: Dictionary, errors: Arr
 			if not is_finite(override_m2) or override_m2 < 0.0:
 				errors.append("leakage_area_override_m2 must be finite and >= 0")
 	var openings_data: Array = Array(raw_openings)
+	# F2.2D4A: contrato persistente de la deformacion y el vidrio prescritos.
+	# Falla cerrado y explicito; no corrige en silencio un escenario malformado.
+	for i in range(openings_data.size()):
+		if typeof(openings_data[i]) == TYPE_DICTIONARY:
+			errors.append_array(
+				PrescribedPhysicsSchemaScript.validate(Dictionary(openings_data[i]), i)
+			)
 	for i in range(openings_data.size()):
 		if typeof(openings_data[i]) != TYPE_DICTIONARY:
 			errors.append("openings_data[%d] debe ser un diccionario" % i)
@@ -712,6 +722,10 @@ func _load_from_template(data: Dictionary) -> void:
 			var override_m2: float = float(op_data["leakage_area_override_m2"])
 			if is_finite(override_m2) and override_m2 >= 0.0:
 				op.leakage_area_override_m2 = override_m2
+		# F2.2D4A: la deformacion prescrita y el vidrio prescrito llegan como
+		# DATOS. Ningun interruptor se toca aqui: los tres siguen apagados en
+		# SimulationEngine y son los unicos que deciden si esto se consume.
+		PrescribedPhysicsSchemaScript.apply_to_opening(op_data, op)
 		openings.append(op)
 
 	_normalize_hvac_data(String(data.get("hvac_mode", hvac_data.get("mode", HVAC_MODE_NONE))))
