@@ -73,6 +73,12 @@ ALLOWED_REFERENCES = {
     # dos evalua la ley: no hay un segundo consumidor del modelo puro.
     Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
     Path("tools/validate_prescribed_physics_persistence.gd"),
+    # F2.2D4B1 (2026-09-22): el catalogo trazable NOMBRA este modelo en la
+    # procedencia de sus perfiles -de donde sale cada numero y con que
+    # limites- y su validador comprueba ese gate. Ninguno de los dos ejecuta
+    # el modelo ni crea una segunda ruta de fisica.
+    Path("sim/building/OpeningPhysicsProfileCatalog.gd"),
+    Path("tools/validate_opening_physics_profiles.gd"),
 }
 
 

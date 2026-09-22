@@ -65,6 +65,11 @@ ALLOWED_NETWORK_REFERENCES = {
     # nombra el interruptor para fijar la dependencia y el default OFF.
     Path("tools/validate_exterior_envelope_leakage.gd"),
     Path("tests/test_exterior_envelope_leakage.py"),
+    # F2.2D4B1: el catalogo y su suite nombran el interruptor para demostrar
+    # que publicar un perfil NO enciende fisica y que ningun escenario
+    # distribuido lo activa.
+    Path("tools/validate_opening_physics_profiles.gd"),
+    Path("tests/test_opening_physics_profiles.py"),
     # F2.2D4A: la persistencia nombra el interruptor de la red para demostrar
     # que guardar y cargar NO lo enciende, y que el fichero no lo contiene.
     Path("tools/validate_prescribed_physics_persistence.gd"),

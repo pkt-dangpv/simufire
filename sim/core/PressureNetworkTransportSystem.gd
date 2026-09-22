@@ -397,6 +397,18 @@ func _shaft_element(opening, a_key: String, b_key: String, rooms: Dictionary,
 	}
 
 
+## F2.2D4B1: area de fuga de esta abertura. Una abertura con area propia usa
+## la SUYA; el resto usa la global historica. Nunca se suman las dos: eso
+## contaria la misma fuga dos veces. La precedencia esta probada.
+func _envelope_leak_area_m2(opening) -> float:
+	if opening == null:
+		return exterior_envelope_leakage_area_m2
+	var own_area_m2: float = float(opening.frame_leakage_area_m2)
+	if is_finite(own_area_m2) and own_area_m2 >= 0.0:
+		return own_area_m2
+	return exterior_envelope_leakage_area_m2
+
+
 ## F2.2-R3: fuga de envolvente de una abertura EXTERIOR cerrada.
 ##
 ## Se entrega como abertura grande con la fraccion equivalente que calcula el
@@ -420,7 +432,7 @@ func _envelope_element(opening, a_key: String, b_key: String,
 	var floor_z_m: float = float(rooms[interior_key]["floor_z_m"])
 	var element: Dictionary = EnvelopeAdapterScript.build_leakage_element(
 		opening, BuildingModel.OUTSIDE_ID, floor_z_m, a_key, b_key,
-		exterior_envelope_leakage_area_m2
+		_envelope_leak_area_m2(opening)
 	)
 	if element.is_empty():
 		return {}

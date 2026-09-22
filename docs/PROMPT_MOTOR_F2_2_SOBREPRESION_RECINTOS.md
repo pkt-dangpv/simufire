@@ -2265,3 +2265,47 @@ referencia sigue en **346/346** con los mismos **78 gaps**, y en
 Queda **D4B**: calibración, mandos del editor, perfiles por clase de puerta y de
 vidrio, fuga de marco por abertura, activación controlada en escenarios
 distribuidos y criterios publicables.
+
+## 24. F2.2D4B1: catálogo trazable de perfiles (2026-09-22)
+
+> **Estado: cerrado el catálogo, no la calibración.** El detalle, la matriz de
+> parámetros y las decisiones GO/NO-GO están en
+> `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §21.
+
+D4B1 no toca la red de presión. Publica
+`sim/building/OpeningPhysicsProfileCatalog.gd`, único propietario de 15 perfiles
+versionados de puerta, marco, deformación, vidrio y hueco vertical, cada uno con
+su fuente localizada a nivel de página o tabla, el montaje del ensayo, su rango
+de validez, su incertidumbre y la transformación exacta desde el dato publicado.
+
+No añade ningún interruptor, no cambia la ley de rendija de D1, la de orificio de
+R3, la geometría multicapa de D3 ni el aplicador atómico, y no crea una segunda
+fórmula: el catálogo es un fichero de datos que no calcula nada y no lee PDFs.
+
+El esquema persistente sube a **2**. Un escenario de D4A sin perfiles sigue
+siendo válido, se vuelve a guardar como **1** y no gana ni una clave. Un perfil
+viaja como referencia versionada **más** una copia congelada de sus parámetros
+efectivos, y la copia congelada es la autoritativa: reeditar el catálogo no
+puede mover un escenario guardado, y una copia que no coincida con el catálogo
+se rechaza en vez de recalibrarse.
+
+Lo único que D4B1 añade al motor es la **fuga de marco por abertura**, que
+reutiliza la ruta R3 sin modificarla: el área propia de una abertura sustituye a
+la global, nunca se suma a ella, y sin área propia el comportamiento es idéntico
+al anterior.
+
+Hallazgos que bajan de categoría valores que el motor ya usaba: los 12 y 21 cm²
+salen de una tabla ASHRAE **retirada** del manual y deprecada por NIST; una
+puerta interior realmente medida va de **20 a 234 cm²** y los 21 cm² caen en el
+0,4 % inferior de ese rango; el exponente de rendija va de **0,98 a 0,50** según
+el espesor, y el 0,50 específico de puertas contradice el 0,65 del motor; y los
+0,005 m² de marco del motor son **1,29 veces** la ventana doméstica más
+permeable medida. Nada de eso se ha cambiado: cambiarlo es física, y D4B1 no
+toca física.
+
+Verificación: **257 comprobaciones** del validador dedicado, **21 pruebas**
+Python, **20 de 20 mutaciones válidas muertas** con restauración SHA-256, y los
+cinco validadores de D1, D2, D3, D4A y R3 intactos.
+
+Queda **D4B2**: editor, política de producto, persistencia de perfiles de
+deformación y vidrio, y activación controlada.

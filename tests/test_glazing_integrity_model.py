@@ -44,7 +44,12 @@ ALLOWED_REFERENCES = {
     Path("tests/test_glazing_fallout_network.py"),
     # F2.2D4A: el contrato persistente nombra este modelo en su
     # documentacion y delega en el adaptador de D3 toda la validacion.
-Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
+    Path("sim/building/PrescribedOpeningPhysicsSchema.gd"),
+    # F2.2D4B1 (2026-09-22): el catalogo trazable NOMBRA este modelo en la
+    # procedencia de sus perfiles -de donde sale cada numero y con que
+    # limites- y su validador comprueba ese gate. Ninguno de los dos ejecuta
+    # el modelo ni crea una segunda ruta de fisica.
+    Path("sim/building/OpeningPhysicsProfileCatalog.gd"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

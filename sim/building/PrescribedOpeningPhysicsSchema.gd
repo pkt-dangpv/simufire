@@ -92,18 +92,76 @@ extends RefCounted
 ## Efecto colateral necesario: `normalize()` descodifica, de modo que la
 ## siguiente escritura vuelve a poner `2` y no `2.0`, y el fichero es estable
 ## desde la primera vuelta.
+##
+## ## Esquema 2 (F2.2D4B1): perfiles del catalogo
+##
+## El esquema 2 anade dos claves OPCIONALES por abertura, `leakage_profile`
+## (fuga fria de D1) y `frame_leakage_profile` (fuga de marco exterior de R3).
+## Cada una tiene la forma:
+##
+##     {"profile_id": <texto>, "profile_version": <entero>, "effective": {...}}
+##
+## **La decision de diseno, escrita antes de programarla:** se guardan LAS DOS
+## cosas, la referencia versionada y una COPIA CONGELADA de los parametros
+## efectivos, y la copia congelada es la AUTORITATIVA para la fisica. La razon
+## es que las dos por separado fallan:
+##
+##   - solo el identificador haria que reeditar el catalogo cambiase la fisica
+##     de un escenario ya guardado;
+##   - solo la copia congelada perderia la trazabilidad de que perfil, y de que
+##     version, produjo esos numeros.
+##
+## Con las dos, cargar resuelve la referencia contra el catalogo y COMPARA: si
+## el par `(profile_id, profile_version)` ya no existe, o existe y sus
+## parametros no coinciden con la copia congelada, la carga FALLA de forma
+## explicita. No se recalibra nada en silencio y no se acepta una copia
+## manipulada. Como `(profile_id, version)` es inmutable por contrato, anadir
+## perfiles o versiones nuevas nunca afecta a un escenario antiguo.
+##
+## Un perfil `blocked` no puede aparecer en un escenario: no produce
+## configuracion. Un perfil sin parametros tampoco.
+##
+## **Migracion 1 -> 2, explicita.** Un escenario del esquema 1 sigue siendo
+## valido y, si no declara perfiles, se vuelve a guardar como 1: no gana ni una
+## clave. La marca sube a 2 SOLO cuando el contenido lo exige, es decir cuando
+## hay algun perfil declarado, y nunca baja. Una version declarada por encima
+## de `SCHEMA_VERSION` se rechaza.
 
 const DeformationModel = preload("res://sim/core/ClosedDoorDeformationModel.gd")
 const GlazingAdapter = preload("res://sim/core/GlazingFalloutNetworkAdapter.gd")
+const ProfileCatalog = preload("res://sim/building/OpeningPhysicsProfileCatalog.gd")
 
 ## Version del sub-esquema por abertura. Subirla es un cambio de contrato y
 ## exige actualizar la politica de migracion de la cabecera y los documentos.
-const SCHEMA_VERSION: int = 1
+## 1 = F2.2D4A (fisica prescrita); 2 = F2.2D4B1 (perfiles del catalogo).
+const SCHEMA_VERSION: int = 2
+## Version minima que sigue siendo valida al cargar. Un escenario de D4A se
+## carga y se vuelve a guardar como 1 mientras no declare perfiles.
+const MIN_SCHEMA_VERSION: int = 1
 const SCHEMA_KEY: String = "prescribed_physics_schema"
 
 const DEFORMATION_KEY: String = "deformation_tracks"
 const PANELS_KEY: String = "glazing_panels"
 const SPATIAL_KEY: String = "glazing_spatial"
+
+## F2.2D4B1: referencias al catalogo. Aparecieron en el esquema 2.
+const LEAKAGE_PROFILE_KEY: String = "leakage_profile"
+const FRAME_PROFILE_KEY: String = "frame_leakage_profile"
+const PROFILE_KEYS: Array[String] = [LEAKAGE_PROFILE_KEY, FRAME_PROFILE_KEY]
+## Categoria del catalogo que admite cada ranura. Una fuga de marco en la
+## ranura de la puerta es un error, no una conversion.
+const PROFILE_SLOT_CATEGORY: Dictionary = {
+	LEAKAGE_PROFILE_KEY: "door_leakage",
+	FRAME_PROFILE_KEY: "frame_leakage",
+}
+## Parametro que cada ranura congela y entrega al motor.
+const PROFILE_SLOT_PARAMETER: Dictionary = {
+	LEAKAGE_PROFILE_KEY: "ela_m2",
+	FRAME_PROFILE_KEY: "leak_area_m2",
+}
+const PROFILE_ID_KEY: String = "profile_id"
+const PROFILE_VERSION_KEY: String = "profile_version"
+const PROFILE_EFFECTIVE_KEY: String = "effective"
 
 ## Las tres listas del esquema, en orden estable. `leakage_class` y
 ## `leakage_area_override_m2` NO estan aqui: los normaliza y valida D1 desde el
@@ -130,7 +188,21 @@ static func declares(opening_data: Dictionary) -> bool:
 		var value: Variant = opening_data.get(key, null)
 		if typeof(value) == TYPE_ARRAY and not Array(value).is_empty():
 			return true
+	for key in PROFILE_KEYS:
+		var profile: Variant = opening_data.get(key, null)
+		if typeof(profile) == TYPE_DICTIONARY and not Dictionary(profile).is_empty():
+			return true
 	return false
+
+
+## Version minima de esquema que EXIGE el contenido de esta abertura. Es lo que
+## convierte la migracion en una regla y no en una costumbre.
+static func required_schema_version(opening_data: Dictionary) -> int:
+	for key in PROFILE_KEYS:
+		var profile: Variant = opening_data.get(key, null)
+		if typeof(profile) == TYPE_DICTIONARY and not Dictionary(profile).is_empty():
+			return 2
+	return MIN_SCHEMA_VERSION
 
 
 ## Normaliza en sitio la parte D4A de UNA abertura ya duplicada.
@@ -152,17 +224,34 @@ static func normalize(opening: Dictionary) -> void:
 		# Restituye el tipo entero que el fichero no sabe distinguir. Los
 		# valores no cambian: solo deja de escribirse `2.0` donde iba un `2`.
 		opening[key] = _decoded(key, value)
+	for key in PROFILE_KEYS:
+		if not opening.has(key):
+			continue
+		var profile: Variant = opening[key]
+		# Un bloque de perfil vacio es exactamente "sin perfil".
+		if typeof(profile) == TYPE_DICTIONARY and Dictionary(profile).is_empty():
+			opening.erase(key)
+			continue
+		opening[key] = _decoded(key, profile)
 	if not declares(opening):
 		# Sin carga util, la marca de version sobra. Nunca se deja colgada.
 		opening.erase(SCHEMA_KEY)
 		return
+	var required: int = required_schema_version(opening)
 	if not opening.has(SCHEMA_KEY):
-		opening[SCHEMA_KEY] = SCHEMA_VERSION
+		opening[SCHEMA_KEY] = required
 		return
 	# La marca de version tambien vuelve del fichero como `1.0`. Se le restituye
 	# el tipo sin tocar el valor: una version fraccionaria se deja intacta y la
 	# rechaza `validate()`.
-	opening[SCHEMA_KEY] = _as_integer(opening[SCHEMA_KEY])
+	var declared: Variant = _as_integer(opening[SCHEMA_KEY])
+	# Migracion 1 -> 2: la marca SUBE cuando el contenido lo exige, y nunca
+	# baja. Es la unica escritura que este modulo hace sobre la version, y no
+	# toca ni un dato. Una version ya suficiente se conserva tal cual, de modo
+	# que un escenario de D4A sin perfiles se vuelve a guardar como 1.
+	if typeof(declared) == TYPE_INT and int(declared) < required:
+		declared = required
+	opening[SCHEMA_KEY] = declared
 
 
 ## Valida la parte D4A de una abertura. Devuelve los errores, ya prefijados con
@@ -176,6 +265,11 @@ static func validate(opening_data: Dictionary, index: int) -> Array[String]:
 			has_any_key = true
 			if typeof(opening_data[key]) != TYPE_ARRAY:
 				errors.append("%s: %s debe ser un array" % [prefix, key])
+	for key in PROFILE_KEYS:
+		if opening_data.has(key):
+			has_any_key = true
+			if typeof(opening_data[key]) != TYPE_DICTIONARY:
+				errors.append("%s: %s debe ser un diccionario" % [prefix, key])
 	if not has_any_key:
 		return errors
 	if not errors.is_empty():
@@ -191,9 +285,15 @@ static func validate(opening_data: Dictionary, index: int) -> Array[String]:
 		if float(raw_version) != float(version):
 			errors.append("%s: %s debe ser un entero" % [prefix, SCHEMA_KEY])
 			return errors
-		if version < 1 or version > SCHEMA_VERSION:
-			errors.append("%s: %s %d no esta soportado (maximo %d)" % [
-				prefix, SCHEMA_KEY, version, SCHEMA_VERSION
+		if version < MIN_SCHEMA_VERSION or version > SCHEMA_VERSION:
+			errors.append("%s: %s %d no esta soportado (admitidos %d a %d)" % [
+				prefix, SCHEMA_KEY, version, MIN_SCHEMA_VERSION, SCHEMA_VERSION
+			])
+			return errors
+		var required: int = required_schema_version(opening_data)
+		if version < required:
+			errors.append("%s: %s %d es insuficiente para su contenido (exige %d)" % [
+				prefix, SCHEMA_KEY, version, required
 			])
 			return errors
 		if not has_payload:
@@ -209,7 +309,7 @@ static func validate(opening_data: Dictionary, index: int) -> Array[String]:
 	# Se valida la carga DESCODIFICADA, que es la que vera el motor: el fichero
 	# no distingue `2` de `2.0` y el esquema sabe cual de los dos es.
 	var decoded: Dictionary = opening_data.duplicate(true)
-	for key in PAYLOAD_KEYS:
+	for key in PAYLOAD_KEYS + PROFILE_KEYS:
 		if decoded.has(key):
 			decoded[key] = _decoded(key, decoded[key])
 			_check_json_stable(decoded[key], "%s.%s" % [prefix, key], errors)
@@ -218,7 +318,82 @@ static func validate(opening_data: Dictionary, index: int) -> Array[String]:
 
 	_validate_deformation(decoded, prefix, errors)
 	_validate_glazing(decoded, prefix, errors)
+	_validate_profiles(decoded, prefix, errors)
 	return errors
+
+
+## F2.2D4B1: resuelve cada referencia de perfil contra el catalogo y compara la
+## copia congelada. Aqui no se calcula ninguna fisica: se comprueba que lo que
+## el escenario dice que uso sigue siendo exactamente lo que el catalogo dice.
+static func _validate_profiles(
+	opening_data: Dictionary, prefix: String, errors: Array[String]
+) -> void:
+	for key in PROFILE_KEYS:
+		if not opening_data.has(key):
+			continue
+		var block: Dictionary = opening_data[key]
+		var label: String = "%s.%s" % [prefix, key]
+		var profile_id: String = String(block.get(PROFILE_ID_KEY, ""))
+		if profile_id.strip_edges().is_empty():
+			errors.append("%s: %s vacio" % [label, PROFILE_ID_KEY])
+			continue
+		if typeof(block.get(PROFILE_VERSION_KEY, null)) != TYPE_INT:
+			errors.append("%s: %s debe ser un entero" % [label, PROFILE_VERSION_KEY])
+			continue
+		var version: int = int(block[PROFILE_VERSION_KEY])
+		if not ProfileCatalog.has_profile_id(profile_id):
+			errors.append("%s: perfil desconocido '%s'" % [label, profile_id])
+			continue
+		var profile: Dictionary = ProfileCatalog.find(profile_id, version)
+		if profile.is_empty():
+			errors.append("%s: el perfil '%s' no tiene la version %d (disponibles %s)" % [
+				label, profile_id, version, str(ProfileCatalog.versions_of(profile_id))
+			])
+			continue
+		if String(profile["category"]) != String(PROFILE_SLOT_CATEGORY[key]):
+			errors.append("%s: el perfil '%s' es de categoria '%s' y esta ranura exige '%s'" % [
+				label, profile_id, String(profile["category"]),
+				String(PROFILE_SLOT_CATEGORY[key])
+			])
+			continue
+		if not ProfileCatalog.can_produce_configuration(profile):
+			errors.append("%s: el perfil '%s' no puede producir configuracion (evidencia '%s')" % [
+				label, profile_id, String(profile["evidence"])
+			])
+			continue
+		if typeof(block.get(PROFILE_EFFECTIVE_KEY, null)) != TYPE_DICTIONARY:
+			errors.append("%s: falta la copia congelada '%s'" % [label, PROFILE_EFFECTIVE_KEY])
+			continue
+		_compare_frozen_parameters(
+			Dictionary(block[PROFILE_EFFECTIVE_KEY]), Dictionary(profile["parameters"]),
+			String(PROFILE_SLOT_PARAMETER[key]), label, errors
+		)
+
+
+## La copia congelada del escenario contra los parametros del catalogo. Tiene
+## que coincidir EXACTAMENTE: una diferencia no se corrige, se rechaza.
+static func _compare_frozen_parameters(
+	frozen: Dictionary, catalog: Dictionary, required_parameter: String,
+	label: String, errors: Array[String]
+) -> void:
+	if not frozen.has(required_parameter):
+		errors.append("%s: la copia congelada no trae '%s'" % [label, required_parameter])
+	for key in frozen.keys():
+		var name: String = String(key)
+		if not catalog.has(name):
+			errors.append("%s: la copia congelada trae '%s', que el catalogo no declara" % [
+				label, name
+			])
+			continue
+		if typeof(frozen[name]) != typeof(catalog[name]) or frozen[name] != catalog[name]:
+			errors.append(
+				"%s: '%s' congelado (%s) no coincide con el catalogo (%s); "
+				% [label, name, JSON.stringify(frozen[name]), JSON.stringify(catalog[name])]
+				+ "una version publicada no cambia nunca, asi que esto es una alteracion"
+			)
+	for key in catalog.keys():
+		if not frozen.has(String(key)):
+			errors.append("%s: la copia congelada omite el parametro '%s'" % [label, String(key)])
 
 
 ## Vuelca los datos ya validados en una `OpeningModel`. Copia profunda: el
@@ -233,6 +408,74 @@ static func apply_to_opening(opening_data: Dictionary, opening: OpeningModel) ->
 	opening.deformation_tracks = _duplicated_array(opening_data, DEFORMATION_KEY)
 	opening.glazing_panels = _duplicated_array(opening_data, PANELS_KEY)
 	opening.glazing_spatial = _duplicated_array(opening_data, SPATIAL_KEY)
+	_apply_profiles(opening_data, opening)
+
+
+## F2.2D4B1: un perfil se aplica resolviendolo al MISMO dato que el motor ya
+## entendia, no anadiendo una segunda fuente de fisica.
+##
+##   - la fuga fria se entrega como el override de ELA explicito que D1 ya lee,
+##     de modo que `ClosedDoorLeakageNetworkAdapter` no cambia ni una linea;
+##   - la fuga de marco se entrega como area por abertura, que el transporte
+##     usa EN LUGAR de la global, nunca sumada a ella.
+##
+## La referencia versionada se guarda aparte como PROCEDENCIA: ningun camino de
+## caudal la lee. Y aplicar un perfil no enciende nada: los interruptores viven
+## en `SimulationEngine` y siguen naciendo apagados.
+static func _apply_profiles(opening_data: Dictionary, opening: OpeningModel) -> void:
+	var leakage: Dictionary = _profile_block(opening_data, LEAKAGE_PROFILE_KEY)
+	if not leakage.is_empty():
+		opening.leakage_profile_ref = _profile_reference(leakage)
+		opening.leakage_area_override_m2 = float(
+			Dictionary(leakage[PROFILE_EFFECTIVE_KEY])[PROFILE_SLOT_PARAMETER[LEAKAGE_PROFILE_KEY]]
+		)
+	var frame: Dictionary = _profile_block(opening_data, FRAME_PROFILE_KEY)
+	if not frame.is_empty():
+		opening.frame_leakage_profile_ref = _profile_reference(frame)
+		opening.frame_leakage_area_m2 = float(
+			Dictionary(frame[PROFILE_EFFECTIVE_KEY])[PROFILE_SLOT_PARAMETER[FRAME_PROFILE_KEY]]
+		)
+
+
+static func _profile_block(opening_data: Dictionary, key: String) -> Dictionary:
+	var value: Variant = opening_data.get(key, null)
+	if typeof(value) != TYPE_DICTIONARY:
+		return {}
+	var block: Dictionary = _decoded(key, Dictionary(value).duplicate(true))
+	if typeof(block.get(PROFILE_EFFECTIVE_KEY, null)) != TYPE_DICTIONARY:
+		return {}
+	# Falla cerrado: sin el parametro que esta ranura necesita no se aplica
+	# nada. `validate()` ya lo habra rechazado, y aplicar no es el sitio donde
+	# reventar por un dato que no esta.
+	var effective: Dictionary = block[PROFILE_EFFECTIVE_KEY]
+	var parameter: String = String(PROFILE_SLOT_PARAMETER.get(key, ""))
+	if parameter.is_empty() or not effective.has(parameter):
+		return {}
+	var magnitude: Variant = effective[parameter]
+	if typeof(magnitude) != TYPE_FLOAT and typeof(magnitude) != TYPE_INT:
+		return {}
+	if not is_finite(float(magnitude)):
+		return {}
+	return block
+
+
+static func _profile_reference(block: Dictionary) -> String:
+	return ProfileCatalog.versioned_id(
+		String(block.get(PROFILE_ID_KEY, "")), int(block.get(PROFILE_VERSION_KEY, 0))
+	)
+
+
+## Bloque persistente para un perfil del catalogo, con su copia congelada.
+## Es el unico sitio donde se construye esa estructura.
+static func build_profile_block(profile_id: String, version: int) -> Dictionary:
+	var profile: Dictionary = ProfileCatalog.find(profile_id, version)
+	if profile.is_empty() or not ProfileCatalog.can_produce_configuration(profile):
+		return {}
+	return {
+		PROFILE_ID_KEY: profile_id,
+		PROFILE_VERSION_KEY: version,
+		PROFILE_EFFECTIVE_KEY: Dictionary(profile["parameters"]).duplicate(true),
+	}
 
 
 static func _duplicated_array(opening_data: Dictionary, key: String) -> Array:
@@ -249,6 +492,13 @@ static func _duplicated_array(opening_data: Dictionary, key: String) -> Array:
 ## con la otra. Un valor que no sea exactamente entero se deja intacto para que
 ## lo rechace el modelo puro, con su propio mensaje.
 static func _decoded(key: String, value: Variant) -> Variant:
+	if PROFILE_KEYS.has(key):
+		if typeof(value) != TYPE_DICTIONARY:
+			return value
+		var block: Dictionary = Dictionary(value).duplicate(true)
+		if block.has(PROFILE_VERSION_KEY):
+			block[PROFILE_VERSION_KEY] = _as_integer(block[PROFILE_VERSION_KEY])
+		return block
 	if typeof(value) != TYPE_ARRAY:
 		return value
 	match key:

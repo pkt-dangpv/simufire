@@ -2,9 +2,11 @@
 
 > **Estado (2026-09-22): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
 > integradas detrás de interruptores apagados por defecto; F2.2D4A cierra la
-> PERSISTENCIA de esa física prescrita y congela el gate de calibración (§20).
-> D4A no calibra nada: ELA, reparto, exponente, deformación y vidrio siguen
-> provisionales, y ningún escenario distribuido los declara ni los enciende.**
+> PERSISTENCIA de esa física prescrita (§20) y F2.2D4B1 publica el CATÁLOGO
+> trazable de perfiles y el gate científico (§21). Ninguna de las dos calibra:
+> ELA, reparto, exponente, deformación y vidrio siguen provisionales, cinco
+> perfiles quedan BLOQUEADOS por falta de evidencia o por evidencia
+> contradictoria, y ningún escenario distribuido declara ni enciende nada.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -27,6 +29,12 @@
 >   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
 >   **F2.2C** las integró ese mismo día detrás del interruptor único
 >   `pressure_network_solver_enabled`, apagado por defecto.
+> - **F2.2D4B1** (§21): catálogo versionado de 15 perfiles con su procedencia a
+>   nivel de página, tabla o ecuación, su dominio de ensayo y su estado de
+>   evidencia. La relectura BAJÓ de categoría los 12 y 21 cm² (la tabla ASHRAE
+>   de origen fue retirada del manual y NIST la deprecia), encontró que una
+>   puerta interior realmente medida va de 20 a 234 cm² y que el exponente no es
+>   constante sino que va de 0,98 a 0,50 según el espesor de la rendija.
 > - **F2.2D4A** (§20): contrato persistente versionado para la clase de fuga, la
 >   deformación prescrita, los paños de vidrio y sus historias espaciales.
 >   Ausencia = física desactivada; guardar y cargar no toca ningún interruptor;
@@ -2163,3 +2171,187 @@ byte **desde la primera escritura**.
   experimental. Eso no se arregla persistiendo datos.
 - Siguen sin existir el modelo térmico (tipo BREAK1) y el probabilista de rotura
   de vidrio, y `GlassFailureSystem` sigue sin conectarse.
+
+## 21. F2.2D4B1: catálogo trazable de perfiles y gate científico (2026-09-22)
+
+> **Estado: cerrado el catálogo, no la calibración.** D4B1 releyó página a página
+> las seis fuentes de la colección focal, convirtió la tabla de 18 parámetros de
+> §20.1 en una matriz trazable y publicó un catálogo versionado de 15 perfiles.
+> **Ningún perfil queda activable en producto**, y cinco quedan **bloqueados**
+> porque la evidencia no existe o se contradice. No se recalibró ningún valor.
+
+### 21.1 Lo que la relectura cambió respecto de §20.1
+
+Tres correcciones de fondo, todas hacia abajo:
+
+1. **Los 12 y 21 cm² no son «derivados normativos», son `research_only`.**
+   NIST TN 2329 (p. 28) dice que son los *best estimates* de la **tabla 1 del
+   ASHRAE Fundamentals 2001** para puerta simple **con** y **sin** burlete —no
+   «puerta de garaje/sótano», que es solo dónde NIST los aplicó— y añade dos
+   cosas que §20.1 no recogía: **esa tabla fue retirada de las ediciones
+   posteriores del manual**, y la colección de viviendas de 2025 **deja de
+   usarlos**. Un valor cuya fuente primaria ya no se publica y cuyo citador lo
+   ha deprecado no puede llamarse derivado.
+2. **Sí existen puertas interiores realmente medidas, y 21 cm² es el extremo
+   estanco.** Gross y Haberman (tabla 1, p. 176) publican el caudal **medido**
+   de 11 conjuntos de puerta a 25 Pa. Transformados a ELA a 4 Pa con el
+   exponente de puerta de NBSIR (n = 0,5) dan **de 20,2 a 234,3 cm²**. Los
+   21 cm² de ASHRAE caen en el **0,4 %** de ese rango, es decir, pegados al
+   suelo: equivalen a un espécimen de laboratorio con 0,6 mm de holgura en
+   todos los bordes, no a una puerta instalada. Los 12 cm² son **0,59 veces**
+   la puerta más estanca jamás medida en esa muestra.
+3. **El exponente no es una constante, y 0,65 no es el valor de una puerta.**
+   La tabla 2 de Gross y Haberman (p. 177) permite leer el exponente implícito
+   entre 10 y 100 Pa: **0,982** para una rendija de 0,5 mm, **0,773** para
+   1 mm, **0,541** para 5 mm y **0,496** para 10 mm. NBSIR (tabla 1, p. 17)
+   publica **0,50 para holguras de puerta**. El 0,6-0,7 del que sale el 0,65
+   del motor es de CONTAM y se refiere a **aberturas de infiltración**, no a
+   rendijas de puerta. El 0,65 queda dentro de la envolvente observada, pero
+   corresponde a una rendija de unos 5 mm y contradice el valor específico de
+   puerta. Sigue **provisional**, y **no se ha cambiado**: cambiarlo sería
+   física, y D4B1 no toca física.
+
+Y una cuarta, sobre el marco exterior: los 0,005 m² del motor son **1,29 veces**
+la ventana doméstica más permeable de NBSIR (tabla 3, p. 19), una vez
+convertidos sus caudales a área de orificio con el mismo `Cd` = 0,61 que usa el
+motor. No es un dato experimental: es una heurística propia, y un resultado
+interno de SimuFire no puede presentarse como evidencia.
+
+### 21.2 Matriz de calibración
+
+Estado: **M** medido · **D** derivado · **P** provisional · **X** desconocido.
+Uso: **prod** apto para producto · **inv** solo investigación · **blq** bloqueado.
+
+| parámetro | unidad | propietario | valor | aplica a | fuente y localizador | ensayo | rango | muestra | est. | uso | incertidumbre | transformación |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| ELA `entry_tight` | m² a 4 Pa, Cd 1 | `ClosedDoorLeakageModel.PLANNED_CLASS_ELA_M2` | 0,0012 | puerta de entrada con burlete | TN 2329 p. 28 → ASHRAE 2001 tabla 1, *best estimated* | ninguno declarado | — | no declarada | **P** | inv | desconocida | ninguna |
+| ELA `interior_tight` | m² a 4 Pa, Cd 1 | ídem | 0,0021 | puerta simple **sin** burlete | ídem, fila «not weather-stripped» | ninguno declarado | — | no declarada | **P** | inv | desconocida | ninguna |
+| ELA de puertas medidas | m² a 4 Pa, Cd 1 | catálogo (rango) | 0,002017–0,0234 | puertas de escalera, oficina y cortafuegos | Gross-Haberman tabla 1 p. 176; NBSIR tabla 1 p. 17 y tabla 2 p. 18 | presurización, punto único | 25 Pa | 11 conjuntos | **D** | inv | «rango amplio entre puertas incluso de construcción similar» (NBSIR p. 12); modelo-medida ±20 % | `ELA = Q(25)·(4/25)^0,5 / √(8/ρ)`, ρ = 1,204 |
+| ELA de puerta de paso residencial | — | — | **no existe** | la puerta del juego | NBSIR p. 8 y p. 12 | — | — | — | **X** | blq | total | — |
+| ELA de puerta desajustada | — | — | **no existe** | puerta vieja | NBSIR tabla 2, filas «>15», «>40» | — | 25 Pa | censurada | **X** | blq | no acotada | — |
+| convención `Cd` = 1 a 4 Pa | — | `NIST_ELA_REFERENCE_PRESSURE_PA` | 4,0 / 1,0 | toda ELA | TN 1887r1 p. 266, ec. 28-29 | definición | — | — | **M** | prod | ninguna: es la definición | ninguna |
+| exponente de flujo | — | `PROVISIONAL_FLOW_EXPONENT_CANDIDATE` | 0,65 | rendija de puerta | TN 1887r1 p. 266 (0,6-0,7, **infiltración**); NBSIR tabla 1 (**0,50**, puertas); Gross-Haberman tabla 2 (0,50-0,98 según espesor) | varios | 10–100 Pa | — | **P** | inv | **fuentes en conflicto**; varía con el espesor de rendija | ninguna |
+| reparto inferior/laterales/dintel | — | `PROVISIONAL_SPLIT` | 0,40/0,47/0,13 | rendija de puerta | **ninguna**: proporción geométrica supuesta | — | — | — | **X** | blq | desconocida | — |
+| número de bandas laterales | — | `SIDE_BAND_COUNT` | 8 | rendija de puerta | Gross-Haberman p. 177, obs. 4 (segmentar; **no dice cuántas**) | — | — | — | **D** | inv | discretización numérica | ninguna |
+| regularización en Δp ≈ 0 | Pa | `DEFAULT_DP_REGULARIZATION_PA` | 0,01 | solver | ninguna: acondicionamiento numérico | — | — | — | **D** | inv | no física | ninguna |
+| fuga de marco exterior (motor) | m² geométricos | `window_leakage_area_m2` | 0,005 | ventana exterior cerrada | **purga histórica del propio motor** | ninguno | — | — | **P** | inv | desconocida | ninguna |
+| fuga de marco medida | m² geométricos, Cd 0,61 | catálogo (rango) | 0,000342–0,00389 | ventana doméstica 1,2 × 1,0 m | NBSIR tabla 3 p. 19 | permeabilidad | 100 Pa | rangos publicados | **D** | inv | la fuente publica rangos | `A = Q/(Cd·√(2Δp/ρ))`, longitud de rendija 4,4 m |
+| `Cd` de abertura grande | — | solver y adaptador D3 | 0,61 | vano y vidrio desprendido | valor clásico de orificio, heredado | — | — | — | **P** | inv | no medida aquí | ninguna |
+| deformación adicional por posición | m² de ELA | `deformation_tracks` | lo que prescriba el escenario | puerta cortafuegos de **acero** en horno | Prieler 2023 pp. 16-19; Prieler 2020 | horno normalizado | 16 Pa arriba / 0,2 abajo | 1 conjunto | **P** | inv | no transferible a madera residencial | ninguna (topología, no magnitud) |
+| ley térmica de deformación residencial | — | — | **no existe** | puerta residencial | Gross-Haberman p. 176 §3 | — | <300 °C | — | **X** | blq | total | — |
+| geometría de paño, capas, espesor | m, hojas | `glazing_panels` | lo que declare el escenario | IGU de recocido | Peng 2024 | panel radiante | ~20 kW/m² | 75 ensayos | **M** | inv | dominio de 200–500 mm | ninguna |
+| tipo de vidrio: laminado | — | ídem | sin desprendimiento | laminado con butiral | Peng 2024 §3.1 | panel radiante | ~20 kW/m² | todas las muestras | **M** | inv | exposiciones largas no acotadas | ninguna |
+| tipo de vidrio: templado | — | — | **contradictorio** | templado | Peng 2024 (sin grietas) vs Wang 2007 (caída casi total) | panel radiante vs ISO 9705 | — | — | **X** | blq | fuentes incompatibles | — |
+| soporte y protección de borde | m, °C | `edge_protection_depth_m` | 0,090 °C crítico | recocido en compartimento | Skelly 1990 | compartimento de dos capas | — | 2 grupos | **D** | inv | mecanismo del caso no protegido «desconocido» | ninguna |
+| `CRACKED` / `PARTIAL_FALLOUT` / `OPEN` | fracción | `GlazingIntegrityModel` | 0 / (0,1) / 1 | estados del paño | Peng 2024 tabla 2 | panel radiante | ~20 kW/m² | 16 muestras | **D** | inv | **el 100 % nunca se observó**: el máximo fue 90 % | ninguna |
+| dominio de presión | Pa | `PRESSURE_DOMAIN_MAX_PA` | 50 | rendija de puerta | **NBSIR p. 10** | — | — | — | **M** | prod | p. 7 da 100 Pa para presiones interiores en general | ninguna |
+| hueco vertical (`Cd`, área) | —, m² | `PressureNetworkTransportSystem` | 0,61 y lo declarado | hueco de forjado | **ninguna**; vía identificada: CONTAM p. 266 (Achakji-Tamura) | — | — | — | **X** | blq | total | — |
+
+### 21.3 Perfiles y decisión GO/NO-GO
+
+`sim/building/OpeningPhysicsProfileCatalog.gd` publica **15 perfiles**: 2
+`validated`, 4 `derived`, 4 `research_only` y **5 `blocked`**.
+`product_activation` es `false` en **todos**, incluidos los validados: su
+dominio experimental no cubre una vivienda real.
+
+| perfil | categoría | estado | decisión |
+|---|---|---|---|
+| `door.entry.weatherstripped.ashrae2001@1` | puerta | `research_only` | **NO-GO**: tabla ASHRAE retirada y NIST la deprecia |
+| `door.interior.not_weatherstripped.ashrae2001@1` | puerta | `research_only` | **NO-GO**: ídem, y cae en el 0,4 % inferior del rango medido |
+| `door.interior.installed_measured_range@1` | puerta | `derived` | **NO-GO como valor**: es un rango, y su muestra no tiene ni una puerta residencial. Sirve de envolvente |
+| `door.interior.residential_passage@1` | puerta | `blocked` | **NO-GO**: no existe la medición. Se nombra el ensayo que lo desbloquearía |
+| `door.interior.loose_fitting@1` | puerta | `blocked` | **NO-GO**: solo cotas inferiores censuradas |
+| `frame.exterior.window.legacy_engine_value@1` | marco | `research_only` | **NO-GO**: es una heurística del propio motor, no un dato |
+| `frame.exterior.window.measured_range@1` | marco | `derived` | **NO-GO como valor**: rango ligado a un tamaño de ventana |
+| `deformation.steel_fire_door.furnace_topology@1` | deformación | `research_only` | **NO-GO**: topología sí, magnitudes de puerta de acero en horno |
+| `deformation.residential_door.thermal_law@1` | deformación | `blocked` | **NO-GO**: no hay ley temperatura-deformación defendible |
+| `glazing.annealed.igu.radiant_panel@1` | vidrio | `validated` | **GO científico, NO-GO de producto**: dominio de 200–500 mm |
+| `glazing.laminated.no_fallout@1` | vidrio | `validated` | ídem: resultado negativo sólido dentro de su dominio |
+| `glazing.toughened.contradictory@1` | vidrio | `blocked` | **NO-GO**: Peng y Wang se contradicen, y el contrato de estados no representa la caída casi inmediata |
+| `glazing.multilayer.free_path_rule@1` | vidrio | `derived` | **GO como regla**, no como número |
+| `glazing.edge_protection.collapse_rule@1` | vidrio | `derived` | **GO como regla**: un borde no protegido no colapsó en ningún ensayo |
+| `shaft.vertical_opening.uncalibrated@1` | hueco vertical | `blocked` | **NO-GO**: sin fuente; vía de desbloqueo identificada |
+
+### 21.4 Esquema de versiones y reproducibilidad
+
+**La decisión, escrita antes de programarla:** el escenario guarda **las dos
+cosas**, la referencia versionada `(profile_id, profile_version)` **y** una
+**copia congelada** de los parámetros efectivos, y **la copia congelada es la
+autoritativa para la física**. Solo el identificador dejaría que reeditar el
+catálogo cambiara un escenario antiguo; solo la copia congelada perdería la
+trazabilidad. Con las dos, cargar resuelve la referencia y **compara**: si el
+par no existe, o existe y sus parámetros no coinciden con la copia, la carga
+**falla de forma explícita**.
+
+`(profile_id, version)` es **inmutable**: corregir un valor obliga a publicar
+una versión nueva y la anterior se conserva. La resolución es por par exacto;
+no hay «última versión».
+
+**Migración 1 → 2, explícita y probada.** Un escenario de D4A sigue siendo
+válido y, sin perfiles, se vuelve a guardar como **esquema 1**: no gana ni una
+clave y sigue siendo byte a byte estable. La marca sube a 2 **solo** cuando hay
+un perfil declarado, y nunca baja. Declarar un perfil bajo el esquema 1 se
+rechaza, igual que una versión por encima de `SCHEMA_VERSION`.
+
+Un perfil `blocked`, uno sin parámetros, uno de otra categoría, uno manipulado y
+un número que el fichero no devuelve exacto **no entran**.
+
+### 21.5 Fuga de marco por abertura
+
+Es lo único que D4B1 añade al motor, y reutiliza la ruta R3 tal cual:
+`PressureNetworkTransportSystem._envelope_leak_area_m2()` devuelve el área
+**propia** de la abertura si está declarada y, si no, la **global** histórica.
+**Nunca las suma.** `ExteriorEnvelopeLeakageAdapter` no cambia ni una línea, el
+`Cd` = 0,61 sigue separado del área y el interruptor
+`exterior_envelope_leakage_enabled` sigue apagado por defecto. Una abertura sin
+área propia se comporta exactamente como antes.
+
+### 21.6 Validación experimental dentro de dominio
+
+El validador hace ensayos **puros**, con Δp impuestas, no simulaciones de
+incendio:
+
+- cinco puntos dentro del dominio (1, 4, 10, 25 y 50 Pa), con caudal monótono y
+  sin bandera de dominio;
+- sentido positivo y negativo: mismo módulo, signo opuesto;
+- continuidad alrededor de cero, con caudal nulo exacto en Δp = 0 y simetría;
+- escala exacta con el área al doblarla;
+- conservación entre segmentos;
+- independencia del orden de las aberturas y repetibilidad byte a byte;
+- a 5 kPa la bandera `domain_exceeded` se levanta y el caudal **no se recorta**.
+
+Y reproduce, con aritmética explícita, los dos rangos derivados a partir de los
+números publicados. **La tolerancia no está inventada**: es media unidad de la
+última cifra significativa con la que la fuente imprime el dato (tres cifras).
+
+Los casos de incendio completo siguen siendo diagnóstico de integración, no
+calibración.
+
+### 21.7 Verificación
+
+- Validador `tools/validate_opening_physics_profiles.gd`: **257 comprobaciones**
+  en once grupos, registrado en `check_product.py`.
+- `tests/test_opening_physics_profiles.py`: **21 pruebas**, con la lista de
+  consumidores del catálogo **cerrada** a dos ficheros.
+- Campaña de mutaciones: **20 de 20 muertas**, con restauración SHA-256.
+  Dos supervivientes y un fallo nativo de la primera vuelta destaparon tres
+  huecos reales: un perfil bloqueado podía reetiquetarse como derivado sin traer
+  datos, la regla de categoría quedaba tapada por la de parámetros, y aplicar un
+  perfil con la copia congelada vacía reventaba en vez de fallar cerrado.
+- D1, D2, D3, D4A y R3: sus cinco validadores siguen en verde sin tocarlos.
+
+### 21.8 Lo que queda para D4B2
+
+- Mandos de editor para elegir perfil, con los `research_only` y `blocked`
+  visiblemente separados de los publicables.
+- Política de producto: qué perfil, si alguno, puede encenderse, y con qué
+  criterio de aceptación.
+- Persistencia de perfiles para **deformación** y **vidrio**: hoy el catálogo
+  los publica como referencia, pero ninguna abertura los cuelga.
+- Activación controlada en escenarios distribuidos, que sigue sin hacerse.
+- Desbloquear lo bloqueado exige **ensayos nuevos**, no más lectura: puerta de
+  paso residencial (ASTM E283 / ISO 5925-1, por sentido, 5–100 Pa), ley térmica
+  de deformación, y una decisión de contrato sobre `CRACKED → OPEN` antes de
+  tocar el templado.
+- Siguen sin existir BREAK1 y el modelo probabilista, y `GlassFailureSystem`
+  sigue sin conectarse.

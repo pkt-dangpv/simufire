@@ -1,5 +1,48 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-22 - traceable opening physics profiles (F2.2D4B1)
+
+- Checkpoint: `main` at `c87db333` (D4A) when the phase started; the work is one
+  local commit on top and **has not been pushed**.
+- D4B1 publishes `sim/building/OpeningPhysicsProfileCatalog.gd`, the single owner
+  of **15 versioned profiles** covering door leakage, exterior frame leakage,
+  prescribed deformation, glazing and the vertical shaft. Every profile declares
+  its source down to a page, table or equation, the test setup, the validity
+  range, the sample size, its uncertainty and the exact transformation applied
+  to the published datum.
+- **2 validated, 4 derived, 4 research_only and 5 blocked.** `product_activation`
+  is `false` on **all** of them, the validated ones included, because their
+  experimental domain does not cover a real dwelling. D4B1 activates nothing.
+- **The page-level re-reading downgraded values the engine already used.**
+  The 12 and 21 cm2 ELAs come from an ASHRAE 2001 table that **was removed from
+  later editions** and that NIST deprecates in its 2025 collection, so they are
+  `research_only`, not derived. Interior doors that were **actually measured**
+  span **20.2 to 234.3 cm2** at 4 Pa, and 21 cm2 sits in the bottom **0.4 %** of
+  that span. The crack exponent is **not constant**: read off the source table it
+  runs from **0.982** at a 0.5 mm gap to **0.496** at 10 mm, and the
+  door-specific literature value is **0.50**, against the engine's 0.65, which
+  comes from a CONTAM range for **infiltration** openings. The engine's
+  0.005 m2 frame leak is **1.29x** the leakiest measured household window.
+  **None of these values was changed**: changing them is physics, and D4B1 does
+  not touch physics.
+- No new source was added to the library: all six focal sources were already
+  local. The index now records what each one actually says, at page level.
+- The persistent schema moves to **version 2**. A D4A scenario without profiles
+  stays valid, is re-saved as **1**, gains no key and remains byte-stable. A
+  profile travels as a versioned reference **plus a frozen copy** of its
+  effective parameters, and the frozen copy is authoritative: re-editing the
+  catalogue cannot move a saved scenario, and a copy that disagrees with the
+  catalogue is rejected instead of silently recalibrated.
+- The only engine addition is **per-opening frame leakage**, reusing the R3 path
+  unchanged: an opening's own area **replaces** the global one, never adds to it,
+  and without an own area the behaviour is identical.
+- Verification: **257** validator checks, **21** pytest tests and **20 of 20
+  valid mutations killed** with SHA-256 restoration. Two survivors and one
+  native crash in the first round exposed three real gaps, all fixed.
+- Remaining scope is **D4B2**: editor controls, product policy, persistence of
+  deformation and glazing profiles, and controlled activation. Unblocking the
+  five blocked profiles needs **new experiments**, not more reading.
+
 ## Current Program Update - 2026-09-22 - persistent contract for prescribed physics (F2.2D4A)
 
 - Checkpoint: `main` at `9f6cf96e` (D3) when the phase started; the work is one

@@ -472,6 +472,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot persistencia de la fisica prescrita: " + (diagnostic or "failed"))
 
+    # F2.2D4B1: catalogo trazable de perfiles. Comprueba el gate de evidencia,
+    # la identidad versionada, la copia congelada en el escenario y los ensayos
+    # puros de la ley de rendija dentro de su dominio experimental.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_opening_physics_profiles.gd",
+        "OPENING PHYSICS PROFILES VALIDATION PASS",
+    )
+    rows.append(("Perfiles trazables de aberturas, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot perfiles trazables de aberturas: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

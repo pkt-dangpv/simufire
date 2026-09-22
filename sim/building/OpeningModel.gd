@@ -67,6 +67,18 @@ var deformation_tracks: Array = []
 # serializacion/editor y la activacion de producto.
 var glazing_panels: Array = []
 var glazing_spatial: Array = []
+# F2.2D4B1: procedencia del perfil del catalogo que produjo la fuga fria y la
+# fuga de marco de esta abertura, como `profile_id@version`. Es PROCEDENCIA:
+# ninguna ruta de caudal la lee. La fisica llega por los campos de siempre
+# -`leakage_area_override_m2` para D1 y `frame_leakage_area_m2` para R3-, de
+# modo que el catalogo no crea una segunda fuente de verdad.
+var leakage_profile_ref: String = ""
+var frame_leakage_profile_ref: String = ""
+# F2.2D4B1: area de fuga de marco PROPIA de esta abertura, en m2 geometricos y
+# con el Cd aparte, igual que el valor global historico. -1 = sin declarar, y
+# entonces manda el global `window_leakage_area_m2`. Nunca se suman: la
+# especifica SUSTITUYE a la global en esta abertura.
+var frame_leakage_area_m2: float = -1.0
 var open_fraction: float = 1.0    # 0..1
 var opening_index: int = -1
 var wall_side: String = ""
