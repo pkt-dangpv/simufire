@@ -505,6 +505,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot activacion experimental de aberturas: " + (diagnostic or "failed"))
 
+    # Fase 1 FED/SVV: presentacion. El indice calculado ahora y su peor historico
+    # se enseñan separados, un campo ausente dice n/d y ningun texto los presenta
+    # como probabilidad de supervivencia.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_tenability_presentation.gd",
+        "TENABILITY PRESENTATION VALIDATION PASS",
+    )
+    rows.append(("Presentacion de FED y del indice de condiciones, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot presentacion FED/indice: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

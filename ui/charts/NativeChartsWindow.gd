@@ -35,14 +35,23 @@ const METRIC_GROUPS: Array = [
 		"thresholds": [{"y": 1500.0, "color": Color(1, 0.35, 0.35, 0.6), "label": "1500 ppm"}]},
 	{"name": "CO2 (ppm)", "y": "CO2 (ppm)", "series": [
 		["co2_ppm", "CO2", false, 1.0]], "thresholds": []},
-	{"name": "FED", "y": "FED", "series": [
-		["fed", "FED", false, 1.0]],
-		"thresholds": [
-			{"y": 1.0, "color": Color("firebrick"), "label": "FED=1 incap."},
-			{"y": 3.0, "color": Color("darkred"), "label": "FED=3 letal"}]},
-	{"name": "SVV / Vis (%)", "y": "SVV / Vis (%)", "series": [
-		["svv_worst_pct", "SVV", false, 1.0],
-		["visibility_m", "Vis (% de 30m)", true, 3.3333]], "thresholds": []},
+	# Fase 1 FED/SVV: se retiran las marcas «FED=1 incap.» y «FED=3 letal».
+	# Esos umbrales son de FED ASFIXIANTE; `fed` es la suma combinada que ademas
+	# incluye el componente termico, y atribuirle esos desenlaces clinicos no
+	# esta validado. Se quitan las anotaciones, NO la curva.
+	{"name": "FED (dosis acumulada)", "y": "FED", "series": [
+		["fed", "FED total (CO+HCN+O2+calor)", false, 1.0]],
+		"thresholds": []},
+	# El CSV solo trae el PEOR historico, asi que solo se dibuja ese, y con su
+	# nombre. No se inventa una serie «actual» a partir del minimo historico.
+	{"name": "Índice de condiciones (peor histórico)",
+		"y": "Peor índice (%)", "series": [
+		["svv_worst_pct", "Peor índice registrado", false, 1.0]],
+		"thresholds": []},
+	# La visibilidad sale a su propia grafica, en METROS: mezclarla en una escala
+	# porcentual la hacia parecer otro porcentaje del mismo indice.
+	{"name": "Visibilidad (m)", "y": "Visibilidad (m)", "series": [
+		["visibility_m", "Visibilidad", false, 1.0]], "thresholds": []},
 ]
 
 const WANTED_COLS: Array = [

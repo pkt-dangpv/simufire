@@ -2,6 +2,8 @@ extends RefCounted
 class_name HUDRoomSummary
 
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+## Fase 1 FED/SVV: el unico dueño de como se nombran estos indices.
+const TenabilityPresentationScript = preload("res://ui/TenabilityPresentation.gd")
 const FLASHOVER_DISPLAY_DURATION_S: float = 22.0
 
 
@@ -32,9 +34,13 @@ static func card_summary(room_id: int, room_state: Dictionary, sim_time_s: float
 	if hrr > 0.5:
 		lines.append("T 0.9m %.0fC | Comb %.0f/%.0fMJ" % [t09, remaining_fuel_mj, fuel_capacity_mj])
 	elif co_ppm > 1.0:
-		lines.append("CO %.0fppm | SVV %.0f%%" % [co_ppm, svv_pct(room_state)])
+		lines.append("CO %.0fppm | %s" % [
+			co_ppm, TenabilityPresentationScript.compact_line(room_state)
+		])
 	else:
-		lines.append("SVV %.0f%% | Comb %.0fMJ" % [svv_pct(room_state), remaining_fuel_mj])
+		lines.append("%s | Comb %.0fMJ" % [
+			TenabilityPresentationScript.compact_line(room_state), remaining_fuel_mj
+		])
 	if flashover:
 		lines.append("FLASHOVER")
 
@@ -51,12 +57,11 @@ static func detail_text(room_state: Dictionary) -> String:
 
 	var room_name: String = String(room_state.get("name", ""))
 	var fed: float = float(room_state.get("fed", 0.0))
-	var svv: float = svv_pct(room_state)
 	var header_line: String = ""
 	if room_name != "":
-		header_line = "%s\nFED %.3f  SVV %.0f%%" % [room_name, fed, svv]
+		header_line = "%s\nFED %.3f (dosis acumulada)" % [room_name, fed]
 	else:
-		header_line = "FED %.3f  SVV %.0f%%" % [fed, svv]
+		header_line = "FED %.3f (dosis acumulada)" % fed
 
 	var data_lines: Array[String] = [
 		"HRR: %.0f kW" % float(room_state.get("hrr_kw", 0.0)),
@@ -67,6 +72,12 @@ static func detail_text(room_state: Dictionary) -> String:
 		"CO: %.0f ppm  HCN: %.1f ppm" % [float(room_state.get("co_ppm", 0.0)), float(room_state.get("hcn_ppm", 0.0))],
 		"P: %.1f Pa  Smoke: %.3f kg" % [float(room_state.get("overpressure_pa", 0.0)), float(room_state.get("smoke_kg", 0.0))],
 	]
+	# Fase 1 FED/SVV: el indice calculado ahora y su peor historico van
+	# SEPARADOS y con su nombre entero, seguidos de lo que son. Antes se enseñaba
+	# solo el peor bajo la etiqueta «SVV», que no se movia al ventilar.
+	data_lines.append_array(TenabilityPresentationScript.detail_lines(room_state))
+	data_lines.append(TenabilityPresentationScript.DISCLAIMER)
+	data_lines.append(TenabilityPresentationScript.FED_CAPTION)
 	if bool(room_state.get("flashover_triggered", false)):
 		data_lines.append("!!! FLASHOVER !!!")
 	return header_line + "\n" + "\n".join(PackedStringArray(data_lines))
@@ -88,17 +99,16 @@ static func card_severity(room_state: Dictionary, sim_time_s: float, flashover_p
 	return "normal"
 
 
-static func svv_pct(room_state: Dictionary) -> float:
-	var value: float = float(room_state.get("svv_worst_pct", -1.0))
-	if value >= 0.0:
-		return value
-	var h_m: float = float(room_state.get("height_m", 2.4))
-	var layer_150c_m: float = float(room_state.get("layer_150c_m", h_m))
-	if layer_150c_m >= 1.8:
-		return 100.0
-	if layer_150c_m >= 0.5:
-		return 90.0 + 9.0 * (layer_150c_m - 0.5) / 1.3
-	return clampf(layer_150c_m / 0.5 * 90.0, 0.0, 90.0)
+## Fase 1 FED/SVV: quedan los dos accesores del contrato de presentacion, y
+## ninguno FABRICA nada. El anterior `svv_pct()` devolvia el PEOR historico bajo
+## nombre de actual y, si el campo faltaba, se inventaba un valor a partir de
+## `layer_150c_m`. Un estado sin el campo dice `n/d`.
+static func current_index_pct(room_state: Dictionary) -> float:
+	return TenabilityPresentationScript.current_index_pct(room_state)
+
+
+static func worst_index_pct(room_state: Dictionary) -> float:
+	return TenabilityPresentationScript.worst_index_pct(room_state)
 
 
 static func is_flashover_visible(room_state: Dictionary, sim_time_s: float, permanent: bool) -> bool:

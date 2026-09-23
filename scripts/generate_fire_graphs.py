@@ -534,9 +534,10 @@ def plot_room(room_id, r, room_dir, events=None):
     c_fed = "firebrick"
     fed_vals = r["fed"]
     fed_display_max = max(5.0, min(10.0, max(fed_vals) * 1.1)) if fed_vals else 5.0
-    ax1.plot(t, fed_vals, color=c_fed, linewidth=1.5, label="FED")
-    ax1.axhline(1.0, color=c_fed, linestyle="--", alpha=0.5, label="FED=1 (incap.)")
-    ax1.axhline(3.0, color="darkred", linestyle=":", alpha=0.4, label="FED=3 (letal)")
+    # Fase 1 FED/SVV: se retiran las lineas «FED=1 (incap.)» y «FED=3 (letal)».
+    # Son umbrales de FED asfixiante y esta curva es el FED combinado, que suma
+    # el componente termico. Se quitan las anotaciones, no la curva.
+    ax1.plot(t, fed_vals, color=c_fed, linewidth=1.5, label="FED total (dosis acum.)")
     fed_max_val = max(fed_vals) if fed_vals else 0.0
     if fed_max_val > fed_display_max:
         ax1.text(0.98, 0.97, "max FED=%.1f" % fed_max_val,
@@ -552,15 +553,18 @@ def plot_room(room_id, r, room_dir, events=None):
 
     ax2 = ax1.twinx()
     c_svv = "steelblue"
-    ax2.plot(t, r["svv"], color=c_svv, linewidth=1.5, label="SVV (%)")
-    # Visibilidad escalada a 0-100% (30 m = 100%) para mostrar por qué SVV baja
-    # antes de que FED acumule: la sala se llena de humo más rápido que la dosis.
+    ax2.plot(t, r["svv"], color=c_svv, linewidth=1.5,
+             label="Peor índice de condiciones (%)")
+    # Visibilidad escalada a 0-100% (30 m = 100%) para mostrar por qué el índice
+    # baja antes de que FED acumule: la sala se llena de humo más rápido que la
+    # dosis. Se dibuja en la misma escala por comparación visual; el eje dice
+    # que son cosas distintas y la leyenda nombra sus unidades.
     vis_raw = r.get("vis", [])
     if vis_raw:
         vis_pct = [min(v / 30.0, 1.0) * 100.0 for v in vis_raw]
         ax2.plot(t, vis_pct, color="mediumseagreen", linewidth=1.0,
                  linestyle=":", alpha=0.75, label="Vis (% de 30m)")
-    ax2.set_ylabel("SVV / Vis (%)", color=c_svv)
+    ax2.set_ylabel("Peor índice / Vis (%)", color=c_svv)
     ax2.tick_params(axis="y", labelcolor=c_svv)
     ax2.set_ylim(0, 105)
 
@@ -569,7 +573,14 @@ def plot_room(room_id, r, room_dir, events=None):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=8)
-    fig.suptitle("FED / SVV -- ROOM %s %s\n(SVV=0 antes de FED=1 → humo reduce visibilidad antes de incapacitar)" % (room_id, name))
+    # Fase 1 FED/SVV: el subtítulo explicaba el orden de los eventos en términos
+    # clínicos. Se reformula describiendo lo que se ve —el índice baja por humo
+    # antes de que la dosis se acumule— sin atribuir un desenlace médico.
+    fig.suptitle(
+        "FED / índice de condiciones -- ROOM %s %s\n"
+        "(el índice baja por visibilidad antes de que la dosis FED se acumule; "
+        "índice heurístico, no probabilidad de supervivencia)" % (room_id, name)
+    )
     ax1.grid(True, alpha=0.3)
     _save(fig, os.path.join(room_dir, "fed_svv.png"))
 

@@ -1,6 +1,10 @@
 extends RefCounted
 
 const ScenarioValues := preload("res://sim/ScenarioValues.gd")
+## Fase 1 FED/SVV: la vista 2D y el HUD comparten UN dueño de estas
+## etiquetas. Sin el, cada capa se inventaba la suya y por eso llegaron a
+## convivir cuatro presentaciones distintas del mismo numero.
+const TenabilityPresentation := preload("res://ui/TenabilityPresentation.gd")
 
 
 static func fuel_object_color_for_state(state_name: String, fallback_fill: Color) -> Color:
@@ -19,46 +23,26 @@ static func fuel_object_color_for_state(state_name: String, fallback_fill: Color
 			return fallback_fill
 
 
+## Fase 1 FED/SVV: el indice combinado NO se recalcula aqui.
+##
+## Este fichero replicaba la formula entera de `ThermalSystem` para poder
+## enseñar algo cuando el estado no traia el campo. Eso producia un numero
+## fabricado, indistinguible del real y ya divergente de la formula buena. Ahora
+## se lee lo que el estado trae, y si no lo trae se dice `n/d`.
+##
+## El calculo sigue donde estaba; esta fase es de presentacion.
 static func compute_svv_pct(rs: Dictionary) -> float:
-	if rs.has("svv_worst_pct"):
-		return clampf(float(rs.get("svv_worst_pct", 100.0)), 0.0, 100.0)
+	return TenabilityPresentation.current_index_pct(rs)
 
-	var height_m: float = float(rs.get("height_m", 2.4))
-	var layer_150c: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
-	var fed_val: float = float(rs.get("fed", 0.0))
-	var hot_layer_m: float = float(rs.get("hot_layer_m", height_m))
-	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
 
-	var thermal_svv: float
-	if layer_150c >= 1.8:
-		if hot_layer_m < 1.8 and temp_upper_c > 60.0:
-			var penetration: float = clampf((1.8 - hot_layer_m) / 0.3, 0.0, 1.0)
-			var temp_factor: float = clampf((temp_upper_c - 60.0) / 90.0, 0.0, 1.0)
-			thermal_svv = 1.0 - penetration * temp_factor
-		else:
-			thermal_svv = 1.0
-	elif layer_150c >= 0.5:
-		thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3
-	elif layer_150c > 0.10:
-		thermal_svv = 0.05 + 0.85 * ((layer_150c - 0.10) / 0.40)
-	else:
-		thermal_svv = 0.0
-
-	var fed_svv: float
-	if fed_val <= 0.1:
-		fed_svv = 1.0 - 0.01 * (fed_val / 0.1)
-	elif fed_val <= 0.3:
-		fed_svv = 0.99 - 0.09 * ((fed_val - 0.1) / 0.2)
-	elif fed_val < 1.0:
-		var t_fed: float = (fed_val - 0.3) / 0.7
-		fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
-	else:
-		fed_svv = 0.0
-
-	return minf(thermal_svv, fed_svv) * 100.0
+static func compute_svv_worst_pct(rs: Dictionary) -> float:
+	return TenabilityPresentation.worst_index_pct(rs)
 
 
 static func svv_color(svv_pct: float) -> Color:
+	# `n/d`: gris neutro, y nunca el color de una condicion extrema.
+	if svv_pct < 0.0:
+		return Color(0.55, 0.55, 0.55, 1.0)
 	if svv_pct >= 90.0:
 		return Color(0.30, 0.78, 0.35, 1.0)
 	if svv_pct >= 60.0:

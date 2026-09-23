@@ -5,6 +5,7 @@ const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd"
 const FloorPlan2D := preload("res://view/2d/floors/FloorPlan2D.gd")
 const RoomLabelLayout2D := preload("res://view/2d/rooms/RoomLabelLayout2D.gd")
 const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
+const TenabilityPresentation := preload("res://ui/TenabilityPresentation.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const ViewScenarioRead := preload("res://view/ViewScenarioRead.gd")
 
@@ -1165,7 +1166,9 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 		Vector2(room_label_medium_threshold_w_px, room_label_medium_threshold_h_px)
 	)
 
-	var svv_pct_val: float = RoomStateVisuals2D.compute_svv_pct(rs)
+	# Fase 1 FED/SVV: `Cond` es el indice calculado ahora; `peor` es el minimo
+	# historico. Antes ambas lineas enseñaban el historico como si fuera actual.
+	var cond_line: String = TenabilityPresentation.compact_line(rs)
 	var lines: Array[String] = []
 	if show_room_name and room_name != "":
 		lines.append(room_name)
@@ -1179,7 +1182,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 	match detail:
 		"tiny":
 			lines.append("T %.0fC" % temp_0_9m)
-			lines.append("SVV %.0f%%" % svv_pct_val)
+			lines.append(cond_line)
 			if bool(rs.get("backdraft_active", false)):
 				lines.append("BACKDRAFT")
 			elif flashover_triggered:
@@ -1191,7 +1194,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			lines.append("T %.0f / %.0f C" % [up, low])
 			lines.append("O2 %.1f%%  CO %.0f" % [o2v, co_ppm])
 			lines.append("Comb %.0f MJ" % rem_mj)
-			lines.append("FED %.2f  SVV %.0f%%" % [fed_val, svv_pct_val])
+			lines.append("FED %.2f  %s" % [fed_val, cond_line])
 			if bool(rs.get("backdraft_active", false)):
 				lines.append("BACKDRAFT")
 			elif flashover_triggered:
@@ -1205,7 +1208,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			lines.append("SmL %.2f m  L150 %.2f" % [smoke_lay, layer_150c])
 			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
 			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
-			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
+			lines.append("FED %.3f  %s" % [fed_val, cond_line])
 			var med_win: String = RoomStateVisuals2D.window_status_label(rs, window_full_open_threshold)
 			if med_win != "":
 				lines.append(med_win)
@@ -1223,7 +1226,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			lines.append("SmL %.2f  HotL %.2f m" % [smoke_lay, hot_lay])
 			lines.append("L150 %.2f m" % layer_150c)
 			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
-			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
+			lines.append("FED %.3f  %s" % [fed_val, cond_line])
 			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
 			var full_win: String = RoomStateVisuals2D.window_status_label(rs, window_full_open_threshold)
 			if full_win != "":
