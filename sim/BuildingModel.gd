@@ -25,6 +25,11 @@ const ClosedDoorLeakageNetworkAdapterScript = preload(
 const PrescribedPhysicsSchemaScript = preload(
 	"res://sim/building/PrescribedOpeningPhysicsSchema.gd"
 )
+## F2.2D4B2B: la autorizacion de ejecucion experimental viaja en la plantilla.
+## El modelo la CONSERVA y la valida; quien la consume es `SimulationEngine`.
+const ExperimentalAuthorizationScript = preload(
+	"res://sim/building/ExperimentalRunAuthorization.gd"
+)
 
 const OUTSIDE_ID: int = -1
 
@@ -121,6 +126,18 @@ var detectors: Array = []
 ##   fed (FED ISO 13571 acumulado), incapacitated (bool), incapacitated_at_s (float).
 var victims: Array = []
 
+## F2.2D4B2B: autorizacion de ejecucion experimental declarada por el escenario.
+## Vacio = el escenario no autoriza nada = toda la fisica experimental OFF, que
+## es lo que traen todos los escenarios distribuidos.
+##
+## Tenerla aqui NO enciende nada: los interruptores viven en `SimulationEngine`,
+## siguen naciendo apagados y solo los mueve la resolucion explicita de esta
+## autorizacion. Cargar un escenario nunca es autorizarlo.
+var experimental_physics_authorization: Dictionary = {}
+## Las aberturas tal cual venian en la plantilla, solo cuando hay autorizacion.
+## Es la copia sobre la que se calculo la huella.
+var _experimental_authorization_openings: Array = []
+
 ## Ruta del archivo de template runtime exportado por el editor.
 const EDITOR_RUNTIME_PATH: String = "user://last_editor_runtime_template.json"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
@@ -183,6 +200,22 @@ func _load_editor_runtime_template() -> bool:
 # ============================================================
 # GETTERS
 # ============================================================
+
+## F2.2D4B2B: el escenario TAL CUAL se cargo, en lo que la autorizacion
+## necesita para resolverse: su bloque y las aberturas que lo justifican.
+##
+## Se conserva la copia guardada y no se reconstruye desde las `OpeningModel`:
+## la huella de la autorizacion se calculo sobre el fichero, y recomponerla
+## desde el modelo en memoria la haria depender de como carga el motor.
+func experimental_authorization_scenario() -> Dictionary:
+	if experimental_physics_authorization.is_empty():
+		return {}
+	return {
+		"openings_data": _experimental_authorization_openings.duplicate(true),
+		ExperimentalAuthorizationScript.AUTHORIZATION_KEY:
+				experimental_physics_authorization.duplicate(true),
+	}
+
 
 func get_room_rects_m() -> Dictionary[int, Rect2]:
 	return room_rect_m
@@ -390,6 +423,11 @@ func validate_template_data(data: Dictionary, allow_empty_rooms: bool = false) -
 			_validate_fuel_objects(Array(raw_objects), room_id, room_ids, errors)
 
 	_validate_openings(data.get("openings_data", []), room_ids, errors)
+	# F2.2D4B2B: una autorizacion experimental incompleta, caducada o que nombre
+	# un perfil invalido hace fallar la CARGA. Es deliberado: sin esto, la unica
+	# consecuencia seria que la fisica no se encendiera, y el usuario creeria que
+	# esta corriendo lo que autorizo.
+	errors.append_array(ExperimentalAuthorizationScript.validate(data))
 	_validate_room_reference_array(data.get("detectors", []), "detectors", room_ids, errors)
 	_validate_room_reference_array(data.get("victims", []), "victims", room_ids, errors)
 	_validate_player_start(data.get("player_start", {}), room_ids, errors)
@@ -522,6 +560,17 @@ func _validate_player_start(raw_start: Variant, room_ids: Dictionary, errors: Ar
 
 
 func _load_from_template(data: Dictionary) -> void:
+	# F2.2D4B2B: se conserva tal cual lo que el escenario autorizo. Guardarlo
+	# aqui no enciende nada; lo resuelve `SimulationEngine` al arrancar.
+	experimental_physics_authorization = {}
+	_experimental_authorization_openings = []
+	if ExperimentalAuthorizationScript.declares(data):
+		experimental_physics_authorization = Dictionary(
+			data[ExperimentalAuthorizationScript.AUTHORIZATION_KEY]
+		).duplicate(true)
+		_experimental_authorization_openings = Array(
+			data.get("openings_data", [])
+		).duplicate(true)
 	rooms.clear()
 	openings.clear()
 	room_rect_m.clear()

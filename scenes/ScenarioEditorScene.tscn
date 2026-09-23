@@ -108,6 +108,59 @@ ok_button_text = "Volver al plano"
 cancel_button_text = "Cerrar"
 dialog_autowrap = true
 
+[node name="ExperimentalPhysicsDialog" type="ConfirmationDialog" parent="CanvasLayer"]
+title = "Física experimental de aberturas"
+size = Vector2i(820, 620)
+ok_button_text = "Volver al plano"
+cancel_button_text = "Cerrar"
+
+[node name="Body" type="VBoxContainer" parent="CanvasLayer/ExperimentalPhysicsDialog"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="ConsentScroll" type="ScrollContainer" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ExperimentalConsentLabel" type="Label" parent="CanvasLayer/ExperimentalPhysicsDialog/Body/ConsentScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+text = "Simulación experimental; parámetros no validados para una vivienda."
+
+[node name="ExperimentalAckExperimental" type="CheckBox" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+tooltip_text = "Confirma que has leído que la simulación es experimental y que sus parámetros no están validados para una vivienda."
+text = "Simulación experimental; parámetros no validados para una vivienda."
+
+[node name="ExperimentalAckFamilies" type="CheckBox" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+tooltip_text = "Confirma que has leído qué familias de física se activan y con qué valores efectivos congelados."
+text = "He leído las familias de física que se activan y sus valores efectivos congelados."
+
+[node name="ExperimentalAckLimits" type="CheckBox" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+tooltip_text = "Confirma que has leído las limitaciones aplicables, incluido el dominio de presión del ensayo."
+text = "He leído las limitaciones aplicables, incluido el dominio de presión del ensayo."
+
+[node name="ExperimentalAckPrescribed" type="CheckBox" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+tooltip_text = "Confirma que has leído que la deformación y el desprendimiento de vidrio son historias prescritas por el escenario."
+text = "La deformación y el desprendimiento de vidrio son historias prescritas: el motor no predice cuándo ocurren."
+
+[node name="ExperimentalStatusLabel" type="Label" parent="CanvasLayer/ExperimentalPhysicsDialog/Body"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Ninguna abertura declara física experimental."
+
 [node name="UI" type="Control" parent="CanvasLayer" unique_id=630610743]
 layout_mode = 3
 anchors_preset = 15
@@ -2595,6 +2648,14 @@ tooltip_text = "Busca lo que hace que una simulación no enseñe nada: salas sel
 theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
 text = "REVISAR"
+
+[node name="BtnExperimentalPhysics" type="Button" parent="CanvasLayer/UI/BottomBar/HBox"]
+custom_minimum_size = Vector2(210, 42)
+layout_mode = 2
+tooltip_text = "Autoriza o revoca, para este escenario, la ejecución experimental de la física de aberturas. Configurar un perfil no la activa."
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "FÍSICA EXPERIMENTAL"
 
 [node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=2143511484]
 custom_minimum_size = Vector2(160, 42)

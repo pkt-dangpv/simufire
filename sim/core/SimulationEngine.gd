@@ -10,6 +10,13 @@ const OxygenExchangeSystemScript = preload("res://sim/core/OxygenExchangeSystem.
 const SimulationLogWriterScript = preload("res://sim/core/SimulationLogWriter.gd")
 const SimulationStateBuilderScript = preload("res://sim/core/SimulationStateBuilder.gd")
 const ThermalSystemScript = preload("res://sim/core/ThermalSystem.gd")
+## F2.2D4B2B: contrato de autorizacion de una ejecucion experimental. El motor
+## NO decide si algo se activa: le pregunta a este modulo, que resuelve lo que
+## el escenario autorizo de forma explicita. Sin autorizacion, los cinco
+## interruptores se quedan como nacen, apagados.
+const ExperimentalAuthorizationScript = preload(
+	"res://sim/building/ExperimentalRunAuthorization.gd"
+)
 const FireSpreadSystemScript = preload("res://sim/core/FireSpreadSystem.gd")
 const GlassFailureSystemScript = preload("res://sim/core/GlassFailureSystem.gd")
 const HVACSystemScript = preload("res://sim/core/HVACSystem.gd")
@@ -46,6 +53,17 @@ var pressure_network_transport_system = PressureNetworkTransportSystemScript.new
 ## bien. Nunca provoca una vuelta atras a la ruta historica.
 var pressure_network_failure: String = ""
 var pressure_network_last_result: Dictionary = {}
+## F2.2D4B2B: por que no se pudo ejecutar la autorizacion experimental de este
+## escenario. Vacio = o no hay autorizacion, o resolvio bien.
+##
+## Cuando NO esta vacio el motor se niega a simular. Es deliberado: apagar la
+## fisica y seguir corriendo dejaria al usuario mirando una simulacion que no es
+## la que autorizo, sin ninguna señal de que no lo es.
+var experimental_authorization_failure: String = ""
+## Informe de activacion experimental, tal cual sale en la salida diagnostica.
+## Vacio cuando el escenario no declara autorizacion, para que la salida de un
+## escenario normal no cambie ni un byte.
+var _experimental_activation_report: Dictionary = {}
 var oxygen_exchange_system = OxygenExchangeSystemScript.new()
 var log_writer = SimulationLogWriterScript.new()
 var state_builder = SimulationStateBuilderScript.new()
@@ -3328,6 +3346,12 @@ func _sync_room_upper_layer_from_hvac(room: RoomModel, dt: float) -> void:
 
 func _ready() -> void:
 	_resolve_building()
+	# F2.2D4B2B: antes de nada. Si el escenario autoriza fisica experimental, es
+	# aqui donde se enciende, y si su autorizacion no resuelve es aqui donde se
+	# para, antes de igniciar y antes del primer paso.
+	_apply_experimental_physics_authorization()
+	if not experimental_authorization_failure.is_empty():
+		return
 	if building != null and building.default_ignition_room_id != 0:
 		ignition_room_id = building.default_ignition_room_id
 	if building != null and building.sim_stop_time_s > 0.0:
@@ -3377,6 +3401,98 @@ func _reset_log_file() -> void:
 # SETUP
 # ============================================================
 
+## F2.2D4B2B: enciende SOLO lo que este escenario autorizo de forma explicita.
+##
+## Reglas que este metodo hace cumplir, y que las pruebas miden una a una:
+##
+##   - sin bloque de autorizacion no se toca ni un interruptor, asi que un
+##     escenario cualquiera -y los quince distribuidos- se comporta byte a byte
+##     como antes de D4B2B;
+##   - tener un perfil configurado, o haberlo seleccionado, guardado o
+##     previsualizado, NO es autorizacion: lo que se resuelve es el bloque;
+##   - se encienden las familias PEDIDAS y ninguna mas, mas su dependencia de
+##     red, que es de las cuatro y no de ninguna en particular;
+##   - nunca se APAGA nada: este metodo solo pone `true`, de modo que no puede
+##     tapar una configuracion hecha en otro sitio;
+##   - si la autorizacion no resuelve se deja constancia y se para, en vez de
+##     correr con la fisica apagada como si nada.
+##
+## Lo que NO hace: cambiar `product_activation`, elevar la categoria de ningun
+## perfil, ni presentar la corrida como validada para una vivienda. El informe
+## que deja dice lo contrario con todas las letras.
+func _apply_experimental_physics_authorization() -> void:
+	experimental_authorization_failure = ""
+	_experimental_activation_report = ExperimentalAuthorizationScript.inactive_report()
+	if building == null:
+		return
+	var scenario: Dictionary = building.experimental_authorization_scenario()
+	if scenario.is_empty():
+		return
+	var verdict: Dictionary = ExperimentalAuthorizationScript.resolve(scenario)
+	_experimental_activation_report = ExperimentalAuthorizationScript.activation_report(
+		verdict
+	)
+	if not bool(verdict["authorized"]):
+		experimental_authorization_failure = "experimental_authorization_rejected"
+		push_error(
+			"experimental opening physics authorization rejected: %s"
+			% str(verdict["errors"])
+		)
+		return
+	var switches: Dictionary = verdict["switches"]
+	# La dependencia primero, y por su nombre: las cuatro familias viven dentro
+	# de la red autoritativa y ninguna existe sin ella.
+	if bool(switches.get(ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY, false)):
+		pressure_network_solver_enabled = true
+	if bool(switches.get("closed_door_leakage_enabled", false)):
+		closed_door_leakage_enabled = true
+	if bool(switches.get("closed_door_deformation_enabled", false)):
+		closed_door_deformation_enabled = true
+	if bool(switches.get("glazing_fallout_enabled", false)):
+		glazing_fallout_enabled = true
+	if bool(switches.get("exterior_envelope_leakage_enabled", false)):
+		exterior_envelope_leakage_enabled = true
+
+
+## El informe de activacion experimental, como lo ve la salida diagnostica.
+## Vacio cuando el escenario no autoriza nada.
+func get_experimental_activation_report() -> Dictionary:
+	return _experimental_activation_report.duplicate(true)
+
+
+## F2.2D4B2B: acumula lo que el solver mide FUERA del dominio de ensayo.
+##
+## No recorta nada y no reajusta ningun coeficiente: la ley de rendija de D1 ya
+## marca `domain_exceeded` y deja pasar el caudal. Aqui solo se cuenta, para que
+## el informe no pueda presentarse como una corrida dentro de dominio.
+func _accumulate_experimental_domain_marks() -> void:
+	if _experimental_activation_report.is_empty():
+		return
+	var solution: Variant = pressure_network_last_result.get("solution", null)
+	if typeof(solution) != TYPE_DICTIONARY:
+		return
+	var exceeded: bool = false
+	var max_abs_dp_pa: float = float(
+		_experimental_activation_report.get("max_abs_dp_pa", 0.0)
+	)
+	for raw_opening in Array(Dictionary(solution).get("openings", [])):
+		if typeof(raw_opening) != TYPE_DICTIONARY:
+			continue
+		var opening: Dictionary = raw_opening
+		if not opening.has("domain_exceeded_count"):
+			continue
+		if float(opening["domain_exceeded_count"]) > 0.0:
+			exceeded = true
+		max_abs_dp_pa = maxf(max_abs_dp_pa, float(opening.get("max_abs_dp_pa", 0.0)))
+	_experimental_activation_report["max_abs_dp_pa"] = max_abs_dp_pa
+	if not exceeded:
+		return
+	_experimental_activation_report["domain_exceeded"] = true
+	_experimental_activation_report["domain_exceeded_steps"] = 1 + int(
+		_experimental_activation_report.get("domain_exceeded_steps", 0)
+	)
+
+
 func _resolve_building() -> void:
 	_phase3_residual_projection_shadow_geometry_cache.clear()
 	if not building_path.is_empty():
@@ -3423,6 +3539,11 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	if building == null or not is_ready_for_validation():
 		return
 
+	# F2.2D4B2B: reiniciar es volver a montar la corrida, asi que la
+	# autorizacion se vuelve a resolver aqui igual que en `_ready`. Sin esto,
+	# reiniciar con otro escenario cargado dejaria encendida la fisica que
+	# autorizo el anterior, que es justo lo que esta fase impide.
+	_apply_experimental_physics_authorization()
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
 	gas_exchange_system.reset()
@@ -3522,6 +3643,10 @@ func _reset_room_state(room: RoomModel) -> void:
 # ============================================================
 
 func step(delta: float) -> void:
+	# F2.2D4B2B: una autorizacion experimental que no resuelve no se simula. Ni
+	# con la fisica apagada: lo que se vio en pantalla no seria lo autorizado.
+	if not experimental_authorization_failure.is_empty():
+		return
 	if building == null or is_finished:
 		return
 
@@ -4009,6 +4134,7 @@ func _step_pressure_network_transport(dt: float) -> void:
 		building, dt, {}, sim_time_s
 	)
 	pressure_network_last_result = result
+	_accumulate_experimental_domain_marks()
 	if bool(result["applied"]):
 		return
 	pressure_network_failure = String(result["failure_reason"])
@@ -5468,6 +5594,13 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \
 				phase3_zone_mass_system.get_coupled_interior_bundle_summary()
+	# F2.2D4B2B: procedencia del perfil, version, parametros efectivos, familias
+	# encendidas y marcas de fuera de dominio. Solo aparece cuando el escenario
+	# autoriza algo, asi que un escenario normal sigue dando el mismo informe.
+	if not _experimental_activation_report.is_empty():
+		summary["experimental_activation"] = _experimental_activation_report.duplicate(true)
+	if not experimental_authorization_failure.is_empty():
+		summary["experimental_authorization_failure"] = experimental_authorization_failure
 	if not output_dir.strip_edges().is_empty():
 		summary["output_dir"] = output_dir
 	return summary

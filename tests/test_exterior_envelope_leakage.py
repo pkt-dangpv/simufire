@@ -68,7 +68,17 @@ def test_the_flag_requires_the_authoritative_network():
     assert f"if {FLAG} and not pressure_network_solver_enabled:" in ENGINE_SRC
     assert "exterior_envelope_leakage_requires_pressure_network" in ENGINE_SRC
     # La dependencia se comprueba, nunca se "resuelve" encendiendo la red.
-    assert "pressure_network_solver_enabled = true" not in ENGINE_SRC
+    # F2.2D4B2B: el motor enciende el solver en UN solo sitio, y no en secreto.
+    # Hasta D4B2A ningun camino lo encendia y la regla era que el texto no
+    # apareciese. Ahora existe una ruta -la autorizacion experimental
+    # explicita- y lo que se vigila es que sea la unica y que viva dentro de
+    # ella, bajo el mapa de interruptores que devuelve el contrato.
+    assert ENGINE_SRC.count("pressure_network_solver_enabled = true") == 1
+    _activation = ENGINE_SRC.split(
+        "func _apply_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "pressure_network_solver_enabled = true" in _activation
+    assert "ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY" in _activation
 
 
 def test_the_flag_reaches_the_transport_system_gated_by_the_network():

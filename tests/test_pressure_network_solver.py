@@ -38,6 +38,15 @@ GODOT_CANDIDATES = (
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}
 ALLOWED_NETWORK_REFERENCES = {
+    # F2.2D4B2B: el contrato de autorizacion experimental declara la red como
+    # DEPENDENCIA comun de las cuatro familias -es el unico sitio donde se
+    # escribe esa correspondencia- y el editor, el documento y el modelo la
+    # nombran al resolverla. Ninguno resuelve la red ni copia una ley de
+    # caudal: que el motor la encienda en un solo sitio, y dentro de la
+    # autorizacion, lo vigilan las suites de D2, D3 y R3.
+    Path("sim/building/ExperimentalRunAuthorization.gd"),
+    Path("tools/validate_experimental_physics_activation.gd"),
+    Path("tests/test_experimental_physics_activation.py"),
     Path("sim/core/Phase3CoupledPressureSolver.gd"),
     Path("tools/validate_pressure_network_solver.gd"),
     Path("tools/validate_pressure_network_solver.gd.uid"),

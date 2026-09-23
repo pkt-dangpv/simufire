@@ -62,6 +62,12 @@ ALLOWED_REFERENCES = {
     # test_opening_profile_editor.test_the_editor_never_writes_a_switch.
     Path("editor/OpeningPhysicsEditor.gd"),
     Path("tools/validate_opening_profile_editor.gd"),
+    # F2.2D4B2B (2026-09-23): el contrato de autorizacion experimental nombra
+    # esta familia para decidir QUE se enciende, y su validador lo comprueba.
+    # Ninguno de los dos ejecuta fisica ni crea una segunda ruta: el contrato
+    # resuelve un permiso y el motor sigue siendo quien enciende.
+    Path("sim/building/ExperimentalRunAuthorization.gd"),
+    Path("tools/validate_experimental_physics_activation.gd"),
 }
 
 

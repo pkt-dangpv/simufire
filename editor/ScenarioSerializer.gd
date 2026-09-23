@@ -7,6 +7,12 @@ const ClosedDoorLeakageNetworkAdapterScript = preload(
 const PrescribedPhysicsSchema := preload(
 	"res://sim/building/PrescribedOpeningPhysicsSchema.gd"
 )
+## F2.2D4B2B: la autorizacion de una ejecucion experimental. El serializador la
+## conserva y la valida; no la concede nunca. Concederla es `grant()`, y solo lo
+## llama el editor tras el consentimiento explicito.
+const ExperimentalAuthorization := preload(
+	"res://sim/building/ExperimentalRunAuthorization.gd"
+)
 const ScenarioValues := preload("res://sim/ScenarioValues.gd")
 
 const DEFAULT_VERSION: int = 1
@@ -93,7 +99,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		if typeof(raw_opening) == TYPE_DICTIONARY:
 			openings_data.append(Dictionary(raw_opening).duplicate(true))
 
-	return {
+	var template: Dictionary = {
 		"ignition_room_id": _resolve_ignition_room_id(data),
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
@@ -118,11 +124,18 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"detectors": Array(data.get("detectors", [])).duplicate(true),
 		"victims": Array(data.get("victims", [])).duplicate(true)
 	}
+	# F2.2D4B2B: la autorizacion viaja con el escenario hasta el motor. Solo se
+	# escribe si existe: una plantilla sin autorizacion no gana la clave.
+	if ExperimentalAuthorization.declares(data):
+		template[ExperimentalAuthorization.AUTHORIZATION_KEY] = Dictionary(
+			data[ExperimentalAuthorization.AUTHORIZATION_KEY]
+		).duplicate(true)
+	return template
 
 
 static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 	var data: Dictionary = normalize_editor_data(editor_data)
-	return {
+	var template: Dictionary = {
 		"ignition_room_id": _resolve_ignition_room_id(data),
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
@@ -148,6 +161,13 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"detectors": Array(data.get("detectors", [])).duplicate(true),
 		"victims": Array(data.get("victims", [])).duplicate(true)
 	}
+	# F2.2D4B2B: la autorizacion viaja con el escenario hasta el motor. Solo se
+	# escribe si existe: una plantilla sin autorizacion no gana la clave.
+	if ExperimentalAuthorization.declares(data):
+		template[ExperimentalAuthorization.AUTHORIZATION_KEY] = Dictionary(
+			data[ExperimentalAuthorization.AUTHORIZATION_KEY]
+		).duplicate(true)
+	return template
 
 
 static func _resolve_ignition_room_id(data: Dictionary) -> int:
@@ -246,6 +266,10 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		if typeof(raw_opening) == TYPE_DICTIONARY:
 			openings.append(normalize_opening(Dictionary(raw_opening)))
 	data["openings_data"] = openings
+	# F2.2D4B2B: el bloque de autorizacion experimental se conserva tal cual y
+	# solo se le restituye el tipo que el fichero no distingue. Un escenario que
+	# no lo trae NO lo gana, asi que guardarlo sigue siendo byte a byte estable.
+	ExperimentalAuthorization.normalize(data)
 
 	var exterior_walls: Array = []
 	for raw_wall in data.get("exterior_walls", []):
@@ -516,5 +540,10 @@ static func validate_scenario(data: Dictionary) -> Array:
 		# F2.2D4A: el mismo contrato persistente que exige BuildingModel, para
 		# que el editor no pueda guardar algo que el motor rechazaria al cargar.
 		errors.append_array(PrescribedPhysicsSchema.validate(op, i))
+
+	# F2.2D4B2B: la autorizacion experimental se comprueba ANTES de lanzar. Una
+	# autorizacion incompleta, caducada o que nombre un perfil invalido impide
+	# ejecutar; no se apaga en silencio ni se descubre en el primer paso.
+	errors.append_array(ExperimentalAuthorization.validate(data))
 
 	return errors

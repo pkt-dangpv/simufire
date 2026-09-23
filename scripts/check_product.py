@@ -494,6 +494,17 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot perfiles de abertura en el editor: " + (diagnostic or "failed"))
 
+    # F2.2D4B2B: activacion experimental. Comprueba que sin autorizacion todo
+    # sigue apagado, que la confirmacion explicita enciende solo lo pedido, que
+    # revocar devuelve a OFF y que ningun perfil queda apto para producto.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_experimental_physics_activation.gd",
+        "EXPERIMENTAL PHYSICS ACTIVATION VALIDATION PASS",
+    )
+    rows.append(("Activacion experimental de aberturas, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot activacion experimental de aberturas: " + (diagnostic or "failed"))
+
     # Fuga de envolvente exterior cerrada dentro de la red (fase F2.2-R3):
     # una ventana exterior cerrada deja de ser perfectamente estanca, y lo hace
     # como elemento del solver, no como una purga posterior.

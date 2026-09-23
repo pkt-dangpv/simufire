@@ -23,6 +23,9 @@ extends RefCounted
 ## marcar cambios sin guardar y rehacer el 3D en vivo.
 
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
+const ExperimentalAuthorization = preload(
+	"res://sim/building/ExperimentalRunAuthorization.gd"
+)
 const ScenarioQueries = preload("res://editor/ScenarioQueries.gd")
 const ScenarioWalls = preload("res://editor/ScenarioWalls.gd")
 const StairPlanRules = preload("res://editor/StairPlanRules.gd")
@@ -704,6 +707,42 @@ func replace_opening(opening_index: int, opening: Dictionary) -> bool:
 	data["openings_data"] = openings
 	commit()
 	changed.emit("edit_opening_physics")
+	return true
+
+
+## F2.2D4B2B: concede la autorizacion de ejecucion experimental del escenario.
+##
+## El documento sigue siendo el dueño de `editor_data`: el editor no escribe
+## esta clave a mano. Quien decide si la autorizacion es valida es
+## `ExperimentalRunAuthorization.grant()`, que exige las cuatro confirmaciones
+## textuales y comprueba que resolveria antes de devolverla. Aqui solo se
+## escribe lo que aquella aprueba, con su paso de deshacer.
+func grant_experimental_authorization(
+	families: Array, acknowledged: Array, experimental_confirmed: bool
+) -> Dictionary:
+	var verdict: Dictionary = ExperimentalAuthorization.grant(
+		data, families, acknowledged, experimental_confirmed
+	)
+	if not bool(verdict["ok"]):
+		return verdict
+	begin("grant_experimental_authorization")
+	data[ExperimentalAuthorization.AUTHORIZATION_KEY] = Dictionary(
+		verdict["authorization"]
+	).duplicate(true)
+	commit()
+	changed.emit("grant_experimental_authorization")
+	return verdict
+
+
+## Revoca la autorizacion. El escenario vuelve a OFF entero y, si no tenia
+## ninguna, no se toca nada ni se apila un paso de deshacer vacio.
+func revoke_experimental_authorization() -> bool:
+	if not ExperimentalAuthorization.declares(data):
+		return false
+	begin("revoke_experimental_authorization")
+	ExperimentalAuthorization.revoke(data)
+	commit()
+	changed.emit("revoke_experimental_authorization")
 	return true
 
 

@@ -45,7 +45,17 @@ def test_flag_defaults_off_and_requires_the_authoritative_network():
     assert re.findall(rf"^@export var {FLAG}: bool = (\w+)$", ENGINE, re.M) == ["false"]
     assert f"if {FLAG} and not pressure_network_solver_enabled:" in ENGINE
     assert "glazing_fallout_requires_pressure_network" in ENGINE
-    assert "pressure_network_solver_enabled = true" not in ENGINE
+    # F2.2D4B2B: el motor enciende el solver en UN solo sitio, y no en secreto.
+    # Hasta D4B2A ningun camino lo encendia y la regla era que el texto no
+    # apareciese. Ahora existe una ruta -la autorizacion experimental
+    # explicita- y lo que se vigila es que sea la unica y que viva dentro de
+    # ella, bajo el mapa de interruptores que devuelve el contrato.
+    assert ENGINE.count("pressure_network_solver_enabled = true") == 1
+    _activation = ENGINE.split(
+        "func _apply_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "pressure_network_solver_enabled = true" in _activation
+    assert "ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY" in _activation
     assert (
         "if glazing_fallout_enabled and (not is_finite(time_s) or time_s < 0.0):"
         in TRANSPORT

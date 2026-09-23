@@ -2351,5 +2351,43 @@ guardarraíles científicos **ALL PASS**, producto **155/155** y suite global
 **2.922 passed, 4 skipped y 42 subtests passed**. El monitor no detectó
 cuadros de error ni procesos Godot residuales.
 
-Queda **D4B2B**: decidir si algún perfil puede encenderse en producto, con qué
-criterio, y el mando que lo haga.
+## 26. F2.2D4B2B: activación experimental controlada (2026-09-23)
+
+> **Estado: cerrada la EJECUCIÓN experimental, no la activación de producto.**
+> El detalle, el gate científico por familia y el contrato de autorización están
+> en `PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md`, §23.
+
+D4B2B no toca la red de presión ni ninguna ley de caudal. Conecta una
+**autorización explícita** al camino real de lanzamiento y a los interruptores
+que ya existían de D1, D2, D3 y R3, reutilizando su dependencia común de
+`pressure_network_solver_enabled`. No se ha copiado ni una ley de caudal,
+geometría, viento o transporte, y no se ha añadido ningún interruptor nuevo: el
+auditor de P1R4 sigue esperando **81** declaraciones por defecto apagadas.
+
+El contrato vive en `sim/building/ExperimentalRunAuthorization.gd` y guarda, en
+una clave de primer nivel del escenario, qué familias se piden, las cuatro
+confirmaciones textuales verbatim, si se confirmó el modo experimental y la
+huella SHA-256 de exactamente lo que se autorizó. La validez de cada perfil se
+**delega** al esquema de D4B1: bloqueado, desconocido, incompatible, versión no
+publicada y copia congelada alterada siguen rechazándose donde ya se rechazaban.
+
+**Tres decisiones separadas, y el código lo hace cumplir:** perfil configurado,
+autorización de una corrida, y aptitud de producto. La segunda no implica la
+tercera; `product_activation` sigue `false` en los quince y el informe de
+ejecución lleva `product_activation_granted: false`.
+
+La corrida falla de forma visible en tres sitios antes de simular: el editor no
+cambia de escena, la plantilla no carga, y el motor registra
+`experimental_authorization_failure` y se niega a simular en vez de correr con
+la física apagada. El informe técnico gana `experimental_activation` **solo**
+cuando hay autorización, con procedencia, versión, parámetros efectivos,
+familias encendidas y marcas de fuera de dominio, que se **cuentan** sin
+recortar ningún caudal ni reajustar ningún coeficiente.
+
+Verificación: **431 comprobaciones** del validador dedicado, **28 pruebas**
+Python, **18 de 18 mutaciones válidas muertas** con restauración SHA-256, y los
+seis validadores de D1, D2, D3, D4A, D4B1 y D4B2A intactos.
+
+Queda la **activación normal del producto**, que sigue en **NO-GO** porque sigue
+sin evidencia: hacen falta ensayos nuevos, no más lectura. Lo que falta está
+enumerado en §23.9 del documento de fugas.

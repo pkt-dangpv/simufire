@@ -1,14 +1,15 @@
 # Diagnóstico y diseño: fugas de puertas interiores cerradas
 
-> **Estado (2026-09-22): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
+> **Estado (2026-09-23): fases 1, 2, 3A y 3B cerradas; F2.2C y F2.2D1-D3
 > integradas detrás de interruptores apagados por defecto; F2.2D4A cierra la
 > PERSISTENCIA de esa física prescrita (§20), F2.2D4B1 publica el CATÁLOGO
-> trazable de perfiles y el gate científico (§21), y F2.2D4B2A lo conecta al
-> EDITOR para configurarlo e inspeccionarlo (§22). Ninguna de las tres calibra
-> ni activa: ELA, reparto, exponente, deformación y vidrio siguen
+> trazable de perfiles y el gate científico (§21), F2.2D4B2A lo conecta al
+> EDITOR para configurarlo e inspeccionarlo (§22), y F2.2D4B2B añade la
+> AUTORIZACIÓN explícita de una ejecución experimental concreta (§23). Ninguna
+> de las cuatro calibra: ELA, reparto, exponente, deformación y vidrio siguen
 > provisionales, cinco perfiles siguen BLOQUEADOS, los quince siguen con
 > `product_activation = false`, y ningún escenario distribuido los declara ni
-> los enciende.**
+> los enciende. La activación normal del producto sigue en NO-GO.**
 > - **Fase 1**: el modelo puro de fuga de puerta cerrada
 >   (`sim/core/ClosedDoorLeakageModel.gd`) está implementado, validado y
 >   cerrado (§12).
@@ -31,6 +32,14 @@
 >   `Phase3CoupledPressureSolver`) están implementadas desde el 2026-09-18, y
 >   **F2.2C** las integró ese mismo día detrás del interruptor único
 >   `pressure_network_solver_enabled`, apagado por defecto.
+> - **F2.2D4B2B** (§23): un escenario puede AUTORIZAR, con consentimiento
+>   explícito por familia de física y huella SHA-256 de lo autorizado, que su
+>   física experimental se encienda para una corrida. Autorizar una corrida NO
+>   es declarar un perfil apto para una vivienda: `product_activation` sigue
+>   `false` en los quince y el informe de ejecución dice que no es una
+>   validación. Se revoca explícitamente, caduca sola si el escenario cambia, y
+>   un perfil bloqueado, desconocido, incompatible o con versión no publicada la
+>   impide entera.
 > - **F2.2D4B2A** (§22): el editor enseña el catálogo, deja elegir un perfil
 >   compatible con la abertura, explica su evidencia, su dominio, su fuente y
 >   sus advertencias, y guarda la referencia versionada con su copia congelada.
@@ -2546,3 +2555,259 @@ El editor edita **lo que D2 y D3 ya sabían ejecutar**, y no inventa ninguna ley
   decide que hace falta.
 - Siguen sin existir BREAK1 y el modelo probabilista, y `GlassFailureSystem`
   sigue sin conectarse.
+
+## 23. F2.2D4B2B: activación experimental controlada (2026-09-23)
+
+> **Estado: cerrada la EJECUCIÓN experimental, no la activación de producto.**
+> Un escenario puede ahora autorizar, de forma explícita y trazable, que su
+> física de aberturas se encienda para una corrida concreta. **Ningún perfil ha
+> cambiado de categoría, ninguno se ha recalibrado y `product_activation` sigue
+> siendo `false` en los quince.** La activación normal del producto sigue en
+> **NO-GO**.
+
+### 23.1 Las tres decisiones, ahora separadas en el código
+
+D4B las viene manteniendo aparte desde el catálogo; D4B2B implementa la
+segunda y deja la tercera donde estaba:
+
+| decisión | quién la toma | dónde vive | qué hace |
+|---|---|---|---|
+| 1. perfil configurado en una abertura | el usuario, en el editor | `leakage_profile`, `frame_leakage_profile`, `deformation_profile`, `glazing_profile` de la abertura | escribe un **dato**. No enciende nada |
+| 2. autorización de **una** ejecución experimental | el usuario, con consentimiento explícito | `experimental_physics_authorization`, clave de primer nivel del escenario | enciende los interruptores de las familias pedidas, **solo** esas |
+| 3. aptitud para activación normal del producto | la evidencia, no el usuario | `product_activation` en el catálogo | **nada**: sigue `false` en los quince |
+
+La segunda **no** implica la tercera, y el código lo hace cumplir: el informe de
+ejecución lleva `product_activation_granted: false` y el texto
+«No es una validación física ni residencial» con esas palabras.
+
+### 23.2 Gate científico: matriz por familia y decisión
+
+No se ha leído ninguna fuente nueva y no se ha cambiado ni un valor. **Ajustar
+un perfil contra SimuFire no es evidencia**, así que ningún perfil sube de
+categoría.
+
+| familia | interruptor | perfiles | valores efectivos congelados | dominio de ensayo | provisional | qué impide su uso residencial |
+|---|---|---|---|---|---|---|
+| **D1** fuga fría | `closed_door_leakage_enabled` | 2 `research_only`, 1 `derived`, 2 `blocked` | ELA 0,0012 y 0,0021 m² a 4 Pa con `Cd` 1; rango medido 0,002017–0,0234 m² | ELA definida a 4 Pa; dominio de presión **50 Pa** (NBSIR p. 10) | exponente 0,65 (fuentes en conflicto: 0,50 de puerta, 0,6-0,7 de infiltración); reparto 0,40/0,47/0,13 **sin fuente**; 8 bandas; regularización 0,01 Pa | la tabla ASHRAE 2001 fue **retirada** y NIST la deprecia; 21 cm² cae en el 0,4 % inferior del rango medido; **no existe ni una puerta de paso residencial medida** |
+| **R3** fuga de marco | `exterior_envelope_leakage_enabled` | 1 `research_only`, 1 `derived` | 0,005 m² geométricos con `Cd` 0,61 aparte; rango medido 0,000342–0,00389 m² | ventana doméstica 1,2 × 1,0 m, permeabilidad a 100 Pa | los 0,005 m² son una **heurística del propio motor** | un resultado interno de SimuFire no es un dato experimental; el rango medido está atado a un tamaño de ventana concreto |
+| **D2** deformación prescrita | `closed_door_deformation_enabled` | 1 `research_only`, 1 `blocked` | **ninguno**: el perfil aporta procedencia; la magnitud la escribe el escenario | puerta cortafuegos de **acero** en horno normalizado, 16 Pa arriba / 0,2 abajo | la topología sirve; las magnitudes no son transferibles a madera residencial | **no existe ley temperatura-deformación defendible**. Es prescripción: el motor **no predice** cuándo se deforma |
+| **D3** vidrio prescrito | `glazing_fallout_enabled` | 2 `validated`, 2 `derived`, 1 `blocked` | geometría de paño y capas; regla de camino libre; protección de borde 0,090 m; estados 0 / 0,1 / 1 | panel radiante ~20 kW/m², 200–500 mm, 75 ensayos (16 muestras para los estados) | el **100 % de desprendimiento nunca se observó**: el máximo medido fue 90 % | dominio de panel radiante, no de compartimento residencial; el templado es **contradictorio** (Peng vs Wang). Es prescripción: el motor **no predice** la rotura |
+
+Las cuatro exigen `pressure_network_solver_enabled`. No es una elección de esta
+fase: el motor ya rechazaba las cuatro sin red desde D1, D2, D3 y R3; lo que
+cambia es que ahora se comprueba **antes** de simular en vez de descubrirse en
+el primer paso.
+
+**Decisión escrita:**
+
+- **ejecución experimental → GO**, con consentimiento explícito por escenario y
+  por familia, trazable y revocable, y nunca descrita como validación física;
+- **escenario distribuido → NO-GO**. Ninguno de `scenarios/` ni de
+  `tests/fixtures/` declara perfil ni autorización, y no se les ha añadido
+  ninguno;
+- **activación normal del producto → NO-GO**. `product_activation` sigue `false`
+  en los quince, y ningún dominio de ensayo cubre una vivienda real.
+
+### 23.3 Contrato de autorización
+
+`sim/building/ExperimentalRunAuthorization.gd` es el único propietario. El
+bloque que guarda el escenario tiene cinco campos y ni uno más; una clave
+desconocida lo invalida:
+
+```json
+"experimental_physics_authorization": {
+  "authorization_version": 1,
+  "families": ["door_leakage", "frame_leakage", "deformation", "glazing"],
+  "acknowledged": ["…las cuatro frases, verbatim…"],
+  "experimental_profiles_confirmed": true,
+  "scenario_digest": "<sha256>"
+}
+```
+
+**Las cuatro confirmaciones** son texto, se guardan tal cual y se comparan tal
+cual. Si mañana se cambia una frase, una autorización antigua deja de coincidir
+y se rechaza, que es exactamente lo que debe pasar cuando lo que se consintió ya
+no es lo que se dice:
+
+1. «Simulación experimental; parámetros no validados para una vivienda.»
+2. «He leído las familias de física que se activan y sus valores efectivos
+   congelados.»
+3. «He leído las limitaciones aplicables, incluido el dominio de presión del
+   ensayo.»
+4. «La deformación y el desprendimiento de vidrio son historias prescritas: el
+   motor no predice cuándo ocurren.»
+
+El cuadro del editor las enseña como **cuatro casillas** y no autoriza sin las
+cuatro. Además, si participa algún perfil `research_only`, exige la confirmación
+experimental que ya existía desde D4B2A, ahora persistida en
+`experimental_profiles_confirmed`.
+
+**Dónde vive, y por qué ahí.** En el escenario, no en un ajuste de la
+aplicación: se autoriza **un** escenario, de modo que abrir otro plano no hereda
+el permiso; viaja con el fichero, así que el informe de ejecución puede decir
+qué se autorizó y reproducir la corrida es reabrir el mismo fichero; y se revoca
+borrando una clave, que el editor deshace como cualquier otra edición.
+
+**Cómo se revoca.** Tres caminos, y los tres devuelven el escenario a OFF
+entero:
+
+1. **explícito**: el botón «Revocar autorización» quita la clave y el escenario
+   vuelve a ser **byte a byte** el de antes;
+2. **por caducidad**: la huella SHA-256 cubre, por familia, las aberturas
+   participantes con su perfil versionado, su copia congelada y la prescripción
+   que esa familia consume. Cambiar cualquiera de esas cosas la invalida, y la
+   autorización se rechaza en vez de re-concederse sola;
+3. **por invalidez**: un perfil bloqueado, desconocido, incompatible, con versión
+   no publicada o con la copia congelada alterada impide la ejecución
+   experimental **entera**.
+
+La validez del perfil **no se reimplementa aquí**: se le delega a
+`PrescribedOpeningPhysicsSchema.validate()`, que ya rechazaba esos cinco casos
+desde D4B1. Una prueba comprueba que el contrato de autorización no contiene ni
+`EVIDENCE_BLOCKED`, ni `can_produce_configuration`, ni `category_applies_to`, ni
+la comparación de la copia congelada.
+
+**Reproducibilidad.** La copia congelada del escenario manda sobre el catálogo,
+igual que en D4B1. La huella se calcula sobre la copia congelada del escenario,
+**nunca** sobre el catálogo vivo, así que publicar una versión nueva no mueve un
+escenario ya autorizado.
+
+**Qué NO basta para activar física**, y está probado: cargar un escenario,
+seleccionar un perfil, guardar el fichero o previsualizarlo. Ninguna de las
+cuatro escribe esa clave. Solo la escribe `grant()`, a través de
+`ScenarioDocument`, con su paso de deshacer.
+
+### 23.4 El recorrido real
+
+```
+editor  →  _experimental_physics_pressed()  →  cuadro de consentimiento
+        →  ScenarioDocument.grant_experimental_authorization()
+        →  ScenarioSerializer.save_runtime_template()
+        →  user://last_editor_runtime_template.json
+        →  BuildingModel._load_from_template()   (valida o falla la carga)
+        →  SimulationEngine._ready() / reset_simulation()
+        →  _apply_experimental_physics_authorization()
+```
+
+Pulsar **INICIAR SIMULACIÓN** con un escenario autorizado **no arranca**: enseña
+otra vez el consentimiento y pide confirmarlo para esta corrida. La confirmación
+vale solo para ese arranque. Un escenario sin autorización no pasa por ahí y
+arranca exactamente como antes.
+
+El motor enciende **solo** las familias pedidas y su dependencia de red, y
+**nunca apaga** nada: sus asignaciones solo ponen `true`, de modo que no puede
+tapar una configuración hecha en otro sitio. La correspondencia familia →
+interruptor se escribe una sola vez, en el contrato; el motor la lee de ahí.
+
+**Falla de forma visible antes de simular**, en tres sitios y en este orden:
+
+1. `ScenarioSerializer.validate_scenario()` — el editor enseña el error y **no
+   cambia de escena**;
+2. `BuildingModel.validate_template_data()` — la plantilla **no carga**;
+3. `SimulationEngine` — registra `experimental_authorization_failure`, hace
+   `push_error` y **se niega a simular**. No corre con la física apagada: lo que
+   se vería en pantalla no sería lo autorizado.
+
+### 23.5 Salida diagnóstica
+
+El informe técnico gana un bloque `experimental_activation` **solo** cuando el
+escenario autoriza algo, de modo que la salida de un escenario normal no cambia
+ni un byte. Lleva la procedencia completa —perfil, versión, identidad
+versionada, estado de evidencia, parámetros efectivos con su unidad, dominio y
+advertencias, por abertura—, las familias encendidas, los interruptores, la
+huella del escenario y las marcas de fuera de dominio.
+
+Las marcas de dominio se **acumulan**, no se aplican: la ley de rendija de D1 ya
+levanta `domain_exceeded` y **deja pasar el caudal sin recortarlo**. El motor
+solo cuenta los pasos marcados y guarda el `max_abs_dp_pa` observado. Una
+prueba comprueba que el acumulador no contiene ni un `clamp`, ni un `min(`, ni
+un coeficiente.
+
+Y el informe dice de sí mismo, con todas las letras, que no es una validación.
+
+### 23.6 Verificación
+
+- Validador `tools/validate_experimental_physics_activation.gd`: **431
+  comprobaciones** en diecisiete grupos, registrado en `check_product.py`.
+- `tests/test_experimental_physics_activation.py`: **28 pruebas**, con la lista
+  de consumidores cerrada y el barrido de los escenarios distribuidos.
+- Campaña de mutaciones: **18 de 18 válidas muertas**, con restauración
+  SHA-256 comprobada en cada una. Cubre activación por selección, activación de
+  un perfil bloqueado, consentimiento omitido, familia extra encendida, perfil
+  equivocado en la procedencia, versión de contrato ignorada, procedencia
+  perdida, dependencia de red silenciada, doble fuga, dominio excedido
+  ocultado, revocación que no revoca, huella ignorada, `research_only` sin
+  confirmación experimental, motor que no deja constancia del rechazo,
+  `product_activation` concedido, estado operativo dentro de la huella, clave
+  desconocida aceptada y escenario distribuido autorizado de fábrica.
+- Ningún interruptor nuevo: el auditor de P1R4 sigue esperando **81**
+  declaraciones `@export var … : bool = false`.
+- Los seis validadores de D1, D2, D3, D4A, D4B1 y D4B2A siguen en verde sin
+  tocarlos, y los guardarraíles de escena también.
+
+La primera vuelta de la campaña dejó **cinco supervivientes**, y las cinco
+eran huecos reales del validador, no falsos positivos:
+
+1. el consentimiento solo se exigía en `grant()`, así que un bloque **fabricado
+   a mano** con tres confirmaciones pasaba la resolución;
+2. la procedencia no se comprobaba contra **su** ranura, así que leerla siempre
+   de la de fuga no se notaba;
+3. no había ningún caso con una `authorization_version` no soportada;
+4. la marca de fuera de dominio se comprobaba en el contrato pero **nunca se
+   producía**, así que ocultarla en el motor pasaba desapercibido;
+5. el rechazo del motor quedaba tapado porque la plantilla ya fallaba antes al
+   cargar, de modo que la negativa a simular no se estaba midiendo.
+
+Las cinco quedaron cerradas con dos grupos nuevos —la marca de dominio que
+llega al informe y la corrida que se para— y tres comprobaciones añadidas. Una
+mutación más se contaba como inválida por un detalle de formato: el transporte
+está en CRLF y el contrato en LF, y el anclaje solo existía en LF.
+
+### 23.7 Dos defectos encontrados por el camino
+
+El primero, de método: la campaña contaba como inválida una mutación legítima
+porque los ficheros del repositorio no comparten final de línea. El anclaje se
+escribe una vez, en LF, y se traduce al del fichero.
+
+El segundo, de montaje: montar el motor en un validador cargando la plantilla
+**antes** de meter el `BuildingModel` en el árbol no funciona. Su `_ready()` vuelve a leer
+`user://last_editor_runtime_template.json` y pisa entero lo que se acababa de
+cargar, y en un guion de `SceneTree` los `_ready` se difieren, así que las
+comprobaciones leían el estado anterior. El validador monta el motor como el
+resto de validadores de la red —`reset_simulation()`, con el modelo fuera del
+árbol—, y el motor resuelve la autorización también en `reset_simulation()`, no
+solo en `_ready()`: reiniciar es volver a montar la corrida, y sin eso reiniciar
+con otro escenario dejaría encendida la física que autorizó el anterior.
+
+### 23.8 Lo que queda
+
+- **Activación de producto**: sigue sin criterio de aceptación porque sigue sin
+  evidencia. Lo que falta está en §23.9.
+- **Calibración**: sin cambios. Quince perfiles con `product_activation = false`
+  y cinco bloqueados.
+- Siguen sin existir agua, BREAK1 y el modelo probabilista, y
+  `GlassFailureSystem` sigue sin conectarse.
+
+### 23.9 Qué evidencia faltaría para activar estos perfiles en el producto
+
+Ninguna de las cuatro se desbloquea leyendo más: hacen falta **ensayos nuevos**.
+
+- **D1**: una campaña de permeabilidad de **puertas de paso residenciales
+  instaladas** (ASTM E283 / ISO 5925-1), por sentido, de 5 a 100 Pa, con muestra
+  declarada, y el **exponente de rendija medido** en esas mismas puertas, para
+  resolver el conflicto entre el 0,50 de NBSIR y el 0,65 que usa el motor. Y el
+  reparto inferior/laterales/dintel, que hoy no tiene ninguna fuente, medido en
+  vez de supuesto.
+- **R3**: permeabilidad de marco **por unidad de longitud de rendija**, para
+  dejar de depender del tamaño concreto de ventana del ensayo, y retirar los
+  0,005 m² heurísticos del motor en favor de un dato.
+- **D2**: una ley **temperatura-deformación** para puerta residencial de madera,
+  con su incertidumbre. Hoy no existe, y la topología de una puerta de acero en
+  horno no se transfiere.
+- **D3**: ensayos en **compartimento**, no en panel radiante, que cubran el
+  rango de una vivienda; una decisión de contrato sobre `CRACKED → OPEN` antes
+  de tocar el templado; y resolver la contradicción entre Peng y Wang con un
+  tercer ensayo, no eligiendo uno de los dos.
+
+Mientras tanto, un perfil solo puede correr bajo la autorización experimental de
+§23.3, y su corrida no es una validación residencial.

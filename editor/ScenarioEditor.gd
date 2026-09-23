@@ -60,6 +60,12 @@ const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
 const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
+## F2.2D4B2B: el contrato de autorizacion experimental. El editor lo CONSULTA y
+## lo CONCEDE tras el consentimiento explicito; no conoce ningun interruptor del
+## motor y no nombra ninguno.
+const ExperimentalAuthorization = preload(
+	"res://sim/building/ExperimentalRunAuthorization.gd"
+)
 ## El panel de propiedades del lado derecho, en su modulo: 53 mandos y el
 ## reparto de lo que enseña cada uno (E-12).
 const PropertyPanelScript = preload("res://editor/EditorPropertyPanel.gd")
@@ -253,7 +259,28 @@ var _new_floor_copy_button: Button = null
 var _review_run_anyway_button: Button = null
 ## Cierto mientras se arranca con los avisos ya leidos, para que la revision no
 ## vuelva a saltar en el mismo gesto.
+## F2.2D4B2B: textos del cuadro de autorización. Viven aquí y no dentro de la
+## función para que una prueba pueda leerlos sin instanciar la escena.
+const NO_EXPERIMENTAL_PHYSICS_TEXT: String = \
+	"Ninguna abertura de este escenario declara física experimental.\n\n" \
+	+ "Para autorizar una ejecución experimental hay que configurar antes un " \
+	+ "perfil en la ficha FÍSICA EXPERIMENTAL de una abertura."
+const AUTHORIZED_SCENARIO_TEXT: String = \
+	"Este escenario ya está autorizado. Confirma las cuatro casillas para " \
+	+ "ejecutarlo, o revoca la autorización para dejarlo otra vez apagado."
+## Las cuatro casillas, en el orden de `REQUIRED_ACKNOWLEDGEMENTS`.
+const EXPERIMENTAL_CHECK_NAMES: Array[String] = [
+	"ExperimentalAckExperimental", "ExperimentalAckFamilies",
+	"ExperimentalAckLimits", "ExperimentalAckPrescribed",
+]
+
 var _review_acknowledged: bool = false
+## F2.2D4B2B: solo para ESTE arranque. Se pone al confirmar el consentimiento y
+## se quita en cuanto la simulacion se ha lanzado, de modo que la siguiente vez
+## el usuario vuelve a ver y a confirmar lo que se va a activar.
+var _experimental_acknowledged: bool = false
+var _experimental_grant_button: Button = null
+var _experimental_revoke_button: Button = null
 ## Si el escenario tiene cambios que no estan en disco. No confundir con
 ## `_editor_runtime_dirty`, que solo dice si hay que refrescar las vistas 3D.
 var _unsaved_changes: bool = false
@@ -6782,6 +6809,12 @@ func _run_simulation_pressed() -> void:
 	if not _review_acknowledged and not ScenarioReview.review(editor_data).is_empty():
 		_show_review_dialog(true)
 		return
+	# F2.2D4B2B: un escenario que autoriza física experimental NO arranca sin que
+	# el usuario vea y confirme, esta vez, qué se va a encender. Un escenario sin
+	# autorización no pasa por aquí y arranca exactamente como antes.
+	if ExperimentalAuthorization.declares(editor_data) and not _experimental_acknowledged:
+		_show_experimental_dialog()
+		return
 	if not Serializer.save_runtime_template(RUNTIME_EXPORT_PATH, editor_data):
 		_set_status(tr("Error al exportar el template runtime."))
 		return
@@ -6840,6 +6873,167 @@ func _on_review_custom_action(action: StringName) -> void:
 	_review_acknowledged = true
 	_run_simulation_pressed()
 	_review_acknowledged = false
+
+
+# ------------------------------------------------------------
+# F2.2D4B2B: autorización de ejecución experimental
+# ------------------------------------------------------------
+#
+# Tres decisiones separadas, y el editor no las mezcla:
+#
+#   1. configurar un perfil en una abertura -> la ficha FÍSICA EXPERIMENTAL de
+#      las propiedades. Escribe un dato y no enciende nada;
+#   2. autorizar UNA ejecución experimental -> este cuadro. Escribe el
+#      consentimiento en el escenario, con su huella;
+#   3. declarar un perfil apto para el producto -> no existe aquí, a propósito.
+#      `product_activation` sigue siendo `false` en los quince y el editor no
+#      tiene ningún mando que lo toque.
+#
+# El editor no nombra ni un interruptor del motor: quien los deduce de las
+# familias autorizadas es `ExperimentalRunAuthorization`, y quien los enciende
+# es `SimulationEngine` al arrancar.
+
+
+func _experimental_physics_pressed() -> void:
+	_ensure_floor_data()
+	editor_data = Serializer.normalize_editor_data(editor_data)
+	_show_experimental_dialog()
+
+
+## Enseña qué se activaría, con sus valores efectivos y sus límites, y pide las
+## cuatro confirmaciones. Sin las cuatro no se autoriza y no se ejecuta.
+func _show_experimental_dialog() -> void:
+	var dialog := _experimental_dialog()
+	if dialog == null:
+		push_warning("Falta ExperimentalPhysicsDialog en ScenarioEditorScene.tscn")
+		_set_status(tr("Falta el cuadro de física experimental en la escena."))
+		return
+	var available: Array[String] = ExperimentalAuthorization.available_families(editor_data)
+	var declared: bool = ExperimentalAuthorization.declares(editor_data)
+	var families: Array = available
+	if declared:
+		families = Array(Dictionary(
+			editor_data[ExperimentalAuthorization.AUTHORIZATION_KEY]
+		).get(ExperimentalAuthorization.FAMILIES_FIELD, []))
+	var label := dialog.get_node_or_null(
+		"Body/ConsentScroll/ExperimentalConsentLabel"
+	) as Label
+	var status := dialog.get_node_or_null("Body/ExperimentalStatusLabel") as Label
+	if available.is_empty() and not declared:
+		if label != null:
+			label.text = NO_EXPERIMENTAL_PHYSICS_TEXT
+		if status != null:
+			status.text = tr("Nada que autorizar.")
+		_set_experimental_checks(false)
+		_sync_experimental_buttons(dialog, false, false)
+		dialog.popup_centered(Vector2i(820, 620))
+		return
+	var request: Dictionary = ExperimentalAuthorization.consent_request(editor_data, families)
+	var errors: Array = request["errors"]
+	if label != null:
+		label.text = ExperimentalAuthorization.consent_text(request)
+	if status != null:
+		if not errors.is_empty():
+			status.text = tr("No se puede ejecutar de forma experimental:") \
+					+ "\n• " + "\n• ".join(PackedStringArray(errors))
+		elif declared:
+			status.text = AUTHORIZED_SCENARIO_TEXT
+		else:
+			status.text = ExperimentalAuthorization.NOT_A_VALIDATION_TEXT
+	_set_experimental_checks(false)
+	_sync_experimental_buttons(dialog, errors.is_empty(), declared)
+	dialog.popup_centered(Vector2i(820, 620))
+
+
+func _experimental_dialog() -> ConfirmationDialog:
+	return get_node_or_null("CanvasLayer/ExperimentalPhysicsDialog") as ConfirmationDialog
+
+
+## Las cuatro casillas, en el orden del contrato. El editor no escribe las
+## frases: las lee del contrato, para que no puedan divergir de lo que se guarda.
+func _experimental_check_nodes() -> Array[CheckBox]:
+	var out: Array[CheckBox] = []
+	var dialog := _experimental_dialog()
+	if dialog == null:
+		return out
+	for check_name in EXPERIMENTAL_CHECK_NAMES:
+		var check := dialog.get_node_or_null("Body/" + String(check_name)) as CheckBox
+		if check != null:
+			out.append(check)
+	return out
+
+
+func _set_experimental_checks(value: bool) -> void:
+	for check in _experimental_check_nodes():
+		check.button_pressed = value
+
+
+## Qué se confirmó, en el texto exacto del contrato. Una casilla sin marcar deja
+## fuera su frase, y sin las cuatro la concesión se rechaza.
+func _experimental_acknowledgements() -> Array[String]:
+	var out: Array[String] = []
+	var checks: Array[CheckBox] = _experimental_check_nodes()
+	var texts: Array[String] = ExperimentalAuthorization.REQUIRED_ACKNOWLEDGEMENTS
+	for index in range(mini(checks.size(), texts.size())):
+		if checks[index].button_pressed:
+			out.append(texts[index])
+	return out
+
+
+func _sync_experimental_buttons(
+	dialog: ConfirmationDialog, can_run: bool, declared: bool
+) -> void:
+	if _experimental_grant_button == null:
+		_experimental_grant_button = dialog.add_button(
+			"Autorizar y ejecutar", false, "experimental_grant"
+		)
+		if not dialog.custom_action.is_connected(_on_experimental_custom_action):
+			dialog.custom_action.connect(_on_experimental_custom_action)
+	if _experimental_revoke_button == null:
+		_experimental_revoke_button = dialog.add_button(
+			"Revocar autorización", false, "experimental_revoke"
+		)
+	_experimental_grant_button.visible = can_run
+	_experimental_grant_button.text = "Ejecutar" if declared else "Autorizar y ejecutar"
+	_experimental_revoke_button.visible = declared
+	dialog.get_cancel_button().visible = false
+
+
+func _on_experimental_custom_action(action: StringName) -> void:
+	var dialog := _experimental_dialog()
+	if dialog == null:
+		return
+	var name_text: String = String(action)
+	if name_text == "experimental_revoke":
+		dialog.hide()
+		if _doc.revoke_experimental_authorization():
+			_unsaved_changes = true
+			_set_status(tr("Autorización experimental revocada; el escenario vuelve a ejecutarse sin física experimental."))
+		return
+	if name_text != "experimental_grant":
+		return
+	var status := dialog.get_node_or_null("Body/ExperimentalStatusLabel") as Label
+	var acknowledged: Array[String] = _experimental_acknowledgements()
+	if acknowledged.size() < ExperimentalAuthorization.REQUIRED_ACKNOWLEDGEMENTS.size():
+		if status != null:
+			status.text = tr("Faltan confirmaciones: hay que marcar las cuatro casillas.")
+		return
+	if not ExperimentalAuthorization.declares(editor_data):
+		var families: Array[String] = ExperimentalAuthorization.available_families(editor_data)
+		var verdict: Dictionary = _doc.grant_experimental_authorization(
+			families, acknowledged, true
+		)
+		if not bool(verdict["ok"]):
+			if status != null:
+				status.text = tr("No se pudo autorizar:") \
+						+ "\n• " + "\n• ".join(PackedStringArray(verdict["errors"]))
+			return
+		_unsaved_changes = true
+	dialog.hide()
+	# Solo para este arranque: la próxima vez se vuelve a leer y a confirmar.
+	_experimental_acknowledged = true
+	_run_simulation_pressed()
+	_experimental_acknowledged = false
 
 
 func _cancel_pressed() -> void:
@@ -7024,6 +7218,14 @@ func _bind_existing_ui() -> bool:
 	var review_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnReviewScenario") as Button
 	_set_control_tooltip(review_button, "Busca lo que hace que una simulación no enseñe nada: salas selladas, sin foco de ignición, plantas sin comunicar.")
 	_connect_button(review_button, _review_scenario_pressed)
+	var experimental_button := _ui_root.get_node_or_null(
+		"BottomBar/HBox/BtnExperimentalPhysics"
+	) as Button
+	_set_control_tooltip(
+		experimental_button,
+		"Autoriza o revoca, para este escenario, la ejecución experimental de la física de aberturas. Configurar un perfil no la activa."
+	)
+	_connect_button(experimental_button, _experimental_physics_pressed)
 	_connect_button(start_sim_button, _run_simulation_pressed)
 	_connect_button(cancel_button, _cancel_pressed)
 

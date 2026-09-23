@@ -1,5 +1,110 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-23 - gated experimental activation of opening physics (F2.2D4B2B)
+
+- Checkpoint: `main` at `30fad0ff` (D4B2A) when the phase started, four local
+  commits ahead of `origin/main`. D4B2B closes in one more local commit and
+  **has not been pushed**.
+- **The three decisions are now separate in code, not only on paper.**
+  Configuring a profile on an opening writes a *datum*. Authorizing *one*
+  experimental run is a separate, explicit consent stored in the scenario.
+  Declaring a profile fit for the product is a third thing that **did not
+  happen**: `product_activation` is still `false` on all fifteen, and the run
+  report carries `product_activation_granted: false` plus the sentence saying it
+  is not a physical or residential validation.
+- **Scientific gate, written before the code.** No new source was read and no
+  value was changed, so no profile moved category. Per family: D1 rests on a
+  **withdrawn** ASHRAE 2001 table that NIST deprecates, with 21 cm² in the
+  bottom 0.4 % of the measured range and **no residential passage door ever
+  measured**; R3's 0.005 m² is a **heuristic of the engine itself**, 1.29× the
+  leakiest measured household window; D2 has **no defensible
+  temperature-deformation law** and its topology comes from a *steel* fire door
+  in a furnace; D3's domain is a radiant panel at ~20 kW/m², 200–500 mm, and
+  **100 % fallout was never observed** (the maximum was 90 %), with toughened
+  glass contradictory between Peng and Wang. All four require
+  `pressure_network_solver_enabled`.
+- **Decision: experimental run GO; distributed scenario NO-GO; normal product
+  activation NO-GO.** The second and third are unchanged from D4B1.
+- **The authorization contract** is `sim/building/ExperimentalRunAuthorization.gd`,
+  the single owner. The scenario stores five fields and not one more — an
+  unknown key invalidates it: the contract version, the requested families, the
+  **four acknowledgement sentences verbatim**, the persisted experimental
+  confirmation, and a **SHA-256 digest** of exactly what was authorized.
+- **Revocation, three ways, all returning the scenario to OFF byte for byte:**
+  explicitly from the dialog; by **expiry**, when the digest no longer matches
+  because a profile, a frozen copy or a prescription changed; and by
+  **invalidity**, when any participating profile is blocked, unknown,
+  incompatible, on an unpublished version or tampered with. Profile validity is
+  **delegated** to `PrescribedOpeningPhysicsSchema.validate()` and not
+  reimplemented — a test checks the authorization contract contains none of
+  `EVIDENCE_BLOCKED`, `can_produce_configuration`, `category_applies_to` or the
+  frozen-copy comparison.
+- **What does not activate physics, and it is tested:** loading a scenario,
+  selecting a profile, saving the file, previewing it. Only `grant()` writes the
+  key, through `ScenarioDocument`, with its undo step.
+- **The real path** is editor → consent dialog → `ScenarioDocument.grant…` →
+  `save_runtime_template` → `BuildingModel._load_from_template` →
+  `SimulationEngine._ready()` / `reset_simulation()`. Pressing **INICIAR
+  SIMULACIÓN** on an authorized scenario does **not** launch: it shows the
+  consent again and asks to confirm it for this run; the confirmation lasts for
+  that launch only. A scenario without authorization never reaches that branch
+  and launches exactly as before.
+- **It fails visibly before simulating, in three places:** the editor shows the
+  error and does not change scene; the runtime template does not load; and the
+  engine records `experimental_authorization_failure`, pushes an error and
+  **refuses to simulate** rather than running with the physics switched off.
+- The engine only ever sets switches to `true`, and only for the requested
+  families plus the network dependency, so it can never mask a configuration
+  made elsewhere. The family → switch mapping is written once, in the contract.
+- **Diagnostic output**: `experimental_activation` appears in the technical
+  summary **only** when the scenario authorizes something, so a normal
+  scenario's output does not change a byte. It carries profile provenance,
+  version, versioned id, evidence state, effective parameters with units, domain
+  and warnings per opening, the enabled families, the switches, the digest, and
+  the out-of-domain marks. Those marks are **counted, not applied**: D1's crack
+  law already flags `domain_exceeded` and lets the flow through unclipped, and a
+  test checks the accumulator has no `clamp`, no `min(` and no coefficient.
+- **Defect found on the way.** Building the engine in a validator by loading the
+  template *before* adding `BuildingModel` to the tree does not work: its
+  `_ready()` re-reads `user://last_editor_runtime_template.json` and overwrites
+  what was just loaded, and in a `SceneTree` script the `_ready` calls are
+  deferred, so the checks read the previous state. The validator now builds the
+  engine the way the other network validators do — `reset_simulation()`, model
+  outside the tree — and the engine resolves the authorization in
+  `reset_simulation()` as well as `_ready()`: resetting is re-assembling the
+  run, and without that, resetting with another scenario loaded would leave the
+  previous scenario's physics switched on.
+- **No new switch**: the P1R4 auditor still expects **81** default-off
+  declarations.
+- Verification: validator `tools/validate_experimental_physics_activation.gd`
+  with **431 checks** in seventeen groups, registered in `check_product.py`;
+  `tests/test_experimental_physics_activation.py` with **28 tests**, the
+  consumer list closed and the distributed-scenario sweep; the six D1/D2/D3/D4A/
+  D4B1/D4B2A validators untouched and green; scene guardrails intact.
+- **Mutation campaign: 18 of 18 valid mutations killed**, SHA-256 restore
+  verified on every one. The first round left **five survivors**, and all five
+  were real holes in the validator: the consent was only enforced in `grant()`
+  so a hand-forged block with three confirmations resolved; provenance was not
+  checked against **its own** slot; no case used an unsupported
+  `authorization_version`; the out-of-domain mark was asserted but never
+  actually produced; and the engine's refusal was masked because the template
+  already failed to load first. Two new groups and three extra checks closed
+  them. One further mutation counted as invalid on a formatting detail — the
+  transport file is CRLF and the contract LF — which the campaign now handles.
+- **What is still missing to activate these profiles in the product** — none of
+  it comes from more reading, all of it needs new tests: for D1, a permeability
+  campaign on **installed residential passage doors** (ASTM E283 / ISO 5925-1),
+  per direction, 5–100 Pa, with the crack exponent measured on those same doors
+  to settle NBSIR's 0.50 against the engine's 0.65, and the
+  bottom/sides/head split measured instead of assumed; for R3, frame
+  permeability **per unit crack length** so it stops depending on one window
+  size; for D2, a temperature-deformation law for a residential wooden door with
+  its uncertainty; for D3, **compartment** tests rather than radiant panel, a
+  contract decision on `CRACKED → OPEN`, and a third test to settle Peng against
+  Wang.
+- Still absent on purpose: water, BREAK1, the probabilistic model, and
+  `GlassFailureSystem` remains unconnected.
+
 ## Current Program Update - 2026-09-22 - experimental opening profiles in the editor (F2.2D4B2A)
 
 - Checkpoint: `main` at `4600608b` (D4B1) when the phase started; D4B2A is

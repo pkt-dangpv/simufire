@@ -146,6 +146,10 @@ def test_consumer_list_stays_closed():
         "editor/OpeningPhysicsEditor.gd",
         "editor/ScenarioSerializer.gd",
         "sim/BuildingModel.gd",
+        # F2.2D4B2B: el contrato de autorizacion le DELEGA entera la validez
+        # de cada perfil en vez de reimplementarla, y su validador la usa.
+        "sim/building/ExperimentalRunAuthorization.gd",
+        "tools/validate_experimental_physics_activation.gd",
         "tools/validate_opening_physics_profiles.gd",
         "tools/validate_opening_profile_editor.gd",
         "tools/validate_prescribed_physics_persistence.gd",

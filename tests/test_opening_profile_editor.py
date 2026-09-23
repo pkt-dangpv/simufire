@@ -185,8 +185,11 @@ def test_consumer_lists_stay_closed():
     )
     # El validador de D4B1 tambien lo nombra: su regla 11 exige que el UNICO
     # consumidor del catalogo dentro de `editor/` sea este controlador.
+    # F2.2D4B2B: su validador tambien lo usa, para montar una abertura ya
+    # configurada sin copiar la forma de un perfil.
     assert controller_consumers == [
         "editor/ScenarioEditor.gd",
+        "tools/validate_experimental_physics_activation.gd",
         "tools/validate_opening_physics_profiles.gd",
         "tools/validate_opening_profile_editor.gd",
     ], controller_consumers

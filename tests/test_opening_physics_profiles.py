@@ -247,8 +247,13 @@ def test_no_editor_or_view_file_consumes_the_catalogue():
     # sigue sin tocarlo, y la regla 11 del validador lo comprueba por ruta.
     assert consumers == [
         "editor/OpeningPhysicsEditor.gd",
+        # F2.2D4B2B: el contrato de autorizacion consulta el estado de
+        # evidencia para saber cuando hace falta la confirmacion
+        # experimental. No decide compatibilidad ni calibra nada.
+        "sim/building/ExperimentalRunAuthorization.gd",
         "sim/building/OpeningProfileSelection.gd",
         "sim/building/PrescribedOpeningPhysicsSchema.gd",
+        "tools/validate_experimental_physics_activation.gd",
         "tools/validate_opening_physics_profiles.gd",
         "tools/validate_opening_profile_editor.gd",
     ], consumers
