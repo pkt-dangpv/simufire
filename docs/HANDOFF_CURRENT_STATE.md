@@ -1,5 +1,47 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-23 - hotfix: revoked experimental physics is now released (F2.2D4B2B)
+
+- Checkpoint: `main` at `c87f30f7` (D4B2B) when the hotfix started, five local
+  commits ahead of `origin/main`. Closed in one more local commit, **not pushed**.
+- **The defect, found by the user reviewing D4B2B.** The first version only ever
+  set switches to `true` and never cleared them. Revoking the authorization and
+  calling `reset_simulation()` on the **same** `SimulationEngine` hit an early
+  return — no block in the scenario — and left the previous run's physics
+  switched on while the report marked itself inactive. Measured before the fix:
+  `pressure_network_solver_enabled` and `closed_door_leakage_enabled` both still
+  `true`, report empty, and the network still emitting **1 crack element**. The
+  existing revocation test could not see it: it built a fresh engine.
+- Three further paths had the same hole: `building == null`, a rejected
+  authorization, and **swapping families** — authorizing D1 and then only D3 left
+  D1 on.
+- **Ownership rule, written before the code.** Setting all five to `false` on
+  reset is simpler and wrong: it would erase configuration another owner put
+  there deliberately. The authorization may retire **only what it added**, and
+  only while it is still the last writer. `_experimental_owned_switches` holds
+  `{previous, applied}` per claimed switch: if the current value still equals
+  `applied`, restore `previous`; if it differs, another owner wrote it and it is
+  left alone; a switch the authorization never wrote is never touched.
+- The release runs **first, before any early return**, so revocation, no block,
+  no building and a rejected block are all covered by construction.
+- **Precedence measured, not just asserted:** base OFF → D1 → revoke → both OFF;
+  network ON by another owner → D1 → revoke → **network stays ON**, D1 returns to
+  its previous value; D1 → D3 → D1 off, D3 on, network on; tampered block →
+  nothing inherited, no advance, failure recorded; repeated resets stable; a
+  scenario with no block never touches a switch, not even ones another owner left
+  on; the report carries `effective_switches` and cannot claim inactive while
+  contributed physics is still on.
+- The five writes now live in one named `match`, `_write_experimental_switch`,
+  not in `set()`, so the text guardrail can still watch them. The D2/D3/R3 static
+  contract was updated accordingly: it no longer looks for the `= true` constant
+  but for the whole cycle — one write, release before every early return, the
+  ownership comparison, and resolution in `reset_simulation` as well as `_ready`.
+- Verification: validator up to **488 checks in nineteen groups** (two new
+  groups: lifecycle on one engine, and switch ownership), focused suite up to
+  **33 tests**, hotfix mutation campaign **9 of 9 valid killed** with SHA-256
+  restore. No flow law, geometry, transport, catalogue value or
+  `product_activation` was touched; the four-checkbox consent is unchanged.
+
 ## Current Program Update - 2026-09-23 - gated experimental activation of opening physics (F2.2D4B2B)
 
 - Checkpoint: `main` at `30fad0ff` (D4B2A) when the phase started, four local

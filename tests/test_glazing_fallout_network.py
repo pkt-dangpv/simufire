@@ -45,17 +45,44 @@ def test_flag_defaults_off_and_requires_the_authoritative_network():
     assert re.findall(rf"^@export var {FLAG}: bool = (\w+)$", ENGINE, re.M) == ["false"]
     assert f"if {FLAG} and not pressure_network_solver_enabled:" in ENGINE
     assert "glazing_fallout_requires_pressure_network" in ENGINE
-    # F2.2D4B2B: el motor enciende el solver en UN solo sitio, y no en secreto.
+    # F2.2D4B2B: el motor escribe el solver en UN solo sitio, y no en secreto.
+    #
     # Hasta D4B2A ningun camino lo encendia y la regla era que el texto no
-    # apareciese. Ahora existe una ruta -la autorizacion experimental
-    # explicita- y lo que se vigila es que sea la unica y que viva dentro de
-    # ella, bajo el mapa de interruptores que devuelve el contrato.
-    assert ENGINE.count("pressure_network_solver_enabled = true") == 1
+    # apareciese. Luego aparecio una ruta -la autorizacion experimental- y la
+    # regla paso a exigir que fuese la unica. El hotfix del ciclo de vida anade
+    # la otra mitad: la autorizacion tambien tiene que RETIRAR lo que anadio, y
+    # hacerlo sin pisar la configuracion de otro propietario.
+    #
+    # Por eso ya no se busca la constante `= true`: las cinco se escriben por
+    # nombre en un unico `match`, y lo que se vigila es el ciclo completo.
+    assert ENGINE.count("pressure_network_solver_enabled = true") == 0
+    assert ENGINE.count("pressure_network_solver_enabled = value") == 1
+    _writer = ENGINE.split(
+        "func _write_experimental_switch(switch_name: String, value: bool) -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "pressure_network_solver_enabled = value" in _writer
     _activation = ENGINE.split(
         "func _apply_experimental_physics_authorization() -> void:", 1
     )[1].split("\nfunc ", 1)[0]
-    assert "pressure_network_solver_enabled = true" in _activation
     assert "ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY" in _activation
+    # La retirada ocurre ANTES de cualquier retorno temprano: revocar y
+    # reiniciar el mismo motor no puede dejar encendida la corrida anterior.
+    assert _activation.index("_release_experimental_switches()") < _activation.index(
+        "if building == null:"
+    )
+    # Y solo se retira lo que la autorizacion escribio, comparando contra lo que
+    # dejo puesto: sin esto, reiniciar borraria configuraciones ajenas.
+    _release = ENGINE.split(
+        "func _release_experimental_switches() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "_experimental_owned_switches" in _release
+    assert 'owned["previous"]' in _release
+    assert 'owned["applied"]' in _release
+    assert "_experimental_owned_switches.clear()" in _release
+    # Se resuelve en los dos sitios, no solo al nacer.
+    assert "_apply_experimental_physics_authorization()" in ENGINE.split(
+        "func reset_simulation(", 1
+    )[1].split("\nfunc ", 1)[0]
     assert (
         "if glazing_fallout_enabled and (not is_finite(time_s) or time_s < 0.0):"
         in TRANSPORT

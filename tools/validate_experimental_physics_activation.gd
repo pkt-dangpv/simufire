@@ -23,7 +23,9 @@ extends SceneTree
 ##   14 la autorizacion caduca sola cuando cambia lo que autorizo;
 ##   15 el recorrido real editor -> escenario guardado -> plantilla -> motor;
 ##   16 lo que el solver marca fuera de dominio llega al informe sin recortarse;
-##   17 una autorizacion rechazada PARA la simulacion, no la deja correr apagada.
+##   17 una autorizacion rechazada PARA la simulacion, no la deja correr apagada;
+##   18 ciclo de vida en UN MISMO motor: autorizar, ejecutar, revocar, reiniciar;
+##   19 propiedad de cada interruptor: la autorizacion solo retira lo que anadio.
 
 const Auth := preload("res://sim/building/ExperimentalRunAuthorization.gd")
 const Catalog := preload("res://sim/building/OpeningPhysicsProfileCatalog.gd")
@@ -76,6 +78,8 @@ func _initialize() -> void:
 	_test_15_the_real_editor_to_engine_path()
 	_test_16_the_domain_mark_reaches_the_report()
 	_test_17_a_rejected_authorization_stops_the_simulation()
+	_test_18_the_lifecycle_on_one_engine()
+	_test_19_switch_ownership_and_precedence()
 	if _failures.is_empty():
 		print("  %d checks" % _checks)
 		print("EXPERIMENTAL PHYSICS ACTIVATION VALIDATION PASS")
@@ -850,8 +854,295 @@ func _test_17_a_rejected_authorization_stops_the_simulation() -> void:
 
 
 # ------------------------------------------------------------
+# 18 ciclo de vida sobre UN MISMO motor
+# ------------------------------------------------------------
+
+## El defecto que motivo este grupo: revocar la autorizacion y reiniciar el
+## MISMO `SimulationEngine` dejaba encendida la fisica de la corrida anterior, y
+## el informe la daba por apagada. La prueba de revocacion que ya existia creaba
+## un motor nuevo, asi que no podia verlo.
+##
+## Se miden las TRES cosas, no solo los booleanos: los interruptores, el
+## informe y los elementos que la red emite de verdad.
+func _test_18_the_lifecycle_on_one_engine() -> void:
+	var building = BuildingModelScript.new()
+	var authorized: Dictionary = _authorized_for([Auth.FAMILY_DOOR_LEAKAGE])
+	if not building.load_template_data(Serializer.to_runtime_template(authorized)):
+		_check(false, "18 the authorized scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "Lifecycle")
+
+	# a) autorizada: D1 y la red encendidas, y la red emite su rendija.
+	_check(bool(engine.pressure_network_solver_enabled), "18a the network stayed off")
+	_check(bool(engine.closed_door_leakage_enabled), "18a D1 stayed off")
+	_check(int(_engine_elements(engine, building)["cracks"]) > 0,
+			"18a D1 was on but produced no crack element")
+	engine.step(1.0)
+	_check(float(engine.sim_time_s) > 0.0, "18a an authorized run did not advance")
+
+	# b) revocada en el MISMO modelo y reiniciada en el MISMO motor.
+	building.experimental_physics_authorization = {}
+	engine.reset_simulation(0, false)
+	for flag in SWITCHES:
+		_check(not bool(engine.get(flag)),
+				"18b '%s' survived the revocation on the same engine" % flag)
+	_check(engine.get_experimental_activation_report().is_empty(),
+			"18b the report is not inactive after revoking")
+	_check(String(engine.experimental_authorization_failure).is_empty(),
+			"18b revoking was reported as a failure")
+	# Y lo que de verdad importa: la red deja de emitir.
+	var after: Dictionary = _engine_elements(engine, building)
+	_check(int(after["cracks"]) == 0, "18b a crack element survived the revocation")
+	_check(int(after["glazing"]) == 0, "18b a glazing element survived the revocation")
+	_check(int(after["envelopes"]) == 0, "18b an envelope element survived the revocation")
+
+	# c) reinicios repetidos sin autorizacion: estable, sin acumulacion.
+	for _repeat in range(3):
+		engine.reset_simulation(0, false)
+	for flag in SWITCHES:
+		_check(not bool(engine.get(flag)), "18c '%s' came back on a later reset" % flag)
+	_free_engine(engine, building)
+
+
+## Cambiar de familia en el mismo motor: D1 se retira y D3 entra.
+func _test_18b_swapping_families() -> void:
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "18d the D1 scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "Swap")
+	_check(bool(engine.closed_door_leakage_enabled), "18d D1 did not come on")
+	_check(not bool(engine.glazing_fallout_enabled), "18d D3 came on unasked")
+
+	# La nueva autorizacion, solo D3, sobre el MISMO modelo y el MISMO motor.
+	var glazing_only: Dictionary = _authorized_for([Auth.FAMILY_GLAZING])
+	building.experimental_physics_authorization = Dictionary(
+		glazing_only[Auth.AUTHORIZATION_KEY]
+	).duplicate(true)
+	engine.reset_simulation(0, false)
+	_check(not bool(engine.closed_door_leakage_enabled),
+			"18d D1 survived the switch to D3")
+	_check(bool(engine.glazing_fallout_enabled), "18d D3 did not come on")
+	_check(bool(engine.pressure_network_solver_enabled),
+			"18d the network was dropped when swapping family")
+	_check(not bool(engine.closed_door_deformation_enabled), "18d D2 came on unasked")
+	_check(not bool(engine.exterior_envelope_leakage_enabled), "18d R3 came on unasked")
+	var elements: Dictionary = _engine_elements(engine, building)
+	_check(int(elements["cracks"]) == 0, "18d a crack element survived the swap to D3")
+	_check(int(elements["glazing"]) > 0, "18d D3 was on but produced no glazing element")
+	var report: Dictionary = engine.get_experimental_activation_report()
+	_check(Array(report["families"]) == [Auth.FAMILY_GLAZING],
+			"18d the report does not name exactly the new family")
+	_free_engine(engine, building)
+
+
+## Una autorizacion que deja de resolver no hereda la fisica de la anterior.
+func _test_18c_a_tampered_block_inherits_nothing() -> void:
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "18e the scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "Tampered")
+	_check(bool(engine.closed_door_leakage_enabled), "18e D1 did not come on")
+	var tampered: Dictionary = building.experimental_physics_authorization.duplicate(true)
+	tampered[Auth.DIGEST_FIELD] = "0".repeat(64)
+	building.experimental_physics_authorization = tampered
+	engine.reset_simulation(0, false)
+	for flag in SWITCHES:
+		_check(not bool(engine.get(flag)),
+				"18e '%s' was inherited by a tampered authorization" % flag)
+	_check(not String(engine.experimental_authorization_failure).is_empty(),
+			"18e the tampered block was accepted")
+	_check(float(engine.sim_time_s) == 0.0, "18e the clock was not rewound")
+	engine.step(1.0)
+	_check(float(engine.sim_time_s) == 0.0,
+			"18e the engine advanced with a tampered authorization")
+	var report: Dictionary = engine.get_experimental_activation_report()
+	_check(not bool(report["authorized"]), "18e the report still claims an activation")
+	var effective: Dictionary = report["effective_switches"]
+	for flag in SWITCHES:
+		_check(not bool(effective[flag]),
+				"18e the report claims '%s' is on after a tampered block" % flag)
+	_free_engine(engine, building)
+
+
+# ------------------------------------------------------------
+# 19 propiedad de cada interruptor
+# ------------------------------------------------------------
+
+## La autorizacion solo puede retirar lo que ELLA anadio. Apagar los cinco al
+## reiniciar seria mas simple y estaria mal: borraria la configuracion de otro
+## propietario.
+func _test_19_switch_ownership_and_precedence() -> void:
+	_test_18b_swapping_families()
+	_test_18c_a_tampered_block_inherits_nothing()
+
+	# a) la red estaba encendida ANTES por otro propietario: sobrevive.
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "19a the scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = SimulationEngineScript.new()
+	engine.name = "ExperimentalActivationOwnership"
+	engine.building = building
+	engine.auto_ignite_on_ready = false
+	engine.auto_finish_on_extinction = false
+	engine.enable_logging = false
+	engine.enable_csv_log = false
+	# Configuracion explicita de OTRO propietario, antes de que la autorizacion
+	# toque nada.
+	engine.pressure_network_solver_enabled = true
+	root.add_child(engine)
+	engine.reset_simulation(0, false)
+	_check(bool(engine.pressure_network_solver_enabled), "19a the network was dropped")
+	_check(bool(engine.closed_door_leakage_enabled), "19a D1 did not come on")
+
+	building.experimental_physics_authorization = {}
+	engine.reset_simulation(0, false)
+	_check(bool(engine.pressure_network_solver_enabled),
+			"19a revoking erased a network configured by another owner")
+	_check(not bool(engine.closed_door_leakage_enabled),
+			"19a D1 was not returned to its previous value")
+	root.remove_child(engine)
+	engine.free()
+	building.free()
+
+	# b) otro propietario apaga un interruptor DESPUES de la autorizacion: la
+	# autorizacion deja de ser su dueno y no lo vuelve a escribir.
+	var building_b = BuildingModelScript.new()
+	if not building_b.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "19b the scenario did not load")
+		building_b.free()
+		return
+	var engine_b: SimulationEngine = _engine_for(building_b, "Ownership2")
+	_check(bool(engine_b.closed_door_leakage_enabled), "19b D1 did not come on")
+	# Otro propietario lo apaga a mano y ademas enciende D2 por su cuenta.
+	engine_b.closed_door_leakage_enabled = false
+	engine_b.closed_door_deformation_enabled = true
+	building_b.experimental_physics_authorization = {}
+	engine_b.reset_simulation(0, false)
+	_check(not bool(engine_b.closed_door_leakage_enabled),
+			"19b the authorization re-wrote a switch another owner had turned off")
+	_check(bool(engine_b.closed_door_deformation_enabled),
+			"19b revoking erased D2, which the authorization never set")
+	_free_engine(engine_b, building_b)
+
+	# b2) el caso que distingue de verdad las dos reglas: la autorizacion
+	# encuentra la red YA encendida -asi que su `previous` es `true`- y despues
+	# otro propietario la apaga a mano. Restituir `previous` a ciegas la
+	# resucitaria; comparar contra lo que la autorizacion dejo puesto no.
+	var building_d = BuildingModelScript.new()
+	if not building_d.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "19b2 the scenario did not load")
+		building_d.free()
+		return
+	var engine_d: SimulationEngine = SimulationEngineScript.new()
+	engine_d.name = "ExperimentalActivationOwnership3"
+	engine_d.building = building_d
+	engine_d.auto_ignite_on_ready = false
+	engine_d.auto_finish_on_extinction = false
+	engine_d.enable_logging = false
+	engine_d.enable_csv_log = false
+	engine_d.pressure_network_solver_enabled = true
+	root.add_child(engine_d)
+	engine_d.reset_simulation(0, false)
+	_check(bool(engine_d.pressure_network_solver_enabled), "19b2 the network was dropped")
+	# Otro propietario la apaga DESPUES de que la autorizacion la reclamara.
+	engine_d.pressure_network_solver_enabled = false
+	building_d.experimental_physics_authorization = {}
+	engine_d.reset_simulation(0, false)
+	_check(not bool(engine_d.pressure_network_solver_enabled),
+			"19b2 revoking resurrected a network that another owner had turned off")
+	_check(not bool(engine_d.closed_door_leakage_enabled), "19b2 D1 survived the revocation")
+	root.remove_child(engine_d)
+	engine_d.free()
+	building_d.free()
+
+	# c) sin bloque desde el principio, no se toca ni un interruptor.
+	var building_c = BuildingModelScript.new()
+	if not building_c.load_template_data(
+		Serializer.to_runtime_template(_configured_scenario())
+	):
+		_check(false, "19c the plain scenario did not load")
+		building_c.free()
+		return
+	var engine_c: SimulationEngine = SimulationEngineScript.new()
+	engine_c.name = "ExperimentalActivationUntouched"
+	engine_c.building = building_c
+	engine_c.auto_ignite_on_ready = false
+	engine_c.auto_finish_on_extinction = false
+	engine_c.enable_logging = false
+	engine_c.enable_csv_log = false
+	engine_c.glazing_fallout_enabled = true
+	engine_c.pressure_network_solver_enabled = true
+	root.add_child(engine_c)
+	for _repeat in range(3):
+		engine_c.reset_simulation(0, false)
+	_check(bool(engine_c.glazing_fallout_enabled),
+			"19c a scenario without a block erased an unrelated configuration")
+	_check(bool(engine_c.pressure_network_solver_enabled),
+			"19c a scenario without a block erased the network")
+	_check(engine_c.get_experimental_activation_report().is_empty(),
+			"19c a scenario without a block produced an activation report")
+	root.remove_child(engine_c)
+	engine_c.free()
+	building_c.free()
+
+
+# ------------------------------------------------------------
 # utilidades
 # ------------------------------------------------------------
+
+## Elementos que la red emite con los interruptores QUE TIENE EL MOTOR ahora
+## mismo. Mide la consecuencia, no el booleano.
+func _engine_elements(engine, building) -> Dictionary:
+	var out: Dictionary = {"cracks": 0, "glazing": 0, "envelopes": 0}
+	var transport = TransportScript.new()
+	transport.closed_door_leakage_enabled = engine.closed_door_leakage_enabled
+	transport.closed_door_deformation_enabled = engine.closed_door_deformation_enabled
+	transport.glazing_fallout_enabled = engine.glazing_fallout_enabled
+	transport.exterior_envelope_leakage_enabled = engine.exterior_envelope_leakage_enabled
+	var snapshot: Dictionary = transport.build_snapshot(building, {}, 0.25, 240.0)
+	if not bool(snapshot["valid"]):
+		_check(false, "the engine-element snapshot is invalid")
+		return out
+	for raw_element in Array(snapshot["openings"]):
+		var element: Dictionary = raw_element
+		if String(element.get("flow_model", "")) == "ela_crack":
+			out["cracks"] = int(out["cracks"]) + 1
+		match String(element.get("provenance", "")):
+			"prescribed_glazing_fallout":
+				out["glazing"] = int(out["glazing"]) + 1
+			"exterior_envelope_leakage":
+				out["envelopes"] = int(out["envelopes"]) + 1
+	return out
+
+
+## El escenario de siempre, autorizado para las familias que se pidan.
+func _authorized_for(families: Array) -> Dictionary:
+	var scenario: Dictionary = Serializer.normalize_editor_data(_configured_scenario())
+	var granted: Dictionary = Auth.grant(
+		scenario, families, Auth.REQUIRED_ACKNOWLEDGEMENTS, true
+	)
+	if not bool(granted["ok"]):
+		_check(false, "could not authorize %s: %s" % [str(families), str(granted["errors"])])
+		return scenario
+	scenario[Auth.AUTHORIZATION_KEY] = granted["authorization"]
+	return scenario
 
 ## Un bloque de autorizacion fabricado a mano, saltandose `grant()`. Sirve para
 ## comprobar que quien exige el contrato no es solo quien concede.

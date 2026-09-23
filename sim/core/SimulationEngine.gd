@@ -64,6 +64,23 @@ var experimental_authorization_failure: String = ""
 ## Vacio cuando el escenario no declara autorizacion, para que la salida de un
 ## escenario normal no cambie ni un byte.
 var _experimental_activation_report: Dictionary = {}
+## F2.2D4B2B: QUE interruptores puso esta autorizacion y que valor tenian antes.
+##
+## Es el registro de PROPIEDAD, y existe por un defecto real: sin el, revocar la
+## autorizacion y reiniciar el mismo motor dejaba encendida la fisica de la
+## corrida anterior mientras el informe la daba por apagada.
+##
+## La regla de propiedad, escrita antes de programarla: la autorizacion solo
+## puede retirar lo que ELLA MISMA anadio, y solo mientras siga siendo la ultima
+## en haberlo escrito. Poner los cinco a `false` al reiniciar seria mas simple y
+## estaria mal: borraria una configuracion que otro propietario dejo puesta a
+## proposito.
+##
+## Cada entrada es `{"previous": bool, "applied": bool}`. Al retirar se compara
+## el valor ACTUAL con `applied`: si coinciden, nadie ha escrito despues y se
+## restituye `previous`; si no coinciden, ese alguien es el dueno y no se le
+## pisa.
+var _experimental_owned_switches: Dictionary = {}
 var oxygen_exchange_system = OxygenExchangeSystemScript.new()
 var log_writer = SimulationLogWriterScript.new()
 var state_builder = SimulationStateBuilderScript.new()
@@ -3421,6 +3438,11 @@ func _reset_log_file() -> void:
 ## perfil, ni presentar la corrida como validada para una vivienda. El informe
 ## que deja dice lo contrario con todas las letras.
 func _apply_experimental_physics_authorization() -> void:
+	# SIEMPRE lo primero, y antes de cualquier retorno temprano: lo que aporto
+	# la autorizacion anterior se retira aqui. Sin esto, revocar y reiniciar el
+	# mismo motor dejaba la fisica de la corrida anterior encendida, y el
+	# informe la daba por apagada.
+	_release_experimental_switches()
 	experimental_authorization_failure = ""
 	_experimental_activation_report = ExperimentalAuthorizationScript.inactive_report()
 	if building == null:
@@ -3438,20 +3460,123 @@ func _apply_experimental_physics_authorization() -> void:
 			"experimental opening physics authorization rejected: %s"
 			% str(verdict["errors"])
 		)
+		# Sin fisica heredada: la retirada ya ocurrio arriba, asi que un bloque
+		# manipulado no se queda con los interruptores de la corrida valida.
+		_experimental_activation_report["effective_switches"] = \
+				_experimental_effective_switches()
 		return
 	var switches: Dictionary = verdict["switches"]
-	# La dependencia primero, y por su nombre: las cuatro familias viven dentro
-	# de la red autoritativa y ninguna existe sin ella.
-	if bool(switches.get(ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY, false)):
-		pressure_network_solver_enabled = true
-	if bool(switches.get("closed_door_leakage_enabled", false)):
-		closed_door_leakage_enabled = true
-	if bool(switches.get("closed_door_deformation_enabled", false)):
-		closed_door_deformation_enabled = true
-	if bool(switches.get("glazing_fallout_enabled", false)):
-		glazing_fallout_enabled = true
-	if bool(switches.get("exterior_envelope_leakage_enabled", false)):
-		exterior_envelope_leakage_enabled = true
+	# La dependencia primero: las cuatro familias viven dentro de la red
+	# autoritativa y ninguna existe sin ella.
+	_claim_experimental_switch(ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY, switches)
+	for family in ExperimentalAuthorizationScript.FAMILIES:
+		_claim_experimental_switch(
+			String(ExperimentalAuthorizationScript.FAMILY_SWITCH[family]), switches
+		)
+	# El informe dice los interruptores EFECTIVOS, no solo los que se pidieron.
+	_experimental_activation_report["effective_switches"] = \
+			_experimental_effective_switches()
+	_experimental_activation_report["owned_switches"] = \
+			_experimental_owned_switches.keys()
+
+
+## Enciende un interruptor a peticion de la autorizacion y anota que es suyo.
+## Un interruptor que la autorizacion no pide no se toca, ni para apagarlo.
+func _claim_experimental_switch(switch_name: String, switches: Dictionary) -> void:
+	if not bool(switches.get(switch_name, false)):
+		return
+	_experimental_owned_switches[switch_name] = {
+		"previous": _read_experimental_switch(switch_name),
+		"applied": true,
+	}
+	_write_experimental_switch(switch_name, true)
+
+
+## Devuelve a su valor anterior lo que aporto la autorizacion, y solo eso.
+##
+## Un interruptor que ya no vale lo que la autorizacion escribio tiene otro
+## dueno: se deja como esta. Es la diferencia entre retirar una contribucion y
+## borrar la configuracion de otro.
+func _release_experimental_switches() -> void:
+	if _experimental_owned_switches.is_empty():
+		return
+	# Orden estable: la dependencia de red se suelta la ultima, para que ningun
+	# paso intermedio vea una familia encendida sin red.
+	for switch_name in _experimental_release_order():
+		var owned: Dictionary = _experimental_owned_switches[switch_name]
+		if _read_experimental_switch(switch_name) != bool(owned["applied"]):
+			# Otro propietario lo escribio despues de la autorizacion.
+			continue
+		_write_experimental_switch(switch_name, bool(owned["previous"]))
+	_experimental_owned_switches.clear()
+
+
+func _experimental_release_order() -> Array[String]:
+	var ordered: Array[String] = []
+	for family in ExperimentalAuthorizationScript.FAMILIES:
+		var switch_name: String = String(
+			ExperimentalAuthorizationScript.FAMILY_SWITCH[family]
+		)
+		if _experimental_owned_switches.has(switch_name):
+			ordered.append(switch_name)
+	if _experimental_owned_switches.has(
+		ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY
+	):
+		ordered.append(ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY)
+	return ordered
+
+
+## Los cinco interruptores tal cual estan AHORA, en orden estable.
+func _experimental_effective_switches() -> Dictionary:
+	var out: Dictionary = {
+		ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY:
+				_read_experimental_switch(
+					ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY
+				),
+	}
+	for family in ExperimentalAuthorizationScript.FAMILIES:
+		var switch_name: String = String(
+			ExperimentalAuthorizationScript.FAMILY_SWITCH[family]
+		)
+		out[switch_name] = _read_experimental_switch(switch_name)
+	return out
+
+
+## Escritura NOMBRADA de los cinco interruptores, en un unico sitio.
+##
+## Se usa un `match` explicito y no `set()` a proposito: asi un guardarrail de
+## texto puede seguir vigilando quien los enciende y quien los retira, que es lo
+## que las suites de D2, D3 y R3 comprueban.
+func _write_experimental_switch(switch_name: String, value: bool) -> void:
+	match switch_name:
+		"pressure_network_solver_enabled":
+			pressure_network_solver_enabled = value
+		"closed_door_leakage_enabled":
+			closed_door_leakage_enabled = value
+		"closed_door_deformation_enabled":
+			closed_door_deformation_enabled = value
+		"glazing_fallout_enabled":
+			glazing_fallout_enabled = value
+		"exterior_envelope_leakage_enabled":
+			exterior_envelope_leakage_enabled = value
+		_:
+			push_error("unknown experimental switch: %s" % switch_name)
+
+
+func _read_experimental_switch(switch_name: String) -> bool:
+	match switch_name:
+		"pressure_network_solver_enabled":
+			return pressure_network_solver_enabled
+		"closed_door_leakage_enabled":
+			return closed_door_leakage_enabled
+		"closed_door_deformation_enabled":
+			return closed_door_deformation_enabled
+		"glazing_fallout_enabled":
+			return glazing_fallout_enabled
+		"exterior_envelope_leakage_enabled":
+			return exterior_envelope_leakage_enabled
+	push_error("unknown experimental switch: %s" % switch_name)
+	return false
 
 
 ## El informe de activacion experimental, como lo ve la salida diagnostica.

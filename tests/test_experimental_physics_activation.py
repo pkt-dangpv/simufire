@@ -279,6 +279,94 @@ def test_the_authorization_expires_when_the_scenario_changes():
     assert "_canonical(_family_fields(" in AUTH
 
 
+# ------------------------------------------------------------
+# Ciclo de vida y propiedad de los interruptores
+# ------------------------------------------------------------
+
+
+def test_the_authorization_is_released_before_anything_else():
+    """El defecto que motivo el hotfix: revocar y reiniciar el mismo motor.
+
+    `_apply_experimental_physics_authorization` ponia interruptores en `true` y
+    nunca los quitaba. Al revocar y reiniciar el MISMO motor, la funcion
+    encontraba un escenario sin bloque, retornaba antes de tocar nada y dejaba
+    encendida la fisica de la corrida anterior, con el informe diciendo que no
+    habia ninguna. La retirada tiene que ocurrir antes de todo retorno temprano.
+    """
+    body = ENGINE.split(
+        "func _apply_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert body.index("_release_experimental_switches()") < body.index("if building == null:")
+    assert body.index("_release_experimental_switches()") < body.index(
+        "if scenario.is_empty():"
+    )
+    # Y se resuelve tambien al reiniciar, no solo al nacer.
+    reset = ENGINE.split("func reset_simulation(", 1)[1].split("\nfunc ", 1)[0]
+    assert "_apply_experimental_physics_authorization()" in reset
+
+
+def test_the_authorization_only_retires_what_it_added():
+    """Apagar los cinco al reiniciar seria mas simple y estaria mal."""
+    assert "var _experimental_owned_switches: Dictionary = {}" in ENGINE
+    release = ENGINE.split("func _release_experimental_switches() -> void:", 1)[1].split(
+        "\nfunc ", 1
+    )[0]
+    # Solo se restituye lo anotado, y solo si nadie lo escribio despues.
+    assert 'owned["applied"]' in release
+    assert 'owned["previous"]' in release
+    assert "continue" in release
+    assert "_experimental_owned_switches.clear()" in release
+    # Nunca se apagan los cinco a ciegas.
+    for switch in SWITCHES:
+        assert f"{switch} = false" not in release, switch
+    # Reclamar anota el valor anterior antes de escribir.
+    claim = ENGINE.split(
+        "func _claim_experimental_switch(switch_name: String, switches: Dictionary) -> void:",
+        1,
+    )[1].split("\nfunc ", 1)[0]
+    assert '"previous": _read_experimental_switch(switch_name)' in claim
+    # Un interruptor que no se pide no se toca, ni para apagarlo.
+    assert "if not bool(switches.get(switch_name, false)):" in claim
+    assert "return" in claim
+
+
+def test_the_five_switches_are_written_in_one_named_place():
+    writer = ENGINE.split(
+        "func _write_experimental_switch(switch_name: String, value: bool) -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    for switch in SWITCHES:
+        assert f"{switch} = value" in writer, switch
+        # Fuera de ese `match`, ninguna asignacion constante sobrevive.
+        assert ENGINE.count(f"{switch} = true") == 0, switch
+        assert ENGINE.count(f"{switch} = value") == 1, switch
+    # Se usa un `match` nombrado y no `set()`, para que el guardarrail lo vea.
+    assert "set(switch_name" not in ENGINE
+
+
+def test_the_report_carries_the_effective_switches():
+    assert '"effective_switches"' in ENGINE
+    assert "func _experimental_effective_switches() -> Dictionary:" in ENGINE
+    # Tambien cuando la autorizacion se rechaza: el informe no puede decir que
+    # hay fisica encendida si ya se retiro, ni callarlo si quedara.
+    body = ENGINE.split(
+        "func _apply_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert body.count('_experimental_activation_report["effective_switches"]') == 2
+
+
+def test_the_validator_covers_the_lifecycle_on_one_engine():
+    validator = VALIDATOR.read_text(encoding="utf-8")
+    assert "func _test_18_the_lifecycle_on_one_engine() -> void:" in validator
+    assert "func _test_19_switch_ownership_and_precedence() -> void:" in validator
+    assert "func _test_18b_swapping_families() -> void:" in validator
+    assert "func _test_18c_a_tampered_block_inherits_nothing() -> void:" in validator
+    # Revoca sobre el MISMO modelo y reinicia el MISMO motor.
+    assert "building.experimental_physics_authorization = {}" in validator
+    assert "engine.reset_simulation(0, false)" in validator
+    # Y mide la consecuencia, no solo el booleano.
+    assert "func _engine_elements(engine, building) -> Dictionary:" in validator
+
+
 def test_the_engine_refuses_to_simulate_a_rejected_authorization():
     assert "var experimental_authorization_failure: String = \"\"" in ENGINE
     step = ENGINE.split("func step(delta: float) -> void:", 1)[1].split("\n\n", 1)[0]

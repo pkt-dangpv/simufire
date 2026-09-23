@@ -2782,13 +2782,86 @@ con otro escenario dejaría encendida la física que autorizó el anterior.
 ### 23.8 Lo que queda
 
 - **Activación de producto**: sigue sin criterio de aceptación porque sigue sin
-  evidencia. Lo que falta está en §23.9.
+  evidencia. Lo que falta está en §23.10.
 - **Calibración**: sin cambios. Quince perfiles con `product_activation = false`
   y cinco bloqueados.
 - Siguen sin existir agua, BREAK1 y el modelo probabilista, y
   `GlassFailureSystem` sigue sin conectarse.
 
-### 23.9 Qué evidencia faltaría para activar estos perfiles en el producto
+### 23.9 Hotfix del ciclo de vida: la autorización revocada se retira (2026-09-23)
+
+> **Defecto real encontrado después de cerrar D4B2B, en revisión del usuario.**
+> La primera versión encendía interruptores y no los apagaba nunca.
+
+**Lo que fallaba.** `_apply_experimental_physics_authorization()` solo ponía
+`true`. Al revocar la autorización y reiniciar el **mismo** `SimulationEngine`,
+la función encontraba un escenario sin bloque y **retornaba antes de tocar
+nada**: los interruptores de la corrida anterior seguían encendidos mientras el
+informe se marcaba inactivo. Medido, antes del arreglo:
+
+```
+-- tras autorizar D1 --            -- tras revocar y reiniciar --
+pressure_network_solver = true     pressure_network_solver = true   ← mal
+closed_door_leakage     = true     closed_door_leakage     = true   ← mal
+                                   informe = inactivo               ← mentira
+                                   elementos de rendija en la red = 1
+```
+
+La prueba de revocación que existía no podía verlo: creaba un motor nuevo.
+
+Los otros tres caminos tenían el mismo agujero: `building == null`, la
+autorización rechazada, y **cambiar de familia** —autorizar D1 y luego solo D3
+dejaba D1 encendida—.
+
+**La regla de propiedad, escrita antes de programarla.** Poner los cinco a
+`false` al reiniciar es más simple y está mal: borraría la configuración que
+otro propietario dejó puesta a propósito. La autorización solo puede retirar
+**lo que ella misma añadió**, y solo mientras siga siendo la última en haberlo
+escrito.
+
+El motor lleva un registro de propiedad, `_experimental_owned_switches`, con una
+entrada `{previous, applied}` por interruptor reclamado:
+
+| situación | qué hace la retirada |
+|---|---|
+| el interruptor vale lo que la autorización escribió | restituye `previous` |
+| otro propietario lo cambió después | **no lo toca**: ya no es suyo |
+| la autorización nunca lo escribió | **no lo toca**, ni para apagarlo |
+
+La retirada ocurre **siempre lo primero**, antes de cualquier retorno temprano,
+de modo que los cuatro caminos —revocación, escenario sin bloque, sin edificio y
+autorización rechazada— quedan cubiertos por construcción.
+
+**Precedencia medida**, no solo afirmada:
+
+1. base OFF → autorizar D1 → revocar → D1 y la red **OFF**;
+2. red encendida **antes** por otro propietario → autorizar D1 → revocar → la red
+   **sigue ON** y D1 vuelve a su valor previo;
+3. autorizar D1 → autorizar solo D3 → D1 **OFF**, D3 **ON**, red **ON**;
+4. autorización válida → bloque manipulado → sin física heredada, sin avance de
+   simulación y con el fallo escrito;
+5. reinicios repetidos con la misma autorización → estado estable, sin
+   acumulación;
+6. escenario sin bloque desde el principio → no se toca ni un interruptor, ni
+   siquiera los que otro dejó encendidos;
+7. el informe lleva `effective_switches`, los interruptores **efectivos**, y no
+   puede declararse inactivo con física aportada todavía puesta.
+
+Las cinco escrituras viven ahora en un único `match` nombrado,
+`_write_experimental_switch`, y no en `set()`, para que el guardarraíl de texto
+siga pudiendo vigilarlas. Ese guardarraíl de D2, D3 y R3 se actualizó: ya no
+busca la constante `= true`, sino el ciclo completo —una sola escritura, la
+retirada antes de todo retorno, la comparación de propiedad y la resolución
+también en `reset_simulation`—.
+
+**Verificación del hotfix:** el validador sube a **488 comprobaciones en
+diecinueve grupos**, con dos grupos nuevos —ciclo de vida sobre un mismo motor y
+propiedad de cada interruptor— que miden los interruptores, el informe **y los
+elementos que la red emite de verdad**. La suite focalizada sube a **33
+pruebas**. Campaña de mutaciones del hotfix: **9 de 9 válidas muertas**, con
+restauración SHA-256.
+
+### 23.10 Qué evidencia faltaría para activar estos perfiles en el producto
 
 Ninguna de las cuatro se desbloquea leyendo más: hacen falta **ensayos nuevos**.
 

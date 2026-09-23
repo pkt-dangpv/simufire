@@ -2384,10 +2384,22 @@ cuando hay autorización, con procedencia, versión, parámetros efectivos,
 familias encendidas y marcas de fuera de dominio, que se **cuentan** sin
 recortar ningún caudal ni reajustar ningún coeficiente.
 
-Verificación: **431 comprobaciones** del validador dedicado, **28 pruebas**
-Python, **18 de 18 mutaciones válidas muertas** con restauración SHA-256, y los
-seis validadores de D1, D2, D3, D4A, D4B1 y D4B2A intactos.
+Verificación: **488 comprobaciones** del validador dedicado en diecinueve
+grupos, **33 pruebas** Python, **18 de 18 mutaciones válidas muertas** en la
+campaña de la fase y **9 de 9** en la del hotfix, todas con restauración
+SHA-256, y los seis validadores de D1, D2, D3, D4A, D4B1 y D4B2A intactos.
+
+**Hotfix del ciclo de vida (2026-09-23).** La primera versión encendía
+interruptores y no los apagaba nunca: revocar la autorización y reiniciar el
+**mismo** motor dejaba encendida la física de la corrida anterior mientras el
+informe la daba por apagada, y cambiar de familia conservaba la anterior. El
+motor lleva ahora un registro de propiedad y retira **solo lo que la
+autorización añadió**, y solo mientras siga siendo la última en haberlo escrito:
+apagar los cinco al reiniciar habría borrado configuraciones ajenas. La retirada
+ocurre antes de cualquier retorno temprano, así que los cuatro caminos quedan
+cubiertos por construcción. Detalle y precedencia medida en §23.9 del documento
+de fugas.
 
 Queda la **activación normal del producto**, que sigue en **NO-GO** porque sigue
 sin evidencia: hacen falta ensayos nuevos, no más lectura. Lo que falta está
-enumerado en §23.9 del documento de fugas.
+enumerado en §23.10 del documento de fugas.
