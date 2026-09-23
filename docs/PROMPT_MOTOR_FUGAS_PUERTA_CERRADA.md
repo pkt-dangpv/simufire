@@ -2833,14 +2833,13 @@ Dentro de `_apply_experimental_physics_authorization()` la retirada ocurre
 escenario sin bloque, sin edificio y autorización rechazada quedan cubiertos
 **siempre que se llegue a esa función**.
 
-### 23.9.1 Dos límites conocidos de esta regla
+### 23.9.1 Límites de esta regla: uno cerrado, uno abierto
 
-Se escriben porque el cierre anterior los afirmaba resueltos y **no lo están**.
-Ninguno reabre el defecto original —revocar y reiniciar el mismo motor sigue
-apagando lo que la autorización encendió—, pero acotan hasta dónde llega la
-garantía.
+Se escribieron porque un cierre anterior los afirmaba resueltos y no lo estaban.
+Ninguno reabría el defecto original. **El segundo ya está cerrado** (§23.9.2);
+el primero sigue abierto y acota hasta dónde llega la garantía.
 
-**1. La comparación detecta cambios de valor, no quién escribió.** La retirada
+**1. La comparación detecta cambios de valor, no quién escribió. SIGUE ABIERTO.** La retirada
 compara el valor actual contra `applied`. Eso distingue a otro propietario que
 haya *cambiado* el valor, pero **no** a uno que vuelva a escribir el **mismo**
 valor: esa escritura es indistinguible de la de la autorización, y la retirada
@@ -2850,20 +2849,58 @@ interceptar las escrituras —propiedades con `set`, o un propietario declarado 
 interruptor—, que es un cambio de diseño y toca a todo el que escriba esos
 cinco, no un arreglo focalizado.
 
-**2. `reset_simulation()` puede retornar antes de llamar a la retirada.** Sus
-dos guardas —`building == null` y `not is_ready_for_validation()`— están
-**antes** de `_apply_experimental_physics_authorization()`. La función sabe
-tratar un edificio nulo, pero por esa ruta no se llega a ella: reutilizar el
-mismo motor tras soltarle el edificio conserva la contribución de la
-autorización anterior. Es un límite **latente**, no un fallo vivo: sin edificio
-`step()` retorna de inmediato, así que esos interruptores no mueven física
-hasta que se vuelva a enlazar un edificio. `_ready()` sí llega siempre a la
-retirada.
+**2. `reset_simulation()` retornaba antes de llamar a la retirada. CERRADO en
+§23.9.2.**
 
-Cerrar el segundo es mover la retirada por encima de esas dos guardas, con su
-prueba; queda pendiente a propósito y conviene agruparlo con el siguiente cambio
-que toque `sim/core`, porque R2-1 obliga a regenerar la referencia completa por
-cada commit que toque esa carpeta.
+### 23.9.2 Cierre del límite 2: los retornos tempranos también retiran (2026-09-23)
+
+**Lo que fallaba.** Las dos guardas de `reset_simulation()` —`building == null`
+y `not is_ready_for_validation()`— estaban **por encima** de
+`_apply_experimental_physics_authorization()`. Por esas dos rutas el reinicio
+retornaba sin tocar nada. Medido antes del arreglo, con D1 autorizada y luego el
+edificio soltado:
+
+```
+   tras autorizar D1                tras soltar el edificio y reiniciar
+   pressure_network_solver = true   pressure_network_solver = true   ← mal
+   closed_door_leakage     = true   closed_door_leakage     = true   ← mal
+                                    informe authorized      = true   ← obsoleto
+```
+
+Y lo mismo con el edificio presente pero el motor no preparado. El informe era
+lo más grave: no solo quedaban interruptores, es que seguía **afirmando una
+autorización activa** que ya no describía nada.
+
+**El arreglo, y lo que deliberadamente NO hace.** Sube la **retirada** por
+encima de las guardas; deja la **resolución** de una autorización nueva por
+debajo. Mover entero `_apply_experimental_physics_authorization()` habría
+encendido física en un motor que no está listo, cambiando un estado obsoleto por
+uno peor. La regla es: **retirar siempre, aplicar solo cuando el motor puede.**
+
+`_discard_experimental_physics_authorization()` es el único sitio donde se apaga
+la contribución —interruptores mediante el registro de propiedad, más el informe
+a inactivo— y lo usan las dos rutas: `_apply…` antes de resolver, y
+`reset_simulation` cuando no llega a resolver. No hay una segunda lista de
+interruptores ni una segunda copia de la política.
+
+**Medido después**, sobre la misma instancia:
+
+| ruta | interruptores de la autorización | configuración ajena | informe | reloj |
+|---|---|---|---|---|
+| reinicio **sin edificio** | retirados | **se conserva** | inactivo | no avanza |
+| reinicio **no preparado** | retirados | se conserva | inactivo | — |
+| preparación restituida | se resuelven de nuevo | — | autorizado | avanza |
+| bloque manipulado tras retorno temprano | ninguno heredado | — | fallo explícito | no avanza |
+| reinicios repetidos | estables | — | estable | — |
+| sin autorización | ninguno | se conserva | vacío | — |
+
+**Verificación:** grupo 20 del validador, con sus tres subcasos; el validador
+sube a **523 comprobaciones en veinte grupos**. La prueba que fijaba el límite
+se **sustituyó** por `test_an_early_reset_still_releases_the_contribution`: no se
+mantiene una prueba que exija la presencia del defecto. Campaña de mutaciones:
+**7 de 7 válidas muertas**, y la primera de ellas reinstala exactamente el código
+anterior, de modo que matarla **es** la demostración de que la prueba del
+comportamiento deseado falla sobre la implementación previa.
 
 **Precedencia medida**, no solo afirmada (con los límites de §23.9.1):
 
@@ -2887,12 +2924,13 @@ busca la constante `= true`, sino el ciclo completo —una sola escritura, la
 retirada antes de todo retorno, la comparación de propiedad y la resolución
 también en `reset_simulation`—.
 
-**Verificación del hotfix:** el validador sube a **488 comprobaciones en
-diecinueve grupos**, con dos grupos nuevos —ciclo de vida sobre un mismo motor y
-propiedad de cada interruptor— que miden los interruptores, el informe **y los
-elementos que la red emite de verdad**. La suite focalizada sube a **33
-pruebas**. Campaña de mutaciones del hotfix: **9 de 9 válidas muertas**, con
-restauración SHA-256.
+**Verificación de este hotfix**, con los recuentos de su momento: el validador
+pasó de 431 a **488 comprobaciones en diecinueve grupos**, con dos grupos
+nuevos —ciclo de vida sobre un mismo motor y propiedad de cada interruptor— que
+miden los interruptores, el informe **y los elementos que la red emite de
+verdad**. La suite focalizada subió a **33 pruebas**. Campaña de mutaciones:
+**9 de 9 válidas muertas**, con restauración SHA-256. Los recuentos vigentes,
+tras cerrar el límite 2, están en §23.9.2.
 
 ### 23.10 Qué evidencia faltaría para activar estos perfiles en el producto
 

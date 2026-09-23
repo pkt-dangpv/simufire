@@ -1,5 +1,50 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-23 - hotfix: early resets release the contribution too (F2.2D4B2B)
+
+- Checkpoint: `main` at `8dd310e9` when this started, seven local commits ahead
+  of `origin/main`. Closed in one more local commit, **not pushed**.
+- **Closes limit 2 of 23.9.1.** `reset_simulation()` has two guards —
+  `building == null` and `not is_ready_for_validation()` — that sat **above**
+  `_apply_experimental_physics_authorization()`. Down those two routes the reset
+  returned without touching anything. Measured before the fix, with D1 authorized
+  and the building then dropped: both switches still `true`, and the report still
+  reporting `authorized = true`. The stale report was the worse half: it did not
+  merely keep switches, it kept **asserting an active authorization** that no
+  longer described anything.
+- **The fix, and what it deliberately does not do.** The *release* moves above
+  the guards; *resolving a new authorization* stays below them. Moving the whole
+  of `_apply…` up would have switched physics on in an engine that is not ready —
+  trading a stale state for a worse one. The rule is **release always, apply only
+  when the engine can**.
+- `_discard_experimental_physics_authorization()` is the single place that turns
+  the contribution off — switches via the existing ownership ledger, plus the
+  report back to inactive — and both routes use it: `_apply…` before resolving,
+  and `reset_simulation` when it cannot resolve. No second switch list, no second
+  copy of the policy.
+- **Measured after, on one instance:** reset without a building → authorization
+  switches released, another owner's configuration kept, report inactive, clock
+  does not advance; reset while not ready → same, with the building still bound;
+  readiness restored → a valid authorization resolves again; a tampered block
+  after an early reset → nothing inherited, explicit failure; repeated resets
+  stable; no authorization → still OFF.
+- **The pin was replaced, not kept.** `test_the_release_is_not_reached_when_reset_
+  returns_early` demanded the presence of the defect; it is gone, replaced by
+  `test_an_early_reset_still_releases_the_contribution`.
+- Also corrected the inline comment in `_release_experimental_switches`: it said
+  *"Otro propietario lo escribio despues"*, which the boolean comparison cannot
+  know. It now states only what is checkable — the current value is no longer the
+  one the authorization left — and names the open limit.
+- **Limit 1 stays open and documented**: the comparison detects a value change,
+  not authorship, so another owner re-writing the **same** value is
+  indistinguishable. Strict authorship needs intercepted writes; out of scope.
+- Verification: validator **523 checks in twenty groups** (group 20 new, three
+  subcases), focused suite **35 tests**, mutation campaign **7 of 7 valid
+  killed** with SHA-256 restore — the first of them reinstates exactly the old
+  code, so killing it is the proof the new behaviour test fails on the previous
+  implementation. No flow law, catalogue value, `product_activation`,
+  distributed scenario or the four-checkbox consent was touched.
+
 ## Current Program Update - 2026-09-23 - hotfix: revoked experimental physics is now released (F2.2D4B2B)
 
 - Checkpoint: `main` at `c87f30f7` (D4B2B) when the hotfix started, five local

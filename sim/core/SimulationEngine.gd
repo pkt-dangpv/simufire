@@ -77,9 +77,14 @@ var _experimental_activation_report: Dictionary = {}
 ## proposito.
 ##
 ## Cada entrada es `{"previous": bool, "applied": bool}`. Al retirar se compara
-## el valor ACTUAL con `applied`: si coinciden, nadie ha escrito despues y se
-## restituye `previous`; si no coinciden, ese alguien es el dueno y no se le
-## pisa.
+## el valor ACTUAL con `applied`: si coinciden se restituye `previous`; si no
+## coinciden, el valor ya no es el que dejo la autorizacion y no se toca.
+##
+## Limite conocido, y escrito: esa comparacion detecta un CAMBIO DE VALOR, no
+## autoria. Otro propietario que reescriba el MISMO valor es indistinguible de
+## la propia autorizacion. Garantizar la autoria exigiria interceptar las
+## escrituras, que es un cambio de diseno; queda documentado en
+## docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md 23.9.1.
 var _experimental_owned_switches: Dictionary = {}
 var oxygen_exchange_system = OxygenExchangeSystemScript.new()
 var log_writer = SimulationLogWriterScript.new()
@@ -3442,9 +3447,7 @@ func _apply_experimental_physics_authorization() -> void:
 	# la autorizacion anterior se retira aqui. Sin esto, revocar y reiniciar el
 	# mismo motor dejaba la fisica de la corrida anterior encendida, y el
 	# informe la daba por apagada.
-	_release_experimental_switches()
-	experimental_authorization_failure = ""
-	_experimental_activation_report = ExperimentalAuthorizationScript.inactive_report()
+	_discard_experimental_physics_authorization()
 	if building == null:
 		return
 	var scenario: Dictionary = building.experimental_authorization_scenario()
@@ -3492,6 +3495,20 @@ func _claim_experimental_switch(switch_name: String, switches: Dictionary) -> vo
 	_write_experimental_switch(switch_name, true)
 
 
+## Deja el motor SIN contribucion experimental: retira los interruptores que
+## aporto la autorizacion anterior y devuelve el informe a inactivo.
+##
+## Es el unico sitio donde se apaga la contribucion, y lo usan los dos caminos:
+## `_apply_experimental_physics_authorization()` antes de resolver una
+## autorizacion nueva, y `reset_simulation()` cuando no puede llegar a
+## resolverla. No duplica ni la lista de interruptores ni la politica: reutiliza
+## el registro de propiedad.
+func _discard_experimental_physics_authorization() -> void:
+	_release_experimental_switches()
+	experimental_authorization_failure = ""
+	_experimental_activation_report = ExperimentalAuthorizationScript.inactive_report()
+
+
 ## Devuelve a su valor anterior lo que aporto la autorizacion, y solo eso.
 ##
 ## Un interruptor que ya no vale lo que la autorizacion escribio tiene otro
@@ -3505,7 +3522,12 @@ func _release_experimental_switches() -> void:
 	for switch_name in _experimental_release_order():
 		var owned: Dictionary = _experimental_owned_switches[switch_name]
 		if _read_experimental_switch(switch_name) != bool(owned["applied"]):
-			# Otro propietario lo escribio despues de la autorizacion.
+			# El valor actual YA NO ES el que dejo la autorizacion, asi que no
+			# se restituye. Es lo unico comprobable: la igualdad de booleanos no
+			# demuestra autoria, y no detecta a quien reescriba el MISMO valor.
+			# La propiedad estricta de escritura queda fuera de este contrato y
+			# esta documentada como limite en
+			# docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md 23.9.1.
 			continue
 		_write_experimental_switch(switch_name, bool(owned["previous"]))
 	_experimental_owned_switches.clear()
@@ -3661,13 +3683,24 @@ func _sync_smoke_model_settings() -> void:
 func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_initial_fire: bool = true) -> void:
 	if building == null:
 		_resolve_building()
+	# F2.2D4B2B: la contribucion de la autorizacion ANTERIOR se retira aqui,
+	# por ENCIMA de las dos guardas. Un motor que se reutiliza no puede quedarse
+	# con los interruptores -ni con el informe- de una corrida que ya no existe,
+	# y las dos guardas de abajo hacian justo eso: sin edificio, o sin estar
+	# listo, el reinicio retornaba sin tocar nada y el informe seguia diciendo
+	# `authorized = true`.
+	#
+	# Lo que NO sube por encima de la guarda es RESOLVER una autorizacion nueva:
+	# encender fisica en un motor que no esta listo seria cambiar un estado
+	# obsoleto por uno peor. Retirar siempre; aplicar solo cuando se puede.
 	if building == null or not is_ready_for_validation():
+		_discard_experimental_physics_authorization()
 		return
 
-	# F2.2D4B2B: reiniciar es volver a montar la corrida, asi que la
-	# autorizacion se vuelve a resolver aqui igual que en `_ready`. Sin esto,
-	# reiniciar con otro escenario cargado dejaria encendida la fisica que
-	# autorizo el anterior, que es justo lo que esta fase impide.
+	# Reiniciar es volver a montar la corrida, asi que la autorizacion se
+	# vuelve a resolver aqui igual que en `_ready`. Sin esto, reiniciar con otro
+	# escenario cargado dejaria encendida la fisica que autorizo el anterior,
+	# que es justo lo que esta fase impide.
 	_apply_experimental_physics_authorization()
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()

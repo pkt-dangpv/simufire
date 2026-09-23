@@ -90,13 +90,19 @@ def test_the_flag_requires_the_authoritative_network():
     assert "ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY" in _activation
     # Dentro de esta funcion la retirada ocurre ANTES de cualquier retorno
     # temprano, que es lo que impide que revocar y reiniciar el mismo motor deje
-    # encendida la corrida anterior. Ojo al alcance: `reset_simulation` tiene sus
-    # propias guardas -sin edificio, o motor no listo- POR ENCIMA de la llamada,
-    # asi que por esa ruta no se llega aqui. Limite conocido, escrito en
-    # PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md 23.9.1.
-    assert _activation.index("_release_experimental_switches()") < _activation.index(
-        "if building == null:"
+    # encendida la corrida anterior. Las dos guardas de `reset_simulation`
+    # -sin edificio, o motor no listo- tambien retiran, por su propia llamada a
+    # `_discard_experimental_physics_authorization()`; lo comprueba el grupo 20
+    # del validador de D4B2B.
+    assert _activation.index("_discard_experimental_physics_authorization()") < (
+        _activation.index("if building == null:")
     )
+    # Y los dos retornos tempranos de `reset_simulation` retiran por su cuenta.
+    _reset = ENGINE_SRC.split("func reset_simulation(", 1)[1].split("\nfunc ", 1)[0]
+    _guard = _reset.index("if building == null or not is_ready_for_validation():")
+    _discard = _reset.index("_discard_experimental_physics_authorization()")
+    _apply = _reset.index("_apply_experimental_physics_authorization()")
+    assert _guard < _discard < _apply
     # Y solo se retira lo que la autorizacion escribio, comparando el valor
     # actual contra el que dejo puesto: sin esto, reiniciar borraria
     # configuraciones ajenas. La comparacion detecta un CAMBIO DE VALOR, no quien

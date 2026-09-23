@@ -25,7 +25,8 @@ extends SceneTree
 ##   16 lo que el solver marca fuera de dominio llega al informe sin recortarse;
 ##   17 una autorizacion rechazada PARA la simulacion, no la deja correr apagada;
 ##   18 ciclo de vida en UN MISMO motor: autorizar, ejecutar, revocar, reiniciar;
-##   19 propiedad de cada interruptor: la autorizacion solo retira lo que anadio.
+##   19 propiedad de cada interruptor: la autorizacion solo retira lo que anadio;
+##   20 los dos retornos tempranos de `reset_simulation` tambien retiran.
 
 const Auth := preload("res://sim/building/ExperimentalRunAuthorization.gd")
 const Catalog := preload("res://sim/building/OpeningPhysicsProfileCatalog.gd")
@@ -80,6 +81,7 @@ func _initialize() -> void:
 	_test_17_a_rejected_authorization_stops_the_simulation()
 	_test_18_the_lifecycle_on_one_engine()
 	_test_19_switch_ownership_and_precedence()
+	_test_20_early_reset_releases_the_contribution()
 	if _failures.is_empty():
 		print("  %d checks" % _checks)
 		print("EXPERIMENTAL PHYSICS ACTIVATION VALIDATION PASS")
@@ -1104,18 +1106,173 @@ func _test_19_switch_ownership_and_precedence() -> void:
 
 
 # ------------------------------------------------------------
+# 20 los retornos tempranos de `reset_simulation`
+# ------------------------------------------------------------
+
+## `reset_simulation()` tiene dos guardas -sin edificio, y motor no preparado-
+## que estaban POR ENCIMA de la aplicacion de la autorizacion. Por esas dos
+## rutas el reinicio conservaba los interruptores de la corrida anterior y, peor,
+## un informe que seguia diciendo `authorized = true`.
+##
+## Se miden las dos rutas sobre la MISMA instancia, y no solo los booleanos: el
+## informe, el reloj y los elementos que la red emite de verdad.
+func _test_20_early_reset_releases_the_contribution() -> void:
+	_test_20a_reset_without_building()
+	_test_20b_reset_while_not_ready()
+	_test_20c_recovery_after_an_early_reset()
+
+
+## a) se le suelta el edificio al motor y se reinicia.
+func _test_20a_reset_without_building() -> void:
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "20a the authorized scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "EarlyNoBuilding")
+	_check(bool(engine.closed_door_leakage_enabled), "20a D1 did not come on")
+	_check(int(_engine_elements(engine, building)["cracks"]) > 0,
+			"20a D1 was on but produced no crack element")
+	# Otro propietario deja D3 puesta: no es de la autorizacion, y su
+	# procedencia es distinta de la rendija, asi que no enturbia la medida.
+	engine.glazing_fallout_enabled = true
+	engine.step(1.0)
+	_check(float(engine.sim_time_s) > 0.0, "20a the authorized run did not advance")
+
+	engine.building = null
+	engine.reset_simulation(0, false)
+	_check(not bool(engine.pressure_network_solver_enabled),
+			"20a the network survived a reset without a building")
+	_check(not bool(engine.closed_door_leakage_enabled),
+			"20a D1 survived a reset without a building")
+	# Lo ajeno se conserva: la autorizacion nunca escribio D3.
+	_check(bool(engine.glazing_fallout_enabled),
+			"20a the early reset erased a switch another owner had configured")
+	_check(engine.get_experimental_activation_report().is_empty(),
+			"20a the report still describes an authorization that is gone")
+	_check(String(engine.experimental_authorization_failure).is_empty(),
+			"20a an early reset was reported as a failure")
+	# Y sin edificio no se avanza.
+	var clock: float = float(engine.sim_time_s)
+	engine.step(1.0)
+	_check(float(engine.sim_time_s) == clock, "20a the engine advanced without a building")
+	# Y la consecuencia: sin D1 ni D2 la red no emite ni una rendija. Lo que
+	# dejo el otro propietario sigue emitiendo lo suyo, que es lo correcto.
+	var after: Dictionary = _engine_elements(engine, building)
+	_check(int(after["cracks"]) == 0, "20a a crack element survived the early reset")
+	_check(int(after["glazing"]) > 0,
+			"20a the switch another owner configured stopped producing its element")
+	root.remove_child(engine)
+	engine.free()
+	building.free()
+
+
+## b) el edificio sigue, pero el motor deja de estar preparado.
+func _test_20b_reset_while_not_ready() -> void:
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "20b the authorized scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "EarlyNotReady")
+	_check(bool(engine.closed_door_leakage_enabled), "20b D1 did not come on")
+	var kept = engine.hvac_system
+	engine.hvac_system = null
+	_check(not engine.is_ready_for_validation(), "20b the engine is still ready")
+	engine.reset_simulation(0, false)
+	_check(not bool(engine.closed_door_leakage_enabled),
+			"20b D1 survived a reset with the engine not ready")
+	_check(not bool(engine.pressure_network_solver_enabled),
+			"20b the network survived a reset with the engine not ready")
+	_check(engine.get_experimental_activation_report().is_empty(),
+			"20b the report does not reflect the effective state")
+	engine.hvac_system = kept
+	root.remove_child(engine)
+	engine.free()
+	building.free()
+
+
+## c) restituida la preparacion, el reinicio vuelve a resolver.
+func _test_20c_recovery_after_an_early_reset() -> void:
+	var building = BuildingModelScript.new()
+	if not building.load_template_data(
+		Serializer.to_runtime_template(_authorized_for([Auth.FAMILY_DOOR_LEAKAGE]))
+	):
+		_check(false, "20c the authorized scenario did not load")
+		building.free()
+		return
+	var engine: SimulationEngine = _engine_for(building, "EarlyRecovery")
+	var kept = engine.hvac_system
+	engine.hvac_system = null
+	engine.reset_simulation(0, false)
+	_check(not bool(engine.closed_door_leakage_enabled), "20c D1 survived the early reset")
+	# Se restituye la preparacion: la autorizacion valida vuelve a resolverse.
+	engine.hvac_system = kept
+	engine.reset_simulation(0, false)
+	_check(bool(engine.closed_door_leakage_enabled), "20c D1 did not come back")
+	_check(bool(engine.pressure_network_solver_enabled), "20c the network did not come back")
+	var report: Dictionary = engine.get_experimental_activation_report()
+	_check(bool(report.get("authorized", false)), "20c the report is not authorized again")
+
+	# Reinicios repetidos: estables.
+	for _repeat in range(3):
+		engine.reset_simulation(0, false)
+	_check(bool(engine.closed_door_leakage_enabled), "20c D1 became unstable across resets")
+	_check(bool(engine.pressure_network_solver_enabled),
+			"20c the network became unstable across resets")
+
+	# Una autorizacion invalida falla de forma explicita, tambien por aqui.
+	var tampered: Dictionary = building.experimental_physics_authorization.duplicate(true)
+	tampered[Auth.DIGEST_FIELD] = "0".repeat(64)
+	building.experimental_physics_authorization = tampered
+	engine.reset_simulation(0, false)
+	_check(not String(engine.experimental_authorization_failure).is_empty(),
+			"20c a tampered block was accepted after an early reset")
+	for flag in SWITCHES:
+		_check(not bool(engine.get(flag)), "20c '%s' was inherited by the tampered block" % flag)
+
+	# Y un escenario sin autorizacion sigue OFF.
+	building.experimental_physics_authorization = {}
+	engine.reset_simulation(0, false)
+	for flag in SWITCHES:
+		_check(not bool(engine.get(flag)), "20c '%s' came back with no authorization" % flag)
+	_check(engine.get_experimental_activation_report().is_empty(),
+			"20c a scenario without authorization produced a report")
+
+	# Retirada la contribucion, el registro de propiedad tiene que quedar VACIO.
+	# Si sobreviviera, la siguiente retirada creeria que un interruptor que ahora
+	# pone otro propietario sigue siendo suyo y se lo borraria. Se mide por la
+	# consecuencia: otro propietario enciende D1 DESPUES de la revocacion y un
+	# reinicio mas no puede tocarselo.
+	engine.closed_door_leakage_enabled = true
+	engine.reset_simulation(0, false)
+	_check(bool(engine.closed_door_leakage_enabled),
+			"20c a stale ownership entry erased a switch configured after the revocation")
+	engine.closed_door_leakage_enabled = false
+	_free_engine(engine, building)
+
+
+# ------------------------------------------------------------
 # utilidades
 # ------------------------------------------------------------
 
 ## Elementos que la red emite con los interruptores QUE TIENE EL MOTOR ahora
 ## mismo. Mide la consecuencia, no el booleano.
 func _engine_elements(engine, building) -> Dictionary:
-	var out: Dictionary = {"cracks": 0, "glazing": 0, "envelopes": 0}
 	var transport = TransportScript.new()
 	transport.closed_door_leakage_enabled = engine.closed_door_leakage_enabled
 	transport.closed_door_deformation_enabled = engine.closed_door_deformation_enabled
 	transport.glazing_fallout_enabled = engine.glazing_fallout_enabled
 	transport.exterior_envelope_leakage_enabled = engine.exterior_envelope_leakage_enabled
+	return _count_snapshot(transport, building)
+
+
+func _count_snapshot(transport, building) -> Dictionary:
+	var out: Dictionary = {"cracks": 0, "glazing": 0, "envelopes": 0}
 	var snapshot: Dictionary = transport.build_snapshot(building, {}, 0.25, 240.0)
 	if not bool(snapshot["valid"]):
 		_check(false, "the engine-element snapshot is invalid")

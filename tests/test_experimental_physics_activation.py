@@ -284,22 +284,55 @@ def test_the_authorization_expires_when_the_scenario_changes():
 # ------------------------------------------------------------
 
 
-def test_the_release_is_not_reached_when_reset_returns_early():
-    """Limite conocido 2 de 23.9.1, fijado para que no cambie en silencio.
+def test_an_early_reset_still_releases_the_contribution():
+    """Limite 2 de 23.9.1, CERRADO: los dos retornos tempranos tambien retiran.
 
-    Las dos guardas de `reset_simulation` estan POR ENCIMA de la llamada a la
-    aplicacion, asi que por esa ruta la retirada no se ejecuta. Se fija tal cual
-    esta: si alguien mueve la llamada por encima de las guardas -que es
-    justamente como se cierra este limite-, esta prueba falla y obliga a
-    actualizar la documentacion en lugar de dejarla mintiendo.
+    `reset_simulation` tiene dos guardas -sin edificio, y motor no preparado-.
+    Antes estaban por encima de todo y el reinicio retornaba conservando los
+    interruptores de la corrida anterior y un informe que seguia diciendo
+    `authorized = true`. Ahora la RETIRADA sube por encima de las guardas y la
+    RESOLUCION de una autorizacion nueva se queda debajo: retirar siempre,
+    aplicar solo cuando el motor puede.
     """
     reset = ENGINE.split("func reset_simulation(", 1)[1].split("\nfunc ", 1)[0]
     guard = reset.index("if building == null or not is_ready_for_validation():")
-    call = reset.index("_apply_experimental_physics_authorization()")
-    assert guard < call, (
-        "la retirada ya se alcanza sin edificio: cierra el limite 2 de 23.9.1 "
-        "y actualiza la documentacion"
-    )
+    discard = reset.index("_discard_experimental_physics_authorization()")
+    apply_call = reset.index("_apply_experimental_physics_authorization()")
+    # La retirada esta DENTRO de la guarda que retorna, y la aplicacion despues.
+    assert guard < discard < apply_call
+    # Y encender fisica nueva sigue estando detras de la guarda: un motor no
+    # preparado no puede resolver una autorizacion.
+    assert reset.index("return") < apply_call
+
+
+def test_the_discard_is_shared_and_not_duplicated():
+    """Un solo sitio apaga la contribucion; no hay una segunda lista."""
+    assert "func _discard_experimental_physics_authorization() -> void:" in ENGINE
+    body = ENGINE.split(
+        "func _discard_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "_release_experimental_switches()" in body
+    assert "inactive_report()" in body
+    # Lo usan las dos rutas, y nadie mas.
+    assert ENGINE.count("_discard_experimental_physics_authorization()") == 3
+    # `_apply` delega en el, en vez de repetir sus tres lineas.
+    apply_body = ENGINE.split(
+        "func _apply_experimental_physics_authorization() -> void:", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert "_discard_experimental_physics_authorization()" in apply_body
+    assert apply_body.count("_release_experimental_switches()") == 0
+
+
+def test_the_ownership_comment_states_only_what_is_checkable():
+    """La igualdad de booleanos no demuestra autoria, y el codigo ya no lo dice."""
+    release = ENGINE.split("func _release_experimental_switches() -> void:", 1)[1].split(
+        "\nfunc ", 1
+    )[0]
+    assert "Otro propietario lo escribio despues" not in release
+    assert "El valor actual YA NO ES el que dejo la autorizacion" in release
+    # Y el limite que queda abierto sigue nombrado donde se documenta.
+    assert "demuestra autoria" in release
+    assert "23.9.1" in release
 
 
 def test_the_authorization_is_released_before_anything_else():
@@ -314,10 +347,9 @@ def test_the_authorization_is_released_before_anything_else():
     body = ENGINE.split(
         "func _apply_experimental_physics_authorization() -> void:", 1
     )[1].split("\nfunc ", 1)[0]
-    assert body.index("_release_experimental_switches()") < body.index("if building == null:")
-    assert body.index("_release_experimental_switches()") < body.index(
-        "if scenario.is_empty():"
-    )
+    discard = body.index("_discard_experimental_physics_authorization()")
+    assert discard < body.index("if building == null:")
+    assert discard < body.index("if scenario.is_empty():")
     # Y se resuelve tambien al reiniciar, no solo al nacer.
     reset = ENGINE.split("func reset_simulation(", 1)[1].split("\nfunc ", 1)[0]
     assert "_apply_experimental_physics_authorization()" in reset
@@ -331,10 +363,10 @@ def test_the_authorization_only_retires_what_it_added():
 
       1. la comparacion detecta un CAMBIO DE VALOR, no quien escribio, asi que
          otro propietario que reescriba el MISMO valor es indistinguible;
-      2. `reset_simulation` retorna antes de llamar a la retirada cuando no hay
-         edificio o el motor no esta listo, de modo que reutilizar el motor sin
-         edificio conserva la contribucion anterior. Latente: sin edificio
-         `step()` tampoco corre.
+      2. CERRADO: `reset_simulation` retira tambien por sus dos retornos
+         tempranos -sin edificio, y motor no preparado-. Lo comprueban
+         `test_an_early_reset_still_releases_the_contribution` y el grupo 20
+         del validador.
     """
     assert "var _experimental_owned_switches: Dictionary = {}" in ENGINE
     release = ENGINE.split("func _release_experimental_switches() -> void:", 1)[1].split(

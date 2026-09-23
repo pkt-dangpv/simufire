@@ -2384,10 +2384,11 @@ cuando hay autorización, con procedencia, versión, parámetros efectivos,
 familias encendidas y marcas de fuera de dominio, que se **cuentan** sin
 recortar ningún caudal ni reajustar ningún coeficiente.
 
-Verificación: **488 comprobaciones** del validador dedicado en diecinueve
-grupos, **33 pruebas** Python, **18 de 18 mutaciones válidas muertas** en la
-campaña de la fase y **9 de 9** en la del hotfix, todas con restauración
-SHA-256, y los seis validadores de D1, D2, D3, D4A, D4B1 y D4B2A intactos.
+Verificación: **523 comprobaciones** del validador dedicado en veinte grupos,
+**35 pruebas** Python, y tres campañas de mutaciones con restauración SHA-256
+—**18 de 18** en la fase, **9 de 9** en el hotfix del ciclo de vida y **7 de 7**
+en el del reinicio temprano—, con los seis validadores de D1, D2, D3, D4A, D4B1
+y D4B2A intactos.
 
 **Hotfix del ciclo de vida (2026-09-23).** La primera versión encendía
 interruptores y no los apagaba nunca: revocar la autorización y reiniciar el
@@ -2399,13 +2400,19 @@ escribió: apagar los cinco al reiniciar habría borrado configuraciones ajenas.
 Dentro de `_apply_experimental_physics_authorization()` la retirada ocurre antes
 de cualquier retorno temprano.
 
-Con **dos límites conocidos y escritos** (§23.9.1 del documento de fugas): la
-comparación detecta cambios de valor, no quién escribió, así que otro
-propietario que reescriba el mismo valor es indistinguible; y
-`reset_simulation()` retorna antes de llamar a la retirada cuando no hay
-edificio o el motor no está listo, de modo que reutilizarlo sin edificio
-conserva la contribución anterior —latente, porque `step()` tampoco corre sin
-edificio—. Detalle y precedencia medida en §23.9 del documento de fugas.
+De los dos límites que se documentaron, el del **reinicio temprano ya está
+cerrado** (§23.9.2 del documento de fugas): las dos guardas de
+`reset_simulation()` —sin edificio, y motor no preparado— retiran también la
+contribución anterior y devuelven el informe a inactivo, mientras que resolver
+una autorización nueva se queda **por debajo** de la guarda, para no encender
+física en un motor que no está listo. Retirar siempre, aplicar solo cuando se
+puede.
+
+Sigue **abierto y escrito** el otro: la comparación de propiedad detecta un
+cambio de valor, no quién escribió, así que otro propietario que reescriba el
+**mismo** valor es indistinguible de la propia autorización. Garantizarlo
+exigiría interceptar las escrituras, que es un cambio de diseño. Detalle y
+precedencia medida en §23.9 del documento de fugas.
 
 Queda la **activación normal del producto**, que sigue en **NO-GO** porque sigue
 sin evidencia: hacen falta ensayos nuevos, no más lectura. Lo que falta está
