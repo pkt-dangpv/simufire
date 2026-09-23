@@ -284,6 +284,24 @@ def test_the_authorization_expires_when_the_scenario_changes():
 # ------------------------------------------------------------
 
 
+def test_the_release_is_not_reached_when_reset_returns_early():
+    """Limite conocido 2 de 23.9.1, fijado para que no cambie en silencio.
+
+    Las dos guardas de `reset_simulation` estan POR ENCIMA de la llamada a la
+    aplicacion, asi que por esa ruta la retirada no se ejecuta. Se fija tal cual
+    esta: si alguien mueve la llamada por encima de las guardas -que es
+    justamente como se cierra este limite-, esta prueba falla y obliga a
+    actualizar la documentacion en lugar de dejarla mintiendo.
+    """
+    reset = ENGINE.split("func reset_simulation(", 1)[1].split("\nfunc ", 1)[0]
+    guard = reset.index("if building == null or not is_ready_for_validation():")
+    call = reset.index("_apply_experimental_physics_authorization()")
+    assert guard < call, (
+        "la retirada ya se alcanza sin edificio: cierra el limite 2 de 23.9.1 "
+        "y actualiza la documentacion"
+    )
+
+
 def test_the_authorization_is_released_before_anything_else():
     """El defecto que motivo el hotfix: revocar y reiniciar el mismo motor.
 
@@ -306,7 +324,18 @@ def test_the_authorization_is_released_before_anything_else():
 
 
 def test_the_authorization_only_retires_what_it_added():
-    """Apagar los cinco al reiniciar seria mas simple y estaria mal."""
+    """Apagar los cinco al reiniciar seria mas simple y estaria mal.
+
+    Alcance real, y sus dos limites conocidos, en
+    docs/PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md 23.9.1:
+
+      1. la comparacion detecta un CAMBIO DE VALOR, no quien escribio, asi que
+         otro propietario que reescriba el MISMO valor es indistinguible;
+      2. `reset_simulation` retorna antes de llamar a la retirada cuando no hay
+         edificio o el motor no esta listo, de modo que reutilizar el motor sin
+         edificio conserva la contribucion anterior. Latente: sin edificio
+         `step()` tampoco corre.
+    """
     assert "var _experimental_owned_switches: Dictionary = {}" in ENGINE
     release = ENGINE.split("func _release_experimental_switches() -> void:", 1)[1].split(
         "\nfunc ", 1

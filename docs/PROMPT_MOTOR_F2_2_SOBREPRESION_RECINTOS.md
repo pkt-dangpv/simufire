@@ -2394,11 +2394,18 @@ interruptores y no los apagaba nunca: revocar la autorización y reiniciar el
 **mismo** motor dejaba encendida la física de la corrida anterior mientras el
 informe la daba por apagada, y cambiar de familia conservaba la anterior. El
 motor lleva ahora un registro de propiedad y retira **solo lo que la
-autorización añadió**, y solo mientras siga siendo la última en haberlo escrito:
-apagar los cinco al reiniciar habría borrado configuraciones ajenas. La retirada
-ocurre antes de cualquier retorno temprano, así que los cuatro caminos quedan
-cubiertos por construcción. Detalle y precedencia medida en §23.9 del documento
-de fugas.
+autorización añadió**, y solo mientras el interruptor siga valiendo lo que ella
+escribió: apagar los cinco al reiniciar habría borrado configuraciones ajenas.
+Dentro de `_apply_experimental_physics_authorization()` la retirada ocurre antes
+de cualquier retorno temprano.
+
+Con **dos límites conocidos y escritos** (§23.9.1 del documento de fugas): la
+comparación detecta cambios de valor, no quién escribió, así que otro
+propietario que reescriba el mismo valor es indistinguible; y
+`reset_simulation()` retorna antes de llamar a la retirada cuando no hay
+edificio o el motor no está listo, de modo que reutilizarlo sin edificio
+conserva la contribución anterior —latente, porque `step()` tampoco corre sin
+edificio—. Detalle y precedencia medida en §23.9 del documento de fugas.
 
 Queda la **activación normal del producto**, que sigue en **NO-GO** porque sigue
 sin evidencia: hacen falta ensayos nuevos, no más lectura. Lo que falta está

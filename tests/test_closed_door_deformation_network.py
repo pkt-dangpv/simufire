@@ -71,13 +71,20 @@ def test_flag_is_boolean_off_by_default_and_requires_the_network():
         "func _apply_experimental_physics_authorization() -> void:", 1
     )[1].split("\nfunc ", 1)[0]
     assert "ExperimentalAuthorizationScript.REQUIRED_DEPENDENCY" in _activation
-    # La retirada ocurre ANTES de cualquier retorno temprano: revocar y
-    # reiniciar el mismo motor no puede dejar encendida la corrida anterior.
+    # Dentro de esta funcion la retirada ocurre ANTES de cualquier retorno
+    # temprano, que es lo que impide que revocar y reiniciar el mismo motor deje
+    # encendida la corrida anterior. Ojo al alcance: `reset_simulation` tiene sus
+    # propias guardas -sin edificio, o motor no listo- POR ENCIMA de la llamada,
+    # asi que por esa ruta no se llega aqui. Limite conocido, escrito en
+    # PROMPT_MOTOR_FUGAS_PUERTA_CERRADA.md 23.9.1.
     assert _activation.index("_release_experimental_switches()") < _activation.index(
         "if building == null:"
     )
-    # Y solo se retira lo que la autorizacion escribio, comparando contra lo que
-    # dejo puesto: sin esto, reiniciar borraria configuraciones ajenas.
+    # Y solo se retira lo que la autorizacion escribio, comparando el valor
+    # actual contra el que dejo puesto: sin esto, reiniciar borraria
+    # configuraciones ajenas. La comparacion detecta un CAMBIO DE VALOR, no quien
+    # escribio: otro propietario que reescriba el mismo valor es
+    # indistinguible. Segundo limite conocido de 23.9.1.
     _release = ENGINE.split(
         "func _release_experimental_switches() -> void:", 1
     )[1].split("\nfunc ", 1)[0]

@@ -2816,8 +2816,8 @@ dejaba D1 encendida—.
 **La regla de propiedad, escrita antes de programarla.** Poner los cinco a
 `false` al reiniciar es más simple y está mal: borraría la configuración que
 otro propietario dejó puesta a propósito. La autorización solo puede retirar
-**lo que ella misma añadió**, y solo mientras siga siendo la última en haberlo
-escrito.
+**lo que ella misma añadió**, y solo mientras el interruptor **siga valiendo lo
+que ella escribió**.
 
 El motor lleva un registro de propiedad, `_experimental_owned_switches`, con una
 entrada `{previous, applied}` por interruptor reclamado:
@@ -2825,14 +2825,47 @@ entrada `{previous, applied}` por interruptor reclamado:
 | situación | qué hace la retirada |
 |---|---|
 | el interruptor vale lo que la autorización escribió | restituye `previous` |
-| otro propietario lo cambió después | **no lo toca**: ya no es suyo |
+| su valor ya no es ese | **no lo toca** |
 | la autorización nunca lo escribió | **no lo toca**, ni para apagarlo |
 
-La retirada ocurre **siempre lo primero**, antes de cualquier retorno temprano,
-de modo que los cuatro caminos —revocación, escenario sin bloque, sin edificio y
-autorización rechazada— quedan cubiertos por construcción.
+Dentro de `_apply_experimental_physics_authorization()` la retirada ocurre
+**lo primero**, antes de cualquier retorno temprano, así que revocación,
+escenario sin bloque, sin edificio y autorización rechazada quedan cubiertos
+**siempre que se llegue a esa función**.
 
-**Precedencia medida**, no solo afirmada:
+### 23.9.1 Dos límites conocidos de esta regla
+
+Se escriben porque el cierre anterior los afirmaba resueltos y **no lo están**.
+Ninguno reabre el defecto original —revocar y reiniciar el mismo motor sigue
+apagando lo que la autorización encendió—, pero acotan hasta dónde llega la
+garantía.
+
+**1. La comparación detecta cambios de valor, no quién escribió.** La retirada
+compara el valor actual contra `applied`. Eso distingue a otro propietario que
+haya *cambiado* el valor, pero **no** a uno que vuelva a escribir el **mismo**
+valor: esa escritura es indistinguible de la de la autorización, y la retirada
+la tratará como suya. Lo que la regla protege son los cambios de valor probados
+en §23.9, no la propiedad de escritura en general. Garantizarla de verdad exige
+interceptar las escrituras —propiedades con `set`, o un propietario declarado por
+interruptor—, que es un cambio de diseño y toca a todo el que escriba esos
+cinco, no un arreglo focalizado.
+
+**2. `reset_simulation()` puede retornar antes de llamar a la retirada.** Sus
+dos guardas —`building == null` y `not is_ready_for_validation()`— están
+**antes** de `_apply_experimental_physics_authorization()`. La función sabe
+tratar un edificio nulo, pero por esa ruta no se llega a ella: reutilizar el
+mismo motor tras soltarle el edificio conserva la contribución de la
+autorización anterior. Es un límite **latente**, no un fallo vivo: sin edificio
+`step()` retorna de inmediato, así que esos interruptores no mueven física
+hasta que se vuelva a enlazar un edificio. `_ready()` sí llega siempre a la
+retirada.
+
+Cerrar el segundo es mover la retirada por encima de esas dos guardas, con su
+prueba; queda pendiente a propósito y conviene agruparlo con el siguiente cambio
+que toque `sim/core`, porque R2-1 obliga a regenerar la referencia completa por
+cada commit que toque esa carpeta.
+
+**Precedencia medida**, no solo afirmada (con los límites de §23.9.1):
 
 1. base OFF → autorizar D1 → revocar → D1 y la red **OFF**;
 2. red encendida **antes** por otro propietario → autorizar D1 → revocar → la red

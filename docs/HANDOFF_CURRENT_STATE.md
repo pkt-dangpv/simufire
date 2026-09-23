@@ -18,13 +18,33 @@
 - **Ownership rule, written before the code.** Setting all five to `false` on
   reset is simpler and wrong: it would erase configuration another owner put
   there deliberately. The authorization may retire **only what it added**, and
-  only while it is still the last writer. `_experimental_owned_switches` holds
-  `{previous, applied}` per claimed switch: if the current value still equals
-  `applied`, restore `previous`; if it differs, another owner wrote it and it is
-  left alone; a switch the authorization never wrote is never touched.
-- The release runs **first, before any early return**, so revocation, no block,
-  no building and a rejected block are all covered by construction.
-- **Precedence measured, not just asserted:** base OFF → D1 → revoke → both OFF;
+  only while the switch **still holds the value it wrote**.
+  `_experimental_owned_switches` holds `{previous, applied}` per claimed switch:
+  if the current value still equals `applied`, restore `previous`; if it
+  differs, leave it alone; a switch the authorization never wrote is never
+  touched.
+- Inside `_apply_experimental_physics_authorization()` the release runs
+  **first, before any early return**, so revocation, no block, no building and a
+  rejected block are covered **whenever that function is reached**.
+- **Two known limits, written down because the previous close claimed them
+  solved and they are not.** Neither reopens the original defect.
+  **(1)** The comparison detects a *value change*, not authorship: another owner
+  re-writing the **same** value is indistinguishable from the authorization's own
+  write, so the release will treat it as its own. What the rule protects are the
+  value changes tested, not write ownership in general; real ownership would
+  need intercepted writes (`set` properties, or a declared owner per switch) —
+  a design change, not a focused fix.
+  **(2)** `reset_simulation()` returns before calling the release when
+  `building == null` or the engine is not ready, because both guards sit above
+  the call. Reusing the same engine after dropping its building keeps the
+  previous contribution. Latent rather than live: without a building `step()`
+  returns immediately, so those switches move no physics until a building is
+  re-bound. `_ready()` always reaches the release.
+  Closing (2) means moving the release above those two guards, with its test; it
+  is deliberately deferred and should be bundled with the next change that
+  touches `sim/core`, because R2-1 forces a full reference regeneration for every
+  commit touching that folder.
+- **Precedence measured, not just asserted** (within the limits above)**:** base OFF → D1 → revoke → both OFF;
   network ON by another owner → D1 → revoke → **network stays ON**, D1 returns to
   its previous value; D1 → D3 → D1 off, D3 on, network on; tampered block →
   nothing inherited, no advance, failure recorded; repeated resets stable; a
