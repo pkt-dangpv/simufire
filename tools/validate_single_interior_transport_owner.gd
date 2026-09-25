@@ -32,9 +32,14 @@ const MASS_TOL_KG: float = 1.0e-9
 const GAS_MECHANISMS: Array[String] = [
 	"canonical_doorway_upper", "canonical_doorway_lower", "doorway_thermal_counterflow",
 ]
-## Huella de O4 medida con el ThermalSystem de HEAD 8a8e205b, ANTES del cambio
-## P3. Si cambia, la ruta con la red apagada ha cambiado.
-const OFF_FINGERPRINT: String = "4f375edfecd68be6d37750b86be109d1d8818ae759fbcbcfdef995b1e9c8b1d0"
+## Huella de O4: identidad de la ruta con la red apagada. Si cambia, esa ruta
+## ha cambiado. P3 la fijo en 4f375edf... (HEAD 8a8e205b) y P3/P3b la dejaron
+## intacta. La fase "ruta normal" (2026-09-25) la cambia a proposito: el acarreo
+## de gas caliente ya no saca CO2 de la capa baja del origen. Medido antes y
+## despues: solo cambian co2_kg y co2_upper_kg (y FED por V_CO2); masa, energia,
+## temperaturas, O2, CO, HCN, humo y HRR son identicos bit a bit
+## (docs/validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
+const OFF_FINGERPRINT: String = "a5ec9b8d65827be06ac2c59171ba92ddb7e7afbee5bd82ccab80836406af04c8"
 
 var _failures: Array[String] = []
 var _checks: int = 0
@@ -268,7 +273,7 @@ func _o4_open_door_off() -> void:
 	var fingerprint: String = ctx.finish().hex_encode()
 	print("  O4 OFF fingerprint %s (thermal gas events %d)" % [fingerprint, events])
 	_check(fingerprint == OFF_FINGERPRINT,
-			"O4 OFF: state fingerprint %s differs from the pre-P3 one %s" % [
+			"O4 OFF: state fingerprint %s differs from the pinned OFF route %s" % [
 				fingerprint, OFF_FINGERPRINT])
 	_dispose(engine)
 

@@ -548,6 +548,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot propietario unico del transporte interior: " + (diagnostic or "failed"))
 
+    # Ruta normal (red OFF): la parcela de gas caliente lleva las especies de su
+    # capa; el CO2 ya no sale de la capa baja del origen.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_hot_gas_layer_species_carry.gd",
+        "HOT GAS LAYER SPECIES CARRY VALIDATION PASS",
+    )
+    rows.append(("Acarreo de gas caliente por capa, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot acarreo de gas caliente por capa: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

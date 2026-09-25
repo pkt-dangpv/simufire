@@ -3992,7 +3992,13 @@ func _transfer_hot_gas_contaminants(
 
 	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
 	# El gas caliente transportado va a la zona superior del destino (flotabilidad).
-	var co2_moved_kg: float = minf(source.co2_kg, source.co2_kg * upper_fraction_moved * carry)
+	# La parcela es gas de la capa ALTA del origen (`gas_moved_kg` sale de
+	# `upper_gas_kg`), asi que el CO2 sale de esa capa con la misma fraccion que
+	# CO y HCN. Dimensionarlo sobre el total restaba de la capa BAJA del origen
+	# CO2 que ningun gas de esa capa llevaba: 6,713 kg en 300 s de
+	# preset_simple_house (docs/validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
+	var co2_upper_available_kg: float = clampf(source.co2_upper_kg, 0.0, source.co2_kg)
+	var co2_moved_kg: float = minf(source.co2_kg, co2_upper_available_kg * upper_fraction_moved * carry)
 	# F0 Plan B: cota de equilibrio por concentración (mismo limitador que el path
 	# de GasExchangeSystem). El receptor no puede quedar por encima de la
 	# concentración de la fuente por este movimiento. Masas de aire a densidad
@@ -4006,16 +4012,14 @@ func _transfer_hot_gas_contaminants(
 	)
 	co2_moved_kg = minf(co2_moved_kg, co2_headroom_kg)
 	if co2_moved_kg > 0.0:
-		var co2_source_upper_kg: float = 0.0
-		if source.co2_kg > 0.0001:
-			var src_upper_frac: float = clampf(source.co2_upper_kg / source.co2_kg, 0.0, 1.0)
-			co2_source_upper_kg = co2_moved_kg * src_upper_frac
+		# Todo sale de la capa alta: `co2_moved_kg <= co2_upper_available_kg`.
+		var co2_source_upper_kg: float = co2_moved_kg
 		_record_phase3_shadow_thermal_species_event(
 			mechanism, source, target, "co2", co2_moved_kg, co2_source_upper_kg, co2_moved_kg,
 			"opening:%d" % opening_index if opening_index >= 0 else ""
 		)
 		_delta_co2_kg[src_id] = _delta_co2_kg.get(src_id, 0.0) - co2_moved_kg
-		# Reducir zona superior del origen proporcionalmente (usando estado pre-bucle).
+		# La capa superior del origen pierde lo mismo que sale (estado pre-bucle).
 		_delta_co2_upper_kg[src_id] = _delta_co2_upper_kg.get(src_id, 0.0) - co2_source_upper_kg
 		_delta_co2_kg[tgt_id] = _delta_co2_kg.get(tgt_id, 0.0) + co2_moved_kg
 		# CO₂ llega a la zona superior del destino (gas caliente → boyante).

@@ -105,6 +105,11 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("tools/validate_single_interior_transport_owner.gd"),
     Path("tools/validate_single_interior_transport_owner.gd.uid"),
     Path("tests/test_single_interior_transport_owner.py"),
+    # Ruta normal: el validador del acarreo de gas caliente por capa lee el
+    # interruptor solo para exigir que su caso de producto corre con la red
+    # apagada; no la enciende ni la resuelve.
+    Path("tools/validate_hot_gas_layer_species_carry.gd"),
+    Path("tools/validate_hot_gas_layer_species_carry.gd.uid"),
     # Y el adaptador de fuga toma de alli la constante global de
     # condicionamiento, para que las tres clases de elemento compartan criterio.
     Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),

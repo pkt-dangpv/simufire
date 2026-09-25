@@ -73,6 +73,74 @@
 - Tareas independientes de la evidencia y ya ejecutables: **G4 visual** y
   **G5 exportación Windows** (no existe `export_presets.cfg`).
 
+## Current Program Update - 2026-09-25 - Ruta normal: el acarreo de gas caliente sacaba CO₂ de la capa baja
+
+- Checkpoint: HEAD = origin/main = `00428a6a`, árbol limpio al empezar.
+  **Sin commit, sin push**: bloqueado en la evidencia de huecos (abajo). Detalle
+  en [RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md](validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
+- **Ruta medida, no supuesta.** `preset_simple_house` y `preset_two_storey_house`
+  corren con red OFF, `two_zone_solver_enabled` ON, `fire_o2_mode=legacy`, ACH
+  0,5 y ningún interruptor experimental. Arnés temporal en `runs/fase_ruta_normal/`
+  (subclases observadoras de motor, térmico y GES; no intrusivas, byte a byte).
+- **Totales del edificio: cierran** a ≤ 7·10⁻¹⁵ kg/paso con el inventario en
+  tránsito de las parcelas de GES (sin él el CO parecía perder 0,199 kg).
+- **Defecto demostrado (primer paso 417, t = 34,75 s).**
+  `ThermalSystem._transfer_hot_gas_contaminants()` mueve una parcela de capa
+  alta, pero dimensionaba el CO₂ sobre el total de la sala y restaba de la capa
+  BAJA del origen la parte no alta; CO y HCN ya salían de la capa alta. En 300 s
+  de `preset_simple_house`: 6,713 kg de CO₂ de capas bajas en 17 343 de 21 280
+  acarreos (49 % del CO₂ acarreado). La etapa térmica queda atribuida al 100 %.
+  Invisible para S0d5 (`upper ≤ bulk` nunca se rompe).
+- **Arreglo** (sin interruptor; lo recibe todo escenario con la red apagada):
+  CO₂ dimensionado sobre la capa alta disponible y restado entero de ella, igual
+  que el CO. Solo cambian `co2_kg`, `co2_upper_kg` y FED; red ON, sin ignición y
+  sin fuego idénticos byte a byte. FED casa: Cocina +6,3 %, Dormitorio1 +1,0 %,
+  resto < 0,5 %.
+- **Empeoramiento a la vista, no corregido:** la capa baja del Salón acumula
+  7,04 kg de CO₂ (antes 4,14) porque GES deposita el chorro caliente en la capa
+  baja del Pasillo (+10,69 kg) y el contraflujo lo devuelve (+9,02 kg). Segundo
+  defecto, destino del chorro caliente; también el mismo patrón en las parcelas
+  de humo de GES (3,106 kg). Documentados, fuera de esta fase.
+- **Pruebas:** `tools/validate_hot_gas_layer_species_carry.gd` (22) y
+  `tests/test_hot_gas_layer_species_carry.py`, registrados; fallan con HEAD (4)
+  y con la mutación M2 (3). Huella OFF del validador P3 re-fijada
+  (`4f375edf…` → `a5ec9b8d…`) con motivo; sus 61 comprobaciones pasan.
+- **Referencia regenerada una vez** (18 casos, 2 697 s, mín. 7,57 GB): el
+  comparador **no escribió** `reference_checks.json` — `stale gap source
+  artifacts`: 51 de los 78 huecos fijan el SHA-256 de informes cuyo CO₂ cambia.
+  Medido fuera del árbol: 346/346 requeridos, 78 huecos, **0 de 532
+  comprobaciones cambian de valor**; la suite no mira CO₂ de capa baja.
+  Contra CFAST por capa: Hall RMSE alta −1,7 %, baja +4,5 %; resto ±0,2 %.
+- **Estado de verificación:** `check_product.py` 85 OK + 1 FAIL
+  (`test_exit0_real_json` = R2-1); guardarraíles R2-1 FAIL; suite global
+  (`python -m pytest tests`) 3 003 PASS, 3 FAIL: R2-1 y dos de
+  `test_p1r7_internal_baseline_retirement`, que fijan en
+  `sim/validation/baseline_gate_dispositions.json` el SHA-256 de los informes de
+  `cfast_two_floor_stairwell` y `cfast_multi_fuel_couch_tv`.
+- **Cuidado:** `pytest` sin ruta recoge `runs/p3_tmp/edit_*_test.py`, scripts
+  de P3b que reescriben ficheros de `tests/` al importarse. Pasó en esta fase y
+  se reparó; ejecutar siempre `python -m pytest tests`.
+- **Pausa para reanudar mañana (25-09):** este estado se conserva en la rama
+  `codex/wip-ruta-normal-co2-20260925`, separada de `main`. Es un checkpoint
+  **NO APROBADO**: R2-1 y tres pruebas siguen rojos, `reference_checks.json`
+  sigue siendo el del último cierre y no se han cambiado los registros de
+  evidencia. No incorporar ni publicar esta rama como motor validado.
+- **Primer trabajo al reanudar:** revisión independiente y solo lectura de los
+  18 informes cambiados. Confirmar por campo las diferencias de CO₂, balance
+  de carbono y FED/SVV; comprobar que varios acarreos de una misma capa en un
+  paso no extraen juntos más CO₂ del inventario disponible. El hecho de que
+  0/532 checks cambien no basta: ninguna comprobación requerida mide el CO₂
+  de capa baja. Conservar las huellas anteriores y registrar el veredicto.
+- **Solo si esa revisión pasa:** re-fijar exclusivamente `bytes`/`sha256` de
+  los artefactos realmente cambiados en `p1r8_gap_disposition_evidence.json`
+  y los dos `current_report_sha256` de `baseline_gate_dispositions.json`, sin
+  tocar valores, veredictos ni clasificaciones; regenerar el agregado por la
+  ruta normal y repetir guardarraíles, `check_product.py` y
+  `python -m pytest tests -q -p no:cacheprovider`. Si aparece sobreacarreo u
+  otra diferencia no atribuida, no re-fijar: corregir la causa y repetir la
+  referencia completa. La campaña y el cierre detallados están en el informe
+  de la ruta normal enlazado arriba.
+
 ## Current Program Update - 2026-09-25 - P3b: species in the radiative seed, the 0.25 % residual and R2-1
 
 - Checkpoint inicial: HEAD `8a8e205b`, antes del cierre y del commit; G4/G5, O2-A, E1 and P3
