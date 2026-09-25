@@ -67,6 +67,11 @@ ALLOWED_REFERENCES = {
     # no veian un adaptador que emitiera otro exponente.
     Path("tools/validate_canonical_mass_conservation.gd"),
     Path("tools/validate_canonical_mass_conservation.gd.uid"),
+    # P3: el validador y la suite de propietario unico del transporte interior
+    # nombran el interruptor para ejercer la red ON y la OFF; no la resuelven.
+    Path("tools/validate_single_interior_transport_owner.gd"),
+    Path("tools/validate_single_interior_transport_owner.gd.uid"),
+    Path("tests/test_single_interior_transport_owner.py"),
     # F2.2D4A (2026-09-22): el contrato persistente documenta la clase de fuga
     # y el interruptor de D1 como parte del mismo esquema, y su validador los
     # nombra para probar que guardar y cargar no enciende nada. Ninguno de los

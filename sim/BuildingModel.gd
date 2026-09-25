@@ -155,7 +155,10 @@ func _ready() -> void:
 
 	var startup_options: Dictionary = _load_startup_options()
 	var selected_template_name: String = String(startup_options.get("template_name", template_name))
-	var template_data: Dictionary = building_template.create_by_name(selected_template_name)
+	# Ruta de PRODUCTO: "Nueva simulacion" del menu borra la plantilla del
+	# editor y cae aqui, asi que este arranque tambien necesita el contenido de
+	# autor del preset (inicio en primera persona y foco de ignicion).
+	var template_data: Dictionary = building_template.create_product_preset(selected_template_name)
 	if startup_options.has("hvac_mode"):
 		template_data["hvac_mode"] = String(startup_options.get("hvac_mode", HVAC_MODE_NONE))
 	if startup_options.has("building_type"):

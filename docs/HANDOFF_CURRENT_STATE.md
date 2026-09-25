@@ -1,5 +1,198 @@
 # Current Handoff State
 
+## Decision vigente de publicación - 2026-09-24
+
+- La fecha del 30 de octubre se retiró. El usuario prefiere ampliar plazo antes
+  que publicar una versión inestable o alejada de la realidad. El plan activo
+  y sus gates G0-G6 están en [PLAN_PUBLICACION_2026-10-30.md](PLAN_PUBLICACION_2026-10-30.md).
+- Punto de partida de esta campaña: main = origin/main = 8a8e205b; referencia
+  346/346 requeridos PASS, 78 gaps. El informe se regeneró el 2026-09-25 sin
+  cambios de métricas. Los recuentos de matrices
+  antiguas son historia y no prueban por sí mismos mejora física.
+- D1/R3/D2/D3 y la activación experimental están implementados, pero los 15
+  perfiles mantienen product_activation=false. No hay aprobación de uso
+  ordinario de esas leyes sin contraste experimental y límites de validez.
+- La presentación FED/SVV se corrigió; el cálculo de CO en zona respiratoria,
+  FED y la semántica científica de SVV siguen pendientes. No confundir el
+  cierre de UI con la validación cuantitativa.
+- Siguiente trabajo: definir G0 (escenarios/salidas de la primera versión) y
+  matriz G2 de evidencia para puerta, vidrio y envolvente. Abrir G4 visual y
+  G5 exportación Windows temprano. Sin cambio de física en esta revisión.
+- Los documentos de planificación preexistentes estaban modificados/sin
+  seguimiento antes de esta revisión; conservar su contenido e historial.
+
+### G4/G5 iniciado - 2026-09-24
+
+- Matriz en [planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).
+  **G0 sigue abierto**: la ruta historica de venteo no esta evaluada.
+- **G5 BLOQUEADO**: `%APPDATA%/Godot/export_templates` tiene **0 entradas**. Sin
+  plantillas de Godot 4.7.1 no se puede exportar. Preparado lo demas:
+  `export_presets.cfg.template` versionable (sin rutas personales, sin firma,
+  `export_path` vacio) y comando documentado que escribe el build en
+  `%USERPROFILE%\SimuFire_build`, fuera del arbol. `export_presets.cfg` sigue
+  en .gitignore como estaba.
+- Auditado el arranque: escena `res://scenes/MainMenu.tscn`, GL Compatibility,
+  9 rutas `user://` y ninguna absoluta. Python es dependencia **opcional** para
+  graficas, con aviso en HUD y degradacion elegante.
+- **G4 iniciado**: matriz de 20 comprobaciones sobre los 5 escenarios de G0.
+  **9 verificadas headless**, 11 requieren observacion visual humana. Medido
+  120 s por escenario: 5/5 sin errores de validacion, 5/5 ejecutan, HRR pico
+  487-631 kW, **0 interruptores experimentales ON**, 0 procesos residuales.
+- **Dos carencias de contenido** (no de motor, no corregidas):
+  D-1 `preset_simple_house` y `preset_two_storey_house` **no tienen inicio en
+  primera persona**, asi que no se pueden recorrer; D-2 `preset_simple_house`
+  no declara foco de ignicion.
+- **Estado posterior (25-09):** D-1 quedó corregido en datos, pero aún requiere
+  inspección visual en primera persona; D-2 quedó cerrado sin mover los casos
+  FDS. Ver la matriz G4/G5 para la medición y el alcance del cierre.
+- Existen pruebas manuales previas del usuario; lo que falta es la **campana
+  sistematica documentada**, no la primera prueba visual.
+- Siguiente paso ejecutable: **instalar las plantillas de exportacion 4.7.1**.
+
+### G0/G2 entregado - 2026-09-24
+
+- Matriz en [planning/MATRIZ_G0_G2_AMBITO_EVIDENCIA.md](planning/MATRIZ_G0_G2_AMBITO_EVIDENCIA.md),
+  pendiente de aprobación. Reutiliza §23.2 y §23.10 del diseño de puertas; no
+  se leyó ninguna fuente nueva ni se cambió ningún valor.
+- **Ámbito propuesto**: 5 escenarios de los 14 distribuidos, vivienda de 1-2
+  plantas, aberturas en estado operativo, incendio de mobiliario con
+  propagación y post-extinción. Fuera: flashover como predicción, backdraft,
+  agua, HVAC validado y toda abertura con perfil experimental.
+- **G2, decisión por familia: D1, R3, D2 y D3 quedan SOLO EXPERIMENTALES.**
+  Ninguna es candidata a producto. Los huecos son ensayos residenciales que no
+  existen, no lectura pendiente. D2 y D3 son prescripción y no se convertirán
+  en predicción automática.
+- **Hecho que gobierna el ámbito**: los cinco interruptores nacen `false` y las
+  cuatro familias dependen además de `pressure_network_solver_enabled`, que
+  también nace `false`. En un escenario distribuido **no corre ninguna de las
+  cuatro ni la red autoritativa**; corre la ruta histórica de venteo. El ámbito
+  describe esa ruta.
+- **FED/SVV**: presentación cerrada, validación abierta. Anunciables como
+  orientativos con su descargo; el reparto zonal de CO no se anuncia; la
+  etiqueta `SVV=%` del log sigue pendiente.
+- Tareas independientes de la evidencia y ya ejecutables: **G4 visual** y
+  **G5 exportación Windows** (no existe `export_presets.cfg`).
+
+## Current Program Update - 2026-09-25 - P3b: species in the radiative seed, the 0.25 % residual and R2-1
+
+- Checkpoint inicial: HEAD `8a8e205b`, antes del cierre y del commit; G4/G5, O2-A, E1 and P3
+  work kept. Detail in [E1 §8](validation/E1_O2_BASE_DE_MASA_2026-09-25.md).
+- **Defect proved in isolation (network on).** The real Pasillo/Salon state
+  right before the seed, with only `_step_radiation_openings` called:
+  `transfer_lower_to_upper()` moved 1.438 kg and its enthalpy (19.89 kJ/kg, the
+  lower layer's) but **no species and no O2**. CO2/CO/HCN stayed assigned to
+  the lower layer (6.14 g of CO2 should have risen), and the new upper layer
+  kept a stale O2 fraction of 0.0, so in the network's `x * m` convention the
+  room lost 0.295 kg of O2 in one step. Control without radiation: nothing
+  changes. This is a representation defect; there is still no authoritative
+  per-layer O2 inventory.
+- **Local fix, network on only.** `_seed_upper_layer_as_one_packet()` moves,
+  in the same operation as the mass, the lower layer's share of CO, CO2 and HCN
+  and its O2 fraction, with the rule the network uses for its own packets
+  (`_bundle_for_source`). Room totals and lower composition unchanged; global
+  species (smoke, HCl, acrolein, formaldehyde) untouched. Full-run per-layer
+  CO2 ledger in the cold room now closes to 1e-15 kg per step (network, ACH,
+  seed packet); the O2 `x * m` remainder went from -0.397 kg to +0.0013 kg.
+- **The 0.25 % is ACH, measured.** The cold-room residual equals
+  `species * 0.5/3600 * dt` from `GasExchangeSystem.step_smoke` step by step
+  (CO2 -1.8975 g vs -1.8975 g, worst 1e-15 kg/step; CO, HCN and smoke alike).
+  With `ach_infiltration = 0` in the harness only, the residual is exactly zero;
+  radiation, projections and clamps contribute nothing. An owned exterior
+  exchange outside the network, not a P3 defect.
+- **R2-1 gap closed in the same pass.** `CaseRunner` builds every case with
+  `BuildingModel.load_template_data()`, but `sim/BuildingModel.gd` sits in the
+  root of `sim/` and was not watched. Added to `_ENGINE_PATHS` with three tests;
+  `sim/ScenarioValues.gd` (editor/views) and `sim/FireModel.gd` (no references)
+  stay out with the reason written down.
+- **Tests.** Validator now 61 checks (O5b exact packet, O7 no-radiation
+  control, O6 over the five G0 scenarios). Mutation M3 (seed without species)
+  fails O5b on CO, CO2, HCN, O2 fraction and room O2 (-0.295 kg); M1/M2 still
+  fail; file restored and hash-verified after each. OFF byte-identical: four
+  harness fixtures, two E1 traces and the `4f375edf...` fingerprint.
+- **Still open, pre-existing:** the same species-less primitive is used by the
+  wall-conduction seed, plume entrainment and the stairwell bridge, with the
+  network OFF too. Fixing them changes the OFF route and needs its own phase.
+- **Reference regenerated once.** With 7.19 GB free and no other Godot,
+  `run_reference_checks.ps1` ran once under a monitor (kill below 5 GB or on a
+  native crash): 18 cases, 2 625 s, minimum 5.66 GB, `Resultado final: PASS`.
+  346/346 required PASS, 78 known gaps; `reference_checks.json` differs only in
+  `generated_at` — every metric identical, as expected for network-on-only
+  changes. Guardrails 8/8, R2-1 green because the report is regenerated
+  alongside the uncommitted engine changes; commit them together.
+- **Cierre de comprobaciones (25-09):** `check_product.py` 165/165; suite global
+  3002 passed, 9 skipped, 2 xfailed, 42 subtests. Un test estático de
+  aislamiento detectó que el nuevo validador P3 nombraba D2 sin estar
+  clasificado; se añadió únicamente ese validador a su lista de referencias
+  permitidas y la suite completa quedó verde. Guardarraíles 346/346, 78 gaps,
+  R2-1 PASS; ningún proceso Godot residual. El checker global de enlaces sigue
+  leyendo copias históricas en `runs/` y reporta enlaces rotos allí; los
+  documentos de este cierre se comprobaron de forma dirigida.
+- **P3 status: closed for interior transport ownership and the radiative seed.**
+  Open elsewhere: the species-less lower-to-upper primitive in the other three
+  callers (pre-existing, OFF route too), the hot-jet destination zone in the
+  network, O2-4 and the O2 residual.
+
+## Current Program Update - 2026-09-25 - P3: a single owner of interior gas transport with the network on
+
+- Checkpoint: HEAD `8a8e205b`, **no commit, no push**. All pending G4/G5, O2-A,
+  E1 and FDS-audit work kept; the only `sim/` change is
+  `sim/core/ThermalSystem.gd`. Detail and the per-opening ledger in
+  [E1 §7](validation/E1_O2_BASE_DE_MASA_2026-09-25.md).
+- **Duplication proved, not inferred from similar magnitudes.** With
+  `pressure_network_solver_enabled = true`, ThermalSystem's
+  `canonical_doorway_upper` moved hot upper-layer gas through the same interior
+  opening, in the same step and the same direction as the network, in 808/808
+  steps (770 from the same source zone). It is the same two-zone Bernoulli
+  outflow the network's vane already carries. Network-only control (the thermal
+  transfer disabled through `doorway_heat_exchange_coeff = 0` in a temporary
+  harness only): the network alone carries the hot outflow (21.0 kg) **and** the
+  physical counterflow (32.6 kg). With both owners the hot outflow was applied
+  twice (24.8 + 5.8 kg) and the network had to push the excess back (40.2 kg).
+  In the cold room, CO2 +199.7 g and smoke +20.6 g arrived that no network
+  route delivered. Same pattern reversed (fire in the other room) and through a
+  vertical hole (237 kg thermal, +2 017 g CO2 unexplained).
+- **Second defect found by the per-room balance.** The radiation-through-
+  openings seed of an empty upper layer creates mass with no donor (S0d1
+  numerical correction). Off-network the projection reconciles it; with the
+  network nothing does: 1.4385 kg appeared in one step. It only showed once the
+  duplicated transport was removed, so the fix had to cover it.
+- **Change (network on only, `authoritative_transport_enabled`):** (1) in the
+  interior-opening loop, after the heat-only exchanges, `continue` before the
+  thermal counterflow, the hot-layer transfer with its species and the
+  canonical doorway — mass, enthalpy and species through openings belong to the
+  network; (2) the radiation seed takes the minimal layer from the room's own
+  lower zone (`_ensure_minimal_upper_gas`, a conservative transfer). Radiation,
+  wall conduction and the stairwell heat bridge (heat without gas) are untouched.
+- **Results.** Network OFF: byte-identical — four harness fixtures and the two
+  E1 product-house traces compared with `cmp`, plus an IEEE754 fingerprint of
+  the OFF state pinned in the validator from the HEAD code. Network ON: zero
+  thermal gas events through interior openings, per-room per-step mass residual
+  ≤ 1.8e-13 kg, building mass constant, cold-room species within 0.25 % of
+  what the network delivers (most likely the room-loop ACH renewal, an exterior
+  sink outside the network — not verified, and not P3). Product house, door
+  open, network on: building 201.600000 kg, inter-room transport only in
+  `gas_exchange`.
+- **Tests.** New `tools/validate_single_interior_transport_owner.gd` (20
+  checks: open door, vertical hole, closed door, OFF route + fingerprint,
+  radiation seed, five switches off in `preset_simple_house`) registered in
+  `check_product.py`, and `tests/test_single_interior_transport_owner.py`.
+  Against the HEAD ThermalSystem the validator fails O1/O2/O5; mutation M1
+  (guard removed) fails O1/O2 with 287 and 158 thermal gas events; M2 (seed
+  guard removed) fails O5 with +1.536 kg; code restored and hash-verified after
+  each. The three network-reference allowlists name the two new files.
+- **Kept separate.** O2-4 and the O2 residual are untouched: with the fix, the
+  product house (door open, network on) still loses 5.82 kg of O2 without an
+  owner and `_all` is exactly twice the primary consumption. No combustion
+  contract change, `fire_o2_canonical_enabled` still off, network still off in
+  every distributed scenario.
+- **Superseded by P3b above: the reference was regenerated.** At P3 time:
+  **Not closed: R2-1.** `sim/core` changed, so the reference suite must be
+  regenerated once. Free memory stayed at 5.7–5.8 GB, under the 6–8 GB
+  threshold for the full suite, so it was **not** run; R2-1 is red and old
+  guardrail results are not current. Next prerequisite: that regeneration with
+  enough memory, then the destination zone of the hot jet in the network (it
+  enters the receiving room's lower zone when that room has no upper layer).
+
 ## Current Program Update - 2026-09-23 - hotfix: early resets release the contribution too (F2.2D4B2B)
 
 - Checkpoint: `main` at `8dd310e9` when this started, seven local commits ahead

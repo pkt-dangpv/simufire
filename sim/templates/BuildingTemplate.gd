@@ -101,6 +101,116 @@ func _building_type_for_preset(preset_name: String) -> String:
 	return "single_family"
 
 
+
+## Contenido de AUTOR de los escenarios que se distribuyen: donde aparece el
+## jugador y en que objeto prende el fuego. No es geometria, ni carga de fuego,
+## ni ventilacion: es lo que un disenador decide y lo que el aviso de
+## `ScenarioReview` reclama cuando falta.
+##
+## Vive separado a proposito. Los casos de validacion CFAST/FDS se construyen
+## desde estas mismas plantillas (`"template": "simple_house"` en
+## sim/validation/cases/fds_simple_house_*.json) llamando a `create_by_name`, y
+## marcar un objeto como foco CAMBIA cual arde primero: al marcar el sofa, el
+## FED de fds_simple_house_default se movia casi un 1 %. Una linea base
+## calibrada no puede moverse porque el producto necesite declarar su foco. Por
+## eso `create_by_name` sigue devolviendo la plantilla desnuda y solo
+## `create_product_preset` anade esto.
+##
+##   ignition_object_id  id del objeto que prende primero, dentro de rooms_data
+##   ignition_room_id    sala del foco, si la plantilla no la declara ya
+##   player_start        inicio en primera persona, en coordenadas de la sala
+const PRESET_AUTHORING: Dictionary = {
+	"simple_house": {
+		# El salon es la sala con mas carga de fuego de la casa (6000 MJ de
+		# 16700) y la misma que fijan los dos casos FDS de esta plantilla. El
+		# sofa es el objeto que ya marcaba la variante por objetos
+		# scenarios/simple_house_objects.json. Sin marca, el motor elegia por
+		# puntuacion (CombustionSystem._select_room_ignition_object) y salia la
+		# alfombra, por tener la temperatura de ignicion mas baja de la sala.
+		"ignition_room_id": 0,
+		"ignition_object_id": "salon_sofa",
+		# Pasillo distribuidor: es la sala a la que dan las cinco puertas
+		# interiores y la que tiene la puerta de entrada (muro "top", centrada).
+		# 0,75 m por dentro de esa puerta -la misma distancia que usa el motor
+		# cuando entra por la puerta sin `player_start`-, centrado en el ancho
+		# de 1,5 m y mirando al fondo (yaw 180 = +y del plano).
+		"player_start": {
+			"room_id": 1,
+			"position_m": {"x": 0.75, "y": 0.75},
+			"floor_level_z_m": 0.0,
+			"yaw_deg": 180.0
+		}
+	},
+	"two_storey_house": {
+		# Aqui el foco ya lo declara la plantilla (`ignition_room_id: 0`) y no
+		# hay objeto que marcar: solo falta por donde se entra.
+		# Recibidor distribuidor de la planta baja: reparte a salon, cocina,
+		# aseo y lavadero, abre al hueco de escalera y tiene la puerta de
+		# entrada (muro "top", centrada). Mismo criterio de 0,75 m y yaw 180.
+		"player_start": {
+			"room_id": 1,
+			"position_m": {"x": 1.10, "y": 0.75},
+			"floor_level_z_m": 0.0,
+			"yaw_deg": 180.0
+		}
+	}
+}
+
+
+## El preset tal y como lo ve el PRODUCTO: la plantilla mas su contenido de
+## autor. Lo usan el generador de `scenarios/`, el desplegable del editor y el
+## arranque directo desde el menu. Los casos de validacion NO pasan por aqui.
+func create_product_preset(preset_name: String) -> Dictionary:
+	var data: Dictionary = create_by_name(preset_name)
+	_apply_preset_authoring(_resolved_preset_name(preset_name), data)
+	return data
+
+
+## `create_by_name` cae en `simple_house` ante un nombre que no conoce (su rama
+## `_:`). La autoria tiene que caer en el mismo sitio: si no, un nombre viejo
+## guardado en `user://startup_sim_options.json` daria la casa simple otra vez
+## sin foco ni inicio, y en silencio.
+func _resolved_preset_name(preset_name: String) -> String:
+	for preset in get_preset_definitions():
+		if String(preset.get("id", "")) == preset_name:
+			return preset_name
+	return "simple_house"
+
+
+func _apply_preset_authoring(preset_name: String, data: Dictionary) -> void:
+	if not PRESET_AUTHORING.has(preset_name):
+		return
+	var authoring: Dictionary = PRESET_AUTHORING[preset_name]
+	if authoring.has("player_start"):
+		data["player_start"] = Dictionary(authoring["player_start"]).duplicate(true)
+	if authoring.has("ignition_room_id"):
+		data["ignition_room_id"] = int(authoring["ignition_room_id"])
+	var object_id: String = String(authoring.get("ignition_object_id", ""))
+	if object_id == "":
+		return
+
+	# Un foco y solo uno: se limpia cualquier marca previa antes de poner la
+	# nuestra, igual que hace la herramienta de Ignicion del editor.
+	var found: bool = false
+	for raw_room in Array(data.get("rooms_data", [])):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		for raw_obj in Array(Dictionary(raw_room).get("fuel_objects", [])):
+			if typeof(raw_obj) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = raw_obj
+			var is_target: bool = String(obj.get("id", "")) == object_id
+			obj["is_primary_ignition_source"] = is_target
+			found = found or is_target
+	if not found:
+		# Si alguien renombra el objeto, el escenario distribuido se quedaria
+		# otra vez sin foco declarado y en silencio. Que se oiga.
+		push_error(
+			"BuildingTemplate: el preset '%s' declara el foco '%s' y ese objeto no existe."
+			% [preset_name, object_id]
+		)
+
+
 func create_simple_house() -> Dictionary:
 	var room_rect_m: Dictionary = {}
 	var rooms_data: Array[Dictionary] = []

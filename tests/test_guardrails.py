@@ -13,6 +13,7 @@ No Godot, no simulation suite, no modification of real reference_checks.json.
 """
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -568,6 +569,13 @@ class TestReportsFreshness(unittest.TestCase):
         engine = root / "sim" / "core" / "engine.gd"
         engine.parent.mkdir(parents=True)
         engine.write_text("# engine v1\n", encoding="utf-8")
+        # D-5: los constructores de plantilla tambien definen lo que se valida.
+        template = root / "sim" / "templates" / "BuildingTemplate.gd"
+        template.parent.mkdir(parents=True)
+        template.write_text("# template v1\n", encoding="utf-8")
+        # P3b: la raiz de sim/ tiene un fichero vigilado y otros que no.
+        (root / "sim" / "BuildingModel.gd").write_text("# building model v1\n", encoding="utf-8")
+        (root / "sim" / "ScenarioValues.gd").write_text("# values v1\n", encoding="utf-8")
         report = root / "sim" / "validation" / "reports" / "reference_checks.json"
         report.parent.mkdir(parents=True)
         report.write_text("{}", encoding="utf-8")
@@ -622,6 +630,97 @@ class TestReportsFreshness(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("DESPUÉS", out)
         self.assertIn("run_reference_checks.ps1", out)
+
+    # -- D-5: sim/templates cuenta como motor ----------------------------
+
+    def test_sim_templates_is_guarded(self):
+        """Los constructores de plantilla estan en el contrato de R2-1.
+
+        CaseRunner construye cada caso con `create_by_name(case["template"])`,
+        asi que la geometria y los objetos combustibles de `sim/templates/`
+        deciden lo que mide la validacion tanto como el motor.
+        """
+        self.assertIn("sim/templates", validation_guardrails._ENGINE_PATHS)
+
+    def test_rc1_uncommitted_template_change_without_regeneration(self):
+        root, _, report = self._make_repo("fresh_template_dirty")
+        template = root / "sim" / "templates" / "BuildingTemplate.gd"
+        template.write_text("# template v2\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("BuildingTemplate.gd", out)
+        self.assertIn("run_reference_checks.ps1", out)
+
+    # -- P3b: sim/BuildingModel.gd cuenta como motor ------------------------
+
+    def test_building_model_is_guarded(self):
+        """CaseRunner construye cada caso con `BuildingModel.load_template_data()`.
+
+        El fichero vive en la raiz de `sim/`, fuera de las carpetas vigiladas,
+        y hasta P3b un cambio ahi movia la validacion con R2-1 en verde.
+        """
+        self.assertIn("sim/BuildingModel.gd", validation_guardrails._ENGINE_PATHS)
+
+    def test_rc1_uncommitted_building_model_change_without_regeneration(self):
+        root, _, report = self._make_repo("fresh_building_model_dirty")
+        model = root / "sim" / "BuildingModel.gd"
+        model.write_text("# building model v2\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("BuildingModel.gd", out)
+
+    def test_rc1_other_root_sim_files_stay_outside(self):
+        """`ScenarioValues.gd` (editor y vistas) no invalida la referencia."""
+        root, _, report = self._make_repo("fresh_scenario_values_dirty")
+        values = root / "sim" / "ScenarioValues.gd"
+        values.write_text("# values v2\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_template_committed_after_report(self):
+        root, _, report = self._make_repo("fresh_template_stale")
+        template = root / "sim" / "templates" / "BuildingTemplate.gd"
+        template.write_text("# template v2\n", encoding="utf-8")
+        self._git(root, "add", "-A")
+        self._git(root, "commit", "-q", "-m", "template change",
+                  date="2026-01-02T00:00:00")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("DESPUÉS", out)
+
+    def test_template_mutation_fails_then_restores_byte_for_byte(self):
+        """La mutacion la detecta R2-1 y la restauracion devuelve el fichero exacto.
+
+        Es la prueba de que el guardarrail distingue de verdad: verde antes,
+        rojo con el cambio, verde otra vez solo cuando el fichero vuelve a ser
+        byte a byte el original (SHA-256 identico).
+        """
+        root, _, report = self._make_repo("fresh_template_mutation")
+        template = root / "sim" / "templates" / "BuildingTemplate.gd"
+        original = template.read_bytes()
+        digest_before = hashlib.sha256(original).hexdigest()
+
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, "el arbol limpio debia estar en verde: " + out)
+
+        # Mutacion del mismo tipo que abrio D-5: marcar un foco de ignicion.
+        template.write_bytes(
+            original + b'\t"is_primary_ignition_source": true,\n')
+        rc_mutated, out_mutated = validation_guardrails._check_reports_freshness(
+            root, report)
+        self.assertEqual(rc_mutated, 1, "la mutacion debia hacer fallar R2-1")
+        self.assertIn("BuildingTemplate.gd", out_mutated)
+        self.assertNotEqual(
+            hashlib.sha256(template.read_bytes()).hexdigest(), digest_before)
+
+        template.write_bytes(original)
+        self.assertEqual(
+            hashlib.sha256(template.read_bytes()).hexdigest(), digest_before,
+            "la restauracion no devolvio el fichero original")
+        rc_restored, out_restored = validation_guardrails._check_reports_freshness(
+            root, report)
+        self.assertEqual(rc_restored, 0,
+                         "tras restaurar debia volver a verde: " + out_restored)
 
     def test_rc0_skipped_outside_git_repo(self):
         root = _TEST_TMP_ROOT / "fresh_norepo"

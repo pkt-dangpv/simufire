@@ -1,0 +1,82 @@
+; Plantilla de exportacion de SimuFire — G5 (distribucion Windows).
+;
+; `export_presets.cfg` esta en .gitignore desde antes de esta fase, porque el
+; fichero que Godot escribe puede incorporar rutas locales. Esta plantilla SI se
+; versiona: es la definicion reproducible del preset, sin rutas personales, sin
+; credenciales y sin clave de firma.
+;
+; Uso:
+;   1. copiar a la raiz del proyecto como `export_presets.cfg`
+;   2. instalar las plantillas de exportacion de Godot 4.7.1 (ver docs/planning/
+;      MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md)
+;   3. exportar con el comando documentado en ese mismo documento
+;
+; `export_path` queda VACIO a proposito: lo fija el comando de exportacion, de
+; modo que el build nunca se escribe dentro del arbol versionado.
+;
+; `include_filter` NO es opcional. Con `export_filter="all_resources"` Godot
+; empaqueta los recursos (escenas, scripts, materiales) pero NO los ficheros que
+; no son recurso: un `.json` se queda fuera salvo que esta lista lo nombre. El
+; producto carga cuatro familias de `.json` por ruta `res://`:
+;   - `i18n/es_ui.json`          ui/UILocalization.gd (todo el texto de la interfaz)
+;   - `scenarios/*.json`         editor/ScenarioEditor.gd:6733 (desplegable de escenarios)
+;   - `sim/validation/cases/cfast_*.json`   ScenarioEditor.gd:6745 (entradas "CFAST: ...")
+;   - `sim/validation/baseline_gate_dispositions.json`  sim/validation/CaseRunner.gd:19
+; Sin incluirlos, el build arranca con la interfaz sin textos y con el
+; desplegable de escenarios vacio.
+
+[preset.0]
+
+name="Windows Desktop"
+platform="Windows Desktop"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter="i18n/*.json, scenarios/*.json, sim/validation/cases/cfast_*.json, sim/validation/baseline_gate_dispositions.json"
+exclude_filter="docs/*, runs/*, graphs/*, tests/*, tools/*, scripts/*, sim/validation/cfast/*, sim/validation/reports/*, truth/*, external/*, *.md, *.py, *.ps1"
+export_path=""
+encryption_include_filters=""
+encryption_exclude_filters=""
+seed=0
+encrypt_pck=false
+encrypt_directory=false
+script_export_mode=2
+
+[preset.0.options]
+
+custom_template/debug=""
+custom_template/release=""
+debug/export_console_wrapper=0
+binary_format/embed_pck=false
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=false
+binary_format/architecture="x86_64"
+codesign/enable=false
+codesign/timestamp=true
+codesign/timestamp_server_url=""
+codesign/digest_algorithm=1
+codesign/description=""
+codesign/custom_options=PackedStringArray()
+application/modify_resources=true
+application/icon=""
+application/console_wrapper_icon=""
+application/icon_interpolation=4
+application/file_version=""
+application/product_version=""
+application/company_name="SimuFire"
+application/product_name="SimuFire"
+application/file_description="SimuFire — simulador de incendios residenciales"
+application/copyright=""
+application/trademarks=""
+application/export_angle=0
+application/export_d3d12=0
+application/d3d12_agility_sdk_multiarch=true
+ssh_remote_deploy/enabled=false
+ssh_remote_deploy/host=""
+ssh_remote_deploy/port="22"
+ssh_remote_deploy/extra_args_ssh=""
+ssh_remote_deploy/extra_args_scp=""
+ssh_remote_deploy/run_script=""
+ssh_remote_deploy/cleanup_script=""

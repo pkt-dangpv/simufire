@@ -100,6 +100,11 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("sim/core/ZoneFireSolver.gd.uid"),
     Path("tools/validate_canonical_mass_conservation.gd"),
     Path("tools/validate_canonical_mass_conservation.gd.uid"),
+    # P3: el validador y la suite de propietario unico del transporte interior
+    # nombran el interruptor para ejercer la red ON y la OFF; no la resuelven.
+    Path("tools/validate_single_interior_transport_owner.gd"),
+    Path("tools/validate_single_interior_transport_owner.gd.uid"),
+    Path("tests/test_single_interior_transport_owner.py"),
     # Y el adaptador de fuga toma de alli la constante global de
     # condicionamiento, para que las tres clases de elemento compartan criterio.
     Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),

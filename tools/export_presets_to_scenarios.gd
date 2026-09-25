@@ -30,9 +30,12 @@ func _run() -> void:
 		var preset_id: String = String(preset.get("id", ""))
 		if preset_id == "":
 			continue
-		var data: Dictionary = builder.create_by_name(preset_id)
+		# Ruta de PRODUCTO: el JSON distribuido lleva el contenido de autor del
+		# preset (inicio en primera persona y foco de ignicion). Los casos de
+		# validacion siguen usando `create_by_name`, sin ese contenido.
+		var data: Dictionary = builder.create_product_preset(preset_id)
 		if data.is_empty():
-			print("  FAIL  %s (create_by_name vacío)" % preset_id)
+			print("  FAIL  %s (create_product_preset vacío)" % preset_id)
 			fail += 1
 			continue
 		var out_path: String = "%s/%s%s.json" % [OUT_DIR, PREFIX, preset_id]

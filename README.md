@@ -4,7 +4,7 @@ SimuFire is a Godot-based compartment fire dynamics simulator for training, scen
 
 It combines a scenario editor, 2D/3D/first-person visualization, technical exports and a validation lane for scientific guardrails.
 
-**Current status**: `v0.4.0` · scientific reference matrix **346/346 required PASS** with **78 documented non-gating gaps** (`sim/validation/reports/reference_checks.json`, regenerated 2026-09-16 at `84849a2f`) · Godot 4.7.1. The older "348/353 PASS · 5 VALID_GAP" figure belonged to the pre-P1R8 matrix and is superseded.
+**Current status**: `v0.4.0` · scientific reference matrix **346/346 required PASS** with **78 documented non-gating gaps** (`sim/validation/reports/reference_checks.json`, regenerated 2026-09-25) · Godot 4.7.1. Older matrices used different classifications and are not directly comparable. The publication date is open pending the evidence and stability gates in [the current release plan](docs/PLAN_PUBLICACION_2026-10-30.md).
 
 ## Quickstart
 
@@ -89,8 +89,9 @@ powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1
 - Ghanekar flashover empirical timing/height checks remain non-gating in the current documented validation state.
 - HCN yield is conservative for well-ventilated combustion and can underestimate under-ventilated HCN.
 - The zone model does not replace CFD tools such as FDS for high-rigor quantitative analysis.
-- Two-Zone V1 remains opt-in through validation/runtime flags rather than the default global mode.
-- Closed interior doors are currently airtight when cold (`open_fraction == 0`); no permanent crack leakage is modelled yet.
+- Two-Zone V1 is the default mode; legacy remains opt-in through runtime flags.
+- Cold closed-door crack leakage, exterior envelope leakage, prescribed door deformation and glass fallout exist behind experimental switches, but are not enabled in the 15 ordinary product profiles. Their parameters and applicability still need experimental qualification.
+- FED/SVV presentation has been clarified, but physiological/quantitative validation of the exposure outputs is still open.
 
 ## Local Workspace
 

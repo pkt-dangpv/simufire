@@ -1,6 +1,18 @@
 # SimuFire — Estado de validación CFAST
 
-> **FASE ACTIVA - 2026-07-23**
+> **Instantánea vigente para planificación de release (2026-09-24):** el
+> informe generado el 2026-09-23 registra **346/346 comprobaciones requeridas
+> PASS y 78 gaps no bloqueantes**. Es una matriz de regresión; no certifica por
+> sí sola las leyes experimentales de puertas, vidrio y envolvente ni FED/SVV.
+> El ámbito, datos externos y criterios de aceptación se fijan en el
+> [plan de publicación](../PLAN_PUBLICACION_2026-10-30.md). La matriz de
+> 347/353 y seis VALID_GAP que aparece debajo es **histórica**: cambiaron
+> inventario/clasificación y no se deben restar ambos recuentos como si fueran
+> las mismas pruebas.
+
+---
+
+> **FASE HISTÓRICA - 2026-07-23**
 > Estado actual: **347 / 353 PASS required - 6 VALID_GAP**.
 > Los 6 VALID_GAP son Grupo A (`cfast_r0_window_360` x3) y Grupo C
 > (`cfast_corridor_chain` x3). F3.3l corrigió la topología del corredor:

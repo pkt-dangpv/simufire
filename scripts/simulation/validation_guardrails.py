@@ -186,12 +186,29 @@ def _check_metric_plausibility(repo_root: Path) -> tuple[int, str]:
 
 # Rutas cuyo cambio invalida reference_checks.json: motor GDScript, presets
 # y definiciones de casos de validación.
+#
+# `sim/templates` faltaba (D-5). Ahí viven los constructores de plantilla que
+# CaseRunner invoca con `create_by_name(case["template"])`: la geometría, las
+# aberturas y los objetos combustibles con los que se construye cada caso. Un
+# cambio ahí mueve resultados de validación sin tocar ninguna de las otras
+# cuatro rutas, y el check daba PASS igualmente. Medido: marcar un objeto como
+# foco de ignición en `create_simple_house()` movía el FED de
+# `fds_simple_house_default` casi un 1 % con R2-1 en verde.
+#
+# `sim/BuildingModel.gd` tambien faltaba (P3b). Vive en la raiz de `sim/`, fuera
+# de las carpetas anteriores, y CaseRunner construye CADA caso con su
+# `load_template_data()`: salas, aberturas, carga de fuego y los interruptores
+# de escenario que lee. Un cambio ahi movia la validacion con R2-1 en verde.
+# Los otros ficheros de la raiz no alcanzan a la validacion: `ScenarioValues.gd`
+# solo lo usan el editor y las vistas, y `sim/FireModel.gd` no tiene referencias.
 _ENGINE_PATHS: tuple[str, ...] = (
     "sim/core",
     "sim/fire",
     "sim/building",
     "sim/resources",
+    "sim/templates",
     "sim/validation/cases",
+    "sim/BuildingModel.gd",
 )
 
 

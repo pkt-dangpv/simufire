@@ -58,6 +58,7 @@
 		"supply_temp_c": 20.0
 	},
 	"hvac_mode": "none",
+	"ignition_room_id": 0,
 	"interior_lights_on": true,
 	"openings_data": [
 		{
@@ -217,7 +218,15 @@
 	],
 	"outside_o2": 0.209,
 	"outside_temp_c": 20.0,
-	"player_start": {},
+	"player_start": {
+		"floor_level_z_m": 0.0,
+		"position_m": {
+			"x": 0.75,
+			"y": 0.75
+		},
+		"room_id": 1,
+		"yaw_deg": 180.0
+	},
 	"room_rect_m": {
 		"0": {
 			"h": 4.0,
@@ -270,7 +279,7 @@
 					"id": "salon_sofa",
 					"ignition_flux_kw_m2": 16.0,
 					"ignition_temp_c": 310.0,
-					"is_primary_ignition_source": false,
+					"is_primary_ignition_source": true,
 					"kind": "mobiliario_tapizado",
 					"max_hrr_kw": 700.0,
 					"name": "Sofa 3 plazas",

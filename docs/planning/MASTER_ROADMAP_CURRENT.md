@@ -1,8 +1,31 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-07-25
+Fecha base: 2026-07-25
+Ultima actualizacion parcial: 2026-09-24 (criterio de publicacion y FED/SVV)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+## Decision operativa vigente - 2026-09-24
+
+El 30 de octubre deja de ser fecha objetivo. La publicacion depende de
+estabilidad y credibilidad fisica en un ambito declarado, no de acabar una
+lista de fases ni de mantener una suite en verde. El plan con gates G0-G6 esta
+en [PLAN_PUBLICACION_2026-10-30.md](../PLAN_PUBLICACION_2026-10-30.md);
+el nombre conserva la estimacion historica, no una promesa vigente.
+
+Siguiente trabajo: fijar el ambito G0 y construir la matriz experimental G2
+para fuga fria, envolvente, deformacion y vidrio; en paralelo preparar los
+recorridos visuales/estabilidad y la exportacion Windows. La fisica de puertas
+y envolvente sigue experimental, con product_activation=false en los 15
+perfiles; no promocionarla por el mero hecho de estar implementada. FED/CO y
+SVV siguen siendo un gate cientifico independiente. Ninguna fecha nueva hasta
+estimar con evidencia estos bloques.
+
+La seccion «Estado actual conocido» y las recomendaciones M5/F3.3 de abajo
+conservan el historial de esa linea: sus recuentos y prioridad no sustituyen
+esta decision. La matriz vigente de referencia es 346/346 requeridos PASS con
+78 gaps no bloqueantes (informe del 2026-09-23); no se compara directamente
+con los seis VALID_GAP de la matriz anterior.
 
 ## Regla principal
 
@@ -314,6 +337,90 @@ Pendiente:
 - Separacion clara de combustion, transporte y zone-sync.
 - Reconciliacion con future two-zone canonico.
 
+Estado E1 del contrato de O2 (2026-09-25, estatico mas seis fixtures pequenos
+medidos paso a paso; detalle en
+[E1 - base de masa](../validation/E1_O2_BASE_DE_MASA_2026-09-25.md)):
+
+- **NO-GO** a `upper_gas_kg`/`lower_gas_kg` como autoridad de O2 en kg. Red
+  OFF (producto): `ZoneFireSolver.gd:360-369` reescribe la masa baja; medido,
+  Salon sellado -25,7 % y +22,6 kg de frontera sin propietario. Red ON: masa de
+  gas exacta, pero dos propietarios del transporte interior (`Thermal:1505`
+  mueve 64,6 kg que la red devuelve) y O2 en kg con -5,10 kg sin propietario
+  con la puerta abierta.
+- Prerrequisito de la alternativa B: masa baja como estado en la ruta de
+  producto. Decision de alcance pendiente.
+- Defecto candidato **O2-4**: `OxygenExchangeSystem` no recibe
+  `two_zone_solver_enabled`, y su sumidero de capa alta descuenta el consumo
+  completo ademas del bulk. Explica los 9,263 kg que O2-A atribuia al tope del
+  5 %; el tope recorta 0,943 kg.
+- C1, C2, C3, C4 y C5 del contrato O2-A necesitan correcciones antes de ser
+  gates; E2 no empieza sin clasificar O2-4 ni reescribir C2.
+
+### FED/SVV pendientes de revision cientifica
+
+Estado: **ABIERTO**. Prioridad alta antes de la release candidate si el producto
+va a presentar estas salidas como magnitudes fisiologicas fiables.
+
+Decision vigente:
+
+- La correccion de presentacion de la fase 1 esta cerrada: distinguir valor
+  actual y peor historico no valida la fisiologia subyacente. La campana de
+  CO muestra sensibilidad material del selector zonal (26,2 % en un caso a
+  0,9 m); no se activa el candidato por esa sola diferencia.
+
+- La implementacion, observabilidad y regresion basica de FED estan hechas, pero
+  su validacion cuantitativa no esta cerrada.
+- SVV es un indice heuristico interno; no esta validado como porcentaje o
+  probabilidad medica de supervivencia.
+
+Evidencia que obliga a reabrir la revision:
+
+- `room.fed` suma CO, HCN, hipoxia y calor, mientras algunas comparaciones
+  externas usan FED asfixiante sin componente termico.
+- Los checks FED de Ghanekar siguen siendo no vinculantes y cientificamente no
+  cualificados; no deben cerrarse ajustando tolerancias a la salida del motor.
+- Bajo la capa superior, CO usa concentracion media de sala, mientras HCN, O2 y
+  CO2 usan valores zonales. Hay que justificar o corregir esa asimetria.
+- La seleccion upper/lower es casi binaria y puede generar saltos al cruzar el
+  plano respiratorio.
+- La ruta FED de CO2 basada en masa sigue default OFF por el defecto conocido de
+  `co2_upper_kg` post-extincion; produccion usa la ruta tracer.
+- El FED de habitacion representa una persona inmovil a 1.8 m desde t=0, no la
+  cronologia real del jugador o de una victima movil.
+- SVV toma el minimo entre calor, FED y visibilidad. Puede indicar 0 % solo por
+  visibilidad menor de 1 m, mezclando evacuacion con supervivencia.
+- El peor valor historico `svv_worst_pct` no se recupera al ventilar; la UI ya
+  distingue actual y peor historico, pero la interpretacion fisiologica y el
+  texto legacy `SVV=%` del log aun requieren revision.
+
+No confundir con defecto: FED es dosis acumulada y no debe disminuir al limpiar
+la sala; debe dejar de crecer o crecer mas despacio. Del mismo modo,
+`svv_worst_pct` es monotono por diseno, aunque queda por decidir si debe mostrarse
+durante la partida.
+
+Trabajo para cerrar:
+
+1. Reproducir el caso observado y registrar escenario, sala, instante, altura y
+   componentes `fed_co`, `fed_hcn`, `fed_hypoxia` y `fed_heat`.
+2. Separar FED asfixiante, FED termico, tenabilidad instantanea y dosis usada
+   para incapacitar a una victima.
+3. Auditar el muestreo por altura/zona de CO, HCN, CO2, O2 y calor, incluida la
+   transicion entre capas.
+4. Resolver la dualidad tracer/masa de CO2 antes de promover esa ruta.
+5. Validar primero con concentraciones impuestas y resultados analiticos, y
+   despues con un benchmark experimental comparable sin rebaseline de runtime.
+6. Redisenar o renombrar SVV separando tenabilidad actual, dosis acumulada,
+   estado individual de victima y peor tenabilidad historica.
+7. Revisar textos, colores y porcentajes de la interfaz para no presentar un
+   indice heuristico como probabilidad de supervivencia.
+8. Anadir guardarrailes y mutaciones para formulas, seleccion zonal, altura y
+   semantica de interfaz; terminar con suites globales en verde.
+
+Dependencia: ejecutar la recalificacion cuantitativa cuando la red de presion y
+el transporte de gases de puertas/envolvente esten estables, porque cambian CO,
+HCN, CO2 y O2. Si FED/SVV siguen visibles como resultados fiables, el cierre es
+obligatorio antes de release candidate.
+
 ## Fallos CFAST vivos
 
 Los 5 FAIL restantes siguen siendo estructurales y no pertenecen a D1/S0/O1:
@@ -325,7 +432,10 @@ Los 5 FAIL restantes siguen siendo estructurales y no pertenecen a D1/S0/O1:
 
 No cambiar tolerancias ni reclasificar estos FAIL sin decision cientifica explicita.
 
-## Proxima linea recomendada
+## Linea historica recomendada antes de la revision de publicacion
+
+No es el siguiente trabajo de release. Se conserva como backlog del motor,
+supeditado a los gates G0-G3 y a la decision de alcance del producto.
 
 ### Prioridad 1 - M5 post-backdraft HRR cut
 

@@ -1378,6 +1378,14 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		)
 		_apply_interior_background_heat_exchange(room_a, room_b, op, dt, ambient_c)
 		_apply_stairwell_heat_bridge(room_a, room_b, op, dt, ambient_c)
+		# P3: con la red autoritativa, el gas que cruza una abertura interior
+		# —masa, entalpia y especies, en los dos sentidos— lo mueve la red y solo
+		# ella. Lo que sigue en este bucle (contraflujo termico, salida de la capa
+		# caliente y puerta canonica) aplicaria OTRA VEZ el mismo flujo de Bernoulli
+		# por la misma abertura. El calor sin gas (radiacion por aberturas,
+		# conduccion, puente de escalera) no pasa por aqui y se conserva.
+		if authoritative_transport_enabled:
+			continue
 		_apply_doorway_thermal_counterflow(room_a, room_b, op, flow_state, dt, ambient_c)
 		if not bool(flow_state.get("active", false)):
 			continue
@@ -1640,7 +1648,12 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 		energy_kj = minf(energy_kj, max_transfer_kj)
 
 		# Si el destino no tiene capa superior formada, crear masa mínima para absorber la energía
-		if tgt.upper_gas_kg <= 0.0001:
+		if tgt.upper_gas_kg <= 0.0001 and authoritative_transport_enabled:
+			# P3: con la red autoritativa la masa zonal es estado conservado y
+			# ninguna proyeccion reconcilia una siembra sin donante. La capa
+			# minima sale de la capa baja de la MISMA sala, como un paquete.
+			_seed_upper_layer_as_one_packet(tgt, ambient_c)
+		elif tgt.upper_gas_kg <= 0.0001:
 			var tgt_density: float = gas_density_kg_m3(tgt.temp_lower_c)
 			var seed_upper_mass_before_kg: float = tgt.upper_gas_kg
 			tgt.upper_gas_kg = tgt.floor_area_m2() * 0.08 * tgt_density
@@ -1859,6 +1872,31 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 			)
 			sync_room_upper_layer(room_a, dt, "wall_conduction_room_a_sync")
 			update_room_layer_150c(room_a, dt)
+
+
+## P3: siembra de capa alta con la red autoritativa. El gas que sube sale de la
+## capa baja de la MISMA sala y es un unico paquete: masa y entalpia las mueve
+## `transfer_lower_to_upper()`, y aqui se mueven, en la misma operacion y con la
+## composicion de la capa baja, las especies zonales (CO, CO2, HCN) y el O2. Es
+## la misma regla con la que la red arma sus paquetes (`_bundle_for_source`):
+## especie zonal por fraccion de masa de la zona donante y O2 como fraccion por
+## capa. Humo, HCl, acroleina y formaldehido solo existen como total de sala y
+## no cambian. La composicion de la capa baja no cambia al quitarle una parte.
+func _seed_upper_layer_as_one_packet(room: RoomModel, ambient_c: float) -> void:
+	var upper_before_kg: float = maxf(0.0, room.upper_gas_kg)
+	var lower_before_kg: float = maxf(0.0, room.lower_gas_kg)
+	_ensure_minimal_upper_gas(room, ambient_c)
+	# Solo lo que de verdad dono la capa baja: sin donante no hay paquete.
+	var moved_kg: float = lower_before_kg - maxf(0.0, room.lower_gas_kg)
+	if moved_kg <= 0.0 or lower_before_kg <= 0.0:
+		return
+	var share: float = clampf(moved_kg / lower_before_kg, 0.0, 1.0)
+	for species in ["co", "co2", "hcn"]:
+		var total_kg: float = maxf(0.0, float(room.get("%s_kg" % species)))
+		var upper_kg: float = clampf(float(room.get("%s_upper_kg" % species)), 0.0, total_kg)
+		room.set("%s_upper_kg" % species, upper_kg + (total_kg - upper_kg) * share)
+	var upper_after_kg: float = upper_before_kg + moved_kg
+	room.o2_upper = (room.o2_upper * upper_before_kg + room.o2_lower * moved_kg) / upper_after_kg
 
 
 func _ensure_minimal_upper_gas(room: RoomModel, ambient_c: float) -> void:

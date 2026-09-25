@@ -64,6 +64,11 @@ ALLOWED_REFERENCES = {
     Path("sim/core/ZoneFireSolver.gd.uid"),
     Path("tools/validate_canonical_mass_conservation.gd"),
     Path("tools/validate_canonical_mass_conservation.gd.uid"),
+    # P3: el validador y la suite de propietario unico del transporte interior
+    # nombran el interruptor para ejercer la red ON y la OFF; no la resuelven.
+    Path("tools/validate_single_interior_transport_owner.gd"),
+    Path("tools/validate_single_interior_transport_owner.gd.uid"),
+    Path("tests/test_single_interior_transport_owner.py"),
 }
 SCANNED_FOLDERS = ("sim", "editor", "view", "tools", "scripts", "scenes", "ui", "scenarios", "tests", "assets", "i18n")
 SCANNED_SUFFIXES = {".gd", ".tscn", ".tres", ".py", ".json", ".cfg", ".godot", ".csv", ".txt"}

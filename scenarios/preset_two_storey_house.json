@@ -406,7 +406,15 @@
 	],
 	"outside_o2": 0.209,
 	"outside_temp_c": 20.0,
-	"player_start": {},
+	"player_start": {
+		"floor_level_z_m": 0.0,
+		"position_m": {
+			"x": 1.1,
+			"y": 0.75
+		},
+		"room_id": 1,
+		"yaw_deg": 180.0
+	},
 	"room_rect_m": {
 		"0": {
 			"h": 5.19999980926514,

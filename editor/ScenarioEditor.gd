@@ -6766,7 +6766,9 @@ func _load_scenario_pressed() -> void:
 	var path: String = _scenario_paths[idx]
 	var loaded: Dictionary = {}
 	if path.begins_with("preset://"):
-		loaded = _template_builder.create_by_name(path.replace("preset://", ""))
+		# Ruta de PRODUCTO: lo que el desplegable abre tiene que ser lo mismo que
+		# lleva el JSON exportado, contenido de autor incluido.
+		loaded = _template_builder.create_product_preset(path.replace("preset://", ""))
 	else:
 		if not FileAccess.file_exists(path):
 			_show_load_error("Archivo de escenario no encontrado.", path)

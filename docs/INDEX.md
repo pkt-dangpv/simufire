@@ -68,6 +68,9 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 ## Roadmaps y Planificación
 
 - [planning/SIMUFIRE_AI_PROJECT.md](planning/SIMUFIRE_AI_PROJECT.md): propuesta futura de asistente local para explicar simulaciones y generar escenarios; no implementada ni incluida en los gates actuales de publicación.
+- [PLAN_PUBLICACION_2026-10-30.md](PLAN_PUBLICACION_2026-10-30.md): plan vigente por evidencia; el 30 de octubre figura solo como previsión histórica retirada.
+- [planning/MATRIZ_G0_G2_AMBITO_EVIDENCIA.md](planning/MATRIZ_G0_G2_AMBITO_EVIDENCIA.md): ámbito propuesto de la primera versión y aplicabilidad de la evidencia por familia (G0/G2).
+- [planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md): matriz de estabilidad de producto y estado de la exportación Windows (G4/G5).
 - [planning/MASTER_ROADMAP_CURRENT.md](planning/MASTER_ROADMAP_CURRENT.md): hoja de ruta activa para credibilidad física del motor, balances y validación restante.
 - [planning/EDITOR_FLOW_CHECKLIST.md](planning/EDITOR_FLOW_CHECKLIST.md): checklist del flujo de editor.
 

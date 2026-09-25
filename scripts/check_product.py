@@ -538,6 +538,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot conservacion canonica de masa: " + (diagnostic or "failed"))
 
+    # P3: con la red autoritativa, el gas que cruza una abertura interior tiene
+    # un unico propietario; con la red apagada la ruta historica no cambia.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_single_interior_transport_owner.gd",
+        "SINGLE INTERIOR TRANSPORT OWNER VALIDATION PASS",
+    )
+    rows.append(("Propietario unico del transporte interior, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot propietario unico del transporte interior: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

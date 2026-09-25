@@ -68,6 +68,9 @@ ALLOWED_REFERENCES = {
     # resuelve un permiso y el motor sigue siendo quien enciende.
     Path("sim/building/ExperimentalRunAuthorization.gd"),
     Path("tools/validate_experimental_physics_activation.gd"),
+    # P3: comprueba que D2 permanece apagado en la ruta historica. Solo lee
+    # el interruptor; no carga el modelo ni crea otra ruta de integracion.
+    Path("tools/validate_single_interior_transport_owner.gd"),
 }
 
 
