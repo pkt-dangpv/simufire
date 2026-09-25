@@ -67,6 +67,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 ## Roadmaps y Planificación
 
+- [planning/SIMUFIRE_AI_PROJECT.md](planning/SIMUFIRE_AI_PROJECT.md): propuesta futura de asistente local para explicar simulaciones y generar escenarios; no implementada ni incluida en los gates actuales de publicación.
 - [planning/MASTER_ROADMAP_CURRENT.md](planning/MASTER_ROADMAP_CURRENT.md): hoja de ruta activa para credibilidad física del motor, balances y validación restante.
 - [planning/EDITOR_FLOW_CHECKLIST.md](planning/EDITOR_FLOW_CHECKLIST.md): checklist del flujo de editor.
 
