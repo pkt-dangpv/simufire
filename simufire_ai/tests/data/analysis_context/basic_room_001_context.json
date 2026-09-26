@@ -1,0 +1,142 @@
+{
+  "schema_version": "0.1",
+  "scenario": {
+    "scenario_id": "basic_room_001",
+    "name": "Incendio básico en habitación",
+    "description": "Habitación de 4 x 4 m con una puerta cerrada y un incendio de crecimiento t cuadrado."
+  },
+  "timeline": {
+    "start_time_s": 0,
+    "end_time_s": 210,
+    "states_available": 5
+  },
+  "actions": [
+    {
+      "time_s": 180,
+      "type": "open",
+      "target": "door_01"
+    }
+  ],
+  "detected_events": [
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "event_id": "ventilation_increase_180_room_01",
+      "time_s": 180,
+      "event_type": "ventilation_increase",
+      "compartment_id": "room_01",
+      "cause": "door_01_opened",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "variable": "upper_layer.o2_percent",
+          "previous_value": 14.1,
+          "value": 16.8,
+          "unit": "%",
+          "description": "Aumento de oxigeno tras la apertura"
+        },
+        {
+          "variable": "hrr_kw",
+          "previous_value": 720,
+          "value": 1280,
+          "unit": "kW",
+          "description": "Cambio del HRR tras la apertura"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "event_id": "hrr_increase_195_room_01",
+      "time_s": 195,
+      "event_type": "hrr_increase",
+      "compartment_id": "room_01",
+      "cause": "detected_change",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "variable": "hrr_kw",
+          "previous_value": 720,
+          "value": 1280,
+          "unit": "kW",
+          "description": "Aumento significativo del HRR"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "event_id": "temperature_increase_195_room_01",
+      "time_s": 195,
+      "event_type": "temperature_increase",
+      "compartment_id": "room_01",
+      "cause": "detected_change",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "variable": "upper_layer.temperature_c",
+          "previous_value": 390,
+          "value": 475,
+          "unit": "C",
+          "description": "Aumento de temperatura de la capa superior"
+        }
+      ]
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "event_id": "smoke_layer_descent_195_room_01",
+      "time_s": 195,
+      "event_type": "smoke_layer_descent",
+      "compartment_id": "room_01",
+      "cause": "detected_change",
+      "confidence": 0.95,
+      "evidence": [
+        {
+          "variable": "interface_height_m",
+          "previous_value": 1.4,
+          "value": 1.2,
+          "unit": "m",
+          "description": "Descenso de la interfaz entre capas"
+        }
+      ]
+    }
+  ],
+  "final_state": {
+    "schema_version": "0.1",
+    "scenario_id": "basic_room_001",
+    "time_s": 210,
+    "compartments": [
+      {
+        "id": "room_01",
+        "interface_height_m": 1.18,
+        "upper_layer": {
+          "temperature_c": 480,
+          "o2_percent": 16.7,
+          "co_percent": 0.29,
+          "co2_percent": 6.5,
+          "smoke_mass_kg": 5.2
+        },
+        "lower_layer": {
+          "temperature_c": 83,
+          "o2_percent": 19.1,
+          "co_percent": 0.04,
+          "co2_percent": 1.5,
+          "smoke_mass_kg": 0.61
+        },
+        "hrr_kw": 1300,
+        "pressure_delta_pa": 6.2
+      }
+    ],
+    "global": {
+      "total_hrr_kw": 1300,
+      "ambient_temp_c": 20,
+      "ambient_pressure_pa": 101325
+    }
+  },
+  "analysis_rules": {
+    "physical_engine_is_authoritative": true,
+    "do_not_invent_missing_data": true,
+    "uncertain_phenomena_must_be_qualified": true
+  }
+}

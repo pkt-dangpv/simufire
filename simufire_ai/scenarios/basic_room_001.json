@@ -1,0 +1,54 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "name": "Incendio básico en habitación",
+  "description": "Habitación de 4 x 4 m con una puerta cerrada y un incendio de crecimiento t cuadrado.",
+
+  "simulation": {
+    "duration_s": 600,
+    "time_step_s": 1
+  },
+
+  "compartments": [
+    {
+      "id": "room_01",
+      "name": "Habitación",
+      "width_m": 4,
+      "length_m": 4,
+      "height_m": 2.5
+    }
+  ],
+
+  "openings": [
+    {
+      "id": "door_01",
+      "type": "door",
+      "from": "room_01",
+      "to": "outside",
+      "width_m": 0.8,
+      "height_m": 2.0,
+      "sill_height_m": 0,
+      "state": "closed"
+    }
+  ],
+
+  "fires": [
+    {
+      "id": "fire_01",
+      "compartment": "room_01",
+      "growth_model": "t_squared",
+      "alpha_kw_s2": 0.0117,
+      "max_hrr_kw": 3000,
+      "x_m": 2,
+      "y_m": 2
+    }
+  ],
+
+  "actions": [
+  {
+    "time_s": 180,
+    "type": "open",
+    "target": "door_01"
+  }
+]
+}

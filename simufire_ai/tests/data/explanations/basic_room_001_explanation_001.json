@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "explanation_id": "explanation_001",
+
+  "language": "es",
+  "audience_level": "firefighter",
+
+  "summary": "La apertura de la puerta produjo un aumento de la ventilacion y una intensificacion del incendio.",
+
+  "explanation": "Tras la apertura de la puerta aumento la concentracion de oxigeno disponible en el recinto. Al disponer de mas oxigeno, la combustion pudo intensificarse, aumentando el HRR y la temperatura de la capa superior. Los datos son compatibles con un incendio que estaba parcialmente limitado por ventilacion antes de la apertura.",
+
+  "confidence": 0.9,
+
+  "event_ids": [
+    "event_001"
+  ],
+
+  "source_ids": [],
+
+  "limitations": [
+    "La explicacion se basa unicamente en los datos estructurados disponibles.",
+    "No puede afirmarse un cambio completo de regimen de combustion sin analizar una ventana temporal mas amplia."
+  ]
+}
