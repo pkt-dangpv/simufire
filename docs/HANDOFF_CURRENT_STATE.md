@@ -73,6 +73,34 @@
 - Tareas independientes de la evidencia y ya ejecutables: **G4 visual** y
   **G5 exportación Windows** (no existe `export_presets.cfg`).
 
+## Current Program Update - 2026-09-26 - revisión de la ruta normal de CO₂
+
+- Rama activa `codex/wip-ruta-normal-co2-20260925`, checkpoint WIP previo
+  `b08d634`; `main` permanece en `00428a6a`. El arreglo sigue sin promover.
+- Revisión separada y de solo lectura completada antes de tocar evidencias:
+  13 informes JSON y 5 CSV cambian únicamente CO₂, residuales de carbono y
+  FED; 127 campos JSON numéricos, ninguno de caso o veredicto. Los logs
+  anteriores conservados coinciden con sus SHA revisados y solo difieren en
+  2631 segmentos `CO2`. En la casa a 300 s, 0/6076 grupos de acarreos
+  sobreextraen CO₂ alto; máximo 0,575 % del inventario (21 280 eventos).
+  Esto no prueba una cota universal para escenarios arbitrarios.
+- Impacto que no debe ocultarse: `room_6_final_fed_co` en
+  `cfast_two_floor_stairwell` baja **20,2 %** (2,8603 → 2,2833) por el factor
+  `V_CO2` del cálculo; FED/SVV siguen pendientes de validación cuantitativa.
+  El detalle y límites están en
+  [RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md §11](validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
+- Tras esa revisión se actualizaron solo 162 campos de tamaño/huella en el
+  registro de 51 checks y las dos huellas de baselines. El comparador normal
+  con evidencia activada escribió 346/346 requeridos, 78 gaps. Las 17 pruebas
+  focalizadas de los registros pasan. Las huellas y datos previos siguen en
+  `main` y en el checkpoint WIP anterior.
+- **Aún NO-GO para `main`:** R2-1 requiere confirmar informe y motor juntos;
+  producto y suite global deben repetirse después. No se lanzó Godot con
+  4,3–5,4 GB libres (<6 GB operativos). Comprobar memoria y procesos antes de
+  reanudar, ejecutar las tandas secuencialmente fuera del sandbox y no usar
+  pytest sin ruta (`python -m pytest tests ...`). Si todo queda verde, confirmar
+  el cierre en esta rama y solo entonces plantear incorporación a `main`.
+
 ## Current Program Update - 2026-09-25 - Ruta normal: el acarreo de gas caliente sacaba CO₂ de la capa baja
 
 - Checkpoint: HEAD = origin/main = `00428a6a`, árbol limpio al empezar.

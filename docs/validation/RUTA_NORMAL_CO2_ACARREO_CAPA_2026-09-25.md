@@ -425,3 +425,45 @@ y `cfast_hvac_residential` (5 cada uno), `cfast_slow_growth_sealed` y
 `ghanekar_bedroom_hallway` (3), `ghanekar_kitchen_living_room` (2) y
 `cfast_long_burnout_3600s`, `cfast_door_close_midfire`,
 `cfast_multi_fuel_couch_tv` (1).
+
+## 11. Revisión separada de informes y huellas — 26-09
+
+Retomado desde el checkpoint `b08d634` en
+`codex/wip-ruta-normal-co2-20260925`. Se comparó cada informe modificado con
+`main`, sin usar los veredictos de la suite como sustituto del diff:
+
+- **13 JSON y 5 CSV**, mismos esquemas y filas. En los JSON cambiaron 127
+  campos, todos numéricos y todos bajo `metrics`: 66 de CO₂, 53 residuales de
+  carbono derivados y 8 de FED. En los CSV solo cambian `co2_ppm`,
+  `co2_upper_ppm_mass`, `carbon_conservation_error_kg`, `fed`, `fed_co` y
+  `fed_hcn`. Los casos y las verdades CFAST no cambiaron.
+- El cambio relativo mayor de FED entre informes es **−20,2 %** en
+  `room_6_final_fed_co` de `cfast_two_floor_stairwell` (2,8603 → 2,2833).
+  No se minimiza por estar fuera de los 532 checks: el CO₂ de la zona baja
+  modifica `V_CO2`, que multiplica FED_CO y FED_HCN en `step_fed()`. Esto
+  establece causalidad dentro del modelo, **no validación fisiológica**.
+- Se localizaron las copias anteriores de los `.log` ignorados por Git en
+  `runs/p1r8_session91_checkout/sim/validation/reports/`. Su SHA-256 y tamaño
+  coinciden con el registro revisado anterior. Comparados línea a línea con
+  los nuevos: mismas líneas, mismos campos; **solo cambia `CO2` en 2631
+  segmentos**. No se re-fijó una huella sin comparar su contenido anterior.
+- Traza independiente de `preset_simple_house` a 300 s: 21 280 acarreos en
+  6076 grupos (paso, etapa, sala origen). Cero grupos extraen más CO₂ alto que
+  el inventario anterior al bucle; el máximo es 0,575 % del inventario, con
+  cuatro acarreos en ese grupo. La prueba es del escenario medido; no demuestra
+  una cota universal para geometrías o parámetros arbitrarios.
+- Los 51 checks conservan valores y veredictos. Se re-fijaron mecánicamente
+  solo 162 campos `bytes`/`sha256` de sus 20 artefactos únicos (JSON y logs)
+  y los dos `current_report_sha256` de baselines. Las huellas antiguas quedan
+  en `main` y en el commit WIP previo; no se tocaron clasificaciones ni
+  tolerancias. El comparador **normal, con verificación de evidencia activada**,
+  ya escribe `reference_checks.json` con 346/346 requeridos y 78 gaps.
+
+R2-1 sigue rojo **hasta que el informe actualizado se confirme junto al
+motor**: ahora el último commit de motor es el WIP `b08d634`, y el último
+commit del agregado en esta rama aún es `00428a6a`. No se interpreta ese rojo
+como fallo de los casos ni se esquiva alterando fechas. Las 17 pruebas
+focalizadas de ambos registros pasan. Pendiente antes de proponer `main`:
+`check_product.py` y `python -m pytest tests -q -p no:cacheprovider`, con
+memoria suficiente y Godot fuera del sandbox. Al revisar había 4,3–5,4 GB
+libres, por debajo del umbral operativo de 6 GB; no se inició Godot.
