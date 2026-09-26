@@ -12,6 +12,12 @@
   UI ya distingue actual y peor. G3 permanece **NO-GO cuantitativo**. El
   fixture de concentraciones impuestas y los límites de esta inferencia están
   en [G3_FED_SVV_DIAGNOSTICO_2026-09-26.md](validation/G3_FED_SVV_DIAGNOSTICO_2026-09-26.md).
+- Fixture ya ejecutado con Godot 4.7.1 supervisado: 100 ppm de CO impuestos
+  abajo y 1 000 arriba producen `co_lower_ppm=0` y FED_CO a 0,9 m de
+  0,0002342286 por segundo, frente a 0,0000652521 calculado con los 100 ppm
+  impuestos (3,59×). La lectura alta a 1,8 m coincide con la fórmula.
+  Diagnóstico reproducible en `tools/diagnose_fed_zone_selector.gd`; ninguna
+  fórmula del motor se cambió.
 
 ## Current Program Update - 2026-09-26 - integración del arreglo de CO₂
 

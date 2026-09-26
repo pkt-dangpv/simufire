@@ -87,3 +87,35 @@ Siguiente unidad de trabajo, antes de otro cambio de física:
 
 La ruta de trabajo y el gate de publicación siguen en
 [MASTER_ROADMAP_CURRENT.md](../planning/MASTER_ROADMAP_CURRENT.md).
+
+## 4. Fixture de concentraciones impuestas — 26-09
+
+`tools/diagnose_fed_zone_selector.gd` fija una sala de 4 × 4 × 2,4 m, interfaz
+termo-gaseosa a 1,6 m, 100 ppm de CO por inventario en la zona inferior y
+1 000 ppm en la superior. Desactiva calor e hipoxia y deja HCN/CO₂ a cero:
+el incremento restante es solo CO, sin potenciación. La ejecución con Godot
+4.7.1, lanzador supervisado, terminó con salida 0, sin cuadro de error ni
+procesos residuales.
+
+| magnitud | resultado |
+|---|---:|
+| CO bajo impuesto por masa | 100,000000 ppm |
+| CO alto impuesto por masa / exportado | 1 000,000000 / 1 000,000000 ppm |
+| CO medio de sala | 343,366841 ppm |
+| `compute_co_lower_ppm()` | **0,000000 ppm** |
+| dosis CO de 1 s a 0,9 y 1,5 m | **0,0002342286** cada una |
+| fórmula independiente con los 100 ppm impuestos abajo | 0,0000652521 |
+| dosis CO de 1 s a 1,8 m / fórmula con 1 000 ppm arriba | 0,0007089151 / 0,0007089151 |
+
+La dosis inferior calculada es **3,59 veces** la dosis de los 100 ppm impuestos
+por masa. La salida `co_lower_ppm` es cero porque `strat` llega a cero con el
+tercio superior ocupado, aunque el inventario bajo no es cero. Por tanto hay
+dos desacuerdos internos, no uno: el selector FED usa la media bajo la capa,
+y la función inferior exportada borra una concentración impuesta no nula. El
+fixture demuestra incoherencia del modelo con sus propias entradas controladas;
+no prueba que 100 ppm represente una exposición real.
+
+Para corregirlo hace falta un contrato explícito de concentración respirada y
+un guardarraíl que compare con el inventario zonal sin tomar `co_lower_ppm`
+actual como verdad. Luego medir OFF byte a byte, el impacto sobre FED de los
+escenarios y la referencia completa antes de activar nada en producto.
