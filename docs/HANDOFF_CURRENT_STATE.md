@@ -1,5 +1,18 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-26 - G3 FED/SVV, diagnóstico inicial
+
+- Auditoría de código e informes existentes, **sin cambiar física**. Debajo de
+  la capa, FED usa CO medio de sala pero HCN, CO₂ y O₂ zonales. El CO inferior
+  exportado tiene además una heurística que puede llevarlo a cero: cambiar
+  solo el selector no es un arreglo seguro. En un caso de estrés, con interfaz
+  a 1,964 m, CO medio 54 783 ppm y CO bajo exportado 0 ppm, FED_CO aún sube
+  0,04489 en 1 s; la fórmula interna con el CO medio reproduce ese aumento.
+- El log `SVV=%` imprime el peor histórico cuando existe ese campo, aunque la
+  UI ya distingue actual y peor. G3 permanece **NO-GO cuantitativo**. El
+  fixture de concentraciones impuestas y los límites de esta inferencia están
+  en [G3_FED_SVV_DIAGNOSTICO_2026-09-26.md](validation/G3_FED_SVV_DIAGNOSTICO_2026-09-26.md).
+
 ## Current Program Update - 2026-09-26 - integración del arreglo de CO₂
 
 - `main` avanzó sin merge commit desde `00428a6a` hasta `50d6b119`, los

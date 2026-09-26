@@ -361,6 +361,11 @@ medidos paso a paso; detalle en
 Estado: **ABIERTO**. Prioridad alta antes de la release candidate si el producto
 va a presentar estas salidas como magnitudes fisiologicas fiables.
 
+Diagnóstico interno del 26-09: [G3_FED_SVV_DIAGNOSTICO_2026-09-26.md](../validation/G3_FED_SVV_DIAGNOSTICO_2026-09-26.md).
+El selector de CO bajo y la propia heurística de `co_lower_ppm` deben medirse
+por separado con concentraciones impuestas; no se modifica la física por la
+discrepancia de CSV. El log `SVV=%` aún imprime el peor histórico.
+
 Decision vigente:
 
 - La correccion de presentacion de la fase 1 esta cerrada: distinguir valor
