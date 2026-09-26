@@ -1,5 +1,20 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-26 - integración del arreglo de CO₂
+
+- `main` avanzó sin merge commit desde `00428a6a` hasta `50d6b119`, los
+  mismos bytes que pasaron la verificación en la rama WIP. La corrección real
+  está en `sim/core/ThermalSystem.gd`; los informes y sus huellas se auditaron
+  y actualizaron junto a ella. La referencia pasó 346/346 con 78 gaps,
+  producto 166/166 y pytest global 3006 passed (9 skipped, 2 xfailed,
+  42 subtests). R2-1 pasa.
+- Este cierre corrige el origen zonal del CO₂ en el acarreo de gas caliente de
+  la ruta normal. **No** cierra la validación cuantitativa de FED/SVV ni
+  demuestra una cota de acarreo para configuraciones arbitrarias. Mantener
+  esos gates en la ruta de trabajo antes de declarar realismo del producto.
+- Detalle causal, diferencias de informes y límites en
+  [RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md](validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
+
 ## Decision vigente de publicación - 2026-09-24
 
 - La fecha del 30 de octubre se retiró. El usuario prefiere ampliar plazo antes

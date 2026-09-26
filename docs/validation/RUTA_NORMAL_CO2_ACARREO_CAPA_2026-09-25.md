@@ -488,3 +488,11 @@ El cambio queda técnicamente verificado **en la rama WIP**, no incorporado a
 `main` ni demostrado fisiológicamente para FED/SVV. Tampoco se ha probado una
 cota universal de acarreo para geometrías y parámetros arbitrarios. La
 promoción a `main` requiere una decisión explícita de integración.
+
+## 13. Integración — 26-09
+
+Tras el cierre anterior, `main` y `origin/main` seguían en `00428a6a` y la
+rama WIP en `50d6b119`; el remoto se consultó de nuevo y no había avanzado.
+Se incorporó mediante fast-forward local, sin conflictos, cambios de código
+adicionales ni reejecución innecesaria de las tandas largas sobre los mismos
+bytes. FED/SVV y la cota universal señalados en §12 permanecen abiertos.
