@@ -94,12 +94,15 @@
   con evidencia activada escribió 346/346 requeridos, 78 gaps. Las 17 pruebas
   focalizadas de los registros pasan. Las huellas y datos previos siguen en
   `main` y en el checkpoint WIP anterior.
-- **Aún NO-GO para `main`:** R2-1 requiere confirmar informe y motor juntos;
-  producto y suite global deben repetirse después. No se lanzó Godot con
-  4,3–5,4 GB libres (<6 GB operativos). Comprobar memoria y procesos antes de
-  reanudar, ejecutar las tandas secuencialmente fuera del sandbox y no usar
-  pytest sin ruta (`python -m pytest tests ...`). Si todo queda verde, confirmar
-  el cierre en esta rama y solo entonces plantear incorporación a `main`.
+- **Cierre de verificación en la rama WIP:** el commit `066b5aee` confirmó
+  el informe actualizado junto al motor; R2-1 y todos los guardarraíles pasan.
+  Con 6,48 GB libres al arrancar, `check_product.py` dio **166/166** y la
+  suite global `python -m pytest tests -q -p no:cacheprovider` dio
+  **3006 passed, 9 skipped, 2 xfailed, 42 subtests passed**, salida 0.
+  Godot se ejecutó secuencialmente fuera del sandbox, con temporales externos;
+  al cerrar producto no quedaron procesos Godot. No se ha promovido a `main`:
+  la incorporación es una decisión posterior, distinta del cierre técnico de
+  la rama. FED/SVV y la cota para configuraciones arbitrarias siguen abiertos.
 
 ## Current Program Update - 2026-09-25 - Ruta normal: el acarreo de gas caliente sacaba CO₂ de la capa baja
 

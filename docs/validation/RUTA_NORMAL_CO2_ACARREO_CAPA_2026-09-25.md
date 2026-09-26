@@ -467,3 +467,24 @@ focalizadas de ambos registros pasan. Pendiente antes de proponer `main`:
 `check_product.py` y `python -m pytest tests -q -p no:cacheprovider`, con
 memoria suficiente y Godot fuera del sandbox. Al revisar había 4,3–5,4 GB
 libres, por debajo del umbral operativo de 6 GB; no se inició Godot.
+
+## 12. Cierre de la verificación en la rama WIP — 26-09
+
+El párrafo anterior registra el estado **anterior** al commit de evidencia.
+El commit `066b5aee` confirmó `reference_checks.json` y las huellas junto al
+motor WIP; desde entonces R2-1 y todos los guardarraíles pasan. La suite de
+referencia normal dio **346/346 requeridos PASS y 78 gaps**; solo cambió
+`generated_at` en el agregado, aparte de las huellas auditadas en §11.
+
+Tras liberar memoria (6,48 GB al inicio), se ejecutaron las dos tandas largas
+secuencialmente, con Godot fuera del sandbox y directorios temporales externos:
+
+- `scripts/check_product.py`: **166/166**, salida 0; cero procesos Godot al
+  terminar.
+- `python -m pytest tests -q -p no:cacheprovider`: **3006 passed, 9 skipped,
+  2 xfailed, 42 subtests passed**, salida 0.
+
+El cambio queda técnicamente verificado **en la rama WIP**, no incorporado a
+`main` ni demostrado fisiológicamente para FED/SVV. Tampoco se ha probado una
+cota universal de acarreo para geometrías y parámetros arbitrarios. La
+promoción a `main` requiere una decisión explícita de integración.
