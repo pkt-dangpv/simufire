@@ -13,6 +13,8 @@ var _failed: bool = false
 var _projection_trace_enabled: bool = false
 var _projection_trace_path: String = ""
 var _projection_trace_file: FileAccess = null
+var _co_inventory_trace_file: FileAccess = null
+var _co_inventory_next_sample_s: float = 0.0
 
 
 func _ready() -> void:
@@ -68,6 +70,8 @@ func _run() -> void:
 	await get_tree().process_frame
 
 	_apply_engine_overrides(engine, scenario.get("engine_overrides", {}))
+	if _cli_args.has("fire_o2_mode"):
+		engine.fire_o2_mode = String(_cli_args["fire_o2_mode"])
 	# The run artifact directory owns output paths even when a validation case
 	# carries repository report paths inside engine_overrides.
 	engine.log_file_path = _out_dir.path_join("sim_log.txt")
@@ -363,11 +367,16 @@ func _run() -> void:
 	var suppression_events: Array = _prepare_suppression_events(scenario.get("suppression_events", []))
 	if not _open_projection_trace():
 		return
+	if not _open_co_inventory_trace(engine, building):
+		_close_projection_trace()
+		return
 
 	if not _run_loop(engine, building, duration_s, step_s, opening_events, suppression_events):
 		_close_projection_trace()
+		_close_co_inventory_trace()
 		return
 	_close_projection_trace()
+	_close_co_inventory_trace()
 
 	var details: String = "run_scenario scenario=%s duration_s=%.3f step_s=%.3f" % [
 		_scenario_path.get_file(),
@@ -432,6 +441,10 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["step_s"] = float(args[index])
 		elif arg == "--no-ignite":
 			parsed["no_ignite"] = true
+		elif arg.begins_with("--fire-o2-mode="):
+			parsed["fire_o2_mode"] = arg.get_slice("=", 1)
+		elif arg == "--co-inventory-trace":
+			parsed["co_inventory_trace"] = true
 		elif arg == "--phase3-zone-diagnostics":
 			parsed["phase3_zone_diagnostics"] = true
 		elif arg == "--phase3-runtime-ownership-ledger":
@@ -755,6 +768,7 @@ func _run_loop(
 		var previous_time_s: float = sim_time_s
 		engine.step(step_s / maxf(0.001, engine.time_scale))
 		sim_time_s = engine.sim_time_s
+		_append_co_inventory_trace(engine, building, sim_time_s)
 		if _projection_trace_enabled:
 			var state: Dictionary = engine.get_state()
 			if state.is_empty():
@@ -805,6 +819,67 @@ func _close_projection_trace() -> void:
 		_projection_trace_file.flush()
 		_projection_trace_file.close()
 	_projection_trace_file = null
+
+
+func _open_co_inventory_trace(engine: SimulationEngine, building: BuildingModel) -> bool:
+	if not bool(_cli_args.get("co_inventory_trace", false)):
+		return true
+	_co_inventory_trace_file = FileAccess.open(
+		_out_dir.path_join("co_inventory_trace.jsonl"), FileAccess.WRITE
+	)
+	if _co_inventory_trace_file == null:
+		_abort("run_scenario_headless: could not open co_inventory_trace.jsonl")
+		return false
+	_co_inventory_next_sample_s = 0.0
+	_append_co_inventory_trace(engine, building, engine.sim_time_s)
+	return true
+
+
+func _append_co_inventory_trace(
+	engine: SimulationEngine, building: BuildingModel, sim_time_s: float
+) -> void:
+	if _co_inventory_trace_file == null:
+		return
+	if sim_time_s + 0.000001 < _co_inventory_next_sample_s:
+		return
+	var thermal: ThermalSystem = engine.thermal_system
+	for room in building.get_rooms().values():
+		var hot_h: float = thermal.effective_hot_layer_height_m(room)
+		var density_upper: float = thermal.gas_density_kg_m3(room.temp_upper_c)
+		var density_lower: float = thermal.gas_density_kg_m3(room.temp_lower_c)
+		var upper_geometric_kg: float = maxf(0.1,
+			room.floor_area_m2() * maxf(0.05, room.height_m - hot_h) * density_upper)
+		var lower_geometric_kg: float = maxf(0.1,
+			room.floor_area_m2() * maxf(0.05, hot_h) * density_lower)
+		var upper_co_kg: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
+		_co_inventory_trace_file.store_line(JSON.stringify({
+			"time_s": sim_time_s,
+			"room_id": room.id,
+			"height_m": room.height_m,
+			"hot_layer_m": hot_h,
+			"temp_upper_c": room.temp_upper_c,
+			"temp_lower_c": room.temp_lower_c,
+			"co_total_kg": room.co_kg,
+			"co_upper_raw_kg": room.co_upper_kg,
+			"co_upper_kg": upper_co_kg,
+			"co_lower_kg": maxf(0.0, room.co_kg - upper_co_kg),
+			"upper_gas_kg": room.upper_gas_kg,
+			"lower_gas_kg": room.lower_gas_kg,
+			"upper_geometric_kg": upper_geometric_kg,
+			"lower_geometric_kg": lower_geometric_kg,
+			"co_upper_ppm": thermal.compute_co_upper_ppm(room),
+			"co_lower_mass_ppm": thermal.compute_co_lower_ppm_mass(room),
+			"co_lower_legacy_ppm": thermal.compute_co_lower_ppm(room),
+			"two_zone_enabled": engine.two_zone_solver_enabled,
+		}))
+	_co_inventory_next_sample_s = sim_time_s + maxf(0.001, engine.log_interval_s)
+
+
+func _close_co_inventory_trace() -> void:
+	if _co_inventory_trace_file != null:
+		_co_inventory_trace_file.flush()
+		_co_inventory_trace_file.close()
+	_co_inventory_trace_file = null
 
 
 func _apply_due_opening_events(building: BuildingModel, opening_events: Array, sim_time_s: float) -> void:

@@ -3,6 +3,15 @@
 **Estado validacion**: 346/346 PASS required, 78 gaps non-gating, 78/78 con disposición final, 0 required failures
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
+> **Auditoría G3 del 26-09 (sin rebaseline):** los dos checks
+> `cfast_2r_hall_t240/t360_co_lower_ppm` tienen nombres de capa baja pero
+> consumen `co_avg_ppm` (media). Los valores vigentes del agregado son
+> 119/255 ppm, no la concentración baja por masa (0,0026/0,576 ppm en la
+> corrida equivalente). Las cifras 143/333 ppm de la tabla siguiente son del
+> checkpoint BRI-1 histórico. Los 78 gaps y sus disposiciones se conservan
+> hasta corregir el observable y regenerar la suite oficial. Evidencia en
+> [G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).
+
 > **Verificación de sincronización** — entrypoint único (recomendado):
 > ```bash
 > python scripts/simulation/validation_guardrails.py

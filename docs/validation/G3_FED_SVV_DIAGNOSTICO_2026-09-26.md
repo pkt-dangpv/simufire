@@ -172,3 +172,9 @@ prueba la identidad OFF, no la exactitud ON. Las diferencias CFAST históricas
 sugieren que el inventario bajo de CO puede ser inexacto; corregir el muestreo
 no calibra el transporte ni los rendimientos de CO. Siguen abiertos la
 fisiología cuantitativa de FED y la semántica de SVV.
+
+El contraste dinámico posterior confirmó el **NO-GO**: en un caso de dos salas
+con geometría de capa similar a 480 s, el CO inferior por masa es 0,0058 ppm
+en SimuFire frente a 579 ppm en CFAST. Además, dos checks llamados
+`co_lower_ppm` comparaban la media, no la zona baja. Método, controles y
+límites: [G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).

@@ -89,6 +89,10 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=120, help="Godot process timeout in seconds.")
     parser.add_argument("--no-ignite", action="store_true", help="Load the scenario without initial ignition.")
     parser.add_argument(
+        "--fire-o2-mode", choices=("legacy", "upper", "lower", "interface"),
+        default=None, help="Explicitly override the fire O2 mode for this run.",
+    )
+    parser.add_argument(
         "--phase3-zone-diagnostics",
         action="store_true",
         help="Enable passive Phase 3+ two-zone diagnostic columns in the CSV.",
@@ -328,6 +332,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Export passive F3.3k accepted mass/enthalpy totals per connection.",
     )
+    parser.add_argument(
+        "--co-inventory-trace",
+        action="store_true",
+        help="Export passive per-room CO upper/lower inventory snapshots as JSONL.",
+    )
     return parser.parse_args(argv)
 
 
@@ -470,6 +479,10 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append(f"--step={args.step}")
     if args.no_ignite:
         cmd.append("--no-ignite")
+    if args.fire_o2_mode is not None:
+        cmd.append(f"--fire-o2-mode={args.fire_o2_mode}")
+    if args.co_inventory_trace:
+        cmd.append("--co-inventory-trace")
     if args.phase3_zone_diagnostics:
         cmd.append("--phase3-zone-diagnostics")
     if args.phase3_runtime_ownership_ledger:

@@ -373,6 +373,13 @@ defecto: reproduce la dosis baja impuesta, conserva la referencia OFF 346/346
 con 78 gaps e impacta solo `fed`/`fed_co` en el caso ON medido. **No está
 calibrado ni autorizado para producto**; queda pendiente contrastar inventarios
 zonales y fisiología antes de cambiar el valor por defecto.
+El contraste de inventarios del 26-09 confirma el **NO-GO**: 0,0058 ppm de CO
+bajo por masa en la sala del fuego frente a 579 ppm CFAST a 480 s, con interfaz
+de capa similar. Dos checks históricos de «CO bajo» consumían en realidad la
+media de sala. Ver
+[G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](../validation/G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).
+Antes de activar G3 hay que corregir la observabilidad del comparador y
+diagnosticar el transporte intercapas, sin calibrar una tasa a un solo punto.
 
 Decision vigente:
 

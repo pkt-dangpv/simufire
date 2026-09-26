@@ -1,5 +1,22 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-26 - gate de inventario CO: NO-GO
+
+- Tres casos CFAST corridos con traza pasiva y perfil O₂ equivalente a la
+  referencia; los logs físicos coinciden con los oficiales, y el control
+  traza OFF/ON conserva CSV/log/eventos byte a byte. El candidato FED G3
+  permanece **apagado**.
+- Instrumentación solo en `scripts/run_scenario.py` y
+  `tools/run_scenario_headless.gd`; sin cambio en `sim/core` ni regeneración de
+  referencia. Producto 167/167, global 3 012 passed (9 skipped, 2 xfailed,
+  42 subtests), 13 pruebas focalizadas PASS.
+- En dos salas, sala del fuego a 480 s: CO bajo por masa 0,0058 ppm frente a
+  579 ppm CFAST, con interfaces 1,74/1,78 m. Dos checks existentes llamados
+  `co_lower_ppm` miden en realidad el CO medio (119/255 ppm); el bajo trazado
+  del pasillo es 0,0026/0,576 ppm. No se han cambiado los 78 gaps.
+- Contrato, cifras y siguiente gate en
+  [G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](validation/G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).
+
 ## Current Program Update - 2026-09-26 - candidato G3 de CO zonal, OFF
 
 - En `codex/g3-fed-co-zonal` se añadió un selector experimental, apagado por
