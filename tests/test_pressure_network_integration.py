@@ -63,8 +63,8 @@ def test_single_flag_is_declared_off_by_default():
     auditor = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
     assert f'"{FLAG}"' in auditor
     # F2.2D1, R3, D2 y D3 anaden cuatro capacidades vivas:
-    # 77 -> 78 -> 79 -> 80 -> 81.
-    assert "EXPECTED_DECLARATION_COUNT = 81" in auditor
+    # 77 -> 78 -> 79 -> 80 -> 81; the later G3 FED flag raises it to 82.
+    assert "EXPECTED_DECLARATION_COUNT = 82" in auditor
 
 
 def test_no_distributed_scenario_turns_the_flag_on():

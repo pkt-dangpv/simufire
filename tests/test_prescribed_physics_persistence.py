@@ -210,8 +210,8 @@ def test_flag_inventory_is_unchanged():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(
         encoding="utf-8"
     )
-    # D4A no añade ningun interruptor: solo persiste datos.
-    assert "EXPECTED_DECLARATION_COUNT = 81" in audit
+    # D4A added none; the later G3 FED candidate raised the inventory to 82.
+    assert "EXPECTED_DECLARATION_COUNT = 82" in audit
 
 
 # ------------------------------------------------------------

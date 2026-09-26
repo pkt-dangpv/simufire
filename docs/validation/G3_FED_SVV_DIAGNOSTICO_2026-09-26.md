@@ -119,3 +119,56 @@ Para corregirlo hace falta un contrato explícito de concentración respirada y
 un guardarraíl que compare con el inventario zonal sin tomar `co_lower_ppm`
 actual como verdad. Luego medir OFF byte a byte, el impacto sobre FED de los
 escenarios y la referencia completa antes de activar nada en producto.
+
+## 5. Contrato experimental G3 (rama `codex/g3-fed-co-zonal`)
+
+NIST describe en su [guía técnica de CFAST](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.1026r1.pdf),
+§3.7.1, el seguimiento de masa de cada especie por capa y la conversión de
+masa/volumen a concentración con el peso molecular. La [guía de usuario de
+CFAST 7](https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1889v2.pdf),
+§12.3.2, informa CO en ppm por separado para capa alta y baja. Son referencias
+de **estructura del modelo**, no mediciones de CO en una vivienda ni prueba de
+que nuestros inventarios zonales estén calibrados. La biblioteca local tiene
+la guía de usuario TN 1889v2 y la guía técnica de otra edición, TN 1889v1.
+La SP 1026r1 citada aquí se consultó en línea; no se confunden las ediciones.
+
+El candidato `fed_co_zonal_enabled` nace **false**. OFF conserva la media
+histórica bajo la interfaz. ON hace que ambas rutas FED, sala y persona a
+altura específica, usen `co_lower_kg = max(0, co_kg - co_upper_kg)` dividido
+por la masa geométrica de la zona inferior, con el mismo factor molecular
+29/28 de CO. No usa el multiplicador `strat` del valor legacy exportado. Sin
+capa superior establecida (`upper_gas_kg < 0,1 kg`) vuelve a la media. La zona
+alta, el resto de especies y la fórmula de FED quedan intactos.
+
+En el fixture impuesto, OFF da 0,0002342286 de FED_CO por segundo a 0,9 m;
+ON da 0,0000652521, igual a la expresión independiente para los 100 ppm bajos.
+A 1,8 m ambos dan 0,0007089151 para los 1 000 ppm altos. El validador prueba
+además el fallback sin capa y ambas rutas de FED. Las 10 pruebas focalizadas
+finales Python/Godot pasan.
+
+La identidad OFF se comprobó con la suite oficial completa: 346/346 required
+PASS, los mismos 78 gaps y todos los informes de caso versionados idénticos;
+`reference_checks.json` solo cambia `generated_at`. Además, los 23 logs
+comparados antes/después fueron byte a byte idénticos. El runner supervisado
+terminó con código 0, sin timeout, errores nativos ni procesos Godot residuales.
+
+En `victim_fed_incapacitation`, dos corridas comparables de 800 s (OFF/ON)
+produjeron 4 806 filas CSV cada una. Solo variaron las columnas `fed` y
+`fed_co`; los demás campos coincidieron. FED final de la víctima a 0,9 m:
+1,0241 OFF → 1,0345 ON; primer FED ≥ 1: 206,3 → 206,7 s. El FED final de la
+sala 0 bajó 119,0581 → 113,6713 y el de la sala 1 subió 25,4671 → 25,6172.
+Los efectos de signos mixtos impiden interpretar ON como una mejora cuantitativa
+sin contrastar los inventarios zonales con datos independientes.
+
+Comprobaciones finales: `check_product.py` 167/167; guardarraíles científicos
+ALL PASS (frescura R2-1 incluida); suite global 3 010 passed, 9 skipped,
+2 xfailed y 42 subtests. La primera corrida global detectó seis aserciones
+estáticas históricas que fijaban el inventario antiguo o el texto exacto del
+selector OFF. Se actualizaron conservando la protección de los interruptores
+de puertas y la exigencia de OFF por defecto; la segunda corrida completa pasó.
+
+**No activar en producto ni llamar a esto validación física.** La referencia
+prueba la identidad OFF, no la exactitud ON. Las diferencias CFAST históricas
+sugieren que el inventario bajo de CO puede ser inexacto; corregir el muestreo
+no calibra el transporte ni los rendimientos de CO. Siguen abiertos la
+fisiología cuantitativa de FED y la semántica de SVV.

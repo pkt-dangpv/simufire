@@ -98,7 +98,8 @@ def test_the_switches_are_still_born_off():
 
 def test_no_new_switch_was_added():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
-    assert "EXPECTED_DECLARATION_COUNT = 81" in audit
+    # This opening-profile phase added none; later G3 added one OFF FED flag.
+    assert "EXPECTED_DECLARATION_COUNT = 82" in audit
 
 
 def test_every_profile_is_still_barred_from_the_product():

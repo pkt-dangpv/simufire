@@ -558,6 +558,16 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot acarreo de gas caliente por capa: " + (diagnostic or "failed"))
 
+    # G3: candidate only, OFF by default. Forced concentrations prove the
+    # lower-zone FED selector without changing official product scenarios.
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/diagnose_fed_zone_selector.gd",
+        "G3 FED CO ZONAL VALIDATION PASS",
+    )
+    rows.append(("Selector experimental de CO zonal en FED, Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot selector experimental de CO zonal: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_exterior_occlusion.tscn",
         "EXTERIOR OCCLUSION VALIDATION PASS",

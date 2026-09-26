@@ -192,6 +192,7 @@ OUT_OF_RUNTIME_SCOPE = {
     # f6fed3a7: live O2 physics for exterior openings (editor scenarios only).
     "exterior_opening_bernoulli_o2_enabled",
     "fed_co2_source_mass",
+    "fed_co_zonal_enabled",
     "fire_fds_extinction_enabled",
     "fire_o2_canonical_enabled",
     "fire_o2_independent",
@@ -241,7 +242,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 81
+EXPECTED_DECLARATION_COUNT = 82
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

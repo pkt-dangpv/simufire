@@ -1,5 +1,29 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-26 - candidato G3 de CO zonal, OFF
+
+- En `codex/g3-fed-co-zonal` se añadió un selector experimental, apagado por
+  defecto, para que FED use CO del inventario inferior cuando se respira bajo
+  la interfaz. El valor CO inferior legacy exportado no se modificó: contiene
+  un factor heurístico que puede borrar una masa no nula. Sin capa alta, el
+  candidato vuelve a la media. El producto no lo activa.
+- El fixture de 100/1 000 ppm impuestos da, a 0,9 m, 0,0002342286 OFF y
+  0,0000652521 ON por segundo; a 1,8 m ambos dan 0,0007089151. Godot
+  supervisado y las 10 pruebas focalizadas finales PASS. La identidad OFF pasó: 23/23
+  logs comparados byte a byte y los informes de caso versionados intactos;
+  referencia 346/346, 78 gaps, solo cambió `generated_at` en el agregado.
+  En `victim_fed_incapacitation`, ON solo alteró `fed` y `fed_co` de las
+  4 806 filas CSV; FED final de la víctima 1,0241 → 1,0345 y cruce de FED 1
+  a los 206,3 → 206,7 s. El efecto tiene signos mixtos según sala: no es
+  calibración física. Producto 167/167, guardarraíles científicos ALL PASS
+  (R2-1 incluido) y suite global 3 010 passed, 9 skipped, 2 xfailed,
+  42 subtests. El primer intento global reveló seis contratos históricos
+  estáticos obsoletos; se actualizaron sin relajar los checks de puertas y
+  presentación, y la segunda pasada completa quedó verde. FED/SVV siguen
+  NO-GO cuantitativo.
+- Fuente, contrato y límites en
+  [G3_FED_SVV_DIAGNOSTICO_2026-09-26.md](validation/G3_FED_SVV_DIAGNOSTICO_2026-09-26.md).
+
 ## Current Program Update - 2026-09-26 - G3 FED/SVV, diagnóstico inicial
 
 - Auditoría de código e informes existentes, **sin cambiar física**. Debajo de

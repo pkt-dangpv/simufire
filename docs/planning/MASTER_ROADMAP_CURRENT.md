@@ -365,11 +365,14 @@ Diagnóstico interno del 26-09: [G3_FED_SVV_DIAGNOSTICO_2026-09-26.md](../valida
 El selector de CO bajo y la propia heurística de `co_lower_ppm` deben medirse
 por separado con concentraciones impuestas; no se modifica la física por la
 discrepancia de CSV. El log `SVV=%` aún imprime el peor histórico.
-El fixture controlado del mismo día ya confirmó la incoherencia: 100 ppm de CO
+El fixture controlado del mismo día confirmó la incoherencia: 100 ppm de CO
 impuestos en zona baja se exportan como 0 ppm, mientras FED a 0,9 m integra la
 media de 343 ppm (dosis 3,59 veces la de la concentración impuesta). Ver §4 del
-diagnóstico. Siguiente paso: contrato de concentración respirada y guardarraíl
-independiente, antes de un cambio de motor.
+diagnóstico. Existe un candidato experimental de CO zonal para FED, apagado por
+defecto: reproduce la dosis baja impuesta, conserva la referencia OFF 346/346
+con 78 gaps e impacta solo `fed`/`fed_co` en el caso ON medido. **No está
+calibrado ni autorizado para producto**; queda pendiente contrastar inventarios
+zonales y fisiología antes de cambiar el valor por defecto.
 
 Decision vigente:
 

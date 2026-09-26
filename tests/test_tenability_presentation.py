@@ -252,11 +252,11 @@ def test_the_log_writer_remains_out_of_scope_and_pending():
 
 
 def test_the_zonal_co_selection_is_untouched():
-    """La asimetría del CO es de una fase posterior; aquí no se toca."""
-    assert (
-        "var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer "
-        "else compute_co_ppm(room)"
-    ) in THERMAL
+    """La fase de presentación sigue sin activar el candidato zonal G3."""
+    engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
+    assert "@export var fed_co_zonal_enabled: bool = false" in engine
+    selector = "compute_co_lower_ppm_mass(room) if fed_co_zonal_enabled else compute_co_ppm(room)"
+    assert THERMAL.count(selector) == 2  # FED de sala y de persona
 
 
 # ------------------------------------------------------------

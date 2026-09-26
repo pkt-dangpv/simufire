@@ -295,7 +295,8 @@ def test_no_distributed_scenario_declares_or_activates_anything():
 
 def test_no_switch_was_added():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
-    assert "EXPECTED_DECLARATION_COUNT = 81" in audit
+    # This editor phase added none; the later G3 FED candidate added one.
+    assert "EXPECTED_DECLARATION_COUNT = 82" in audit
 
 
 # ------------------------------------------------------------

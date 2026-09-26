@@ -748,6 +748,9 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## calcular v_co2 en lugar del tracer OES (room.co2_upper × 1e6). Default false
 ## = no-op exacto. Activar per-caso en engine_overrides: {"fed_co2_source_mass": true}.
 @export var fed_co2_source_mass: bool = false
+## G3 experimental: sample lower-zone CO from its species inventory for FED.
+## Default OFF preserves the historical room-mean CO dose below the interface.
+@export var fed_co_zonal_enabled: bool = false
 
 # ============================================================
 # FED — CALOR (ISO 13571 §5.5)
@@ -1428,6 +1431,7 @@ func _sync_auxiliary_services() -> void:
 		"fed_hypoxia_b": fed_hypoxia_b,
 		"fed_upper_layer_threshold_m": fed_upper_layer_threshold_m,
 		"fed_co2_source_mass": fed_co2_source_mass,
+		"fed_co_zonal_enabled": fed_co_zonal_enabled,
 		"fed_heat_enabled": fed_heat_enabled,
 		"fed_heat_conv_a": fed_heat_conv_a,
 		"fed_heat_conv_n": fed_heat_conv_n,
