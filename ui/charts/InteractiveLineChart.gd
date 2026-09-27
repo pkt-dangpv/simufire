@@ -198,19 +198,26 @@ func _draw_grid_and_axes(r: Rect2) -> void:
 	draw_line(r.position, r.position + Vector2(0, r.size.y), AXIS_COLOR, 1.0)
 	draw_line(r.position + Vector2(0, r.size.y), r.position + r.size, AXIS_COLOR, 1.0)
 
-	for ty in _nice_ticks(_y_min, _y_max, 5):
+	# Etiquetas con los decimales que pide el paso entre marcas, no el valor:
+	# con "%d" fijo en X un zoom de pocos segundos daba "0 0 0 1 1 1", y en Y
+	# el cero salia "0.000" junto a "500" y "1000".
+	var y_ticks: Array = _nice_ticks(_y_min, _y_max, 5)
+	var y_decimals: int = _tick_decimals(y_ticks)
+	for ty in y_ticks:
 		var p: Vector2 = _data_to_px(_view_x_min, ty)
 		draw_line(Vector2(r.position.x, p.y), Vector2(r.position.x + r.size.x, p.y), GRID_COLOR, 1.0)
 		if _font != null:
-			draw_string(_font, Vector2(6, p.y + 4), _fmt_num(ty),
+			draw_string(_font, Vector2(6, p.y + 4), _fmt_tick(ty, y_decimals),
 				HORIZONTAL_ALIGNMENT_LEFT, MARGIN_LEFT - 10, _font_size, MUTED_COLOR)
 
-	for tx in _nice_ticks(_view_x_min, _view_x_max, 6):
+	var x_ticks: Array = _nice_ticks(_view_x_min, _view_x_max, 6)
+	var x_decimals: int = _tick_decimals(x_ticks)
+	for tx in x_ticks:
 		var p2: Vector2 = _data_to_px(tx, _y_min)
 		draw_line(Vector2(p2.x, r.position.y), Vector2(p2.x, r.position.y + r.size.y), GRID_COLOR, 1.0)
 		if _font != null:
 			draw_string(_font, Vector2(p2.x - 16, r.position.y + r.size.y + 17),
-				"%d" % int(round(tx)), HORIZONTAL_ALIGNMENT_LEFT, 48, _font_size, MUTED_COLOR)
+				_fmt_tick(tx, x_decimals), HORIZONTAL_ALIGNMENT_LEFT, 64, _font_size, MUTED_COLOR)
 
 	if _font != null:
 		draw_string(_font, Vector2(r.position.x + r.size.x * 0.5 - 32, size.y - 7),
@@ -271,23 +278,32 @@ func _draw_series(r: Rect2) -> void:
 
 
 func _draw_legend(r: Rect2) -> void:
-	if _font == null:
+	if _font == null or _series.is_empty():
 		return
-	var x: float = r.position.x + r.size.x - 8.0
+	# Un solo panel casi opaco del ancho de la entrada mas larga: con un fondo
+	# al 40 % por entrada, las curvas se leian a traves del texto en cuanto
+	# habia varias salas.
+	var box_w: float = 0.0
+	for s in _series:
+		var tw: float = _font.get_string_size(String(s.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size).x
+		box_w = maxf(box_w, tw + 32.0)
+	box_w = minf(box_w, r.size.x - 16.0)
+	var x: float = r.position.x + r.size.x - 8.0 - box_w
 	var y: float = r.position.y + 6.0
+	var panel := Rect2(x, y, box_w, 21.0 * _series.size() + 2.0)
+	draw_rect(panel, Color(PLOT_BG_COLOR.r, PLOT_BG_COLOR.g, PLOT_BG_COLOR.b, 0.88), true)
+	draw_rect(panel, AXIS_COLOR, false, 1.0)
+	y += 1.0
 	for idx in range(_series.size()):
 		var s: Dictionary = _series[idx]
 		var nm: String = String(s.get("name", ""))
 		var col: Color = s.get("color", Color.WHITE)
 		var vis: bool = bool(s.get("visible", true))
-		var tw: float = _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size).x
-		var box_w: float = tw + 28.0
-		var rect: Rect2 = Rect2(x - box_w, y, box_w, 19.0)
-		draw_rect(rect, Color(0.0, 0.0, 0.0, 0.4), true)
-		draw_rect(Rect2(rect.position + Vector2(5, 7), Vector2(14, 4)),
+		var rect: Rect2 = Rect2(x, y, box_w, 21.0)
+		draw_rect(Rect2(rect.position + Vector2(8, 9), Vector2(14, 4)),
 			col if vis else Color(col.r, col.g, col.b, 0.3), true)
-		draw_string(_font, rect.position + Vector2(24, 14), nm,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, _font_size,
+		draw_string(_font, rect.position + Vector2(28, 15), nm,
+			HORIZONTAL_ALIGNMENT_LEFT, box_w - 32.0, _font_size,
 			TEXT_COLOR if vis else Color(0.5, 0.5, 0.5))
 		_legend_hitboxes.append({"rect": rect, "index": idx})
 		y += 21.0
@@ -448,8 +464,27 @@ func _nice_ticks(lo: float, hi: float, count: int) -> Array:
 	return ticks
 
 
+func _tick_decimals(ticks: Array) -> int:
+	if ticks.size() < 2:
+		return 2
+	var step: float = absf(float(ticks[1]) - float(ticks[0]))
+	if step <= 0.0:
+		return 2
+	return clampi(-int(floor(log(step) / log(10.0) + 1e-6)), 0, 4)
+
+
+func _fmt_tick(v: float, decimals: int) -> String:
+	# El tick en 0 llega a veces como -0.0000001 y se leia "-0".
+	if absf(v) < 1e-9:
+		v = 0.0
+	return "%.*f" % [decimals, v]
+
+
 func _fmt_num(v: float) -> String:
 	var a: float = absf(v)
+	# El tick en 0 llega a veces como -0.0000001 y se leia "-0.000".
+	if a < 1e-9:
+		v = 0.0
 	if a >= 100.0:
 		return "%.0f" % v
 	if a >= 10.0:
