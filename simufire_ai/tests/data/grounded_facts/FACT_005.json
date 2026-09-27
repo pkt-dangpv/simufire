@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_005",
+  "time_s": 195,
+  "fact_type": "observation",
+  "statement": "La temperatura de la capa superior aumentó de 390 a 475 °C.",
+  "certainty": "high",
+  "event_ids": [
+    "temperature_increase_195_room_01"
+  ],
+  "source_variables": [
+    "upper_layer.temperature_c"
+  ],
+  "knowledge_topics": [
+    "temperature"
+  ],
+  "requires_fact_ids": [],
+  "causal": false
+}

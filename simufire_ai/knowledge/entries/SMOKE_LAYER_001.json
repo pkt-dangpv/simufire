@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.1",
+  "knowledge_id": "SMOKE_LAYER_001",
+  "topic": "smoke_layer",
+  "title": "Interfaz entre capas en un modelo de dos zonas",
+
+  "content": "En un modelo de incendios de dos zonas, cada recinto se representa mediante una capa superior y una capa inferior de gases. La altura de la interfaz indica la separación vertical entre ambas capas. Un descenso de la interfaz significa que la capa superior ocupa una mayor parte de la altura del recinto. Este cambio puede utilizarse para describir la evolución de la estratificación de gases y humo dentro del compartimento. Sin embargo, el descenso de la interfaz por sí solo no identifica la causa física concreta que lo ha producido; esa interpretación requiere analizar conjuntamente otros datos de la simulación.",
+
+  "source": {
+    "source_id": "NIST_CFAST_V7_TECHNICAL_REFERENCE",
+    "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7 Volume 1: Technical Reference Guide",
+    "organization": "National Institute of Standards and Technology",
+    "document": "NIST TN 1889v1",
+    "section": "Two-zone compartment model"
+  },
+
+  "confidence": "authoritative",
+
+  "tags": [
+    "smoke_layer",
+    "layer_height",
+    "interface_height",
+    "upper_layer",
+    "lower_layer",
+    "zone_model"
+  ]
+}

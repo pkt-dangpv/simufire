@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "selection_id": "selection_001",
+  "fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003",
+    "FACT_004",
+    "FACT_005",
+    "FACT_006",
+    "FACT_007",
+    "FACT_008"
+  ]
+}

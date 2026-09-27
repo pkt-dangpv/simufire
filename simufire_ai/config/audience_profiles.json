@@ -1,0 +1,35 @@
+{
+  "version": "0.1",
+
+  "student": {
+    "label": "Alumno",
+    "description": "Explicación sencilla y didáctica.",
+    "show_exact_values": true,
+    "show_limitations": true,
+    "technical_detail": "low"
+  },
+
+  "firefighter": {
+    "label": "Bombero",
+    "description": "Explicación operativa y técnica sin exceso de detalle.",
+    "show_exact_values": true,
+    "show_limitations": true,
+    "technical_detail": "medium"
+  },
+
+  "instructor": {
+    "label": "Instructor",
+    "description": "Explicación orientada a formación y análisis del comportamiento del incendio.",
+    "show_exact_values": true,
+    "show_limitations": true,
+    "technical_detail": "high"
+  },
+
+  "technical": {
+    "label": "Técnico",
+    "description": "Salida orientada a análisis detallado y trazabilidad.",
+    "show_exact_values": true,
+    "show_limitations": true,
+    "technical_detail": "maximum"
+  }
+}

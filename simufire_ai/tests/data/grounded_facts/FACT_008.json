@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_008",
+  "time_s": 195,
+  "fact_type": "limitation",
+  "statement": "Se ha detectado un descenso de la interfaz entre capas, pero los datos disponibles no permiten atribuirle una causa física concreta.",
+  "certainty": "certain",
+  "event_ids": [],
+  "source_variables": [],
+  "knowledge_topics": [
+    "smoke_layer"
+  ],
+  "requires_fact_ids": [
+    "FACT_004"
+  ],
+  "causal": false
+}

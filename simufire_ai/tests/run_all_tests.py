@@ -3,57 +3,88 @@ import sys
 from pathlib import Path
 
 
-TESTS_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = TESTS_DIR.parents[1]
-
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 TESTS = [
-    "validate_scenario.py",
-    "validate_simulation_state.py",
-    "validate_fire_event.py",
-    "validate_explanation.py",
-    "test_fire_event_analyzer.py",
-    "test_fire_event_analyzer_no_false_positives.py",
-    "test_fire_event_timeline.py"
+    "simufire_ai/tests/validate_scenario.py",
+    "simufire_ai/tests/validate_simulation_state.py",
+    "simufire_ai/tests/validate_fire_event.py",
+    "simufire_ai/tests/validate_explanation.py",
+    "simufire_ai/tests/validate_analysis_context.py",
+    "simufire_ai/tests/validate_grounded_fact.py",
+
+    "simufire_ai/tests/validate_knowledge_entry.py",
+    "simufire_ai/tests/validate_instructor_context.py",
+
+    "simufire_ai/tests/test_fire_event_analyzer.py",
+    "simufire_ai/tests/test_fire_event_analyzer_no_false_positives.py",
+    "simufire_ai/tests/test_fire_event_timeline.py",
+
+    "simufire_ai/tests/test_grounded_explanation_safety.py",
+    "simufire_ai/tests/test_knowledge_retriever.py",
+    "simufire_ai/tests/test_instructor_explanation_safety.py"
 ]
 
 
 def main():
 
-    print("=== SimuFire AI Test Suite ===")
-    print()
+    passed = 0
+    failed = 0
 
-    failed = []
+    print("=" * 60)
+    print("SIMUFIRE AI - TEST SUITE")
+    print("=" * 60)
 
     for test in TESTS:
 
-        test_path = TESTS_DIR / test
+        print()
+        print("-" * 60)
+        print(f"EJECUTANDO: {test}")
+        print("-" * 60)
 
-        print(f"> {test}")
+        test_path = REPO_ROOT / test
 
         result = subprocess.run(
-            [sys.executable, str(test_path)],
-            cwd=PROJECT_ROOT
+            [
+                sys.executable,
+                str(test_path)
+            ],
+            cwd=REPO_ROOT
         )
 
-        if result.returncode != 0:
-            failed.append(test)
+        if result.returncode == 0:
 
-        print()
+            print()
+            print(f"OK: {test}")
+            passed += 1
 
-    print("=" * 40)
+        else:
 
-    if failed:
-        print("RESULTADO: ERROR")
-        print("Tests fallidos:")
+            print()
+            print(f"FALLO: {test}")
+            failed += 1
 
-        for test in failed:
-            print(f"- {test}")
+    print()
+    print("=" * 60)
+    print("RESULTADO FINAL")
+    print("=" * 60)
 
-        sys.exit(1)
+    print(f"Superados: {passed}")
+    print(f"Fallidos: {failed}")
+    print(f"Total: {len(TESTS)}")
 
-    print("RESULTADO: TODO OK")
-    print(f"{len(TESTS)}/{len(TESTS)} tests superados")
+    print()
+
+    if failed == 0:
+
+        print("RESULTADO: TODO OK")
+        print(
+            f"{passed}/{len(TESTS)} tests superados"
+        )
+        sys.exit(0)
+
+    print("RESULTADO: HAY ERRORES")
+    sys.exit(1)
 
 
 if __name__ == "__main__":

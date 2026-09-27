@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_007",
+  "time_s": 195,
+  "fact_type": "limitation",
+  "statement": "Los datos disponibles no son suficientes para afirmar una relación causal directa entre la apertura de la puerta y el aumento de temperatura.",
+  "certainty": "certain",
+  "event_ids": [],
+  "source_variables": [],
+  "knowledge_topics": [
+    "ventilation",
+    "temperature"
+  ],
+  "requires_fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_005"
+  ],
+  "causal": false
+}

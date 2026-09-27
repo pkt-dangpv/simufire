@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/fact_selection.schema.json",
+  "title": "SimuFire AI Fact Selection",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "selection_id",
+    "fact_ids"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "selection_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "fact_ids": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

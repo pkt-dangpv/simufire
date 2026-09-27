@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/grounded_fact.schema.json",
+  "title": "SimuFire AI Grounded Fact",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "fact_id",
+    "time_s",
+    "fact_type",
+    "statement",
+    "certainty",
+    "event_ids",
+    "knowledge_topics",
+    "requires_fact_ids"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "fact_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+
+    "fact_type": {
+      "type": "string",
+      "enum": [
+        "observation",
+        "action",
+        "association",
+        "limitation"
+      ]
+    },
+
+    "statement": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "certainty": {
+      "type": "string",
+      "enum": [
+        "certain",
+        "high",
+        "moderate",
+        "limited"
+      ]
+    },
+
+    "event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "source_variables": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "knowledge_topics": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "fire_dynamics",
+          "hrr",
+          "ventilation",
+          "smoke_layer",
+          "flashover",
+          "backdraft",
+          "rollover",
+          "gas_flow",
+          "oxygen",
+          "temperature",
+          "fire_growth",
+          "suppression",
+          "zone_models",
+          "cfast",
+          "fds",
+          "simufire"
+        ]
+      }
+    },
+
+    "requires_fact_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "causal": {
+      "type": "boolean"
+    }
+  }
+}
