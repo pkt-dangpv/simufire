@@ -95,3 +95,49 @@ completa.
    ya existe apagado; su existencia no autoriza ajustar una tasa a un punto.
 4. Solo después reexaminar el selector FED, la incertidumbre de ocupantes a
    0,9/1,5/1,8 m y la presentación de SVV.
+
+## Ampliación del 27-09: comparador reproducible y dos casos más
+
+El comparador diagnóstico
+[`audit_g3_co_inventory_against_cfast.py`](../../scripts/simulation/audit_g3_co_inventory_against_cfast.py)
+lee la traza opt-in y los CSV CFAST originales, exige columnas `LLCO`/`ULCO`
+de la sala correspondiente, comprueba duplicados, finitud, cotas de los
+inventarios y recalcula las ppm bajas a partir de la masa cuando existe zona
+superior. Emite hashes SHA-256 de ambas fuentes y diferencias **sin tolerancia
+de aprobado**. Si `upper_gas_kg < 0,1`, el motor devuelve la media de sala en
+lugar de una concentración inferior; el informe etiqueta ese punto como
+`room_mean_no_upper_zone`, no como medida zonal. La traza de 26-09 no trae el
+volumen para recalcular independientemente esa rama, así que el comparador
+solo confirma que coincide con el exportador legacy.
+
+Se añadieron corridas equivalentes de `cfast_post_flashover_vented` (O₂ de
+fuego legacy) y `cfast_corridor_chain` (O₂ upper), secuenciales y bajo el
+monitor de errores nativos. Ambas terminaron con exit 0, sin timeout, cuadro
+de error ni Godot residual. Sus 287 y 427 líneas físicas, respectivamente,
+coinciden con los logs oficiales versionados. En conjunto, el comparador
+procesa **5 casos, 1 890 snapshots de sala y 28 puntos**. Cinco pruebas
+sintéticas verifican el mapeo de sala y que inventarios o columnas inválidos
+no produzcan un resultado silencioso.
+
+| Caso y zona | t (s) | CO bajo SF por masa / CFAST (ppm) | Interfaz SF / CFAST (m) |
+|---|---:|---:|---:|
+| Post-flashover ventado, fuego | 300 | ≈0 / 101 | 1,99 / 0,80 |
+| Corredor, fuego | 590 | 0,021 / 439 | 1,48 / 0,81 |
+| Corredor, pasillo | 590 | ≈0 / 425 | 0,94 / 0,57 |
+| Dos salas, fuego | 480 | 0,0058 / 579 | 1,74 / 1,78 |
+
+El patrón de CO bajo casi nulo se repite en **tres escenarios que sí tienen
+LLCO no nulo en CFAST**; ya no depende de un caso aislado. Salvo el último
+punto, las alturas de interfaz difieren mucho, por lo que esas cifras no
+separan error geométrico de transporte intercapas. Tampoco prueban que CFAST
+sea una medición experimental. En los puntos indicados, la fracción de CO
+almacenada abajo es aproximadamente 0, 0,000035, 0 y 0,000013 del total,
+respectivamente. El siguiente experimento debe atribuir la escasez de CO
+inferior a propietarios concretos de generación, puerta, mezcla y proyección
+antes de modificar una ley de transporte.
+
+**Pendiente:** el comparador diagnóstico no sustituye los checks oficiales
+mal rotulados ni modifica `reference_checks.json` o las 78 disposiciones.
+Falta un observable oficial de CO inferior por masa y una regeneración
+completa antes de recalificar esos dos checks. `fed_co_zonal_enabled` sigue
+apagado y la evaluación FED/SVV sigue abierta.

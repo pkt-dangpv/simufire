@@ -1,5 +1,27 @@
 # Current Handoff State
 
+## Current Program Update - 2026-09-27 - G3 CO en cinco casos: NO-GO
+
+- El comparador diagnóstico reproducible de inventario bajo contra `LLCO`
+  original cubre 5 casos, 1 890 snapshots y 28 puntos; detecta inventarios
+  inválidos y distingue la rama sin capa superior (media de sala). Sus cinco
+  pruebas sintéticas pasan. No cambia ningún check oficial ni física.
+- Se ejecutaron post-flashover ventado y corredor bajo monitor, secuencialmente;
+  terminaron sanos y sus 287/427 líneas físicas son idénticas a los logs
+  oficiales. CO bajo SF/CFAST: 0/101 ppm en post-flashover a 300 s;
+  0,021/439 ppm en sala del fuego y 0/425 ppm en pasillo del corredor a 590 s.
+  Las interfaces difieren mucho en esos puntos; solo el caso de dos salas a
+  480 s presenta interfaces parecidas y 0,0058/579 ppm.
+- El patrón se repite en tres casos CFAST con `LLCO` no nulo, pero no identifica
+  aún el propietario físico. Sigue **NO-GO** para activar FED zonal. Los dos
+  checks históricos mal rotulados y los 78 gaps quedan intactos hasta tener
+  observable oficial y suite regenerada. Evidencia y límites en
+  [G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](validation/G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).
+- Cierre de regresión: `check_product.py` 167/167; guardarraíles 346/346 y 78
+  gaps, ALL PASS; global 3 017 passed, 9 skipped, 2 xfailed y 42 subtests.
+  Enlaces de los documentos modificados: 0 errores. El comprobador global de
+  enlaces sigue fallando por copias antiguas dentro de `runs/`, ajenas a G3.
+
 ## Current Program Update - 2026-09-26 - gate de inventario CO: NO-GO
 
 - Tres casos CFAST corridos con traza pasiva y perfil O₂ equivalente a la

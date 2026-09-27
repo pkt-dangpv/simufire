@@ -1,7 +1,7 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-09-24 (criterio de publicacion y FED/SVV)
+Ultima actualizacion parcial: 2026-09-27 (contraste G3 de CO en cinco casos)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
@@ -378,6 +378,12 @@ bajo por masa en la sala del fuego frente a 579 ppm CFAST a 480 s, con interfaz
 de capa similar. Dos checks históricos de «CO bajo» consumían en realidad la
 media de sala. Ver
 [G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md](../validation/G3_CO_ZONAL_INVENTORY_AUDIT_2026-09-26.md).
+Ampliación del 27-09: un comparador diagnóstico verificable cubre cinco casos
+y 28 puntos. Post-flashover ventado y corredor reproducen los logs físicos
+oficiales y muestran de nuevo CO bajo casi nulo frente a 101 y hasta 439 ppm
+en CFAST, aunque sus interfaces no son comparables. El contraste de dos salas
+a 480 s sigue siendo el punto que mejor aísla el error zonal. No se ha
+modificado ningún check oficial ni disposición de gap; el selector sigue OFF.
 Antes de activar G3 hay que corregir la observabilidad del comparador y
 diagnosticar el transporte intercapas, sin calibrar una tasa a un solo punto.
 
