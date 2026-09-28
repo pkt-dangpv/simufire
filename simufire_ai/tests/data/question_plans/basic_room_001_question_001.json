@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_001",
+  "intent": "timeline",
+  "topics": [
+    "ventilation",
+    "hrr",
+    "smoke_layer",
+    "temperature"
+  ],
+  "include_limitations": false,
+  "timeline_relation": "after",
+  "anchor_fact_id": "FACT_001",
+  "resolved_fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003",
+    "FACT_004",
+    "FACT_005"
+  ],
+  "resolved_knowledge_ids": [
+    "HRR_001",
+    "SMOKE_LAYER_001",
+    "TEMPERATURE_001",
+    "VENTILATION_001"
+  ]
+}

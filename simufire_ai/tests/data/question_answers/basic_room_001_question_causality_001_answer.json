@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.2",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_causality_001",
+  "intent": "causality",
+  "topics": [
+    "hrr",
+    "ventilation"
+  ],
+  "fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003",
+    "FACT_006"
+  ],
+  "knowledge_ids": [
+    "HRR_001",
+    "VENTILATION_001"
+  ],
+  "answer": "Con los datos disponibles no puede afirmarse esa relación causal.\n\nLo que sí muestra la simulación es lo siguiente: El elemento door_01 se abrió en t=180 s. El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01. El HRR aumentó de 720 a 1280 kW.\n\nLimitación del análisis: Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR.\n\nComo marco teórico general: La tasa de liberación de calor o HRR representa la velocidad a la que un incendio libera energía. Es una medida de potencia y se expresa normalmente en vatios, kilovatios o megavatios. El HRR no debe confundirse con la temperatura: dos fuegos pueden presentar temperaturas de llama similares y, sin embargo, liberar cantidades de energía por unidad de tiempo muy diferentes. En el análisis de una simulación, un aumento del HRR indica que ha aumentado la tasa de liberación de energía del incendio, pero ese aumento por sí solo no demuestra cuál ha sido su causa. La ventilación es uno de los factores que condicionan el desarrollo de un incendio en un recinto. Cuando la disponibilidad de oxígeno es insuficiente para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La apertura de una puerta, ventana u otra vía de ventilación puede modificar el suministro de oxígeno y producir cambios importantes en el comportamiento del incendio. Sin embargo, en el análisis de una simulación concreta no debe atribuirse automáticamente un cambio de HRR o temperatura a una apertura únicamente por proximidad temporal; esa relación debe estar respaldada por los datos y por el Fire Event Analyzer.",
+  "source_ids": [
+    "NIST_FIRE_DYNAMICS"
+  ]
+}

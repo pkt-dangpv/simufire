@@ -13,6 +13,7 @@
       "event_ids": [],
       "source_variables": [],
       "knowledge_topics": [],
+      "requires_fact_ids": [],
       "causal": false
     },
     {
@@ -33,6 +34,9 @@
       "knowledge_topics": [
         "ventilation"
       ],
+      "requires_fact_ids": [
+        "FACT_001"
+      ],
       "causal": false
     },
     {
@@ -52,6 +56,7 @@
       "knowledge_topics": [
         "hrr"
       ],
+      "requires_fact_ids": [],
       "causal": false
     },
     {
@@ -71,6 +76,7 @@
       "knowledge_topics": [
         "smoke_layer"
       ],
+      "requires_fact_ids": [],
       "causal": false
     },
     {
@@ -90,6 +96,7 @@
       "knowledge_topics": [
         "temperature"
       ],
+      "requires_fact_ids": [],
       "causal": false
     },
     {
@@ -105,6 +112,11 @@
       "knowledge_topics": [
         "ventilation",
         "hrr"
+      ],
+      "requires_fact_ids": [
+        "FACT_001",
+        "FACT_002",
+        "FACT_003"
       ],
       "causal": false
     },
@@ -122,6 +134,11 @@
         "ventilation",
         "temperature"
       ],
+      "requires_fact_ids": [
+        "FACT_001",
+        "FACT_002",
+        "FACT_005"
+      ],
       "causal": false
     },
     {
@@ -136,6 +153,9 @@
       "source_variables": [],
       "knowledge_topics": [
         "smoke_layer"
+      ],
+      "requires_fact_ids": [
+        "FACT_004"
       ],
       "causal": false
     }

@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_causality_001",
+  "intent": "causality",
+  "topics": [
+    "hrr",
+    "ventilation"
+  ],
+  "include_limitations": true,
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": "FACT_001",
+  "resolved_fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003",
+    "FACT_006"
+  ],
+  "resolved_knowledge_ids": [
+    "HRR_001",
+    "VENTILATION_001"
+  ]
+}

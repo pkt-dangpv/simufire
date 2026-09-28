@@ -22,7 +22,9 @@ TESTS = [
 
     "simufire_ai/tests/test_grounded_explanation_safety.py",
     "simufire_ai/tests/test_knowledge_retriever.py",
-    "simufire_ai/tests/test_instructor_explanation_safety.py"
+    "simufire_ai/tests/test_instructor_explanation_safety.py",
+
+    "simufire_ai/tests/test_question_modes.py"
 ]
 
 
