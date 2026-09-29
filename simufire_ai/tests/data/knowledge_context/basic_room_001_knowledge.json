@@ -21,6 +21,24 @@
       ]
     },
     {
+      "knowledge_id": "OXYGEN_001",
+      "topic": "oxygen",
+      "title": "Disponibilidad de oxígeno y combustión en incendios de compartimento",
+      "content": "El oxígeno disponible condiciona la combustión en un incendio de compartimento. Cuando la ventilación no aporta suficiente oxígeno para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La entrada de aire a través de una nueva abertura puede modificar la disponibilidad de oxígeno y alterar el comportamiento del incendio. Sin embargo, una variación de la concentración de oxígeno observada en una simulación no permite por sí sola determinar la causa concreta de otros cambios como el HRR o la temperatura; esas relaciones deben establecerse utilizando conjuntamente los datos disponibles y las reglas del Fire Event Analyzer.",
+      "source": {
+        "source_id": "NIST_FIRE_DYNAMICS",
+        "title": "Fire Dynamics",
+        "organization": "National Institute of Standards and Technology",
+        "document": "Fire Dynamics",
+        "section": "Fire Behavior in a Structure"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "oxygen",
+      "matched_fact_ids": [
+        "FACT_009"
+      ]
+    },
+    {
       "knowledge_id": "SMOKE_LAYER_001",
       "topic": "smoke_layer",
       "title": "Interfaz entre capas en un modelo de dos zonas",

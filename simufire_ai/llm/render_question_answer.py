@@ -101,7 +101,6 @@ def load_facts():
         FACTS_DIR.glob("*.json")
     ):
         fact = load_json(path)
-
         facts[fact["fact_id"]] = fact
 
     return facts
@@ -246,7 +245,14 @@ def render_change(change):
     unit = change["unit"]
     topic = change.get("topic")
 
+    magnitude = abs(delta)
+
+    # -----------------------------------------------
+    # TEMPERATURA
+    # -----------------------------------------------
+
     if topic == "temperature":
+
         if unit.lower() in [
             "c",
             "°c",
@@ -255,14 +261,36 @@ def render_change(change):
         ]:
             unit = "°C"
 
-    magnitude = abs(delta)
+        value_text = (
+            f"{format_number(magnitude)} "
+            f"{unit}"
+        ).strip()
 
-    value_text = format_number(
-        magnitude
-    )
+    # -----------------------------------------------
+    # OXÍGENO
+    #
+    # 14.1 % -> 16.8 % = 2.7 puntos porcentuales.
+    # -----------------------------------------------
 
-    if unit:
-        value_text += f" {unit}"
+    elif topic == "oxygen" and unit == "%":
+
+        value_text = (
+            f"{format_number(magnitude)} "
+            "puntos porcentuales"
+        )
+
+    # -----------------------------------------------
+    # RESTO
+    # -----------------------------------------------
+
+    else:
+
+        value_text = format_number(
+            magnitude
+        )
+
+        if unit:
+            value_text += f" {unit}"
 
     if delta > 0:
         return (

@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_009",
+  "time_s": 180,
+  "fact_type": "observation",
+  "statement": "El O₂ de la capa superior aumentó de 14.1 a 16.8 %.",
+  "certainty": "high",
+  "event_ids": [
+    "ventilation_increase_180_room_01"
+  ],
+  "source_variables": [
+    "upper_layer.o2_percent"
+  ],
+  "knowledge_topics": [
+    "oxygen"
+  ],
+  "requires_fact_ids": [
+    "FACT_002"
+  ],
+  "causal": false
+}

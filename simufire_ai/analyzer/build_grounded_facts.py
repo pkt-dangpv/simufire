@@ -79,6 +79,7 @@ def make_fact(
         "causal": causal
     }
 
+
 def build_facts(scenario, events):
 
     scenario_id = scenario["scenario_id"]
@@ -383,6 +384,61 @@ def build_facts(scenario, events):
             )
         )
 
+    # -------------------------------------------------
+    # OXIGENO
+    #
+    # Se añade DESPUÉS de FACT_001...FACT_008 para
+    # conservar los IDs históricos y no romper tests.
+    # -------------------------------------------------
+
+    ventilation_event = next(
+        (
+            event
+            for event in events
+            if event["event_type"]
+            == "ventilation_increase"
+        ),
+        None
+    )
+
+    if ventilation_event:
+
+        oxygen_evidence = find_evidence(
+            ventilation_event,
+            "upper_layer.o2_percent"
+        )
+
+        if oxygen_evidence:
+
+            facts.append(
+                make_fact(
+                    scenario_id=scenario_id,
+                    fact_id=next_id(),
+                    time_s=ventilation_event["time_s"],
+                    fact_type="observation",
+                    statement=(
+                        "El O₂ de la capa superior aumentó de "
+                        f"{oxygen_evidence['previous_value']} "
+                        f"a {oxygen_evidence['value']} %."
+                    ),
+                    certainty="high",
+                    event_ids=[
+                        ventilation_event["event_id"]
+                    ],
+                    source_variables=[
+                        "upper_layer.o2_percent"
+                    ],
+                    knowledge_topics=[
+                        "oxygen"
+                    ],
+                    causal=False
+                )
+            )
+
+    # -------------------------------------------------
+    # DEPENDENCIAS ENTRE HECHOS
+    # -------------------------------------------------
+
     dependencies = {
         "FACT_002": [
             "FACT_001"
@@ -402,6 +458,10 @@ def build_facts(scenario, events):
 
         "FACT_008": [
             "FACT_004"
+        ],
+
+        "FACT_009": [
+            "FACT_002"
         ]
     }
 
@@ -410,16 +470,22 @@ def build_facts(scenario, events):
             fact["fact_id"],
             []
         )
+
     return facts
 
 
 def main():
 
-    scenario = load_json(SCENARIO_PATH)
+    scenario = load_json(
+        SCENARIO_PATH
+    )
+
     events = load_events()
 
     if not events:
-        print("ERROR: no hay eventos generados.")
+        print(
+            "ERROR: no hay eventos generados."
+        )
         sys.exit(1)
 
     facts = build_facts(
@@ -432,7 +498,9 @@ def main():
         exist_ok=True
     )
 
-    for old_file in OUTPUT_DIR.glob("*.json"):
+    for old_file in OUTPUT_DIR.glob(
+        "*.json"
+    ):
         old_file.unlink()
 
     for fact in facts:

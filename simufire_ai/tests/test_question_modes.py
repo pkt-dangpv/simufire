@@ -130,7 +130,7 @@ def test_concept():
     print("OK: concept")
 
 
-def test_observation():
+def test_temperature_observation():
 
     plan, answer = load_case(
         "question_observation_001"
@@ -138,58 +138,136 @@ def test_observation():
 
     if plan["intent"] != "observation":
         fail(
-            "observation: intent incorrecto"
+            "temperature observation: "
+            "intent incorrecto"
         )
 
     if plan["include_limitations"]:
         fail(
-            "observation: no debe incluir "
-            "limitaciones"
+            "temperature observation: "
+            "no debe incluir limitaciones"
         )
 
     assert_exact_set(
         plan["topics"],
         ["temperature"],
-        "observation topics"
+        "temperature observation topics"
     )
 
     assert_exact_set(
         plan["resolved_fact_ids"],
         ["FACT_005"],
-        "observation facts"
+        "temperature observation facts"
     )
 
     assert_exact_set(
         plan["resolved_knowledge_ids"],
         ["TEMPERATURE_001"],
-        "observation knowledge"
+        "temperature observation knowledge"
     )
 
     text = answer["answer"]
 
     if "390" not in text:
         fail(
-            "observation: falta valor inicial"
+            "temperature observation: "
+            "falta valor inicial"
         )
 
     if "475" not in text:
         fail(
-            "observation: falta valor final"
+            "temperature observation: "
+            "falta valor final"
         )
 
     if "85 °C" not in text:
         fail(
-            "observation: falta cálculo "
-            "determinista de 85 °C"
+            "temperature observation: "
+            "falta cálculo de 85 °C"
         )
 
     if answer["source_ids"]:
         fail(
-            "observation: no debe mostrar "
-            "fuentes de teoría no utilizada"
+            "temperature observation: "
+            "no debe mostrar fuentes "
+            "de teoría no utilizada"
         )
 
-    print("OK: observation")
+    print("OK: temperature observation")
+
+
+def test_oxygen_observation():
+
+    plan, answer = load_case(
+        "question_oxygen_001"
+    )
+
+    if plan["intent"] != "observation":
+        fail(
+            "oxygen observation: "
+            "intent incorrecto"
+        )
+
+    if plan["include_limitations"]:
+        fail(
+            "oxygen observation: "
+            "no debe incluir limitaciones"
+        )
+
+    assert_exact_set(
+        plan["topics"],
+        ["oxygen"],
+        "oxygen observation topics"
+    )
+
+    assert_exact_set(
+        plan["resolved_fact_ids"],
+        [
+            "FACT_001",
+            "FACT_002",
+            "FACT_009"
+        ],
+        "oxygen observation facts"
+    )
+
+    assert_exact_set(
+        plan["resolved_knowledge_ids"],
+        ["OXYGEN_001"],
+        "oxygen observation knowledge"
+    )
+
+    text = answer["answer"]
+
+    if "14.1" not in text:
+        fail(
+            "oxygen observation: "
+            "falta valor inicial"
+        )
+
+    if "16.8" not in text:
+        fail(
+            "oxygen observation: "
+            "falta valor final"
+        )
+
+    if (
+        "2.7 puntos porcentuales"
+        not in text
+    ):
+        fail(
+            "oxygen observation: "
+            "falta cálculo correcto "
+            "en puntos porcentuales"
+        )
+
+    if answer["source_ids"]:
+        fail(
+            "oxygen observation: "
+            "no debe mostrar fuentes "
+            "de teoría no utilizada"
+        )
+
+    print("OK: oxygen observation")
 
 
 def test_timeline():
@@ -227,7 +305,8 @@ def test_timeline():
             "FACT_002",
             "FACT_003",
             "FACT_004",
-            "FACT_005"
+            "FACT_005",
+            "FACT_009"
         ],
         "timeline facts"
     )
@@ -257,6 +336,16 @@ def test_timeline():
     if "En t=195 s:" not in text:
         fail(
             "timeline: falta t=195 s"
+        )
+
+    if (
+        "El O₂ de la capa superior "
+        "aumentó de 14.1 a 16.8 %."
+        not in text
+    ):
+        fail(
+            "timeline: falta el cambio "
+            "de oxígeno"
         )
 
     if answer["source_ids"]:
@@ -359,13 +448,14 @@ def main():
     print()
 
     test_concept()
-    test_observation()
+    test_temperature_observation()
+    test_oxygen_observation()
     test_timeline()
     test_causality()
 
     print()
     print(
-        "RESULTADO: 4/4 modos "
+        "RESULTADO: 5/5 casos "
         "de pregunta correctos"
     )
 
