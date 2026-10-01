@@ -86,6 +86,7 @@
           "fire_dynamics",
           "hrr",
           "ventilation",
+          "ventilation_limited",
           "smoke_layer",
           "flashover",
           "backdraft",

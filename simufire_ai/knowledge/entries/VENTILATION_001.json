@@ -1,7 +1,7 @@
 {
   "schema_version": "0.1",
   "knowledge_id": "VENTILATION_001",
-  "topic": "ventilation",
+  "topic": "ventilation_limited",
   "title": "Influencia de la ventilación en el desarrollo del incendio",
 
   "content": "La ventilación es uno de los factores que condicionan el desarrollo de un incendio en un recinto. Cuando la disponibilidad de oxígeno es insuficiente para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La apertura de una puerta, ventana u otra vía de ventilación puede modificar el suministro de oxígeno y producir cambios importantes en el comportamiento del incendio. Sin embargo, en el análisis de una simulación concreta no debe atribuirse automáticamente un cambio de HRR o temperatura a una apertura únicamente por proximidad temporal; esa relación debe estar respaldada por los datos y por el Fire Event Analyzer.",

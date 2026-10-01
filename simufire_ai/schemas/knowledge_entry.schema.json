@@ -33,6 +33,7 @@
         "fire_dynamics",
         "hrr",
         "ventilation",
+        "ventilation_limited",
         "smoke_layer",
         "flashover",
         "backdraft",
@@ -60,7 +61,52 @@
     },
 
     "source": {
-      "$ref": "#/$defs/source"
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "source_id",
+        "title"
+      ],
+
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "organization": {
+          "type": "string"
+        },
+
+        "document": {
+          "type": "string"
+        },
+
+        "section": {
+          "type": "string"
+        },
+
+        "page": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+
+        "url": {
+          "type": "string"
+        }
+      }
     },
 
     "confidence": {
@@ -77,51 +123,6 @@
       "uniqueItems": true,
       "items": {
         "type": "string"
-      }
-    }
-  },
-
-  "$defs": {
-    "source": {
-      "type": "object",
-      "additionalProperties": false,
-
-      "required": [
-        "source_id",
-        "title"
-      ],
-
-      "properties": {
-        "source_id": {
-          "type": "string"
-        },
-
-        "title": {
-          "type": "string"
-        },
-
-        "organization": {
-          "type": "string"
-        },
-
-        "document": {
-          "type": "string"
-        },
-
-        "section": {
-          "type": "string"
-        },
-
-        "page": {
-          "type": [
-            "integer",
-            "string"
-          ]
-        },
-
-        "url": {
-          "type": "string"
-        }
       }
     }
   }

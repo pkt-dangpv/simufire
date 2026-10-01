@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "time_s": 150,
+  "compartments": [
+    {
+      "id": "room_01",
+      "interface_height_m": 1.6,
+      "upper_layer": {
+        "temperature_c": 430,
+        "o2_percent": 17.0,
+        "co_percent": 0.25,
+        "co2_percent": 4.8,
+        "smoke_mass_kg": 3.5
+      },
+      "lower_layer": {
+        "temperature_c": 55,
+        "o2_percent": 19.0,
+        "co_percent": 0.05,
+        "co2_percent": 1.2,
+        "smoke_mass_kg": 0.4
+      },
+      "hrr_kw": 950,
+      "pressure_delta_pa": 4.0
+    }
+  ],
+  "global": {
+    "total_hrr_kw": 950,
+    "ambient_temp_c": 20,
+    "ambient_pressure_pa": 101325
+  }
+}

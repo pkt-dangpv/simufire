@@ -19,11 +19,11 @@ TESTS = [
     "simufire_ai/tests/test_fire_event_analyzer.py",
     "simufire_ai/tests/test_fire_event_analyzer_no_false_positives.py",
     "simufire_ai/tests/test_fire_event_timeline.py",
+    "simufire_ai/tests/test_ventilation_limited_pattern.py",
 
     "simufire_ai/tests/test_grounded_explanation_safety.py",
     "simufire_ai/tests/test_knowledge_retriever.py",
     "simufire_ai/tests/test_instructor_explanation_safety.py",
-
     "simufire_ai/tests/test_question_modes.py"
 ]
 

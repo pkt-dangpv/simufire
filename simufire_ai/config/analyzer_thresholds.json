@@ -1,5 +1,5 @@
 {
-  "version": "0.2",
+  "version": "0.3",
 
   "timeline": {
     "max_gap_s": 30
@@ -19,5 +19,13 @@
 
   "ventilation": {
     "minimum_o2_increase_percent": 0.1
+  },
+
+  "ventilation_limited": {
+    "minimum_pre_states": 4,
+    "minimum_pre_o2_drop_percent": 1.0,
+    "minimum_pre_hrr_drop_ratio": 0.10,
+    "minimum_post_o2_increase_percent": 0.1,
+    "minimum_post_hrr_increase_ratio": 1.20
   }
 }

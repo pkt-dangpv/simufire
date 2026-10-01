@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1",
+  "knowledge_id": "VENTILATION_LIMITED_001",
+  "topic": "ventilation",
+  "title": "Incendio limitado por ventilación",
+  "content": "Un incendio de compartimento puede quedar limitado por ventilación cuando el suministro de oxígeno disponible no es suficiente para mantener la combustión potencial del combustible presente. En estas condiciones, el agotamiento de oxígeno puede reducir la tasa de liberación de calor y la temperatura, aunque siga existiendo combustible capaz de arder. Si posteriormente se introduce nueva ventilación, por ejemplo mediante la apertura de una puerta o ventana, la entrada de oxígeno puede producir un aumento importante de la tasa de liberación de energía. La identificación de un incendio limitado por ventilación no debe basarse únicamente en un valor aislado de concentración de oxígeno. Debe evaluarse conjuntamente la evolución del oxígeno, el HRR, la ventilación y otros datos disponibles del incendio.",
+  "source": {
+    "source_id": "NIST_FIRE_DYNAMICS",
+    "title": "Fire Dynamics",
+    "organization": "National Institute of Standards and Technology",
+    "document": "Fire Dynamics",
+    "section": "Fire Behavior in a Structure"
+  },
+  "confidence": "authoritative",
+  "tags": [
+    "ventilation",
+    "ventilation_limited",
+    "under_ventilated",
+    "oxygen",
+    "hrr",
+    "compartment_fire"
+  ]
+}
