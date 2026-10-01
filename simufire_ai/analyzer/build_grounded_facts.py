@@ -438,7 +438,98 @@ def build_facts(scenario, events):
     # -------------------------------------------------
     # DEPENDENCIAS ENTRE HECHOS
     # -------------------------------------------------
+    # -------------------------------------------------
+    # INCENDIO LIMITADO POR VENTILACION
+    #
+    # Se añade DESPUES de FACT_001...FACT_009 para
+    # conservar los IDs historicos.
+    #
+    # Este hecho NO afirma causalidad demostrada.
+    # Describe un patron temporal detectado por
+    # el Fire Event Analyzer.
+    # -------------------------------------------------
 
+    ventilation_limited_events = [
+        event
+        for event in events
+        if (
+            event["event_type"]
+            == "ventilation_limited"
+        )
+    ]
+
+    for ventilation_limited_event in (
+        ventilation_limited_events
+    ):
+
+        event_time = (
+            ventilation_limited_event[
+                "time_s"
+            ]
+        )
+
+        # Buscar la primera apertura posterior
+        # al patron detectado.
+        next_open_action = None
+
+        for action in sorted(
+            scenario.get("actions", []),
+            key=lambda item: item["time_s"]
+        ):
+            if (
+                action.get("type") == "open"
+                and action["time_s"] > event_time
+            ):
+                next_open_action = action
+                break
+
+        if next_open_action:
+
+            statement = (
+                "El Fire Event Analyzer detectó "
+                "un patrón temporal compatible con "
+                "una condición de incendio limitado "
+                "por ventilación antes de la apertura "
+                f"de {next_open_action['target']}."
+            )
+
+        else:
+
+            statement = (
+                "El Fire Event Analyzer detectó "
+                "un patrón temporal compatible con "
+                "una condición de incendio limitado "
+                "por ventilación."
+            )
+
+        facts.append(
+            make_fact(
+                scenario_id=scenario_id,
+                fact_id=next_id(),
+                time_s=event_time,
+                fact_type="association",
+                statement=statement,
+                certainty="moderate",
+                event_ids=[
+                    ventilation_limited_event[
+                        "event_id"
+                    ]
+                ],
+                source_variables=[
+                    item["variable"]
+                    for item
+                    in ventilation_limited_event.get(
+                        "evidence",
+                        []
+                    )
+                ],
+                knowledge_topics=[
+                    "ventilation_limited"
+                ],
+                requires_fact_ids=[],
+                causal=False
+            )
+        )
     dependencies = {
         "FACT_002": [
             "FACT_001"
