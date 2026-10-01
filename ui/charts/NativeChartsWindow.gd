@@ -87,11 +87,15 @@ var _active_series: Array = []  # dicts listos para el chart
 var _active_groups: Array = []  # índice de grupo por cada trace (para umbrales/label Y)
 var _color_cursor: int = 0
 
+const MIN_WINDOW_SIZE := Vector2i(640, 420)
+## Margen (unidades de lienzo) entre la ventana y el borde del juego.
+const WINDOW_MARGIN: int = 24
+
 
 func _init() -> void:
 	title = "Gráficas interactivas"
 	size = Vector2i(1200, 720)
-	min_size = Vector2i(820, 520)
+	min_size = MIN_WINDOW_SIZE
 	close_requested.connect(hide)
 
 	var base := Control.new()
@@ -120,26 +124,38 @@ func _init() -> void:
 	# --- Cabecera de marca: logo + SIMUFIRE ---
 	root.add_child(_build_brand_header())
 
+	# La ruta del CSV es absoluta y larga: sin recorte, su anchura minima
+	# ensanchaba todo el contenido por encima de la ventana.
 	_header = Label.new()
 	_header.text = "—"
 	_header.add_theme_color_override("font_color", SFTheme.MUTED)
+	_header.clip_text = true
+	_header.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_header.mouse_filter = Control.MOUSE_FILTER_PASS
 	root.add_child(_header)
 
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 8)
+	# Barra en flujo: si no cabe en una linea, los grupos bajan a la siguiente
+	# en vez de empujar la grafica fuera de la ventana.
+	var bar := HFlowContainer.new()
+	bar.add_theme_constant_override("h_separation", 8)
+	bar.add_theme_constant_override("v_separation", 6)
 	root.add_child(bar)
 
-	bar.add_child(_mk_label("Habitación:"))
-	_room_selector = OptionButton.new()
-	_room_selector.custom_minimum_size = Vector2(200, 30)
-	bar.add_child(_room_selector)
+	var room_group := HBoxContainer.new()
+	room_group.add_theme_constant_override("separation", 8)
+	room_group.add_child(_mk_label("Habitación:"))
+	_room_selector = _mk_selector(200)
+	room_group.add_child(_room_selector)
+	bar.add_child(room_group)
 
-	bar.add_child(_mk_label("Métrica:"))
-	_metric_selector = OptionButton.new()
-	_metric_selector.custom_minimum_size = Vector2(190, 30)
+	var metric_group := HBoxContainer.new()
+	metric_group.add_theme_constant_override("separation", 8)
+	metric_group.add_child(_mk_label("Métrica:"))
+	_metric_selector = _mk_selector(210)
 	for g in METRIC_GROUPS:
 		_metric_selector.add_item(String(g["name"]))
-	bar.add_child(_metric_selector)
+	metric_group.add_child(_metric_selector)
+	bar.add_child(metric_group)
 
 	var btn_add := _mk_button("＋ Añadir")
 	btn_add.pressed.connect(_on_add)
@@ -153,13 +169,11 @@ func _init() -> void:
 	btn_clear.pressed.connect(_on_clear)
 	bar.add_child(btn_clear)
 
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-
 	var hint := _mk_label("Arrastra para zoom · doble clic reset · clic en leyenda oculta")
 	hint.add_theme_color_override("font_color", SFTheme.MUTED)
-	bar.add_child(hint)
+	hint.clip_text = true
+	hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	root.add_child(hint)
 
 	_chart = InteractiveLineChartScript.new()
 	_chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -188,8 +202,10 @@ func open(csv_path: String, txt_path: String = "") -> bool:
 	if txt_path != "" and FileAccess.file_exists(txt_path):
 		_parse_events(txt_path)
 
+	# Carpeta del run + fichero; la ruta entera queda en el tooltip.
 	_header.text = "Fuente: %s   ·   %d habitaciones   ·   %d eventos" % [
-		csv_path, _room_ids.size(), _events.size()]
+		csv_path.get_base_dir().get_file().path_join(csv_path.get_file()), _room_ids.size(), _events.size()]
+	_header.tooltip_text = csv_path
 
 	_room_selector.clear()
 	for rid in _room_ids:
@@ -207,14 +223,56 @@ func open(csv_path: String, txt_path: String = "") -> bool:
 
 ## Muestra la ventana centrada y acotada a la ventana del juego (con márgenes).
 func _popup_bounded() -> void:
-	var bounded := Vector2i(1000, 640)
+	_connect_host_resize()
+	_popup_fit()
+
+
+## popup_centered centra el CONTENIDO; la barra de titulo de una ventana
+## incrustada se dibuja por encima de el y quedaba cortada contra el borde. Se
+## baja la ventana media barra para que titulo y contenido queden centrados.
+func _popup_fit() -> void:
+	popup_centered(_bounded_size())
+	if is_embedded():
+		position.y += _title_height() / 2
+
+
+func _title_height() -> int:
+	return get_theme_constant(&"title_height") if is_embedded() else 0
+
+
+## Tamaño que cabe en el area visible, con margen. La ventana va incrustada en
+## el juego y se dibuja en unidades del lienzo, que con stretch "canvas_items"
+## NO son pixeles: a 1920x1080 el lienzo mide ~1310x720. Medir con
+## root.size (pixeles) daba una ventana de 1840x975 en un lienzo de 1310x720,
+## mas grande que la pantalla y con la cabecera fuera.
+func _bounded_size() -> Vector2i:
+	var area := Vector2i(1280, 720)
 	var tree := get_tree()
 	if tree != null and tree.root != null:
-		var rw: Window = tree.root
-		bounded = Vector2i(
-			clampi(rw.size.x - 80, 640, rw.size.x),
-			clampi(rw.size.y - 80, 460, rw.size.y))
-	popup_centered(bounded)
+		if is_embedded():
+			area = Vector2i(tree.root.get_visible_rect().size)
+		else:
+			area = DisplayServer.window_get_size()
+	var avail := Vector2i(
+		maxi(area.x - 2 * WINDOW_MARGIN, 320),
+		maxi(area.y - 2 * WINDOW_MARGIN - _title_height(), 240))
+	# Sin esto, un min_size mayor que el area volveria a desbordar.
+	min_size = Vector2i(mini(MIN_WINDOW_SIZE.x, avail.x), mini(MIN_WINDOW_SIZE.y, avail.y))
+	return avail
+
+
+## Si el juego cambia de tamaño con las graficas abiertas, se reencajan.
+func _connect_host_resize() -> void:
+	var tree := get_tree()
+	if tree == null or tree.root == null:
+		return
+	if not tree.root.size_changed.is_connected(_on_host_resized):
+		tree.root.size_changed.connect(_on_host_resized)
+
+
+func _on_host_resized() -> void:
+	if visible:
+		_popup_fit()
 
 
 # -----------------------------------------------------------------------
@@ -352,6 +410,18 @@ func _mk_label(text: String) -> Label:
 	l.text = text
 	l.add_theme_color_override("font_color", SFTheme.TEXT)
 	return l
+
+
+## Desplegable de anchura fija: por defecto se ensancha hasta su opcion mas
+## larga, y con nombres de sala largos empujaba la barra fuera de la ventana.
+## La lista desplegada sigue mostrando los nombres enteros.
+func _mk_selector(width: float) -> OptionButton:
+	var o := OptionButton.new()
+	o.fit_to_longest_item = false
+	o.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	o.clip_text = true
+	o.custom_minimum_size = Vector2(width, 30)
+	return o
 
 
 func _mk_button(text: String) -> Button:
