@@ -361,7 +361,60 @@ def render_timeline(facts):
     return "\n\n".join(
         paragraphs
     )
+def render_condition(facts):
 
+    condition_facts = [
+        fact
+        for fact in facts
+        if fact["fact_type"]
+        == "association"
+    ]
+
+    if not condition_facts:
+        return (
+            "No hay una condición detectada "
+            "que permita responder a esta pregunta."
+        )
+
+    certainty_labels = {
+        "certain": "cierta",
+        "high": "alta",
+        "moderate": "moderada",
+        "limited": "limitada"
+    }
+
+    paragraphs = []
+
+    for fact in condition_facts:
+
+        paragraph = fact[
+            "statement"
+        ]
+
+        certainty = fact.get(
+            "certainty"
+        )
+
+        if certainty:
+
+            label = certainty_labels.get(
+                certainty,
+                certainty
+            )
+
+            paragraph += (
+                " La certeza asignada "
+                "a esta detección es "
+                f"{label}."
+            )
+
+        paragraphs.append(
+            paragraph
+        )
+
+    return "\n\n".join(
+        paragraphs
+    )
 
 def main():
     parser = argparse.ArgumentParser()
@@ -537,7 +590,17 @@ def main():
                 answer_parts.append(
                     paragraph
                 )
+    # ================================================
+    # CONDITION
+    # ================================================
 
+    elif intent == "condition":
+
+        answer_parts.append(
+            render_condition(
+                selected_facts
+            )
+        )
     # ================================================
     # TIMELINE
     # ================================================

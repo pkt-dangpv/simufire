@@ -32,17 +32,18 @@
       "minLength": 1
     },
 
-    "intent": {
-      "type": "string",
-      "enum": [
-        "timeline",
-        "causality",
-        "concept",
-        "observation",
-        "uncertainty",
-        "general"
-      ]
-    },
+  "intent": {
+    "type": "string",
+    "enum": [
+      "timeline",
+      "causality",
+      "concept",
+      "observation",
+      "condition",
+      "uncertainty",
+      "general"
+    ]
+  },
 
     "topics": {
       "type": "array",

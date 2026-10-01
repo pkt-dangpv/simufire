@@ -83,7 +83,28 @@ def make_fact(
 def build_facts(scenario, events):
 
     scenario_id = scenario["scenario_id"]
+    # Orden determinista de eventos.
+    # Evita que los FACT_xxx cambien de significado
+    # según el origen o el orden de entrada.
+    event_priority = {
+        "ventilation_increase": 10,
+        "hrr_increase": 20,
+        "smoke_layer_descent": 30,
+        "temperature_increase": 40,
+        "ventilation_limited": 50
+    }
 
+    events = sorted(
+        events,
+        key=lambda event: (
+            event["time_s"],
+            event_priority.get(
+                event["event_type"],
+                999
+            ),
+            event["event_id"]
+        )
+    )
     facts = []
     fact_number = 1
 

@@ -555,6 +555,11 @@ preguntas sobre qué significa un concepto.
 observation:
 preguntas sobre valores o cambios medidos.
 
+condition:
+preguntas sobre si una condición o fenómeno
+ha sido detectado en la simulación, por ejemplo
+si el incendio estaba limitado por ventilación.
+
 uncertainty:
 preguntas sobre qué puede o no concluirse.
 
@@ -565,6 +570,14 @@ REGLAS:
 
 - Para observation selecciona solamente
   el topic de la variable preguntada.
+
+- Para condition selecciona solamente
+  el topic de la condición preguntada.
+
+- Una condition detectada debe conservar
+  el grado de certeza del Grounded Fact.
+  No conviertas "patrón compatible con"
+  en una afirmación absoluta.
 
 - Para concept selecciona solamente
   el topic del concepto preguntado.
