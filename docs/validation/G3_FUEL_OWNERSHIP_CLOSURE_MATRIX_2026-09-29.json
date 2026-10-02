@@ -1,0 +1,1456 @@
+{
+  "schema": "g3_fuel_ownership_closure_matrix_v1",
+  "status": "diagnostic_no_scenario_or_engine_change",
+  "classification_values": [
+    "explicit_objects",
+    "legacy_lumped",
+    "legacy_unknown"
+  ],
+  "decision_values": [
+    "migrable",
+    "mantener_agregado_explicito",
+    "bloquear_procedencia_desconocida"
+  ],
+  "policy": {
+    "explicit_objects": "only if a recorded source states the objects are the complete inventory",
+    "legacy_lumped": "the room aggregate is the only declared fuel: one owner, materials unknown",
+    "legacy_unknown": "room total and objects both positive and different, with no recorded meaning",
+    "no_name_inference": true
+  },
+  "mismatches": [
+    {
+      "case_id": "compact_apartment_reference.json#room0",
+      "file": "compact_apartment_reference.json",
+      "scenario_sha256": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969",
+      "room_id": 0,
+      "room_name": "Salon cocina",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 4300.0,
+      "room_max_hrr_kw": 2500.0,
+      "object_energy_MJ": 2620.0,
+      "object_max_hrr_kw": 1620.0,
+      "energy_difference_MJ": 1680.0,
+      "power_difference_kw": 880.0,
+      "objects": [
+        {
+          "id": "compact_sofa",
+          "fuel_energy_MJ": 980.0,
+          "max_hrr_kw": 620.0
+        },
+        {
+          "id": "compact_kitchen_unit",
+          "fuel_energy_MJ": 860.0,
+          "max_hrr_kw": 520.0
+        },
+        {
+          "id": "compact_table",
+          "fuel_energy_MJ": 420.0,
+          "max_hrr_kw": 280.0
+        },
+        {
+          "id": "compact_tv",
+          "fuel_energy_MJ": 360.0,
+          "max_hrr_kw": 200.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "compact_apartment_reference.json#room1",
+      "file": "compact_apartment_reference.json",
+      "scenario_sha256": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969",
+      "room_id": 1,
+      "room_name": "Pasillo distribuidor",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 520.0,
+      "room_max_hrr_kw": 350.0,
+      "object_energy_MJ": 350.0,
+      "object_max_hrr_kw": 210.0,
+      "energy_difference_MJ": 170.0,
+      "power_difference_kw": 140.0,
+      "objects": [
+        {
+          "id": "compact_hall_runner",
+          "fuel_energy_MJ": 180.0,
+          "max_hrr_kw": 100.0
+        },
+        {
+          "id": "compact_hall_console",
+          "fuel_energy_MJ": 170.0,
+          "max_hrr_kw": 110.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "compact_apartment_reference.json#room2",
+      "file": "compact_apartment_reference.json",
+      "scenario_sha256": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969",
+      "room_id": 2,
+      "room_name": "Dormitorio",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 2600.0,
+      "room_max_hrr_kw": 1600.0,
+      "object_energy_MJ": 1700.0,
+      "object_max_hrr_kw": 880.0,
+      "energy_difference_MJ": 900.0,
+      "power_difference_kw": 720.0,
+      "objects": [
+        {
+          "id": "compact_bed",
+          "fuel_energy_MJ": 980.0,
+          "max_hrr_kw": 580.0
+        },
+        {
+          "id": "compact_wardrobe",
+          "fuel_energy_MJ": 720.0,
+          "max_hrr_kw": 300.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "compact_apartment_reference.json#room3",
+      "file": "compact_apartment_reference.json",
+      "scenario_sha256": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969",
+      "room_id": 3,
+      "room_name": "Bano",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 300.0,
+      "room_max_hrr_kw": 250.0,
+      "object_energy_MJ": 120.0,
+      "object_max_hrr_kw": 90.0,
+      "energy_difference_MJ": 180.0,
+      "power_difference_kw": 160.0,
+      "objects": [
+        {
+          "id": "compact_bath_textiles",
+          "fuel_energy_MJ": 120.0,
+          "max_hrr_kw": 90.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "compact_apartment_reference.json#room4",
+      "file": "compact_apartment_reference.json",
+      "scenario_sha256": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969",
+      "room_id": 4,
+      "room_name": "Terraza lavadero",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 450.0,
+      "room_max_hrr_kw": 300.0,
+      "object_energy_MJ": 260.0,
+      "object_max_hrr_kw": 180.0,
+      "energy_difference_MJ": 190.0,
+      "power_difference_kw": 120.0,
+      "objects": [
+        {
+          "id": "compact_laundry_bin",
+          "fuel_energy_MJ": 260.0,
+          "max_hrr_kw": 180.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room0",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 0,
+      "room_name": "Salon origen",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 5200.0,
+      "room_max_hrr_kw": 3000.0,
+      "object_energy_MJ": 2330.0,
+      "object_max_hrr_kw": 1260.0,
+      "energy_difference_MJ": 2870.0,
+      "power_difference_kw": 1740.0,
+      "objects": [
+        {
+          "id": "hallway_sofa",
+          "fuel_energy_MJ": 1150.0,
+          "max_hrr_kw": 720.0
+        },
+        {
+          "id": "hallway_bookshelf",
+          "fuel_energy_MJ": 900.0,
+          "max_hrr_kw": 320.0
+        },
+        {
+          "id": "hallway_coffee_table",
+          "fuel_energy_MJ": 280.0,
+          "max_hrr_kw": 220.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room1",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 1,
+      "room_name": "Pasillo largo",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 1100.0,
+      "room_max_hrr_kw": 700.0,
+      "object_energy_MJ": 960.0,
+      "object_max_hrr_kw": 530.0,
+      "energy_difference_MJ": 140.0,
+      "power_difference_kw": 170.0,
+      "objects": [
+        {
+          "id": "hallway_runner_long",
+          "fuel_energy_MJ": 520.0,
+          "max_hrr_kw": 240.0
+        },
+        {
+          "id": "hallway_console_mid",
+          "fuel_energy_MJ": 260.0,
+          "max_hrr_kw": 150.0
+        },
+        {
+          "id": "hallway_storage_box",
+          "fuel_energy_MJ": 180.0,
+          "max_hrr_kw": 140.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room2",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 2,
+      "room_name": "Dormitorio norte",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 2400.0,
+      "room_max_hrr_kw": 1500.0,
+      "object_energy_MJ": 900.0,
+      "object_max_hrr_kw": 520.0,
+      "energy_difference_MJ": 1500.0,
+      "power_difference_kw": 980.0,
+      "objects": [
+        {
+          "id": "hallway_north_bed",
+          "fuel_energy_MJ": 900.0,
+          "max_hrr_kw": 520.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room3",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 3,
+      "room_name": "Dormitorio central",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 2500.0,
+      "room_max_hrr_kw": 1600.0,
+      "object_energy_MJ": 1080.0,
+      "object_max_hrr_kw": 680.0,
+      "energy_difference_MJ": 1420.0,
+      "power_difference_kw": 920.0,
+      "objects": [
+        {
+          "id": "hallway_center_bed",
+          "fuel_energy_MJ": 760.0,
+          "max_hrr_kw": 460.0
+        },
+        {
+          "id": "hallway_center_desk",
+          "fuel_energy_MJ": 320.0,
+          "max_hrr_kw": 220.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room4",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 4,
+      "room_name": "Cocina fondo",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 3300.0,
+      "room_max_hrr_kw": 2300.0,
+      "object_energy_MJ": 1440.0,
+      "object_max_hrr_kw": 1220.0,
+      "energy_difference_MJ": 1860.0,
+      "power_difference_kw": 1080.0,
+      "objects": [
+        {
+          "id": "hallway_kitchen_unit",
+          "fuel_energy_MJ": 920.0,
+          "max_hrr_kw": 520.0
+        },
+        {
+          "id": "hallway_kitchen_oil",
+          "fuel_energy_MJ": 520.0,
+          "max_hrr_kw": 700.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "long_hallway_reference.json#room5",
+      "file": "long_hallway_reference.json",
+      "scenario_sha256": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6",
+      "room_id": 5,
+      "room_name": "Recibidor",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 650.0,
+      "room_max_hrr_kw": 380.0,
+      "object_energy_MJ": 240.0,
+      "object_max_hrr_kw": 160.0,
+      "energy_difference_MJ": 410.0,
+      "power_difference_kw": 220.0,
+      "objects": [
+        {
+          "id": "hallway_entry_coats",
+          "fuel_energy_MJ": 240.0,
+          "max_hrr_kw": 160.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room0",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 0,
+      "room_name": "Salon-comedor PB",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 8500.0,
+      "room_max_hrr_kw": 4300.0,
+      "object_energy_MJ": 3220.0,
+      "object_max_hrr_kw": 1790.0,
+      "energy_difference_MJ": 5280.0,
+      "power_difference_kw": 2510.0,
+      "objects": [
+        {
+          "id": "2p_salon_sofa",
+          "fuel_energy_MJ": 1200.0,
+          "max_hrr_kw": 760.0
+        },
+        {
+          "id": "2p_salon_mueble",
+          "fuel_energy_MJ": 1500.0,
+          "max_hrr_kw": 700.0
+        },
+        {
+          "id": "2p_salon_alfombra",
+          "fuel_energy_MJ": 520.0,
+          "max_hrr_kw": 330.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room3",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 3,
+      "room_name": "Cocina PB",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 4800.0,
+      "room_max_hrr_kw": 3000.0,
+      "object_energy_MJ": 1850.0,
+      "object_max_hrr_kw": 1450.0,
+      "energy_difference_MJ": 2950.0,
+      "power_difference_kw": 1550.0,
+      "objects": [
+        {
+          "id": "2p_cocina_encimera",
+          "fuel_energy_MJ": 1200.0,
+          "max_hrr_kw": 600.0
+        },
+        {
+          "id": "2p_cocina_grasa",
+          "fuel_energy_MJ": 650.0,
+          "max_hrr_kw": 850.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room8",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 8,
+      "room_name": "Dormitorio principal P1",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 5400.0,
+      "room_max_hrr_kw": 2800.0,
+      "object_energy_MJ": 2100.0,
+      "object_max_hrr_kw": 1060.0,
+      "energy_difference_MJ": 3300.0,
+      "power_difference_kw": 1740.0,
+      "objects": [
+        {
+          "id": "2p_principal_cama",
+          "fuel_energy_MJ": 1200.0,
+          "max_hrr_kw": 680.0
+        },
+        {
+          "id": "2p_principal_armario",
+          "fuel_energy_MJ": 900.0,
+          "max_hrr_kw": 380.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room9",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 9,
+      "room_name": "Dormitorio 2 P1",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 3800.0,
+      "room_max_hrr_kw": 2200.0,
+      "object_energy_MJ": 850.0,
+      "object_max_hrr_kw": 480.0,
+      "energy_difference_MJ": 2950.0,
+      "power_difference_kw": 1720.0,
+      "objects": [
+        {
+          "id": "2p_dorm2_cama",
+          "fuel_energy_MJ": 850.0,
+          "max_hrr_kw": 480.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room10",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 10,
+      "room_name": "Dormitorio 3 P1",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 3400.0,
+      "room_max_hrr_kw": 2000.0,
+      "object_energy_MJ": 760.0,
+      "object_max_hrr_kw": 430.0,
+      "energy_difference_MJ": 2640.0,
+      "power_difference_kw": 1570.0,
+      "objects": [
+        {
+          "id": "2p_dorm3_cama",
+          "fuel_energy_MJ": 760.0,
+          "max_hrr_kw": 430.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_storey_house.json#room12",
+      "file": "preset_two_storey_house.json",
+      "scenario_sha256": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b",
+      "room_id": 12,
+      "room_name": "Estudio P1",
+      "creation_path": "BuildingTemplate.create_two_storey_house() -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21); room loads and objects first appear together in 12d31cfb (2026-05-17)",
+      "template_literal_verified": true,
+      "room_energy_MJ": 2400.0,
+      "room_max_hrr_kw": 1400.0,
+      "object_energy_MJ": 520.0,
+      "object_max_hrr_kw": 260.0,
+      "energy_difference_MJ": 1880.0,
+      "power_difference_kw": 1140.0,
+      "objects": [
+        {
+          "id": "2p_estudio_mesa",
+          "fuel_energy_MJ": 520.0,
+          "max_hrr_kw": 260.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": [
+        "cfast_two_floor_stairwell.json",
+        "two_storey_smoke.json"
+      ]
+    },
+    {
+      "case_id": "two_storey_reference.json#room0",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 0,
+      "room_name": "Salon PB",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 5200.0,
+      "room_max_hrr_kw": 3000.0,
+      "object_energy_MJ": 2450.0,
+      "object_max_hrr_kw": 1250.0,
+      "energy_difference_MJ": 2750.0,
+      "power_difference_kw": 1750.0,
+      "objects": [
+        {
+          "id": "two_storey_sofa",
+          "fuel_energy_MJ": 1150.0,
+          "max_hrr_kw": 720.0
+        },
+        {
+          "id": "two_storey_tv",
+          "fuel_energy_MJ": 360.0,
+          "max_hrr_kw": 200.0
+        },
+        {
+          "id": "two_storey_books",
+          "fuel_energy_MJ": 940.0,
+          "max_hrr_kw": 330.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "two_storey_reference.json#room2",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 2,
+      "room_name": "Cocina PB",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 3000.0,
+      "room_max_hrr_kw": 2200.0,
+      "object_energy_MJ": 1280.0,
+      "object_max_hrr_kw": 770.0,
+      "energy_difference_MJ": 1720.0,
+      "power_difference_kw": 1430.0,
+      "objects": [
+        {
+          "id": "two_storey_kitchen_unit",
+          "fuel_energy_MJ": 920.0,
+          "max_hrr_kw": 520.0
+        },
+        {
+          "id": "two_storey_kitchen_table",
+          "fuel_energy_MJ": 360.0,
+          "max_hrr_kw": 250.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "two_storey_reference.json#room3",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 3,
+      "room_name": "Pasillo PB",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 480.0,
+      "room_max_hrr_kw": 280.0,
+      "object_energy_MJ": 160.0,
+      "object_max_hrr_kw": 90.0,
+      "energy_difference_MJ": 320.0,
+      "power_difference_kw": 190.0,
+      "objects": [
+        {
+          "id": "two_storey_hall_rug",
+          "fuel_energy_MJ": 160.0,
+          "max_hrr_kw": 90.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "two_storey_reference.json#room5",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 5,
+      "room_name": "Dormitorio P1",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 2700.0,
+      "room_max_hrr_kw": 1700.0,
+      "object_energy_MJ": 1740.0,
+      "object_max_hrr_kw": 900.0,
+      "energy_difference_MJ": 960.0,
+      "power_difference_kw": 800.0,
+      "objects": [
+        {
+          "id": "two_storey_bed_main",
+          "fuel_energy_MJ": 980.0,
+          "max_hrr_kw": 580.0
+        },
+        {
+          "id": "two_storey_wardrobe_main",
+          "fuel_energy_MJ": 760.0,
+          "max_hrr_kw": 320.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "two_storey_reference.json#room6",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 6,
+      "room_name": "Dormitorio infantil P1",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 2400.0,
+      "room_max_hrr_kw": 1500.0,
+      "object_energy_MJ": 1080.0,
+      "object_max_hrr_kw": 680.0,
+      "energy_difference_MJ": 1320.0,
+      "power_difference_kw": 820.0,
+      "objects": [
+        {
+          "id": "two_storey_bed_child",
+          "fuel_energy_MJ": 760.0,
+          "max_hrr_kw": 460.0
+        },
+        {
+          "id": "two_storey_desk_child",
+          "fuel_energy_MJ": 320.0,
+          "max_hrr_kw": 220.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    },
+    {
+      "case_id": "two_storey_reference.json#room7",
+      "file": "two_storey_reference.json",
+      "scenario_sha256": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1",
+      "room_id": 7,
+      "room_name": "Bano P1",
+      "creation_path": "literal rooms_data in the distributed JSON; added in b3457e94 (2026-06-02), no later change, no generator found",
+      "template_literal_verified": false,
+      "room_energy_MJ": 320.0,
+      "room_max_hrr_kw": 240.0,
+      "object_energy_MJ": 130.0,
+      "object_max_hrr_kw": 90.0,
+      "energy_difference_MJ": 190.0,
+      "power_difference_kw": 150.0,
+      "objects": [
+        {
+          "id": "two_storey_bath_textiles",
+          "fuel_energy_MJ": 130.0,
+          "max_hrr_kw": 90.0
+        }
+      ],
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ (CombustionSystem._resolve_room_fuel_energy_MJ prefers a positive room value)",
+        "hrr_cap": "room.max_hrr_kw (_resolve_room_max_hrr_kw prefers a positive room value)",
+        "object_role": "explicit objects receive weighted shares of the room fire demand (_sync_explicit_objects_from_active_fire)",
+        "species_yields": "weighted mean over explicit objects that still hold fuel, burning or not; engine fallback once every explicit object is exhausted",
+        "after_objects_exhausted": "fire keeps consuming the room total with fallback yields: energy without an object owner",
+        "room_proxy": "room_proxy_<id> mirrors the fire and is excluded from explicit sums"
+      },
+      "represented_fuel": "not declared: no field or comment says whether the room total includes the drawn objects, undrawn contents, finishes or a prescribed limit",
+      "evidence": "values located; meaning of the difference undocumented",
+      "classification": "legacy_unknown",
+      "decision": "bloquear_procedencia_desconocida",
+      "validation_cases_using_template": []
+    }
+  ],
+  "presets_without_objects": [
+    {
+      "case_id": "preset_compact_apartment.json",
+      "file": "preset_compact_apartment.json",
+      "scenario_sha256": "e1500f42e7337ba4d60df61cacc4287be02a3855f388a22fa98898f7b77b050f",
+      "creation_path": "BuildingTemplate.create_compact_apartment() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Salon-cocina",
+          "room_energy_MJ": 5200.0,
+          "room_max_hrr_kw": 2600.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Distribuidor",
+          "room_energy_MJ": 450.0,
+          "room_max_hrr_kw": 280.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Dormitorio",
+          "room_energy_MJ": 3300.0,
+          "room_max_hrr_kw": 1900.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Bano",
+          "room_energy_MJ": 260.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Lavadero",
+          "room_energy_MJ": 900.0,
+          "room_max_hrr_kw": 700.0
+        }
+      ],
+      "total_room_energy_MJ": 10110.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "no derivation, source or comment for the loads",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "compact_apartment_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_piso_mediterraneo.json",
+      "file": "preset_piso_mediterraneo.json",
+      "scenario_sha256": "0eb02f44bf941eeee4361a51863f6ba16326de22f07ef89727d17171efe60c8a",
+      "creation_path": "BuildingTemplate.create_piso_mediterraneo() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Salon-comedor",
+          "room_energy_MJ": 7000.0,
+          "room_max_hrr_kw": 3400.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Recibidor",
+          "room_energy_MJ": 280.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Distribuidor",
+          "room_energy_MJ": 480.0,
+          "room_max_hrr_kw": 280.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Cocina",
+          "room_energy_MJ": 2900.0,
+          "room_max_hrr_kw": 2100.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Dormitorio principal",
+          "room_energy_MJ": 3500.0,
+          "room_max_hrr_kw": 2000.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Bano suite",
+          "room_energy_MJ": 180.0,
+          "room_max_hrr_kw": 120.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "Dormitorio 2",
+          "room_energy_MJ": 2100.0,
+          "room_max_hrr_kw": 1500.0
+        },
+        {
+          "room_id": 7,
+          "room_name": "Dormitorio 3",
+          "room_energy_MJ": 2200.0,
+          "room_max_hrr_kw": 1500.0
+        },
+        {
+          "room_id": 8,
+          "room_name": "Bano",
+          "room_energy_MJ": 250.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 9,
+          "room_name": "Aseo",
+          "room_energy_MJ": 150.0,
+          "room_max_hrr_kw": 100.0
+        }
+      ],
+      "total_room_energy_MJ": 19040.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "no derivation, source or comment for the loads",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "mediterraneo_concrete_wall_conduction.json",
+        "piso_mediterraneo_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_ranch_family_house.json",
+      "file": "preset_ranch_family_house.json",
+      "scenario_sha256": "2599e25b4ea0b8f23aaac8d59ef7a5a4cdf589b09679580c4d5e4925d8e36e2f",
+      "creation_path": "BuildingTemplate.create_ranch_family_house() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Salon",
+          "room_energy_MJ": 7600.0,
+          "room_max_hrr_kw": 3600.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Pasillo dormitorios",
+          "room_energy_MJ": 650.0,
+          "room_max_hrr_kw": 350.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Cocina",
+          "room_energy_MJ": 3600.0,
+          "room_max_hrr_kw": 2300.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Comedor",
+          "room_energy_MJ": 2200.0,
+          "room_max_hrr_kw": 1300.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Dormitorio principal",
+          "room_energy_MJ": 3900.0,
+          "room_max_hrr_kw": 2200.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Dormitorio 2",
+          "room_energy_MJ": 3000.0,
+          "room_max_hrr_kw": 1800.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "Dormitorio 3",
+          "room_energy_MJ": 3000.0,
+          "room_max_hrr_kw": 1800.0
+        },
+        {
+          "room_id": 7,
+          "room_name": "Bano",
+          "room_energy_MJ": 300.0,
+          "room_max_hrr_kw": 200.0
+        },
+        {
+          "room_id": 8,
+          "room_name": "Lavadero",
+          "room_energy_MJ": 900.0,
+          "room_max_hrr_kw": 600.0
+        }
+      ],
+      "total_room_energy_MJ": 25150.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "no derivation, source or comment for the loads",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "ranch_family_house_smoke.json",
+        "ranch_radiation_target_ignition.json"
+      ]
+    },
+    {
+      "case_id": "preset_row_house_ground_floor.json",
+      "file": "preset_row_house_ground_floor.json",
+      "scenario_sha256": "2e08665a02736989c8830701febcb9b58d2f05a65341d83b948360e8e01d6367",
+      "creation_path": "BuildingTemplate.create_row_house_ground_floor() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Vestibulo-Escalera",
+          "room_energy_MJ": 860.0,
+          "room_max_hrr_kw": 500.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Salon",
+          "room_energy_MJ": 6900.0,
+          "room_max_hrr_kw": 3500.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Pasillo",
+          "room_energy_MJ": 320.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Despacho",
+          "room_energy_MJ": 1500.0,
+          "room_max_hrr_kw": 900.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Cocina-comedor",
+          "room_energy_MJ": 2550.0,
+          "room_max_hrr_kw": 2200.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Aseo",
+          "room_energy_MJ": 200.0,
+          "room_max_hrr_kw": 150.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "Trastero",
+          "room_energy_MJ": 900.0,
+          "room_max_hrr_kw": 600.0
+        }
+      ],
+      "total_room_energy_MJ": 13230.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "BuildingTemplate comment: 'Cargas de combustible (EN 1991-1-2)' with per-area densities (salon 300, cocina 220, despacho 280, vestibulo 80 MJ/m2); densities not checked against the standard.",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "row_house_ground_floor_smoke.json",
+        "wind_assisted_exterior_spread.json"
+      ]
+    },
+    {
+      "case_id": "preset_three_bed_apartment.json",
+      "file": "preset_three_bed_apartment.json",
+      "scenario_sha256": "e017d7b25470af9a578083d8dacec4d487d875fe7714918dc1d5ec411affbcfe",
+      "creation_path": "BuildingTemplate.create_three_bed_apartment() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Salon-comedor",
+          "room_energy_MJ": 7200.0,
+          "room_max_hrr_kw": 3400.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Recibidor",
+          "room_energy_MJ": 320.0,
+          "room_max_hrr_kw": 200.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Pasillo",
+          "room_energy_MJ": 520.0,
+          "room_max_hrr_kw": 300.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Cocina",
+          "room_energy_MJ": 3200.0,
+          "room_max_hrr_kw": 2200.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Dormitorio principal",
+          "room_energy_MJ": 3800.0,
+          "room_max_hrr_kw": 2200.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Dormitorio 2",
+          "room_energy_MJ": 3000.0,
+          "room_max_hrr_kw": 1800.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "Dormitorio 3",
+          "room_energy_MJ": 2800.0,
+          "room_max_hrr_kw": 1700.0
+        },
+        {
+          "room_id": 7,
+          "room_name": "Bano",
+          "room_energy_MJ": 300.0,
+          "room_max_hrr_kw": 200.0
+        },
+        {
+          "room_id": 8,
+          "room_name": "Aseo",
+          "room_energy_MJ": 200.0,
+          "room_max_hrr_kw": 150.0
+        }
+      ],
+      "total_room_energy_MJ": 21340.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "no derivation, source or comment for the loads",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "three_bed_apartment_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_two_bed_apartment.json",
+      "file": "preset_two_bed_apartment.json",
+      "scenario_sha256": "f175327749be2e7d2498735942efb5acb2278d147d4074aeb9fe4c37e1a5970f",
+      "creation_path": "BuildingTemplate.create_two_bed_apartment() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Salon-comedor",
+          "room_energy_MJ": 6200.0,
+          "room_max_hrr_kw": 3200.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Recibidor",
+          "room_energy_MJ": 300.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Pasillo",
+          "room_energy_MJ": 450.0,
+          "room_max_hrr_kw": 260.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Cocina",
+          "room_energy_MJ": 2800.0,
+          "room_max_hrr_kw": 1800.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Dormitorio principal",
+          "room_energy_MJ": 3600.0,
+          "room_max_hrr_kw": 2100.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Dormitorio 2",
+          "room_energy_MJ": 2800.0,
+          "room_max_hrr_kw": 1700.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "Bano",
+          "room_energy_MJ": 260.0,
+          "room_max_hrr_kw": 180.0
+        },
+        {
+          "room_id": 7,
+          "room_name": "Armario",
+          "room_energy_MJ": 700.0,
+          "room_max_hrr_kw": 450.0
+        }
+      ],
+      "total_room_energy_MJ": 17110.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "no derivation, source or comment for the loads",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "two_bed_apartment_smoke.json"
+      ]
+    },
+    {
+      "case_id": "preset_uk_bungalow.json",
+      "file": "preset_uk_bungalow.json",
+      "scenario_sha256": "27a7c7d4dbe71035e16e7cd03f7ca25dd5a511a7a87a51ce357b7396e3d14be6",
+      "creation_path": "BuildingTemplate.create_uk_bungalow() via _make_room -> create_product_preset -> tools/export_presets_to_scenarios.gd (7f1a609f, 2026-07-21)",
+      "template_literal_verified": true,
+      "rooms": [
+        {
+          "room_id": 0,
+          "room_name": "Lounge",
+          "room_energy_MJ": 10500.0,
+          "room_max_hrr_kw": 3500.0
+        },
+        {
+          "room_id": 1,
+          "room_name": "Kitchen-diner",
+          "room_energy_MJ": 3800.0,
+          "room_max_hrr_kw": 2500.0
+        },
+        {
+          "room_id": 2,
+          "room_name": "Hallway",
+          "room_energy_MJ": 1200.0,
+          "room_max_hrr_kw": 400.0
+        },
+        {
+          "room_id": 3,
+          "room_name": "Master bedroom",
+          "room_energy_MJ": 5200.0,
+          "room_max_hrr_kw": 1500.0
+        },
+        {
+          "room_id": 4,
+          "room_name": "Bathroom",
+          "room_energy_MJ": 400.0,
+          "room_max_hrr_kw": 200.0
+        },
+        {
+          "room_id": 5,
+          "room_name": "Bedroom 2",
+          "room_energy_MJ": 6800.0,
+          "room_max_hrr_kw": 2000.0
+        },
+        {
+          "room_id": 6,
+          "room_name": "En-suite",
+          "room_energy_MJ": 200.0,
+          "room_max_hrr_kw": 100.0
+        }
+      ],
+      "total_room_energy_MJ": 28100.0,
+      "engine_owner": {
+        "energy_cap": "room.fuel_energy_MJ",
+        "hrr_cap": "room.max_hrr_kw",
+        "object_role": "none: only the room_proxy_<id> created by ensure_room_fuel_objects",
+        "species_yields": "engine fallback (context co_base_yield_kg_per_MJ, fire smoke yield)",
+        "after_objects_exhausted": "not applicable",
+        "room_proxy": "sole object; carries the aggregate"
+      },
+      "represented_fuel": "aggregate room load; materials and items not declared",
+      "evidence": "BuildingTemplate comment: carpet (+130 MJ/m2), wallpaper (+25 MJ/m2) and timber structure (+40 MJ/m2) versus masonry; no per-room computation or source is given.",
+      "classification": "legacy_lumped",
+      "decision": "mantener_agregado_explicito",
+      "validation_cases_using_template": [
+        "kitchen_grease_pool_fire.json",
+        "uk_bungalow_smoke.json"
+      ]
+    }
+  ]
+}

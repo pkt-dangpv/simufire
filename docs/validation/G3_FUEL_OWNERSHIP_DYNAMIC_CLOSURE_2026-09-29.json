@@ -1,0 +1,542 @@
+{
+  "schema": "g3_fuel_ownership_dynamic_summary_v1",
+  "run": "g3_fuel_ownership_matrix_20260929_085916",
+  "contract_rel_tolerance": 0.01,
+  "cases": [
+    {
+      "name": "empty_room",
+      "scenario_sha256": "dd47eb3348343e4af93f080d309136265078284e275b5166f734690a9a5c16d2",
+      "declared": {
+        "room_MJ": 0.0,
+        "room_max_hrr_kw": 0.0,
+        "object_energy_MJ": {},
+        "object_max_hrr_kw": {}
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": false,
+        "last_consuming_time_s": null,
+        "max_hrr_kw": 0.0,
+        "room_consumed_MJ": 0.0,
+        "explicit_burn_MJ": 0.0,
+        "net_gap_MJ": 0.0,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": 0.0,
+        "remaining_in_explicit_objects_MJ": 0,
+        "co_generated_kg": 0.0,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.0,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.0,
+        "max_object_hrr_excess_over_room_kw": 0.0,
+        "inactive_objects": []
+      },
+      "objects": {}
+    },
+    {
+      "name": "single_object",
+      "scenario_sha256": "8a821e8c47f2306a2230a7bd5dc44169e7dec99ad09bdf027a915a5f6b8459ec",
+      "declared": {
+        "room_MJ": 0.0,
+        "room_max_hrr_kw": 0.0,
+        "object_energy_MJ": {
+          "g3_sofa": 3.0
+        },
+        "object_max_hrr_kw": {
+          "g3_sofa": 100.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 87.7161641070933,
+        "room_consumed_MJ": 2.999863241916603,
+        "explicit_burn_MJ": 2.9999999999999964,
+        "net_gap_MJ": -0.00013675808339330686,
+        "unowned_MJ": 0.0008289467972319996,
+        "first_unowned_time_s": 81.6666666666664,
+        "inventory_excess_MJ": -0.00013675808339685958,
+        "remaining_in_explicit_objects_MJ": 0.0,
+        "co_generated_kg": 0.0008487075203255226,
+        "co_generated_unowned_kg": 2.46642852905969e-07,
+        "smoke_generated_kg": 0.05167906234153665,
+        "smoke_generated_unowned_kg": 0.0018837064281706022,
+        "nominal_explicit_co_kg": 0.0012,
+        "max_object_hrr_excess_over_room_kw": 9.947598300641403e-14,
+        "inactive_objects": []
+      },
+      "objects": {
+        "g3_sofa": {
+          "burn_MJ": 2.9999999999999964,
+          "max_hrr_kw": 87.7161641070933,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 0.0,
+          "final_state": "burned_out",
+          "exhausted_time_s": 81.4999999999997
+        }
+      }
+    },
+    {
+      "name": "two_objects_burning",
+      "scenario_sha256": "014f41cc49c5dcd6f37d210129729ac10ded5252dcbf94514a87617e6db62b4e",
+      "declared": {
+        "room_MJ": 0.0,
+        "room_max_hrr_kw": 0.0,
+        "object_energy_MJ": {
+          "g3_sofa_a": 3.0,
+          "g3_sofa_b": 3.0
+        },
+        "object_max_hrr_kw": {
+          "g3_sofa_a": 50.0,
+          "g3_sofa_b": 50.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 102.585548983356,
+        "room_consumed_MJ": 5.738883756149914,
+        "explicit_burn_MJ": 5.739844727962033,
+        "net_gap_MJ": -0.0009609718121188493,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": -0.0009609718121215138,
+        "remaining_in_explicit_objects_MJ": 0.260155272037965,
+        "co_generated_kg": 0.010474240191821799,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.061189243053269185,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.012159378911848144,
+        "max_object_hrr_excess_over_room_kw": 5.115907697472721e-13,
+        "inactive_objects": []
+      },
+      "objects": {
+        "g3_sofa_a": {
+          "burn_MJ": 3.000000000000002,
+          "max_hrr_kw": 52.1037591248732,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 0.0,
+          "final_state": "burned_out",
+          "exhausted_time_s": 88.916666666666
+        },
+        "g3_sofa_b": {
+          "burn_MJ": 2.7398447279620326,
+          "max_hrr_kw": 87.0033891517603,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 0.260155272037965,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        }
+      }
+    },
+    {
+      "name": "second_object_cold",
+      "scenario_sha256": "5b46ac53694398303fad59b7bef6ceea2090326539520b3696906e7b8df0a3cf",
+      "declared": {
+        "room_MJ": 0.0,
+        "room_max_hrr_kw": 0.0,
+        "object_energy_MJ": {
+          "g3_sofa": 3.0,
+          "g3_cold_chair": 3.0
+        },
+        "object_max_hrr_kw": {
+          "g3_sofa": 100.0,
+          "g3_cold_chair": 100.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 168.295618071818,
+        "room_consumed_MJ": 5.996351427934116,
+        "explicit_burn_MJ": 2.9999999999999987,
+        "net_gap_MJ": 2.9963514279341177,
+        "unowned_MJ": 2.985805574423145,
+        "first_unowned_time_s": 56.3333333333338,
+        "inventory_excess_MJ": 2.9963514279341155,
+        "remaining_in_explicit_objects_MJ": 3.0,
+        "co_generated_kg": 0.011924629625998679,
+        "co_generated_unowned_kg": 0.009804485155588965,
+        "smoke_generated_kg": 0.07346426023363102,
+        "smoke_generated_unowned_kg": 0.03984476245087579,
+        "nominal_explicit_co_kg": 0.0011999999999999997,
+        "max_object_hrr_excess_over_room_kw": 9.947598300641403e-14,
+        "inactive_objects": [
+          "g3_cold_chair"
+        ]
+      },
+      "objects": {
+        "g3_sofa": {
+          "burn_MJ": 2.9999999999999987,
+          "max_hrr_kw": 111.260600537986,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 0.0,
+          "final_state": "burned_out",
+          "exhausted_time_s": 56.2500000000005
+        },
+        "g3_cold_chair": {
+          "burn_MJ": 0.0,
+          "max_hrr_kw": 0.0,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 3.0,
+          "final_state": "heating",
+          "exhausted_time_s": null
+        }
+      }
+    },
+    {
+      "name": "object_exhausted_room_residual",
+      "scenario_sha256": "2e96e6e3b5cbe1839157516da83d69f8450b6b28f8211b97226e1d39d11d6df8",
+      "declared": {
+        "room_MJ": 3.0,
+        "room_max_hrr_kw": 100.0,
+        "object_energy_MJ": {
+          "g3_sofa": 1.0
+        },
+        "object_max_hrr_kw": {
+          "g3_sofa": 100.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 87.7174839614467,
+        "room_consumed_MJ": 2.999863183449847,
+        "explicit_burn_MJ": 0.9999999999999996,
+        "net_gap_MJ": 1.9998631834498473,
+        "unowned_MJ": 1.9980596383488602,
+        "first_unowned_time_s": 39.1666666666667,
+        "inventory_excess_MJ": 1.9998631834498468,
+        "remaining_in_explicit_objects_MJ": 0.0,
+        "co_generated_kg": 0.0006071022717767334,
+        "co_generated_unowned_kg": 0.0004036347198009611,
+        "smoke_generated_kg": 0.04161399916820756,
+        "smoke_generated_unowned_kg": 0.02958572945389942,
+        "nominal_explicit_co_kg": 0.0003999999999999999,
+        "max_object_hrr_excess_over_room_kw": 9.992007221626409e-16,
+        "inactive_objects": []
+      },
+      "objects": {
+        "g3_sofa": {
+          "burn_MJ": 0.9999999999999996,
+          "max_hrr_kw": 45.8508458215342,
+          "initial_remaining_MJ": 1.0,
+          "final_remaining_MJ": 0.0,
+          "final_state": "burned_out",
+          "exhausted_time_s": 39.0833333333334
+        }
+      }
+    },
+    {
+      "name": "room_below_objects",
+      "scenario_sha256": "81977fc0adc4270f35493e2d83bbe97ddf1474eb9bbe9f31566c62d483c9b9cf",
+      "declared": {
+        "room_MJ": 1.0,
+        "room_max_hrr_kw": 100.0,
+        "object_energy_MJ": {
+          "g3_sofa": 3.0
+        },
+        "object_max_hrr_kw": {
+          "g3_sofa": 100.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 51.3333333333337,
+        "max_hrr_kw": 41.615960070079,
+        "room_consumed_MJ": 0.9999999999999994,
+        "explicit_burn_MJ": 0.9999806823801647,
+        "net_gap_MJ": 1.931761983475777e-05,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": 1.9317619839753775e-05,
+        "remaining_in_explicit_objects_MJ": 2.00001931761984,
+        "co_generated_kg": 0.00022645859409456615,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.021172550082326654,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.0003999922729520655,
+        "max_object_hrr_excess_over_room_kw": 9.992007221626409e-16,
+        "inactive_objects": []
+      },
+      "objects": {
+        "g3_sofa": {
+          "burn_MJ": 0.9999806823801647,
+          "max_hrr_kw": 41.615960070079,
+          "initial_remaining_MJ": 3.0,
+          "final_remaining_MJ": 2.00001931761984,
+          "final_state": "decaying",
+          "exhausted_time_s": null
+        }
+      }
+    },
+    {
+      "name": "explicit_room_aggregate",
+      "scenario_sha256": "3d72f6288490046fe921f5d2c4bdd5b46e4c1f320630e8ed6a89069f6aeb26c7",
+      "declared": {
+        "room_MJ": 3.0,
+        "room_max_hrr_kw": 100.0,
+        "object_energy_MJ": {},
+        "object_max_hrr_kw": {}
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": false,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 87.716688379344,
+        "room_consumed_MJ": 2.999863222931252,
+        "explicit_burn_MJ": 0.0,
+        "net_gap_MJ": 2.999863222931252,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": 2.999863222931252,
+        "remaining_in_explicit_objects_MJ": 0,
+        "co_generated_kg": 0.0005308063637083131,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.03840627224339796,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.0,
+        "max_object_hrr_excess_over_room_kw": 0.0,
+        "inactive_objects": []
+      },
+      "objects": {}
+    },
+    {
+      "name": "ambiguous_real_compact_salon",
+      "scenario_sha256": "d1b95f2143a7018b163f92ef3a120bbb6daa0b97d4a5954c9fbe059ad6224c7c",
+      "declared": {
+        "room_MJ": 4300.0,
+        "room_max_hrr_kw": 2500.0,
+        "object_energy_MJ": {
+          "compact_sofa": 980.0,
+          "compact_kitchen_unit": 860.0,
+          "compact_table": 420.0,
+          "compact_tv": 360.0
+        },
+        "object_max_hrr_kw": {
+          "compact_sofa": 620.0,
+          "compact_kitchen_unit": 520.0,
+          "compact_table": 280.0,
+          "compact_tv": 200.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 320.273111543879,
+        "room_consumed_MJ": 11.915859057597011,
+        "explicit_burn_MJ": 11.915856582481752,
+        "net_gap_MJ": 2.475115259414906e-06,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": 2.4751170712988824e-06,
+        "remaining_in_explicit_objects_MJ": 2608.08414341752,
+        "co_generated_kg": 0.002968782644593376,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.12990082120290672,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.004305731321126527,
+        "max_object_hrr_excess_over_room_kw": 9.094947017729282e-13,
+        "inactive_objects": []
+      },
+      "objects": {
+        "compact_sofa": {
+          "burn_MJ": 7.626975322557428,
+          "max_hrr_kw": 149.257799284621,
+          "initial_remaining_MJ": 980.0,
+          "final_remaining_MJ": 972.373024677443,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_kitchen_unit": {
+          "burn_MJ": 2.336220574614458,
+          "max_hrr_kw": 88.9902400428444,
+          "initial_remaining_MJ": 860.0,
+          "final_remaining_MJ": 857.663779425386,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_table": {
+          "burn_MJ": 1.1263425988404379,
+          "max_hrr_kw": 47.8065431850621,
+          "initial_remaining_MJ": 420.0,
+          "final_remaining_MJ": 418.87365740116,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_tv": {
+          "burn_MJ": 0.8263180864694277,
+          "max_hrr_kw": 34.2185290313516,
+          "initial_remaining_MJ": 360.0,
+          "final_remaining_MJ": 359.173681913531,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        }
+      }
+    },
+    {
+      "name": "ambiguous_real_compact_salon_cold_yields_equalised",
+      "scenario_sha256": "936c00e12da643eade286d87496870892d91f2d06fd7175a23abe3a4f360c3f4",
+      "declared": {
+        "room_MJ": 4300.0,
+        "room_max_hrr_kw": 2500.0,
+        "object_energy_MJ": {
+          "compact_sofa": 980.0,
+          "compact_kitchen_unit": 860.0,
+          "compact_table": 420.0,
+          "compact_tv": 360.0
+        },
+        "object_max_hrr_kw": {
+          "compact_sofa": 620.0,
+          "compact_kitchen_unit": 520.0,
+          "compact_table": 280.0,
+          "compact_tv": 200.0
+        }
+      },
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true
+      },
+      "csv_last_time_s": 90.1,
+      "result": {
+        "steps": 1081,
+        "has_explicit_objects": true,
+        "last_consuming_time_s": 90.0833333333326,
+        "max_hrr_kw": 320.266047347377,
+        "room_consumed_MJ": 11.91568099161069,
+        "explicit_burn_MJ": 11.915678516491539,
+        "net_gap_MJ": 2.4751191514127413e-06,
+        "unowned_MJ": 0.0,
+        "first_unowned_time_s": null,
+        "inventory_excess_MJ": 2.475118890288286e-06,
+        "remaining_in_explicit_objects_MJ": 2608.084321483508,
+        "co_generated_kg": 0.003398036372182183,
+        "co_generated_unowned_kg": 0.0,
+        "smoke_generated_kg": 0.14307734045969864,
+        "smoke_generated_unowned_kg": 0.0,
+        "nominal_explicit_co_kg": 0.004766271406596608,
+        "max_object_hrr_excess_over_room_kw": 9.094947017729282e-13,
+        "inactive_objects": []
+      },
+      "objects": {
+        "compact_sofa": {
+          "burn_MJ": 7.6268786912545465,
+          "max_hrr_kw": 149.254498671304,
+          "initial_remaining_MJ": 980.0,
+          "final_remaining_MJ": 972.373121308745,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_kitchen_unit": {
+          "burn_MJ": 2.336177099158135,
+          "max_hrr_kw": 88.9882816066606,
+          "initial_remaining_MJ": 860.0,
+          "final_remaining_MJ": 857.663822900842,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_table": {
+          "burn_MJ": 1.1263206029465778,
+          "max_hrr_kw": 47.8054910941062,
+          "initial_remaining_MJ": 420.0,
+          "final_remaining_MJ": 418.873679397053,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        },
+        "compact_tv": {
+          "burn_MJ": 0.8263021231322796,
+          "max_hrr_kw": 34.2177759753062,
+          "initial_remaining_MJ": 360.0,
+          "final_remaining_MJ": 359.173697876868,
+          "final_state": "flaming",
+          "exhausted_time_s": null
+        }
+      }
+    }
+  ],
+  "contract_violations": {
+    "two_objects_burning": [
+      "C9_object_hrr_within_its_declared_max"
+    ],
+    "second_object_cold": [
+      "C2_every_consumed_MJ_has_an_explicit_owner",
+      "C3_no_species_from_unowned_energy",
+      "C8_burned_plus_remaining_equals_initial_inventory",
+      "C9_object_hrr_within_its_declared_max",
+      "C6_inactive_object_does_not_change_species",
+      "C7_inactive_object_energy_is_not_burned"
+    ],
+    "object_exhausted_room_residual": [
+      "C2_every_consumed_MJ_has_an_explicit_owner",
+      "C3_no_species_from_unowned_energy"
+    ],
+    "room_below_objects": [
+      "C5_room_total_does_not_cap_explicit_inventory"
+    ]
+  }
+}

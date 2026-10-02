@@ -34,10 +34,10 @@ ejemplo, la [ficha actual del sofá 29](https://www.nist.gov/el/fcd/design-fires
 da 0,02671 ± 0,00096 kg/kg, frente a 0,030 ± 0,001 en la tabla 8 de TN
 2303. La [ficha del sofá 30](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test030)
 da 0,0306 ± 0,0011, frente a 0,033 ± 0,001. No mezclar cifras de versiones
-sin registrar la metodología y fecha del reprocesado. **Dato por fijar con
-CSV y checksum** antes de calibrar. Las fichas enlazan los CSV, pero en esta
-sesión no se pudo leer el contenido CSV por la restricción de acceso de red;
-no se ha extraído aún ninguna curva numérica de ellos.
+sin registrar la metodología y fecha del reprocesado. Los cuatro CSV de las
+pruebas 29/30/28/18 ya están fijados con SHA-256, pero el desfase de
+rendimientos entre el informe y las fichas sigue sin conciliarse. Ninguno
+de estos datos autoriza aún una ley de CO por objeto o recinto.
 
 Si se quiere una **cantidad** en lugar de un rendimiento, las fichas FCD
 actuales permiten multiplicar masa perdida por el rendimiento global **de
@@ -48,6 +48,123 @@ un total fiable. La [alfombra más cojines 28](https://www.nist.gov/el/fcd/desig
 da 3,313 × 0,01175 ≈ **0,039 kg** del conjunto, sin poder atribuirlo solo
 a la alfombra. Son emisiones totales de ensayos específicos, no masas de CO
 retenidas en una habitación.
+
+### Ficha reproducible G3-2 (avance parcial)
+
+Las tablas 2–3 de las fichas FCD actuales para [Test029](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test029),
+[Test030](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test030),
+[Test028](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test028)
+y [Test018](https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test018)
+se han transcrito a una [ficha JSON versionada](G3_NIST_FCD_FURNITURE_SUMMARY_2026-09-27.json)
+con masa perdida, calor total/efectivo, pico de HRR, rendimientos de O₂,
+CO₂, CO y hollín, incertidumbre publicada del rendimiento de CO, composición
+del espécimen y elegibilidad. Las páginas declaran el procesado
+`NFRL_Report_8.7.1`, actualizado el 07-04-2026. La ficha **no** es un
+catálogo físico del motor ni convierte valores desconocidos de HCN en cero.
+
+El cálculo auditado `masa perdida × rendimiento de la misma prueba` da
+1,392018 kg (29), 2,383373 kg (30) y 0,038928 kg (28). El tercero corresponde
+al conjunto alfombra **más dos cojines**; la mesa 18 queda sin rendimiento
+utilizable porque FCD lo declara bajo el límite de detección. Para los dos
+sofás, `Y_CO / calor efectivo del mismo ensayo` equivale aritméticamente a
+0,0017166 y 0,0016721 kg/MJ, respectivamente. Estos cocientes globales
+**no** son curvas temporales ni coeficientes trasladables sin más a un sofá
+de SimuFire, y las incertidumbres de las magnitudes derivadas no se han
+estimado.
+
+Los cuatro CSV oficiales se importaron sin modificar:
+[Test029](../literature/NIST/FCD_Test029_2026-04-07.csv),
+[Test030](../literature/NIST/FCD_Test030_2026-04-07.csv),
+[Test028](../literature/NIST/FCD_Test028_2026-04-07.csv) y
+[Test018](../literature/NIST/FCD_Test018_2026-04-07.csv). Sus SHA-256, filas,
+ejes de tiempo y valores observados se fijan en la ficha JSON y en el
+[auditor reproducible](../../scripts/simulation/audit_g3_nist_fcd_csv.py).
+Los cuatro tienen muestreo de 1 s y nueve columnas; 29/30/28 contienen dos
+`NaN` (HRR y O₂) en la última fila, 18 ninguno. Los picos e integrales
+HRR hasta el evento «Fire Out», no hasta el final del archivo, reproducen
+los valores redondeados de las cuatro fichas.
+
+La columna `CO (Vol Fr)` es **fracción volumétrica seca en el escape de la
+campana**, no concentración de una sala. La [guía oficial de la
+FCD](https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf),
+§3, sí proporciona la conversión de esa fracción y el caudal de escape a
+CO neto emitido entre ignición y apagado:
+
+```text
+CO_escapado_kg_s(t) = [X_CO_escape(t) − X_CO_ambiente]
+                     × m_escape_kg_s(t) × M_CO/M_aire
+```
+
+El [reconstructor de investigación](../../scripts/simulation/reconstruct_g3_nist_fcd_co.py)
+usa `M_CO = 28,01`, `M_aire = 28,97 kg/kmol`, no recorta tasas negativas
+por ruido y declara dos fondos candidatos, −60..−1 y −120..−1 s. Los
+totales de CO neto en el escape obtenidos con el primero son:
+
+| Ensayo | Reconstruido, fondo 60 s | Ficha: masa × rendimiento | Interpretación |
+| --- | ---: | ---: | --- |
+| Test029 | 1,38965 kg | 1,39202 kg | Sofá A completo, incluidos cojines |
+| Test030 | 2,38497 kg | 2,38337 kg | Sofá B completo, incluidos cojines |
+| Test028 | 0,03944 kg | 0,03893 kg | **Alfombra + cojines**, inseparables |
+| Test018 | ≈0,00235 kg, solo diagnóstico | Bajo detección | Piloto activo; **no** calibrar mesa |
+
+Para los tres ensayos con rendimiento publicado, las diferencias están
+dentro de la incertidumbre expandida de `Y_CO` multiplicada por la masa
+perdida. El fondo de 120 s da 1,39020, 2,38582 y 0,03897 kg en 29/30/28.
+El caso 18 sigue bajo el límite de detección pese al número que devuelve la
+operación algebraica; no convertirlo en un rendimiento de aglomerado. Las
+series no son constantes: en Test029 el candidato de 60 s suma 0,0684,
+0,3035, 0,3021 y 0,7156 kg en 0–299, 300–599, 600–1199 y 1200–2080 s.
+
+Esto **no** verifica que `NFRL_Report_8.7.1` use exactamente nuestro intervalo
+de fondo o cada detalle del procesado. [NIST TN
+2077](https://doi.org/10.6028/NIST.TN.2077), §4.4, describe retardos de
+transporte/análisis y la alineación temporal de señales; falta comprobar
+cómo se aplicó a esta exportación. El CSV tampoco contiene pérdida de masa
+del espécimen por segundo, así que **no** permite obtener `Y_CO(t)`.
+La curva de escape reconstruida es un **candidato experimental para
+contraste**, no una ley del sofá, una concentración respiratoria, ni una
+calibración de SimuFire. El
+[cotejo TN 2303 ↔ FCD 2026](G3_NIST_TN2303_FCD_RECONCILIATION_2026-09-28.md)
+demuestra que masa perdida y THR de 29/30 son idénticos en ambas versiones;
+el cambio de `Y_CO` está en el CO integrado informado o su tratamiento,
+pero el paso concreto del reprocesado sigue sin documentación. TN 2303
+§2.2.2 confirma que la masa transitoria se midió solo en Tests 1–24, no
+en 28/29/30. La tabla 8 del informe sí ofrece HCN global de 2025, pero
+las fichas/CSV 2026 no tienen HCN; no se mezclan versiones. Siguen faltando
+ensayos de material aislado y de combustión subventilada. La
+prueba `tests/test_g3_nist_fcd_furniture_summary.py` fija método, unidades,
+números y exclusiones. G3-2 permanece **parcial/NO-GO**.
+
+### Pasada del 29-09: procesado 2025/2026 y fuentes con `MLR(t)`
+
+Detalle en [procesado y elegibilidad G3-2](G3_CO_FUENTES_ELEGIBILIDAD_2026-09-29.md).
+NIST no publica código, registro de cambios ni metodología propia de
+`NFRL_Report_8.7.1`: las fichas solo dan versión y fecha, el registro
+`mds2-2314` termina en versiones de metadatos de 2020 y la guía vigente es
+la v4a de 2020, ahora [guardada con SHA-256](../literature/NIST/FCD_User_Guide_v4a_2020.pdf).
+Con los 48 CSV oficiales y las 48 fichas archivadas:
+
+- el método de la guía (fondo de 60 s, ignición → «Fire Out») reproduce la
+  FCD 2026 dentro de su `Uc` en 42 de 43 ensayos comparables;
+- entre versiones, THR no cambia, pero la masa perdida sí en 31, 35 y 38, y
+  el CO sale del redondeo impreso de 2025 en 13 ensayos;
+- integrar el CO hasta el final del archivo es la única hipótesis probada
+  compatible con 10 de esos 13 desfases (29 y 30 incluidos), pero falla en
+  39, 45 y 47 y contradice el THR del Test029 si se interpreta como un
+  «Fire Out» movido. **La causa sigue sin demostrar.** No se mezclan ni se
+  promedian las versiones 2025 y 2026.
+
+No se encontró ninguna fuente pública con series **numéricas** de pérdida de
+masa y CO del mismo ensayo a escala de objeto. TN 2303 midió la masa de los
+Tests 1–24 con células de carga, pero solo la publica en figuras; TN 1453
+(ahora [guardado](../literature/NIST/NIST_TN_1453_Smoke_Component_Yields_Room_Scale.pdf))
+remite sus series a un informe compañero no localizado; TN 1603 y TN 1761
+cubren subventilación y φ controlada, pero con combustibles puros o
+material en régimen estacionario; los datos de cono de FSRI tienen masa y CO
+a 4 Hz, pero de un material y a escala de banco, y su calorímetro de muebles
+no mide CO. G3-2 queda **NO-GO para `Y_CO(t)` por objeto** hasta obtener
+la masa numérica de TN 2303 1–13/16/17/19–24 o series equivalentes en
+recinto ventilado y viciado.
 
 ### Una sala amueblada de verdad
 

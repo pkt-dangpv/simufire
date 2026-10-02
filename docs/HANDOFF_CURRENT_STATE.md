@@ -1,5 +1,568 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-02 - G3: instrumentación del balance físico en el motor
+
+Fase de observables
+([diseño §15](validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md)). **No corrige
+ninguna ley física**: `U` sigue sin inventario, los rendimientos no cambian y
+las especies se calculan como antes. La opción D y la clave de objetivo
+continuo siguen OFF en producto; CO/FED siguen en NO-GO.
+
+Qué cambia en `sim/`:
+
+- Solo inserciones de lectura detrás del interruptor que ya existía,
+  `CombustionSystem.g3_fuel_ledger_enabled` (el del libro v3; `false` por
+  defecto, solo lo enciende `--g3-fuel-ledger-v3` del lanzador headless). **No
+  hay interruptor nuevo.** Son 229 líneas en `CombustionSystem.gd`, 133 en
+  `OxygenExchangeSystem.gd` y 22 en `SimulationEngine.gd`.
+- Los observables van en el registro por sala y paso del libro v3, en bloques
+  `bal_*` (esquema `g3_balance_v1`, fijado en §15.1 antes de editar):
+  combustible, depósito con cada baja por separado, especies con base,
+  rendimiento, solicitado, aplicado e inventario, tope de carbono, O₂ por
+  ruta, trazador de CO₂ y estado de sala al empezar y al cerrar el paso.
+- `U` se emite como derivado con `physical_inventory: false`. No es una
+  pérdida resuelta.
+
+Medido con el analizador nuevo
+(`scripts/simulation/analyze_g3_balance_ledger.py`; evidencia en
+`runs/g3_balance_instrumentation_20261002/`):
+
+- **Cierre contable:** en `sofa_vent`, `o2_closed`, `o2_reopen_300` y el caso
+  continuo ninguna escritura se aparta de su regla registrada, salvo el paso
+  de extinción. Eso no es conservación física.
+- **§14 se reproduce término a término**: el traslado de 15,9 MJ (`R`
+  −14,910; alta al depósito +4,959; `U` +10,945), el decaimiento (1,011 y
+  3,927 MJ), el carbono excedente (+2,515 kg) y el O₂ ajeno al fuego
+  (0,551 kg).
+- **Humo y CO₂ por encima del calor, ahora medidos:** en `o2_closed`,
+  1,478 kg de los 3,998 kg de humo y 0,615 kg de CO₂. De los 0,974 kg menos de
+  humo del caso continuo, 0,931 kg eran de esa parte.
+- **Nuevo: el O₂ del fuego no sale entero de su zona.** La ruta del penacho
+  baja la fracción de la zona inferior con la masa de aire de toda la sala:
+  de 6,241 kg debitados en `o2_closed`, 1,687 kg no salen de ninguna zona.
+- **Nuevo: el tope de carbono** no actúa con la opción D en esos casos, y con
+  el interruptor OFF (producto) actúa en 2346 de 3025 pasos de `sofa_vent`
+  (CO₂ aplicado 0,184 kg de 0,324 kg pedidos). No evita el exceso de carbono:
+  el hollín queda fuera.
+- **Nuevo: sin fuego no hay paso de depósito.** Lo que queda al extinguirse
+  ni decae ni arde ni se mueve (1,353 MJ durante 4457 pasos en `o2_closed`
+  con el interruptor OFF).
+- Dos cuentas de CO₂ sin conciliar: en `o2_closed` el trazador produce
+  5,516 kg y la masa 6,722 kg.
+
+Discrepancias con §14 y su origen: el CO₂ por encima del calor pasa de 0,504
+a 0,615 kg porque §14 usaba el rendimiento máximo como cota y el motor da el
+aplicado; el residuo de 3e-7 MJ del depósito era el depósito retenido sin
+fuego. No se ajustó física ni tolerancias.
+
+Verificación:
+
+- Pruebas: `tests/test_g3_balance_ledger.py` (65, sin Godot). Mutaciones del
+  analizador 22/22. Mutantes del motor 4/4 por el monitor: baja del depósito
+  omitida, escala de carbono no registrada, O₂ truncado sin declarar y base
+  de especie equivocada.
+- Identidad con las ejecuciones del 01-10: 36/36 casos (opción D ON/OFF ×
+  instrumentación ON/OFF), 252 archivos byte a byte y 1 083 648 filas del
+  libro v3 sin diferencias al quitar los bloques nuevos.
+- R2-1: sobre el código final, referencia 18/18 con **346/346 y 78 gaps**
+  (`reference_checks.json` solo cambia en `generated_at`), guardarraíles ALL
+  PASS, `check_product.py` monitorizado 168/168
+  (`runs/check_product_monitored_20261002_151549`) y pytest global 3272
+  passed, 37 skipped, 2 xfailed. Hubo dos pasadas: en la primera pytest
+  falló una prueba por la posición de las funciones auxiliares del libro; se
+  recolocaron sin cambiar ninguna línea y se repitió todo.
+
+Límites: `U` sigue sin inventario; no hay masa ni composición de combustible,
+agua ni oxígeno propio del combustible; un recinto y un objeto dominante. Sin
+commit ni push; `sim/` y `reference_checks.json` van juntos.
+
+## Current Program Update - 2026-10-02 - G3: balance físico de combustible, O₂ y productos
+
+Fase de análisis y diseño
+([diseño §14](validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md)). **No cambia
+`sim/`, interruptores, editor ni perfiles; no se lanzó Godot.** Todo sale de
+libros ya ejecutados (13 casos) con
+`scripts/simulation/analyze_g3_fuel_o2_products_balance.py`; resultados en
+`runs/g3_fuel_o2_products_balance_20261002/`.
+
+Medido:
+
+- **El cierre contable se cumple** (`C = B + ΔR + G + U`, ≤ 4e-14 MJ) y el
+  combustible quitado a los objetos iguala `C`. Eso no es un balance físico.
+- **`U` no tiene variable en el motor.** Es el 70 % del pirolizado que no
+  arde con llama y el 100 % en fase latente: 5,59 MJ en `o2_closed` con D,
+  16,53 MJ con el objetivo continuo, 18,37 MJ en ON-pre.
+- **El depósito de gas sin quemar no arde en ningún caso**, tampoco al
+  reabrir. Lo que entra decae sin calor, O₂, especies ni transporte (1,01 MJ
+  en `o2_closed` con D; 3,93 MJ con el objetivo continuo) o queda al final.
+- **Los 15,9 MJ que salen de `R` con el objetivo continuo** (`R` −14,91;
+  `G` +4,96; `U` +10,94) acaban así: 10,94 MJ sin dueño, 2,92 MJ decaídos y
+  2,04 MJ en el depósito. Nada de eso se quema.
+- **Especies sobre el objetivo y no sobre el calor.** El humo, y el CO₂ a
+  través de su base, se producen aunque el calor vaya por debajo del
+  objetivo, sin débito de O₂. Con el salto hay 0,97 kg más de humo y 0,64 kg
+  más de CO₂ que con el objetivo continuo, con el mismo calor y el mismo O₂.
+- **Carbono creado en todos los casos:** el hollín queda fuera del tope de
+  carbono. Los productos llevan entre un 16 % y un 102 % más de carbono que
+  el combustible debitado en los 13 casos (+2,51 kg, un 85 %, en `o2_closed`
+  con D).
+- **O₂:** el débito del fuego es Thornton sobre el calor salvo en
+  `o2_stress_cap` (5,77 kg sin debitar). Los sumideros ajenos al fuego (O2-4)
+  igualan al del fuego con ventilación.
+- **El CO₂ se lleva dos veces** (trazador de `OxygenExchangeSystem` y masa de
+  `CombustionSystem`), con hasta 368 104 ppm de diferencia con D y 559 665
+  con el interruptor OFF.
+- Con el interruptor OFF, el calor supera al combustible debitado en los
+  casos ventilados (3,807 frente a 3,000 MJ en `sofa_vent`).
+
+Inferido, no medido: que `R` produce humo dos veces (al acumularse y al
+liberarse). El libro no da la base ni el rendimiento por paso.
+
+Límites: un recinto y un objeto dominante; el carbono usa el factor único del
+motor (0,027 kg/MJ); el oxígeno propio del combustible no está modelado, así
+que el balance de oxígeno no se puede cerrar; no hay masa de combustible.
+
+Decisión:
+
+- **GO** para implementar, detrás de un interruptor OFF, lo que no exige
+  ninguna decisión física nueva: un inventario único del pirolizado sin
+  quemar, las especies solo sobre calor liberado con el hollín dentro del
+  tope de carbono, y los observables que faltan (§14.9).
+- **NO-GO** para elegir sin el usuario el límite de O₂ del calor, la zona y
+  el encendido del inquemado, el destino de `R` y el oxígeno del combustible
+  (alternativas en §14.8). NO-GO también para calibrar rendimientos o
+  activar D o la clave diagnóstica en producto. CO/FED siguen en NO-GO.
+- Las pruebas de falsación son los hallazgos del analizador (§14.8): una
+  corrección que solo mueva energía entre `R`, `G` y `U` no las pasa.
+
+Pruebas: `tests/test_g3_fuel_o2_products_balance.py` (30, sin Godot); 16/16
+mutaciones del analizador detectadas. No se repitió la referencia,
+`check_product.py` ni pytest global: `sim/` no cambia. Sin commit ni push.
+
+## Current Program Update - 2026-10-01 - Gate B cerrado como prototipo; monitor con propiedad de procesos
+
+- **Estado de la opción D:** Gate B está cerrado como **prototipo técnico**
+  ([diseño §9–§11](validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md)). El
+  interruptor `fire_explicit_object_fuel_ownership_enabled` sigue **OFF en
+  producto**: la opción D no está activada ni validada, y CO/FED siguen en
+  NO-GO. El único cambio de `sim/` del 01-10 es la clave diagnóstica del
+  experimento 2 (más abajo), OFF por defecto.
+- **`check_product.py` ya usa el monitor.** Todas sus rutas de Godot (38
+  escenas, 42 scripts y la anidada de `run_scenario.py`) pasan por
+  `scripts/godot_monitored_launch.py`, que envuelve
+  `tools.mutation_audit._run_monitored`. La deuda «lanza Godot sin monitor»
+  de la entrada del 29-09 queda saldada.
+- **El monitor solo termina lo que lanzó.** El proceso entra en un Job Object
+  de Windows y la limpieza termina ese job; ya no hay `taskkill` por nombre.
+  Un Godot ajeno (un editor abierto) no se toca: si ya estaba, bloquea el
+  lanzamiento; si aparece durante la ejecución, la marca como contaminada.
+  Los ayudantes que el motor lanza al salir (`cmd.exe /c python` de las
+  gráficas) tienen 120 s para acabar antes de contarse como residuo.
+- **Memoria de 6 GiB:** `check_product.py` **no** aplica el umbral por
+  defecto. Se activa por lanzamiento con
+  `SIMUFIRE_GODOT_MIN_AVAILABLE_GIB=6` (incluye el lanzamiento anidado); sin
+  la variable depende de una comprobación externa previa. No se impone por
+  defecto: CI (Ubuntu) no ejecuta `check_product.py` ni el monitor, y la
+  memoria solo se mide en Windows.
+- **`R` en `o2_closed` (20,60 MJ):** 15,172 MJ nacen en 86 ciclos de
+  apagado/reencendido en el umbral `can_flame` = 0,08, con apagados de un
+  paso. Con la contabilidad exacta del motor y el `flame_drive` medido,
+  quitar los cruces del umbral (corrección ≤ 8e-6) deja 0,457 MJ: 14,71 MJ se
+  deben a los cruces. La **causa del ciclo** queda como «mecanismo
+  compatible, causalidad no aislada»: el arnés en lazo cerrado no superó su
+  validación predeclarada. No se ajustó ninguna constante.
+- **Experimento 1 ejecutado (diseño §12):** `o2_closed` con
+  `fire_hrr_rise_tau_s` = 3 s en un escenario diagnóstico, en ON-pre (copia
+  del proyecto con el `CombustionSystem.gd` previo a D, validada byte a byte)
+  y en D. En D los ciclos pasan de 86 a 160, el tramo encendido de 5,50 a
+  2,75 s y `R` por ciclo de 0,201 a 0,100 MJ, como predecía el balance de O₂;
+  el `R` nacido en ciclos no baja (15,17 → 15,82 MJ) y el final baja de 20,60
+  a 18,58 MJ solo por la subida inicial. Refuta la oscilación exógena y el
+  retraso genérico del filtro. No demuestra que la discontinuidad sea
+  necesaria. Evidencia en `runs/g3_rise_tau_diagnostic_20261001/`.
+- **Experimento 2 ejecutado (diseño §13): clave diagnóstica en `sim/`.**
+  `fire_diag_flame_target_window` y `fire_diag_flame_target_jump_fraction`,
+  0 por defecto y **sin `@export`**: no aparecen en el editor y ningún
+  escenario, plantilla ni script de producto las usa. Con ancho > 0 hacen
+  continuo el objetivo de llama (o le dejan una fracción de su salto) entre
+  0,08 y 0,08 + ancho de `flame_drive`; no cambian `can_flame`, el recorte de
+  D, el filtro, el O₂, la pirólisis ni las especies. **Es un instrumento de
+  diagnóstico, no una propuesta de física ni un arreglo.** Son 72 líneas
+  insertadas en `CombustionSystem.gd` y 12 en `SimulationEngine.gd`.
+- **Resultado en `o2_closed`:** con objetivo continuo los ciclos desaparecen
+  (0 apagados entre 450 y 900 s con ancho 0,01 y con 0,002; `R` final 5,69 y
+  6,10 MJ frente a 20,60). Bajando el salto a 16 y a 12 kW sin quitarlo, los
+  ciclos persisten (17 y 7 apagados). Con un salto de 8 kW, por debajo de los
+  10,1 kW que sostiene el O₂, no hay ciclos. Veredicto predeclarado:
+  **discontinuidad necesaria**, en el sentido de un salto que deja fuera la
+  potencia sostenible. La energía no desaparece: pasa de `R` a gas no quemado
+  (`G + U` de 6,8 a 22,7 MJ). Vale para este caso y este motor; no valida
+  CO/FED ni dice qué regla de llama es correcta. Evidencia en
+  `runs/g3_flame_target_continuity_20261001/`.
+- **Verificación sobre el código final (01-10, noche):** identidad con la
+  clave OFF 9/9 con el interruptor G3 en OFF y 9/9 en ON; referencia completa
+  por el monitor 18/18, **346/346 y 78 gaps** (`reference_checks.json` solo
+  cambia en `generated_at`); guardarraíles ALL PASS con R2-1;
+  `check_product.py` monitorizado 168/168
+  (`runs/check_product_monitored_20261001_224245`); pytest global 3177 passed,
+  37 skipped, 2 xfailed, 42 subtests. Mutaciones: 9/9 de la clave, además de
+  las 31 + 15 del monitor y del lanzador. Sin procesos Godot ni cuadros al
+  terminar. Sin commit ni push; `sim/` y `reference_checks.json` van juntos.
+
+## Current Program Update - 2026-09-29 - caídas «nativas» de Godot: causa y lanzador
+
+- [Diagnóstico](validation/G3_GODOT_NATIVE_POPUP_DIAGNOSIS_2026-09-29.md):
+  a las 13:10 `check_product.py` se lanzó **dentro del sandbox** de Codex
+  (registro `.codex/.sandbox`) y dejó tres cuadros de error duro (Visor de
+  eventos, System ID 26, 13:11/13:16/13:21; misma instrucción
+  `0x00007FF60E555854`, lectura en `0x58`). Esos cuadros sobreviven a su
+  proceso; el monitor los detectaba por título y mataba cada Godot sano
+  posterior (`TerminateProcess` → salida 1, `godot.log` de 0 bytes). No era
+  RAM ni física.
+- Reproducido con una ventana **oculta** con el mismo título: lanzador
+  original FAIL en 3,18 s; corregido, se niega a lanzar en 1,2 s. Sin ella,
+  3/3 PASS antes y 3/3 PASS después.
+- Corrección en `tools/mutation_audit.py`: `PreexistingGodotErrorDialog`
+  antes de lanzar; detección durante la ejecución sin cambios. Pruebas
+  `tests/test_godot_monitor_stale_dialogs.py` (3) y mutante detectado.
+- Reanudación: 28 ficheros con Godot, 347 passed en secuencia con `-x`;
+  suite global **una vez**: 3062 passed, 35 skipped, 2 xfailed, 42
+  subtests. Guardarraíles ALL PASS (346/346, 78 gaps); ningún cuadro nuevo
+  ni proceso residual. Deuda: `check_product.py` lanza Godot sin monitor.
+- Gate B: [diseño](validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md) del
+  destino de la energía retrasada, pendiente de aprobación; sin física nueva.
+  Sin commit ni push.
+
+## Current Program Update - 2026-09-29 - G3 Gate A/B: procedencia y energía
+
+- [Gate A](validation/G3_REFERENCE_PROVENANCE_PORTABILITY_2026-09-29.md):
+  los 38 hashes cambiantes del informe de referencia se explican **archivo
+  por archivo** por LF frente a CRLF; siete rutas eran absolutas. El
+  validador ahora usa LF canónico para artefactos textuales y rutas
+  relativas, manteniendo PDF byte-exacto y detección de alteraciones reales.
+  Pruebas focalizadas 54/54; revalidación desde las salidas existentes
+  346/346 y 78 gaps. Es una migración única de metadatos, **no** un cambio
+  limitado a `generated_at`. El informe aún no se ha commiteado.
+- [Gate B](validation/G3_ENERGY_BUDGET_DIAGNOSIS_2026-09-29.md):
+  analizados los nueve controles con el libro v3. En todos, generación del
+  pool = 0 y objetivo integrado = combustible debitado. El déficit del
+  sofá ON es exactamente 0,933784 MJ de retraso del HRR; el exceso legacy
+  es 0,405902 MJ. La rama ON evita calor sin combustible en el mismo paso,
+  pero no conserva el retraso para liberarlo después. **NO-GO para física
+  energética ON en producto** hasta diseñar un destino explícito y probar
+  ventilación limitada. No se ha tocado la física en esta pasada.
+- CO/FED y G3-4 química siguen NO-GO; interruptor experimental OFF. Worktree
+  G3 sin commit ni push; checkout principal intacto.
+- Verificación de esta pasada: 156 pruebas focalizadas pasadas y 5 omitidas;
+  producto 167/167 en reintento con permisos adecuados; guardarraíles
+  ALL PASS; enlaces Markdown y `git diff --check` limpios. La suite global
+  **no está verde**: 3033 passed, 35 skipped, 2 xfailed y 26 fallos por
+  cuadros nativos de error de Godot en su lanzador monitorizado (exit 1),
+  sin procesos residuales. No atribuir esos fallos a física ni ignorarlos.
+  El primer intento de producto, con permisos restringidos, tuvo timeouts
+  y se descarta; el segundo fue válido. La referencia completa de runtime
+  pertenece a la pasada previa; aquí solo se revalidaron sus salidas.
+  Una sola prueba repetida con `TEMP/TMP` exclusivos, 7,14 GiB libres y
+  Godot previamente quiescente reprodujo el cuadro nativo en 3,16 s:
+  `test_pressure_network_integration.py::test_validator_passes`. El
+  lanzador monitorizado ejecutó el binario sin consola y vio salida 1;
+  `check_product.py` usó la ruta de consola y sí pasó. **No se ha
+  demostrado la causa del fallo del lanzador ni del binario**; no relajar
+  su guardarraíl ni volver a declarar la suite global verde sin resolverlo.
+
+## Current Program Update - 2026-09-29 - G3-3 libro contable y propiedad energética
+
+- [Informe](validation/G3_FUEL_LEDGER_OWNERSHIP_2026-09-29.md). Tres
+  decisiones separadas: **G3-3 instrumentado** (GO), **propiedad energética
+  corregida en `explicit_objects`** (GO experimental, OFF por defecto) y
+  **CO/FED validados** (NO-GO).
+- Libro v3 pasivo en `CombustionSystem` (miembro activado solo por el runner
+  con `--g3-fuel-ledger-v3`): inventario del fuego, demanda, disponible,
+  consumo, HRR solicitado/aplicado, pool, asignación por objeto activo e
+  inactivo y especies por paso. Propietarios `object`, `room_load`,
+  `aggregate`, `unowned`; tolerancia fijada antes de tocar física,
+  `1e-9 MJ`/paso. Cierre K1–K5 sin fallos; inerte byte a byte en 9/9 casos.
+- Antes del arreglo: silla fría → 2,996351 MJ sin dueño y HRR 168,30 kW;
+  carga de sala 3 MJ/sofá 1 MJ → 1,999863 MJ de la carga de estancia; fugas
+  de ≤ 1e-6 MJ por paso y descarte de ≤ 1 kJ; calor sólido sin combustible
+  (sofá solo: 3,405765 MJ liberados para 2,999863 consumidos).
+- Interruptor `fire_explicit_object_fuel_ownership_enabled` (false): solo
+  salas sin carga de sala y con objetos explícitos. Topes de energía y HRR
+  = objetos activos; reparto con topes por objeto; calor sólido ≤ pirólisis
+  del paso. ON: O1–O5 y K1–K5 sin fallos en los 5 casos `explicit_owned`;
+  salas con carga de sala y agregadas idénticas ON/OFF. OFF idéntico byte a
+  byte en 9/9. Mutantes 4/4 detectados, fichero restaurado con SHA-256.
+- Química intacta: C6 sigue fallando (mismo combustible, CO ×2,92 con silla
+  fría). Cambios de CO/humo con ON = efecto del combustible consumido y del
+  calor liberado, no validación. Límite: liberado/consumido 1,135 → 0,689.
+- R2-1: referencia 346/346, 78 gaps, 3012 s bajo monitor; el informe solo
+  difiere en rutas absolutas del worktree y en finales de línea LF/CRLF de 38
+  artefactos de entrada (explicados uno a uno). Guardarraíles ALL PASS,
+  producto 167/167, pytest global 3051 passed/35 skipped/2 xfailed. Cinco
+  tests estáticos de inventario 82 → 83 y P1R4 actualizados como en `a764a600`. **Motor e informe sin commit: deben
+  commitearse juntos.** Sin commit ni push.
+
+## Current Program Update - 2026-09-29 - G3-1: cierre del diagnóstico de propiedad
+
+- [Cierre G3-1](validation/G3_FUEL_OWNERSHIP_CLOSURE_2026-09-29.md):
+  las 23 discrepancias quedan `legacy_unknown` y bloqueadas (17 literales
+  de `b3457e94` sin generador; 6 de `create_two_storey_house()` verificadas
+  contra los literales); los 7 presets sin objetos, `legacy_lumped` y se
+  mantienen. 0 migrables. Matriz regenerable y con prueba de deriva.
+- Tanda monitorizada `runs/g3_fuel_ownership_matrix_20260929_085916/`,
+  9 casos sanos (exit 0, sin residuos, quiescentes). Demostrado: energía sin
+  dueño tras agotarse el objeto (1,998060 MJ, 66,5 % del CO); silla fría
+  incluida en los topes de energía y HRR (HRR 168,30 kW, +2,996351 MJ de
+  inventario contado dos veces, CO ×14,05); la carga de sala trunca al sofá
+  (2,0 MJ sin quemar); HRR por objeto por encima de su máximo (87 kW frente a
+  50). Sin doble conteo de HRR por paso. El salón real no ejercita su
+  ambigüedad en 90 s.
+- Contrato de propiedad MJ/kg y cláusulas C1–C9 en
+  `scripts/simulation/analyze_g3_fuel_ownership.py`; pruebas en
+  `tests/test_g3_fuel_ownership_closure.py`. **GO** para libro pasivo G3-3,
+  **NO-GO** para cerrarlo o migrar. Sin cambios en `sim/core`, `sim/fire`,
+  catálogo, escenarios ni interruptores; sin commit ni push.
+
+## Current Program Update - 2026-09-29 - G3-2: procesado 2025/2026 y elegibilidad
+
+- Fuentes primarias revisadas: 48 fichas FCD (`NFRL_Report_8.7.1`,
+  07-04-2026), registro NIST `mds2-2314` (solo versiones de metadatos de
+  2020), guía FCD v4a (2020, ahora local con SHA-256) y TN 2303 §2.2.2–2.2.3.
+  **No** hay código, notas de versión ni metodología publicada del script.
+- Importados sin modificar y con SHA-256: 44 CSV FCD más (48 en total), zip
+  de las 48 fichas, guía FCD, TN 1453, TN 1761 y cinco archivos FSRI (commit
+  `a432697e`). Los cuatro CSV previos coinciden byte a byte con la descarga.
+- [Comparación reproducible](validation/G3_CO_FUENTES_ELEGIBILIDAD_2026-09-29.md):
+  el método de la guía reproduce la FCD 2026 en 42/43 ensayos. Entre
+  versiones THR no cambia; la masa sí en 31/35/38; el CO sale del redondeo
+  2025 en 13 ensayos. Integrar hasta fin de archivo encaja en 10/13, no en
+  39/45/47, y contradice THR del 29 como «Fire Out» movido: **causa no
+  demostrada**. Versiones 2025 y 2026 siguen separadas.
+- [Matriz de 14 fuentes](validation/G3_CO_SOURCE_ELIGIBILITY_MATRIX_2026-09-29.json):
+  ninguna con `MLR(t)` numérica y CO(t) del mismo ensayo a escala de
+  objeto. TN 2303 1–24 solo en figuras; TN 1453 remite a un informe
+  compañero no localizado; TN 1603/1761 son combustibles puros o banco; FSRI
+  cono es material/banco y su calorímetro de muebles no mide CO. **G3-2
+  NO-GO para `Y_CO(t)` por objeto**; las mediciones que faltan están en el
+  documento. G3-1 y G3-3 siguen con gates abiertos; FED zonal apagado.
+- Pruebas nuevas: `tests/test_g3_nist_co_processing_versions.py` y
+  `tests/test_g3_co_source_eligibility.py`. Sin Godot, sin cambios en
+  física, `sim/core`, `sim/fire`, escenarios o catálogo; sin commit ni push.
+
+## Current Program Update - 2026-09-28 - G3-2: cuatro CSV oficiales importados
+
+- CSV crudos NIST FCD Test029/030/028/018 incorporados a la biblioteca con
+  SHA-256 individuales en la [ficha](validation/G3_NIST_FCD_FURNITURE_SUMMARY_2026-09-27.json).
+  El [auditor](../scripts/simulation/audit_g3_nist_fcd_csv.py) comprueba
+  bytes, nueve columnas, muestreo de 1 s, celdas `NaN` y picos e integrales
+  de HRR hasta «Fire Out»; los cuatro reproducen sus fichas redondeadas.
+- `CO (Vol Fr)` es fracción volumétrica seca del escape, **no** concentración
+  de sala. La [guía FCD](https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf)
+  da la fórmula de CO neto a partir de esa fracción y el caudal. La
+  [reconstrucción de investigación](../scripts/simulation/reconstruct_g3_nist_fcd_co.py)
+  con fondo −60..−1 s da 1,38965 kg (29), 2,38497 kg (30) y 0,03944 kg
+  (28), frente a 1,39202, 2,38337 y 0,03893 kg de sus fichas. El ensayo
+  28 incluye cojines; el 18 queda bajo detección y con piloto activo. El
+  fondo exacto de
+  `NFRL_Report_8.7.1` y la alineación de señales no están verificados. Sin
+  serie temporal de masa perdida no hay `Y_CO(t)`.
+  La causa de la discrepancia TN 2303/FCD, las familias materiales y los
+  regímenes de recinto siguen pendientes. G3-2 sigue parcial/NO-GO; no se
+  ha tocado física.
+- [Cotejo TN 2303/FCD](validation/G3_NIST_TN2303_FCD_RECONCILIATION_2026-09-28.md):
+  en 29/30 masa perdida y THR son iguales en ambas versiones, pero `Y_CO`
+  baja ≈10,97 % y ≈7,27 %. La causa concreta del reprocesado no está
+  publicada aquí. TN 2303 §2.2.2 limita la masa transitoria medida a Tests
+  1–24; no existe `MLR(t)` medida para los sofás 29/30 o el ensayo mixto 28.
+  La tabla 8 de 2025 informa HCN global, separado de la FCD 2026, que no
+  lo exporta. PDF original guardado con SHA-256 y prueba estática.
+
+## Current Program Update - 2026-09-28 - G3-0: puerta, ventana y dos plantas
+
+- Cuatro casos monitorizados de 90 s completados con el mismo combustible
+  diagnóstico: puerta salón–pasillo cerrada, abierta, apertura a 30 s con
+  ventana a 60 s, y camino abierto entre dos plantas. La puerta cerrada
+  mantiene CO del pasillo en cero; abierta deja 0,00047711 kg/16 ppm a
+  90,1 s. La ventana eleva la retirada exterior registrada a 0,00102290
+  kg. En la escalera P1 solo hay 0,00000022 kg a 90,1 s: sin validación
+  útil de exposición alta.
+- Los balances de cada sala cierran a `1e-8 kg` (resolución del CSV). Un
+  snapshot opt-in midió CO en parcelas pendientes y en el registro por
+  destino; ambas cuentas coinciden. El balance global **final**
+  `generado − salas − exterior − tránsito` deja como máximo `4,6e-8 kg`
+  de residuo; los CSV/eventos de las cuatro corridas son byte a byte
+  idénticos antes/después del snapshot. No confundir esto con cierre por
+  paso/zona o con CO oxidado. G3-0 sigue parcial; G3-5 debe cerrar el
+  presupuesto más amplio.
+- Cuatro monitores sanos y quiescentes, 15 tests focalizados PASS antes del
+  snapshot y 10 PASS tras añadirlo. Sin cambio
+  de física, `sim/core`, escenarios distribuidos, commit ni push.
+  [Informe G3-0 de topología](validation/G3_CO_TOPOLOGY_BASELINE_2026-09-28.md).
+
+## Current Program Update - 2026-09-27 - G3-2: ficha NIST FCD parcial
+
+- Se fijaron los resúmenes oficiales de cuatro ensayos FCD con procesado
+  `NFRL_Report_8.7.1`: dos sofás completos (29/30), alfombra más dos cojines
+  (28) y mesa que no sostuvo combustión medible (18). La ficha conserva
+  unidades, incertidumbre publicada, composición y límites de atribución;
+  HCN desconocido queda `null`, no cero.
+- CO integrado calculable para los dos sofás: 1,392018 y 2,383373 kg del
+  espécimen completo. Esta nota reflejaba el estado del 27-09: el CSV de
+  Test029 se importó después, como se indica arriba. Su curva de CO neto en
+  el escape es solo reconstrucción provisional, no curva calibrada por mueble.
+  G3-2 permanece **parcial/NO-GO**. Sin cambios en física ni escenarios.
+- [Ficha versionada](validation/G3_NIST_FCD_FURNITURE_SUMMARY_2026-09-27.json),
+  [interpretación y fuentes](validation/G3_CO_PRODUCCION_COMBUSTIBLES_ESTANCIA_2026-09-27.md).
+  Pruebas focalizadas con temporales externos: 22 PASS. Sin commit ni push.
+
+## Current Program Update - 2026-09-27 - G3-1: matriz de procedencia de 23 salas
+
+- Las 23 diferencias de energía y potencia quedan enumeradas y contrastadas
+  con los JSON por prueba. Diecisiete son literales en tres archivos
+  `*_reference.json` añadidos en `b3457e94`; seis coinciden con
+  `BuildingTemplate.create_two_storey_house()` y su preset. El agregado
+  aritmético de las diferencias es 37 580 MJ **entre escenarios distintos**,
+  no una carga física única.
+- Ninguna de esas ubicaciones explica si la diferencia es mueble no dibujado,
+  acabado o tope legado. Se conserva `legacy_unknown` como clasificación
+  **propuesta, no implementada**; no se modificaron los JSON. La decisión
+  de fuente física requiere procedencia o elección de diseño antes de
+  migrar y calibrar CO/FED. Pruebas de matriz/inventario: 13 PASS.
+- [Matriz y preguntas pendientes](validation/G3_FUEL_PROVENANCE_MATRIX_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - G3-1: propiedad del límite de energía medida
+
+- Cuatro controles monitorizados de 90 s y cargas desiguales en un worktree
+  aislado de la rama G3. Con estancia 3 MJ / sofá 1 MJ, el sofá se agota
+  a 39,0833 s y el fuego consume **1,998060 MJ adicionales** sin objeto
+  explícito activo. Con estancia 1 MJ / sofá 3 MJ, el fuego se limita a
+  1 MJ y deja ≈2 MJ en el sofá. El total de estancia positivo manda sobre
+  el inventario explícito; el remanente CSV no expresa la capacidad del
+  fuego. No se ha clasificado el contenido no dibujado de los JSON reales.
+- Cuatro monitores sanos, 31 pruebas focalizadas previas, cero procesos
+  Godot. El cambio externo de checkout a `main` dejó G3 en un stash
+  automático: recuperado con `stash apply` en worktree aislado sin consumir
+  el stash ni tocar `main`. Una primera corrida allí no produjo datos por
+  faltar la importación Godot; la importación posterior fue limpia.
+- **NO-GO** para migrar automáticamente las 23 discrepancias o calibrar CO
+  por mueble. Sin cambios en `sim/core`/`sim/fire`, sin commit ni push.
+  [Gate y evidencia](validation/G3_FUEL_OWNERSHIP_DYNAMIC_GATE_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - G3-3: especies observadas, sin promover física
+
+- Segunda ampliación opt-in del libro pasivo (`g3_fuel_source_step_v2`),
+  verificada en los cinco controles: residuo máximo por paso de CO
+  `6,48e-19 kg` y de humo `1,73e-17 kg`; acumulados de humo y O₂
+  reconcilian con CSV. CSV, eventos y trazas previas son byte a byte
+  idénticos a la tanda anterior; monitores limpios y cero Godot residual.
+- Nuevo hallazgo: la silla fría, con 0 MJ consumidos y 0 kW, reduce el humo
+  generado por el sofá `0,07491757 → 0,06959310 kg` (−7,11 %) por el
+  rendimiento medio de sala, además de elevar CO 2,92 veces. CO₂/HCN
+  muestran producción por paso, pero aún no un presupuesto completo de
+  transporte/oxidación ni una atribución por objeto.
+- G3-3 sigue **parcial/NO-GO**; no se ha cambiado física, `sim/core` ni
+  `sim/fire`. [Informe y límites](validation/G3_FUEL_SOURCE_DYNAMIC_BASELINE_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - G3-3 parcial: traza pasiva de fuente
+
+- `tools/run_scenario_headless.gd` ofrece `--fuel-source-ledger` opt-in;
+  registra deltas por paso, sala y objeto, sin tocar `sim/core`, `sim/fire`
+  ni cambiar la física. En cinco casos monitorizados (90 s, 1.081 pasos
+  cada uno), el libro reconcilia CO generado y energía de sala con el CSV.
+  La silla no encendida consumió **0 MJ en todos los pasos** y tuvo HRR 0,
+  pero elevó el CO generado de 0,00204071 a 0,00595885 kg.
+- Los cinco monitores terminaron sanos y sin Godot residual. CSV, eventos,
+  traza previa de CO y snapshots finales son byte a byte idénticos a la
+  corrida sin el nuevo libro. El proxy refleja consumo, pero no puede
+  sumarse al sofá: no se ha demostrado combustión doble.
+- G3-3 sigue **parcial/NO-GO**: faltan masa/pirólisis, O₂, CO₂, HCN, humo,
+  oxidación y transporte zonal. Sin cambio de física, commit ni push en
+  este checkpoint. Véase
+  [baseline y traza G3](validation/G3_FUEL_SOURCE_DYNAMIC_BASELINE_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - G3-0: objeto no ardiendo altera CO
+
+- Cinco controles monitorizados, dos tandas sin fallos nativos ni Godot
+  residual. A 90 s, añadir una silla que acabó `heating`, con 0 kW y sus
+  200 MJ íntegros, al sofá eleva CO generado de 0,00204071 a 0,00595885 kg
+  (**2,92 veces**) con HRR/energía consumida prácticamente iguales. Sala
+  vacía = 0 fuego/CO. La atribución de CO por media de todos los objetos con
+  combustible es un defecto reproducido; la magnitud es de estrés, no un
+  rendimiento real de silla. Un snapshot opt-in en el runner permitió
+  verificar el estado sin cambiar física: CSV/eventos idénticos byte a byte
+  antes/después en los cinco casos; resumen sólo cambia su ruta de salida.
+- [Informe G3-0](validation/G3_FUEL_SOURCE_DYNAMIC_BASELINE_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - subplan de cierre G3/CO
+
+- Subplan integral registrado para ejecutar **por gates**, no como activación
+  inmediata: fuente única de combustible, datos experimentales por material,
+  contabilidad pasiva, producción por objeto, transporte zonal, FED/SVV y
+  promoción limitada por perfil. Estado actual: G3-0 tiene cinco controles;
+  G3-1, inventario estático; G3-3, traza parcial por paso. Candidato FED
+  zonal OFF y NO-GO. No se ha cambiado la física.
+- [Subplan G3 de cierre de CO](planning/G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md).
+- Inicio G3-1: `scripts/simulation/audit_g3_fuel_sources.py` reproduce los 14
+  JSON sin modificarlos. Desglose: 71 salas con carga solo de estancia, 13
+  con objetos y totales coincidentes, 23 discrepantes, 2 sin carga; 107 objetos
+  declaran CO, ninguno HCN/CO₂. Pruebas focalizadas 13/13 PASS. No se ha
+  hecho aún clasificación de procedencia. El baseline dinámico G3-0 ya se
+  completó después de superar la puerta de memoria; véase el bloque superior.
+
+## Current Program Update - 2026-09-27 - propietario del combustible por estancia/objeto
+
+- Auditoría estática G3: en los 14 JSON distribuidos hay 109 salas; 107 con
+  carga de estancia, 36 con objetos y 23 con ambas fuentes en desacuerdo.
+  Siete de los diez presets no incluyen ningún objeto. El proxy de sala se
+  excluye de las sumas cuando hay objetos, pero el fuego inicial prioriza la
+  energía/potencia de estancia y el rendimiento de especies promedia incluso
+  muebles fríos. **NO-GO** para inferir CO fiable por mueble o migrar presets
+  automáticamente; el desfase cuantitativo con CFAST no queda explicado por
+  esta auditoría sola.
+- Siguiente gate: inventario de propiedad y procedencia de cada combustible,
+  modo explícito para casos de referencia agregados, y contabilidad pasiva por
+  objeto antes de cambiar leyes de HRR/especies. Ver
+  [G3_FUEL_SOURCE_OWNERSHIP_AUDIT_2026-09-27.md](validation/G3_FUEL_SOURCE_OWNERSHIP_AUDIT_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - producción de CO antes del reparto zonal
+
+- Auditoría bibliográfica y del código, **sin cambio de física**: NIST TN 2303
+  ofrece rendimientos de sofás de 0,030–0,037 kg/kg en su edición de 2025;
+  fichas FCD actualizadas dan cifras algo diferentes para los mismos ensayos,
+  pendientes de conciliar con los CSV. La mesa y la alfombra de esa campaña
+  no son calibradores aislados fiables. TN 1453 muestra
+  cambios de rendimiento entre pre/post-flashover para cojines y aglomerado.
+  Un salón amueblado NIST produjo ≈ 3,65 / 5,66 / 2,84 kg de CO total en
+  tres configuraciones distintas del sofá; son totales emitidos, no inventario
+  instantáneo de la sala.
+- SimuFire utiliza hoy un `yield` **medio de estancia**, ponderado también por
+  combustibles no ardiendo, y lo aplica a una base energética global. No puede
+  atribuir honestamente el CO generado a sofá/mesa/alfombra ni derivar la
+  curva individual a partir de los campos del catálogo. La suma nominal de
+  energía × yield base del salón de plantilla es 1,980 kg, **no** una salida
+  simulada ni comparable directamente con el ensayo NIST.
+- Orden G3: datos y curvas por combustible/régimen; contabilidad pasiva de
+  fuente, oxidación y transporte; validación de sala completa; solo después
+  mezcla intercapas y FED a altura respiratoria. El candidato zonal sigue OFF
+  y **NO-GO**. Evidencia, límites y gates en
+  [G3_CO_PRODUCCION_COMBUSTIBLES_ESTANCIA_2026-09-27.md](validation/G3_CO_PRODUCCION_COMBUSTIBLES_ESTANCIA_2026-09-27.md).
+
+## Current Program Update - 2026-09-27 - gate CFAST/NIST de CO respirable
+
+- La guía CFAST transporta especies con el gas y contabiliza su masa por
+  capa; no justifica un ascenso independiente del CO. NIST TN 1455-1 revisado
+  mide CO a 1,5 m en una vivienda (SDC05: 490/170 ppm próximo/remoto justo
+  antes de supresión); FR 4016 publica series temporales para un fixture
+  residencial, aún sin importar ni auditar canales.
+- Control opt-in, solo con la corrección contable de CO existente: en dos
+  salas a 480 s, el CO bajo sube de 0,00576575 a 10,47465 ppm; CFAST da
+  579 ppm y la interfaz SF no cambia. Aun trasladando todo el CO de esa sala
+  a la capa inferior, el máximo SimuFire sería 452,70 ppm: falta contrastar
+  producción y flujos además del reparto. Candidato FED zonal y física de
+  mezcla siguen **NO-GO**.
+- Fuentes, límites y gate antes de tocar transporte canónico en
+  [G3_CO_CFAST_NIST_TRANSPORT_GATE_2026-09-27.md](validation/G3_CO_CFAST_NIST_TRANSPORT_GATE_2026-09-27.md).
+
 ## Current Program Update - 2026-09-27 - G3 CO en cinco casos: NO-GO
 
 - El comparador diagnóstico reproducible de inventario bajo contra `LLCO`

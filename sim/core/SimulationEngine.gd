@@ -364,6 +364,21 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## de o2_upper por paso. Activa o2_consumed_kg_step / o2_consumed_kg_total en CSV.
 ## Activar per-caso o globalmente solo cuando se quiera auditar/cerrar balance O2.
 @export var fire_o2_stoich_consumption_enabled: bool = false
+## G3: propiedad de energía y potencia por objeto activo (default-off). Solo actúa
+## en salas sin carga ni potencia de sala declaradas y con objetos explícitos
+## (explicit_objects): topes de energía y HRR = objetos activos, cada MJ se
+## debita de un objeto y el calor sólido liberado no supera la pirólisis del
+## paso. Las salas con carga de sala positiva siguen la ruta legacy. No cambia
+## rendimientos de especies. Ver docs/validation/G3_FUEL_LEDGER_OWNERSHIP_2026-09-29.md.
+@export var fire_explicit_object_fuel_ownership_enabled: bool = false
+## G3 DIAGNÓSTICO, no es física de producto. Sin @export a propósito: no aparece
+## en el editor y solo se fija desde engine_overrides de un escenario de
+## diagnóstico. Con ancho > 0, el objetivo de llama es continuo (fracción 0) o
+## conserva esa fracción de su salto en el umbral can_flame, dentro de la ventana
+## (0,08; 0,08 + ancho) de flame_drive. Con ancho 0 no llega nada a
+## CombustionSystem. Ver docs/validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md §13.
+var fire_diag_flame_target_window: float = 0.0
+var fire_diag_flame_target_jump_fraction: float = 0.0
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -4043,7 +4058,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 	if kawagoe_factor > 0.0:
 		kawagoe_limit_kw = kawagoe_coeff * kawagoe_factor
 
-	return {
+	var context: Dictionary = {
 		"ambient_c": thermal_system.ambient_temp_c(),
 		"thermal_feedback_coeff": thermal_feedback_coeff,
 		"thermal_feedback_max": thermal_feedback_max,
@@ -4161,6 +4176,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_post_bd_hrr_cut_enabled": fire_post_bd_hrr_cut_enabled,
 		# SF-D2: consumo estequiométrico O2 (default-off).
 		"fire_o2_stoich_consumption_enabled": fire_o2_stoich_consumption_enabled,
+		# G3: propiedad de energía/potencia por objeto activo (default-off).
+		"fire_explicit_object_fuel_ownership_enabled": fire_explicit_object_fuel_ownership_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
@@ -4174,6 +4191,17 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"phase3_canonical_fuel_object_sync_shadow_enabled": \
 				_phase3_canonical_fuel_object_sync_active(),
 	}
+	# G3 Gate B opción D (prototipo): cota de masa del sumidero de O2 del fuego que
+	# CombustionSystem consulta antes de liberar el saldo R. Solo con el interruptor G3.
+	if fire_explicit_object_fuel_ownership_enabled:
+		context["g3_o2_sink_floor_callable"] = Callable(
+			oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"
+		)
+	# G3 DIAGNÓSTICO: las claves solo existen en el contexto con ancho > 0.
+	if fire_diag_flame_target_window > 0.0:
+		context["fire_diag_flame_target_window"] = fire_diag_flame_target_window
+		context["fire_diag_flame_target_jump_fraction"] = fire_diag_flame_target_jump_fraction
+	return context
 
 # ============================================================
 # SUAVIZADO DE APERTURAS EXTERIORES
@@ -4474,10 +4502,24 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 
 	var hrr_factor: float = exp(-water_l * maxf(0.0, suppression_hrr_decay_per_l))
 	hrr_factor = clampf(hrr_factor, 0.03, 1.0)
+	# G3 balance (g3_balance_v1): solo lectura, con el libro G3 activo.
+	var g3_bal_suppression: Dictionary = {}
+	if combustion_system.g3_fuel_ledger_enabled:
+		g3_bal_suppression = {
+			"moment": "SimulationEngine._apply_suppression_to_room",
+			"water_l": water_l,
+			"hrr_factor": hrr_factor,
+			"hrr_before_kw": float(room.hrr_kw),
+			"pool_before_MJ": float(room.retained_unburned_MJ),
+		}
 	room.hrr_kw *= hrr_factor
 	room.hrr_target_kw *= hrr_factor
 	room.burned_hrr_kw = room.hrr_kw
 	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
+	if combustion_system.g3_fuel_ledger_enabled:
+		g3_bal_suppression["hrr_after_kw"] = float(room.hrr_kw)
+		g3_bal_suppression["pool_after_MJ"] = float(room.retained_unburned_MJ)
+		combustion_system.g3_balance_note_external(room.id, "bal_suppression", g3_bal_suppression)
 	if room.fire != null:
 		room.fire_time_s *= sqrt(hrr_factor)
 		room.fire_dormant_time_s = 0.0
@@ -5060,7 +5102,14 @@ func _step_oxygen(dt: float) -> void:
 		oxygen_exchange_system.phase3_o2_ledger.get_step()
 	)
 	_phase3_o2_ledger.set_step(oxygen_exchange_system.phase3_o2_ledger.get_step())
-	oxygen_exchange_system.step(building, dt, _build_oxygen_exchange_hooks())
+	# G3 balance (g3_balance_v1): con el libro G3 activo, OxygenExchangeSystem
+	# anota en una sonda de solo lectura; sin el libro no hay sonda.
+	var oxygen_hooks: Dictionary = _build_oxygen_exchange_hooks()
+	if combustion_system.g3_fuel_ledger_enabled:
+		oxygen_hooks["g3_balance_probe"] = {}
+	oxygen_exchange_system.step(building, dt, oxygen_hooks)
+	if combustion_system.g3_fuel_ledger_enabled:
+		combustion_system.g3_balance_note_o2_probe(oxygen_hooks["g3_balance_probe"])
 
 
 func _resolve_fire_o2_mode() -> String:

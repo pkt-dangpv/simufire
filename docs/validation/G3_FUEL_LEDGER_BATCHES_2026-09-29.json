@@ -1,0 +1,3065 @@
+{
+  "schema": "g3_fuel_ledger_batches_v1",
+  "phases": {
+    "before": {
+      "run": "g3_fuel_ledger_before_20260929_091638",
+      "cases": {
+        "empty_room": {
+          "scenario_sha256": "dd47eb3348343e4af93f080d309136265078284e275b5166f734690a9a5c16d2",
+          "artifact_sha256": {
+            "sim_log.csv": "fb3fd0ec846592b5f849ce567668a70f6592183dd4e6c45f9b4867114f45b6bf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "4e7c9ef81a14815d5b113983b64da2a3c2d803f1f21a2156c9b37e6fbbb49ffa",
+            "fuel_source_ledger.jsonl": "f81255f0662f00e81fbdc381e2a68e5e195f9fd8fc89aeb78aaa1e2f59a91ffe",
+            "fuel_object_state_snapshot.json": "7e7ffd3b34296304911633d03d90c9362b9018d7a2c06cce6d079f0dfda541bc"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 0.0,
+          "csv_final_co_generated_kg_total": 0.0,
+          "csv_final_smoke_generated_kg_total": 0.0,
+          "csv_final_fuel_consumed_MJ_total": 0.0
+        },
+        "single_object": {
+          "scenario_sha256": "8a821e8c47f2306a2230a7bd5dc44169e7dec99ad09bdf027a915a5f6b8459ec",
+          "artifact_sha256": {
+            "sim_log.csv": "3952a60b13f6820c3afb329b742b4b5b9d7e504db9fb85b4858a226e8d1232e1",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "c7004780f13ee93408fdacd8e9f4da986ec5f59f8dfe5c14bcc172aa6351c616",
+            "fuel_source_ledger.jsonl": "5b385994c0c30dc5b114b59e01ebedc6e8d5244d37be2c2585ffa6099929b538",
+            "fuel_object_state_snapshot.json": "71ea3ed57dc79418127670bccab24ab612a001d0b200fc267ca1c0f9df22ed2a"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00084871,
+          "csv_final_smoke_generated_kg_total": 0.05167906,
+          "csv_final_fuel_consumed_MJ_total": 2.99986324
+        },
+        "sofa_plus_cold_chair": {
+          "scenario_sha256": "5b46ac53694398303fad59b7bef6ceea2090326539520b3696906e7b8df0a3cf",
+          "artifact_sha256": {
+            "sim_log.csv": "83eb1438e730fff04d348fe1a674070a5fc8494a2a6c84678cf773458811ca43",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a9c587d1a6bd9aad4a195308ac6cbbfb8f8604a677536533cbcd3d49be5ba98f",
+            "fuel_source_ledger.jsonl": "49034928c6fc386b7ced3b74cff9c640c0300f18fe7c194035bf097ce67b3789",
+            "fuel_object_state_snapshot.json": "d4c89fcca8713201df1915d9b671f6d63a1f7bddf85b1c2a4a6180f5bc2ee5ef"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 168.3,
+          "csv_final_co_generated_kg_total": 0.01192463,
+          "csv_final_smoke_generated_kg_total": 0.07346426,
+          "csv_final_fuel_consumed_MJ_total": 5.99635143
+        },
+        "two_active_objects": {
+          "scenario_sha256": "014f41cc49c5dcd6f37d210129729ac10ded5252dcbf94514a87617e6db62b4e",
+          "artifact_sha256": {
+            "sim_log.csv": "4eee80cfc4792eba29e097b890982660941c27a7df93b7087b949541936bd3e0",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a64d9144523839ec658464f229d65a7b7db583558cca4ede40a92a93bdce5e66",
+            "fuel_source_ledger.jsonl": "e22ae95a1f3ea0e6860b41ec3ff5f32bc6db83656296a29360e45efa264522e9",
+            "fuel_object_state_snapshot.json": "8dfdc884cbfa06439302caed17ee30a18221c76ae83248a5ccb9ce1bc6647ffe"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 102.56,
+          "csv_final_co_generated_kg_total": 0.01047424,
+          "csv_final_smoke_generated_kg_total": 0.06118924,
+          "csv_final_fuel_consumed_MJ_total": 5.73888376
+        },
+        "room_load_above_objects": {
+          "scenario_sha256": "2e96e6e3b5cbe1839157516da83d69f8450b6b28f8211b97226e1d39d11d6df8",
+          "artifact_sha256": {
+            "sim_log.csv": "c495d0ad6177a9504caa8c0467f27c9a599c1a79b911b3adf91400f45e103bd2",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "6f84021586e47d37fc7026b8bdc67d09bca0f9636cbec8a8966c0da14f0bb09c",
+            "fuel_source_ledger.jsonl": "1e15108d5351243278b579bca736e2c8a56557b7e722b4a43d57abe06aee11b6",
+            "fuel_object_state_snapshot.json": "876a7aef69768d72206332be4de863ac2ad426c19fab97a2c2d9294fa9a67016"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.0006071,
+          "csv_final_smoke_generated_kg_total": 0.041614,
+          "csv_final_fuel_consumed_MJ_total": 2.99986318
+        },
+        "room_load_below_objects": {
+          "scenario_sha256": "81977fc0adc4270f35493e2d83bbe97ddf1474eb9bbe9f31566c62d483c9b9cf",
+          "artifact_sha256": {
+            "sim_log.csv": "d33b4bebacdc8defb031c907e411f9c3b00dcc13fea6f3c42c7082fd87f7bd77",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "261b0f2d604c5aacbf1441e787220f2c8fbdc09771e3e478efba41ce20bb56b2",
+            "fuel_source_ledger.jsonl": "df32df797d4706413ffcc5eb8efe3ad627cae9a5b61e28d42c7769eb9aa6ab00",
+            "fuel_object_state_snapshot.json": "b20c0d9e104e48a8f35d6565fd1861ae19e04eea57c5ee30d013a1873974825e"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 41.6,
+          "csv_final_co_generated_kg_total": 0.00022646,
+          "csv_final_smoke_generated_kg_total": 0.02117255,
+          "csv_final_fuel_consumed_MJ_total": 1.0
+        },
+        "low_power_object": {
+          "scenario_sha256": "1ca059b734fb804ce6d9a2909c06e22d248a87cc2c0635401ba24e4d0f9e7aef",
+          "artifact_sha256": {
+            "sim_log.csv": "a741d27670940b52f5d2d55b89d40ac41fc5739df028978efe328a8453256172",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "b6d908372e05f1bef7f6f5b804f23293f70ce4b3e049806e04c5c3d9d86f5566",
+            "fuel_source_ledger.jsonl": "695b51250216c093234b38b09b28463f439cb31278fa8daa489d21a2c1888586",
+            "fuel_object_state_snapshot.json": "41373d68f135d1e29c236c85a60a74e4a5594a9d5bf62a55d04b7f6bf0577923"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 111.9,
+          "csv_final_co_generated_kg_total": 0.00190839,
+          "csv_final_smoke_generated_kg_total": 0.07793638,
+          "csv_final_fuel_consumed_MJ_total": 5.84598547
+        },
+        "named_aggregate_source": {
+          "scenario_sha256": "5fa046a8ac387fa44854d3cbe226822f08a8abdf1302935f75a18ace4d80414c",
+          "artifact_sha256": {
+            "sim_log.csv": "0d8238ce09a5326c304d6b742b4e696e3b91b76eb2b78faa4d35b994e99af34e",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "04e3cae38ba72c5701f201a4c1ed62bd618b44332d0df2d2de2dd97c44466c2e",
+            "fuel_source_ledger.jsonl": "f2a11f9207c73f963731a0dbc85119b3e2b99b678cecad7feeb2d7a2fa0dc667",
+            "fuel_object_state_snapshot.json": "89ce376ee53901f6274fba881d71d3899674521b704e3012536ba846590fecd3"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 100.13,
+          "csv_final_co_generated_kg_total": 0.00078836,
+          "csv_final_smoke_generated_kg_total": 0.05287587,
+          "csv_final_fuel_consumed_MJ_total": 2.99999997
+        },
+        "room_aggregate_only": {
+          "scenario_sha256": "3d72f6288490046fe921f5d2c4bdd5b46e4c1f320630e8ed6a89069f6aeb26c7",
+          "artifact_sha256": {
+            "sim_log.csv": "8ce77f4142f01c3c812fded63417d038387e78081875276cc1e07ebba4b66fcf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "1cc191741ed8d90550584a2b6ffa7a914c61afb5fc197de8b6b3d9cc16be7ad0",
+            "fuel_source_ledger.jsonl": "0118faf198f9804d62c1de9539f7e02275ae78c7847508535f96479852feb852",
+            "fuel_object_state_snapshot.json": "ef751d012de80df7e19dc21660e3c0495bbb16c36ad92ac86d65b1a6164c39b7"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00053081,
+          "csv_final_smoke_generated_kg_total": 0.03840627,
+          "csv_final_fuel_consumed_MJ_total": 2.99986322
+        }
+      },
+      "behaviour_contract_C1_C9": {
+        "sofa_plus_cold_chair": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy",
+          "C8_burned_plus_remaining_equals_initial_inventory",
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "two_active_objects": [
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "room_load_above_objects": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy"
+        ],
+        "low_power_object": [
+          "C9_object_hrr_within_its_declared_max"
+        ]
+      },
+      "c6_cold_chair_chemistry": null
+    },
+    "ledger": {
+      "run": "g3_fuel_ledger_ledger_20260929_092220",
+      "cases": {
+        "empty_room": {
+          "scenario_sha256": "dd47eb3348343e4af93f080d309136265078284e275b5166f734690a9a5c16d2",
+          "artifact_sha256": {
+            "sim_log.csv": "fb3fd0ec846592b5f849ce567668a70f6592183dd4e6c45f9b4867114f45b6bf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "4e7c9ef81a14815d5b113983b64da2a3c2d803f1f21a2156c9b37e6fbbb49ffa",
+            "fuel_source_ledger.jsonl": "f81255f0662f00e81fbdc381e2a68e5e195f9fd8fc89aeb78aaa1e2f59a91ffe",
+            "fuel_object_state_snapshot.json": "7e7ffd3b34296304911633d03d90c9362b9018d7a2c06cce6d079f0dfda541bc"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 0.0,
+          "csv_final_co_generated_kg_total": 0.0,
+          "csv_final_smoke_generated_kg_total": 0.0,
+          "csv_final_fuel_consumed_MJ_total": 0.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 0.0,
+            "released_MJ": 0.0,
+            "solid_released_MJ": 0.0,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "aggregate": 0.0
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": null,
+            "max_hrr_requested_kw": 0.0,
+            "max_hrr_applied_kw": 0.0,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "co2_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "hcn_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "smoke_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": []
+        },
+        "single_object": {
+          "scenario_sha256": "8a821e8c47f2306a2230a7bd5dc44169e7dec99ad09bdf027a915a5f6b8459ec",
+          "artifact_sha256": {
+            "sim_log.csv": "3952a60b13f6820c3afb329b742b4b5b9d7e504db9fb85b4858a226e8d1232e1",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "c7004780f13ee93408fdacd8e9f4da986ec5f59f8dfe5c14bcc172aa6351c616",
+            "fuel_source_ledger.jsonl": "5b385994c0c30dc5b114b59e01ebedc6e8d5244d37be2c2585ffa6099929b538",
+            "fuel_object_state_snapshot.json": "71ea3ed57dc79418127670bccab24ab612a001d0b200fc267ca1c0f9df22ed2a"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00084871,
+          "csv_final_smoke_generated_kg_total": 0.05167906,
+          "csv_final_fuel_consumed_MJ_total": 2.99986324,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999863241916606,
+            "released_MJ": 3.4057646796463548,
+            "solid_released_MJ": 3.4057646796463548,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3495858700651042,
+            "owners_MJ": {
+              "unowned": 0.0008492649832671971,
+              "object:g3_sofa": 2.9990139769333357
+            },
+            "allocated_MJ": 2.9990139769333384,
+            "discarded_MJ": 0.0009860230666576212,
+            "unowned_MJ": 0.0008492649832671971,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 4.002007059078494e-15,
+            "cumulative_fire_closure_MJ": 3.7911568415843755e-15,
+            "max_hrr_requested_kw": 102.44577627089,
+            "max_hrr_applied_kw": 87.71616410709329,
+            "max_solid_hrr_over_active_cap_kw": 30.690462784317415,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0008487075203255236,
+                "by_owner": {
+                  "unowned": 2.522245434104036e-07,
+                  "object:g3_sofa": 0.0008484552957821129
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.18383422421438875,
+                "by_owner": {
+                  "unowned": 8.353692912202295e-05,
+                  "object:g3_sofa": 0.18375068728526658
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.488588494784132e-05,
+                "by_owner": {
+                  "unowned": 4.035536962999684e-08,
+                  "object:g3_sofa": 8.484552957821131e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.05167906234153676,
+                "by_owner": {
+                  "unowned": 0.0019064279413768474,
+                  "object:g3_sofa": 0.04977263440015982
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "sofa_plus_cold_chair": {
+          "scenario_sha256": "5b46ac53694398303fad59b7bef6ceea2090326539520b3696906e7b8df0a3cf",
+          "artifact_sha256": {
+            "sim_log.csv": "83eb1438e730fff04d348fe1a674070a5fc8494a2a6c84678cf773458811ca43",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a9c587d1a6bd9aad4a195308ac6cbbfb8f8604a677536533cbcd3d49be5ba98f",
+            "fuel_source_ledger.jsonl": "49034928c6fc386b7ced3b74cff9c640c0300f18fe7c194035bf097ce67b3789",
+            "fuel_object_state_snapshot.json": "d4c89fcca8713201df1915d9b671f6d63a1f7bddf85b1c2a4a6180f5bc2ee5ef"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 168.3,
+          "csv_final_co_generated_kg_total": 0.01192463,
+          "csv_final_smoke_generated_kg_total": 0.07346426,
+          "csv_final_fuel_consumed_MJ_total": 5.99635143,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.996351427934115,
+            "released_MJ": 6.1379919434400305,
+            "solid_released_MJ": 6.1379919434400305,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.9522298911508622,
+            "owners_MJ": {
+              "unowned": 2.996351427934117,
+              "object:g3_sofa": 2.999999999999997
+            },
+            "allocated_MJ": 2.999999999999997,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 2.996351427934117,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 3.1086244689504383e-15,
+            "cumulative_fire_closure_MJ": 1.0777836956243902e-14,
+            "max_hrr_requested_kw": 211.38677770822136,
+            "max_hrr_applied_kw": 168.29561807181815,
+            "max_solid_hrr_over_active_cap_kw": 168.29561807181815,
+            "objects_over_own_cap": [
+              "g3_sofa"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_cold_chair": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_cold_chair": 3.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.011924629625998679,
+                "by_owner": {
+                  "unowned": 0.009812923647886386,
+                  "object:g3_sofa": 0.0021117059781122828
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 6.776263578034403e-21
+              },
+              "co2_kg": {
+                "total": 0.36141067540264776,
+                "by_owner": {
+                  "unowned": 0.20361100698411116,
+                  "object:g3_sofa": 0.15779966841853657
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 0.0001706556482943687,
+                "by_owner": {
+                  "unowned": 9.833385321698381e-05,
+                  "object:g3_sofa": 7.23217950773849e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 7.940933880509066e-23
+              },
+              "smoke_kg": {
+                "total": 0.0734642602336309,
+                "by_owner": {
+                  "unowned": 0.039962752516369965,
+                  "object:g3_sofa": 0.03350150771726088
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "two_active_objects": {
+          "scenario_sha256": "014f41cc49c5dcd6f37d210129729ac10ded5252dcbf94514a87617e6db62b4e",
+          "artifact_sha256": {
+            "sim_log.csv": "4eee80cfc4792eba29e097b890982660941c27a7df93b7087b949541936bd3e0",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a64d9144523839ec658464f229d65a7b7db583558cca4ede40a92a93bdce5e66",
+            "fuel_source_ledger.jsonl": "e22ae95a1f3ea0e6860b41ec3ff5f32bc6db83656296a29360e45efa264522e9",
+            "fuel_object_state_snapshot.json": "8dfdc884cbfa06439302caed17ee30a18221c76ae83248a5ccb9ce1bc6647ffe"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 102.56,
+          "csv_final_co_generated_kg_total": 0.01047424,
+          "csv_final_smoke_generated_kg_total": 0.06118924,
+          "csv_final_fuel_consumed_MJ_total": 5.73888376,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.738883756149919,
+            "released_MJ": 5.003335350108215,
+            "solid_released_MJ": 5.003335350108215,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.3681066220096316,
+            "owners_MJ": {
+              "unowned": 1.5914361313562072e-06,
+              "object:g3_sofa_a": 2.9990374367517543,
+              "object:g3_sofa_b": 2.739844727962034
+            },
+            "allocated_MJ": 5.738882164713788,
+            "discarded_MJ": 0.0009625632482447048,
+            "unowned_MJ": 1.5914361313562072e-06,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.0539125955565396e-15,
+            "cumulative_fire_closure_MJ": 5.329070518200751e-15,
+            "max_hrr_requested_kw": 105.0787901853729,
+            "max_hrr_applied_kw": 102.58554898335649,
+            "max_solid_hrr_over_active_cap_kw": 37.00338915176032,
+            "objects_over_own_cap": [
+              "g3_sofa_a",
+              "g3_sofa_b"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa_a": 3.0,
+              "g3_sofa_b": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa_a": 0.0,
+              "g3_sofa_b": 0.26015527203796546
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.010474240191821787,
+                "by_owner": {
+                  "unowned": 3.772547647088224e-11,
+                  "object:g3_sofa_a": 0.005394302378326613,
+                  "object:g3_sofa_b": 0.005079937775769698
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 3.3881317890172014e-21
+              },
+              "co2_kg": {
+                "total": 0.39929869207120716,
+                "by_owner": {
+                  "unowned": 7.934900550942054e-08,
+                  "object:g3_sofa_a": 0.20732349386888754,
+                  "object:g3_sofa_b": 0.1919751188533142
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.168404344971009e-19
+              },
+              "hcn_kg": {
+                "total": 0.00018904143647672432,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-13,
+                  "object:g3_sofa_a": 9.807823888317487e-05,
+                  "object:g3_sofa_b": 9.096319666468993e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0587911840678754e-22
+              },
+              "smoke_kg": {
+                "total": 0.06118924305326914,
+                "by_owner": {
+                  "unowned": 1.6939256966445706e-08,
+                  "object:g3_sofa_a": 0.03169591129431,
+                  "object:g3_sofa_b": 0.029493314819702184
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_load_above_objects": {
+          "scenario_sha256": "2e96e6e3b5cbe1839157516da83d69f8450b6b28f8211b97226e1d39d11d6df8",
+          "artifact_sha256": {
+            "sim_log.csv": "c495d0ad6177a9504caa8c0467f27c9a599c1a79b911b3adf91400f45e103bd2",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "6f84021586e47d37fc7026b8bdc67d09bca0f9636cbec8a8966c0da14f0bb09c",
+            "fuel_source_ledger.jsonl": "1e15108d5351243278b579bca736e2c8a56557b7e722b4a43d57abe06aee11b6",
+            "fuel_object_state_snapshot.json": "876a7aef69768d72206332be4de863ac2ad426c19fab97a2c2d9294fa9a67016"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.0006071,
+          "csv_final_smoke_generated_kg_total": 0.041614,
+          "csv_final_fuel_consumed_MJ_total": 2.99986318,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.99986318344985,
+            "released_MJ": 3.405772674333115,
+            "solid_released_MJ": 3.405772674333115,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3496081227224286,
+            "owners_MJ": {
+              "room_load": 1.9998631834498513,
+              "object:g3_sofa": 0.9999999999999992
+            },
+            "allocated_MJ": 0.9999999999999993,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9998631834498513,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.661338147750939e-16,
+            "cumulative_fire_closure_MJ": 3.442396107750101e-15,
+            "max_hrr_requested_kw": 102.46045085035142,
+            "max_hrr_applied_kw": 87.71748396144669,
+            "max_solid_hrr_over_active_cap_kw": 87.71748396144669,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0006071022717767335,
+                "by_owner": {
+                  "room_load": 0.0004040645122860966,
+                  "object:g3_sofa": 0.0002030377594906367
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.18392145474899735,
+                "by_owner": {
+                  "room_load": 0.13406089379838257,
+                  "object:g3_sofa": 0.04986056095061478
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.492831036573102e-05,
+                "by_owner": {
+                  "room_load": 6.462453441666744e-05,
+                  "object:g3_sofa": 2.030377594906367e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.041613999168207585,
+                "by_owner": {
+                  "room_load": 0.029607398227751068,
+                  "object:g3_sofa": 0.012006600940456521
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_load_below_objects": {
+          "scenario_sha256": "81977fc0adc4270f35493e2d83bbe97ddf1474eb9bbe9f31566c62d483c9b9cf",
+          "artifact_sha256": {
+            "sim_log.csv": "d33b4bebacdc8defb031c907e411f9c3b00dcc13fea6f3c42c7082fd87f7bd77",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "261b0f2d604c5aacbf1441e787220f2c8fbdc09771e3e478efba41ce20bb56b2",
+            "fuel_source_ledger.jsonl": "df32df797d4706413ffcc5eb8efe3ad627cae9a5b61e28d42c7769eb9aa6ab00",
+            "fuel_object_state_snapshot.json": "b20c0d9e104e48a8f35d6565fd1861ae19e04eea57c5ee30d013a1873974825e"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 41.6,
+          "csv_final_co_generated_kg_total": 0.00022646,
+          "csv_final_smoke_generated_kg_total": 0.02117255,
+          "csv_final_fuel_consumed_MJ_total": 1.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 0.9999999999999994,
+            "released_MJ": 1.3139277838845211,
+            "solid_released_MJ": 1.3139277838845211,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.761648384239041,
+            "owners_MJ": {
+              "room_load": 1.9300341306690346e-05,
+              "object:g3_sofa": 0.9999806823801585
+            },
+            "allocated_MJ": 0.9999806823801584,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9300341306690346e-05,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 9.694386170159567e-10,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.217248937900877e-15,
+            "cumulative_fire_closure_MJ": 5.144575028078386e-16,
+            "max_hrr_requested_kw": 69.1839230127454,
+            "max_hrr_applied_kw": 41.615960070079005,
+            "max_solid_hrr_over_active_cap_kw": -58.384039929920995,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 2.0000193176198353
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.00022645859409456642,
+                "by_owner": {
+                  "room_load": 8.39030525278652e-09,
+                  "object:g3_sofa": 0.00022645019560774195
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.05459464528201618,
+                "by_owner": {
+                  "room_load": 1.8179946535257082e-06,
+                  "object:g3_sofa": 0.05459282559097777
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.421010862427522e-20
+              },
+              "hcn_kg": {
+                "total": 2.2645859409456646e-05,
+                "by_owner": {
+                  "room_load": 8.390305252786508e-10,
+                  "object:g3_sofa": 2.264501956077418e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.021172550082326685,
+                "by_owner": {
+                  "room_load": 0.002266353297307526,
+                  "object:g3_sofa": 0.01623915724845432
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "low_power_object": {
+          "scenario_sha256": "1ca059b734fb804ce6d9a2909c06e22d248a87cc2c0635401ba24e4d0f9e7aef",
+          "artifact_sha256": {
+            "sim_log.csv": "a741d27670940b52f5d2d55b89d40ac41fc5739df028978efe328a8453256172",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "b6d908372e05f1bef7f6f5b804f23293f70ce4b3e049806e04c5c3d9d86f5566",
+            "fuel_source_ledger.jsonl": "695b51250216c093234b38b09b28463f439cb31278fa8daa489d21a2c1888586",
+            "fuel_object_state_snapshot.json": "41373d68f135d1e29c236c85a60a74e4a5594a9d5bf62a55d04b7f6bf0577923"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 111.9,
+          "csv_final_co_generated_kg_total": 0.00190839,
+          "csv_final_smoke_generated_kg_total": 0.07793638,
+          "csv_final_fuel_consumed_MJ_total": 5.84598547,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.845985468093833,
+            "released_MJ": 5.2548846657806365,
+            "solid_released_MJ": 5.2548846657806365,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.6131324645913278,
+            "owners_MJ": {
+              "unowned": 1.5914361313562072e-06,
+              "object:g3_sofa": 3.0000000000000004,
+              "object:g3_low_power": 2.845983876657701
+            },
+            "allocated_MJ": 5.8459838766577015,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 1.5914361313562072e-06,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 1.1657341758564144e-15,
+            "cumulative_fire_closure_MJ": 3.747002708109903e-15,
+            "max_hrr_requested_kw": 115.82610196990812,
+            "max_hrr_applied_kw": 111.93437047765191,
+            "max_solid_hrr_over_active_cap_kw": 101.93437047765191,
+            "objects_over_own_cap": [
+              "g3_low_power"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_low_power": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_low_power": 0.15401612334229736
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0019083868119189277,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-12,
+                  "object:g3_sofa": 0.0008005570863272324,
+                  "object:g3_low_power": 0.0011078297163031009
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 8.470329472543003e-22
+              },
+              "co2_kg": {
+                "total": 0.40301618421736957,
+                "by_owner": {
+                  "unowned": 7.934900550942054e-08,
+                  "object:g3_sofa": 0.17320933268504804,
+                  "object:g3_low_power": 0.2298067721833161
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.168404344971009e-19
+              },
+              "hcn_kg": {
+                "total": 0.00019083868119189277,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-13,
+                  "object:g3_sofa": 8.00557086327232e-05,
+                  "object:g3_low_power": 0.00011078297163031012
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.07793637836172389,
+                "by_owner": {
+                  "unowned": 1.9097233576275207e-08,
+                  "object:g3_sofa": 0.036075330028856954,
+                  "object:g3_low_power": 0.04186102923563335
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "named_aggregate_source": {
+          "scenario_sha256": "5fa046a8ac387fa44854d3cbe226822f08a8abdf1302935f75a18ace4d80414c",
+          "artifact_sha256": {
+            "sim_log.csv": "0d8238ce09a5326c304d6b742b4e696e3b91b76eb2b78faa4d35b994e99af34e",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "04e3cae38ba72c5701f201a4c1ed62bd618b44332d0df2d2de2dd97c44466c2e",
+            "fuel_source_ledger.jsonl": "f2a11f9207c73f963731a0dbc85119b3e2b99b678cecad7feeb2d7a2fa0dc667",
+            "fuel_object_state_snapshot.json": "89ce376ee53901f6274fba881d71d3899674521b704e3012536ba846590fecd3"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 100.13,
+          "csv_final_co_generated_kg_total": 0.00078836,
+          "csv_final_smoke_generated_kg_total": 0.05287587,
+          "csv_final_fuel_consumed_MJ_total": 2.99999997,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999999969037261,
+            "released_MJ": 3.5271755546025445,
+            "solid_released_MJ": 3.5271755546025445,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.6059201551613689,
+            "owners_MJ": {
+              "unowned": 0.0009621807083151604,
+              "object:g3_sofa": 1.0000000000000002,
+              "object:g3_named_room_contents": 1.9990377883289452
+            },
+            "allocated_MJ": 2.9990377883289456,
+            "discarded_MJ": 0.00096221167105185,
+            "unowned_MJ": 0.0009621807083151604,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.5193605882045667e-15,
+            "cumulative_fire_closure_MJ": 4.7295111041822364e-15,
+            "max_hrr_requested_kw": 145.48096492593643,
+            "max_hrr_applied_kw": 100.27010349440604,
+            "max_solid_hrr_over_active_cap_kw": 59.698994121083174,
+            "objects_over_own_cap": [
+              "g3_named_room_contents"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0,
+              "g3_named_room_contents": 2.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_named_room_contents": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.000788356611484238,
+                "by_owner": {
+                  "unowned": 2.855914303724499e-07,
+                  "object:g3_sofa": 0.00022487492270332964,
+                  "object:g3_named_room_contents": 0.000563196097350536
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.1713374726517748,
+                "by_owner": {
+                  "unowned": 9.465445211543681e-05,
+                  "object:g3_sofa": 0.050829060516234426,
+                  "object:g3_named_room_contents": 0.12041375768342488
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 7.885279607693049e-05,
+                "by_owner": {
+                  "unowned": 4.5694071543924224e-08,
+                  "object:g3_sofa": 2.2487492270332956e-05,
+                  "object:g3_named_room_contents": 5.6319609735053606e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.052875872573664225,
+                "by_owner": {
+                  "unowned": 0.007115796278716507,
+                  "object:g3_sofa": 0.012013370474458808,
+                  "object:g3_named_room_contents": 0.03374670582048892
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_aggregate_only": {
+          "scenario_sha256": "3d72f6288490046fe921f5d2c4bdd5b46e4c1f320630e8ed6a89069f6aeb26c7",
+          "artifact_sha256": {
+            "sim_log.csv": "8ce77f4142f01c3c812fded63417d038387e78081875276cc1e07ebba4b66fcf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "1cc191741ed8d90550584a2b6ffa7a914c61afb5fc197de8b6b3d9cc16be7ad0",
+            "fuel_source_ledger.jsonl": "0118faf198f9804d62c1de9539f7e02275ae78c7847508535f96479852feb852",
+            "fuel_object_state_snapshot.json": "ef751d012de80df7e19dc21660e3c0495bbb16c36ad92ac86d65b1a6164c39b7"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00053081,
+          "csv_final_smoke_generated_kg_total": 0.03840627,
+          "csv_final_fuel_consumed_MJ_total": 2.99986322,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999863222931249,
+            "released_MJ": 3.405768280288632,
+            "solid_released_MJ": 3.405768280288632,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3495951300164608,
+            "owners_MJ": {
+              "aggregate": 2.999863222931252
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": 3.5803879392531934e-15,
+            "max_hrr_requested_kw": 102.44390203934601,
+            "max_hrr_applied_kw": 87.71668837934396,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0005308063637083138,
+                "by_owner": {
+                  "aggregate": 0.0005308063637083131
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.1839228134522441,
+                "by_owner": {
+                  "aggregate": 0.1839228134522442
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.49290181933302e-05,
+                "by_owner": {
+                  "aggregate": 8.492901819333002e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.038406272243398015,
+                "by_owner": {
+                  "aggregate": 0.03840627224339796
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        }
+      },
+      "behaviour_contract_C1_C9": {
+        "sofa_plus_cold_chair": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy",
+          "C8_burned_plus_remaining_equals_initial_inventory",
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "two_active_objects": [
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "room_load_above_objects": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy"
+        ],
+        "low_power_object": [
+          "C9_object_hrr_within_its_declared_max"
+        ]
+      },
+      "c6_cold_chair_chemistry": {
+        "consumed_ratio_cold_over_single": 1.998874930079499,
+        "co_ratio_cold_over_single": 14.050340477040855,
+        "smoke_ratio_cold_over_single": 1.421547855263318
+      }
+    },
+    "off": {
+      "run": "g3_fuel_ledger_off_20260929_092817",
+      "cases": {
+        "empty_room": {
+          "scenario_sha256": "b3141bc1f9fa764e86835bfb21229179de0160774518d3c7747a901f3ae2a307",
+          "artifact_sha256": {
+            "sim_log.csv": "fb3fd0ec846592b5f849ce567668a70f6592183dd4e6c45f9b4867114f45b6bf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "4e7c9ef81a14815d5b113983b64da2a3c2d803f1f21a2156c9b37e6fbbb49ffa",
+            "fuel_source_ledger.jsonl": "f81255f0662f00e81fbdc381e2a68e5e195f9fd8fc89aeb78aaa1e2f59a91ffe",
+            "fuel_object_state_snapshot.json": "7e7ffd3b34296304911633d03d90c9362b9018d7a2c06cce6d079f0dfda541bc"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 0.0,
+          "csv_final_co_generated_kg_total": 0.0,
+          "csv_final_smoke_generated_kg_total": 0.0,
+          "csv_final_fuel_consumed_MJ_total": 0.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 0.0,
+            "released_MJ": 0.0,
+            "solid_released_MJ": 0.0,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "aggregate": 0.0
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": null,
+            "max_hrr_requested_kw": 0.0,
+            "max_hrr_applied_kw": 0.0,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "co2_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "hcn_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "smoke_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": []
+        },
+        "single_object": {
+          "scenario_sha256": "f4e1ded15f0def8a8b14abb7ee400d6f0cf16fc078061e863d79f3eadcc529de",
+          "artifact_sha256": {
+            "sim_log.csv": "3952a60b13f6820c3afb329b742b4b5b9d7e504db9fb85b4858a226e8d1232e1",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "c7004780f13ee93408fdacd8e9f4da986ec5f59f8dfe5c14bcc172aa6351c616",
+            "fuel_source_ledger.jsonl": "5b385994c0c30dc5b114b59e01ebedc6e8d5244d37be2c2585ffa6099929b538",
+            "fuel_object_state_snapshot.json": "71ea3ed57dc79418127670bccab24ab612a001d0b200fc267ca1c0f9df22ed2a"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00084871,
+          "csv_final_smoke_generated_kg_total": 0.05167906,
+          "csv_final_fuel_consumed_MJ_total": 2.99986324,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999863241916606,
+            "released_MJ": 3.4057646796463548,
+            "solid_released_MJ": 3.4057646796463548,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3495858700651042,
+            "owners_MJ": {
+              "unowned": 0.0008492649832671971,
+              "object:g3_sofa": 2.9990139769333357
+            },
+            "allocated_MJ": 2.9990139769333384,
+            "discarded_MJ": 0.0009860230666576212,
+            "unowned_MJ": 0.0008492649832671971,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 4.002007059078494e-15,
+            "cumulative_fire_closure_MJ": 3.7911568415843755e-15,
+            "max_hrr_requested_kw": 102.44577627089,
+            "max_hrr_applied_kw": 87.71616410709329,
+            "max_solid_hrr_over_active_cap_kw": 30.690462784317415,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0008487075203255236,
+                "by_owner": {
+                  "unowned": 2.522245434104036e-07,
+                  "object:g3_sofa": 0.0008484552957821129
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.18383422421438875,
+                "by_owner": {
+                  "unowned": 8.353692912202295e-05,
+                  "object:g3_sofa": 0.18375068728526658
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.488588494784132e-05,
+                "by_owner": {
+                  "unowned": 4.035536962999684e-08,
+                  "object:g3_sofa": 8.484552957821131e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.05167906234153676,
+                "by_owner": {
+                  "unowned": 0.0019064279413768474,
+                  "object:g3_sofa": 0.04977263440015982
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "sofa_plus_cold_chair": {
+          "scenario_sha256": "449526f3ae48e5e5f4d7ba950de923280244c5cf3a2e93f5198d346d514318cd",
+          "artifact_sha256": {
+            "sim_log.csv": "83eb1438e730fff04d348fe1a674070a5fc8494a2a6c84678cf773458811ca43",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a9c587d1a6bd9aad4a195308ac6cbbfb8f8604a677536533cbcd3d49be5ba98f",
+            "fuel_source_ledger.jsonl": "49034928c6fc386b7ced3b74cff9c640c0300f18fe7c194035bf097ce67b3789",
+            "fuel_object_state_snapshot.json": "d4c89fcca8713201df1915d9b671f6d63a1f7bddf85b1c2a4a6180f5bc2ee5ef"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 168.3,
+          "csv_final_co_generated_kg_total": 0.01192463,
+          "csv_final_smoke_generated_kg_total": 0.07346426,
+          "csv_final_fuel_consumed_MJ_total": 5.99635143,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.996351427934115,
+            "released_MJ": 6.1379919434400305,
+            "solid_released_MJ": 6.1379919434400305,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.9522298911508622,
+            "owners_MJ": {
+              "unowned": 2.996351427934117,
+              "object:g3_sofa": 2.999999999999997
+            },
+            "allocated_MJ": 2.999999999999997,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 2.996351427934117,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 3.1086244689504383e-15,
+            "cumulative_fire_closure_MJ": 1.0777836956243902e-14,
+            "max_hrr_requested_kw": 211.38677770822136,
+            "max_hrr_applied_kw": 168.29561807181815,
+            "max_solid_hrr_over_active_cap_kw": 168.29561807181815,
+            "objects_over_own_cap": [
+              "g3_sofa"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_cold_chair": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_cold_chair": 3.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.011924629625998679,
+                "by_owner": {
+                  "unowned": 0.009812923647886386,
+                  "object:g3_sofa": 0.0021117059781122828
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 6.776263578034403e-21
+              },
+              "co2_kg": {
+                "total": 0.36141067540264776,
+                "by_owner": {
+                  "unowned": 0.20361100698411116,
+                  "object:g3_sofa": 0.15779966841853657
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 0.0001706556482943687,
+                "by_owner": {
+                  "unowned": 9.833385321698381e-05,
+                  "object:g3_sofa": 7.23217950773849e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 7.940933880509066e-23
+              },
+              "smoke_kg": {
+                "total": 0.0734642602336309,
+                "by_owner": {
+                  "unowned": 0.039962752516369965,
+                  "object:g3_sofa": 0.03350150771726088
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "two_active_objects": {
+          "scenario_sha256": "d86b4f72d08961f6678ec9c85ea671d665905ab893de7f9de22a5f15e2e3ca58",
+          "artifact_sha256": {
+            "sim_log.csv": "4eee80cfc4792eba29e097b890982660941c27a7df93b7087b949541936bd3e0",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a64d9144523839ec658464f229d65a7b7db583558cca4ede40a92a93bdce5e66",
+            "fuel_source_ledger.jsonl": "e22ae95a1f3ea0e6860b41ec3ff5f32bc6db83656296a29360e45efa264522e9",
+            "fuel_object_state_snapshot.json": "8dfdc884cbfa06439302caed17ee30a18221c76ae83248a5ccb9ce1bc6647ffe"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 102.56,
+          "csv_final_co_generated_kg_total": 0.01047424,
+          "csv_final_smoke_generated_kg_total": 0.06118924,
+          "csv_final_fuel_consumed_MJ_total": 5.73888376,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.738883756149919,
+            "released_MJ": 5.003335350108215,
+            "solid_released_MJ": 5.003335350108215,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.3681066220096316,
+            "owners_MJ": {
+              "unowned": 1.5914361313562072e-06,
+              "object:g3_sofa_a": 2.9990374367517543,
+              "object:g3_sofa_b": 2.739844727962034
+            },
+            "allocated_MJ": 5.738882164713788,
+            "discarded_MJ": 0.0009625632482447048,
+            "unowned_MJ": 1.5914361313562072e-06,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.0539125955565396e-15,
+            "cumulative_fire_closure_MJ": 5.329070518200751e-15,
+            "max_hrr_requested_kw": 105.0787901853729,
+            "max_hrr_applied_kw": 102.58554898335649,
+            "max_solid_hrr_over_active_cap_kw": 37.00338915176032,
+            "objects_over_own_cap": [
+              "g3_sofa_a",
+              "g3_sofa_b"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa_a": 3.0,
+              "g3_sofa_b": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa_a": 0.0,
+              "g3_sofa_b": 0.26015527203796546
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.010474240191821787,
+                "by_owner": {
+                  "unowned": 3.772547647088224e-11,
+                  "object:g3_sofa_a": 0.005394302378326613,
+                  "object:g3_sofa_b": 0.005079937775769698
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 3.3881317890172014e-21
+              },
+              "co2_kg": {
+                "total": 0.39929869207120716,
+                "by_owner": {
+                  "unowned": 7.934900550942054e-08,
+                  "object:g3_sofa_a": 0.20732349386888754,
+                  "object:g3_sofa_b": 0.1919751188533142
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.168404344971009e-19
+              },
+              "hcn_kg": {
+                "total": 0.00018904143647672432,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-13,
+                  "object:g3_sofa_a": 9.807823888317487e-05,
+                  "object:g3_sofa_b": 9.096319666468993e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0587911840678754e-22
+              },
+              "smoke_kg": {
+                "total": 0.06118924305326914,
+                "by_owner": {
+                  "unowned": 1.6939256966445706e-08,
+                  "object:g3_sofa_a": 0.03169591129431,
+                  "object:g3_sofa_b": 0.029493314819702184
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_load_above_objects": {
+          "scenario_sha256": "0b9c8de4a68a0ef58cb306cbce299794df0cf0fc374724222d090c7338d1e659",
+          "artifact_sha256": {
+            "sim_log.csv": "c495d0ad6177a9504caa8c0467f27c9a599c1a79b911b3adf91400f45e103bd2",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "6f84021586e47d37fc7026b8bdc67d09bca0f9636cbec8a8966c0da14f0bb09c",
+            "fuel_source_ledger.jsonl": "1e15108d5351243278b579bca736e2c8a56557b7e722b4a43d57abe06aee11b6",
+            "fuel_object_state_snapshot.json": "876a7aef69768d72206332be4de863ac2ad426c19fab97a2c2d9294fa9a67016"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.0006071,
+          "csv_final_smoke_generated_kg_total": 0.041614,
+          "csv_final_fuel_consumed_MJ_total": 2.99986318,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.99986318344985,
+            "released_MJ": 3.405772674333115,
+            "solid_released_MJ": 3.405772674333115,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3496081227224286,
+            "owners_MJ": {
+              "room_load": 1.9998631834498513,
+              "object:g3_sofa": 0.9999999999999992
+            },
+            "allocated_MJ": 0.9999999999999993,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9998631834498513,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.661338147750939e-16,
+            "cumulative_fire_closure_MJ": 3.442396107750101e-15,
+            "max_hrr_requested_kw": 102.46045085035142,
+            "max_hrr_applied_kw": 87.71748396144669,
+            "max_solid_hrr_over_active_cap_kw": 87.71748396144669,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0006071022717767335,
+                "by_owner": {
+                  "room_load": 0.0004040645122860966,
+                  "object:g3_sofa": 0.0002030377594906367
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.18392145474899735,
+                "by_owner": {
+                  "room_load": 0.13406089379838257,
+                  "object:g3_sofa": 0.04986056095061478
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.492831036573102e-05,
+                "by_owner": {
+                  "room_load": 6.462453441666744e-05,
+                  "object:g3_sofa": 2.030377594906367e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.041613999168207585,
+                "by_owner": {
+                  "room_load": 0.029607398227751068,
+                  "object:g3_sofa": 0.012006600940456521
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_load_below_objects": {
+          "scenario_sha256": "2948eb10d427f14f24b344af9be1c28088e74c22284f7a230a253cfb43666a77",
+          "artifact_sha256": {
+            "sim_log.csv": "d33b4bebacdc8defb031c907e411f9c3b00dcc13fea6f3c42c7082fd87f7bd77",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "261b0f2d604c5aacbf1441e787220f2c8fbdc09771e3e478efba41ce20bb56b2",
+            "fuel_source_ledger.jsonl": "df32df797d4706413ffcc5eb8efe3ad627cae9a5b61e28d42c7769eb9aa6ab00",
+            "fuel_object_state_snapshot.json": "b20c0d9e104e48a8f35d6565fd1861ae19e04eea57c5ee30d013a1873974825e"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 41.6,
+          "csv_final_co_generated_kg_total": 0.00022646,
+          "csv_final_smoke_generated_kg_total": 0.02117255,
+          "csv_final_fuel_consumed_MJ_total": 1.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 0.9999999999999994,
+            "released_MJ": 1.3139277838845211,
+            "solid_released_MJ": 1.3139277838845211,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.761648384239041,
+            "owners_MJ": {
+              "room_load": 1.9300341306690346e-05,
+              "object:g3_sofa": 0.9999806823801585
+            },
+            "allocated_MJ": 0.9999806823801584,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9300341306690346e-05,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 9.694386170159567e-10,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.217248937900877e-15,
+            "cumulative_fire_closure_MJ": 5.144575028078386e-16,
+            "max_hrr_requested_kw": 69.1839230127454,
+            "max_hrr_applied_kw": 41.615960070079005,
+            "max_solid_hrr_over_active_cap_kw": -58.384039929920995,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 2.0000193176198353
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.00022645859409456642,
+                "by_owner": {
+                  "room_load": 8.39030525278652e-09,
+                  "object:g3_sofa": 0.00022645019560774195
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.05459464528201618,
+                "by_owner": {
+                  "room_load": 1.8179946535257082e-06,
+                  "object:g3_sofa": 0.05459282559097777
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.421010862427522e-20
+              },
+              "hcn_kg": {
+                "total": 2.2645859409456646e-05,
+                "by_owner": {
+                  "room_load": 8.390305252786508e-10,
+                  "object:g3_sofa": 2.264501956077418e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.021172550082326685,
+                "by_owner": {
+                  "room_load": 0.002266353297307526,
+                  "object:g3_sofa": 0.01623915724845432
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "low_power_object": {
+          "scenario_sha256": "98af1c24449e3c4bd7992d97e1310903d2e5b5857f71efd0f55fa0c8eee697cc",
+          "artifact_sha256": {
+            "sim_log.csv": "a741d27670940b52f5d2d55b89d40ac41fc5739df028978efe328a8453256172",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "b6d908372e05f1bef7f6f5b804f23293f70ce4b3e049806e04c5c3d9d86f5566",
+            "fuel_source_ledger.jsonl": "695b51250216c093234b38b09b28463f439cb31278fa8daa489d21a2c1888586",
+            "fuel_object_state_snapshot.json": "41373d68f135d1e29c236c85a60a74e4a5594a9d5bf62a55d04b7f6bf0577923"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 111.9,
+          "csv_final_co_generated_kg_total": 0.00190839,
+          "csv_final_smoke_generated_kg_total": 0.07793638,
+          "csv_final_fuel_consumed_MJ_total": 5.84598547,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 5.845985468093833,
+            "released_MJ": 5.2548846657806365,
+            "solid_released_MJ": 5.2548846657806365,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.6131324645913278,
+            "owners_MJ": {
+              "unowned": 1.5914361313562072e-06,
+              "object:g3_sofa": 3.0000000000000004,
+              "object:g3_low_power": 2.845983876657701
+            },
+            "allocated_MJ": 5.8459838766577015,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 1.5914361313562072e-06,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 1.1657341758564144e-15,
+            "cumulative_fire_closure_MJ": 3.747002708109903e-15,
+            "max_hrr_requested_kw": 115.82610196990812,
+            "max_hrr_applied_kw": 111.93437047765191,
+            "max_solid_hrr_over_active_cap_kw": 101.93437047765191,
+            "objects_over_own_cap": [
+              "g3_low_power"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_low_power": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_low_power": 0.15401612334229736
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0019083868119189277,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-12,
+                  "object:g3_sofa": 0.0008005570863272324,
+                  "object:g3_low_power": 0.0011078297163031009
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 8.470329472543003e-22
+              },
+              "co2_kg": {
+                "total": 0.40301618421736957,
+                "by_owner": {
+                  "unowned": 7.934900550942054e-08,
+                  "object:g3_sofa": 0.17320933268504804,
+                  "object:g3_low_power": 0.2298067721833161
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.168404344971009e-19
+              },
+              "hcn_kg": {
+                "total": 0.00019083868119189277,
+                "by_owner": {
+                  "unowned": 9.2885944620738e-13,
+                  "object:g3_sofa": 8.00557086327232e-05,
+                  "object:g3_low_power": 0.00011078297163031012
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.07793637836172389,
+                "by_owner": {
+                  "unowned": 1.9097233576275207e-08,
+                  "object:g3_sofa": 0.036075330028856954,
+                  "object:g3_low_power": 0.04186102923563335
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "named_aggregate_source": {
+          "scenario_sha256": "6bf4384d83d34e7dca8a4a4212bebdecc47ffc1728d2c2baa230537cb51c910d",
+          "artifact_sha256": {
+            "sim_log.csv": "0d8238ce09a5326c304d6b742b4e696e3b91b76eb2b78faa4d35b994e99af34e",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "04e3cae38ba72c5701f201a4c1ed62bd618b44332d0df2d2de2dd97c44466c2e",
+            "fuel_source_ledger.jsonl": "f2a11f9207c73f963731a0dbc85119b3e2b99b678cecad7feeb2d7a2fa0dc667",
+            "fuel_object_state_snapshot.json": "89ce376ee53901f6274fba881d71d3899674521b704e3012536ba846590fecd3"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 100.13,
+          "csv_final_co_generated_kg_total": 0.00078836,
+          "csv_final_smoke_generated_kg_total": 0.05287587,
+          "csv_final_fuel_consumed_MJ_total": 2.99999997,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_objects_only"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999999969037261,
+            "released_MJ": 3.5271755546025445,
+            "solid_released_MJ": 3.5271755546025445,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.6059201551613689,
+            "owners_MJ": {
+              "unowned": 0.0009621807083151604,
+              "object:g3_sofa": 1.0000000000000002,
+              "object:g3_named_room_contents": 1.9990377883289452
+            },
+            "allocated_MJ": 2.9990377883289456,
+            "discarded_MJ": 0.00096221167105185,
+            "unowned_MJ": 0.0009621807083151604,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.5193605882045667e-15,
+            "cumulative_fire_closure_MJ": 4.7295111041822364e-15,
+            "max_hrr_requested_kw": 145.48096492593643,
+            "max_hrr_applied_kw": 100.27010349440604,
+            "max_solid_hrr_over_active_cap_kw": 59.698994121083174,
+            "objects_over_own_cap": [
+              "g3_named_room_contents"
+            ],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0,
+              "g3_named_room_contents": 2.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_named_room_contents": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.000788356611484238,
+                "by_owner": {
+                  "unowned": 2.855914303724499e-07,
+                  "object:g3_sofa": 0.00022487492270332964,
+                  "object:g3_named_room_contents": 0.000563196097350536
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.1713374726517748,
+                "by_owner": {
+                  "unowned": 9.465445211543681e-05,
+                  "object:g3_sofa": 0.050829060516234426,
+                  "object:g3_named_room_contents": 0.12041375768342488
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 7.885279607693049e-05,
+                "by_owner": {
+                  "unowned": 4.5694071543924224e-08,
+                  "object:g3_sofa": 2.2487492270332956e-05,
+                  "object:g3_named_room_contents": 5.6319609735053606e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.052875872573664225,
+                "by_owner": {
+                  "unowned": 0.007115796278716507,
+                  "object:g3_sofa": 0.012013370474458808,
+                  "object:g3_named_room_contents": 0.03374670582048892
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O1_unowned_MJ",
+            "O2_discarded_MJ",
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_aggregate_only": {
+          "scenario_sha256": "32de114976233a31888addbb36fb99325de57fde8934014161e6521fb94907b7",
+          "artifact_sha256": {
+            "sim_log.csv": "8ce77f4142f01c3c812fded63417d038387e78081875276cc1e07ebba4b66fcf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "1cc191741ed8d90550584a2b6ffa7a914c61afb5fc197de8b6b3d9cc16be7ad0",
+            "fuel_source_ledger.jsonl": "0118faf198f9804d62c1de9539f7e02275ae78c7847508535f96479852feb852",
+            "fuel_object_state_snapshot.json": "ef751d012de80df7e19dc21660e3c0495bbb16c36ad92ac86d65b1a6164c39b7"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00053081,
+          "csv_final_smoke_generated_kg_total": 0.03840627,
+          "csv_final_fuel_consumed_MJ_total": 2.99986322,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              false
+            ],
+            "consumed_MJ": 2.999863222931249,
+            "released_MJ": 3.405768280288632,
+            "solid_released_MJ": 3.405768280288632,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3495951300164608,
+            "owners_MJ": {
+              "aggregate": 2.999863222931252
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": 3.5803879392531934e-15,
+            "max_hrr_requested_kw": 102.44390203934601,
+            "max_hrr_applied_kw": 87.71668837934396,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0005308063637083138,
+                "by_owner": {
+                  "aggregate": 0.0005308063637083131
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.1839228134522441,
+                "by_owner": {
+                  "aggregate": 0.1839228134522442
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.49290181933302e-05,
+                "by_owner": {
+                  "aggregate": 8.492901819333002e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.038406272243398015,
+                "by_owner": {
+                  "aggregate": 0.03840627224339796
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        }
+      },
+      "behaviour_contract_C1_C9": {
+        "sofa_plus_cold_chair": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy",
+          "C8_burned_plus_remaining_equals_initial_inventory",
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "two_active_objects": [
+          "C9_object_hrr_within_its_declared_max"
+        ],
+        "room_load_above_objects": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy"
+        ],
+        "low_power_object": [
+          "C9_object_hrr_within_its_declared_max"
+        ]
+      },
+      "c6_cold_chair_chemistry": {
+        "consumed_ratio_cold_over_single": 1.998874930079499,
+        "co_ratio_cold_over_single": 14.050340477040855,
+        "smoke_ratio_cold_over_single": 1.421547855263318
+      }
+    },
+    "on": {
+      "run": "g3_fuel_ledger_on_20260929_093110",
+      "cases": {
+        "empty_room": {
+          "scenario_sha256": "2df8c440f440cf571fbb25476d5bab5be0c5048217e02c3a6d96f8106f0b49ca",
+          "artifact_sha256": {
+            "sim_log.csv": "fb3fd0ec846592b5f849ce567668a70f6592183dd4e6c45f9b4867114f45b6bf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "4e7c9ef81a14815d5b113983b64da2a3c2d803f1f21a2156c9b37e6fbbb49ffa",
+            "fuel_source_ledger.jsonl": "f81255f0662f00e81fbdc381e2a68e5e195f9fd8fc89aeb78aaa1e2f59a91ffe",
+            "fuel_object_state_snapshot.json": "7e7ffd3b34296304911633d03d90c9362b9018d7a2c06cce6d079f0dfda541bc"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 0.0,
+          "csv_final_co_generated_kg_total": 0.0,
+          "csv_final_smoke_generated_kg_total": 0.0,
+          "csv_final_fuel_consumed_MJ_total": 0.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 0.0,
+            "released_MJ": 0.0,
+            "solid_released_MJ": 0.0,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "aggregate": 0.0
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": null,
+            "max_hrr_requested_kw": 0.0,
+            "max_hrr_applied_kw": 0.0,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "co2_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "hcn_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              },
+              "smoke_kg": {
+                "total": 0.0,
+                "by_owner": {},
+                "without_consumption": 0.0,
+                "max_partition_error": 0.0
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": []
+        },
+        "single_object": {
+          "scenario_sha256": "e486c78ec64a065c2326e3e4bd6d3fa3afb1fb496d408f57e91b90d3d522e0f3",
+          "artifact_sha256": {
+            "sim_log.csv": "f4fa6cc94a165dd609fdd55135c1bbb354f2ef889c040fb92176ce81c9525d79",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "8ac1f993b4dc12c03a0105a7f00b723a4608ebade6b20680ebc01b4592914dcf",
+            "fuel_source_ledger.jsonl": "ebdaa880b569e3923ea74cc9b1b5ea7be2f8ac03b1397fda60d88d5c0f5ed291",
+            "fuel_object_state_snapshot.json": "a2bed6a78f138797c0b8c8c9565452fe3e866060ec237b6477487b0efcb39638"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 86.8,
+          "csv_final_co_generated_kg_total": 0.00082702,
+          "csv_final_smoke_generated_kg_total": 0.03606077,
+          "csv_final_fuel_consumed_MJ_total": 2.99901256,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "explicit_owned"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 2.9990125602849695,
+            "released_MJ": 2.065228311051743,
+            "solid_released_MJ": 2.065228311051743,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "object:g3_sofa": 2.9990125602849718
+            },
+            "allocated_MJ": 2.9990125602849695,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 1.3877787807814457e-17,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 4.17135943842073e-15,
+            "cumulative_fire_closure_MJ": 4.17135943842073e-15,
+            "max_hrr_requested_kw": 99.95636487504102,
+            "max_hrr_applied_kw": 86.79593478474709,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0009874397150262868
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0008270229403552891,
+                "by_owner": {
+                  "object:g3_sofa": 0.0008270229403552877
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.17930957337783113,
+                "by_owner": {
+                  "object:g3_sofa": 0.17930957337783093
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.270229403552891e-05,
+                "by_owner": {
+                  "object:g3_sofa": 8.270229403552887e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.036060771147436936,
+                "by_owner": {
+                  "object:g3_sofa": 0.036060771147436915
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": [],
+          "ownership_contract_on_ledger": []
+        },
+        "sofa_plus_cold_chair": {
+          "scenario_sha256": "a7fce806e4089d28c7f31cea29f1ca5f6af79a3aa41a67d02308f435091ad888",
+          "artifact_sha256": {
+            "sim_log.csv": "58792b58dc81d5ef2647db0d1cec2407cb2e874200c20cef8d5457c460ed05ea",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "ff2518c9bad5238818072342ef2f9ef27e008614cb110cf4c754f9e95777070e",
+            "fuel_source_ledger.jsonl": "5a3c09247ea1981cd49314e6eb679687caf9232d162f79980b0ed8208bc68b25",
+            "fuel_object_state_snapshot.json": "f96d54a1167f4f58654a3032c87b921fdfd1d3ca40757af69443fbc78844c28d"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 86.8,
+          "csv_final_co_generated_kg_total": 0.0024148,
+          "csv_final_smoke_generated_kg_total": 0.03349658,
+          "csv_final_fuel_consumed_MJ_total": 2.99901341,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "explicit_owned"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 2.9990134091098772,
+            "released_MJ": 2.065228488346544,
+            "solid_released_MJ": 2.065228488346544,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "object:g3_sofa": 2.999013409109877
+            },
+            "allocated_MJ": 2.9990134091098772,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 8.881784197001252e-16,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.6645352591003757e-15,
+            "cumulative_fire_closure_MJ": 2.6645352591003757e-15,
+            "max_hrr_requested_kw": 99.95636703140676,
+            "max_hrr_applied_kw": 86.79599720396584,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_cold_chair": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0009865908901198776,
+              "g3_cold_chair": 3.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0024148013546053367,
+                "by_owner": {
+                  "object:g3_sofa": 0.0024148013546053354
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.6940658945086007e-21
+              },
+              "co2_kg": {
+                "total": 0.1793096128330839,
+                "by_owner": {
+                  "object:g3_sofa": 0.17930961283308366
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.270221807481069e-05,
+                "by_owner": {
+                  "object:g3_sofa": 8.270221807481063e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.03349658068151097,
+                "by_owner": {
+                  "object:g3_sofa": 0.033496580681510985
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": [],
+          "ownership_contract_on_ledger": []
+        },
+        "two_active_objects": {
+          "scenario_sha256": "663c22567e51051b46e4b7b3a6bf4bddec935c079b47efa2e53bf0c24fc309ef",
+          "artifact_sha256": {
+            "sim_log.csv": "0f1e28aa8c7ad8434aca5d159101d2bf0255e8c0c3da33d98a90b54ccafbdf98",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "1936ad83981e948fd34c5517a30f90a3849dd65c8d3f87c7d50a0babf23973f8",
+            "fuel_source_ledger.jsonl": "035dfaac8a6bf617bfb2f819801754ee39809f3d3413acc0ed9ccd6ee3727c4c",
+            "fuel_object_state_snapshot.json": "af5925a1f0df6e5005a45e50797b61a2125f0a564ea3f17e943fddff2ee1c6b6"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 98.57,
+          "csv_final_co_generated_kg_total": 0.01022966,
+          "csv_final_smoke_generated_kg_total": 0.05726118,
+          "csv_final_fuel_consumed_MJ_total": 5.69801277,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "explicit_owned"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 5.698012773187542,
+            "released_MJ": 4.637313785631322,
+            "solid_released_MJ": 4.637313785631322,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "object:g3_sofa_a": 2.906406219990035,
+              "object:g3_sofa_b": 2.791606553197532
+            },
+            "allocated_MJ": 5.698012773187542,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 8.881784197001252e-16,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.050715484207103e-15,
+            "cumulative_fire_closure_MJ": 6.050715484207103e-15,
+            "max_hrr_requested_kw": 99.95630405712177,
+            "max_hrr_applied_kw": 98.59275333223415,
+            "max_solid_hrr_over_active_cap_kw": -1.4072466677658468,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa_a": 3.0,
+              "g3_sofa_b": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa_a": 0.09359378000998768,
+              "g3_sofa_b": 0.2083934468024644
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.01022965776959246,
+                "by_owner": {
+                  "object:g3_sofa_a": 0.005187391079655865,
+                  "object:g3_sofa_b": 0.0050422666899365975
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 3.3881317890172014e-21
+              },
+              "co2_kg": {
+                "total": 0.3930017205498683,
+                "by_owner": {
+                  "object:g3_sofa_a": 0.1995281483843845,
+                  "object:g3_sofa_b": 0.19347357216548372
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 0.00018599377763323547,
+                "by_owner": {
+                  "object:g3_sofa_a": 9.431620145178926e-05,
+                  "object:g3_sofa_b": 9.167757618144627e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.05726118288455492,
+                "by_owner": {
+                  "object:g3_sofa_a": 0.029205465183613926,
+                  "object:g3_sofa_b": 0.028055717700941004
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": [],
+          "ownership_contract_on_ledger": []
+        },
+        "room_load_above_objects": {
+          "scenario_sha256": "ad7522a83af8fb1ea277960ceb500c690cdcb43f2cf8dcce512db4d6e0835da7",
+          "artifact_sha256": {
+            "sim_log.csv": "c495d0ad6177a9504caa8c0467f27c9a599c1a79b911b3adf91400f45e103bd2",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "6f84021586e47d37fc7026b8bdc67d09bca0f9636cbec8a8966c0da14f0bb09c",
+            "fuel_source_ledger.jsonl": "1e15108d5351243278b579bca736e2c8a56557b7e722b4a43d57abe06aee11b6",
+            "fuel_object_state_snapshot.json": "876a7aef69768d72206332be4de863ac2ad426c19fab97a2c2d9294fa9a67016"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.0006071,
+          "csv_final_smoke_generated_kg_total": 0.041614,
+          "csv_final_fuel_consumed_MJ_total": 2.99986318,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 2.99986318344985,
+            "released_MJ": 3.405772674333115,
+            "solid_released_MJ": 3.405772674333115,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3496081227224286,
+            "owners_MJ": {
+              "room_load": 1.9998631834498513,
+              "object:g3_sofa": 0.9999999999999992
+            },
+            "allocated_MJ": 0.9999999999999993,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9998631834498513,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 8.673617379884035e-19,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.661338147750939e-16,
+            "cumulative_fire_closure_MJ": 3.442396107750101e-15,
+            "max_hrr_requested_kw": 102.46045085035142,
+            "max_hrr_applied_kw": 87.71748396144669,
+            "max_solid_hrr_over_active_cap_kw": 87.71748396144669,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0006071022717767335,
+                "by_owner": {
+                  "room_load": 0.0004040645122860966,
+                  "object:g3_sofa": 0.0002030377594906367
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.18392145474899735,
+                "by_owner": {
+                  "room_load": 0.13406089379838257,
+                  "object:g3_sofa": 0.04986056095061478
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.492831036573102e-05,
+                "by_owner": {
+                  "room_load": 6.462453441666744e-05,
+                  "object:g3_sofa": 2.030377594906367e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.041613999168207585,
+                "by_owner": {
+                  "room_load": 0.029607398227751068,
+                  "object:g3_sofa": 0.012006600940456521
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O4_power_cap",
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "room_load_below_objects": {
+          "scenario_sha256": "8e3944f08f0ed5016fd9d4d74946608cba1502af6b77db5fe4fea67a31def5ae",
+          "artifact_sha256": {
+            "sim_log.csv": "d33b4bebacdc8defb031c907e411f9c3b00dcc13fea6f3c42c7082fd87f7bd77",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "261b0f2d604c5aacbf1441e787220f2c8fbdc09771e3e478efba41ce20bb56b2",
+            "fuel_source_ledger.jsonl": "df32df797d4706413ffcc5eb8efe3ad627cae9a5b61e28d42c7769eb9aa6ab00",
+            "fuel_object_state_snapshot.json": "b20c0d9e104e48a8f35d6565fd1861ae19e04eea57c5ee30d013a1873974825e"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 41.6,
+          "csv_final_co_generated_kg_total": 0.00022646,
+          "csv_final_smoke_generated_kg_total": 0.02117255,
+          "csv_final_fuel_consumed_MJ_total": 1.0,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "legacy_room_load"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 0.9999999999999994,
+            "released_MJ": 1.3139277838845211,
+            "solid_released_MJ": 1.3139277838845211,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.761648384239041,
+            "owners_MJ": {
+              "room_load": 1.9300341306690346e-05,
+              "object:g3_sofa": 0.9999806823801585
+            },
+            "allocated_MJ": 0.9999806823801584,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 1.9300341306690346e-05,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 9.694386170159567e-10,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 6.217248937900877e-15,
+            "cumulative_fire_closure_MJ": 5.144575028078386e-16,
+            "max_hrr_requested_kw": 69.1839230127454,
+            "max_hrr_applied_kw": 41.615960070079005,
+            "max_solid_hrr_over_active_cap_kw": -58.384039929920995,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 2.0000193176198353
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.00022645859409456642,
+                "by_owner": {
+                  "room_load": 8.39030525278652e-09,
+                  "object:g3_sofa": 0.00022645019560774195
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.05459464528201618,
+                "by_owner": {
+                  "room_load": 1.8179946535257082e-06,
+                  "object:g3_sofa": 0.05459282559097777
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.421010862427522e-20
+              },
+              "hcn_kg": {
+                "total": 2.2645859409456646e-05,
+                "by_owner": {
+                  "room_load": 8.390305252786508e-10,
+                  "object:g3_sofa": 2.264501956077418e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.021172550082326685,
+                "by_owner": {
+                  "room_load": 0.002266353297307526,
+                  "object:g3_sofa": 0.01623915724845432
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        },
+        "low_power_object": {
+          "scenario_sha256": "f9ddecfdaaf3d8c618f9c9351d6ee805795438e6dfc02f4c7cf857974ddbf58f",
+          "artifact_sha256": {
+            "sim_log.csv": "fd42277facb5a2672592303410cbbdd2a7c0f5ad21660ee428d64b952aa35c62",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "d38b842e5c635fc0691e4b69b7230c7b465190baa41cc4e7ced0876f7c9de3e0",
+            "fuel_source_ledger.jsonl": "19f778f1d6fd9461a2af5369fc2fc725fc48dd977afc3533775ead4fd3311c74",
+            "fuel_object_state_snapshot.json": "d73e15bbd32559a40c1cc6d268b6673ba03a184f8f5fd8a471e3692118b89731"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 98.52,
+          "csv_final_co_generated_kg_total": 0.00100068,
+          "csv_final_smoke_generated_kg_total": 0.04292317,
+          "csv_final_fuel_consumed_MJ_total": 3.56825506,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "explicit_owned"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 3.568255056346223,
+            "released_MJ": 2.498333077861172,
+            "solid_released_MJ": 2.498333077861172,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "object:g3_sofa": 2.9999999999999987,
+              "object:g3_low_power": 0.5682550563462201
+            },
+            "allocated_MJ": 3.568255056346223,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 8.881784197001252e-16,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 1.3322676295501878e-15,
+            "cumulative_fire_closure_MJ": 1.3322676295501878e-15,
+            "max_hrr_requested_kw": 109.94482198678521,
+            "max_hrr_applied_kw": 99.44606202221996,
+            "max_solid_hrr_over_active_cap_kw": -0.011504948600162379,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 3.0,
+              "g3_low_power": 3.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_low_power": 2.4317449436537784
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0010006774061052587,
+                "by_owner": {
+                  "object:g3_sofa": 0.000808282660696135,
+                  "object:g3_low_power": 0.00019239474540912334
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.21529570502381615,
+                "by_owner": {
+                  "object:g3_sofa": 0.17480769286693873,
+                  "object:g3_low_power": 0.040488012156877466
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 0.00010006774061052589,
+                "by_owner": {
+                  "object:g3_sofa": 8.082826606961349e-05,
+                  "object:g3_low_power": 1.9239474540912357e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.042923170855979395,
+                "by_owner": {
+                  "object:g3_sofa": 0.03607612410555528,
+                  "object:g3_low_power": 0.0068470467504240995
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": [],
+          "ownership_contract_on_ledger": []
+        },
+        "named_aggregate_source": {
+          "scenario_sha256": "63979b4cb8157bc5b0cff83f73e7d9582d9f944baccb79ec05077c3daf9fc58a",
+          "artifact_sha256": {
+            "sim_log.csv": "d5432f20f343b8c1a7ef1f592498759ce8cd6031789875b0716fd415cf7f0e3f",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "a651653edb7b5acd0bb629830e349b489c27c72e03181170d6b0ff1776ec61a0",
+            "fuel_source_ledger.jsonl": "1792e24cb75290cd5d62076366360bc72e9a8bb145eac99871b46d3b9c34cd1f",
+            "fuel_object_state_snapshot.json": "5576a083c9abd7cf62a96ce3b6fb926413c9b88929ee1854d4e63b9d7b026ca4"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 88.42,
+          "csv_final_co_generated_kg_total": 0.00081698,
+          "csv_final_smoke_generated_kg_total": 0.03605872,
+          "csv_final_fuel_consumed_MJ_total": 2.99900296,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "explicit_owned"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 2.9990029643173237,
+            "released_MJ": 2.040217818454481,
+            "solid_released_MJ": 2.040217818454481,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 0.0,
+            "owners_MJ": {
+              "object:g3_sofa": 0.9999999999999999,
+              "object:g3_named_room_contents": 1.999002964317325
+            },
+            "allocated_MJ": 2.9990029643173237,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0.0,
+            "max_step_fire_residual_MJ": 4.440892098500626e-16,
+            "max_step_partition_residual_MJ": 1.734723475976807e-18,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 2.6441522582576482e-15,
+            "cumulative_fire_closure_MJ": 2.6441522582576482e-15,
+            "max_hrr_requested_kw": 116.97788688414357,
+            "max_hrr_applied_kw": 89.1197865687178,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {
+              "g3_sofa": 1.0,
+              "g3_named_room_contents": 2.0
+            },
+            "objects_final_MJ": {
+              "g3_sofa": 0.0,
+              "g3_named_room_contents": 0.0009970356826736397
+            },
+            "species": {
+              "co_kg": {
+                "total": 0.0008169760266090998,
+                "by_owner": {
+                  "object:g3_sofa": 0.00022487656492169172,
+                  "object:g3_named_room_contents": 0.0005920994616874079
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 4.235164736271502e-22
+              },
+              "co2_kg": {
+                "total": 0.17723170679577854,
+                "by_owner": {
+                  "object:g3_sofa": 0.050829087123908184,
+                  "object:g3_named_room_contents": 0.12640261967187016
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.169760266090999e-05,
+                "by_owner": {
+                  "object:g3_sofa": 2.248765649216917e-05,
+                  "object:g3_named_room_contents": 5.9209946168740784e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 5.293955920339377e-23
+              },
+              "smoke_kg": {
+                "total": 0.036058719005110464,
+                "by_owner": {
+                  "object:g3_sofa": 0.012013370659505291,
+                  "object:g3_named_room_contents": 0.02404534834560518
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.710505431213761e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": [],
+          "ownership_contract_on_ledger": []
+        },
+        "room_aggregate_only": {
+          "scenario_sha256": "1a11b15f5ce65558c3cd14d96c8a0d51125031c1bafaf1c0692cce1bb5aa23f8",
+          "artifact_sha256": {
+            "sim_log.csv": "8ce77f4142f01c3c812fded63417d038387e78081875276cc1e07ebba4b66fcf",
+            "events.json": "891b1aaaadf106d11b7853f67fd50ffb6322d7a8c0fcde4c1507189cc3742d16",
+            "co_inventory_trace.jsonl": "1cc191741ed8d90550584a2b6ffa7a914c61afb5fc197de8b6b3d9cc16be7ad0",
+            "fuel_source_ledger.jsonl": "0118faf198f9804d62c1de9539f7e02275ae78c7847508535f96479852feb852",
+            "fuel_object_state_snapshot.json": "ef751d012de80df7e19dc21660e3c0495bbb16c36ad92ac86d65b1a6164c39b7"
+          },
+          "health": {
+            "timed_out": false,
+            "error_dialogs": [],
+            "residual_godot_processes": [],
+            "process_quiescent": true
+          },
+          "csv_last_time_s": 90.1,
+          "csv_max_hrr_kw": 87.68,
+          "csv_final_co_generated_kg_total": 0.00053081,
+          "csv_final_smoke_generated_kg_total": 0.03840627,
+          "csv_final_fuel_consumed_MJ_total": 2.99986322,
+          "ledger_v3": {
+            "steps": 1081,
+            "mode": [
+              "aggregate"
+            ],
+            "switch_on": [
+              true
+            ],
+            "consumed_MJ": 2.999863222931249,
+            "released_MJ": 3.405768280288632,
+            "solid_released_MJ": 3.405768280288632,
+            "pool_released_MJ": 0.0,
+            "solid_release_without_consumption_MJ": 1.3495951300164608,
+            "owners_MJ": {
+              "aggregate": 2.999863222931252
+            },
+            "allocated_MJ": 0.0,
+            "discarded_MJ": 0.0,
+            "unowned_MJ": 0.0,
+            "room_load_MJ": 0.0,
+            "allocated_to_inactive_MJ": 0,
+            "max_step_fire_residual_MJ": 0.0,
+            "max_step_partition_residual_MJ": 0.0,
+            "max_step_negative_object_residual_MJ": 0.0,
+            "cumulative_object_closure_MJ": 0.0,
+            "cumulative_fire_closure_MJ": 3.5803879392531934e-15,
+            "max_hrr_requested_kw": 102.44390203934601,
+            "max_hrr_applied_kw": 87.71668837934396,
+            "max_solid_hrr_over_active_cap_kw": 0.0,
+            "objects_over_own_cap": [],
+            "objects_initial_MJ": {},
+            "objects_final_MJ": {},
+            "species": {
+              "co_kg": {
+                "total": 0.0005308063637083138,
+                "by_owner": {
+                  "aggregate": 0.0005308063637083131
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.117582368135751e-22
+              },
+              "co2_kg": {
+                "total": 0.1839228134522441,
+                "by_owner": {
+                  "aggregate": 0.1839228134522442
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.0842021724855044e-19
+              },
+              "hcn_kg": {
+                "total": 8.49290181933302e-05,
+                "by_owner": {
+                  "aggregate": 8.492901819333002e-05
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 2.6469779601696886e-23
+              },
+              "smoke_kg": {
+                "total": 0.038406272243398015,
+                "by_owner": {
+                  "aggregate": 0.03840627224339796
+                },
+                "without_consumption": 0.0,
+                "max_partition_error": 1.3552527156068805e-20
+              }
+            }
+          },
+          "ledger_closure_failures": [],
+          "explicit_owned_failures": null,
+          "ownership_contract_on_ledger": [
+            "O5_heat_without_fuel_owner"
+          ]
+        }
+      },
+      "behaviour_contract_C1_C9": {
+        "room_load_above_objects": [
+          "C2_every_consumed_MJ_has_an_explicit_owner",
+          "C3_no_species_from_unowned_energy"
+        ]
+      },
+      "c6_cold_chair_chemistry": {
+        "consumed_ratio_cold_over_single": 1.0000002830347958,
+        "co_ratio_cold_over_single": 2.919872275330038,
+        "smoke_ratio_cold_over_single": 0.9288925226961426
+      }
+    }
+  },
+  "byte_identity": {
+    "before_vs_ledger": {
+      "empty_room": true,
+      "single_object": true,
+      "sofa_plus_cold_chair": true,
+      "two_active_objects": true,
+      "room_load_above_objects": true,
+      "room_load_below_objects": true,
+      "low_power_object": true,
+      "named_aggregate_source": true,
+      "room_aggregate_only": true
+    },
+    "before_vs_off": {
+      "empty_room": true,
+      "single_object": true,
+      "sofa_plus_cold_chair": true,
+      "two_active_objects": true,
+      "room_load_above_objects": true,
+      "room_load_below_objects": true,
+      "low_power_object": true,
+      "named_aggregate_source": true,
+      "room_aggregate_only": true
+    }
+  }
+}

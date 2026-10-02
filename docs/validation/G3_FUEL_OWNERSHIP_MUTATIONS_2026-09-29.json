@@ -1,0 +1,60 @@
+{
+  "schema": "g3_fuel_ownership_mutations_v1",
+  "target": "sim/fire/CombustionSystem.gd",
+  "method": "exact text replacement in the ON path, one monitored Godot run of the exposing case with switch ON and ledger v3, then byte restore with SHA-256 check",
+  "note": "M1 falsifies the engine's own active flag, so it is caught by the independent scenario oracle (the non-igniting chair keeps 3.0 MJ), not by O3",
+  "mutants": {
+    "M1_inactive_object_counted": {
+      "run": "g3_mutant_M1_inactive_object_counted_20260929_093506",
+      "case": "sofa_plus_cold_chair",
+      "runner_exit": 0,
+      "clause": "cold chair keeps its 3.0 MJ (C7)",
+      "detected": true,
+      "explicit_owned_failures": [],
+      "closure_failures": []
+    },
+    "M2_no_object_power_cap": {
+      "run": "g3_mutant_M2_no_object_power_cap_20260929_093523",
+      "case": "low_power_object",
+      "runner_exit": 0,
+      "clause": "O4_power_cap",
+      "detected": true,
+      "explicit_owned_failures": [
+        "O1_unowned_MJ",
+        "O4_power_cap"
+      ],
+      "closure_failures": [
+        "K1_fire_inventory_step",
+        "K4_fire_inventory_cumulative"
+      ]
+    },
+    "M3_heat_release_not_bounded_by_pyrolysis": {
+      "run": "g3_mutant_M3_heat_release_not_bounded_by_pyrolysis_20260929_093542",
+      "case": "single_object",
+      "runner_exit": 0,
+      "clause": "O5_heat_without_fuel_owner",
+      "detected": true,
+      "explicit_owned_failures": [
+        "O5_heat_without_fuel_owner"
+      ],
+      "closure_failures": []
+    },
+    "M4_tiny_demand_not_debited": {
+      "run": "g3_mutant_M4_tiny_demand_not_debited_20260929_093608",
+      "case": "single_object",
+      "runner_exit": 0,
+      "clause": "O1_unowned_MJ",
+      "detected": true,
+      "explicit_owned_failures": [
+        "O1_unowned_MJ"
+      ],
+      "closure_failures": [
+        "K1_fire_inventory_step",
+        "K4_fire_inventory_cumulative"
+      ]
+    }
+  },
+  "restored_sha256": "560ae0a1730388a0ab80d668086f38fcc7b18c6354c910ab138cc5f75b5a21ef",
+  "original_sha256": "560ae0a1730388a0ab80d668086f38fcc7b18c6354c910ab138cc5f75b5a21ef",
+  "all_detected": true
+}

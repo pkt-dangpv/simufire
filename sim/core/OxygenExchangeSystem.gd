@@ -137,6 +137,16 @@ var phase3_canonical_zone_shadow_enabled: bool = false
 # R3: cuando true, el consumo de O2 se enruta hacia o2_lower (zona baja) y room.o2
 # se actualiza como promedio ponderado upper/lower al final del paso.
 var two_zone_solver_enabled: bool = false
+# Topes de masa del sumidero de O2 del fuego en step() (fracción de la masa de O2
+# de la zona aceptada por paso). Constantes con nombre para que la cota de la
+# opción D de G3 (fire_sink_heat_acceptance_floor_MJ) use exactamente los mismos.
+const FIRE_SINK_BULK_CAP_FRACTION: float = 0.05
+const FIRE_SINK_LOWER_CAP_FRACTION: float = 0.05
+const FIRE_SINK_PLUME_CAP_FRACTION: float = 0.20
+const FIRE_SINK_MIN_LOWER_FRACTION: float = 0.15
+const PLUME_ENTR_FRAC_MAX: float = 0.15
+const LOWER_ENTR_SCALE_BASE: float = 0.20
+const PHASE2H_OPEN_ENTR_SCALE_MAX: float = 1.40
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 var _phase3_shadow_flux_results: Array[Dictionary] = []
@@ -368,6 +378,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 	)
 	var air_density_kg_m3: float = 1.2
 	var fire_uses_lower_o2: bool = _uses_lower_o2_for_fire()
+	# G3 balance (g3_balance_v1): sonda de solo lectura que el motor pasa
+	# únicamente con el libro G3 activo; sin ella no se ejecuta nada.
+	var g3_probe = hooks.get("g3_balance_probe", null)
 
 	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
@@ -391,6 +404,24 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var upper_air_mass: float = air_mass_kg * upper_frac
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
+		var g3_row: Dictionary = {}
+		if g3_probe != null:
+			g3_row = {
+				"moment": "OxygenExchangeSystem.step: bucle de sala",
+				"hrr_kw": float(room.hrr_kw),
+				"o2_kg_per_MJ": float(room.fire.o2_consumption_kg_per_MJ) if room.fire != null else 0.076,
+				"air_mass_kg": air_mass_kg,
+				"upper_air_mass_kg": upper_air_mass,
+				"lower_air_mass_kg": lower_air_mass,
+				"upper_frac": upper_frac,
+				"lower_frac": lower_frac,
+				"o2_nominal": o2_nominal,
+				"o2_before": float(room.o2),
+				"o2_upper_before": float(room.o2_upper),
+				"o2_lower_before": float(room.o2_lower),
+				"sinks": {},
+			}
+			g3_probe[room.id] = g3_row
 		if fire_o2_mass_tracking_enabled:
 			if room.upper_o2_mass_tracked < 0.0 or room.canonical_o2_upper_updated:
 				# Inicialización o re-sincronización desde o2_upper actual.
@@ -416,7 +447,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# como mezcla ponderada al final del bloque — evita el doble consumo.
 		var plume_lower_mode: bool = (
 			fire_o2_mode == "legacy" and
-			lower_frac >= 0.15 and
+			lower_frac >= FIRE_SINK_MIN_LOWER_FRACTION and
 			hot_h_upper >= 0.3 and
 			not fire_uses_lower_o2 and
 			room.hrr_kw > 0.0 and
@@ -430,7 +461,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var canonical_plume_lower: bool = (
 			fire_o2_canonical_enabled and
 			(room.fire_o2_mode_used == "plume_lower" or room.fire_o2_mode_used == "plume_blend") and
-			lower_frac >= 0.15 and
+			lower_frac >= FIRE_SINK_MIN_LOWER_FRACTION and
 			hot_h_upper >= 0.3 and
 			not fire_uses_lower_o2 and
 			room.hrr_kw > 0.0
@@ -450,8 +481,19 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
 			var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
-			consumed = minf(consumed, o2_mass_kg * 0.05)
+			if g3_probe != null:
+				g3_row["sinks"]["bulk"] = {
+					"zone": "bulk",
+					"requested_kg": consumed,
+					"cap_kg": o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION,
+					"mass_before_kg": o2_mass_kg,
+					"mass_base_kg": air_mass_kg,
+				}
+			consumed = minf(consumed, o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION)
 			o2_mass_kg = maxf(0.0, o2_mass_kg - consumed)
+			if g3_probe != null:
+				g3_row["sinks"]["bulk"]["applied_kg"] = consumed
+				g3_row["sinks"]["bulk"]["mass_after_kg"] = o2_mass_kg
 			# SF-O1A: consumo bulk (path sin two-zone ni plume_lower).
 			room.o2_consumed_kg_step_all += consumed
 			room.o2_consumed_kg_total_all += consumed
@@ -472,12 +514,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# asi que el reparto por owner no es recuperable aqui.
 		var _o2d6_pre_bulk: float = room.o2
 		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
+		if g3_probe != null:
+			g3_row["bulk_ach_kg"] = ach_o2_delta_kg
+			g3_row["bulk_fraction_before_write"] = _o2d6_pre_bulk
+			g3_row["bulk_fraction_unclamped"] = o2_mass_kg / air_mass_kg
+			g3_row["bulk_fraction_after_write"] = float(room.o2)
 		_record_o2_acceptance(
 			"oes_bulk_combustion_and_ach", "bulk", room,
 			_o2d6_pre_bulk, o2_mass_kg / air_mass_kg, room.o2,
 			Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER, NAN, "room_air_mass"
 		)
 
+		# 0.15 == FIRE_SINK_MIN_LOWER_FRACTION (literal fijado por test_phase3_f31c).
 		if lower_frac < 0.15:
 			# Modelo bi-zona invalido: homogeniza ambas zonas a room.o2.
 			room.o2_upper = room.o2
@@ -515,10 +563,23 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			if not two_zone_solver_enabled and not effective_plume_lower:
 				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt
+				if g3_probe != null:
+					g3_row["sinks"]["upper"] = {
+						"zone": "upper", "branch": "full_thornton",
+						"requested_kg": upper_consumed,
+						"cap_kg": upper_air_mass * room.o2_upper * 0.20,
+					}
 				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
 			elif plume_upper_o2_displacement_frac > 0.0:
 				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt * plume_upper_o2_displacement_frac
+				if g3_probe != null:
+					g3_row["sinks"]["upper"] = {
+						"zone": "upper", "branch": "displacement",
+						"displacement_frac": plume_upper_o2_displacement_frac,
+						"requested_kg": upper_consumed,
+						"cap_kg": upper_air_mass * room.o2_upper * 0.20,
+					}
 				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
 			var upper_o2_before: float = room.o2_upper
 			var upper_o2_after: float = clampf(
@@ -531,6 +592,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				room, "upper", upper_o2_accepted_kg, "combustion_o2_upper_sink"
 			)
 			room.o2_upper = upper_o2_after
+			if g3_probe != null:
+				var g3_upper: Dictionary = g3_row["sinks"].get(
+					"upper", {"zone": "upper", "branch": "none", "requested_kg": 0.0, "cap_kg": 0.0}
+				)
+				g3_upper["applied_kg"] = upper_consumed
+				g3_upper["fraction_before"] = upper_o2_before
+				g3_upper["fraction_after"] = float(room.o2_upper)
+				g3_upper["mass_base_kg"] = upper_air_mass
+				g3_row["sinks"]["upper"] = g3_upper
 			# H3.2-S0d6: unico path de O2 que acota y aplica contra la MISMA base
 			# de masa (upper_air_mass), asi que su kg aceptado si es atribuible.
 			_record_o2_acceptance(
@@ -546,7 +616,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# SF-O2E1: upper es primario solo cuando bulk fue bloqueado por _phase2b_upper_active.
 			if _phase2b_upper_active:
 				_o2_fire_primary = upper_consumed
-			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
+			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, PLUME_ENTR_FRAC_MAX)
 			# Phase 4A: en plume_lower_mode el penacho entrana aire de la zona baja (o2_lower)
 			# hacia la zona alta. Si o2_lower < o2_upper, ese gas diluye o2_upper (bidireccional).
 			# En otros modos: sólo se permite delta positivo (zona baja más rica → sube o2_upper).
@@ -561,7 +631,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# Phase 2H Exp2H.1: floor room.o2 → room.o2_upper resultó en inversión
 			# (o2_lower baja más, FED hipoxia sube +16%). Branch ON reverted a no-op.
 			# Exp 2H.2 implementará boost de reabastecimiento de zona baja.
-			var lower_entr_scale: float = 0.20
+			var lower_entr_scale: float = LOWER_ENTR_SCALE_BASE
 			if phase2h_o2_doorway_two_zone_enabled:
 				var interior_open_factor: float = _estimate_room_interior_open_factor(building, room)
 				if interior_open_factor <= 0.01:
@@ -572,7 +642,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					# Guard: sin soporte exterior, no acelerar drenaje de o2_lower (evita colapso
 					# en salas cerradas con solo doorway interior → víctima en zona baja).
 					if outside_open_factor > 0.01:
-						lower_entr_scale = lerpf(0.60, 1.40, interior_open_factor)
+						lower_entr_scale = lerpf(0.60, PHASE2H_OPEN_ENTR_SCALE_MAX, interior_open_factor)
 					elif phase2h_interior_no_exterior_drain_gain > 0.0:
 						var no_ext_drain_factor: float = clampf(
 							interior_open_factor * phase2h_interior_no_exterior_drain_gain,
@@ -591,12 +661,29 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# en modo normal el floor es room.o2 para preservar consistencia de mezcla.
 			var lower_floor: float = 0.0 if effective_plume_lower else room.o2
 			room.o2_lower = maxf(lower_floor, room.o2_lower - lower_entr)
+			if g3_probe != null:
+				g3_row["entrainment"] = {
+					"entr_frac": entr_frac,
+					"upper_delta_fraction": delta_entr,
+					"upper_fraction_after": float(room.o2_upper),
+					"lower_delta_fraction": -lower_entr,
+					"lower_floor_fraction": lower_floor,
+					"lower_fraction_after": float(room.o2_lower),
+				}
 			# Phase 2C: fuego consume O₂ de la zona baja cuando fire_o2_lower_for_flame=true.
 			# Usa air_mass_kg (masa total) para consistencia con la reposición del HVAC.
 			if fire_uses_lower_o2 and room.hrr_kw > 0.0:
 				var cr_lower: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
-				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * 0.05)
+				if g3_probe != null:
+					g3_row["sinks"]["lower"] = {
+						"zone": "lower",
+						"requested_kg": consumed_lower,
+						"cap_kg": air_mass_kg * room.o2_lower * FIRE_SINK_LOWER_CAP_FRACTION,
+						"floor_fraction": float(room.o2),
+						"mass_base_kg": air_mass_kg,
+					}
+				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * FIRE_SINK_LOWER_CAP_FRACTION)
 				var lower_o2_before: float = room.o2_lower
 				var lower_o2_after: float = maxf(
 					room.o2, room.o2_lower - consumed_lower / air_mass_kg
@@ -608,6 +695,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					room, "lower", lower_o2_accepted_kg, "combustion_o2_lower_sink"
 				)
 				room.o2_lower = lower_o2_after
+				if g3_probe != null:
+					g3_row["sinks"]["lower"]["applied_kg"] = consumed_lower
+					g3_row["sinks"]["lower"]["fraction_before"] = lower_o2_before
+					g3_row["sinks"]["lower"]["fraction_after"] = float(room.o2_lower)
 				# H3.2-S0d6: el suelo `maxf(room.o2, ...)` trunca un sumidero fisico
 				# sin dueno, y la conversion usa la masa de SALA sobre una fraccion
 				# de ZONA, asi que no se emite kg.
@@ -629,7 +720,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			if effective_plume_lower:
 				var cr_plume: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				var plume_consumed: float = (room.hrr_kw / 1000.0) * cr_plume * dt * plume_lower_o2_depletion_fraction
-				plume_consumed = minf(plume_consumed, lower_air_mass * room.o2_lower * 0.20)
+				if g3_probe != null:
+					g3_row["sinks"]["plume_lower"] = {
+						"zone": "lower",
+						"requested_kg": plume_consumed,
+						"depletion_fraction": plume_lower_o2_depletion_fraction,
+						"cap_kg": lower_air_mass * room.o2_lower * FIRE_SINK_PLUME_CAP_FRACTION,
+						"cap_mass_base_kg": lower_air_mass,
+						"mass_base_kg": air_mass_kg,
+					}
+				plume_consumed = minf(plume_consumed, lower_air_mass * room.o2_lower * FIRE_SINK_PLUME_CAP_FRACTION)
 				# Phase 4A: dividir por air_mass_kg (no lower_air_mass) modela que el penacho
 				# entrana aire de toda la zona baja efectiva de la sala, evitando depleción
 				# acelerada cuando la capa baja es delgada (lower_air_mass << air_mass_kg).
@@ -644,6 +744,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					room, "lower", plume_o2_accepted_kg, "combustion_o2_plume_lower_sink"
 				)
 				room.o2_lower = plume_o2_after
+				if g3_probe != null:
+					g3_row["sinks"]["plume_lower"]["applied_kg"] = plume_consumed
+					g3_row["sinks"]["plume_lower"]["fraction_before"] = plume_o2_before
+					g3_row["sinks"]["plume_lower"]["fraction_after"] = float(room.o2_lower)
 				# H3.2-S0d6: este path acota con `lower_air_mass` pero aplica con
 				# `air_mass_kg` -- dos bases distintas en el mismo path -- asi que
 				# ninguna conversion a kg es defendible.
@@ -673,6 +777,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
 			var _o2_lower_floor: float = 0.0 if effective_plume_lower else room.o2
 			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, _o2_lower_floor, _o2_lower_ach_ceil)
+			if g3_probe != null:
+				g3_row["lower_ach"] = {
+					"delta_fraction": ach_lower_dt,
+					"floor_fraction": _o2_lower_floor,
+					"ceil_fraction": _o2_lower_ach_ceil,
+					"fraction_after": float(room.o2_lower),
+				}
 			# R2-2: cuando el fuego entrana de o2_lower, room.o2 refleja la mezcla ponderada.
 			# Phase 2B: idem cuando consumo va solo a o2_upper (fire_o2_mode="upper").
 			if effective_plume_lower or _phase2b_upper_active:
@@ -710,6 +821,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# SF-O2E1: acumular el path primario (una unidad Thornton por paso, tracking-only).
 		room.o2_consumed_fire_kg_step   = _o2_fire_primary
 		room.o2_consumed_fire_kg_total += _o2_fire_primary
+		if g3_probe != null:
+			g3_row["fire_primary_kg"] = _o2_fire_primary
+			g3_row["plume_lower_mode"] = plume_lower_mode
+			g3_row["canonical_plume_lower"] = canonical_plume_lower
+			g3_row["fire_uses_lower_o2"] = fire_uses_lower_o2
+			g3_row["phase2b_upper_active"] = _phase2b_upper_active
+			g3_row["two_zone_solver_enabled"] = two_zone_solver_enabled
+			g3_row["bi_zone_invalid"] = lower_frac < 0.15
+			g3_row["o2_after"] = float(room.o2)
+			g3_row["o2_upper_after"] = float(room.o2_upper)
+			g3_row["o2_lower_after"] = float(room.o2_lower)
+			g3_row["consumed_all_step_kg"] = float(room.o2_consumed_kg_step_all)
 		if fire_o2_mass_tracking_enabled:
 			room.upper_o2_mass_tracked = room.o2_upper * upper_air_mass
 
@@ -727,6 +850,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# Phase 2E Sub-D: cuando bi-zona inválida y fuego activo, omite el snap → usa rama
 		# producción. OFF (subd=false) → _snap = true siempre que _bi_zone_invalid → no-op exacto.
 		var _subd_skip_snap: bool = phase2e_co2_subd_enabled and room.hrr_kw > 0.0 and _bi_zone_invalid
+		if g3_probe != null:
+			g3_row["co2_tracer"] = {
+				"moment": "OxygenExchangeSystem.step: trazador de CO2 de la zona superior",
+				"branch": "homogenize" if (_bi_zone_invalid and not _subd_skip_snap) else ("production" if room.hrr_kw > 0.0 else "relax"),
+				"fraction_before": float(room.co2_upper),
+				"hrr_kw": float(room.hrr_kw),
+				"mass_base_kg": upper_air_mass,
+				"room_co2_kg": float(room.co2_kg),
+				"room_co2_upper_kg": float(room.co2_upper_kg),
+				"subc_boost_active": phase2e_co2_subc_enabled and phase2e_co2_fire_upper_boost_gain > 0.0,
+			}
 		if _bi_zone_invalid and not _subd_skip_snap:
 			# Modelo bi-zona inválido: homogeniza con media de sala
 			var room_co2_frac: float = room.co2_kg * 29.0 / maxf(0.001, air_mass_kg * 44.0)
@@ -755,10 +889,20 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# Infiltración ACH hacia CO₂ ambiente (muy pequeño; solo activo para sala sellada)
 			var ach_co2_dt: float = (ach_infiltration / 3600.0) * (CO2_AMBIENT - room.co2_upper) * dt
 			room.co2_upper = room.co2_upper + ach_co2_dt
+			if g3_probe != null:
+				g3_row["co2_tracer"]["yield_kg_per_MJ"] = cr_co2
+				g3_row["co2_tracer"]["o2_scale"] = o2_scale
+				g3_row["co2_tracer"]["produced_kg"] = co2_produced
+				g3_row["co2_tracer"]["delta_fraction"] = delta_co2
+				g3_row["co2_tracer"]["ach_delta_fraction"] = ach_co2_dt
 		else:
 			# Sin fuego: relajar lentamente hacia CO₂ ambiente (mezcla/difusión)
 			room.co2_upper = lerpf(room.co2_upper, CO2_AMBIENT, clampf(0.05 * dt, 0.0, 0.20))
+		if g3_probe != null:
+			g3_row["co2_tracer"]["fraction_before_clamp"] = float(room.co2_upper)
 		room.co2_upper = clampf(room.co2_upper, CO2_AMBIENT, CO2_UPPER_MAX)
+		if g3_probe != null:
+			g3_row["co2_tracer"]["fraction_after"] = float(room.co2_upper)
 
 	var g_gravity: float = 9.8
 	for op in building.get_openings():
@@ -831,6 +975,52 @@ func _record_phase3_shadow_o2_sink(
 		"o2_kg": accepted_o2_kg,
 		"species_kg": {},
 	})
+
+
+## G3 Gate B opción D (prototipo): cota INFERIOR, en MJ de calor aplicado, de lo
+## que el sumidero de O2 del fuego de `room` aceptará en el próximo step() sin
+## que actúe ningún tope de masa. Solo lectura. La usa CombustionSystem, en el
+## mismo tick y antes de este step(), para que ninguna liberación del saldo R
+## produzca calor sin su débito de O2. Es conservadora frente a:
+## - la ruta que step() elija (bulk o plume_lower): toma el mínimo;
+## - la masa de la zona baja en plume (lower_frac >= 0,15 por construcción);
+## - el arrastre del penacho, que reduce o2_lower antes del sumidero;
+## - las entregas diferidas negativas que se aplican al inicio de step().
+## Devuelve 0 (no se libera R) cuando el orden o la ruta no se pueden acotar:
+## modos pre-HRR (upper/lower/interface debitan antes del fuego), phase2b y la
+## ruta lower (fire_o2_lower_for_flame).
+## Es una cota de MASA de O2, no un permiso de potencia del modelo.
+func fire_sink_heat_acceptance_floor_MJ(room: RoomModel, dt: float, o2_kg_per_MJ: float) -> float:
+	if room == null or o2_kg_per_MJ <= 0.0:
+		return 0.0
+	if fire_o2_mode != "legacy" or phase2b_canonical_combustion_enabled:
+		return 0.0
+	var air_mass_kg: float = _compute_room_air_mass_kg(room, 1.2)
+	var due_negative_kg: float = 0.0
+	for entry in _pending_o2_deliveries:
+		if int(entry.get("target", -1)) != room.id:
+			continue
+		if maxf(0.0, float(entry.get("delay_s", 0.0)) - dt) > 0.000001:
+			continue
+		due_negative_kg += minf(0.0, float(entry.get("delta_o2_kg", 0.0)))
+	var entr_scale_max: float = LOWER_ENTR_SCALE_BASE
+	if phase2h_o2_doorway_two_zone_enabled:
+		entr_scale_max = maxf(PHASE2H_OPEN_ENTR_SCALE_MAX,
+			maxf(LOWER_ENTR_SCALE_BASE, phase2h_interior_no_exterior_drain_max_scale))
+	var entr_frac_max: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, PLUME_ENTR_FRAC_MAX)
+	var o2_lower_min: float = maxf(0.0, room.o2_lower * (1.0 - entr_frac_max * entr_scale_max))
+	var heat_MJ: float = INF
+	if _uses_lower_o2_for_fire():
+		# Con lower_frac < 0,15 step() no ejecuta ningún sumidero del fuego en este
+		# modo (calor sin O2 preexistente) y el suelo room.o2 trunca el débito: no se
+		# puede acotar, no se libera R.
+		return 0.0
+	var bulk_mass_kg: float = maxf(0.0, air_mass_kg * room.o2 + due_negative_kg)
+	heat_MJ = minf(heat_MJ, bulk_mass_kg * FIRE_SINK_BULK_CAP_FRACTION / o2_kg_per_MJ)
+	if plume_lower_o2_depletion_fraction > 0.0:
+		var plume_cap_kg: float = FIRE_SINK_PLUME_CAP_FRACTION * FIRE_SINK_MIN_LOWER_FRACTION * air_mass_kg * o2_lower_min
+		heat_MJ = minf(heat_MJ, plume_cap_kg / (o2_kg_per_MJ * plume_lower_o2_depletion_fraction))
+	return maxf(0.0, heat_MJ)
 
 
 func _uses_lower_o2_for_fire() -> bool:

@@ -1,9 +1,24 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-09-27 (contraste G3 de CO en cinco casos)
+Ultima actualizacion parcial: 2026-09-28 (G3: baseline de puerta, ventana y dos plantas)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance G3 sin promocion de fisica: el gate de propiedad confirma que la
+carga positiva de estancia gobierna el incendio aunque difiera de los
+objetos; 23 diferencias distribuidas carecen de significado material
+declarado. Se fijo una primera ficha NIST FCD para dos sofas completos,
+alfombra con cojines y mesa bajo deteccion, pero faltan CSV temporales y
+regimenes subventilados. G3-1 y G3-2 continuan NO-GO para migracion y
+calibracion automatica; [subplan](G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md).
+Cuatro controles adicionales de topologia reproducen la entrada de CO al
+pasillo al abrir la puerta y la retirada al abrir la ventana; el paso a la
+planta alta es minimo a 90 s. El snapshot opt-in verifica que el CO no
+presente aun en salas ni expulsado esta en parcelas en transito. El cierre
+global final deja residuo maximo `4,6e-8 kg`.
+G3-5 mantiene pendiente el balance por paso y zona con oxidacion y
+validacion experimental.
 
 ## Decision operativa vigente - 2026-09-24
 
@@ -358,6 +373,41 @@ medidos paso a paso; detalle en
 
 ### FED/SVV pendientes de revision cientifica
 
+**Subplan de cierre G3 (27-09):** el trabajo de CO se secuencia en baseline,
+propiedad de combustible, evidencia por material, libro contable pasivo,
+fuente por objeto, transporte por zonas, FED/SVV y decisión de promoción por
+perfil. Cada fase tiene gate GO/NO-GO/LIMITADA; ninguna fecha o coincidencia
+aislada con CFAST sustituye validación experimental. Véase
+[G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md](G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md).
+G3-0 ya reprodujo en cinco controles que una silla sin arder puede elevar
+2,92 veces el CO de un sofá con HRR y consumo prácticamente iguales; no es
+un valor calibrado de producto. Ver
+[baseline de fuentes G3-0](../validation/G3_FUEL_SOURCE_DYNAMIC_BASELINE_2026-09-27.md).
+La traza pasiva G3-3 por paso confirma que esa silla no consume combustible
+ni entrega HRR en ninguno de los 1.081 pasos, mientras cambia el CO generado.
+La ampliación del libro también muestra un −7,11 % de humo generado por
+añadirla, con CO y humo contablemente cerrados por sala y paso en este
+corpus. No cierra todavía fuentes por objeto, balance elemental, otras
+especies, energía ni transporte por zonas; **NO-GO** sigue vigente.
+
+**Gate previo de propiedad del combustible (27-09):** el escenario amueblado
+no tiene una única fuente inequívoca de energía/especies: 23 de 36 salas con
+objetos en los JSON distribuidos discrepan de su carga agregada; siete de diez
+presets carecen de objetos. Clasificar y dar procedencia a cada carga, preservar
+los casos de referencia agregados y cerrar contabilidad pasiva por objeto
+antes de calibrar CO, activar G3 o migrar el catálogo. No asumir doble
+combustión universal: el proxy se excluye de las sumas de objetos. Véase
+[auditoría G3 de fuentes](../validation/G3_FUEL_SOURCE_OWNERSHIP_AUDIT_2026-09-27.md).
+El [gate dinámico G3-1](../validation/G3_FUEL_OWNERSHIP_DYNAMIC_GATE_2026-09-27.md)
+confirma el límite de estancia: con 3 MJ de sala y 1 MJ en el sofá, el
+fuego consume 1,998060 MJ tras agotarse el objeto; con 1 MJ de sala y
+3 MJ en el sofá, deja ≈2 MJ sin quemar. Son controles artificiales, no
+clasifican las 23 diferencias reales ni autorizan migración automática.
+La [matriz G3-1 de procedencia](../validation/G3_FUEL_PROVENANCE_MATRIX_2026-09-27.md)
+ubica las 23 declaraciones (17 en JSON de referencia y seis en el preset
+de plantilla), pero no su significado material: todas siguen propuestas
+como `legacy_unknown` hasta decisión documentada. No se han migrado JSON.
+
 Estado: **ABIERTO**. Prioridad alta antes de la release candidate si el producto
 va a presentar estas salidas como magnitudes fisiologicas fiables.
 
@@ -386,6 +436,25 @@ a 480 s sigue siendo el punto que mejor aísla el error zonal. No se ha
 modificado ningún check oficial ni disposición de gap; el selector sigue OFF.
 Antes de activar G3 hay que corregir la observabilidad del comparador y
 diagnosticar el transporte intercapas, sin calibrar una tasa a un solo punto.
+El control de la corrección contable experimental de CO sube el inventario
+inferior en dos salas a 480 s de 0,0058 a 10,47 ppm, todavía lejos de los
+579 ppm CFAST. El inventario total de CO de la sala solo permitiría 452,70
+ppm abajo aun reubicándolo íntegro: el gap incluye producción o flujos,
+no solo mezcla intercapas. NIST TN 1455-1 revisado confirma CO respirable en
+ensayos residenciales, y FR 4016 ofrece datos crudos para un fixture, aún sin
+auditar.
+El siguiente gate es atribución completa de flujos de gas/especies y un caso
+experimental reproducible, no una tasa exclusiva de CO. Ver
+[G3_CO_CFAST_NIST_TRANSPORT_GATE_2026-09-27.md](../validation/G3_CO_CFAST_NIST_TRANSPORT_GATE_2026-09-27.md).
+
+**Orden refinado el 27-09:** antes de atribuir el déficit al transporte,
+cerrar la fuente de CO. Auditar rendimiento por combustible y régimen,
+registrar generación por objeto y balance por estancia (CO generado,
+oxidado, transportado e inventariado), y contrastar curvas temporales con
+NIST TN 2303/1453 y un ensayo de salón amueblado. Los valores de mesa y
+alfombra disponibles no permiten una calibración directa sin reservas.
+Después vendrán el transporte intercapas y la exposición respiratoria.
+[Evidencia y gates de producción G3](../validation/G3_CO_PRODUCCION_COMBUSTIBLES_ESTANCIA_2026-09-27.md).
 
 Decision vigente:
 

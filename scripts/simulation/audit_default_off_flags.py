@@ -199,6 +199,9 @@ OUT_OF_RUNTIME_SCOPE = {
     "fire_o2_lower_for_flame",
     "fire_o2_mass_tracking_enabled",
     "fire_o2_stoich_consumption_enabled",
+    # G3: propiedad de energia/potencia por objeto activo. Fisica viva de
+    # combustion, fuera del alcance P1R4; la enciende el escenario.
+    "fire_explicit_object_fuel_ownership_enabled",
     "fire_o2_upper_for_flame",
     "fire_o2_upper_throttle_enabled",
     "fire_post_bd_hrr_cut_enabled",
@@ -242,7 +245,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 82
+EXPECTED_DECLARATION_COUNT = 83
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

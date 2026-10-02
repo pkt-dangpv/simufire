@@ -2,9 +2,16 @@
 
 Estado: **auditoría estática; NO-GO para sustituir cargas o rendimientos en el
 motor**. Esta nota complementa [la evidencia de producción de CO](G3_CO_PRODUCCION_COMBUSTIBLES_ESTANCIA_2026-09-27.md).
-No se ha ejecutado Godot ni se ha medido aquí la sensibilidad dinámica. La
-mezcla de fuentes es un mecanismo plausible del error de CO, **no una causa
-cuantificada ni única** del desfase con CFAST.
+La auditoría descrita aquí fue estática; la medición posterior está en el
+[gate dinámico de propiedad](G3_FUEL_OWNERSHIP_DYNAMIC_GATE_2026-09-27.md).
+El diagnóstico se cerró el 29-09 en el [cierre G3-1](G3_FUEL_OWNERSHIP_CLOSURE_2026-09-29.md):
+matriz individual de los 23 + 7 casos, nueve casos dinámicos y contrato
+de propiedad con cláusulas comprobables.
+Las 23 filas y su procedencia declarativa se revisan en la
+[matriz de procedencia](G3_FUEL_PROVENANCE_MATRIX_2026-09-27.md); ninguna
+queda clasificada físicamente por el mero hecho de ubicar el número.
+La mezcla de fuentes es un mecanismo plausible del error de CO, **no una
+causa cuantificada ni única** del desfase con CFAST.
 
 ## Qué existe hoy
 
@@ -18,8 +25,10 @@ cuantificada ni única** del desfase con CFAST.
    estancia **antes** de sumar los objetos explícitos. Un escenario que declara
    4 300 MJ de sala y 2 620 MJ en muebles puede, por tanto, iniciar un fuego
    con el límite energético de 4 300 MJ aunque los objetos describan otro
-   inventario. Hay que medir la evolución y el cierre antes de decir cuánta
-   energía extra llega a liberarse.
+   inventario. El gate dinámico posterior midió el caso 3 MJ de estancia /
+   1 MJ de sofá: tras agotarse el sofá se consumen 1,998060 MJ más sin
+   objeto explícito que los aporte; no demuestra si los JSON distribuidos
+   pretendían representar contenido no dibujado.
 3. Para CO, CO₂ y HCN, las funciones `_resolve_room_*_yield_kg_per_MJ()`
    calculan un rendimiento medio por estancia con objetos que aún conservan
    combustible, **incluidos los fríos/no participantes**. La ponderación usa
@@ -137,6 +146,12 @@ asignados a otra sala.
 Las 23 discrepancias están en `compact_apartment_reference.json` (salas
 0–4), `long_hallway_reference.json` (0–5), `preset_two_storey_house.json`
 (0, 3, 8, 9, 10, 12) y `two_storey_reference.json` (0, 2, 3, 5, 6, 7).
+Los 17 casos de los tres archivos `*_reference.json` proceden de literales
+JSON añadidos juntos en `b3457e94`; los seis del preset de dos plantas
+coinciden con `BuildingTemplate.create_two_storey_house()`. Ninguna ruta
+declara si la diferencia corresponde a material no dibujado. La matriz
+mantiene por ello las 23 como `legacy_unknown` **propuesto**, sin cambiar
+ningún escenario ni el motor.
 Los siete presets sin objetos son `preset_compact_apartment.json`,
 `preset_piso_mediterraneo.json`, `preset_ranch_family_house.json`,
 `preset_row_house_ground_floor.json`, `preset_three_bed_apartment.json`,
@@ -146,9 +161,9 @@ Hay **107 objetos explícitos** en los JSON: los 107 declaran rendimiento de
 CO, ninguno declara rendimiento de HCN ni de CO₂. Esos dos últimos quedan
 en los defaults del modelo, no medidos por cada mueble. Ninguna de las 109
 salas puede etiquetarse aún como `explicit_objects` o `legacy_lumped` de
-forma autoritativa solo con la igualdad de totales. Falta revisar procedencia
-de los valores de las plantillas en `BuildingTemplate.gd`, decidir qué
-representan las 23 diferencias y registrar la respuesta en el escenario.
+forma autoritativa solo con la igualdad de totales. Ya se ubicó la
+declaración de los 23 valores; falta decidir qué representan físicamente
+sus diferencias y registrar esa decisión con procedencia en el escenario.
 
 Primera lectura de `BuildingTemplate.gd`: el comentario de `create_simple_house()`
 define `fuel_energy_MJ` como carga total por superficie × densidad y después
