@@ -54,6 +54,10 @@ _FORBIDDEN_LOG_PATTERNS = {
 }
 _RUNTIME_HEALTH_CONTRACT = "windows-window-process-exit-v2"
 _POST_EXIT_OBSERVATION_S = 2.0
+# The engine starts helpers of its own when it exits (cmd.exe /c python for the
+# charts; measured 7-35 s on 2026-10-01). They are descendants doing their job,
+# not residue: they get this long to finish before being terminated as hung.
+_OWNED_DESCENDANT_DRAIN_S = 120.0
 _WINDOW_POLL_S = 0.2
 _PROCESS_SAMPLE_S = 1.0
 _EXPECTED_GODOT_VERSION = "4.7.1.stable.official.a13da4feb"
@@ -61,6 +65,16 @@ _SEM_FAILCRITICALERRORS = 0x0001
 _SEM_NOGPFAULTERRORBOX = 0x0002
 _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 _SYNCHRONIZE = 0x00100000
+_PROCESS_TERMINATE = 0x0001
+_PROCESS_SET_QUOTA = 0x0100
+_CREATE_SUSPENDED = 0x00000004
+_TH32CS_SNAPTHREAD = 0x00000004
+_THREAD_SUSPEND_RESUME = 0x0002
+_INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+_JOB_BASIC_ACCOUNTING_INFORMATION = 1
+_JOB_BASIC_PROCESS_ID_LIST = 3
+_JOB_EXTENDED_LIMIT_INFORMATION = 9
+_JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
 _ERROR_INVALID_PARAMETER = 87
 _STILL_ACTIVE = 259
 _STATUS_ACCESS_VIOLATION = 0xC0000005
@@ -175,21 +189,230 @@ def _windows_godot_error_dialogs() -> list[str]:
     return sorted(set(titles))
 
 
-def _terminate_observed_godot_processes(records: list[dict[str, Any]]) -> list[int]:
-    terminated: list[int] = []
-    if os.name != "nt":
-        return terminated
-    for pid in sorted({record["pid"] for record in records}):
-        completed = subprocess.run(
-            ["taskkill", "/PID", str(pid), "/T", "/F"],
-            capture_output=True,
-            text=True,
-            check=False,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-        if completed.returncode == 0:
-            terminated.append(pid)
-    return terminated
+class _JobLimits(ctypes.Structure):
+    """JOBOBJECT_EXTENDED_LIMIT_INFORMATION."""
+
+    class _Basic(ctypes.Structure):
+        _fields_ = [
+            ("PerProcessUserTimeLimit", ctypes.c_int64),
+            ("PerJobUserTimeLimit", ctypes.c_int64),
+            ("LimitFlags", wintypes.DWORD),
+            ("MinimumWorkingSetSize", ctypes.c_size_t),
+            ("MaximumWorkingSetSize", ctypes.c_size_t),
+            ("ActiveProcessLimit", wintypes.DWORD),
+            ("Affinity", ctypes.c_size_t),
+            ("PriorityClass", wintypes.DWORD),
+            ("SchedulingClass", wintypes.DWORD),
+        ]
+
+    _fields_ = [
+        ("BasicLimitInformation", _Basic),
+        ("IoInfo", ctypes.c_uint64 * 6),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    ]
+
+
+class _JobAccounting(ctypes.Structure):
+    """JOBOBJECT_BASIC_ACCOUNTING_INFORMATION."""
+
+    _fields_ = [
+        ("Times", ctypes.c_int64 * 4),
+        ("TotalPageFaultCount", wintypes.DWORD),
+        ("TotalProcesses", wintypes.DWORD),
+        ("ActiveProcesses", wintypes.DWORD),
+        ("TotalTerminatedProcesses", wintypes.DWORD),
+    ]
+
+
+class _JobProcessIds(ctypes.Structure):
+    """JOBOBJECT_BASIC_PROCESS_ID_LIST with room for 1024 ids."""
+
+    _fields_ = [
+        ("NumberOfAssignedProcesses", wintypes.DWORD),
+        ("NumberOfProcessIdsInList", wintypes.DWORD),
+        ("ProcessIdList", ctypes.c_size_t * 1024),
+    ]
+
+
+class _ThreadEntry(ctypes.Structure):
+    """THREADENTRY32."""
+
+    _fields_ = [
+        ("dwSize", wintypes.DWORD),
+        ("cntUsage", wintypes.DWORD),
+        ("th32ThreadID", wintypes.DWORD),
+        ("th32OwnerProcessID", wintypes.DWORD),
+        ("tpBasePri", wintypes.LONG),
+        ("tpDeltaPri", wintypes.LONG),
+        ("dwFlags", wintypes.DWORD),
+    ]
+
+
+def _job_api():
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    handle, dword, bool_ = wintypes.HANDLE, wintypes.DWORD, wintypes.BOOL
+    for name, restype, argtypes in (
+        ("CreateJobObjectW", handle, [ctypes.c_void_p, wintypes.LPCWSTR]),
+        ("SetInformationJobObject", bool_, [handle, ctypes.c_int, ctypes.c_void_p, dword]),
+        ("QueryInformationJobObject", bool_, [handle, ctypes.c_int, ctypes.c_void_p, dword, ctypes.c_void_p]),
+        ("AssignProcessToJobObject", bool_, [handle, handle]),
+        ("TerminateJobObject", bool_, [handle, wintypes.UINT]),
+        ("OpenProcess", handle, [dword, bool_, dword]),
+        ("QueryFullProcessImageNameW", bool_, [handle, dword, wintypes.LPWSTR, ctypes.POINTER(dword)]),
+        ("CreateToolhelp32Snapshot", handle, [dword, dword]),
+        ("Thread32First", bool_, [handle, ctypes.POINTER(_ThreadEntry)]),
+        ("Thread32Next", bool_, [handle, ctypes.POINTER(_ThreadEntry)]),
+        ("OpenThread", handle, [dword, bool_, dword]),
+        ("ResumeThread", dword, [handle]),
+        ("CloseHandle", bool_, [handle]),
+    ):
+        function = getattr(kernel32, name)
+        function.restype, function.argtypes = restype, argtypes
+    return kernel32
+
+
+def _resume_process(api, pid: int) -> int:
+    """Resume a process created suspended; return how many threads were reached.
+
+    A process created suspended has exactly one thread, and it cannot go away.
+    One that is already running (a stand-in in the tests) is left as it is:
+    its threads may end between the snapshot and the open, and are skipped.
+    """
+    snapshot = api.CreateToolhelp32Snapshot(_TH32CS_SNAPTHREAD, 0)
+    if snapshot in (None, _INVALID_HANDLE_VALUE):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = _ThreadEntry()
+        entry.dwSize = ctypes.sizeof(entry)
+        resumed = 0
+        more = api.Thread32First(snapshot, ctypes.byref(entry))
+        while more:
+            if entry.th32OwnerProcessID == pid:
+                thread = api.OpenThread(_THREAD_SUSPEND_RESUME, False, entry.th32ThreadID)
+                if thread:
+                    try:
+                        if api.ResumeThread(thread) != 0xFFFFFFFF:
+                            resumed += 1
+                    finally:
+                        api.CloseHandle(thread)
+            more = api.Thread32Next(snapshot, ctypes.byref(entry))
+        return resumed
+    finally:
+        api.CloseHandle(snapshot)
+
+
+class _OwnedProcessTree:
+    """The launched process and its descendants: the only thing the monitor kills.
+
+    On Windows the launched process is placed in a job object before it runs.
+    The kernel adds every descendant to the job, so membership identifies them
+    without matching names or parent ids, and terminating the job cannot reach
+    a process this monitor did not start. A Godot that someone else opens
+    while a run is in progress is never a member. Closing the job (also when
+    this Python process dies) terminates whatever is left in it.
+    """
+
+    def __init__(self, process: subprocess.Popen[str]) -> None:
+        self._process = process
+        self._api = None
+        self._job = None
+        self._terminated = False
+        if os.name != "nt":
+            return
+        api = _job_api()
+        job = api.CreateJobObjectW(None, None)
+        if not job:
+            raise ctypes.WinError(ctypes.get_last_error())
+        root = None
+        try:
+            limits = _JobLimits()
+            limits.BasicLimitInformation.LimitFlags = _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if not api.SetInformationJobObject(
+                job, _JOB_EXTENDED_LIMIT_INFORMATION, ctypes.byref(limits), ctypes.sizeof(limits)
+            ):
+                raise ctypes.WinError(ctypes.get_last_error())
+            root = api.OpenProcess(_PROCESS_SET_QUOTA | _PROCESS_TERMINATE, False, process.pid)
+            if not root:
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not api.AssignProcessToJobObject(job, root):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not _resume_process(api, process.pid) and process.poll() is None:
+                raise OSError(f"process {process.pid} could not be resumed")
+        except OSError:
+            api.CloseHandle(job)
+            raise
+        finally:
+            if root:
+                api.CloseHandle(root)
+        self._api, self._job = api, job
+
+    def member_pids(self) -> list[int]:
+        """Pids of the owned processes that are still alive."""
+        if self._job is None:
+            return [self._process.pid] if self._process.poll() is None and not self._terminated else []
+        ids = _JobProcessIds()
+        if not self._api.QueryInformationJobObject(
+            self._job, _JOB_BASIC_PROCESS_ID_LIST, ctypes.byref(ids), ctypes.sizeof(ids), None
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return sorted(int(ids.ProcessIdList[i]) for i in range(ids.NumberOfProcessIdsInList))
+
+    def members(self) -> list[dict[str, Any]]:
+        return [{"image_name": self._image_name(pid), "pid": pid} for pid in self.member_pids()]
+
+    def total_processes(self) -> int | None:
+        """Every process that was ever in the tree, short-lived ones included."""
+        if self._job is None:
+            return None
+        accounting = _JobAccounting()
+        if not self._api.QueryInformationJobObject(
+            self._job, _JOB_BASIC_ACCOUNTING_INFORMATION,
+            ctypes.byref(accounting), ctypes.sizeof(accounting), None,
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return int(accounting.TotalProcesses)
+
+    def terminate(self) -> list[int]:
+        """Terminate the owned processes that are alive; return their pids."""
+        alive = self.member_pids()
+        if self._job is None:
+            if alive:
+                self._process.kill()
+                self._terminated = True
+            return alive
+        if not alive:
+            return []
+        if not self._api.TerminateJobObject(self._job, 1):
+            raise ctypes.WinError(ctypes.get_last_error())
+        deadline = time.monotonic() + 5.0
+        while self.member_pids() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        return alive
+
+    def close(self) -> None:
+        if self._job is not None:
+            self._api.CloseHandle(self._job)
+            self._job = None
+
+    def _image_name(self, pid: int) -> str:
+        if pid == self._process.pid:
+            return Path(str(self._process.args[0])).name
+        if self._job is None:
+            return ""
+        handle = self._api.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return ""
+        try:
+            size = wintypes.DWORD(1024)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            if not self._api.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                return ""
+            return Path(buffer.value).name
+        finally:
+            self._api.CloseHandle(handle)
 
 
 def _open_process_handle(pid: int) -> tuple[int | None, int]:
@@ -314,6 +537,8 @@ def _start_without_windows_error_ui(
     previous_mode = kernel32.SetErrorMode(requested_mode)
     kernel32.SetErrorMode(previous_mode | requested_mode)
     try:
+        # Suspended: _OwnedProcessTree puts it in its job before it can run
+        # or spawn anything, then resumes it.
         process = subprocess.Popen(
             command,
             cwd=ROOT,
@@ -321,16 +546,38 @@ def _start_without_windows_error_ui(
             stderr=subprocess.PIPE,
             text=True,
             env=environment,
-            creationflags=creationflags,
+            creationflags=creationflags | _CREATE_SUSPENDED,
         )
     finally:
         kernel32.SetErrorMode(previous_mode)
     return process, True
 
 
+class PreexistingGodotErrorDialog(RuntimeError):
+    """A Godot error popup was already open before this launch.
+
+    Windows hard-error popups outlive the process that raised them until
+    someone accepts them. The window scan matches by title, so a stale popup
+    would be attributed to the next, healthy run and kill it (exit 1). The
+    launcher refuses to start instead; detection during a run is unchanged.
+    """
+
+
+def _require_no_preexisting_error_dialogs() -> None:
+    dialogs = _windows_godot_error_dialogs()
+    if dialogs:
+        raise PreexistingGodotErrorDialog(
+            "Godot error dialog already open before launch; it belongs to an "
+            "earlier process and would be misattributed to this run. Accept it "
+            "and check Event Viewer > System > Event ID 26 for its origin "
+            f"before relaunching: {dialogs}"
+        )
+
+
 def _run_monitored(
     command: list[str], timeout_s: int, environment: dict[str, str] | None = None
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+    _require_no_preexisting_error_dialogs()
     requested_executable = Path(command[0])
     launched_executable, console_wrapper_bypassed = \
         _resolve_monitored_executable(requested_executable)
@@ -345,64 +592,107 @@ def _run_monitored(
     dialogs: set[str] = set()
     timed_out = False
     terminated_pids: list[int] = []
+    residual: list[dict[str, Any]] = []
     next_process_sample = 0.0
     process, windows_error_ui_suppressed = _start_without_windows_error_ui(
         launch_command, environment
     )
+    try:
+        tree = _OwnedProcessTree(process)
+    except OSError:
+        # Without ownership nothing could be cleaned up safely: do not run.
+        process.kill()
+        process.communicate()
+        raise
+    owned_pids: set[int] = {process.pid}
+
+    def sample() -> None:
+        # Names only say what to look at. Ownership comes from the job, read
+        # on both sides of the name scan so a new descendant is not missed.
+        owned_pids.update(tree.member_pids())
+        _sample_godot_processes(observed, handles, capture_races, capture_failures)
+        owned_pids.update(tree.member_pids())
 
     stdout = ""
     stderr = ""
-    while True:
-        dialogs.update(_windows_godot_error_dialogs())
-        now = time.monotonic()
-        if now >= next_process_sample or dialogs:
-            _sample_godot_processes(
-                observed, handles, capture_races, capture_failures
-            )
-            next_process_sample = now + _PROCESS_SAMPLE_S
-        if dialogs:
-            if process.poll() is None:
-                process.kill()
-            terminated_pids.extend(
-                _terminate_observed_godot_processes(list(observed.values()))
-            )
-            stdout, stderr = process.communicate()
-            break
-        remaining = timeout_s - (now - started)
-        if remaining <= 0:
-            timed_out = True
-            if process.poll() is None:
-                process.kill()
-            _sample_godot_processes(
-                observed, handles, capture_races, capture_failures
-            )
-            terminated_pids.extend(
-                _terminate_observed_godot_processes(list(observed.values()))
-            )
-            stdout, stderr = process.communicate()
-            break
-        try:
-            stdout, stderr = process.communicate(
-                timeout=min(_WINDOW_POLL_S, remaining)
-            )
-            break
-        except subprocess.TimeoutExpired:
-            continue
+    root_exited_at: float | None = None
+    try:
+        while True:
+            dialogs.update(_windows_godot_error_dialogs())
+            now = time.monotonic()
+            if now >= next_process_sample or dialogs:
+                sample()
+                next_process_sample = now + _PROCESS_SAMPLE_S
+            if dialogs:
+                terminated_pids.extend(tree.terminate())
+                stdout, stderr = process.communicate()
+                break
+            remaining = timeout_s - (now - started)
+            if remaining <= 0:
+                timed_out = True
+                sample()
+                terminated_pids.extend(tree.terminate())
+                stdout, stderr = process.communicate()
+                break
+            if process.poll() is not None:
+                # The launched process is gone but its output is still open:
+                # a descendant holds it. Give it the drain time, no more.
+                if root_exited_at is None:
+                    root_exited_at = now
+                elif now - root_exited_at >= _OWNED_DESCENDANT_DRAIN_S:
+                    sample()
+                    residual = tree.members()
+                    terminated_pids.extend(tree.terminate())
+                    stdout, stderr = process.communicate()
+                    break
+            try:
+                stdout, stderr = process.communicate(
+                    timeout=min(_WINDOW_POLL_S, remaining)
+                )
+                break
+            except subprocess.TimeoutExpired:
+                continue
 
-    post_exit_started = time.monotonic()
-    post_exit_deadline = post_exit_started + _POST_EXIT_OBSERVATION_S
-    while time.monotonic() < post_exit_deadline:
-        dialogs.update(_windows_godot_error_dialogs())
-        _sample_godot_processes(
-            observed, handles, capture_races, capture_failures
-        )
-        time.sleep(_WINDOW_POLL_S)
+        post_exit_started = time.monotonic()
+        post_exit_deadline = post_exit_started + _POST_EXIT_OBSERVATION_S
+        drain_deadline = (root_exited_at or post_exit_started) + _OWNED_DESCENDANT_DRAIN_S
+        descendants_last_seen = post_exit_started
+        while True:
+            now = time.monotonic()
+            descendants = bool(tree.member_pids())
+            if descendants:
+                descendants_last_seen = now
+            # Past the fixed window, keep waiting only for owned descendants
+            # that are still working, and only while nothing has gone wrong.
+            if now >= post_exit_deadline and not (
+                descendants and now < drain_deadline and not dialogs and not residual
+            ):
+                break
+            dialogs.update(_windows_godot_error_dialogs())
+            if now < post_exit_deadline or now >= next_process_sample:
+                sample()
+                next_process_sample = now + _PROCESS_SAMPLE_S
+            time.sleep(_WINDOW_POLL_S)
 
-    residual = _godot_processes()
-    dialogs.update(_windows_godot_error_dialogs())
-    if residual:
-        terminated_pids.extend(_terminate_observed_godot_processes(residual))
+        dialogs.update(_windows_godot_error_dialogs())
+        if not residual:
+            # Owned processes still alive after the drain time: hung. Only
+            # these are terminated; a Godot seen by name that is not in the
+            # tree is not.
+            residual = tree.members()
+            terminated_pids.extend(tree.terminate())
+        owned_process_total = tree.total_processes()
+    finally:
+        tree.close()
     observed_with_exit = _collect_process_exit_codes(observed, handles)
+    owned = [item for item in observed_with_exit if item["pid"] in owned_pids]
+    foreign = [item for item in observed_with_exit if item["pid"] not in owned_pids]
+    if all(item["pid"] != process.pid for item in owned):
+        owned.append({
+            "image_name": launched_executable.name,
+            "pid": process.pid,
+            "exit_code": process.returncode,
+        })
     health = {
         "contract": _RUNTIME_HEALTH_CONTRACT,
         "requested_executable": str(requested_executable),
@@ -414,7 +704,13 @@ def _run_monitored(
         "wrapper_exit_code": process.returncode,
         "timed_out": timed_out,
         "error_dialogs": sorted(dialogs),
-        "observed_godot_processes": observed_with_exit,
+        "process_ownership": "job-object" if os.name == "nt" else "launched-process-only",
+        "owned_process_total": owned_process_total,
+        "owned_descendant_wait_s": round(descendants_last_seen - post_exit_started, 3),
+        "observed_godot_processes": sorted(
+            owned, key=lambda item: (item["image_name"].lower(), item["pid"])
+        ),
+        "foreign_godot_processes": foreign,
         "process_handle_capture_races": sorted(
             capture_races.values(),
             key=lambda item: (item["image_name"].lower(), item["pid"]),
@@ -450,6 +746,11 @@ def _runtime_health_errors(health: Any) -> list[str]:
     if health.get("residual_godot_processes") != []:
         errors.append(
             f"residual Godot processes detected: {health.get('residual_godot_processes')}"
+        )
+    if health.get("foreign_godot_processes", []) != []:
+        errors.append(
+            "foreign Godot processes seen during the run (not terminated); the "
+            f"run is contaminated: {health.get('foreign_godot_processes')}"
         )
     if health.get("process_quiescent") is not True:
         errors.append("Godot process state did not become quiescent")

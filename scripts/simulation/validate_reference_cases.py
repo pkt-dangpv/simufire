@@ -159,6 +159,29 @@ def _display_path(path: Path) -> Path:
         return path
 
 
+def _portable_path(path: Path) -> str:
+    return _display_path(path).as_posix()
+
+
+def _reference_paths() -> dict[str, str | list[str]]:
+    """Only repo-relative paths belong in the versioned reference report."""
+    return {
+        "nist_cfast_csv": _portable_path(
+            CFAST_DIR / "r0_hall_window_360_compartments.csv"
+        ),
+        "cfast_case": _portable_path(REPORTS_DIR / "cfast_r0_window_360.json"),
+        "ghanekar_case": _portable_path(
+            REPORTS_DIR / "ghanekar_bedroom_hallway.json"
+        ),
+        "cfast_new_scenarios": [
+            _portable_path(CFAST_DIR / "cfast_single_room_closed.in"),
+            _portable_path(CFAST_DIR / "cfast_two_room_door_open.in"),
+            _portable_path(CFAST_DIR / "cfast_post_flashover_vented.in"),
+            _portable_path(CFAST_DIR / "cfast_hvac_residential.in"),
+        ],
+    }
+
+
 @dataclass
 class Check:
     name: str
@@ -227,6 +250,19 @@ _GHANEKAR_PDF = (
     / "Evolution of combustion gas concentrations in full-scale residential fire.pdf"
 )
 _ARTIFACT_CACHE: dict[Path, dict[str, Any]] = {}
+_TEXT_ARTIFACT_SUFFIXES = frozenset({".csv", ".in", ".json", ".log"})
+
+
+def _provenance_bytes(path: Path, payload: bytes) -> bytes:
+    """Hash text as repository-canonical LF, regardless of checkout EOL.
+
+    Git's `* text=auto eol=lf` stores these evidence formats as LF.  PDF
+    evidence remains byte-exact; a real content edit to a text artifact is
+    still visible after only CRLF sequences are normalized.
+    """
+    if path.suffix.lower() in _TEXT_ARTIFACT_SUFFIXES:
+        return payload.replace(b"\r\n", b"\n")
+    return payload
 
 
 def _artifact_record(path: Path) -> dict[str, Any]:
@@ -234,9 +270,9 @@ def _artifact_record(path: Path) -> dict[str, Any]:
     if path not in _ARTIFACT_CACHE:
         if not path.is_file():
             raise FileNotFoundError(f"provenance artifact missing: {_display_path(path)}")
-        payload = path.read_bytes()
+        payload = _provenance_bytes(path, path.read_bytes())
         _ARTIFACT_CACHE[path] = {
-            "path": _display_path(path).as_posix(),
+            "path": _portable_path(path),
             "bytes": len(payload),
             "sha256": hashlib.sha256(payload).hexdigest(),
         }
@@ -3508,17 +3544,7 @@ def main(
         "failed_required_count": len(failed),
         "known_gap_count": len(known_gaps),
         "checks": [check.to_dict() for check in all_checks],
-        "references": {
-            "nist_cfast_csv": str(CFAST_DIR / "r0_hall_window_360_compartments.csv"),
-            "cfast_case": str(REPORTS_DIR / "cfast_r0_window_360.json"),
-            "ghanekar_case": str(REPORTS_DIR / "ghanekar_bedroom_hallway.json"),
-            "cfast_new_scenarios": [
-                str(CFAST_DIR / "cfast_single_room_closed.in"),
-                str(CFAST_DIR / "cfast_two_room_door_open.in"),
-                str(CFAST_DIR / "cfast_post_flashover_vented.in"),
-                str(CFAST_DIR / "cfast_hvac_residential.in"),
-            ],
-        },
+        "references": _reference_paths(),
     }
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -12,12 +12,16 @@ import json
 import os
 import secrets
 import shutil
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts import godot_monitored_launch  # noqa: E402
+
 _GODOT_CANDIDATES = [
     Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
     Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
@@ -866,16 +870,22 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[run_scenario] output:   {out_dir}")
     print(f"[run_scenario] godot:    {godot}")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            cwd=str(_REPO_ROOT),
-            capture_output=True,
-            text=True,
-            timeout=args.timeout,
+    # Monitored launch: no window, popup scan, residual-process check. Nothing
+    # is started while a Godot popup or process predates this run.
+    result = godot_monitored_launch.run(cmd, args.timeout)
+    if result.health is not None:
+        (out_dir / "monitor.health.json").write_text(
+            json.dumps(result.health, indent=2) + "\n", encoding="utf-8"
         )
-    except subprocess.TimeoutExpired:
+    if not result.launched:
+        print("ERROR: Godot was not launched", file=sys.stderr)
+        for reason in (*result.preexisting, *result.faults):
+            print(f"  - {reason}", file=sys.stderr)
+        return 1
+    if result.timed_out:
         print(f"ERROR: Godot run timed out after {args.timeout}s", file=sys.stderr)
+        for fault in result.faults:
+            print(f"  - monitor: {fault}", file=sys.stderr)
         for pattern in _fatal_godot_errors(_load_text(out_dir / "godot.log")):
             print(f"  - fatal Godot error: {pattern}", file=sys.stderr)
         return 1
@@ -885,7 +895,7 @@ def main(argv: list[str] | None = None) -> int:
     if result.stderr:
         print(result.stderr.rstrip(), file=sys.stderr)
 
-    combined = (result.stdout or "") + (result.stderr or "")
+    combined = result.stdout + result.stderr
     diagnostic_output = combined + _load_text(out_dir / "godot.log")
     expected_pass_marker = f"RUN_SCENARIO PASS token={run_token}"
     output_failures = _validate_outputs(
@@ -897,6 +907,7 @@ def main(argv: list[str] | None = None) -> int:
     fatal_errors = _fatal_godot_errors(diagnostic_output)
     if (
         result.returncode != 0
+        or result.faults
         or expected_pass_marker not in combined
         or fatal_errors
         or output_failures
@@ -904,6 +915,8 @@ def main(argv: list[str] | None = None) -> int:
         print("ERROR: run_scenario failed", file=sys.stderr)
         if result.returncode != 0:
             print(f"  - Godot exited with code {result.returncode}", file=sys.stderr)
+        for fault in result.faults:
+            print(f"  - monitor: {fault}", file=sys.stderr)
         if expected_pass_marker not in combined:
             print("  - completion marker missing or stale", file=sys.stderr)
         for pattern in fatal_errors:
