@@ -130,7 +130,7 @@ def test_bare_carriage_return_is_content_not_line_ending(tmp_path: Path) -> None
 
 
 GAP_EVIDENCE = ROOT / "sim/validation/evidence/p1r8_gap_disposition_evidence.json"
-REAL_GAP = "cfast_2r_hall_rmse_o2"
+REAL_GAP = "confinement_open_close_room_0_final_o2"
 
 
 def _crlf_checkout_of_gap(tmp_path: Path, monkeypatch):
@@ -177,8 +177,8 @@ def test_real_gap_evidence_rejects_content_mutation_in_crlf_checkout(
     tmp_path: Path, monkeypatch
 ) -> None:
     validator, row, evaluate = _crlf_checkout_of_gap(tmp_path, monkeypatch)
-    csv = next(a["path"] for a in row["source_artifacts"] if a["path"].endswith(".csv"))
-    target = tmp_path / csv
+    source = next(a["path"] for a in row["source_artifacts"] if a["path"].startswith("sim/validation/cases/"))
+    target = tmp_path / source
     payload = target.read_bytes()
     lines = payload.split(b"\r\n")
     data_row = lines[len(lines) // 2]
