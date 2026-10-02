@@ -15,6 +15,9 @@ var _projection_trace_path: String = ""
 var _projection_trace_file: FileAccess = null
 var _co_inventory_trace_file: FileAccess = null
 var _co_inventory_next_sample_s: float = 0.0
+var _fuel_source_ledger_file: FileAccess = null
+# G3-3: libro contable v3 escrito por CombustionSystem (solo observación).
+var _g3_fuel_ledger_v3_file: FileAccess = null
 
 
 func _ready() -> void:
@@ -370,13 +373,26 @@ func _run() -> void:
 	if not _open_co_inventory_trace(engine, building):
 		_close_projection_trace()
 		return
+	if not _open_fuel_source_ledger():
+		_close_projection_trace()
+		_close_co_inventory_trace()
+		return
+	if not _open_g3_fuel_ledger_v3(engine):
+		_close_projection_trace()
+		_close_co_inventory_trace()
+		_close_fuel_source_ledger()
+		return
 
 	if not _run_loop(engine, building, duration_s, step_s, opening_events, suppression_events):
 		_close_projection_trace()
 		_close_co_inventory_trace()
+		_close_fuel_source_ledger()
+		_close_g3_fuel_ledger_v3()
 		return
 	_close_projection_trace()
 	_close_co_inventory_trace()
+	_close_fuel_source_ledger()
+	_close_g3_fuel_ledger_v3()
 
 	var details: String = "run_scenario scenario=%s duration_s=%.3f step_s=%.3f" % [
 		_scenario_path.get_file(),
@@ -386,6 +402,14 @@ func _run() -> void:
 	if not engine.export_technical_results(details, _out_dir):
 		_abort("run_scenario_headless: technical export failed")
 		return
+	if bool(_cli_args.get("fuel_object_state_snapshot", false)):
+		if not _write_fuel_object_state_snapshot(building, engine):
+			_abort("run_scenario_headless: fuel object state snapshot failed")
+			return
+	if bool(_cli_args.get("species_inflight_snapshot", false)):
+		if not _write_species_inflight_snapshot(engine):
+			_abort("run_scenario_headless: species inflight snapshot failed")
+			return
 
 	if not _write_manifest(engine, duration_s, step_s, ignite_on_start):
 		_abort("run_scenario_headless: could not write run_manifest.json")
@@ -445,6 +469,14 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["fire_o2_mode"] = arg.get_slice("=", 1)
 		elif arg == "--co-inventory-trace":
 			parsed["co_inventory_trace"] = true
+		elif arg == "--fuel-object-state-snapshot":
+			parsed["fuel_object_state_snapshot"] = true
+		elif arg == "--fuel-source-ledger":
+			parsed["fuel_source_ledger"] = true
+		elif arg == "--g3-fuel-ledger-v3":
+			parsed["g3_fuel_ledger_v3"] = true
+		elif arg == "--species-inflight-snapshot":
+			parsed["species_inflight_snapshot"] = true
 		elif arg == "--phase3-zone-diagnostics":
 			parsed["phase3_zone_diagnostics"] = true
 		elif arg == "--phase3-runtime-ownership-ledger":
@@ -559,6 +591,77 @@ func _load_json(path: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _write_fuel_object_state_snapshot(building: BuildingModel, engine: SimulationEngine) -> bool:
+	# Opt-in G3 observation only; no mutation of objects or combustion state.
+	var payload: Dictionary = {
+		"schema_version": "g3_fuel_object_state_v1",
+		"sim_time_s": engine.sim_time_s,
+		"rooms": []
+	}
+	var room_ids: Array = building.get_rooms().keys()
+	room_ids.sort()
+	for room_id in room_ids:
+		var room: RoomModel = building.get_room(room_id)
+		var objects: Array = []
+		for obj in room.fuel_objects:
+			if obj == null:
+				continue
+			objects.append({
+				"id": String(obj.id),
+				"state": engine.combustion_system.fuel_object_state_to_string(int(obj.state)),
+				"fuel_energy_MJ": float(obj.fuel_energy_MJ),
+				"remaining_fuel_MJ": float(obj.remaining_fuel_MJ),
+				"hrr_kw": float(obj.hrr_kw),
+				"co_yield_kg_per_MJ": float(obj.co_yield_kg_per_MJ),
+				"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
+			})
+		payload["rooms"].append({"room_id": int(room_id), "objects": objects})
+	var path: String = _out_dir.path_join("fuel_object_state_snapshot.json")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.close()
+	return FileAccess.file_exists(path)
+
+
+func _write_species_inflight_snapshot(engine: SimulationEngine) -> bool:
+	# Opt-in G3 diagnostic only. These are internal legacy transport parcels,
+	# not a second owner of CO and not a new source/sink in the solver.
+	var raw_pending: Variant = engine.gas_exchange_system.get("_pending_interior_deliveries")
+	var raw_destinations: Variant = engine.gas_exchange_system.get("_inflight_species_kg")
+	if typeof(raw_pending) != TYPE_ARRAY or typeof(raw_destinations) != TYPE_DICTIONARY:
+		return false
+	var pending_co_kg: float = 0.0
+	var pending_smoke_kg: float = 0.0
+	for raw_entry in raw_pending:
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			return false
+		var entry: Dictionary = raw_entry
+		pending_co_kg += float(entry.get("co_kg", 0.0))
+		pending_smoke_kg += float(entry.get("smoke_kg", 0.0))
+	var destination_co_kg: float = 0.0
+	for raw_entry in raw_destinations.values():
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			return false
+		destination_co_kg += float(raw_entry.get("co", 0.0))
+	var payload: Dictionary = {
+		"schema_version": "g3_species_inflight_v1",
+		"sim_time_s": engine.sim_time_s,
+		"pending_parcel_count": raw_pending.size(),
+		"pending_co_kg": pending_co_kg,
+		"destination_inflight_co_kg": destination_co_kg,
+		"pending_smoke_kg": pending_smoke_kg
+	}
+	var path: String = _out_dir.path_join("species_inflight_snapshot.json")
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.close()
+	return FileAccess.file_exists(path)
 
 
 func _build_template_data(scenario: Dictionary) -> Dictionary:
@@ -766,8 +869,17 @@ func _run_loop(
 			return true
 
 		var previous_time_s: float = sim_time_s
+		var fuel_before: Dictionary = {}
+		if _fuel_source_ledger_file != null:
+			fuel_before = _capture_fuel_source_state(building, engine)
 		engine.step(step_s / maxf(0.001, engine.time_scale))
 		sim_time_s = engine.sim_time_s
+		if _fuel_source_ledger_file != null:
+			_append_fuel_source_ledger(fuel_before, _capture_fuel_source_state(building, engine), sim_time_s)
+		if _g3_fuel_ledger_v3_file != null:
+			for row in engine.combustion_system.g3_drain_fuel_ledger(building):
+				row["time_s"] = sim_time_s
+				_g3_fuel_ledger_v3_file.store_line(JSON.stringify(row, "", true, true))
 		_append_co_inventory_trace(engine, building, sim_time_s)
 		if _projection_trace_enabled:
 			var state: Dictionary = engine.get_state()
@@ -880,6 +992,172 @@ func _close_co_inventory_trace() -> void:
 		_co_inventory_trace_file.flush()
 		_co_inventory_trace_file.close()
 	_co_inventory_trace_file = null
+
+
+func _open_fuel_source_ledger() -> bool:
+	if not bool(_cli_args.get("fuel_source_ledger", false)):
+		return true
+	_fuel_source_ledger_file = FileAccess.open(
+		_out_dir.path_join("fuel_source_ledger.jsonl"), FileAccess.WRITE
+	)
+	if _fuel_source_ledger_file == null:
+		_abort("run_scenario_headless: could not open fuel_source_ledger.jsonl")
+		return false
+	return true
+
+
+func _open_g3_fuel_ledger_v3(engine: SimulationEngine) -> bool:
+	if not bool(_cli_args.get("g3_fuel_ledger_v3", false)):
+		return true
+	_g3_fuel_ledger_v3_file = FileAccess.open(
+		_out_dir.path_join("g3_fuel_ledger_v3.jsonl"), FileAccess.WRITE
+	)
+	if _g3_fuel_ledger_v3_file == null:
+		_abort("run_scenario_headless: could not open g3_fuel_ledger_v3.jsonl")
+		return false
+	engine.combustion_system.g3_fuel_ledger_enabled = true
+	return true
+
+
+func _close_g3_fuel_ledger_v3() -> void:
+	if _g3_fuel_ledger_v3_file != null:
+		_g3_fuel_ledger_v3_file.flush()
+		_g3_fuel_ledger_v3_file.close()
+	_g3_fuel_ledger_v3_file = null
+
+
+func _capture_fuel_source_state(building: BuildingModel, engine: SimulationEngine) -> Dictionary:
+	# Read-only G3 observation around one engine.step; not a second fuel owner.
+	var rooms: Dictionary = {}
+	var room_ids: Array = building.get_rooms().keys()
+	room_ids.sort()
+	for room_id in room_ids:
+		var room: RoomModel = building.get_room(room_id)
+		var objects: Dictionary = {}
+		for obj in room.fuel_objects:
+			if obj == null:
+				continue
+			objects[String(obj.id)] = {
+				"remaining_fuel_MJ": float(obj.remaining_fuel_MJ),
+				"hrr_kw": float(obj.hrr_kw),
+				"co_yield_kg_per_MJ": float(obj.co_yield_kg_per_MJ),
+				"state": engine.combustion_system.fuel_object_state_to_string(int(obj.state))
+			}
+		rooms[int(room_id)] = {
+			"fuel_consumed_MJ_total": float(room.fuel_consumed_MJ_total),
+			"co_generated_kg_total": float(room.co_generated_kg_total),
+			"co_net_transport_kg_total": float(room.co_net_transport_kg_total),
+			"co_exterior_removed_kg_total": float(room.co_exterior_removed_kg_total),
+			"co_kg": float(room.co_kg),
+			"co_upper_kg": float(room.co_upper_kg),
+			"co2_kg": float(room.co2_kg),
+			"co2_upper_kg": float(room.co2_upper_kg),
+			"co2_generated_kg_step": float(room.co2_generated_kg_step),
+			"hcn_kg": float(room.hcn_kg),
+			"hcn_upper_kg": float(room.hcn_upper_kg),
+			"hcn_generated_kg_step": float(room.hcn_generated_kg_step),
+			"smoke_kg": float(room.smoke_kg),
+			"smoke_generated_kg_total": float(room.smoke_generated_kg_total),
+			"smoke_vented_kg_total": float(room.smoke_vented_kg_total),
+			"smoke_deposited_kg_total": float(room.smoke_deposited_kg_total),
+			"smoke_net_transport_kg_total": float(room.smoke_net_transport_kg_total),
+			"o2_consumed_kg_total_all": float(room.o2_consumed_kg_total_all),
+			"o2_consumed_fire_kg_total": float(room.o2_consumed_fire_kg_total),
+			"o2_exterior_net_kg_total": float(room.o2_exterior_net_kg_total),
+			"o2_net_transport_kg_total": float(room.o2_net_transport_kg_total),
+			"o2_zone_sync_kg_total": float(room.o2_zone_sync_kg_total),
+			"upper_gas_kg": float(room.upper_gas_kg),
+			"lower_gas_kg": float(room.lower_gas_kg),
+			"hrr_kw": float(room.hrr_kw),
+			"objects": objects
+		}
+	return rooms
+
+
+func _append_fuel_source_ledger(before: Dictionary, after: Dictionary, time_s: float) -> void:
+	if _fuel_source_ledger_file == null:
+		return
+	for room_id in after.keys():
+		var pre: Dictionary = before.get(room_id, {})
+		var post: Dictionary = after[room_id]
+		var pre_objects: Dictionary = pre.get("objects", {})
+		var post_objects: Dictionary = post.get("objects", {})
+		var object_rows: Array = []
+		var explicit_burn_MJ: float = 0.0
+		var proxy_burn_MJ: float = 0.0
+		var nominal_explicit_co_kg: float = 0.0
+		for object_id in post_objects.keys():
+			var obj_after: Dictionary = post_objects[object_id]
+			var had_before: bool = pre_objects.has(object_id)
+			var obj_before: Dictionary = pre_objects.get(object_id, {})
+			var remaining_after: float = float(obj_after.get("remaining_fuel_MJ", 0.0))
+			var remaining_before: float = float(obj_before.get("remaining_fuel_MJ", remaining_after))
+			var burn_MJ: float = remaining_before - remaining_after
+			var is_proxy: bool = String(object_id).begins_with("room_proxy_")
+			if is_proxy:
+				proxy_burn_MJ += burn_MJ
+			else:
+				explicit_burn_MJ += burn_MJ
+				nominal_explicit_co_kg += maxf(0.0, burn_MJ) * float(obj_after.get("co_yield_kg_per_MJ", 0.0))
+			object_rows.append({
+				"id": String(object_id),
+				"is_proxy": is_proxy,
+				"new_object": not had_before,
+				"remaining_before_MJ": remaining_before,
+				"remaining_after_MJ": remaining_after,
+				"burn_MJ": burn_MJ,
+				"state_before": String(obj_before.get("state", "not_present")),
+				"state_after": String(obj_after.get("state", "unknown")),
+				"hrr_after_kw": float(obj_after.get("hrr_kw", 0.0)),
+				"co_yield_kg_per_MJ": float(obj_after.get("co_yield_kg_per_MJ", 0.0))
+			})
+		var row: Dictionary = {
+			"schema_version": "g3_fuel_source_step_v2",
+			"time_s": time_s,
+			"room_id": int(room_id),
+			"hrr_after_kw": float(post.get("hrr_kw", 0.0)),
+			"room_fuel_consumed_delta_MJ": float(post.get("fuel_consumed_MJ_total", 0.0))
+				- float(pre.get("fuel_consumed_MJ_total", 0.0)),
+			"explicit_object_burn_delta_MJ": explicit_burn_MJ,
+			"proxy_burn_delta_MJ": proxy_burn_MJ,
+			"nominal_explicit_co_from_burn_kg": nominal_explicit_co_kg,
+			"room_co_generated_delta_kg": float(post.get("co_generated_kg_total", 0.0))
+				- float(pre.get("co_generated_kg_total", 0.0)),
+			"room_co_inventory_delta_kg": float(post.get("co_kg", 0.0))
+				- float(pre.get("co_kg", 0.0)),
+			"room_co_upper_delta_kg": float(post.get("co_upper_kg", 0.0))
+				- float(pre.get("co_upper_kg", 0.0)),
+			"objects": object_rows
+		}
+		for key in [
+			"co_net_transport_kg_total", "co_exterior_removed_kg_total",
+			"co2_kg", "co2_upper_kg", "hcn_kg", "hcn_upper_kg",
+			"smoke_kg", "smoke_generated_kg_total", "smoke_vented_kg_total",
+			"smoke_deposited_kg_total", "smoke_net_transport_kg_total",
+			"o2_consumed_kg_total_all", "o2_consumed_fire_kg_total",
+			"o2_exterior_net_kg_total", "o2_net_transport_kg_total",
+			"o2_zone_sync_kg_total", "upper_gas_kg", "lower_gas_kg"
+		]:
+			row["room_%s_delta" % key] = float(post.get(key, 0.0)) - float(pre.get(key, 0.0))
+		row["room_co2_generated_step_reported_kg"] = float(post.get("co2_generated_kg_step", 0.0))
+		row["room_hcn_generated_step_reported_kg"] = float(post.get("hcn_generated_kg_step", 0.0))
+		row["room_co_balance_residual_kg"] = float(row["room_co_inventory_delta_kg"]) \
+			- float(row["room_co_generated_delta_kg"]) \
+			- float(row["room_co_net_transport_kg_total_delta"]) \
+			+ float(row["room_co_exterior_removed_kg_total_delta"])
+		row["room_smoke_balance_residual_kg"] = float(row["room_smoke_kg_delta"]) \
+			- float(row["room_smoke_generated_kg_total_delta"]) \
+			+ float(row["room_smoke_vented_kg_total_delta"]) \
+			+ float(row["room_smoke_deposited_kg_total_delta"]) \
+			- float(row["room_smoke_net_transport_kg_total_delta"])
+		_fuel_source_ledger_file.store_line(JSON.stringify(row))
+
+
+func _close_fuel_source_ledger() -> void:
+	if _fuel_source_ledger_file != null:
+		_fuel_source_ledger_file.flush()
+		_fuel_source_ledger_file.close()
+	_fuel_source_ledger_file = null
 
 
 func _apply_due_opening_events(building: BuildingModel, opening_events: Array, sim_time_s: float) -> void:

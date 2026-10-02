@@ -18,6 +18,27 @@ const PHASE3_PROPOSAL_UNSUPPORTED_O2_INDEPENDENT: int = 256
 var _phase3_shadow_species_results: Array[Dictionary] = []
 var _phase3_shadow_pre_fire_state: Dictionary = {}
 
+# G3-3: libro contable pasivo de combustible por paso y propietario. Solo lo
+# activa el runner headless (`--g3-fuel-ledger-v3`); la física nunca lo lee.
+# Con false no se ejecuta ninguna instrucción del libro.
+var g3_fuel_ledger_enabled: bool = false
+var _g3_fuel_ledger_pending: Dictionary = {}
+# G3 balance (g3_balance_v1): observables de otros sistemas del mismo paso.
+var _g3_balance_external: Dictionary = {}
+
+# G3: propiedad de energía y potencia por objeto activo (OFF por defecto).
+# Solo en salas cuyo combustible se declara únicamente con objetos explícitos.
+const G3_OWNERSHIP_SWITCH: String = "fire_explicit_object_fuel_ownership_enabled"
+
+# G3 DIAGNÓSTICO (OFF por defecto; NO es física de producto). Hace continuo el
+# objetivo de llama alrededor del umbral can_flame para aislar el efecto de su
+# salto. Solo se fija desde engine_overrides de un escenario de diagnóstico.
+# Diseño: G3_ENERGY_DELAY_DESIGN §13.
+const G3_DIAG_FLAME_TARGET_WINDOW: String = "fire_diag_flame_target_window"
+const G3_DIAG_FLAME_TARGET_JUMP_FRACTION: String = "fire_diag_flame_target_jump_fraction"
+# El mismo umbral que `can_flame = flame_drive > 0.08`; aquí no se decide can_flame.
+const G3_DIAG_CAN_FLAME_DRIVE: float = 0.08
+
 # ============================================================
 # COMBUSTION SYSTEM
 # ------------------------------------------------------------
@@ -1460,14 +1481,20 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.fire_latent_active = false
 		room.combustion_regime = "EXTINGUISHED"
 		_sync_legacy_proxy_idle(room)
+		if bool(context.get(G3_OWNERSHIP_SWITCH, false)):
+			_g3_end_tails(room)
 		room.co_generated_kg_step = 0.0
 		room.co2_generated_kg_step = 0.0
 		room.hcn_generated_kg_step = 0.0
 		room.o2_consumed_kg_step = 0.0
 		room.fuel_consumed_MJ_step = 0.0
+		if g3_fuel_ledger_enabled:
+			_g3_ledger_begin(room, null, dt, context)
 		return false
 
 	var fire: FireModel = room.fire
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_begin(room, fire, dt, context)
 	var ambient_c: float = float(context.get("ambient_c", 20.0))
 	var early_opening_signal: float = clampf(
 		maxf(
@@ -1610,8 +1637,35 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	else:
 		room.fire_dormant_time_s += dt
 
+	# G3 explicit_objects (OFF por defecto): energía y potencia solo de los objetos
+	# activos al inicio del paso; los inactivos no aportan ni elevan el tope.
+	var g3_owned: bool = _g3_explicit_owned_room(room, context)
+	var g3_active: Array = []
+	var g3_power_cap_kw: float = 0.0
+	var g3_available_MJ: float = 0.0
+	var g3_active_remaining_MJ: float = 0.0
+	var g3_active_energy_MJ: float = 0.0
+	var g3_burns: Array = []
+	var g3_step_state: Dictionary = {}
+	var g3_release_MJ: float = 0.0
+	if g3_owned:
+		for obj in room.fuel_objects:
+			if not _explicit_object_is_active(room, obj):
+				continue
+			var obj_cap_kw: float = maxf(0.0, float(obj.max_hrr_kw))
+			g3_active.append(obj)
+			g3_power_cap_kw += obj_cap_kw
+			g3_active_remaining_MJ += obj.remaining_fuel_MJ
+			g3_active_energy_MJ += maxf(obj.remaining_fuel_MJ, float(obj.fuel_energy_MJ))
+			g3_available_MJ += minf(obj.remaining_fuel_MJ, obj_cap_kw * dt / 1000.0)
+		if g3_fuel_ledger_enabled:
+			_g3_ledger_note(room, {"power_cap_kw": g3_power_cap_kw})
+
 	var ideal_hrr_kw: float = fire.compute_hrr_kw(room.fire_time_s)
 	var fuel_fraction: float = fire.remaining_fuel_MJ / maxf(0.001, fire.fuel_energy_MJ)
+	if g3_owned:
+		ideal_hrr_kw = minf(ideal_hrr_kw, g3_power_cap_kw)
+		fuel_fraction = g3_active_remaining_MJ / maxf(0.001, g3_active_energy_MJ)
 	var decay_factor: float = 1.0
 	if fuel_fraction < 0.15:
 		decay_factor = fuel_fraction / 0.15
@@ -1633,6 +1687,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	)
 	rad_feedback = lerpf(1.0, rad_feedback, feedback_o2_engagement)
 	ideal_hrr_kw *= rad_feedback
+	if g3_owned:
+		ideal_hrr_kw = minf(ideal_hrr_kw, g3_power_cap_kw)
 
 	var smolder_fraction: float = float(context.get("fire_smolder_hrr_fraction", 0.10))
 	var latent_cap_basis_kw: float = minf(fire.max_hrr_kw, maxf(previous_hrr_kw, ideal_hrr_kw))
@@ -1677,6 +1733,40 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			solid_pyrolysis_kw,
 			ideal_hrr_kw * clampf(flame_drive, 0.0, 1.0)
 		)
+		# G3 DIAGNÓSTICO (clave ausente o 0: no se ejecuta nada de esto). Dentro de
+		# la ventana (umbral, umbral + ancho) sustituye el objetivo de llama por una
+		# recta que une el valor del umbral con el original en el borde superior.
+		# No cambia can_flame, pirólisis, filtro, recorte de D, O2 ni especies.
+		var g3_diag_window: float = float(context.get(G3_DIAG_FLAME_TARGET_WINDOW, 0.0))
+		if g3_diag_window > 0.0:
+			# El rescoldo que la regla da justo por debajo del umbral.
+			var g3_diag_smolder_kw: float = 0.0
+			if latent_viable:
+				g3_diag_smolder_kw = minf(
+					residual_smolder_cap_kw,
+					solid_pyrolysis_kw * smolder_fraction * lerpf(0.40, 1.0, subvent_engagement)
+				)
+			var g3_diag_jump_fraction: float = clampf(
+				float(context.get(G3_DIAG_FLAME_TARGET_JUMP_FRACTION, 0.0)), 0.0, 1.0
+			)
+			var g3_diag_original_kw: float = fresh_flame_target_kw
+			fresh_flame_target_kw = minf(
+				solid_pyrolysis_kw,
+				g3_diag_flame_target_kw(
+					g3_diag_original_kw, ideal_hrr_kw, flame_drive,
+					g3_diag_smolder_kw, g3_diag_window, g3_diag_jump_fraction
+				)
+			)
+			if g3_fuel_ledger_enabled and flame_drive < G3_DIAG_CAN_FLAME_DRIVE + g3_diag_window:
+				_g3_ledger_note(room, {"diag_flame_target": {
+					"window": g3_diag_window,
+					"jump_fraction": g3_diag_jump_fraction,
+					"flame_drive": flame_drive,
+					"ideal_kw": ideal_hrr_kw,
+					"smolder_at_threshold_kw": g3_diag_smolder_kw,
+					"original_target_kw": g3_diag_original_kw,
+					"target_kw": fresh_flame_target_kw,
+				}})
 	var smolder_target_kw: float = 0.0
 	if not can_flame:
 		if latent_viable:
@@ -1695,7 +1785,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		retained_generation_kw = 0.0
 
 	var available_fuel_MJ: float = maxf(0.0, fire.remaining_fuel_MJ)
+	if g3_owned:
+		available_fuel_MJ = g3_available_MJ
 	var solid_fuel_demand_MJ: float = solid_pyrolysis_kw * dt / 1000.0
+	var g3_demand_unscaled_MJ: float = solid_fuel_demand_MJ
 	var solid_fuel_scale: float = 1.0
 	if solid_fuel_demand_MJ > 0.000001:
 		solid_fuel_scale = minf(1.0, available_fuel_MJ / solid_fuel_demand_MJ)
@@ -1714,6 +1807,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		fresh_flame_target_kw = 0.0
 		smolder_target_kw = 0.0
 		retained_generation_kw = 0.0
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_note(room, {
+			"demand_unscaled_MJ": g3_demand_unscaled_MJ,
+			"available_MJ": available_fuel_MJ,
+			"fuel_scale": solid_fuel_scale,
+			"demand_after_scale_MJ": solid_fuel_demand_MJ,
+			"o2_extinguished": selected_o2_extinguished,
+		})
 
 	# M5 early guard: bloquea re-acumulación de gases sin quemar post-backdraft.
 	# Condición: backdraft ya ocurrió, no estamos en la explosión activa, y O₂ aún no
@@ -1729,10 +1830,20 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		room.floor_area_m2() * float(context.get("fire_unburned_capacity_MJ_per_m2", 1.20))
 	)
+	var g3_bal_pool: Dictionary = {}
+	if g3_fuel_ledger_enabled:
+		g3_bal_pool = {
+			"moment": "CombustionSystem.step_room_fire: tras cada escritura del deposito",
+			"before_MJ": float(room.retained_unburned_MJ),
+			"credit_requested_MJ": retained_generation_kw * dt / 1000.0,
+			"capacity_MJ": pool_capacity_MJ,
+		}
 	room.retained_unburned_MJ = minf(
 		pool_capacity_MJ,
 		maxf(0.0, room.retained_unburned_MJ + retained_generation_kw * dt / 1000.0)
 	)
+	if g3_fuel_ledger_enabled:
+		g3_bal_pool["after_credit_MJ"] = float(room.retained_unburned_MJ)
 
 	var local_opening_signal: float = maxf(
 		float(context.get("outside_open_factor", 0.0)),
@@ -1921,10 +2032,63 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var actual_pool_burn_kw: float = room.hrr_kw * pool_release_target_kw / total_target_kw
 	actual_pool_burn_kw = minf(actual_pool_burn_kw, room.retained_unburned_MJ * 1000.0 / maxf(0.001, dt))
 	var actual_solid_burn_kw: float = maxf(0.0, room.hrr_kw - actual_pool_burn_kw)
+	if g3_owned:
+		# G3 Gate B opción D (prototipo): el débito del paso se asigna primero a
+		# los objetos activos; el calor sólido es B0 = min(petición del filtro, T_s)
+		# más la liberación del saldo R de cada dueño, acotada por el permiso de
+		# potencia del modelo (flame_drive) Y por la cota de masa de O2 del
+		# sumidero del fuego. Diseño: G3_ENERGY_DELAY_DESIGN §8–§9.
+		g3_burns = _g3_allocate_owned(room, g3_active, solid_fuel_demand_MJ, dt, context)
+		g3_step_state = _g3_option_d_step(
+			room, g3_active, g3_burns, actual_solid_burn_kw, actual_pool_burn_kw,
+			fresh_flame_target_kw + smolder_target_kw, solid_pyrolysis_kw,
+			flame_drive, can_flame, selected_o2_extinguished, dt,
+			fire.o2_consumption_kg_per_MJ, context
+		)
+		actual_solid_burn_kw = float(g3_step_state["solid_kw"])
+		g3_release_MJ = float(g3_step_state["release_MJ"])
+		room.hrr_kw = actual_solid_burn_kw + actual_pool_burn_kw
+		room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_note(room, {
+			"hrr_requested_kw": room.hrr_target_kw,
+			"hrr_applied_kw": room.hrr_kw,
+			"actual_solid_burn_kw": actual_solid_burn_kw,
+			"actual_pool_burn_kw": actual_pool_burn_kw,
+			"pool_generation_MJ": retained_generation_kw * dt / 1000.0,
+			"flame_target_kw": fresh_flame_target_kw,
+			"smolder_target_kw": smolder_target_kw,
+			"pyrolysis_kw": solid_pyrolysis_kw,
+		})
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_note(room, {"bal_fuel": {
+			"moment": "CombustionSystem.step_room_fire: tras el reparto solido/deposito",
+			"flame_drive": flame_drive,
+			"o2_hrr_factor": float(room.o2_hrr_factor),
+			"can_flame": can_flame,
+			"latent_viable": latent_viable,
+			"o2_extinguished": selected_o2_extinguished,
+			"pyrolysis_MJ": solid_pyrolysis_kw * dt / 1000.0,
+			"flame_target_MJ": fresh_flame_target_kw * dt / 1000.0,
+			"smolder_target_MJ": smolder_target_kw * dt / 1000.0,
+			"pool_generation_MJ": retained_generation_kw * dt / 1000.0,
+			"unburned_generation_fraction": float(context.get("fire_unburned_generation_fraction", 0.30)),
+			# U: derivado, sin variable ni inventario en el motor.
+			"unburned_without_inventory_MJ": (
+				solid_pyrolysis_kw - fresh_flame_target_kw - smolder_target_kw - retained_generation_kw
+			) * dt / 1000.0,
+			"physical_inventory": false,
+			"solid_heat_MJ": actual_solid_burn_kw * dt / 1000.0,
+			"pool_heat_MJ": actual_pool_burn_kw * dt / 1000.0,
+			"release_from_R_MJ": g3_release_MJ,
+		}})
+		g3_bal_pool["burn_requested_MJ"] = actual_pool_burn_kw * dt / 1000.0
 	room.retained_unburned_MJ = maxf(
 		0.0,
 		room.retained_unburned_MJ - actual_pool_burn_kw * dt / 1000.0
 	)
+	if g3_fuel_ledger_enabled:
+		g3_bal_pool["after_burn_MJ"] = float(room.retained_unburned_MJ)
 	room.retained_unburned_MJ = maxf(
 		0.0,
 		room.retained_unburned_MJ - room.retained_unburned_MJ \
@@ -1932,6 +2096,11 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			* (1.0 + opening_signal * 1.5 + (1.0 - temp_signal) * 0.5) \
 			* dt
 	)
+	if g3_fuel_ledger_enabled:
+		g3_bal_pool["decay_per_s"] = float(context.get("fire_unburned_decay_per_s", 0.0))
+		g3_bal_pool["opening_signal"] = opening_signal
+		g3_bal_pool["temp_signal"] = temp_signal
+		g3_bal_pool["after_decay_MJ"] = float(room.retained_unburned_MJ)
 
 	# Backdraft: consume retained fuel explosivamente (bypass del límite pool_release_max_fraction)
 	if room.backdraft_active and room.retained_unburned_MJ > 0.0:
@@ -1940,6 +2109,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			room.hrr_kw * dt / 1000.0 * 0.60
 		)
 		room.retained_unburned_MJ = maxf(0.0, room.retained_unburned_MJ - bd_consume_MJ)
+
+	if g3_fuel_ledger_enabled:
+		g3_bal_pool["backdraft_active"] = bool(room.backdraft_active)
+		g3_bal_pool["backdraft_hrr_kw"] = float(room.hrr_kw)
+		g3_bal_pool["after_backdraft_MJ"] = float(room.retained_unburned_MJ)
+		_g3_ledger_note(room, {"bal_pool": g3_bal_pool})
 
 	var smoke_basis_multiplier: float = lerpf(
 		1.0 + float(context.get("fire_smoke_basis_min_fraction", 0.0)),
@@ -1976,6 +2151,25 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var smoke_basis_MJ: float = smoke_basis_kw * dt / 1000.0
 	var heat_release_MJ: float = room.hrr_kw * dt / 1000.0
 	room.smoke_prod_kg_s = _compute_smoke_production_kg_s(smoke_basis_kw, smoke_yield_kg_per_MJ)
+	var g3_bal_species: Dictionary = {}
+	if g3_fuel_ledger_enabled:
+		g3_bal_species = {
+			"moment": "CombustionSystem.step_room_fire: humo antes de las extinciones; gases alrededor de la escritura",
+			"committed": false,
+			"smoke": {
+				"solid_heat_term_kw": actual_solid_burn_kw,
+				"flame_target_kw": fresh_flame_target_kw,
+				"smolder_target_kw": smolder_target_kw,
+				"basis_multiplier": smoke_basis_multiplier,
+				"retained_term_kw": retained_smoke_basis_kw,
+				"pool_term_kw": pool_smoke_basis_kw,
+				"basis_kw": smoke_basis_kw,
+				"yield_base_kg_per_MJ": base_smoke_yield_kg_per_MJ,
+				"yield_kg_per_MJ": smoke_yield_kg_per_MJ,
+				"requested_kg": float(room.smoke_prod_kg_s) * dt,
+			},
+		}
+		_g3_ledger_note(room, {"bal_species": g3_bal_species})
 	# SF-AUD-008: fracción de smoke_kg que es soot ópticamente activo (K_m = 8700 m²/kg).
 	room.soot_fraction = _resolve_room_soot_fraction(room, 1.0)
 	# SF-AUD-015: fracción radiativa bien ventilada por combustible (-1.0 = usar global del motor).
@@ -1988,12 +2182,16 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			and latent_viable \
 			and room.fire_dormant_time_s >= latent_timeout_s:
 		if room.retained_unburned_MJ < 0.5 or room.hrr_kw <= extinction_hrr_kw:
+			if g3_owned:
+				_g3_note_uncommitted(room, g3_step_state, actual_pool_burn_kw)
 			return _extinguish_room_fire(room, fire)
 
 	var extinction_delay_s: float = float(context.get("fire_extinction_delay_s", 0.0))
 	if not can_flame \
 			and not latent_viable \
 			and room.fire_dormant_time_s >= extinction_delay_s:
+		if g3_owned:
+			_g3_note_uncommitted(room, g3_step_state, actual_pool_burn_kw)
 		return _extinguish_room_fire(room, fire)
 
 	var starvation_factor: float = extinction_factor if use_fds_extinction else raw_o2_factor
@@ -2006,6 +2204,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			and room.fire_time_s > 60.0:
 		room.fire_low_hrr_time_s += dt
 		if room.fire_low_hrr_time_s >= extinction_delay_s:
+			if g3_owned:
+				_g3_note_uncommitted(room, g3_step_state, actual_pool_burn_kw)
 			return _extinguish_room_fire(room, fire)
 	else:
 		room.fire_low_hrr_time_s = 0.0
@@ -2113,10 +2313,21 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			hcn_max_yield
 		)
 		generated_hcn_kg = hcn_yield * co_basis_MJ
+		if g3_fuel_ledger_enabled:
+			g3_bal_species["hcn_yield_kg_per_MJ"] = hcn_yield
 
 	# HCl, acroleína, formaldehído — SF-AUD-018 (FEC irritantes, ISO 13571 §A.3).
 	# Default yield = 0.0 → retrocompatible. Solo activos si el combustible tiene Cl / es PU/madera.
 	# HCl: solo materiales con Cl (PVC). No aumenta con phi (no es producto de combustion incompleta).
+	if g3_fuel_ledger_enabled:
+		g3_bal_species["irritants"] = {
+			"basis_kw": co_basis_kw,
+			"hcl_before_kg": float(room.hcl_kg),
+			"acrolein_before_kg": float(room.acrolein_kg),
+			"formaldehyde_before_kg": float(room.formaldehyde_kg),
+			"acrolein_yield_kg_per_MJ": 0.0,
+			"formaldehyde_yield_kg_per_MJ": 0.0,
+		}
 	var hcl_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "hcl_yield_kg_per_MJ", 0.0)
 	if hcl_yield > 0.0:
 		room.hcl_kg += hcl_yield * co_basis_MJ
@@ -2129,6 +2340,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			acrolein_yield * 4.0
 		)
 		room.acrolein_kg += acrolein_yield_eff * co_basis_MJ
+		if g3_fuel_ledger_enabled:
+			g3_bal_species["irritants"]["acrolein_yield_kg_per_MJ"] = acrolein_yield_eff
 	var formaldehyde_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "formaldehyde_yield_kg_per_MJ", 0.0)
 	if formaldehyde_yield > 0.0:
 		var formaldehyde_yield_eff: float = clampf(
@@ -2137,6 +2350,13 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			formaldehyde_yield * 3.0
 		)
 		room.formaldehyde_kg += formaldehyde_yield_eff * co_basis_MJ
+		if g3_fuel_ledger_enabled:
+			g3_bal_species["irritants"]["formaldehyde_yield_kg_per_MJ"] = formaldehyde_yield_eff
+	if g3_fuel_ledger_enabled:
+		g3_bal_species["irritants"]["hcl_yield_kg_per_MJ"] = hcl_yield
+		g3_bal_species["irritants"]["hcl_after_kg"] = float(room.hcl_kg)
+		g3_bal_species["irritants"]["acrolein_after_kg"] = float(room.acrolein_kg)
+		g3_bal_species["irritants"]["formaldehyde_after_kg"] = float(room.formaldehyde_kg)
 
 	# CO2 decrece a medida que mas carbono va a CO en lugar de CO2.
 	# Balance aproximado de carbono: a phi=3, ~40% del carbono forma CO en vez de CO2.
@@ -2166,20 +2386,71 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var c_in_hcn: float = generated_hcn_kg * (12.0 / 27.0)
 	var c_total: float = c_in_co + c_in_co2 + c_in_hcn
 	var c_in_soot: float = room.smoke_prod_kg_s * dt * 0.87
+	# G3 opción D: el calor liberado desde el saldo R quema pirolizado debitado en
+	# pasos anteriores; su carbono cuenta para el tope de especies del paso (las
+	# especies siguen al HRR aplicado), no para c_burned_total (ya se contó al
+	# debitarse). Sin liberación, c_clamp_kg == c_avail_kg exactamente.
+	var c_clamp_kg: float = c_avail_kg
+	if g3_release_MJ > 0.0:
+		c_clamp_kg = c_avail_kg + g3_release_MJ * c_per_MJ
 	# SF-CBAL: registrar el exceso real solicitado por los yields ANTES del clamp.
+	# Diagnóstico SF-CBAL: siempre contra el carbono del combustible del paso; en
+	# un paso con liberación de R incluye el carbono diferido de R (declarado).
 	room.c_preclamp_excess_kg += maxf(0.0, c_total + c_in_soot - c_avail_kg)
-	if c_avail_kg > 0.0 and c_total > c_avail_kg:
-		var c_scale: float = c_avail_kg / c_total
+	if g3_fuel_ledger_enabled:
+		g3_bal_species["co"] = {
+			"solid_heat_term_kw": actual_solid_burn_kw,
+			"pool_term_kw": pool_co_basis_kw,
+			"retained_term_kw": retained_co_basis_kw,
+			"smolder_target_kw": smolder_target_kw,
+			"basis_kw": co_basis_kw,
+			"phi": phi,
+			"yield_base_kg_per_MJ": co_base_yield,
+			"yield_kg_per_MJ": co_yield,
+			"requested_kg": generated_co_kg,
+		}
+		g3_bal_species["hcn"] = {
+			"basis_kw": co_basis_kw,
+			"yield_base_kg_per_MJ": hcn_base_yield,
+			"yield_kg_per_MJ": float(g3_bal_species.get("hcn_yield_kg_per_MJ", 0.0)),
+			"requested_kg": generated_hcn_kg,
+		}
+		g3_bal_species.erase("hcn_yield_kg_per_MJ")
+		g3_bal_species["co2"] = {
+			"heat_term_MJ": heat_release_MJ,
+			"smoke_basis_term_MJ": smoke_basis_MJ * 0.60,
+			"yield_base_kg_per_MJ": co2_base,
+			"yield_min_kg_per_MJ": co2_min,
+			"yield_kg_per_MJ": co2_yield,
+			"requested_kg": generated_co2_kg,
+		}
+		g3_bal_species["carbon_clamp"] = {
+			"c_kg_per_MJ": c_per_MJ,
+			"fuel_debit_MJ": solid_fuel_demand_MJ,
+			"release_from_R_MJ": g3_release_MJ,
+			"c_available_kg": c_avail_kg,
+			"c_clamp_kg": c_clamp_kg,
+			"c_requested_gas_kg": c_total,
+			"c_in_soot_kg": c_in_soot,
+			"soot_inside_clamp": false,
+			"applied": false,
+			"scale": 1.0,
+		}
+	if c_clamp_kg > 0.0 and c_total > c_clamp_kg:
+		var c_scale: float = c_clamp_kg / c_total
+		if g3_fuel_ledger_enabled:
+			g3_bal_species["carbon_clamp"]["applied"] = true
+			g3_bal_species["carbon_clamp"]["scale"] = c_scale
 		generated_co_kg *= c_scale
 		generated_co2_kg *= c_scale
 		generated_hcn_kg *= c_scale
 	# Fracción de carbono POST-clamp (diagnóstico SF-AUD-032).
 	# Siempre ≤ 1.0; confirma que la conservación se cumple paso a paso.
-	if c_avail_kg > 0.0:
+	if c_clamp_kg > 0.0:
 		var c_produced: float = generated_co_kg * (12.0 / 28.0) \
 				+ generated_co2_kg * (12.0 / 44.0) \
 				+ generated_hcn_kg * (12.0 / 27.0)
-		room.c_balance_frac = c_produced / c_avail_kg
+		room.c_balance_frac = c_produced / c_clamp_kg
 	else:
 		room.c_balance_frac = 0.0
 	# SF-D2: tracking estequiométrico de O2 (Thornton, default-off).
@@ -2243,7 +2514,26 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	if bool(context.get("phase3_canonical_zone_shadow_enabled", false)):
 		# F3.0d: registrar el resultado post-clamp antes de cualquier write de especies.
 		_phase3_shadow_species_results.append(species_generation_result.duplicate(true))
+	if g3_fuel_ledger_enabled:
+		g3_bal_species["co"]["applied_kg"] = generated_co_kg
+		g3_bal_species["co"]["applied_upper_kg"] = generated_co_kg * _p2g_upper_frac
+		g3_bal_species["co2"]["applied_kg"] = generated_co2_kg
+		g3_bal_species["hcn"]["applied_kg"] = generated_hcn_kg
+		g3_bal_species["inventory_before"] = _g3_balance_gas_inventory(room)
 	_apply_species_generation_result(room, species_generation_result)
+	if g3_fuel_ledger_enabled:
+		g3_bal_species["inventory_after"] = _g3_balance_gas_inventory(room)
+		g3_bal_species["committed"] = true
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_note(room, {
+			"species": {
+				"co_kg": generated_co_kg,
+				"co2_kg": generated_co2_kg,
+				"hcn_kg": generated_hcn_kg,
+				"smoke_kg": room.smoke_prod_kg_s * dt,
+			},
+			"consumed_MJ": solid_fuel_demand_MJ,
+		})
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
 	# SF-E1: capturar consumo de combustible sólido para auditoría de balance energético.
@@ -2253,14 +2543,19 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# OES aplica Thornton sobre hrr_kw; este acumulador permite verificar la coherencia
 	# entre ambos subsistemas: delta(o2_consumed_kg_total_all) ≈ delta(hrr_kj_total) * 7.6e-5.
 	room.hrr_kj_total += maxf(0.0, room.hrr_kw) * dt
-	_sync_explicit_objects_from_active_fire(
-		room,
-		actual_solid_burn_kw,
-		solid_fuel_demand_MJ,
-		can_flame,
-		dt,
-		context
-	)
+	if g3_owned:
+		_g3_apply_owned(room, g3_active, g3_burns, g3_step_state, can_flame)
+		# El FireModel refleja el inventario de objetos: un único propietario.
+		fire.remaining_fuel_MJ = get_room_total_remaining_fuel_MJ(room)
+	else:
+		_sync_explicit_objects_from_active_fire(
+			room,
+			actual_solid_burn_kw,
+			solid_fuel_demand_MJ,
+			can_flame,
+			dt,
+			context
+		)
 
 	_sync_legacy_proxy_from_fire(room, fire, room.hrr_kw, can_flame)
 
@@ -3186,6 +3481,16 @@ func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = 
 	if room == null:
 		return false
 
+	if g3_fuel_ledger_enabled:
+		_g3_ledger_note(room, {"bal_extinction": {
+			"moment": "CombustionSystem._extinguish_room_fire",
+			"burned_out": burned_out,
+			"pool_before_MJ": float(room.retained_unburned_MJ),
+			"hrr_cancelled_kw": float(room.hrr_kw),
+			"pyrolysis_cancelled_kw": float(room.pyrolysis_kw),
+			"pool_generation_cancelled_kw": float(room.unburned_generation_kw),
+			"smoke_cancelled_kg_s": float(room.smoke_prod_kg_s),
+		}})
 	room.combustion_regime = "EXTINGUISHED"
 	if burned_out:
 		_mark_legacy_proxy_burned_out(room)
@@ -3444,6 +3749,11 @@ func _sync_explicit_objects_from_active_fire(
 		total_weight += weight
 
 	if candidates.is_empty():
+		if g3_fuel_ledger_enabled:
+			_g3_ledger_note(room, {
+				"allocation_unassigned_MJ": solid_fuel_demand_MJ,
+				"allocation_no_candidates": true,
+			})
 		return
 
 	if solid_fuel_demand_MJ <= 0.000001 or actual_solid_burn_kw <= 0.000001:
@@ -3481,6 +3791,15 @@ func _sync_explicit_objects_from_active_fire(
 				entry["burn_MJ"] = float(entry["burn_MJ"]) + extra_MJ
 				candidates[index] = entry
 				consumed_MJ += extra_MJ
+
+	if g3_fuel_ledger_enabled:
+		var g3_allocations: Dictionary = {}
+		for entry in candidates:
+			g3_allocations[String(entry["obj"].id)] = float(entry["burn_MJ"])
+		_g3_ledger_note(room, {
+			"allocations": g3_allocations,
+			"allocation_unassigned_MJ": maxf(0.0, solid_fuel_demand_MJ - consumed_MJ),
+		})
 
 	for entry in candidates:
 		var obj = entry["obj"]
@@ -3700,3 +4019,678 @@ func _interp_hrr_curve(curve: Array, t_s: float) -> float:
 			var alpha: float = (t_s - ta) / maxf(0.0001, tb - ta)
 			return maxf(0.0, lerpf(ha, hb, alpha))
 	return maxf(0.0, h_last)
+
+
+# ============================================================
+# G3-3 — LIBRO CONTABLE PASIVO DE COMBUSTIBLE
+# ------------------------------------------------------------
+# Solo se ejecuta con g3_fuel_ledger_enabled. Lee el estado y copia valores
+# locales del paso; ninguna variable física lee lo que escribe.
+# ============================================================
+
+func _g3_ownership_mode(room: RoomModel, context: Dictionary) -> String:
+	if not _has_explicit_fuel_objects(room):
+		return "aggregate"
+	if room.fuel_energy_MJ > 0.0 or room.max_hrr_kw > 0.0:
+		return "legacy_room_load"
+	if _g3_explicit_owned_room(room, context):
+		return "explicit_owned"
+	return "legacy_objects_only"
+
+
+func _g3_ledger_begin(room: RoomModel, fire: FireModel, dt: float, context: Dictionary) -> void:
+	var objects: Array = []
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		objects.append({
+			"id": String(obj.id),
+			"is_proxy": _is_legacy_room_proxy(obj),
+			"remaining_before_MJ": float(obj.remaining_fuel_MJ),
+			"state_before": fuel_object_state_to_string(int(obj.state)),
+			"active_before": _explicit_object_is_active(room, obj),
+			"max_hrr_kw": float(obj.max_hrr_kw),
+			"co_yield_kg_per_MJ": float(obj.co_yield_kg_per_MJ),
+		})
+		if bool(context.get(G3_OWNERSHIP_SWITCH, false)):
+			objects[objects.size() - 1]["r_balance_before_MJ"] = float(obj.g3_r_balance_MJ)
+			objects[objects.size() - 1]["tail_state_before"] = int(obj.g3_r_tail_state)
+	_g3_fuel_ledger_pending[room.id] = {
+		"schema_version": "g3_fuel_ledger_v3",
+		"room_id": room.id,
+		"dt_s": dt,
+		"switch_on": bool(context.get(G3_OWNERSHIP_SWITCH, false)),
+		"ownership_mode": _g3_ownership_mode(room, context),
+		"declared_room_fuel_MJ": float(room.fuel_energy_MJ),
+		"declared_room_max_hrr_kw": float(room.max_hrr_kw),
+		"fire_present_before": fire != null,
+		"_fire": fire,
+		"fire_fuel_energy_MJ": float(fire.fuel_energy_MJ) if fire != null else 0.0,
+		"fire_max_hrr_kw": float(fire.max_hrr_kw) if fire != null else 0.0,
+		"fire_remaining_before_MJ": float(fire.remaining_fuel_MJ) if fire != null else 0.0,
+		"power_cap_kw": float(fire.max_hrr_kw) if fire != null else 0.0,
+		"pool_before_MJ": float(room.retained_unburned_MJ),
+		"demand_unscaled_MJ": 0.0,
+		"available_MJ": 0.0,
+		"fuel_scale": 1.0,
+		"consumed_MJ": 0.0,
+		"hrr_requested_kw": 0.0,
+		"hrr_applied_kw": 0.0,
+		"actual_solid_burn_kw": 0.0,
+		"actual_pool_burn_kw": 0.0,
+		"pool_generation_MJ": 0.0,
+		"allocations": {},
+		"allocation_unassigned_MJ": 0.0,
+		"species": {"co_kg": 0.0, "co2_kg": 0.0, "hcn_kg": 0.0, "smoke_kg": 0.0},
+		"objects": objects,
+	}
+	_g3_fuel_ledger_pending[room.id]["bal_schema"] = "g3_balance_v1"
+	_g3_fuel_ledger_pending[room.id]["bal_state_before"] = _g3_balance_room_state(room)
+
+
+## G3 DIAGNÓSTICO (no es física de producto). Objetivo de llama con la clave:
+## fuera de la ventana (umbral, umbral + ancho) devuelve el original sin tocar;
+## dentro, la recta entre
+##   - el umbral:  rescoldo + fracción_de_salto · (ideal · umbral − rescoldo)
+##   - el borde:   ideal · (umbral + ancho), el valor de la regla original.
+## Con fracción 0 es continuo en el umbral; con fracción 1 es la regla original.
+static func g3_diag_flame_target_kw(
+	original_kw: float,
+	ideal_kw: float,
+	flame_drive: float,
+	smolder_at_threshold_kw: float,
+	window: float,
+	jump_fraction: float
+) -> float:
+	var outside_window: bool = (
+		flame_drive <= G3_DIAG_CAN_FLAME_DRIVE
+		or flame_drive >= G3_DIAG_CAN_FLAME_DRIVE + window
+	)
+	if window <= 0.0 or outside_window:
+		return original_kw
+	var at_threshold_kw: float = lerpf(
+		smolder_at_threshold_kw, ideal_kw * G3_DIAG_CAN_FLAME_DRIVE, jump_fraction
+	)
+	var at_window_top_kw: float = ideal_kw * (G3_DIAG_CAN_FLAME_DRIVE + window)
+	return lerpf(
+		at_threshold_kw, at_window_top_kw, (flame_drive - G3_DIAG_CAN_FLAME_DRIVE) / window
+	)
+
+
+func _g3_ledger_note(room: RoomModel, values: Dictionary) -> void:
+	if not _g3_fuel_ledger_pending.has(room.id):
+		return
+	var record: Dictionary = _g3_fuel_ledger_pending[room.id]
+	for key in values.keys():
+		record[key] = values[key]
+
+
+## G3 balance (g3_balance_v1). Solo lectura: estado de la sala tal cual, sin
+## redondear. Lo usa el libro al empezar step_room_fire y al cerrar el paso.
+func _g3_balance_room_state(room: RoomModel) -> Dictionary:
+	var state: Dictionary = _g3_balance_gas_inventory(room)
+	state["pool_MJ"] = float(room.retained_unburned_MJ)
+	state["o2"] = float(room.o2)
+	state["o2_upper"] = float(room.o2_upper)
+	state["o2_lower"] = float(room.o2_lower)
+	state["co2_upper_tracer"] = float(room.co2_upper)
+	state["hcl_kg"] = float(room.hcl_kg)
+	state["acrolein_kg"] = float(room.acrolein_kg)
+	state["formaldehyde_kg"] = float(room.formaldehyde_kg)
+	state["smoke_kg"] = float(room.smoke_kg)
+	state["hrr_kw"] = float(room.hrr_kw)
+	state["fuel_consumed_MJ_total"] = float(room.fuel_consumed_MJ_total)
+	state["hrr_kj_total"] = float(room.hrr_kj_total)
+	return state
+
+
+func _g3_balance_gas_inventory(room: RoomModel) -> Dictionary:
+	return {
+		"co_kg": float(room.co_kg),
+		"co_upper_kg": float(room.co_upper_kg),
+		"co2_kg": float(room.co2_kg),
+		"co2_upper_kg": float(room.co2_upper_kg),
+		"hcn_kg": float(room.hcn_kg),
+		"hcn_upper_kg": float(room.hcn_upper_kg),
+	}
+
+
+## Acumulados del paso que escriben otros sistemas (humo generado por
+## GasExchangeSystem, O2 por OxygenExchangeSystem), leídos al cerrar el paso.
+func _g3_balance_room_step_counters(room: RoomModel) -> Dictionary:
+	return {
+		"smoke_generated_kg": float(room.smoke_generated_kg_step),
+		"smoke_vented_kg": float(room.smoke_vented_kg_step),
+		"smoke_deposited_kg": float(room.smoke_deposited_kg_step),
+		"smoke_net_transport_kg": float(room.smoke_net_transport_kg_step),
+		"co_generated_kg": float(room.co_generated_kg_step),
+		"co2_generated_kg": float(room.co2_generated_kg_step),
+		"hcn_generated_kg": float(room.hcn_generated_kg_step),
+		"o2_consumed_all_kg": float(room.o2_consumed_kg_step_all),
+		"o2_consumed_bulk_kg": float(room.o2_consumed_bulk_kg_step),
+		"o2_consumed_fire_kg": float(room.o2_consumed_fire_kg_step),
+		"o2_exterior_net_kg": float(room.o2_exterior_net_kg_step),
+		"o2_net_transport_kg": float(room.o2_net_transport_kg_step),
+		"o2_zone_sync_kg": float(room.o2_zone_sync_kg_step),
+		"fuel_consumed_MJ": float(room.fuel_consumed_MJ_step),
+	}
+
+
+## Otros sistemas del mismo paso (O2, supresión) entregan aquí sus
+## observables; se unen al registro en g3_drain_fuel_ledger. Con el libro
+## apagado no guarda nada.
+func g3_balance_note_external(room_id: int, key: String, value: Dictionary) -> void:
+	if not g3_fuel_ledger_enabled:
+		return
+	if not _g3_balance_external.has(room_id):
+		_g3_balance_external[room_id] = {}
+	_g3_balance_external[room_id][key] = value
+
+
+## Reparte la sonda que OxygenExchangeSystem.step rellenó por sala.
+func g3_balance_note_o2_probe(probe: Dictionary) -> void:
+	for room_id in probe.keys():
+		var row: Dictionary = probe[room_id]
+		if row.has("co2_tracer"):
+			g3_balance_note_external(int(room_id), "bal_co2_tracer", row["co2_tracer"])
+			row.erase("co2_tracer")
+		g3_balance_note_external(int(room_id), "bal_o2", row)
+
+
+## Completa y devuelve los registros del paso; lo llama el runner tras engine.step().
+func g3_drain_fuel_ledger(building) -> Array:
+	var rows: Array = []
+	for room_id in _g3_fuel_ledger_pending.keys():
+		var record: Dictionary = _g3_fuel_ledger_pending[room_id]
+		var room: RoomModel = building.get_room(room_id) if building != null else null
+		var fire = record.get("_fire", null)
+		record.erase("_fire")
+		record["fire_extinguished_this_step"] = bool(record["fire_present_before"]) \
+				and (room == null or room.fire == null)
+		record["fire_remaining_after_MJ"] = float(fire.remaining_fuel_MJ) if fire != null else 0.0
+		record["hrr_after_engine_step_kw"] = float(room.hrr_kw) if room != null else 0.0
+		record["pool_after_MJ"] = float(room.retained_unburned_MJ) if room != null else 0.0
+		var after: Dictionary = {}
+		if room != null:
+			for obj in room.fuel_objects:
+				if obj != null:
+					after[String(obj.id)] = obj
+		var allocations: Dictionary = record["allocations"]
+		for entry in record["objects"]:
+			var obj = after.get(entry["id"], null)
+			entry["remaining_after_MJ"] = float(obj.remaining_fuel_MJ) if obj != null else 0.0
+			entry["state_after"] = fuel_object_state_to_string(int(obj.state)) if obj != null else "removed"
+			entry["hrr_after_kw"] = float(obj.hrr_kw) if obj != null else 0.0
+			entry["allocated_MJ"] = float(allocations.get(entry["id"], 0.0))
+			if entry.has("r_balance_before_MJ"):
+				entry["r_balance_after_MJ"] = float(obj.g3_r_balance_MJ) if obj != null else 0.0
+				entry["tail_state_after"] = int(obj.g3_r_tail_state) if obj != null else 0
+		if room != null:
+			record["bal_state_after"] = _g3_balance_room_state(room)
+			record["bal_state_after"]["step"] = _g3_balance_room_step_counters(room)
+		var external: Dictionary = _g3_balance_external.get(room_id, {})
+		for key in external.keys():
+			record[key] = external[key]
+		record.erase("allocations")
+		rows.append(record)
+	_g3_fuel_ledger_pending.clear()
+	_g3_balance_external.clear()
+	return rows
+
+
+# ============================================================
+# G3 — PROPIEDAD DE ENERGÍA Y POTENCIA (explicit_objects, OFF por defecto)
+# ============================================================
+
+## La sala es explicit_objects solo si el interruptor está activo, no declara
+## carga de sala ni potencia de sala y tiene objetos explícitos. Las salas con
+## carga de sala positiva conservan la ruta legacy aunque el interruptor esté ON.
+func _g3_explicit_owned_room(room: RoomModel, context: Dictionary) -> bool:
+	return bool(context.get(G3_OWNERSHIP_SWITCH, false)) \
+			and room.fuel_energy_MJ <= 0.0 \
+			and room.max_hrr_kw <= 0.0 \
+			and _has_explicit_fuel_objects(room)
+
+
+## Mismo criterio de candidato que _sync_explicit_objects_from_active_fire,
+## evaluado con el estado al inicio del paso.
+func _explicit_object_is_active(room: RoomModel, obj) -> bool:
+	if obj == null or _is_legacy_room_proxy(obj):
+		return false
+	if obj.remaining_fuel_MJ <= 0.001:
+		return false
+	return room.flashover_triggered \
+			or bool(obj.is_primary_ignition_source) \
+			or bool(obj.autoignite_ready) \
+			or obj.state == FuelObjectModelScript.State.FLAMING \
+			or obj.state == FuelObjectModelScript.State.PYROLYZING \
+			or _fuel_object_preheat_score(obj) >= 6.0
+
+
+## Reparto con topes (water-filling): distribuye `total` según `weights` sin
+## superar `caps`; lo que no cabe queda sin asignar (el libro lo registra).
+func _g3_waterfill(total: float, weights: Array, caps: Array) -> Array:
+	var n: int = weights.size()
+	var out: Array = []
+	var local_weights: Array = []
+	for i in range(n):
+		out.append(0.0)
+		local_weights.append(maxf(0.0, float(weights[i])))
+	var open: Array = []
+	for i in range(n):
+		if float(caps[i]) > 0.0:
+			open.append(i)
+	var remaining: float = maxf(0.0, total)
+	for _pass in range(n + 1):
+		if remaining <= 0.0 or open.is_empty():
+			break
+		var weight_sum: float = 0.0
+		for i in open:
+			weight_sum += float(local_weights[i])
+		if weight_sum <= 0.0:
+			for i in open:
+				local_weights[i] = 1.0
+			weight_sum = float(open.size())
+		var saturated: Array = []
+		for i in open:
+			var share: float = remaining * float(local_weights[i]) / weight_sum
+			if float(out[i]) + share >= float(caps[i]):
+				saturated.append(i)
+		if saturated.is_empty():
+			for i in open:
+				out[i] = float(out[i]) + remaining * float(local_weights[i]) / weight_sum
+			remaining = 0.0
+			break
+		for i in saturated:
+			remaining -= float(caps[i]) - float(out[i])
+			out[i] = float(caps[i])
+			open.erase(i)
+	return out
+
+
+## Peso de reparto: copia literal de la fórmula de _sync_explicit_objects_from_active_fire.
+func _g3_object_weight(room: RoomModel, obj, preheat_score: float) -> float:
+	if obj.state == FuelObjectModelScript.State.FLAMING:
+		if float(obj.alpha_kw_s2) > 0.0 or not obj.hrr_curve.is_empty():
+			if float(obj.t_ignition_s) < 0.0:
+				obj.t_ignition_s = room.fire_time_s
+	var weight: float
+	if float(obj.alpha_kw_s2) > 0.0 and float(obj.t_ignition_s) >= 0.0:
+		var t_obj: float = maxf(0.0, room.fire_time_s - float(obj.t_ignition_s))
+		var obj_ideal_kw: float = float(obj.alpha_kw_s2) * t_obj * t_obj
+		if float(obj.max_hrr_kw) > 0.0:
+			obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+		weight = maxf(0.01, obj_ideal_kw)
+	elif not obj.hrr_curve.is_empty() and float(obj.t_ignition_s) >= 0.0:
+		var t_obj: float = maxf(0.0, room.fire_time_s - float(obj.t_ignition_s))
+		var obj_ideal_kw: float = _interp_hrr_curve(obj.hrr_curve, t_obj)
+		if float(obj.max_hrr_kw) > 0.0:
+			obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+		weight = maxf(0.01, obj_ideal_kw)
+	elif float(obj.heat_of_gasification_kj_kg) > 0.0 \
+			and float(obj.heat_of_combustion_kj_kg) > 0.0 \
+			and obj.state == FuelObjectModelScript.State.FLAMING:
+		var q_net_kw_m2: float = maxf(0.0,
+			obj.incident_heat_flux_kw_m2 - float(obj.critical_heat_flux_kw_m2))
+		var A_eff_m2: float = maxf(0.01,
+			float(obj.exposed_area_m2) if float(obj.exposed_area_m2) > 0.001
+			else float(obj.footprint_m2) * 0.5)
+		var mlr_kg_s: float = q_net_kw_m2 * A_eff_m2 / float(obj.heat_of_gasification_kj_kg)
+		var obj_ideal_kw: float = mlr_kg_s * float(obj.heat_of_combustion_kj_kg)
+		if float(obj.max_hrr_kw) > 0.0:
+			obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+		weight = maxf(0.01, obj_ideal_kw)
+	else:
+		weight = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * preheat_score / 8.0)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+		weight = maxf(0.01, weight)
+	return weight
+
+
+## explicit_objects: cada MJ consumido se debita de un objeto activo al inicio
+## del paso, con tope por su energía restante y su potencia máxima. Los objetos
+## inactivos no reciben energía; su bandera de autoignición se conserva para el
+## paso siguiente. Calentamiento, pesos y reparto copian la ruta legacy; la
+## química (rendimientos) no se toca. Se evalúa antes de las especies porque la
+## opción D necesita el dueño de cada MJ para acumular y liberar el saldo R; el
+## débito y los estados solo se aplican en _g3_apply_owned (si no hay extinción).
+func _g3_allocate_owned(
+	room: RoomModel,
+	active: Array,
+	solid_fuel_demand_MJ: float,
+	dt: float,
+	context: Dictionary
+) -> Array:
+	_apply_intraroom_object_radiation(room, context)
+
+	var preheat_by_obj: Dictionary = {}
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			# Sin descarte: el residuo <= 1 kJ queda registrado en el inventario.
+			obj.hrr_kw = 0.0
+			obj.state = FuelObjectModelScript.State.BURNED_OUT
+			continue
+		var active_target_temp_c: float = maxf(room.temp_upper_c, obj.ignition_temp_c + 80.0)
+		var heat_blend: float = clampf(dt / 60.0, 0.0, 1.0)
+		obj.surface_temp_c = lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
+		obj.incident_heat_flux_kw_m2 = maxf(
+			obj.incident_heat_flux_kw_m2,
+			_estimate_radiative_flux_kw_m2(room.temp_upper_c, obj.surface_temp_c, 0.85)
+		)
+		preheat_by_obj[obj] = _fuel_object_preheat_score(obj)
+
+	var weights: Array = []
+	var caps_MJ: Array = []
+	for obj in active:
+		weights.append(_g3_object_weight(room, obj, float(preheat_by_obj.get(obj, _fuel_object_preheat_score(obj)))))
+		caps_MJ.append(minf(maxf(0.0, obj.remaining_fuel_MJ), maxf(0.0, float(obj.max_hrr_kw)) * dt / 1000.0))
+	var burns: Array = _g3_waterfill(solid_fuel_demand_MJ, weights, caps_MJ)
+	if g3_fuel_ledger_enabled:
+		var allocated_MJ: float = 0.0
+		for burn in burns:
+			allocated_MJ += float(burn)
+		var g3_allocations: Dictionary = {}
+		for i in range(active.size()):
+			g3_allocations[String(active[i].id)] = float(burns[i])
+		_g3_ledger_note(room, {
+			"allocations": g3_allocations,
+			"allocation_unassigned_MJ": maxf(0.0, solid_fuel_demand_MJ - allocated_MJ),
+		})
+	return burns
+
+
+## G3 Gate B opción D (prototipo; diseño G3_ENERGY_DELAY_DESIGN §8–§9).
+## Saldo R por dueño: acumula w_i·(T_s − B0)·dt en cualquier estado; se libera
+## solo por la llama propia del dueño (activo, con débito, FLAMING al inicio del
+## paso) o por su cola posagotamiento, y cada liberación está acotada a la vez por
+##   - el PERMISO DE POTENCIA del modelo: can_flame, no extinguido por O2, todo el
+##     pirolizado fresco del paso quemado (P <= T_s) y calor del objeto
+##     <= flame_drive · max_hrr_kw (no es una cota de oxígeno);
+##   - la COTA DE MASA DE O2 del sumidero del fuego (OxygenExchangeSystem):
+##     0,076 · (B0 + pool + R liberado) · dt no supera lo que step() aceptará;
+##   - la guarda de extinción tardía: si el paso acabará sin combustible o por
+##     fire_max_active_s (el HRR se anula tras las especies), no se libera R.
+## Solo CALCULA: no toca objetos. El saldo y las colas se confirman en
+## _g3_apply_owned; si el paso termina en una extinción temprana no se confirma
+## nada (_g3_note_uncommitted). R nunca pasa a retained_unburned_MJ, a
+## remaining_fuel_MJ ni a otro dueño.
+func _g3_option_d_step(
+	room: RoomModel,
+	active: Array,
+	burns: Array,
+	requested_solid_kw: float,
+	pool_kw: float,
+	target_kw: float,
+	pyrolysis_kw: float,
+	flame_drive: float,
+	can_flame: bool,
+	o2_extinguished: bool,
+	dt: float,
+	o2_kg_per_MJ: float,
+	context: Dictionary
+) -> Dictionary:
+	var request_kw: float = maxf(0.0, requested_solid_kw)
+	var base_kw: float = minf(request_kw, maxf(0.0, target_kw))
+	var alloc_total_MJ: float = 0.0
+	for burn in burns:
+		alloc_total_MJ += float(burn)
+	var lag_MJ: float = (maxf(0.0, target_kw) - base_kw) * dt / 1000.0
+	var unowned_lag_MJ: float = lag_MJ if alloc_total_MJ <= 0.0 and lag_MJ > 0.0 else 0.0
+	var fresh_all_burn: bool = pyrolysis_kw - target_kw <= 0.000000001
+	# Extinción tardía (tras especies y débito, step_room_fire la anula con hrr=0).
+	var remaining_after_MJ: float = 0.0
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		remaining_after_MJ += maxf(0.0, obj.remaining_fuel_MJ)
+	remaining_after_MJ -= alloc_total_MJ
+	var late_extinction: bool = (remaining_after_MJ <= 0.0 and room.retained_unburned_MJ <= 0.01) \
+			or room.fire_time_s >= float(context.get("fire_max_active_s", 0.0))
+	var power_ok: bool = can_flame and not o2_extinguished and fresh_all_burn
+	var o2_floor_MJ: float = 0.0
+	var floor_callable: Callable = context.get("g3_o2_sink_floor_callable", Callable())
+	if floor_callable.is_valid():
+		o2_floor_MJ = float(floor_callable.call(room, dt, o2_kg_per_MJ))
+	var mass_headroom_MJ: float = maxf(0.0, o2_floor_MJ - (base_kw + maxf(0.0, pool_kw)) * dt / 1000.0)
+	var tau_f_s: float = maxf(0.001, float(context.get("fire_hrr_fall_tau_s", 20.0)))
+	var tail_min_kw: float = 0.25 * float(context.get("fire_extinction_hrr_kw", 0.0))
+
+	var weight_by_id: Dictionary = {}
+	var flaming_before: Dictionary = {}
+	var r_before: Dictionary = {}
+	var accrued: Dictionary = {}
+	var r_new: Dictionary = {}
+	var tail_new: Dictionary = {}
+	for i in range(active.size()):
+		var obj = active[i]
+		var key: String = String(obj.id)
+		weight_by_id[key] = float(burns[i]) / alloc_total_MJ if alloc_total_MJ > 0.0 else 0.0
+		flaming_before[key] = obj.state == FuelObjectModelScript.State.FLAMING
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		var key: String = String(obj.id)
+		r_before[key] = obj.g3_r_balance_MJ
+		accrued[key] = float(weight_by_id.get(key, 0.0)) * lag_MJ
+		r_new[key] = obj.g3_r_balance_MJ + float(accrued[key])
+		tail_new[key] = int(obj.g3_r_tail_state)
+
+	# Candidatos: llama propia (reparto del exceso del filtro por saldo R) y colas.
+	var excess_MJ: float = maxf(0.0, request_kw - maxf(0.0, target_kw)) * dt / 1000.0
+	var own_ids: Array = []
+	var own_weights: Array = []
+	var own_caps: Array = []
+	var allowed: Dictionary = {}
+	var reason: Dictionary = {}
+	for i in range(active.size()):
+		var obj = active[i]
+		var key: String = String(obj.id)
+		var own: bool = float(burns[i]) > 0.0 and bool(flaming_before[key])
+		allowed[key] = own and power_ok and not late_extinction
+		if bool(allowed[key]):
+			reason[key] = "allowed"
+		elif not own:
+			reason[key] = "not_own_flame"
+		elif late_extinction:
+			reason[key] = "late_extinction_guard"
+		else:
+			reason[key] = "power_permit"
+		if not bool(allowed[key]):
+			continue
+		var room_kw: float = maxf(0.0, flame_drive * float(obj.max_hrr_kw) - float(weight_by_id[key]) * base_kw)
+		own_ids.append(key)
+		own_weights.append(float(r_new[key]))
+		own_caps.append(minf(float(r_new[key]), room_kw * dt / 1000.0))
+	var own_rel: Array = _g3_waterfill(excess_MJ, own_weights, own_caps)
+	var release_by_id: Dictionary = {}
+	for i in range(own_ids.size()):
+		release_by_id[own_ids[i]] = float(own_rel[i])
+	var tail_state_before: Dictionary = {}
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj) or active.has(obj):
+			continue
+		var key: String = String(obj.id)
+		tail_state_before[key] = int(obj.g3_r_tail_state)
+		if int(obj.g3_r_tail_state) != 1:
+			allowed[key] = false
+			reason[key] = "tail_ended" if int(obj.g3_r_tail_state) == 2 else "not_own_flame"
+			continue
+		if not power_ok:
+			tail_new[key] = 2
+			allowed[key] = false
+			reason[key] = "tail_interrupted"
+			continue
+		if float(r_new[key]) / tau_f_s * 1000.0 < tail_min_kw:
+			tail_new[key] = 2
+			allowed[key] = false
+			reason[key] = "tail_ended"
+			continue
+		if late_extinction:
+			allowed[key] = false
+			reason[key] = "late_extinction_guard"
+			continue
+		allowed[key] = true
+		reason[key] = "tail"
+		release_by_id[key] = minf(
+			float(r_new[key]) * (1.0 - exp(-dt / tau_f_s)),
+			maxf(0.0, flame_drive * float(obj.max_hrr_kw)) * dt / 1000.0
+		)
+
+	# Cota de masa de O2: la liberación total nunca excede lo que el sumidero
+	# aceptará tras el calor base del paso; si no cabe, se reduce (queda en R).
+	var release_MJ: float = 0.0
+	for key in release_by_id.keys():
+		release_MJ += float(release_by_id[key])
+	var mass_limited: bool = false
+	if release_MJ > mass_headroom_MJ:
+		mass_limited = true
+		var scale: float = mass_headroom_MJ / release_MJ if release_MJ > 0.0 else 0.0
+		release_MJ = 0.0
+		for key in release_by_id.keys():
+			release_by_id[key] = float(release_by_id[key]) * scale
+			release_MJ += float(release_by_id[key])
+
+	var heat_by_id: Dictionary = {}
+	var ledger_objects: Dictionary = {}
+	for key in r_new.keys():
+		var rel: float = float(release_by_id.get(key, 0.0))
+		r_new[key] = float(r_new[key]) - rel
+		heat_by_id[key] = float(weight_by_id.get(key, 0.0)) * base_kw + rel * 1000.0 / dt
+		ledger_objects[key] = {
+			"R_before_MJ": float(r_before[key]),
+			"acc_MJ": float(accrued[key]),
+			"rel_MJ": rel,
+			"R_after_MJ": float(r_new[key]),
+			"B0_MJ": float(weight_by_id.get(key, 0.0)) * base_kw * dt / 1000.0,
+			"weight": float(weight_by_id.get(key, 0.0)),
+			"release_allowed": bool(allowed.get(key, false)),
+			"reason": String(reason.get(key, "not_own_flame")),
+			"tail_state_before": int(tail_state_before.get(key, 0)),
+		}
+	var solid_kw: float = base_kw + release_MJ * 1000.0 / dt
+	return {
+		"solid_kw": solid_kw,
+		"base_kw": base_kw,
+		"heat_by_id": heat_by_id,
+		"flaming_before": flaming_before,
+		"release_MJ": release_MJ,
+		"r_new": r_new,
+		"tail_new": tail_new,
+		"ledger": {
+			"request_solid_kw": request_kw,
+			"base_kw": base_kw,
+			"Ts_kw": maxf(0.0, target_kw),
+			"P_kw": pyrolysis_kw,
+			"flame_drive": flame_drive,
+			"can_flame": can_flame,
+			"fresh_all_burn": fresh_all_burn,
+			"power_permit": power_ok,
+			"late_extinction_guard": late_extinction,
+			"o2_floor_MJ": o2_floor_MJ,
+			"mass_headroom_MJ": mass_headroom_MJ,
+			"mass_limited": mass_limited,
+			"release_MJ": release_MJ,
+			"unowned_lag_MJ": unowned_lag_MJ,
+			"solid_kw": solid_kw,
+			"objects": ledger_objects,
+		},
+	}
+
+
+## Paso con extinción temprana (antes de especies y débito): no se debita nada y
+## la opción D no confirma saldo ni colas; el libro anota solo el calor base.
+func _g3_note_uncommitted(room: RoomModel, step: Dictionary, pool_kw: float) -> void:
+	if not g3_fuel_ledger_enabled or step.is_empty():
+		return
+	var base_kw: float = float(step.get("base_kw", 0.0))
+	_g3_ledger_note(room, {
+		"hrr_applied_kw": base_kw + maxf(0.0, pool_kw),
+		"actual_solid_burn_kw": base_kw,
+		"allocations": {},
+		"allocation_unassigned_MJ": 0.0,
+		"optd_uncommitted": true,
+	})
+
+
+## Aplica el débito y los estados del paso (explicit_objects) y confirma la
+## opción D: saldo R y colas calculados en _g3_option_d_step. El calor de cada
+## objeto es su parte de B0 más su liberación de R; un objeto que se agota
+## ARDIENDO con saldo R > 0 abre su cola (una sola vez).
+func _g3_apply_owned(
+	room: RoomModel,
+	active: Array,
+	burns: Array,
+	step: Dictionary,
+	can_flame: bool
+) -> void:
+	var heat_by_id: Dictionary = step.get("heat_by_id", {})
+	var flaming_before: Dictionary = step.get("flaming_before", {})
+	var r_new: Dictionary = step.get("r_new", {})
+	var tail_new: Dictionary = step.get("tail_new", {})
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		var key: String = String(obj.id)
+		if r_new.has(key):
+			obj.g3_r_balance_MJ = float(r_new[key])
+			obj.g3_r_tail_state = int(tail_new[key])
+	if g3_fuel_ledger_enabled and step.has("ledger"):
+		_g3_ledger_note(room, {"optd": step["ledger"]})
+
+	for i in range(active.size()):
+		var obj = active[i]
+		var key: String = String(obj.id)
+		obj.autoignite_ready = false
+		var burn_MJ: float = float(burns[i])
+		var heat_kw: float = float(heat_by_id.get(key, 0.0))
+		obj.remaining_fuel_MJ = maxf(0.0, obj.remaining_fuel_MJ - burn_MJ)
+		if burn_MJ > 0.0 and heat_kw > 0.0:
+			obj.hrr_kw = heat_kw
+			if float(obj.loi_fraction) > 0.0 and room.o2 < float(obj.loi_fraction):
+				obj.state = FuelObjectModelScript.State.DECAYING
+				obj.hrr_kw = 0.0
+			else:
+				obj.state = FuelObjectModelScript.State.FLAMING if can_flame else FuelObjectModelScript.State.DECAYING
+				obj.exposure_s = maxf(obj.exposure_s, 75.0)
+				if float(obj.char_growth_rate_m_per_kg) > 0.0 and float(obj.heat_of_combustion_kj_kg) > 0.0:
+					var mass_kg: float = burn_MJ * 1000.0 / maxf(1.0, float(obj.heat_of_combustion_kj_kg))
+					obj.char_thickness_m = maxf(0.0, float(obj.char_thickness_m) + float(obj.char_growth_rate_m_per_kg) * mass_kg)
+		else:
+			obj.hrr_kw = 0.0
+			if obj.state == FuelObjectModelScript.State.FLAMING:
+				obj.state = FuelObjectModelScript.State.DECAYING
+		if obj.remaining_fuel_MJ <= 0.001:
+			obj.hrr_kw = 0.0
+			obj.state = FuelObjectModelScript.State.BURNED_OUT
+			if bool(flaming_before.get(key, false)) and int(obj.g3_r_tail_state) == 0 \
+					and obj.g3_r_balance_MJ > 0.0:
+				obj.g3_r_tail_state = 1
+
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj) or active.has(obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			# Objeto agotado: su única fuente de calor posible es su propia cola.
+			obj.hrr_kw = float(heat_by_id.get(String(obj.id), 0.0))
+			continue
+		obj.hrr_kw = 0.0
+		if obj.surface_temp_c >= obj.ignition_temp_c - 45.0:
+			obj.state = FuelObjectModelScript.State.PYROLYZING
+		elif obj.surface_temp_c >= room.temp_lower_c + 35.0:
+			obj.state = FuelObjectModelScript.State.HEATING
+
+
+## Sin fuego en la sala ninguna cola de la opción D puede seguir ni reanudarse.
+func _g3_end_tails(room: RoomModel) -> void:
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		if int(obj.g3_r_tail_state) == 1:
+			obj.g3_r_tail_state = 2

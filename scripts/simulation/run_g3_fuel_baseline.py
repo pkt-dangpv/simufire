@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import secrets
 import sys
+from typing import Callable
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -249,7 +250,15 @@ def _room0_ledger_metrics(path: Path) -> dict:
     }
 
 
-def run() -> int:
+def run(
+    *,
+    case_scenarios: dict[str, dict] | None = None,
+    output_label: str = "g3_fuel_source_baseline",
+    report_schema: str = "g3_fuel_source_baseline_v1",
+    case_extra_metrics: Callable[[Path], dict] | None = None,
+    capture_species_inflight: bool = False,
+    extra_runner_args: list[str] | None = None,
+) -> int:
     godot = run_scenario._find_godot()
     if godot is None:
         raise RuntimeError("Godot executable not found")
@@ -259,7 +268,7 @@ def run() -> int:
         raise RuntimeError(f"less than {MIN_AVAILABLE_GIB:g} GiB free; no baseline launched")
 
     stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    root = ROOT / "runs" / f"g3_fuel_source_baseline_{stamp}"
+    root = ROOT / "runs" / f"{output_label}_{stamp}"
     if root.exists():
         raise RuntimeError(f"output already exists: {root}")
     root.mkdir(parents=True)
@@ -269,9 +278,11 @@ def run() -> int:
     temp.mkdir()
     environment = os.environ.copy()
     environment.update({"APPDATA": str(appdata), "TEMP": str(temp), "TMP": str(temp)})
-    report = {"schema": "g3_fuel_source_baseline_v1", "root": str(root), "cases": []}
+    report = {"schema": report_schema, "root": str(root), "cases": []}
 
-    for name in CASES:
+    selected_cases = {name: case_data(name) for name in CASES} \
+        if case_scenarios is None else case_scenarios
+    for name, scenario_data in selected_cases.items():
         if mutation_audit._godot_processes():
             raise RuntimeError("Godot was not quiescent before next case")
         free_gib = available_gib()
@@ -280,7 +291,7 @@ def run() -> int:
         out_dir = root / name
         out_dir.mkdir()
         scenario = out_dir / "scenario.json"
-        scenario.write_text(json.dumps(case_data(name), ensure_ascii=False, indent=2), encoding="utf-8")
+        scenario.write_text(json.dumps(scenario_data, ensure_ascii=False, indent=2), encoding="utf-8")
         token = secrets.token_hex(16)
         command = [
             str(godot), "--headless", "--path", str(ROOT),
@@ -290,6 +301,9 @@ def run() -> int:
             f"--run-token={token}", "--co-inventory-trace",
             "--fuel-object-state-snapshot", "--fuel-source-ledger",
         ]
+        if capture_species_inflight:
+            command.append("--species-inflight-snapshot")
+        command.extend(extra_runner_args or [])
         completed, health = mutation_audit._run_monitored(command, TIMEOUT_S, environment)
         (out_dir / "monitor.health.json").write_text(
             json.dumps(health, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -302,7 +316,8 @@ def run() -> int:
         if f"RUN_SCENARIO PASS token={token}" not in (completed.stdout or "") + (completed.stderr or ""):
             errors.append("fresh completion marker missing")
         errors.extend(run_scenario._validate_outputs(
-            out_dir, run_token=token, scenario=scenario, expected_duration_s=DURATION_S
+            out_dir, run_token=token, scenario=scenario,
+            expected_duration_s=float(scenario_data.get("duration_s", DURATION_S)),
         ))
         if errors:
             raise RuntimeError(f"{name}: " + "; ".join(errors))
@@ -341,6 +356,8 @@ def run() -> int:
             "room0_fuel_objects": object_states,
             "room0_fuel_ledger": ledger,
         }
+        if case_extra_metrics is not None:
+            case_report["extra_metrics"] = case_extra_metrics(out_dir)
         report["cases"].append(case_report)
         (root / "report.json").write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"

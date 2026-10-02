@@ -7,6 +7,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from tools import mutation_audit
+
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = ROOT / "scripts" / "run_scenario.py"
@@ -148,11 +150,24 @@ def test_exit_zero_with_compile_error_and_stale_outputs_fails(
     fake_godot.write_text("", encoding="utf-8")
 
     monkeypatch.setattr(RUNNER.secrets, "token_hex", lambda _size: "fresh")
+    monkeypatch.setattr(mutation_audit, "_windows_godot_error_dialogs", lambda: [])
+    monkeypatch.setattr(mutation_audit, "_godot_processes", lambda: [])
     monkeypatch.setattr(
-        RUNNER.subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(
-            args[0], 0, "SCRIPT ERROR: Parse Error: invalid source\n", ""
+        mutation_audit,
+        "_run_monitored",
+        lambda command, _timeout_s, _environment=None: (
+            subprocess.CompletedProcess(
+                command, 0, "SCRIPT ERROR: Parse Error: invalid source\n", ""
+            ),
+            {
+                "windows_error_ui_suppressed": True,
+                "timed_out": False,
+                "error_dialogs": [],
+                "residual_godot_processes": [],
+                "process_quiescent": True,
+                "observed_godot_processes": [],
+                "post_exit_observation_s": mutation_audit._POST_EXIT_OBSERVATION_S,
+            },
         ),
     )
 
