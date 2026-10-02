@@ -170,7 +170,7 @@ def test_consumer_lists_stay_closed():
     selection_consumers = sorted(
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and "OpeningProfileSelection" in path.read_text(encoding="utf-8")
     )
     assert selection_consumers == [
@@ -180,7 +180,7 @@ def test_consumer_lists_stay_closed():
     controller_consumers = sorted(
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and "OpeningPhysicsEditor.gd" in path.read_text(encoding="utf-8")
     )
     # El validador de D4B1 tambien lo nombra: su regla 11 exige que el UNICO

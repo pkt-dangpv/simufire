@@ -75,7 +75,7 @@ def test_schema_declares_one_version_and_one_owner():
     owners = [
         path
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and f'String = "{SCHEMA_KEY}"' in path.read_text(encoding="utf-8")
     ]
     assert owners == [SCHEMA_PATH]
@@ -132,7 +132,7 @@ def test_consumer_list_stays_closed():
     consumers = sorted(
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and "PrescribedOpeningPhysicsSchema.gd" in path.read_text(encoding="utf-8")
     )
     # El propio modulo no se nombra a si mismo: la lista son sus consumidores.
