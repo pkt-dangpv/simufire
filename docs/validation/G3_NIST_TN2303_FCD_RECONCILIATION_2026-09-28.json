@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "research_only_not_engine_calibration",
+  "source": "NIST TN 2303 (March 2025), printed Tables 6 and 8, pages 26 and 30",
+  "source_pdf": "docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf",
+  "source_sha256": "7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03",
+  "transient_mass_loss_scope": "Tests 1-24 only, per section 2.2.2; no measured MLR(t) for Tests 28-30",
+  "hcn_units": "kg HCN per kg mass lost; Table 8 values converted from x10^-3 kg/kg",
+  "records": [
+    {
+      "test_id": "Test029",
+      "mass_lost_kg": 52.116,
+      "thr_MJ": 811.0,
+      "co_yield_kg_per_kg": 0.030,
+      "co_yield_Uc_kg_per_kg": 0.001,
+      "hcn_yield_kg_per_kg": 0.00020,
+      "hcn_yield_Uc_kg_per_kg": 0.00002,
+      "attribution": "whole_sofa_and_pillows_open_air"
+    },
+    {
+      "test_id": "Test030",
+      "mass_lost_kg": 77.888,
+      "thr_MJ": 1426.0,
+      "co_yield_kg_per_kg": 0.033,
+      "co_yield_Uc_kg_per_kg": 0.001,
+      "hcn_yield_kg_per_kg": 0.00025,
+      "hcn_yield_Uc_kg_per_kg": 0.00003,
+      "attribution": "whole_sofa_and_pillows_open_air"
+    },
+    {
+      "test_id": "Test028",
+      "mass_lost_kg": 3.3125,
+      "thr_MJ": 23.2,
+      "co_yield_kg_per_kg": 0.012,
+      "co_yield_Uc_kg_per_kg": 0.040,
+      "hcn_yield_kg_per_kg": 0.00046,
+      "hcn_yield_Uc_kg_per_kg": 0.00005,
+      "attribution": "carpet_plus_two_pillows_not_carpet_only"
+    },
+    {
+      "test_id": "Test018",
+      "mass_lost_kg": 0.042,
+      "thr_MJ": 0.93,
+      "co_yield_kg_per_kg": 0.060,
+      "co_yield_Uc_kg_per_kg": 0.043,
+      "hcn_yield_kg_per_kg": 0.00286,
+      "hcn_yield_Uc_kg_per_kg": 0.00047,
+      "attribution": "pilot_contaminated_not_calibratable_below_current_fcd_detection"
+    }
+  ]
+}

@@ -1,0 +1,1288 @@
+{
+  "schema_version": 1,
+  "status": "research_only_cause_not_demonstrated_not_engine_calibration",
+  "retrieved_on": "2026-09-29",
+  "sources": {
+    "tn2303_pdf": {
+      "path": "docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf",
+      "sha256": "7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03",
+      "tables": "Table 6 (printed p. 25-26) mass lost and THR; Table 8 (printed p. 29-30) CO yield, all as printed in March 2025"
+    },
+    "fcd_pages_zip": {
+      "path": "docs/literature/NIST/FCD_DesignFires_Test001-048_pages_retrieved_2026-09-29.zip",
+      "sha256": "6f674d5cb61bfd398d0a541d427c5eb6fe445cd1f2cacc8eb8fce8c3cceb0851",
+      "note": "48 FCD HTML pages retrieved 2026-09-29, stored byte-identical as zip members test001.html..test048.html; all declare NFRL_Report_8.7.1, Last Updated April 7, 2026"
+    },
+    "fcd_user_guide_pdf": {
+      "path": "docs/literature/NIST/FCD_User_Guide_v4a_2020.pdf",
+      "sha256": "89692794156d9a4f32ba0493e791da23d80160035877d2831d31a5317e6cee8f",
+      "note": "Revised 10/23/2020; the only guide linked from the FCD on 2026-09-29"
+    },
+    "fcd_pdr_record": {
+      "url": "https://data.nist.gov/od/id/mds2-2314?format=nerdm",
+      "observed": "releases 1.0.0 initial release, 1.0.1 and 1.0.2 metadata update, all issued 2020-10-20; no 2026 release note"
+    }
+  },
+  "acceptance_criteria": {
+    "fcd2026": "reconstructed CO / FCD mass within the published combined expanded uncertainty Uc",
+    "tn2025": "reconstructed CO / TN mass within printed three-decimal yield +/- 0.0005 kg/kg",
+    "comparison_set": "tests with numeric CO yield and numeric mass in both versions",
+    "declared_before_evaluation": true
+  },
+  "undocumented_processing_items": [
+    "ambient CO averaging window of NFRL_Report_8.7.1",
+    "gas-analyzer delay/alignment applied to exported CSV",
+    "integration bounds used by TN 2303 in 2025",
+    "change log between the 2025 processing and NFRL_Report_8.7.1"
+  ],
+  "tests": [
+    {
+      "test_id": "Test001",
+      "tn2025": {
+        "mass_lost_printed": "0.262",
+        "mass_lost_kg": 0.262,
+        "thr_MJ": 4.4,
+        "co_yield_printed": "0.035",
+        "co_yield_Uc_printed": "0.004"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.262",
+        "mass_lost_kg": 0.262,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 4.4,
+        "co_yield_kg_per_kg": 0.0354,
+        "co_yield_Uc_kg_per_kg": 0.004,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test001_2026-04-07.csv",
+        "sha256": "d2755b52b7085dd89170c24ce9cd08241f7aecbcc5a594e0114fb37eff87eb23",
+        "ignition_s": 0,
+        "fire_out_s": 518
+      }
+    },
+    {
+      "test_id": "Test002",
+      "tn2025": {
+        "mass_lost_printed": "1.043",
+        "mass_lost_kg": 1.043,
+        "thr_MJ": 24.4,
+        "co_yield_printed": "0.023",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "1.043",
+        "mass_lost_kg": 1.043,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 24.4,
+        "co_yield_kg_per_kg": 0.0229,
+        "co_yield_Uc_kg_per_kg": 0.001,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test002_2026-04-07.csv",
+        "sha256": "af2a164ca90c1bba01c0a939bad6f036ebffc6b4c139f270f58584d58e8feaf1",
+        "ignition_s": 0,
+        "fire_out_s": 976
+      }
+    },
+    {
+      "test_id": "Test003",
+      "tn2025": {
+        "mass_lost_printed": "0.717",
+        "mass_lost_kg": 0.717,
+        "thr_MJ": 10.9,
+        "co_yield_printed": "0.030",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.717",
+        "mass_lost_kg": 0.717,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 10.91,
+        "co_yield_kg_per_kg": 0.0296,
+        "co_yield_Uc_kg_per_kg": 0.0016,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test003_2026-04-07.csv",
+        "sha256": "1796a8081c02decb96703eb01fe1784c03a4e386216153f4fd26afc89d26f792",
+        "ignition_s": 0,
+        "fire_out_s": 1218
+      }
+    },
+    {
+      "test_id": "Test004",
+      "tn2025": {
+        "mass_lost_printed": "0.567",
+        "mass_lost_kg": 0.567,
+        "thr_MJ": 9.7,
+        "co_yield_printed": "0.026",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.567",
+        "mass_lost_kg": 0.567,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 9.67,
+        "co_yield_kg_per_kg": 0.0261,
+        "co_yield_Uc_kg_per_kg": 0.0016,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test004_2026-04-07.csv",
+        "sha256": "31fff096ea12cc96d4db1651353f5bbc4900cbd16c1dd5b6f4193e38cb9de25d",
+        "ignition_s": 0,
+        "fire_out_s": 664
+      }
+    },
+    {
+      "test_id": "Test005",
+      "tn2025": {
+        "mass_lost_printed": "0.609",
+        "mass_lost_kg": 0.609,
+        "thr_MJ": 9.5,
+        "co_yield_printed": "0.026",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.609",
+        "mass_lost_kg": 0.609,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 9.48,
+        "co_yield_kg_per_kg": 0.0261,
+        "co_yield_Uc_kg_per_kg": 0.0015,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test005_2026-04-07.csv",
+        "sha256": "91cbfc8c87286935a820e40494242478d2f503b9d527b3ab26cb98f68f8ef417",
+        "ignition_s": 0,
+        "fire_out_s": 2157
+      }
+    },
+    {
+      "test_id": "Test006",
+      "tn2025": {
+        "mass_lost_printed": "0.321",
+        "mass_lost_kg": 0.321,
+        "thr_MJ": 5.4,
+        "co_yield_printed": "0.024",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.321",
+        "mass_lost_kg": 0.321,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 5.44,
+        "co_yield_kg_per_kg": 0.0239,
+        "co_yield_Uc_kg_per_kg": 0.0023,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test006_2026-04-07.csv",
+        "sha256": "981636cb26e372879adc2b32486cb2b1c396d89df212e1239cb946bf4f94b93c",
+        "ignition_s": 0,
+        "fire_out_s": 1201
+      }
+    },
+    {
+      "test_id": "Test007",
+      "tn2025": {
+        "mass_lost_printed": "0.301",
+        "mass_lost_kg": 0.301,
+        "thr_MJ": 5.2,
+        "co_yield_printed": "0.032",
+        "co_yield_Uc_printed": "0.003"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.301",
+        "mass_lost_kg": 0.301,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 5.17,
+        "co_yield_kg_per_kg": 0.0325,
+        "co_yield_Uc_kg_per_kg": 0.0033,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test007_2026-04-07.csv",
+        "sha256": "a4f97018aa58e012dafa29c873e39a41d0fe5c217f1e8b2b9dc8689628880255",
+        "ignition_s": 0,
+        "fire_out_s": 417
+      }
+    },
+    {
+      "test_id": "Test008",
+      "tn2025": {
+        "mass_lost_printed": "0.878",
+        "mass_lost_kg": 0.878,
+        "thr_MJ": 14.8,
+        "co_yield_printed": "0.025",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.878",
+        "mass_lost_kg": 0.878,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 14.83,
+        "co_yield_kg_per_kg": 0.0249,
+        "co_yield_Uc_kg_per_kg": 0.0012,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test008_2026-04-07.csv",
+        "sha256": "50206e7e37f7fe38ed68729751ec279e45927c0d408528a24a0a50f3d1dc78a7",
+        "ignition_s": 0,
+        "fire_out_s": 1004
+      }
+    },
+    {
+      "test_id": "Test009",
+      "tn2025": {
+        "mass_lost_printed": "0.991",
+        "mass_lost_kg": 0.991,
+        "thr_MJ": 16.9,
+        "co_yield_printed": "0.030",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.991",
+        "mass_lost_kg": 0.991,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 16.92,
+        "co_yield_kg_per_kg": 0.0302,
+        "co_yield_Uc_kg_per_kg": 0.0014,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test009_2026-04-07.csv",
+        "sha256": "2bcddc879f9f7724f2e3867f84bf5b0a1f9d2b4b532f0ac6e8d27dcda6b6d31d",
+        "ignition_s": 0,
+        "fire_out_s": 662
+      }
+    },
+    {
+      "test_id": "Test010",
+      "tn2025": {
+        "mass_lost_printed": "2.335",
+        "mass_lost_kg": 2.335,
+        "thr_MJ": 40.1,
+        "co_yield_printed": "0.025",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "2.335",
+        "mass_lost_kg": 2.335,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 40.1,
+        "co_yield_kg_per_kg": 0.02534,
+        "co_yield_Uc_kg_per_kg": 0.00096,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test010_2026-04-07.csv",
+        "sha256": "46b0eb89a44ae5664115ef138172c1abce5736202a74483106abfae0ae49b6f0",
+        "ignition_s": 0,
+        "fire_out_s": 789
+      }
+    },
+    {
+      "test_id": "Test011",
+      "tn2025": {
+        "mass_lost_printed": "0.592",
+        "mass_lost_kg": 0.592,
+        "thr_MJ": 10.0,
+        "co_yield_printed": "0.028",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.592",
+        "mass_lost_kg": 0.592,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 10.03,
+        "co_yield_kg_per_kg": 0.0282,
+        "co_yield_Uc_kg_per_kg": 0.0017,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test011_2026-04-07.csv",
+        "sha256": "c9e5479226055fdf1f0209ab04f5ec2a4044e3fcafa6aedd23b3cafe0393b842",
+        "ignition_s": 0,
+        "fire_out_s": 989
+      }
+    },
+    {
+      "test_id": "Test012",
+      "tn2025": {
+        "mass_lost_printed": "0.584",
+        "mass_lost_kg": 0.584,
+        "thr_MJ": 10.0,
+        "co_yield_printed": "0.028",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.584",
+        "mass_lost_kg": 0.584,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 10.02,
+        "co_yield_kg_per_kg": 0.028,
+        "co_yield_Uc_kg_per_kg": 0.0017,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test012_2026-04-07.csv",
+        "sha256": "55cd5997d5c7cb837448bf24ce3db6c681acf70070e6a60e4c27b94d7aaa090e",
+        "ignition_s": 0,
+        "fire_out_s": 715
+      }
+    },
+    {
+      "test_id": "Test013",
+      "tn2025": {
+        "mass_lost_printed": "0.317",
+        "mass_lost_kg": 0.317,
+        "thr_MJ": 5.4,
+        "co_yield_printed": "0.034",
+        "co_yield_Uc_printed": "0.003"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.317",
+        "mass_lost_kg": 0.317,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 5.41,
+        "co_yield_kg_per_kg": 0.0335,
+        "co_yield_Uc_kg_per_kg": 0.0032,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test013_2026-04-07.csv",
+        "sha256": "e02c5c2915edcf45b72358a130ef2ee27d3b55dd397538ed0e368728d6a8ca9d",
+        "ignition_s": 0,
+        "fire_out_s": 430
+      }
+    },
+    {
+      "test_id": "Test014",
+      "tn2025": {
+        "mass_lost_printed": "0.008",
+        "mass_lost_kg": 0.008,
+        "thr_MJ": 0.19,
+        "co_yield_printed": null,
+        "co_yield_Uc_printed": null
+      },
+      "fcd2026": {
+        "mass_lost_printed": "below detection limit",
+        "mass_lost_kg": "below detection limit",
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 0.19,
+        "co_yield_kg_per_kg": "below detection limit",
+        "co_yield_Uc_kg_per_kg": null,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test014_2026-04-07.csv",
+        "sha256": "505b42171a859d82278e2cf7be1647865517b212963e9a503caea493da1e631c",
+        "ignition_s": 0,
+        "fire_out_s": 363
+      }
+    },
+    {
+      "test_id": "Test015",
+      "tn2025": {
+        "mass_lost_printed": "0.371",
+        "mass_lost_kg": 0.371,
+        "thr_MJ": 5.9,
+        "co_yield_printed": "0.061",
+        "co_yield_Uc_printed": "0.005"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.371",
+        "mass_lost_kg": 0.371,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 5.92,
+        "co_yield_kg_per_kg": 0.0608,
+        "co_yield_Uc_kg_per_kg": 0.0051,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test015_2026-04-07.csv",
+        "sha256": "c09ffcf919000c4a9339ce73fb949bd07c975f9c7142778f66aa1d32a09dc28d",
+        "ignition_s": 0,
+        "fire_out_s": 1511
+      }
+    },
+    {
+      "test_id": "Test016",
+      "tn2025": {
+        "mass_lost_printed": "3.241",
+        "mass_lost_kg": 3.241,
+        "thr_MJ": 115.0,
+        "co_yield_printed": "0.034",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "3.241",
+        "mass_lost_kg": 3.241,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 115.1,
+        "co_yield_kg_per_kg": 0.0339,
+        "co_yield_Uc_kg_per_kg": 0.0013,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test016_2026-04-07.csv",
+        "sha256": "11fc0edc4ea4bec9f5487e7e23349b23cdc0894c7585a8b26077e9dc0d5ac4e1",
+        "ignition_s": 0,
+        "fire_out_s": 3768
+      }
+    },
+    {
+      "test_id": "Test017",
+      "tn2025": {
+        "mass_lost_printed": "1.889",
+        "mass_lost_kg": 1.889,
+        "thr_MJ": 39.0,
+        "co_yield_printed": "0.028",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "1.889",
+        "mass_lost_kg": 1.889,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 38.9,
+        "co_yield_kg_per_kg": 0.0276,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test017_2026-04-07.csv",
+        "sha256": "ddc526ac899f9fbd17380a831c6cfa39fb2136464361d834bc102277f7721eaf",
+        "ignition_s": 0,
+        "fire_out_s": 1001
+      }
+    },
+    {
+      "test_id": "Test018",
+      "tn2025": {
+        "mass_lost_printed": "0.042",
+        "mass_lost_kg": 0.042,
+        "thr_MJ": 0.93,
+        "co_yield_printed": "0.060",
+        "co_yield_Uc_printed": "0.043"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "below detection limit",
+        "mass_lost_kg": "below detection limit",
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 0.93,
+        "co_yield_kg_per_kg": "below detection limit",
+        "co_yield_Uc_kg_per_kg": null,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test018_2026-04-07.csv",
+        "sha256": "787126cccf725f04ffde64e70fd772f835205aa9198fd3241d0a199865bb320f",
+        "ignition_s": 0,
+        "fire_out_s": 1082
+      }
+    },
+    {
+      "test_id": "Test019",
+      "tn2025": {
+        "mass_lost_printed": "1.362",
+        "mass_lost_kg": 1.362,
+        "thr_MJ": 25.0,
+        "co_yield_printed": "0.035",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "1.362",
+        "mass_lost_kg": 1.362,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 24.8,
+        "co_yield_kg_per_kg": 0.0345,
+        "co_yield_Uc_kg_per_kg": 0.0014,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test019_2026-04-07.csv",
+        "sha256": "5409c120bc5ad81c8593768968f83e0966a4d7bd02ff0d5ae6910b10266c182a",
+        "ignition_s": 0,
+        "fire_out_s": 1009
+      }
+    },
+    {
+      "test_id": "Test020",
+      "tn2025": {
+        "mass_lost_printed": "2.066",
+        "mass_lost_kg": 2.066,
+        "thr_MJ": 42.0,
+        "co_yield_printed": "0.052",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "2.066",
+        "mass_lost_kg": 2.066,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 41.7,
+        "co_yield_kg_per_kg": 0.0515,
+        "co_yield_Uc_kg_per_kg": 0.002,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test020_2026-04-07.csv",
+        "sha256": "2d543d21f7f937fcb618c4bc10132c14e549ea41ed88650e0871095f3796c7dd",
+        "ignition_s": 0,
+        "fire_out_s": 2554
+      }
+    },
+    {
+      "test_id": "Test021",
+      "tn2025": {
+        "mass_lost_printed": "2.969",
+        "mass_lost_kg": 2.969,
+        "thr_MJ": 96.0,
+        "co_yield_printed": "0.030",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "2.969",
+        "mass_lost_kg": 2.969,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 96.1,
+        "co_yield_kg_per_kg": 0.0299,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test021_2026-04-07.csv",
+        "sha256": "c6f106da98e74552cb6a7bdd397480472c18191ab3996a53603009e7a009860c",
+        "ignition_s": 0,
+        "fire_out_s": 2960
+      }
+    },
+    {
+      "test_id": "Test022",
+      "tn2025": {
+        "mass_lost_printed": "3.700",
+        "mass_lost_kg": 3.7,
+        "thr_MJ": 49.0,
+        "co_yield_printed": "0.053",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "3.700",
+        "mass_lost_kg": 3.7,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 49.2,
+        "co_yield_kg_per_kg": 0.0493,
+        "co_yield_Uc_kg_per_kg": 0.0018,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test022_2026-04-07.csv",
+        "sha256": "14484a7ccb6e1a2da387cb78b68f9ae18e47092594e20181a2e561dcb8002e33",
+        "ignition_s": 0,
+        "fire_out_s": 1649
+      }
+    },
+    {
+      "test_id": "Test023",
+      "tn2025": {
+        "mass_lost_printed": "2.338",
+        "mass_lost_kg": 2.338,
+        "thr_MJ": 59.0,
+        "co_yield_printed": "0.060",
+        "co_yield_Uc_printed": "0.002"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "2.338",
+        "mass_lost_kg": 2.338,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 58.9,
+        "co_yield_kg_per_kg": 0.06,
+        "co_yield_Uc_kg_per_kg": 0.0023,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test023_2026-04-07.csv",
+        "sha256": "e545689a817aa3cd0429bbad544c3ddfed1595b583dc07034b6ff233e1e7f1d0",
+        "ignition_s": 0,
+        "fire_out_s": 1066
+      }
+    },
+    {
+      "test_id": "Test024",
+      "tn2025": {
+        "mass_lost_printed": "2.442",
+        "mass_lost_kg": 2.442,
+        "thr_MJ": 43.0,
+        "co_yield_printed": "0.014",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "2.442",
+        "mass_lost_kg": 2.442,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 43.1,
+        "co_yield_kg_per_kg": 0.01437,
+        "co_yield_Uc_kg_per_kg": 0.00054,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test024_2026-04-07.csv",
+        "sha256": "62cb9b0a687b9799bad72c1c03564020c6d91d13754e484cf85c307157d03a78",
+        "ignition_s": 0,
+        "fire_out_s": 630
+      }
+    },
+    {
+      "test_id": "Test025",
+      "tn2025": {
+        "mass_lost_printed": "9.41",
+        "mass_lost_kg": 9.41,
+        "thr_MJ": 319.0,
+        "co_yield_printed": "0.036",
+        "co_yield_Uc_printed": "0.0022"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "9.4",
+        "mass_lost_kg": 9.4,
+        "mass_lost_Uc_kg": 1.1,
+        "thr_MJ": 319.0,
+        "co_yield_kg_per_kg": 0.0358,
+        "co_yield_Uc_kg_per_kg": 0.0043,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test025_2026-04-07.csv",
+        "sha256": "513a6700e491f935728b5f401f360f8acd13fed06ef8f0730c138f12dae4d3be",
+        "ignition_s": 0,
+        "fire_out_s": 4822
+      }
+    },
+    {
+      "test_id": "Test026",
+      "tn2025": {
+        "mass_lost_printed": "5.080",
+        "mass_lost_kg": 5.08,
+        "thr_MJ": 83.0,
+        "co_yield_printed": "0.076",
+        "co_yield_Uc_printed": "0.003"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "5.080",
+        "mass_lost_kg": 5.08,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 82.5,
+        "co_yield_kg_per_kg": 0.0757,
+        "co_yield_Uc_kg_per_kg": 0.0028,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test026_2026-04-07.csv",
+        "sha256": "0c984acbed2178b457163fc2f52d7900c4af18c122e0daf726531e8757408fc0",
+        "ignition_s": 0,
+        "fire_out_s": 2909
+      }
+    },
+    {
+      "test_id": "Test027",
+      "tn2025": {
+        "mass_lost_printed": "22.312",
+        "mass_lost_kg": 22.312,
+        "thr_MJ": 381.0,
+        "co_yield_printed": "0.033",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "22.312",
+        "mass_lost_kg": 22.312,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 381.0,
+        "co_yield_kg_per_kg": 0.0307,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test027_2026-04-07.csv",
+        "sha256": "3b3a0a71ac3c2ad56d57d90297d15c28f89b945fbf5142798d6cbd23f3ab1176",
+        "ignition_s": 0,
+        "fire_out_s": 1524
+      }
+    },
+    {
+      "test_id": "Test028",
+      "tn2025": {
+        "mass_lost_printed": "3.3125",
+        "mass_lost_kg": 3.3125,
+        "thr_MJ": 23.2,
+        "co_yield_printed": "0.012",
+        "co_yield_Uc_printed": "0.040"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "3.313",
+        "mass_lost_kg": 3.313,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 23.2,
+        "co_yield_kg_per_kg": 0.01175,
+        "co_yield_Uc_kg_per_kg": 0.00043,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test028_2026-04-07.csv",
+        "sha256": "35b815a540d51b994e21a429ebfad48851b4a64b3735fa7073bb4db857f9aeea",
+        "ignition_s": 0,
+        "fire_out_s": 1230
+      }
+    },
+    {
+      "test_id": "Test029",
+      "tn2025": {
+        "mass_lost_printed": "52.116",
+        "mass_lost_kg": 52.116,
+        "thr_MJ": 811.0,
+        "co_yield_printed": "0.030",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "52.116",
+        "mass_lost_kg": 52.116,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 811.0,
+        "co_yield_kg_per_kg": 0.02671,
+        "co_yield_Uc_kg_per_kg": 0.00096,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test029_2026-04-07.csv",
+        "sha256": "c588f8803729e6742c2d7e91cdf37b3908628c7408c2456e4db1a6767da21631",
+        "ignition_s": 0,
+        "fire_out_s": 2080
+      }
+    },
+    {
+      "test_id": "Test030",
+      "tn2025": {
+        "mass_lost_printed": "77.888",
+        "mass_lost_kg": 77.888,
+        "thr_MJ": 1426.0,
+        "co_yield_printed": "0.033",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "77.888",
+        "mass_lost_kg": 77.888,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 1426.0,
+        "co_yield_kg_per_kg": 0.0306,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test030_2026-04-07.csv",
+        "sha256": "8ba0f6bb59cc1c8112367a03a0ea4fdcf63883cba5d15a031af5be499fe7bd5c",
+        "ignition_s": 0,
+        "fire_out_s": 2211
+      }
+    },
+    {
+      "test_id": "Test031",
+      "tn2025": {
+        "mass_lost_printed": "15.730",
+        "mass_lost_kg": 15.73,
+        "thr_MJ": 353.0,
+        "co_yield_printed": "0.024",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "14.914",
+        "mass_lost_kg": 14.914,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 353.0,
+        "co_yield_kg_per_kg": 0.02489,
+        "co_yield_Uc_kg_per_kg": 0.0009,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test031_2026-04-07.csv",
+        "sha256": "e36d0751bf4e0d6a4185052a063015796d6dca90b2bc6575b30cdcc37589523d",
+        "ignition_s": 0,
+        "fire_out_s": 2819
+      }
+    },
+    {
+      "test_id": "Test032",
+      "tn2025": {
+        "mass_lost_printed": "26.034",
+        "mass_lost_kg": 26.034,
+        "thr_MJ": 647.0,
+        "co_yield_printed": "0.025",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "26.034",
+        "mass_lost_kg": 26.034,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 647.0,
+        "co_yield_kg_per_kg": 0.02479,
+        "co_yield_Uc_kg_per_kg": 0.00089,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test032_2026-04-07.csv",
+        "sha256": "6b4455f6df85691b5f85ed6f42ef21a5c15d7c168e9d0f312cfb598b1322044b",
+        "ignition_s": 0,
+        "fire_out_s": 1225
+      }
+    },
+    {
+      "test_id": "Test033",
+      "tn2025": {
+        "mass_lost_printed": "1.164",
+        "mass_lost_kg": 1.164,
+        "thr_MJ": 6.9,
+        "co_yield_printed": "0.015",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "1.164",
+        "mass_lost_kg": 1.164,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 6.9,
+        "co_yield_kg_per_kg": 0.01406,
+        "co_yield_Uc_kg_per_kg": 0.00061,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test033_2026-04-07.csv",
+        "sha256": "cca6b0ca730d1c863cd2c2da4e8bc7e2935a21ed43ccf94b869ec9bb4800574d",
+        "ignition_s": 0,
+        "fire_out_s": 507
+      }
+    },
+    {
+      "test_id": "Test034",
+      "tn2025": {
+        "mass_lost_printed": "34.191",
+        "mass_lost_kg": 34.191,
+        "thr_MJ": 633.0,
+        "co_yield_printed": "0.036",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "34.191",
+        "mass_lost_kg": 34.191,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 633.0,
+        "co_yield_kg_per_kg": 0.0353,
+        "co_yield_Uc_kg_per_kg": 0.0013,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test034_2026-04-07.csv",
+        "sha256": "2d0e4efc35af5f6369171964b907499dbddc57895a4c755d49cc3cd287f3947d",
+        "ignition_s": 0,
+        "fire_out_s": 1813
+      }
+    },
+    {
+      "test_id": "Test035",
+      "tn2025": {
+        "mass_lost_printed": "48.107",
+        "mass_lost_kg": 48.107,
+        "thr_MJ": 838.0,
+        "co_yield_printed": "0.037",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "48.557",
+        "mass_lost_kg": 48.557,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 838.0,
+        "co_yield_kg_per_kg": 0.0356,
+        "co_yield_Uc_kg_per_kg": 0.0013,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test035_2026-04-07.csv",
+        "sha256": "dc40210231d6d0ebd1d3feb8280fade236424bb807580c20186e4f1eac482e91",
+        "ignition_s": 0,
+        "fire_out_s": 2590
+      }
+    },
+    {
+      "test_id": "Test036",
+      "tn2025": {
+        "mass_lost_printed": "77.541",
+        "mass_lost_kg": 77.541,
+        "thr_MJ": 1412.0,
+        "co_yield_printed": "0.032",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "77.541",
+        "mass_lost_kg": 77.541,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 1412.0,
+        "co_yield_kg_per_kg": 0.0306,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test036_2026-04-07.csv",
+        "sha256": "d0b5990688e68e29366c80a154b617ec5e39884a25c07ec958d5cfb292fb391e",
+        "ignition_s": 0,
+        "fire_out_s": 2100
+      }
+    },
+    {
+      "test_id": "Test037",
+      "tn2025": {
+        "mass_lost_printed": "19.377",
+        "mass_lost_kg": 19.377,
+        "thr_MJ": 442.0,
+        "co_yield_printed": "0.020",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "19.377",
+        "mass_lost_kg": 19.377,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 442.0,
+        "co_yield_kg_per_kg": 0.02015,
+        "co_yield_Uc_kg_per_kg": 0.00073,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test037_2026-04-07.csv",
+        "sha256": "3d27d8425f172430571a932d988ee50eb096831e051d9322a6fb42633db260a1",
+        "ignition_s": 0,
+        "fire_out_s": 1208
+      }
+    },
+    {
+      "test_id": "Test038",
+      "tn2025": {
+        "mass_lost_printed": "29.414",
+        "mass_lost_kg": 29.414,
+        "thr_MJ": 737.0,
+        "co_yield_printed": "0.024",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "30.130",
+        "mass_lost_kg": 30.13,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 737.0,
+        "co_yield_kg_per_kg": 0.02283,
+        "co_yield_Uc_kg_per_kg": 0.00082,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test038_2026-04-07.csv",
+        "sha256": "4e17571905069b8ddcf5b3e910d0eca674e398fd862225f8110b20e7a04828aa",
+        "ignition_s": 0,
+        "fire_out_s": 1145
+      }
+    },
+    {
+      "test_id": "Test039",
+      "tn2025": {
+        "mass_lost_printed": "8.730",
+        "mass_lost_kg": 8.73,
+        "thr_MJ": 99.0,
+        "co_yield_printed": "0.039",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "8.730",
+        "mass_lost_kg": 8.73,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 98.9,
+        "co_yield_kg_per_kg": 0.0378,
+        "co_yield_Uc_kg_per_kg": 0.0014,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test039_2026-04-07.csv",
+        "sha256": "258be3cd498739493b8329b21ee0c645bcb028e9b8a2b00ba6449dcd84fa5a76",
+        "ignition_s": 0,
+        "fire_out_s": 2035
+      }
+    },
+    {
+      "test_id": "Test040",
+      "tn2025": {
+        "mass_lost_printed": "49.738",
+        "mass_lost_kg": 49.738,
+        "thr_MJ": 891.0,
+        "co_yield_printed": "0.031",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "49.738",
+        "mass_lost_kg": 49.738,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 891.0,
+        "co_yield_kg_per_kg": 0.0299,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test040_2026-04-07.csv",
+        "sha256": "44ad319d24428150d1e6ddcc765dc3a0b23e170e547e7e281706b9fbd8b035c2",
+        "ignition_s": 0,
+        "fire_out_s": 2166
+      }
+    },
+    {
+      "test_id": "Test041",
+      "tn2025": {
+        "mass_lost_printed": "77.132",
+        "mass_lost_kg": 77.132,
+        "thr_MJ": 1413.0,
+        "co_yield_printed": "0.032",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "77.132",
+        "mass_lost_kg": 77.132,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 1413.0,
+        "co_yield_kg_per_kg": 0.0316,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test041_2026-04-07.csv",
+        "sha256": "50dc56e1ff67c4b04b2d1bae7d70f78607e03fafd5d77d3f06eaefcff4f70865",
+        "ignition_s": 0,
+        "fire_out_s": 2358
+      }
+    },
+    {
+      "test_id": "Test042",
+      "tn2025": {
+        "mass_lost_printed": "A",
+        "mass_lost_kg": "igniter_only_A",
+        "thr_MJ": 1.9,
+        "co_yield_printed": null,
+        "co_yield_Uc_printed": null
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.060",
+        "mass_lost_kg": 0.06,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 1.92,
+        "co_yield_kg_per_kg": "below detection limit",
+        "co_yield_Uc_kg_per_kg": null,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test042_2026-04-07.csv",
+        "sha256": "5eb9ffd45bd6fd1f27383c644559ef9165ae78ea2dc2640813a49ea5eb1ee149",
+        "ignition_s": 0,
+        "fire_out_s": 464
+      }
+    },
+    {
+      "test_id": "Test043",
+      "tn2025": {
+        "mass_lost_printed": "A",
+        "mass_lost_kg": "igniter_only_A",
+        "thr_MJ": 2.0,
+        "co_yield_printed": null,
+        "co_yield_Uc_printed": null
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.058",
+        "mass_lost_kg": 0.058,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": "below detection limit",
+        "co_yield_kg_per_kg": "below detection limit",
+        "co_yield_Uc_kg_per_kg": null,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test043_2026-04-07.csv",
+        "sha256": "2483b03f5b2392cdaadbf5829941d639969796a0ff35d3d6eb0e9738beece5c5",
+        "ignition_s": 0,
+        "fire_out_s": 1151
+      }
+    },
+    {
+      "test_id": "Test044",
+      "tn2025": {
+        "mass_lost_printed": "28.975",
+        "mass_lost_kg": 28.975,
+        "thr_MJ": 696.0,
+        "co_yield_printed": "0.018",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "28.975",
+        "mass_lost_kg": 28.975,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 696.0,
+        "co_yield_kg_per_kg": 0.01802,
+        "co_yield_Uc_kg_per_kg": 0.00065,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test044_2026-04-07.csv",
+        "sha256": "5ebc4fc05dcc07ef4e84f58ee2622bca503b15cb9e8c565a7ee423d4a28ba7f3",
+        "ignition_s": 0,
+        "fire_out_s": 864
+      }
+    },
+    {
+      "test_id": "Test045",
+      "tn2025": {
+        "mass_lost_printed": "7.754",
+        "mass_lost_kg": 7.754,
+        "thr_MJ": 132.0,
+        "co_yield_printed": "0.035",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "7.754",
+        "mass_lost_kg": 7.754,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 132.1,
+        "co_yield_kg_per_kg": 0.0344,
+        "co_yield_Uc_kg_per_kg": 0.0012,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test045_2026-04-07.csv",
+        "sha256": "686d2ec48ca211b2a8b91a3441bcba605454cfe5c72de76eec4899bbb88b3f08",
+        "ignition_s": 0,
+        "fire_out_s": 1796
+      }
+    },
+    {
+      "test_id": "Test046",
+      "tn2025": {
+        "mass_lost_printed": "6.992",
+        "mass_lost_kg": 6.992,
+        "thr_MJ": 259.0,
+        "co_yield_printed": "0.023",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "6.992",
+        "mass_lost_kg": 6.992,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 259.0,
+        "co_yield_kg_per_kg": 0.02291,
+        "co_yield_Uc_kg_per_kg": 0.00083,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test046_2026-04-07.csv",
+        "sha256": "745a793acffa2b3b633278fa24e00569845775cafcd9010466bad5c86270378e",
+        "ignition_s": 0,
+        "fire_out_s": 2416
+      }
+    },
+    {
+      "test_id": "Test047",
+      "tn2025": {
+        "mass_lost_printed": "6.414",
+        "mass_lost_kg": 6.414,
+        "thr_MJ": 115.0,
+        "co_yield_printed": "0.032",
+        "co_yield_Uc_printed": "0.001"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "6.414",
+        "mass_lost_kg": 6.414,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": 114.8,
+        "co_yield_kg_per_kg": 0.0309,
+        "co_yield_Uc_kg_per_kg": 0.0011,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test047_2026-04-07.csv",
+        "sha256": "778faee5af4301aa58b2b023e4d63239502e17891c8366ccd3fe39d072e4d1c1",
+        "ignition_s": 0,
+        "fire_out_s": 1808
+      }
+    },
+    {
+      "test_id": "Test048",
+      "tn2025": {
+        "mass_lost_printed": "0.106",
+        "mass_lost_kg": 0.106,
+        "thr_MJ": 1.4,
+        "co_yield_printed": "0.009",
+        "co_yield_Uc_printed": "0.012"
+      },
+      "fcd2026": {
+        "mass_lost_printed": "0.106",
+        "mass_lost_kg": 0.106,
+        "mass_lost_Uc_kg": 0.028,
+        "thr_MJ": "below detection limit",
+        "co_yield_kg_per_kg": "below detection limit",
+        "co_yield_Uc_kg_per_kg": null,
+        "report_process_script": "NFRL_Report_8.7.1",
+        "last_updated": "April 7, 2026"
+      },
+      "csv": {
+        "path": "docs/literature/NIST/FCD_Test048_2026-04-07.csv",
+        "sha256": "571630c261b6620e00971ab37edd9cd655cb073f5099170df6bfd046f9f9fcc3",
+        "ignition_s": 0,
+        "fire_out_s": 359
+      }
+    }
+  ]
+}
