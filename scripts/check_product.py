@@ -10,9 +10,18 @@ is intentionally SEPARATE from the scientific validation pipeline:
 The separation ensures that failures in editor tooling are visible and
 tracked without polluting the scientific validation signal.
 
+Every Godot launch reachable from here, the nested one in run_scenario.py
+included, goes through scripts/godot_monitored_launch.py. Nothing is launched
+while a Godot error popup or a Godot process predates the run, and only the
+processes a launch started are ever terminated.
+
+Available memory is not checked unless SIMUFIRE_GODOT_MIN_AVAILABLE_GIB is
+set; with it, every launch (nested included) is refused below that many GiB.
+
 Exit codes:
     0 — all product tests PASS
-    1 — one or more product tests FAIL
+    1 — one or more product tests FAIL, or nothing was launched because of
+        pre-existing Godot state
 """
 
 import os
@@ -24,6 +33,11 @@ import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts import godot_monitored_launch  # noqa: E402
+
 _GODOT_CANDIDATES = [
     Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
     Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
@@ -138,43 +152,63 @@ def _find_godot() -> Path | None:
 _GODOT_TIMEOUT_S: int = 300
 
 
-def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = _GODOT_TIMEOUT_S) -> tuple[int, int, int, str]:
+def _run_godot_check(godot_args: list[str], target: str, success_token: str, timeout_s: int) -> tuple[int, int, int, str]:
     """
-    Run a small Godot headless product check scene.
-    Returns (exit_code, checks_run, failures, diagnostic).
+    El unico camino por el que este script arranca Godot: el lanzador
+    monitorizado. Devuelve (exit_code, checks_run, failures, diagnostic).
+
+    El codigo de salida de Godot se conserva cuando no es cero. Cuando es cero
+    pero la comprobacion no vale -falta el token, un script no compila o el
+    monitor ha visto un fallo- se devuelve 1: la tabla de `main` decide por
+    este codigo, y un cero aqui se contaba como pasada.
     """
     godot = _find_godot()
     if godot is None:
         return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
 
+    run = godot_monitored_launch.run(
+        [str(godot), "--headless", "--path", str(_REPO_ROOT), *godot_args],
+        timeout_s,
+    )
+    if not run.launched:
+        if run.preexisting:
+            reason = "no se lanzo Godot, estado PREVIO a este lanzamiento: " + "; ".join(run.preexisting)
+        else:
+            reason = "no se pudo lanzar Godot: " + "; ".join(run.faults)
+        return 1, 1, 1, "%s (%s)" % (reason, target)
+
     # Un limite superado es UNA comprobacion fallida, no el final de la suite.
     # Antes reventaba con un TimeoutExpired sin capturar y se perdian los
     # resultados de todas las demas.
-    try:
-        result = subprocess.run(
-            [
-                str(godot),
-                "--headless",
-                "--path",
-                str(_REPO_ROOT),
-                scene_path,
-            ],
-            capture_output=True,
-            text=True,
-            cwd=str(_REPO_ROOT),
-            timeout=timeout_s,
-        )
-    except subprocess.TimeoutExpired:
-        return 1, 1, 1, "se paso del limite de %d s (%s)" % (timeout_s, scene_path)
-    combined = (result.stdout or "") + (result.stderr or "")
+    if run.timed_out:
+        diagnostic = "se paso del limite de %d s (%s)" % (timeout_s, target)
+        others = [fault for fault in run.faults if fault != "Godot run timed out"]
+        if others:
+            diagnostic += "; " + "; ".join(others)
+        return run.returncode or 1, 1, 1, diagnostic
+
+    combined = run.stdout + run.stderr
     broken = _compile_failure(combined)
-    passed = result.returncode == 0 and success_token in combined and not broken
+    passed = run.returncode == 0 and success_token in combined and not broken and not run.faults
     diagnostic = ""
-    if broken:
+    if run.faults:
+        diagnostic = "fallo de ESTA ejecucion de Godot visto por el monitor (%s): %s" % (target, "; ".join(run.faults))
+        if combined.strip():
+            diagnostic += "\n" + combined.strip()
+    elif broken:
         diagnostic = "un script no compila, asi que el PASS no vale: " + broken
     elif not passed:
         diagnostic = combined.strip()
-    return result.returncode, 1, 0 if passed else 1, diagnostic
+    exit_code = run.returncode if run.returncode != 0 or passed else 1
+    return exit_code, 1, 0 if passed else 1, diagnostic
+
+
+def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = _GODOT_TIMEOUT_S) -> tuple[int, int, int, str]:
+    """
+    Run a small Godot headless product check scene.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    return _run_godot_check([scene_path], scene_path, success_token, timeout_s)
 
 
 def _run_godot_script(script_path: str, success_token: str, timeout_s: int = _GODOT_TIMEOUT_S) -> tuple[int, int, int, str]:
@@ -182,66 +216,64 @@ def _run_godot_script(script_path: str, success_token: str, timeout_s: int = _GO
     Run a headless Godot SceneTree script (--script) product check.
     Returns (exit_code, checks_run, failures, diagnostic).
     """
-    godot = _find_godot()
-    if godot is None:
-        return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
+    return _run_godot_check(["--script", script_path], script_path, success_token, timeout_s)
 
-    try:
-        result = subprocess.run(
-            [
-                str(godot),
-                "--headless",
-                "--path",
-                str(_REPO_ROOT),
-                "--script",
-                script_path,
-            ],
-            capture_output=True,
-            text=True,
-            cwd=str(_REPO_ROOT),
-            timeout=timeout_s,
-        )
-    except subprocess.TimeoutExpired:
-        return 1, 1, 1, "se paso del limite de %d s (%s)" % (timeout_s, script_path)
-    combined = (result.stdout or "") + (result.stderr or "")
-    broken = _compile_failure(combined)
-    passed = result.returncode == 0 and success_token in combined and not broken
-    diagnostic = ""
-    if broken:
-        diagnostic = "un script no compila, asi que el PASS no vale: " + broken
-    elif not passed:
-        diagnostic = combined.strip()
-    return result.returncode, 1, 0 if passed else 1, diagnostic
+
+# Limites de la prueba de humo de run_scenario.py. El de fuera tiene que dejar
+# sitio al de dentro y a la espera del monitor por los ayudantes que el motor
+# lanza al salir (graficas): si se cumple antes, se mata al Python que vigila
+# a Godot en mitad de su trabajo.
+_RUN_SCENARIO_GODOT_TIMEOUT_S: int = 90
+_RUN_SCENARIO_TIMEOUT_S: int = 240
 
 
 def _run_run_scenario_smoke() -> tuple[int, int, int, str]:
     """
     Exercise scripts/run_scenario.py end-to-end with a short headless run.
     Returns (exit_code, checks_run, failures, diagnostic).
+
+    Aqui se arranca Python, no Godot: a Godot lo arranca run_scenario.py, por
+    el mismo lanzador monitorizado.
     """
     scenario_path = _REPO_ROOT / "sim" / "validation" / "cases" / "victim_fed_incapacitation.json"
     with tempfile.TemporaryDirectory(prefix="simufire_run_scenario_") as tmpdir:
-        result = subprocess.run(
-            [
-                sys.executable,
-                str(_REPO_ROOT / "scripts" / "run_scenario.py"),
-                str(scenario_path),
-                "--duration",
-                "5",
-                "--out-dir",
-                tmpdir,
-                "--timeout",
-                "90",
-            ],
-            capture_output=True,
-            text=True,
-            cwd=str(_REPO_ROOT),
-            timeout=120,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(_REPO_ROOT / "scripts" / "run_scenario.py"),
+                    str(scenario_path),
+                    "--duration",
+                    "5",
+                    "--out-dir",
+                    tmpdir,
+                    "--timeout",
+                    str(_RUN_SCENARIO_GODOT_TIMEOUT_S),
+                ],
+                capture_output=True,
+                text=True,
+                cwd=str(_REPO_ROOT),
+                timeout=_RUN_SCENARIO_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            return 1, 1, 1, "se paso del limite de %d s (run_scenario.py)" % _RUN_SCENARIO_TIMEOUT_S
         combined = (result.stdout or "") + (result.stderr or "")
         passed = result.returncode == 0 and "[run_scenario] PASS" in combined
         diagnostic = "" if passed else combined.strip()
         return result.returncode, 1, 0 if passed else 1, diagnostic
+
+
+def _godot_leftovers() -> tuple[int, int, int, str]:
+    """
+    Ultima comprobacion: que no quede nada de Godot. Cada lanzamiento ya mira
+    lo suyo, pero un cuadro de error puede salir despues de su ventana de
+    observacion, y el ultimo lanzamiento no tiene uno posterior que lo vea.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    leftovers = godot_monitored_launch.preexisting_godot_state()
+    if leftovers:
+        return 1, 1, 1, "; ".join(leftovers)
+    return 0, 1, 0, ""
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +288,21 @@ def main() -> int:
     print("  (Editor + product checks — independent of physics simulation)")
     print("=" * W)
     print()
+
+    # Un cuadro de error o un proceso de Godot que ya estaban ahi no son de
+    # esta ejecucion. Con ellos delante no se lanza nada: el cuadro se le
+    # cargaria a una comprobacion sana y, con otro Godot en marcha, un cuadro
+    # nuevo no se sabria de quien es. El monitor no los toca.
+    previous = godot_monitored_launch.preexisting_godot_state()
+    if previous:
+        print("  NO SE LANZA NADA: estado de Godot PREVIO a esta ejecucion")
+        for item in previous:
+            print(f"    - {item}")
+        print()
+        print("  Acepta los cuadros de error, cierra Godot y vuelve a lanzar.")
+        print("=" * W)
+        print()
+        return 1
 
     suites = [
         (
@@ -1040,6 +1087,11 @@ def main() -> int:
     rows.append(("Run scenario reproducibility", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("run_scenario smoke: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _godot_leftovers()
+    rows.append(("Sin procesos ni cuadros de Godot al terminar", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("restos de Godot al terminar: " + (diagnostic or "failed"))
 
     print(f"  {'Suite':<38}  {'Resultado':>12}")
     print(f"  {'-'*38}  {'-'*12}")

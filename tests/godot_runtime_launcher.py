@@ -33,6 +33,11 @@ def _health_errors(
         )
     if health.get("process_quiescent") is not True:
         errors.append("Godot process state did not become quiescent")
+    if health.get("foreign_godot_processes", []) != []:
+        errors.append(
+            "foreign Godot processes during the run (not terminated): "
+            f"{health.get('foreign_godot_processes')}"
+        )
 
     wrapper_exit = health.get("wrapper_exit_code")
     if allowed_exit_codes is not None and wrapper_exit not in allowed_exit_codes:
