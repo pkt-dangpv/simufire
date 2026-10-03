@@ -1,5 +1,15 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-03 - G3-4A en commit; D1 separado
+
+G3-4A está en el commit local `a4ee6ff`, sin push. Su cuenta energética en
+MJ, OFF por defecto, cierra la contabilidad pero **no es un inventario
+físico**; calor, O₂ y especies no cambian. El
+[gate D1 de identidad física](validation/G3_D1_IDENTIDAD_INQUEMADO_2026-10-03.md)
+queda abierto para que el usuario elija entre gas pirolizado y sólido que aún
+no ha pirolizado. La cuenta no autoriza conversión a kg, zona, transporte ni
+ignición. CO/FED siguen en NO-GO.
+
 ## Current Program Update - 2026-10-03 - G3-4A: cuenta energética del pirolizado sin inventario
 
 Rama `codex/g3-fed-co-zonal-shareable`, sobre `1d4f58a6`. Diseño:
