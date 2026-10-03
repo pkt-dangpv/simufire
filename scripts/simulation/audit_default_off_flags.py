@@ -182,6 +182,12 @@ RUNTIME_ACTIVATIONS: dict[str, tuple[str, str]] = {
         MISSING_ACTIVATION_FIXTURE,
         MISSING_ACTIVATION_TOKEN,
     ),
+    # G3-4A: cuenta energetica (MJ) del pirolizado sin inventario. Pasiva: la
+    # fixture demuestra que con ella ON la trayectoria fisica no cambia.
+    "fire_unburned_energy_account_enabled": (
+        "tests/fixtures/g3_unburned_energy_account.gd",
+        "G3_UNBURNED_ENERGY_ACCOUNT_PASS",
+    ),
 }
 
 OUT_OF_RUNTIME_SCOPE = {
@@ -245,7 +251,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 83
+EXPECTED_DECLARATION_COUNT = 84
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

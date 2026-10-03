@@ -26,6 +26,12 @@ var _g3_fuel_ledger_pending: Dictionary = {}
 # G3 balance (g3_balance_v1): observables de otros sistemas del mismo paso.
 var _g3_balance_external: Dictionary = {}
 
+# G3-4A: cuenta energética (MJ) del pirolizado que el motor ni quema ni guarda
+# (OFF por defecto; solo salas explicit_objects). NO es gas ni un inventario
+# físico: no tiene masa, zona ni transporte, y ninguna condición física la lee.
+# Diseño: G3_ENERGY_DELAY_DESIGN §16.
+const G3_UNBURNED_ACCOUNT_SWITCH: String = "fire_unburned_energy_account_enabled"
+
 # G3: propiedad de energía y potencia por objeto activo (OFF por defecto).
 # Solo en salas cuyo combustible se declara únicamente con objetos explícitos.
 const G3_OWNERSHIP_SWITCH: String = "fire_explicit_object_fuel_ownership_enabled"
@@ -1640,6 +1646,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# G3 explicit_objects (OFF por defecto): energía y potencia solo de los objetos
 	# activos al inicio del paso; los inactivos no aportan ni elevan el tope.
 	var g3_owned: bool = _g3_explicit_owned_room(room, context)
+	# G3-4A: la cuenta energética solo existe en una sala explicit_objects.
+	var g3_account: bool = g3_owned and bool(context.get(G3_UNBURNED_ACCOUNT_SWITCH, false))
+	var g3_account_pool_mark_MJ: float = 0.0
 	var g3_active: Array = []
 	var g3_power_cap_kw: float = 0.0
 	var g3_available_MJ: float = 0.0
@@ -1830,6 +1839,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		room.floor_area_m2() * float(context.get("fire_unburned_capacity_MJ_per_m2", 1.20))
 	)
+	if g3_account:
+		g3_account_pool_mark_MJ = room.retained_unburned_MJ + retained_generation_kw * dt / 1000.0
 	var g3_bal_pool: Dictionary = {}
 	if g3_fuel_ledger_enabled:
 		g3_bal_pool = {
@@ -1844,6 +1855,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	)
 	if g3_fuel_ledger_enabled:
 		g3_bal_pool["after_credit_MJ"] = float(room.retained_unburned_MJ)
+	if g3_account:
+		room.g3_pool_account_capacity_MJ += maxf(
+			0.0, g3_account_pool_mark_MJ - room.retained_unburned_MJ
+		)
 
 	var local_opening_signal: float = maxf(
 		float(context.get("outside_open_factor", 0.0)),
@@ -2089,6 +2104,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	)
 	if g3_fuel_ledger_enabled:
 		g3_bal_pool["after_burn_MJ"] = float(room.retained_unburned_MJ)
+	if g3_account:
+		g3_account_pool_mark_MJ = room.retained_unburned_MJ
 	room.retained_unburned_MJ = maxf(
 		0.0,
 		room.retained_unburned_MJ - room.retained_unburned_MJ \
@@ -2101,6 +2118,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		g3_bal_pool["opening_signal"] = opening_signal
 		g3_bal_pool["temp_signal"] = temp_signal
 		g3_bal_pool["after_decay_MJ"] = float(room.retained_unburned_MJ)
+	if g3_account:
+		room.g3_pool_account_decay_MJ += maxf(
+			0.0, g3_account_pool_mark_MJ - room.retained_unburned_MJ
+		)
 
 	# Backdraft: consume retained fuel explosivamente (bypass del límite pool_release_max_fraction)
 	if room.backdraft_active and room.retained_unburned_MJ > 0.0:
@@ -2544,6 +2565,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# entre ambos subsistemas: delta(o2_consumed_kg_total_all) ≈ delta(hrr_kj_total) * 7.6e-5.
 	room.hrr_kj_total += maxf(0.0, room.hrr_kw) * dt
 	if g3_owned:
+		if g3_account and solid_pyrolysis_kw > 0.0:
+			# Parte del débito del paso que ni arde ni entra en el depósito.
+			g3_step_state["unburned_account_fraction"] = maxf(
+				0.0,
+				solid_pyrolysis_kw - fresh_flame_target_kw - smolder_target_kw - retained_generation_kw
+			) / solid_pyrolysis_kw
 		_g3_apply_owned(room, g3_active, g3_burns, g3_step_state, can_flame)
 		# El FireModel refleja el inventario de objetos: un único propietario.
 		fire.remaining_fuel_MJ = get_room_total_remaining_fuel_MJ(room)
@@ -2567,6 +2594,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.combustion_regime = CombustionRegimeClassifierScript.classify(room)
 
 	if fire.remaining_fuel_MJ <= 0.0 and room.retained_unburned_MJ <= 0.01:
+		if g3_account:
+			room.g3_pool_account_burnout_MJ += maxf(0.0, room.retained_unburned_MJ)
 		return _extinguish_room_fire(room, fire, true)
 
 	if room.fire_time_s >= float(context.get("fire_max_active_s", 0.0)) \
@@ -4055,6 +4084,10 @@ func _g3_ledger_begin(room: RoomModel, fire: FireModel, dt: float, context: Dict
 		if bool(context.get(G3_OWNERSHIP_SWITCH, false)):
 			objects[objects.size() - 1]["r_balance_before_MJ"] = float(obj.g3_r_balance_MJ)
 			objects[objects.size() - 1]["tail_state_before"] = int(obj.g3_r_tail_state)
+		if bool(context.get(G3_UNBURNED_ACCOUNT_SWITCH, false)):
+			objects[objects.size() - 1]["unburned_account_before_MJ"] = float(
+				obj.g3_unburned_energy_account_MJ
+			)
 	_g3_fuel_ledger_pending[room.id] = {
 		"schema_version": "g3_fuel_ledger_v3",
 		"room_id": room.id,
@@ -4086,6 +4119,14 @@ func _g3_ledger_begin(room: RoomModel, fire: FireModel, dt: float, context: Dict
 	}
 	_g3_fuel_ledger_pending[room.id]["bal_schema"] = "g3_balance_v1"
 	_g3_fuel_ledger_pending[room.id]["bal_state_before"] = _g3_balance_room_state(room)
+	if bool(context.get(G3_UNBURNED_ACCOUNT_SWITCH, false)):
+		_g3_fuel_ledger_pending[room.id]["bal_account"] = {
+			"moment": "cuenta energetica G3-4A: inicio de step_room_fire y cierre del paso",
+			"unit": "MJ",
+			"physical_inventory": false,
+			"room_owned": _g3_explicit_owned_room(room, context),
+			"pool_before": _g3_account_room_state(room),
+		}
 
 
 ## G3 DIAGNÓSTICO (no es física de producto). Objetivo de llama con la clave:
@@ -4197,6 +4238,25 @@ func g3_balance_note_o2_probe(probe: Dictionary) -> void:
 		g3_balance_note_external(int(room_id), "bal_o2", row)
 
 
+## G3-4A: las cuatro cuentas de sala de lo que sale del depósito sin arder.
+## Solo lectura.
+func _g3_account_room_state(room: RoomModel) -> Dictionary:
+	return {
+		"capacity_MJ": float(room.g3_pool_account_capacity_MJ),
+		"decay_MJ": float(room.g3_pool_account_decay_MJ),
+		"suppression_MJ": float(room.g3_pool_account_suppression_MJ),
+		"burnout_MJ": float(room.g3_pool_account_burnout_MJ),
+	}
+
+
+## G3-4A: ¿lleva esta sala la cuenta energética? Lo consulta el motor al
+## aplicar la supresión, que escribe el depósito fuera de step_room_fire.
+func g3_unburned_account_room(room: RoomModel, ownership_on: bool, account_on: bool) -> bool:
+	return account_on and room != null and _g3_explicit_owned_room(
+		room, {G3_OWNERSHIP_SWITCH: ownership_on}
+	)
+
+
 ## Completa y devuelve los registros del paso; lo llama el runner tras engine.step().
 func g3_drain_fuel_ledger(building) -> Array:
 	var rows: Array = []
@@ -4225,9 +4285,14 @@ func g3_drain_fuel_ledger(building) -> Array:
 			if entry.has("r_balance_before_MJ"):
 				entry["r_balance_after_MJ"] = float(obj.g3_r_balance_MJ) if obj != null else 0.0
 				entry["tail_state_after"] = int(obj.g3_r_tail_state) if obj != null else 0
+			if entry.has("unburned_account_before_MJ"):
+				entry["unburned_account_after_MJ"] = float(obj.g3_unburned_energy_account_MJ) \
+						if obj != null else 0.0
 		if room != null:
 			record["bal_state_after"] = _g3_balance_room_state(room)
 			record["bal_state_after"]["step"] = _g3_balance_room_step_counters(room)
+			if record.has("bal_account"):
+				record["bal_account"]["pool_after"] = _g3_account_room_state(room)
 		var external: Dictionary = _g3_balance_external.get(room_id, {})
 		for key in external.keys():
 			record[key] = external[key]
@@ -4634,6 +4699,8 @@ func _g3_apply_owned(
 	var flaming_before: Dictionary = step.get("flaming_before", {})
 	var r_new: Dictionary = step.get("r_new", {})
 	var tail_new: Dictionary = step.get("tail_new", {})
+	# G3-4A: 0 salvo con la cuenta energética activa.
+	var unburned_account_fraction: float = float(step.get("unburned_account_fraction", 0.0))
 	for obj in room.fuel_objects:
 		if obj == null or _is_legacy_room_proxy(obj):
 			continue
@@ -4651,6 +4718,8 @@ func _g3_apply_owned(
 		var burn_MJ: float = float(burns[i])
 		var heat_kw: float = float(heat_by_id.get(key, 0.0))
 		obj.remaining_fuel_MJ = maxf(0.0, obj.remaining_fuel_MJ - burn_MJ)
+		if unburned_account_fraction > 0.0:
+			obj.g3_unburned_energy_account_MJ += burn_MJ * unburned_account_fraction
 		if burn_MJ > 0.0 and heat_kw > 0.0:
 			obj.hrr_kw = heat_kw
 			if float(obj.loi_fraction) > 0.0 and room.o2 < float(obj.loi_fraction):

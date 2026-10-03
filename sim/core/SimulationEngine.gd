@@ -371,6 +371,15 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## paso. Las salas con carga de sala positiva siguen la ruta legacy. No cambia
 ## rendimientos de especies. Ver docs/validation/G3_FUEL_LEDGER_OWNERSHIP_2026-09-29.md.
 @export var fire_explicit_object_fuel_ownership_enabled: bool = false
+## G3-4A — cuenta energética (MJ) del pirolizado sin inventario (OFF por defecto).
+## Solo actúa en salas explicit_objects, es decir, con el interruptor anterior.
+## Cada objeto anota la parte de su débito que el motor ni quema ni guarda, y la
+## sala lo que sale del depósito sin arder (tope, decaimiento, supresión,
+## agotamiento). ES CONTABILIDAD, NO FÍSICA: no es gas, no tiene masa ni zona,
+## no se transporta ni arde, y ninguna condición del motor la lee. Con ella
+## encendida calor, O2, especies, depósito y débito no cambian.
+## Ver docs/validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md §16.
+@export var fire_unburned_energy_account_enabled: bool = false
 ## G3 DIAGNÓSTICO, no es física de producto. Sin @export a propósito: no aparece
 ## en el editor y solo se fija desde engine_overrides de un escenario de
 ## diagnóstico. Con ancho > 0, el objetivo de llama es continuo (fracción 0) o
@@ -4197,6 +4206,9 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		context["g3_o2_sink_floor_callable"] = Callable(
 			oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"
 		)
+	# G3-4A: la clave solo existe en el contexto con la cuenta encendida.
+	if fire_unburned_energy_account_enabled:
+		context["fire_unburned_energy_account_enabled"] = true
 	# G3 DIAGNÓSTICO: las claves solo existen en el contexto con ancho > 0.
 	if fire_diag_flame_target_window > 0.0:
 		context["fire_diag_flame_target_window"] = fire_diag_flame_target_window
@@ -4515,7 +4527,15 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	room.hrr_kw *= hrr_factor
 	room.hrr_target_kw *= hrr_factor
 	room.burned_hrr_kw = room.hrr_kw
+	var g3_account_pool_before_MJ: float = room.retained_unburned_MJ
 	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
+	# G3-4A: lo que la supresión quita al depósito va a su cuenta de sala.
+	if combustion_system.g3_unburned_account_room(
+		room, fire_explicit_object_fuel_ownership_enabled, fire_unburned_energy_account_enabled
+	):
+		room.g3_pool_account_suppression_MJ += maxf(
+			0.0, g3_account_pool_before_MJ - room.retained_unburned_MJ
+		)
 	if combustion_system.g3_fuel_ledger_enabled:
 		g3_bal_suppression["hrr_after_kw"] = float(room.hrr_kw)
 		g3_bal_suppression["pool_after_MJ"] = float(room.retained_unburned_MJ)

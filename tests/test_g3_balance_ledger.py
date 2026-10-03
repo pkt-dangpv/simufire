@@ -33,8 +33,13 @@ SIM_FILES = ("sim/fire/CombustionSystem.gd", "sim/core/OxygenExchangeSystem.gd",
 
 def make_row(*, time_s=10.0, solid_kw=40.0, target_kw=50.0, pyrolysis_kw=60.0, pool_before=1.0,
              pool_burn_kw=0.0, smoke_yield=0.012, co_yield=0.001, co2_yield=0.08, carbon_per_MJ=C_PER_MJ,
-             state=None) -> dict:
-    """One flaming, O2-limited step of a sealed room that closes everywhere."""
+             state=None, account=True) -> dict:
+    """One flaming, O2-limited step of a sealed room that closes everywhere.
+
+    With ``account`` the G3-4A energy account is on: the object keeps the part of
+    its debit that is neither burned nor stored, and the room what leaves the pool
+    without burning. Without it the row is the previous behaviour.
+    """
     generation_kw = 0.30 * max(0.0, pyrolysis_kw - target_kw)
     consumed = pyrolysis_kw * DT / 1000.0
     heat_MJ = (solid_kw + pool_burn_kw) * DT / 1000.0
@@ -109,12 +114,26 @@ def make_row(*, time_s=10.0, solid_kw=40.0, target_kw=50.0, pyrolysis_kw=60.0, p
             "o2_net_transport_kg": 0.0, "o2_zone_sync_kg": 0.0, "fuel_consumed_MJ": consumed,
         },
     })
+    unburned_MJ = (pyrolysis_kw - target_kw - generation_kw) * DT / 1000.0
+    sofa = {"id": "sofa", "is_proxy": False, "remaining_before_MJ": 80.0, "remaining_after_MJ": 80.0 - consumed}
+    blocks = {}
+    if account:
+        sofa["unburned_account_before_MJ"] = 0.3
+        sofa["unburned_account_after_MJ"] = 0.3 + unburned_MJ
+        pool_before_account = {"capacity_MJ": 0.0, "decay_MJ": 0.01, "suppression_MJ": 0.0, "burnout_MJ": 0.0}
+        blocks["bal_account"] = {
+            "unit": "MJ", "physical_inventory": False, "room_owned": True,
+            "pool_before": pool_before_account,
+            "pool_after": dict(pool_before_account,
+                               capacity_MJ=pool_before + generation_kw * DT / 1000.0 - after_credit,
+                               decay_MJ=0.01 + after_burn - after_decay),
+        }
     return {
+        **blocks,
         "schema_version": "g3_fuel_ledger_v3", "bal_schema": bal.SCHEMA, "room_id": 0, "time_s": time_s,
         "dt_s": DT, "fire_present_before": True, "ownership_mode": "explicit_owned",
         "consumed_MJ": consumed, "hrr_applied_kw": hrr,
-        "objects": [{"id": "sofa", "is_proxy": False, "remaining_before_MJ": 80.0,
-                     "remaining_after_MJ": 80.0 - consumed}],
+        "objects": [sofa],
         "bal_state_before": before, "bal_state_after": after,
         "bal_fuel": {
             "can_flame": True, "latent_viable": False, "o2_extinguished": False, "flame_drive": 0.5,
@@ -426,6 +445,7 @@ def test_a_pool_left_without_fire_is_counted_as_held_not_as_lost():
     row = make_row()
     for block in ("bal_fuel", "bal_pool", "bal_species"):
         row.pop(block)
+    row["bal_account"]["pool_after"] = dict(row["bal_account"]["pool_before"])
     row["fire_present_before"] = False
     row["consumed_MJ"] = row["hrr_applied_kw"] = 0.0
     row["objects"] = []
@@ -500,6 +520,7 @@ def test_early_extinction_shows_heat_and_smoke_that_were_cancelled():
     row["bal_extinction"] = {"burned_out": False, "pool_before_MJ": row["bal_pool"]["after_backdraft_MJ"]}
     row["consumed_MJ"] = 0.0
     row["objects"][0]["remaining_after_MJ"] = 80.0
+    row["objects"][0]["unburned_account_after_MJ"] = row["objects"][0]["unburned_account_before_MJ"]
     after = row["bal_state_after"]
     after["fuel_consumed_MJ_total"] = row["bal_state_before"]["fuel_consumed_MJ_total"]
     after["hrr_kj_total"] = row["bal_state_before"]["hrr_kj_total"]
@@ -513,6 +534,122 @@ def test_early_extinction_shows_heat_and_smoke_that_were_cancelled():
     for code in ("F_pyrolysis_without_debit", "F_heat_counter", "S_smoke_not_applied", "O_heat_seen"):
         assert found[code]["details"] == ["extinción"], code
     assert report["counts"]["species_uncommitted_steps"] == 1
+
+
+# ------------------------------------------------- G3-4A: the energy account
+
+def test_previous_behaviour_leaves_the_pyrolysate_and_the_pool_decay_without_account():
+    row = make_row(account=False)
+    report = analyze(row)
+    found = {f["code"]: f for f in report["findings"]}
+    assert set(found) == {"A_unburned_without_account", "A_pool_loss_without_account"}
+    unburned = (60.0 - 50.0) * 0.70 * DT / 1000.0
+    assert found["A_unburned_without_account"]["amount"] == pytest.approx(unburned)
+    assert found["A_unburned_without_account"]["owner"] == "ninguno"
+    pool = row["bal_pool"]
+    assert found["A_pool_loss_without_account"]["amount"] == pytest.approx(pool["after_burn_MJ"] - pool["after_decay_MJ"])
+    assert report["terms"]["unburned_without_account_MJ"] == pytest.approx(unburned)
+
+
+def test_the_account_closes_the_same_step_and_is_never_an_inventory():
+    report = analyze(make_row())
+    assert report["findings"] == []
+    terms = report["terms"]
+    assert terms["unburned_without_account_MJ"] == pytest.approx(0.0, abs=1e-15)
+    assert terms["pool_exit_without_account_MJ"] == pytest.approx(0.0, abs=1e-15)
+    assert terms["object_account_change_MJ"] == pytest.approx(terms["U_without_inventory_MJ"])
+    assert report["energy_account"]["physical_inventory"] is False
+    assert report["energy_account"]["unit"] == "MJ"
+    assert report["U_without_inventory"]["physical_inventory"] is False
+
+
+def _account_short(row):
+    row["objects"][0]["unburned_account_after_MJ"] -= 1e-6
+
+
+def _decay_not_credited(row):
+    row["bal_account"]["pool_after"]["decay_MJ"] = row["bal_account"]["pool_before"]["decay_MJ"]
+
+
+def _decay_credited_to_another_route(row):
+    after, before = row["bal_account"]["pool_after"], row["bal_account"]["pool_before"]
+    after["suppression_MJ"] = before["suppression_MJ"] + after["decay_MJ"] - before["decay_MJ"]
+    after["decay_MJ"] = before["decay_MJ"]
+
+
+def _account_goes_down(row):
+    row["objects"][0]["unburned_account_after_MJ"] = row["objects"][0]["unburned_account_before_MJ"] - 0.1
+
+
+def _account_called_inventory(row):
+    row["bal_account"]["physical_inventory"] = True
+
+
+def _account_in_kg(row):
+    row["bal_account"]["unit"] = "kg"
+
+
+def _room_not_owned(row):
+    row["bal_account"]["room_owned"] = False
+
+
+ACCOUNT = [
+    ("object account short", _account_short, "A_object_account_write"),
+    ("decay not credited", _decay_not_credited, "A_pool_account_write"),
+    ("decay credited to another route", _decay_credited_to_another_route, "A_pool_account_write"),
+    ("account goes down", _account_goes_down, "A_account_decreased"),
+    ("account presented as inventory", _account_called_inventory, "A_account_as_inventory"),
+    ("account presented in kg", _account_in_kg, "A_account_as_inventory"),
+    ("room not owned keeps U without account", _room_not_owned, "A_unburned_without_account"),
+]
+
+
+@pytest.mark.parametrize("label,mutate,code", ACCOUNT, ids=[item[0] for item in ACCOUNT])
+def test_account_mutation_is_named(label, mutate, code):
+    row = make_row()
+    mutate(row)
+    assert code in codes(row), label
+
+
+def test_a_route_credited_elsewhere_is_named_for_both_routes():
+    row = make_row()
+    _decay_credited_to_another_route(row)
+    finding = next(f for f in analyze(row)["findings"] if f["code"] == "A_pool_account_write")
+    assert finding["details"] == ["decay_MJ", "suppression_MJ"]
+    assert finding["amount"] == pytest.approx(0.0, abs=1e-15)
+    assert finding["abs_amount"] > 0.0
+
+
+def test_each_pool_exit_reaches_the_account_of_its_route():
+    row = make_row(pool_before=23.9999999)
+    start = row["bal_pool"]["after_backdraft_MJ"]
+    row["bal_suppression"] = {"hrr_factor": 0.5, "pool_before_MJ": start, "pool_after_MJ": start * 0.65}
+    row["bal_state_after"]["pool_MJ"] = start * 0.65
+    row["bal_account"]["pool_after"]["suppression_MJ"] = start * 0.35
+    report = analyze(row)
+    assert report["findings"] == []
+    terms = report["terms"]
+    assert terms["pool_account_capacity_MJ"] > 0.0
+    assert terms["pool_account_suppression_MJ"] == pytest.approx(start * 0.35)
+    assert terms["pool_account_decay_MJ"] == pytest.approx(terms["pool_loss_decay_MJ"])
+    assert terms["pool_exit_without_account_MJ"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_burnout_reaches_its_own_account():
+    row = make_row()
+    start = row["bal_pool"]["after_backdraft_MJ"]
+    row["bal_extinction"] = {"burned_out": True, "pool_before_MJ": start}
+    row["bal_state_after"]["pool_MJ"] = 0.0
+    assert "A_pool_account_write" in codes(row)
+    row["bal_account"]["pool_after"]["burnout_MJ"] = start
+    assert "A_pool_account_write" not in codes(row)
+
+
+def test_an_account_credit_in_a_step_without_committed_debit_is_named():
+    row = make_row()
+    row["bal_species"] = {"committed": False, "smoke": row["bal_species"]["smoke"]}
+    finding = next(f for f in analyze(row)["findings"] if f["code"] == "A_object_account_write")
+    assert finding["details"] == ["paso sin débito confirmado"]
 
 
 def test_tolerances_are_fixed_in_the_analyzer():

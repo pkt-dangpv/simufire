@@ -212,7 +212,7 @@ def test_flag_inventory_is_unchanged():
     )
     # D4A added none; the later G3 FED candidate raised the inventory to 82 and
     # the G3 explicit-object fuel ownership switch to 83.
-    assert "EXPECTED_DECLARATION_COUNT = 83" in audit
+    assert "EXPECTED_DECLARATION_COUNT = 84" in audit
 
 
 # ------------------------------------------------------------

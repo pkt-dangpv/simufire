@@ -214,7 +214,7 @@ def test_physics_off_switches_are_untouched():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
     # D4B1 added no switch; the later G3 FED candidate and G3 fuel ownership
     # switch raised the inventory.
-    assert "EXPECTED_DECLARATION_COUNT = 83" in audit
+    assert "EXPECTED_DECLARATION_COUNT = 84" in audit
 
 
 # ------------------------------------------------------------

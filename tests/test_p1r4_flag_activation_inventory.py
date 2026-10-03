@@ -66,6 +66,8 @@ RUNTIME_SCOPE_FLAGS = {
     "phase3_mass_residence_diagnostics_enabled",
     "phase3_connection_residence_diagnostics_enabled",
     "phase3_cfast_buoyancy_destination_shadow_enabled",
+    # G3-4A: passive energy account (MJ) of the pyrolysate without inventory.
+    "fire_unburned_energy_account_enabled",
 }
 
 
@@ -100,9 +102,10 @@ def _fixture_links() -> dict[str, set[Path]]:
 def test_current_engine_inventory_is_complete_and_uniquely_partitioned():
     declared = _declared_flags()
     # G3 adds two default-OFF live controls outside P1R4's diagnostic scope:
-    # the zonal FED CO selector and explicit-object fuel ownership.
-    assert len(declared) == 83
-    assert len(RUNTIME_SCOPE_FLAGS) == 41
+    # the zonal FED CO selector and explicit-object fuel ownership. G3-4A adds
+    # one passive control inside it: the unburned energy account.
+    assert len(declared) == 84
+    assert len(RUNTIME_SCOPE_FLAGS) == 42
     assert RUNTIME_SCOPE_FLAGS <= declared
     assert len(declared - RUNTIME_SCOPE_FLAGS) == 42
 
@@ -117,8 +120,8 @@ def test_versioned_auditor_matches_the_independent_partition():
     assert report["pass"], report["errors"]
     assert set(RUNTIME_ACTIVATIONS) == RUNTIME_SCOPE_FLAGS
     assert OUT_OF_RUNTIME_SCOPE == _declared_flags() - RUNTIME_SCOPE_FLAGS
-    assert report["declaration_count"] == 83
-    assert report["runtime_backed_count"] == 41
+    assert report["declaration_count"] == 84
+    assert report["runtime_backed_count"] == 42
     assert report["out_of_runtime_scope_count"] == 42
 
 

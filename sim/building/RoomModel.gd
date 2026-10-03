@@ -274,6 +274,13 @@ var fire_low_hrr_time_s: float = 0.0
 var fire_o2_extinguished: bool = false
 var o2_hrr_factor: float = 1.0
 var retained_unburned_MJ: float = 0.0
+# G3-4A (solo con fire_unburned_energy_account_enabled y sala explicit_objects):
+# cuentas energéticas en MJ de lo que sale del depósito sin arder. No son gas ni
+# inventario físico; solo crecen y ninguna condición física las lee.
+var g3_pool_account_capacity_MJ: float = 0.0
+var g3_pool_account_decay_MJ: float = 0.0
+var g3_pool_account_suppression_MJ: float = 0.0
+var g3_pool_account_burnout_MJ: float = 0.0
 var ventilation_response_factor: float = 0.0
 # Régimen de combustión actual — clasificado por CombustionRegimeClassifier (Fase 1, solo diagnóstico).
 # No altera ningún campo de física. Ver docs/architecture/ILV_COMBUSTION_REGIME_PLAN.md.
@@ -488,6 +495,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	fire_o2_extinguished = false
 	o2_hrr_factor = 1.0
 	retained_unburned_MJ = 0.0
+	g3_pool_account_capacity_MJ = 0.0
+	g3_pool_account_decay_MJ = 0.0
+	g3_pool_account_suppression_MJ = 0.0
+	g3_pool_account_burnout_MJ = 0.0
 	ventilation_response_factor = 0.0
 	combustion_regime = "EXTINGUISHED"
 	overpressure_pa = 0.0

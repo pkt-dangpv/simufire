@@ -100,7 +100,7 @@ def test_no_new_switch_was_added():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
     # This opening-profile phase added none; later G3 added one OFF FED flag
     # and one OFF explicit-object fuel ownership flag.
-    assert "EXPECTED_DECLARATION_COUNT = 83" in audit
+    assert "EXPECTED_DECLARATION_COUNT = 84" in audit
 
 
 def test_every_profile_is_still_barred_from_the_product():

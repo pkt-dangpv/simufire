@@ -130,6 +130,11 @@ var g3_r_balance_MJ: float = 0.0
 # Cola posagotamiento (hipótesis B, τ_f sin calibrar): 0 sin cola, 1 activa,
 # 2 terminada o interrumpida (nunca se reanuda).
 var g3_r_tail_state: int = 0
+# G3-4A (solo con fire_unburned_energy_account_enabled y sala explicit_objects):
+# cuenta energética en MJ de la parte del débito de este objeto que el motor ni
+# quema ni guarda. NO es gas ni inventario físico: sin masa, zona ni transporte;
+# solo crece y ninguna condición física la lee.
+var g3_unburned_energy_account_MJ: float = 0.0
 
 # Fuego de charco (pool fire) — solo activo si pool_spread_rate_m2_s > 0.
 # El área del charco crece a la tasa indicada hasta pool_max_area_m2 (0 = sin límite,
@@ -183,6 +188,7 @@ func reset_dynamic_state(ambient_temp_c: float = 20.0) -> void:
 	pool_area_m2 = pool_initial_area_m2
 	g3_r_balance_MJ = 0.0
 	g3_r_tail_state = 0
+	g3_unburned_energy_account_MJ = 0.0
 
 
 func has_remaining_fuel() -> bool:

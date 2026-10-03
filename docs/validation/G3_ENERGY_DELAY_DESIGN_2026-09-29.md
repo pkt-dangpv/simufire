@@ -2086,3 +2086,309 @@ pasadas.
   de §9. No es una validación de CO/FED.
 - La opción D y la clave de objetivo continuo siguen OFF en producto. CO/FED
   siguen en NO-GO.
+
+## 16. G3-4A: el pirolizado que hoy queda como `U` (2026-10-02)
+
+Rama `codex/g3-fed-co-zonal-shareable`. Objetivo: que el combustible
+pirolizado que hoy no tiene inventario deje de desaparecer, sin elegir ningún
+parámetro que no esté sostenido por datos.
+
+### 16.1 La tensión entre §14.11 y §14.8, y cómo se resuelve [C]
+
+§14.11 dio GO para «el inventario único del inquemado». §14.8 pide ese
+inventario en **kg, por zona y transportado**. Las dos cosas no son la misma:
+
+| | Inventario físico (kg) | Cuenta energética (MJ) |
+|---|---|---|
+| Qué es | masa de gas combustible en una zona | energía debitada a un objeto que el motor no quema ni guarda |
+| Qué necesita | conversión MJ→kg, composición, zona de destino, transporte, regla de ignición y límite de O₂ | nada: es la diferencia entre lo que se debita y lo que el motor hace con ello |
+| Puede arder, moverse o diluir | sí | **no** |
+| Qué declara hoy el motor | nada | todo |
+
+Lo que el motor declara:
+
+- **Calor de combustión por objeto** (`heat_of_combustion_kj_kg`): vale −1 por
+  defecto. Solo lo declaran 4 objetos de 2 casos de validación
+  (`char_layer_loi_wood`, `secondary_ignition_demo`). Ningún escenario
+  distribuido, ninguna plantilla ni los controles de §14–15 lo declaran.
+- **Conversión global** `fire_backdraft_fuel_heat_kj_kg` = 10 000 kJ/kg con
+  densidad 0,8 kg/m³: es la que usa la regla LFL/UFL del backdraft sobre el
+  depósito. Está comentada como «mix conservador», sin fuente. No coincide
+  con los 17 500–30 800 kJ/kg que el propio motor cita para sólidos.
+- **Composición:** un único `fuel_c_kg_per_MJ` = 0,027 para todo.
+- **Zona y transporte del combustible:** no existen. El depósito es un
+  escalar de sala.
+
+**Resolución.** El GO de §14.11 solo puede cumplirse hoy como **cuenta
+energética en MJ**. No es el inventario de §14.8 y no lo sustituye: el
+inventario en kg sigue sin poder construirse hasta que se decida la
+conversión, la zona, el transporte y la ignición. Una cuenta en MJ no se
+transporta, no arde y no se presenta como gas.
+
+### 16.2 Altas y bajas actuales de `U`, `G` y `R` [C]
+
+Con el interruptor de propiedad por objeto (`explicit_objects`) activo. `P`
+es la pirólisis, `T_s` el objetivo de llama más rescoldo, `B0` el calor del
+combustible fresco y `w_i` la parte del débito del paso que toca al objeto
+`i`.
+
+| Cuenta | Unidad, propietario | Alta | Baja con destino | Baja sin destino |
+|---|---|---|---|---|
+| `U` | MJ; **nadie** | ninguna: no hay variable | — | es toda ella: `(P − T_s − G)·dt` por paso |
+| `G`, depósito | MJ; sala (`retained_unburned_MJ`), sin zona | `0,30·max(0, P − T_s)·dt`; 0 en fase latente y con la guarda posbackdraft | quema del depósito (calor, O₂ y especies); backdraft (`min(depósito, 0,6·HRR·dt)`) | tope de capacidad (1,20 MJ/m²); decaimiento; supresión (× entre 0,30 y 1); agotamiento (se pone a 0) |
+| `R` | MJ; objeto (`g3_r_balance_MJ`), solo opción D | `w_i·(T_s − B0)·dt` al confirmar el paso | liberación por llama propia o por cola (calor con su cota de O₂) | queda varado en el objeto si la cola termina o el fuego se apaga |
+
+Detalles que el contrato tiene que respetar:
+
+- **Paso con extinción temprana.** El motor sale antes del débito: no se
+  debita combustible ni se confirma `R`. Pero el alta y el decaimiento del
+  depósito ya se han escrito en ese paso. Es un alta sin origen (1,0 kJ en
+  `o2_closed` con el interruptor OFF).
+- **Sin fuego** no hay paso de depósito: lo que queda no decae ni arde.
+- **Backdraft.** El calor lo impone una envolvente (`4·max_hrr·sen`) y el
+  depósito pierde `0,6·HRR·dt`. Calor y combustible no están ligados.
+- **Lecturas que deciden física.** El depósito decide su liberación, el
+  disparo del backdraft (≥ 8 MJ) y varias extinciones (< 0,5 MJ). `R` decide
+  su propia liberación. `U` no decide nada porque no existe.
+- **Reinicio de escenario:** depósito y `R` vuelven a 0.
+
+### 16.3 Contrato por paso de la cuenta energética
+
+Dos cuentas, las dos en MJ, las dos crecientes y las dos **sin lectura**:
+ninguna condición física puede mirarlas.
+
+| Cuenta | Propietario | Alta | Momento |
+|---|---|---|---|
+| `A_i`, pirolizado sin inventario | objeto `i` | `w_i·(P − T_s − G)·dt` | al confirmar el paso, junto al débito del objeto |
+| `E_tope` | sala | `depósito + G·dt − min(capacidad, depósito + G·dt)` | al escribir el alta del depósito |
+| `E_decaimiento` | sala | depósito antes − después de decaer | al escribir el decaimiento |
+| `E_supresión` | sala | depósito antes − después de la supresión | al aplicar la supresión |
+| `E_agotamiento` | sala | depósito antes de ponerse a 0 | al extinguir por agotamiento |
+
+Conservación que debe cumplirse, con inventario leído antes y después:
+
+- **Por objeto y paso confirmado:**
+  `débito_i = w_i·B0·dt + ΔR_i(alta) + w_i·G·dt + ΔA_i`.
+- **Depósito, por paso:**
+  `depósito_después = depósito_antes + G·dt − quema − backdraft − ΔE`,
+  con `ΔE` la suma de las cuatro cuentas de sala.
+- **Acumulado desde el reinicio:**
+  `Σ débito = Σ B0·dt + Σ ΔR(alta) + Σ G·dt(confirmada) + Σ A_i`.
+
+Reglas:
+
+- Las cuentas no son gas: sin masa, sin zona, sin transporte, sin ignición.
+- No cambian el débito, el depósito, el calor, el O₂ ni las especies.
+- Se reinician con el escenario y no se guardan en los escenarios.
+- El alta del depósito en un paso con extinción temprana **no** se tapa: sigue
+  siendo un alta sin origen, visible en el libro.
+
+### 16.4 Gate GO/NO-GO antes de editar física
+
+**GO** para la cuenta energética de §16.3, solo en salas `explicit_objects`
+y detrás de un interruptor nuevo, OFF por defecto. No exige ninguna decisión
+física. **Es contabilidad con estado en el motor, no una corrección física**:
+con ella encendida, calor, O₂, especies, depósito y débito son los mismos.
+
+**NO-GO** para cualquier cambio físico en este tramo. Todos necesitan una
+decisión que los datos no dan:
+
+| Decisión mínima | Alternativa A | Alternativa B | Evidencia que hay |
+|---|---|---|---|
+| D1. Qué es `U` | gas pirolizado que sale del sólido (como CFAST: la pirólisis no depende del O₂) | sólido que no llega a pirolizar: no se debita al objeto | ninguna propia; A coincide con CFAST TN 1889v1 §3.2 |
+| D2. Conversión MJ→kg | calor de combustión declarado por objeto | el global de 10 000 kJ/kg del backdraft | solo 4 objetos lo declaran; el global no tiene fuente |
+| D3. Zona de destino | capa superior, por la pluma | mezcla de sala | ninguna propia |
+| D4. Ignición del inquemado | temperatura de gas y O₂ en su zona | la regla actual del depósito | ninguna propia |
+| D5. Límite de O₂ del calor | función continua | el umbral actual | §13 mide el efecto del salto, no cuál es correcto |
+
+D1 es la primera: sin ella no se sabe si `A_i` es masa que hay que llevar a
+una zona o combustible que hay que devolver al objeto. Las cuentas de §16.3
+valen para las dos alternativas, porque solo dicen cuánta energía es.
+
+### 16.5 Implementación [C]
+
+Interruptor nuevo `fire_unburned_energy_account_enabled` (`@export`, `false`).
+No sirven los existentes: el del libro v3 solo observa y no puede llevar estado
+del motor; el de propiedad por objeto tiene que seguir dando las mismas
+ejecuciones de la opción D que antes. Está registrado en
+`audit_default_off_flags.py` como control pasivo con fixture de activación
+(84 declaraciones, 42 respaldadas en ejecución).
+
+| Archivo | Líneas | Qué hace |
+|---|---:|---|
+| `sim/fire/CombustionSystem.gd` | +69 | cuenta por objeto al confirmar el paso; cuentas de sala del tope, el decaimiento y el agotamiento; libro |
+| `sim/core/SimulationEngine.gd` | +20 | interruptor; clave de contexto solo con él encendido; cuenta de la supresión |
+| `sim/building/RoomModel.gd` | +11 | cuatro cuentas de sala, a cero al reiniciar |
+| `sim/fire/FuelObjectModel.gd` | +6 | cuenta del objeto, a cero al reiniciar |
+| `tools/run_scenario_headless.gd` | +14 | la instantánea de objetos muestra las cuentas solo con el interruptor |
+
+Lo que hace, solo en salas `explicit_objects`:
+
+- **Por objeto**, al confirmar el paso:
+  `cuenta_i += débito_i · (P − T_s − G) / P`.
+- **Por sala**, en el momento de cada escritura del depósito: lo que corta el
+  tope, lo que quita el decaimiento, lo que quita la supresión y lo que se
+  pierde al agotarse el combustible.
+- **En el libro**, con el interruptor encendido: cuenta antes y después por
+  objeto, y bloque `bal_account` (`unit: "MJ"`, `physical_inventory: false`).
+
+Lo que no hace: ninguna condición del motor lee las cuentas; no se
+transportan, no arden, no tienen masa ni zona y no se guardan en los
+escenarios. Hay una prueba estática para cada una de esas cosas.
+
+### 16.6 Antes y después [M]
+
+Los mismos controles de §14–15, con la opción D activa y el libro encendido.
+«Antes» es el interruptor nuevo en OFF; «después», en ON. Evidencia en
+`runs/g3_unburned_account_20261003/` (análisis e informes de identidad).
+
+| Caso | `U` confirmado (MJ) | Cuenta de objeto, después | Salida del depósito sin arder (MJ) | Cuenta de sala, después | Residuo de la identidad del combustible: antes → después (MJ) |
+|---|---:|---:|---:|---:|---|
+| `o2_closed` | 5,5895 | 5,5895 | 1,0113 (decaimiento) | 1,0113 | 5,59 → 6,6·10⁻¹³ |
+| `o2_closed` continuo | 16,5344 | 16,5344 | 3,9269 (decaimiento) | 3,9269 | 16,53 → 6,8·10⁻¹³ |
+| `o2_closed_dt24` | 5,4830 | 5,4830 | 0,9844 (decaimiento) | 0,9844 | 5,48 → 1,9·10⁻¹¹ |
+| `o2_reopen_300` | 0,0226 | 0,0226 | 0,0081 (decaimiento) | 0,0081 | 0,023 → −7,9·10⁻¹⁴ |
+| `o2_reopen_700` | 5,5014 | 5,5014 | 0,9883 (decaimiento) | 0,9883 | 5,50 → 4,2·10⁻¹³ |
+| `sofa_vent`, `low_power_vent`, `two_active_vent`, `sofa_vent_dt24`, `o2_stress_cap` | 0 | 0 | 0 | 0 | ≤ 1,2·10⁻¹³ en ambos |
+
+- **Antes**, el analizador marca `A_unburned_without_account` y
+  `A_pool_loss_without_account` en los cinco casos con limitación de O₂.
+  **Después**, ninguno de los dos aparece en ningún caso.
+- **Los demás hallazgos no cambian**: la ruta del penacho que debita O₂ con
+  la masa de la sala (`O_zone_mass_base`) y el paso de extinción. La cuenta no
+  los toca, porque no son de su competencia.
+- **Rutas que los controles no ejercitan.** En ellos solo hay decaimiento.
+  - Supresión: en la fixture (0,0030 MJ) y en el control de los mutantes,
+    `o2_closed` con supresión a 400 s (0,0119 MJ).
+  - Tope: solo en la fixture, con capacidad reducida a propósito (0,342 MJ).
+  - Agotamiento: ningún caso llega a él; solo lo cubren pruebas sintéticas
+    del analizador.
+
+### 16.7 Identidad byte a byte [M]
+
+`scripts/simulation/run_g3_unburned_account_controls.py` compara cada caso con
+las ejecuciones de §15, hechas antes de G3-4A en el otro checkout. Por caso se
+comparan `sim_log.csv`, `sim_log.txt`, `fuel_source_ledger.jsonl`,
+`co_inventory_trace.jsonl`, `events.json`, la instantánea de objetos y
+`scenario.json`, y el libro v3 cuando se escribe.
+
+| Cuenta | Opción D | Libro | Casos idénticos | Archivos | Libro |
+|---|---|---|---:|---:|---|
+| OFF | OFF (producto) | OFF | 9/9 | 63/63 | no se escribe |
+| OFF | OFF | ON | 9/9 | 63/63 | SHA-256 igual en 9/9 |
+| OFF | ON | OFF | 9/9 | 63/63 | no se escribe |
+| OFF | ON | ON | 9/9 | 63/63 | SHA-256 igual en 9/9 |
+| ON | ON | ON | 10/10 | 60/60 | 606 624 filas iguales al quitar la cuenta |
+| ON | OFF (sin `explicit_objects`) | ON | 3/3 | 18/18 | 172 806 filas iguales al quitar la cuenta |
+
+- **Con la cuenta OFF** todo es idéntico al motor anterior, incluido el libro
+  completo.
+- **Con ella ON** la física es idéntica: registros, trazas, eventos, libro e
+  instantánea son iguales al quitar los campos de la cuenta. Solo cambian el
+  `scenario.json` (lleva el interruptor) y esos campos.
+- **Ningún escenario distribuido cambia.** Hay una prueba estática para ello.
+
+### 16.8 Pruebas y mutaciones [M]
+
+**Pruebas sin Godot y con la fixture del motor:**
+
+- `tests/test_g3_unburned_energy_account.py` (13). La fixture
+  `tests/fixtures/g3_unburned_energy_account.gd` ejecuta el motor real cuatro
+  veces durante 340 s: cuenta ON, cuenta OFF, capacidad reducida y sala sin
+  propiedad por objeto.
+  - **Con la cuenta OFF, la identidad del combustible no cierra en 563
+    pasos**, por exactamente 0,8255 MJ: la prueba falla sobre el
+    comportamiento anterior.
+  - Con ella ON cierra en los 4081 pasos confirmados, y la trayectoria (11
+    magnitudes por paso) es la misma.
+  - Las pruebas estáticas comprueban: ninguna condición lee la cuenta; el
+    interruptor vale `false` y solo llega al contexto encendido; ningún
+    archivo distribuido lo enciende; no se exporta ni se guarda.
+- `tests/test_g3_balance_ledger.py` pasa de 65 a 78. Entre las nuevas, la
+  fila anterior sin cuenta tiene que dar exactamente los dos hallazgos «sin
+  cuenta».
+- Inventario de interruptores: `audit_default_off_flags.py` y las seis
+  pruebas que fijan el recuento (83 → 84).
+
+**Mutaciones:**
+
+- **Del motor, 4 de 4 detectadas**, todas válidas y con la física sin
+  cambios. `sim/` se restaura byte a byte.
+
+  | Mutante | Hallazgo | Pasos | Cantidad |
+  |---|---|---:|---:|
+  | MA1, la cuenta del objeto se queda con el 70 % | `A_object_account_write` | 1572 | −1,674 MJ |
+  | MA2, el decaimiento no llega a su cuenta | `A_pool_account_write` (decaimiento) | 7282 | −0,999 MJ |
+  | MA3, la supresión no llega a su cuenta | `A_pool_account_write` (supresión) | 24 | −0,012 MJ |
+  | MA4, la parte que va al depósito se cuenta dos veces | `A_object_account_write` | 1242 | +1,195 MJ |
+
+- **Estáticas, 22 de 22 detectadas**: 14 del analizador y 8 de las fuentes.
+  Entre las de las fuentes: una condición física que lee la cuenta, el
+  interruptor encendido por defecto, un caso de validación que lo enciende,
+  la cuenta exportada como estado y el motor usando la cuenta como
+  combustible.
+
+**Pytest temprano.** Se ejecutó pytest global antes de las cadenas largas. Dio
+2 fallos:
+
+- la convención de las fixtures pedía una bandera `_failed`: corregido;
+- la frescura R2-1 del informe de referencia: esperado hasta regenerarlo.
+
+### 16.9 R2-1 sobre el código final [M]
+
+Secuencial, todo Godot por el monitor. APPDATA, TEMP, TMP y `basetemp` van
+fuera del checkout y cada lanzamiento exige 6 GiB.
+
+| Comprobación | Resultado |
+|---|---|
+| Referencia completa | 18/18 casos, **346/346 y 78 gaps** (`runs/reference_suite_monitored_20261003_023305`) |
+| `reference_checks.json` | solo cambia `generated_at` respecto a `1d4f58a6` |
+| Guardarraíles | ALL PASS, incluida la frescura R2-1 |
+| `check_product.py` | salida 0, **168 pruebas**, 81 lanzamientos sin fallos de salud |
+| pytest global | 3302 passed, 37 skipped, 2 xfailed |
+
+Las fixtures de pytest que lanzan Godot lo hacen por
+`tests/godot_runtime_launcher.py`, que fija su propio APPDATA en
+`runs/godot_test_appdata` dentro del checkout. Es el arnés existente y no se
+ha cambiado.
+
+### 16.10 Qué se ha demostrado y qué no
+
+- **Demostrado.** Con el interruptor encendido, cada MJ debitado a un objeto
+  en una sala `explicit_objects` queda en calor fresco, saldo `R`, alta pedida
+  al depósito o cuenta del objeto, paso a paso y contra el inventario leído.
+  Cada MJ que sale del depósito sin arder queda en una cuenta de sala por
+  ruta. Con el interruptor apagado el motor es idéntico al anterior.
+- **Física cambiada: ninguna.** Calor, O₂, especies, depósito, débito y
+  extinciones son idénticos con la cuenta encendida.
+- **Sigue siendo observable o contabilidad.**
+  - `U` tiene ahora cuenta, pero **no inventario físico**: no es gas, no
+    tiene masa ni zona, no se transporta y no puede arder.
+  - Siguen igual el depósito congelado sin fuego, el backdraft sin ligar
+    calor y combustible, la base de masa de la ruta del penacho, el carbono
+    excedente y las dos cuentas de CO₂.
+
+Riesgos:
+
+- **Leer la cuenta como si fuera una corrección.** Mitigado con su nombre, el
+  campo `physical_inventory: false`, los comentarios del motor y una prueba
+  que falla si la cuenta se presenta como inventario.
+- **Que un cambio futuro consuma la cuenta sin decidir D1.** Una cuenta en MJ
+  no se puede llevar a una zona ni quemar sin conversión. Una prueba estática
+  falla si alguna condición la lee.
+- **Cobertura.** Solo cubre salas `explicit_objects`, es decir, con la opción
+  D. Las salas `legacy` del producto no tienen cuenta.
+- **Rutas poco ejercitadas.** El agotamiento solo está probado con filas
+  sintéticas; supresión y tope, solo en la fixture y en el control de los
+  mutantes.
+- **Coste.** El libro con la cuenta es algo mayor y la fixture añade unos
+  110 s a pytest global.
+
+**Decisión para el siguiente tramo:**
+
+- **GO** para dar por cerrada G3-4A como cuenta energética, OFF por defecto.
+- **NO-GO** para cualquier inventario físico del inquemado hasta que se
+  decida **D1** (qué es `U`). Detrás vienen D2–D5 (§16.4).
+- Las especies solo sobre calor liberado y el hollín dentro del tope de
+  carbono siguen autorizados como trabajo aparte; no se han mezclado aquí.
+- CO/FED siguen en NO-GO.

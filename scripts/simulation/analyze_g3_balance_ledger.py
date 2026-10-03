@@ -20,6 +20,13 @@ with the inventory change. Tolerances are fixed here and are not tuned per run.
 derived amount WITHOUT physical inventory; it is never counted as a resolved
 loss.
 
+With the G3-4A switch the engine keeps an ENERGY ACCOUNT in MJ: per object, the
+part of its debit that is neither burned nor stored; per room, what leaves the
+pool without burning (capacity, decay, suppression, burnout). The analyzer
+checks every account against the inventory change that feeds it. An account is
+not a physical inventory: it has no mass, zone or transport, and a ledger that
+presents it as one is a finding.
+
     python scripts/simulation/analyze_g3_balance_ledger.py \
         --case D_o2_closed=runs/.../o2_closed --out runs/g3_balance_ledger_...
 """
@@ -130,6 +137,18 @@ FINDINGS = {
     "X_between_steps": ("mixto", "desconocido (entre pasos)",
                         "un inventario cambió entre el cierre de un paso y el inicio del siguiente"),
     "X_missing_block": ("pasos", "libro", "falta un bloque del esquema en un paso que debía tenerlo"),
+    "A_unburned_without_account": ("MJ", "ninguno",
+                                   "pirolizado debitado que no queda en calor, saldo R, depósito ni cuenta"),
+    "A_pool_loss_without_account": ("MJ", "ninguno",
+                                    "energía que sale del depósito sin arder y sin quedar en ninguna cuenta"),
+    "A_object_account_write": ("MJ", "CombustionSystem (cuenta energética por objeto)",
+                               "la cuenta de los objetos no cambió lo que su débito dejó sin quemar ni guardar"),
+    "A_pool_account_write": ("MJ", "CombustionSystem / SimulationEngine (cuenta del depósito)",
+                             "una cuenta de sala no cambió lo que salió del depósito por su ruta"),
+    "A_account_decreased": ("MJ", "CombustionSystem (cuenta energética)",
+                            "una cuenta energética bajó: solo puede crecer"),
+    "A_account_as_inventory": ("pasos", "libro (cuenta energética)",
+                               "la cuenta energética se presenta como inventario físico"),
 }
 
 CONTINUITY_FIELDS = (
@@ -551,6 +570,84 @@ def check_tracer(row: dict, book: Book) -> None:
     book.terms["co2_mass_upper_end_kg"] = float(tracer["room_co2_upper_kg"])
 
 
+POOL_ACCOUNT_ROUTES = ("capacity_MJ", "decay_MJ", "suppression_MJ", "burnout_MJ")
+
+
+def _pool_losses_without_destination(row: dict) -> dict:
+    """What leaves the pool without burning in this step, by route, from the pool states."""
+    losses = dict.fromkeys(POOL_ACCOUNT_ROUTES, 0.0)
+    pool = row.get("bal_pool")
+    chain = float(row["bal_state_before"]["pool_MJ"])
+    if pool is not None:
+        losses["capacity_MJ"] = (float(pool["before_MJ"]) + float(pool["credit_requested_MJ"])
+                                 - float(pool["after_credit_MJ"]))
+        losses["decay_MJ"] = float(pool["after_burn_MJ"]) - float(pool["after_decay_MJ"])
+        chain = float(pool["after_backdraft_MJ"])
+    extinction = row.get("bal_extinction")
+    if extinction is not None and extinction["burned_out"]:
+        losses["burnout_MJ"] = chain
+    suppression = row.get("bal_suppression")
+    if suppression is not None:
+        losses["suppression_MJ"] = float(suppression["pool_before_MJ"]) - float(suppression["pool_after_MJ"])
+    return losses
+
+
+def check_account(row: dict, book: Book) -> None:
+    """G3-4A energy account: every credit against the inventory change that feeds it."""
+    account = row.get("bal_account")
+    owned = account is not None and bool(account.get("room_owned"))
+    if account is not None:
+        book.count("account_steps")
+        if account.get("physical_inventory") is not False or account.get("unit") != "MJ":
+            book.flag("A_account_as_inventory", 1.0)
+    fuel = row.get("bal_fuel")
+    species = row.get("bal_species") or {}
+    committed = fuel is not None and bool(species.get("committed")) and not row.get("optd_uncommitted")
+    objects = [o for o in row.get("objects", []) if not o.get("is_proxy")]
+    taken = sum(float(o["remaining_before_MJ"]) - float(o.get("remaining_after_MJ", o["remaining_before_MJ"]))
+                for o in objects)
+    change = 0.0
+    for entry in objects:
+        if "unburned_account_before_MJ" not in entry:
+            continue
+        delta = float(entry["unburned_account_after_MJ"]) - float(entry["unburned_account_before_MJ"])
+        if delta < -ABS_TOL:
+            book.flag("A_account_decreased", delta, str(entry.get("id")))
+        change += delta
+    book.add("object_account_change_MJ", change)
+    unburned = 0.0
+    if committed:
+        pyrolysis = float(fuel["pyrolysis_MJ"])
+        unburned = float(fuel["unburned_without_inventory_MJ"])
+        book.add("unburned_committed_MJ", unburned)
+        book.add("pool_generation_committed_MJ", float(fuel["pool_generation_MJ"]))
+        optd = row.get("optd")
+        if optd:
+            book.add("fresh_heat_MJ", sum(float(o["B0_MJ"]) for o in optd["objects"].values()))
+            book.add("fuel_debit_committed_MJ", taken)
+        if owned:
+            rule = taken * unburned / pyrolysis if pyrolysis > 0.0 else 0.0
+            book.expect("A_object_account_write", change, rule)
+        elif unburned > ABS_TOL:
+            book.flag("A_unburned_without_account", unburned)
+    elif not close(change, 0.0):
+        book.flag("A_object_account_write", change, "paso sin débito confirmado")
+    losses = _pool_losses_without_destination(row)
+    for route in POOL_ACCOUNT_ROUTES:
+        book.add(f"pool_exit_{route}", losses[route])
+    if owned:
+        for route in POOL_ACCOUNT_ROUTES:
+            written = float(account["pool_after"][route]) - float(account["pool_before"][route])
+            if written < -ABS_TOL:
+                book.flag("A_account_decreased", written, route)
+            book.add(f"pool_account_{route}", written)
+            book.expect("A_pool_account_write", written, losses[route], route)
+    else:
+        lost = sum(losses.values())
+        if lost > ABS_TOL:
+            book.flag("A_pool_loss_without_account", lost)
+
+
 def check_continuity(previous: dict | None, row: dict, book: Book) -> None:
     if previous is None:
         return
@@ -584,6 +681,7 @@ def check_row(previous_after: dict | None, row: dict, book: Book) -> None:
     check_species(row, book)
     check_oxygen(row, book)
     check_tracer(row, book)
+    check_account(row, book)
 
 
 def summarize(book: Book) -> dict:
@@ -599,9 +697,25 @@ def summarize(book: Book) -> dict:
     terms["carbon_products_minus_clamp_kg"] = products - allowed
     terms["co2_tracer_minus_mass_applied_kg"] = (terms.get("co2_tracer_produced_kg", 0.0)
                                                  - terms.get("co2_applied_kg", 0.0))
+    pool_account = sum(terms.get(f"pool_account_{route}", 0.0) for route in POOL_ACCOUNT_ROUTES)
+    pool_exit = sum(terms.get(f"pool_exit_{route}", 0.0) for route in POOL_ACCOUNT_ROUTES)
+    terms["unburned_without_account_MJ"] = (terms.get("unburned_committed_MJ", 0.0)
+                                            - terms.get("object_account_change_MJ", 0.0))
+    terms["pool_exit_without_account_MJ"] = pool_exit - pool_account
+    if "fresh_heat_MJ" in terms:
+        terms["fuel_identity_residual_MJ"] = (
+            terms.get("fuel_debit_committed_MJ", 0.0) - terms["fresh_heat_MJ"] - terms.get("R_accrued_MJ", 0.0)
+            - terms.get("pool_generation_committed_MJ", 0.0) - terms.get("object_account_change_MJ", 0.0))
     return {
         "schema": SCHEMA,
         "tolerance": {"absolute": ABS_TOL, "relative": REL_TOL},
+        "energy_account": {
+            "object_account_MJ": terms.get("object_account_change_MJ", 0.0),
+            "pool_account_MJ": pool_account,
+            "unit": "MJ",
+            "physical_inventory": False,
+            "note": "cuenta energética: sin masa, zona, transporte ni ignición; no es gas",
+        },
         "counts": dict(sorted(book.counts.items())),
         "terms": dict(sorted(terms.items())),
         "U_without_inventory": {

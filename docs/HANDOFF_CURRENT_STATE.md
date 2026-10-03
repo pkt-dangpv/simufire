@@ -1,5 +1,81 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-03 - G3-4A: cuenta energética del pirolizado sin inventario
+
+Rama `codex/g3-fed-co-zonal-shareable`, sobre `1d4f58a6`. Diseño:
+[§16](validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md).
+
+**Qué es.** Una **cuenta energética en MJ, no una corrección física.** Detrás
+del interruptor nuevo `fire_unburned_energy_account_enabled` (OFF por defecto,
+solo en salas `explicit_objects`, es decir, con la opción D):
+
+- cada objeto anota la parte de su débito que el motor ni quema ni guarda
+  (`U`);
+- cada sala anota lo que sale del depósito sin arder: tope, decaimiento,
+  supresión y agotamiento.
+
+Ninguna condición del motor la lee. No es gas: no tiene masa, zona,
+transporte ni ignición. Con ella encendida, calor, O₂, especies, depósito y
+débito son idénticos.
+
+**Gate.**
+
+- **GO** para la cuenta. No exige ninguna decisión física.
+- **NO-GO** para cualquier cambio físico. El motor solo declara el
+  combustible en MJ: el calor de combustión por objeto vale −1 salvo en 4
+  objetos de dos casos de validación, y la única conversión global
+  (10 000 kJ/kg, la del backdraft) no tiene fuente. Un inventario en kg por
+  zona exige decidir antes, en este orden:
+  - **D1**: qué es `U`, gas pirolizado o sólido que no llega a pirolizar;
+  - **D2**: la conversión MJ→kg;
+  - **D3**: la zona de destino;
+  - **D4**: la ignición del inquemado;
+  - **D5**: el límite de O₂ del calor.
+
+  Las alternativas y la evidencia están en §16.4.
+
+**Medido, antes → después** (opción D y libro activos):
+
+- **El residuo de la identidad del combustible** pasa de `U` a redondeo:
+  - `o2_closed`: de 5,59 MJ a 6,6·10⁻¹³;
+  - objetivo continuo: de 16,53 MJ a 6,8·10⁻¹³;
+  - `o2_reopen_700`: de 5,50 MJ a 4,2·10⁻¹³.
+- **El decaimiento del depósito** (1,011 MJ en `o2_closed`) queda en su cuenta
+  de sala.
+- **Los otros hallazgos físicos no cambian**: el O₂ del penacho debitado con
+  la masa de la sala y el paso de extinción.
+- **La fixture del motor** (`tests/fixtures/g3_unburned_energy_account.gd`)
+  demuestra que con la cuenta OFF la misma identidad no cierra (563 pasos,
+  0,8255 MJ) y que la trayectoria es la misma con ON y con OFF.
+
+**Verificación:**
+
+- Identidad con la cuenta OFF: 36/36 casos (opción D ON/OFF × libro ON/OFF)
+  frente a las ejecuciones de §15; 252 archivos y los 18 libros completos,
+  byte a byte.
+- Con la cuenta ON: 13/13 casos con la física idéntica y 779 430 filas del
+  libro iguales al quitar la cuenta.
+- Mutantes del motor 4/4; mutaciones estáticas 22/22.
+- R2-1 sobre el código final: referencia 18/18 con **346/346 y 78 gaps**
+  (`reference_checks.json` solo cambia en `generated_at`), guardarraíles ALL
+  PASS, `check_product.py` 168/168 y pytest global 3302 passed, 37 skipped,
+  2 xfailed. Godot siempre por el monitor, con APPDATA/TEMP/TMP y basetemp
+  fuera del checkout.
+
+**Sigue sin resolver y no se presenta como resuelto:**
+
+- `U` sigue sin inventario físico.
+- El depósito sigue congelado sin fuego.
+- El backdraft sigue sin ligar calor y combustible.
+- El carbono de los productos sigue por encima del combustible.
+- Siguen las dos cuentas de CO₂.
+- Las especies sobre calor liberado y el hollín dentro del tope son otro
+  trabajo y no van en este cambio.
+- La opción D, la clave continua y CO/FED zonal siguen OFF; CO/FED siguen en
+  NO-GO.
+
+Sin commit ni push: el diff queda preparado para decidir.
+
 ## Current Program Update - 2026-10-02 - G3: instrumentación del balance físico en el motor
 
 Fase de observables

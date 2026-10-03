@@ -65,7 +65,7 @@ def test_single_flag_is_declared_off_by_default():
     # F2.2D1, R3, D2 y D3 anaden cuatro capacidades vivas:
     # 77 -> 78 -> 79 -> 80 -> 81; the later G3 FED flag raises it to 82 and the
     # G3 explicit-object fuel ownership flag to 83.
-    assert "EXPECTED_DECLARATION_COUNT = 83" in auditor
+    assert "EXPECTED_DECLARATION_COUNT = 84" in auditor
 
 
 def test_no_distributed_scenario_turns_the_flag_on():

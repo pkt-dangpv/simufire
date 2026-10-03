@@ -617,7 +617,21 @@ func _write_fuel_object_state_snapshot(building: BuildingModel, engine: Simulati
 				"co_yield_kg_per_MJ": float(obj.co_yield_kg_per_MJ),
 				"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
 			})
+			# G3-4A: cuenta energética, solo con su interruptor (no es inventario físico).
+			if engine.fire_unburned_energy_account_enabled:
+				objects[objects.size() - 1]["g3_unburned_energy_account_MJ"] = float(
+					obj.g3_unburned_energy_account_MJ
+				)
 		payload["rooms"].append({"room_id": int(room_id), "objects": objects})
+		if engine.fire_unburned_energy_account_enabled:
+			var last_room: Dictionary = payload["rooms"][payload["rooms"].size() - 1]
+			last_room["g3_pool_account_MJ"] = {
+				"capacity": float(room.g3_pool_account_capacity_MJ),
+				"decay": float(room.g3_pool_account_decay_MJ),
+				"suppression": float(room.g3_pool_account_suppression_MJ),
+				"burnout": float(room.g3_pool_account_burnout_MJ),
+			}
+			last_room["retained_unburned_MJ"] = float(room.retained_unburned_MJ)
 	var path: String = _out_dir.path_join("fuel_object_state_snapshot.json")
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
