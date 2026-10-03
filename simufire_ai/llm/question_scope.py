@@ -32,9 +32,10 @@ def explicit_request_contract(text, classification):
                       r"(?:explica|describe)\s+(?:(?:las?|los?)\s+)?)"
                       r"(?:limitaciones|incertidumbre|limites)\b", start)
     summary = re.match(r"^(?:resume\b|(?:ofrece|dame|haz|presenta|elabora)\s+(?:un\s+)?resumen\b)", start)
-    presence = re.match(r"^se\s+(?:ha\s+)?(?:detecto|registro|detectado|registrado)\s+"
+    presence = re.match(r"^(?:se\s+(?:ha\s+)?(?:detecto|registro|detectado|registrado)|"
+                        r"quedo\s+(?:detectado|registrado))\s+"
                         r"(?:un|una)\s+(?:aumento|incremento|crecimiento|descenso|reduccion)\b", start)
-    enumeration = re.match(r"^(?:enumera|lista|ordena)\s+(?:los\s+)?hechos\s+registrados\b", start)
+    enumeration = re.match(r"^(?:enumera|lista|ordena)\s+(?:todos\s+)?(?:los\s+)?hechos\s+registrados\b", start)
     # A magnitude or causal question can mention detection without asking
     # whether it occurred. Do not erase that request or a named variable filter.
     other_request = re.search(r"\b(?:cuant[oa]s?|valor|magnitud|caus\w*|provoc\w*|porque|significa)\b|"
@@ -64,13 +65,14 @@ def explicit_request_contract(text, classification):
         if measured_topics:
             classification["intent"] = "observation"
             classification["topics"] = measured_topics
-    if constrained and not classification["topics"]:
+    if constrained:
         mentioned = {topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
             if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
                    for term in TOPIC_LITERALS[topic])}
-        # Only fill a missing measured variable when its literal name is unique.
-        # Unknown or multiple effects still require the classifier/clarification.
-        if len(mentioned) == 1:
+        # A literal variable in a direct request overrides a generic topic guess.
+        # Keep conflicting specific topics or multiple variables for clarification.
+        generic_topics = {"fire_dynamics"}
+        if len(mentioned) == 1 and set(classification["topics"]) <= generic_topics:
             classification["topics"] = sorted(mentioned)
 
 
@@ -92,7 +94,15 @@ def candidate_actions(context, scope, text):
     return actions
 
 
-def interpret_explicit_scope(context, question, classification):
+def literal_rooms(context, question):
+    metadata = context.get("analysis_coverage", {})
+    rooms = metadata.get("compartments", [{"id": room, "name": room} for room in available_rooms(context)])
+    return {room["id"] for room in rooms if any(
+        re.search(r"(?<!\w)" + re.escape(label.lower()) + r"(?!\w)", question.lower())
+        for label in {room["id"], room["name"]} if label)}
+
+
+def interpret_explicit_scope(context, question, classification, *, model_proposal=False):
     """Check explicit IDs, seconds and ambiguous openings against model choices.
 
     This is conservative semantic validation, not a second physical detector.
@@ -118,13 +128,15 @@ def interpret_explicit_scope(context, question, classification):
         return result
     metadata = context.get("analysis_coverage", {})
     room_candidates = metadata.get("compartments", [{"id": room, "name": room} for room in available_rooms(context)])
-    mentioned = {room["id"] for room in room_candidates if any(
-        re.search(r"(?<!\w)" + re.escape(label.lower()) + r"(?!\w)", question.lower())
-        for label in {room["id"], room["name"]} if label)}
+    mentioned = literal_rooms(context, question)
     if len(mentioned) == 1:
         explicit_room = next(iter(mentioned))
         if scope["compartment_id"] not in (None, explicit_room):
-            raise ValueError("El compartimento clasificado contradice el indicado en la pregunta")
+            # Only a fresh model proposal may be corrected from an unambiguous
+            # literal. Persisted plans remain strict, and invented IDs fail closed.
+            known_rooms = {room["id"] for room in room_candidates}
+            if not model_proposal or scope["compartment_id"] not in known_rooms:
+                raise ValueError("El compartimento clasificado contradice el indicado en la pregunta")
         scope["compartment_id"] = explicit_room
         if result["clarification_needed"] == "compartment": result["clarification_needed"] = "none"
     elif len(mentioned) > 1:

@@ -9,7 +9,9 @@ Se reutilizan los 11 historiales sintéticos del corpus 2. El reservado 3 mide
 formulaciones nuevas, no generalización a escenarios físicos independientes.
 Todas las etiquetas requieren revisión física y docente independiente.
 
-El evaluador usa el corpus 3 por defecto. Las llamadas reales se separan de las
+El corpus 3 se conserva como archivo histórico. El evaluador usa ahora el corpus
+4 por defecto; añade `--corpus-dir simufire_ai/tests/data/question_evaluation_v3`
+para reproducir esta versión. Las llamadas reales se separan de las
 pruebas deterministas y cada salida debe ser una ruta nueva:
 
 ```powershell
@@ -21,7 +23,8 @@ python simufire_ai/evaluate_questions.py --ollama --split holdout --output evalu
 
 `--corpus-dir` permite reproducir archivos históricos, pero los reservados 1 y 2
 ya se han usado para desarrollar correcciones: ahora son regresiones. No ajustar
-código ni prompts con los resultados del reservado 3 en este bloque.
+El reservado 3 ya se usó para corregir errores y sus casos son regresiones en el
+corpus 4; una repetición ya no es una evaluación independiente.
 
 `passed` incluye intención y temas crudos del modelo; `answer_passed` excluye
 solo esas dos métricas y verifica el contrato final de respuesta. Los fallos

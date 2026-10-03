@@ -1,0 +1,4763 @@
+{
+  "cases": [
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "certeza",
+          "moderada"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_001",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿El incendio estaba limitado por ventilación antes de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_002",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación después de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_003",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación en t=179 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_004",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación antes de 170 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "85 °C"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_005",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura entre 179 y 195 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [
+          "475"
+        ],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_006",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura después de 180 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "1280"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_007",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió el HRR entre 179 y 195 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "16.8"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "OXYGEN_001"
+        ],
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_008",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió el oxígeno entre 179 y 195 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_004"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_009",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la interfaz de la capa de humo entre 179 y 195 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_010",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Hubo un aumento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_001"
+        ],
+        "topics": [
+          "ventilation"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_011",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un aumento de ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_012",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Hubo backdraft?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "flashover"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "flashover"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_013",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó flashover?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "rollover"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "rollover"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_014",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó rollover?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_015",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué es un incendio limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_016",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué significa HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "knowledge_unavailable",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [],
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_017",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué es backdraft?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": "FACT_001",
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "causality",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "causal_not_established",
+        "contains": [
+          "no puede afirmarse"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003",
+          "FACT_006"
+        ],
+        "intent": "causality",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_018",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿La apertura de door_01 causó el aumento del HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "uncertainty",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "no son suficientes"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005",
+          "FACT_007"
+        ],
+        "intent": "uncertainty",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_019",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué limitaciones hay para atribuir el aumento de temperatura a la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "general",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_020",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Resume los datos disponibles sobre el HRR.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_021",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué ocurrió antes de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": []
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "topics": []
+      },
+      "fixture": "positive",
+      "id": "dev_022",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué ocurrió después de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [
+          "no demuestra su ausencia"
+        ],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "negative",
+      "id": "dev_023",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó limitación por ventilación antes de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "negative",
+      "id": "dev_024",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "negative",
+      "id": "dev_025",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué es la ventilación limitada?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "short",
+      "id": "dev_026",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación antes de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "short",
+      "id": "dev_027",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Hubo un aumento del HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "gap",
+      "id": "dev_028",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un aumento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "gap",
+      "id": "dev_029",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un aumento del HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "gap",
+      "id": "dev_030",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿El incendio estaba limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "no_opening",
+      "id": "dev_031",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un incendio limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "no_opening",
+      "id": "dev_032",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "repeated",
+      "id": "dev_033",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación antes de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": []
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "topics": []
+      },
+      "fixture": "repeated",
+      "id": "dev_034",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué ocurrió antes de la primera apertura de door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": "room_01",
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [
+          "575"
+        ],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "dev_035",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura en room_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": "room_02",
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [
+          "475"
+        ],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "dev_036",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura en la Cocina?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009",
+          "FACT_010"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "dev_037",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": "room_01",
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "dev_038",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura en la habitación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "dev_039",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura en room_01 y room_02?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "440"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "threshold_equal",
+      "id": "dev_040",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un aumento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "threshold_below",
+      "id": "dev_041",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Se detectó un aumento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_042",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura antes y después de abrir la puerta?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "topic",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": []
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "general",
+        "knowledge_ids": [],
+        "topics": []
+      },
+      "fixture": "positive",
+      "id": "dev_043",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué se sabe?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "dev_044",
+      "origin_split_v1": "dev",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo cambió la temperatura entre 500 y 550 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "moderada"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_001",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Antes de abrir door_01, ¿hay indicios de un incendio limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_002",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Indica el cambio observado del HRR entre 179 s y 195 s.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "OXYGEN_001"
+        ],
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_003",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Entre 179 y 195 s, ¿cuánto varió el oxígeno?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_004",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Explica el concepto de capa de humo.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": "FACT_001",
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "causality",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "causal_not_established",
+        "contains": [
+          "no puede afirmarse"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_005",
+          "FACT_007"
+        ],
+        "intent": "causality",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_005",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Puede demostrarse que abrir door_01 provocó la subida de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "uncertainty",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_004",
+          "FACT_008"
+        ],
+        "intent": "uncertainty",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_006",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué incertidumbre tiene la explicación del descenso de la capa de humo?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "general",
+        "knowledge_ids": [
+          "OXYGEN_001"
+        ],
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_007",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Ofrece un resumen de los datos sobre el oxígeno.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_008",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Ordena los hechos registrados antes de la apertura de door_01.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "negative",
+      "id": "holdout_009",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Hay un patrón detectado de incendio limitado por ventilación previo a abrir door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "short",
+      "id": "holdout_010",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Con este historial corto, ¿hay evidencia de limitación por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "gap",
+      "id": "holdout_011",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Qué aumento de temperatura se ha observado con estas muestras?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "repeated",
+      "id": "holdout_012",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "Antes de abrir door_01, ¿se detectó limitación por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": "room_02",
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [
+          "475"
+        ],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "holdout_013",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "En Cocina, indica el cambio de temperatura entre 179 y 195 s.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "threshold_below",
+      "id": "holdout_014",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Aparece una detección de incremento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "no_opening",
+      "id": "holdout_015",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Hay evidencia de un patrón de incendio limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_016",
+      "origin_split_v1": "holdout",
+      "origin_split_v2": "dev",
+      "origin_split_v3": "dev",
+      "question": "¿Apareció un episodio de backdraft en esta simulación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_001",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "En Almacén, ¿se detectó un incremento del HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "55 °C"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "end_time_s": 40,
+          "start_time_s": 20,
+          "time_relation": "between"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_002",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Cómo varió la temperatura entre 20 s y 40 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_003",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Se registró un descenso de la interfaz de la capa de humo?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "general",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_004",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "Dame un resumen del HRR en Almacén.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "uncertainty",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "no permiten atribuirle una causa"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002",
+          "FACT_004"
+        ],
+        "intent": "uncertainty",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_005",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Cuáles son los límites para atribuir una causa al descenso de la capa de humo?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "causality",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "causal_not_established",
+        "contains": [
+          "no puede afirmarse"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "causality",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_006",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿El descenso de la capa de humo provocó el incremento de temperatura?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001",
+          "FACT_002",
+          "FACT_003"
+        ],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v2_007",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "Enumera los hechos registrados en Almacén.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_008",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Qué significa la tasa de liberación de calor o HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [
+          "no demuestra su ausencia"
+        ],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_009",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Se ha detectado un aumento de temperatura en Almacén?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_010",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Se ha detectado un crecimiento del HRR?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_011",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Existe una detección de incendio limitado por ventilación?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_012",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "Define el concepto de ventilación limitada.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "flashover"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "flashover"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v2_013",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Hubo flashover en el Almacén?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "end_time_s": 180,
+          "time_relation": "before"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v2_014",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación con anterioridad a abrir door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "start_time_s": 180,
+          "time_relation": "after"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v2_015",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación tras abrir door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "repeated",
+      "id": "holdout_v2_016",
+      "origin_split_v2": "holdout",
+      "origin_split_v3": "dev",
+      "question": "¿Estaba limitado por ventilación anterior a abrir door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_001",
+      "origin_split_v3": "holdout",
+      "question": "¿Quedó registrado un incremento de temperatura en Almacén?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [
+          "no demuestra su ausencia"
+        ],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v3_002",
+      "origin_split_v3": "holdout",
+      "question": "¿Hay alguna detección de descenso de la capa de humo en Almacén?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "112"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "scope": {
+          "end_time_s": 40,
+          "start_time_s": 20,
+          "time_relation": "between"
+        },
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_003",
+      "origin_split_v3": "holdout",
+      "question": "¿De cuánto fue el cambio del HRR entre 20 y 40 segundos?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001",
+          "FACT_002",
+          "FACT_003"
+        ],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "end_time_s": 40,
+          "start_time_s": 20,
+          "time_relation": "between"
+        },
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_004",
+      "origin_split_v3": "holdout",
+      "question": "Lista todos los hechos registrados en Almacén entre 20 y 40 s.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "uncertainty",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "no permiten atribuirle una causa"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002",
+          "FACT_004"
+        ],
+        "intent": "uncertainty",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_005",
+      "origin_split_v3": "holdout",
+      "question": "¿Qué límites tiene atribuir una causa al descenso de la interfaz de la capa de humo?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "causality",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "causal_not_established",
+        "contains": [
+          "no puede afirmarse"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "causality",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_006",
+      "origin_split_v3": "holdout",
+      "question": "¿Puede atribuirse el incremento del HRR al descenso de la capa de humo?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v3_007",
+      "origin_split_v3": "holdout",
+      "question": "Explica el significado de temperatura de la capa superior.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "general",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_008",
+      "origin_split_v3": "holdout",
+      "question": "Presenta un resumen de los datos sobre temperatura en Almacén.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "moderada"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "compartment_id": "room_01",
+          "end_time_s": 180,
+          "time_relation": "before"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v3_009",
+      "origin_split_v3": "holdout",
+      "question": "En room_01, ¿había un patrón de incendio limitado por ventilación antes de door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [
+          "no demuestra su ausencia"
+        ],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "end_time_s": 180,
+          "time_relation": "before"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "negative",
+      "id": "holdout_v3_010",
+      "origin_split_v3": "holdout",
+      "question": "¿Se registró un patrón de ventilación limitada con anterioridad a abrir door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "end_time_s": 180,
+          "time_relation": "before"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "short",
+      "id": "holdout_v3_011",
+      "origin_split_v3": "holdout",
+      "question": "¿Los datos permiten detectar un incendio limitado por ventilación antes de door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "scope": {
+          "end_time_s": 240,
+          "start_time_s": 179,
+          "time_relation": "between"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "gap",
+      "id": "holdout_v3_012",
+      "origin_split_v3": "holdout",
+      "question": "¿Qué cambio de temperatura puede describirse entre 179 y 240 segundos?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "repeated",
+      "id": "holdout_v3_013",
+      "origin_split_v3": "holdout",
+      "question": "¿Hay un patrón de ventilación limitada anterior a la apertura de door_01?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [
+          "475"
+        ],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "compartment_id": "room_02",
+          "end_time_s": 195,
+          "start_time_s": 179,
+          "time_relation": "between"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "holdout_v3_014",
+      "origin_split_v3": "holdout",
+      "question": "En Cocina, ¿de cuánto fue el cambio de temperatura entre 179 s y 195 s?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "flashover"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "warehouse",
+          "time_relation": "all"
+        },
+        "topics": [
+          "flashover"
+        ]
+      },
+      "fixture": "warehouse_growth",
+      "id": "holdout_v3_015",
+      "origin_split_v3": "holdout",
+      "question": "¿Existe algún registro de flashover en Almacén?",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "evaluation_role": "regression",
+      "expected": {
+        "answer_status": "knowledge_unavailable",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [],
+        "topics": [
+          "backdraft"
+        ]
+      },
+      "fixture": "warehouse_flat",
+      "id": "holdout_v3_016",
+      "origin_split_v3": "holdout",
+      "question": "Define backdraft como concepto teórico.",
+      "split": "dev"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "scope": {
+          "compartment_id": "lab",
+          "time_relation": "all"
+        },
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_001",
+      "question": "¿Hubo crecimiento del HRR en Laboratorio?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "scope": {
+          "end_time_s": 36,
+          "start_time_s": 12,
+          "time_relation": "between"
+        },
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_002",
+      "question": "¿Cuánto descendió la interfaz de la capa de humo entre 12 y 36 segundos?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001",
+          "FACT_002",
+          "FACT_003"
+        ],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "lab",
+          "end_time_s": 36,
+          "start_time_s": 12,
+          "time_relation": "between"
+        },
+        "topics": [
+          "hrr",
+          "smoke_layer",
+          "temperature"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_003",
+      "question": "Ordena todos los hechos registrados en Laboratorio entre 12 y 36 s.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "not_detected",
+        "contains": [
+          "no demuestra su ausencia"
+        ],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "lab",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "lab_flat",
+      "id": "holdout_v4_004",
+      "question": "¿Hay una detección de subida de temperatura en Laboratorio?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "causality",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "hrr"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "causal_not_established",
+        "contains": [
+          "no puede afirmarse"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_001"
+        ],
+        "intent": "causality",
+        "knowledge_ids": [
+          "HRR_001"
+        ],
+        "topics": [
+          "hrr"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_005",
+      "question": "¿El incremento de temperatura causó el aumento del HRR?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": true,
+        "intent": "uncertainty",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "no permiten atribuirle una causa"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_002",
+          "FACT_004"
+        ],
+        "intent": "uncertainty",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_006",
+      "question": "Describe los límites para explicar la causa del descenso de la capa de humo.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "theory_only",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [
+          "SMOKE_LAYER_001"
+        ],
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_007",
+      "question": "Define la capa de humo como concepto.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "general",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_003"
+        ],
+        "intent": "general",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "compartment_id": "lab",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_008",
+      "question": "Haz un resumen de la temperatura registrada en Laboratorio.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "lab_flat",
+      "id": "holdout_v4_009",
+      "question": "¿Puede detectarse ventilación limitada con este historial?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "rollover"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "unsupported",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "condition",
+        "knowledge_ids": [],
+        "scope": {
+          "compartment_id": "lab",
+          "time_relation": "all"
+        },
+        "topics": [
+          "rollover"
+        ]
+      },
+      "fixture": "lab_growth",
+      "id": "holdout_v4_010",
+      "question": "¿Se produjo rollover en Laboratorio?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_009"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "OXYGEN_001"
+        ],
+        "scope": {
+          "compartment_id": "room_01",
+          "time_relation": "all"
+        },
+        "topics": [
+          "oxygen"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v4_011",
+      "question": "¿Hay una detección de incremento del oxígeno en room_01?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "insufficient_data",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "observation",
+        "knowledge_ids": [],
+        "scope": {
+          "anchor_fact_id": null,
+          "start_time_s": 180,
+          "time_relation": "after"
+        },
+        "topics": [
+          "smoke_layer"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v4_012",
+      "question": "Indica cuánto descendió la capa de humo posterior a 180 segundos.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "condition",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [
+          "moderada"
+        ],
+        "excludes": [],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "condition",
+        "knowledge_ids": [
+          "VENTILATION_LIMITED_001"
+        ],
+        "scope": {
+          "anchor_fact_id": "FACT_001",
+          "end_time_s": 180,
+          "time_relation": "before"
+        },
+        "topics": [
+          "ventilation_limited"
+        ]
+      },
+      "fixture": "positive",
+      "id": "holdout_v4_013",
+      "question": "¿Hay ventilación limitada anterior a la primera apertura de door_01?",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "timeline",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "all",
+        "topics": []
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "clarification_required",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "timeline",
+        "knowledge_ids": [],
+        "topics": []
+      },
+      "fixture": "repeated",
+      "id": "holdout_v4_014",
+      "question": "Lista todos los hechos registrados antes de abrir door_01.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "observation",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "temperature"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "evidence_found",
+        "contains": [],
+        "excludes": [
+          "475"
+        ],
+        "fact_ids": [
+          "FACT_010"
+        ],
+        "intent": "observation",
+        "knowledge_ids": [
+          "TEMPERATURE_001"
+        ],
+        "scope": {
+          "compartment_id": "room_02",
+          "time_relation": "all"
+        },
+        "topics": [
+          "temperature"
+        ]
+      },
+      "fixture": "two_rooms",
+      "id": "holdout_v4_015",
+      "question": "Describe el cambio de temperatura registrado en room_02.",
+      "split": "holdout"
+    },
+    {
+      "classification": {
+        "anchor_fact_id": null,
+        "clarification_needed": "none",
+        "include_limitations": false,
+        "intent": "concept",
+        "question_id": "ignored",
+        "scenario_id": "ignored",
+        "schema_version": "0.4",
+        "scope": {
+          "anchor_fact_id": null,
+          "compartment_id": null,
+          "end_time_s": null,
+          "start_time_s": null,
+          "time_relation": "all"
+        },
+        "timeline_relation": "not_applicable",
+        "topics": [
+          "fds"
+        ]
+      },
+      "evaluation_role": "new_holdout",
+      "expected": {
+        "answer_status": "knowledge_unavailable",
+        "contains": [],
+        "excludes": [],
+        "fact_ids": [],
+        "intent": "concept",
+        "knowledge_ids": [],
+        "topics": [
+          "fds"
+        ]
+      },
+      "fixture": "lab_flat",
+      "id": "holdout_v4_016",
+      "question": "¿Qué significa FDS como concepto general?",
+      "split": "holdout"
+    }
+  ],
+  "description": "92 regressions; 16 new formulations, including two distinct laboratory synthetic histories. Not real simulator data.",
+  "parent_corpus_sha256": "5e6fec9c28e9d102933f910560eb61e184e3aa70afadad3a10ce180146c6bedf",
+  "policy": "Do not tune on new holdout. Synthetic labels pending independent expert review.",
+  "version": "4"
+}

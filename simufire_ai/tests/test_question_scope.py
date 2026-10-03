@@ -271,9 +271,15 @@ class QuestionScopeTests(unittest.TestCase):
 
     def test_unknown_or_contradictory_room_rejected(self):
         self.two_rooms()
-        for room in ("missing", "room_01"):
-            with self.subTest(room=room), self.assertRaises(ValueError):
-                self.query("¿Cómo cambió la temperatura en room_02?", classify("observation", ["temperature"], {"compartment_id": room}))
+        with self.assertRaises(ValueError):
+            self.query("¿Cómo cambió la temperatura en room_02?", classify("observation", ["temperature"], {"compartment_id": "missing"}))
+        plan,answer=self.query("¿Cómo cambió la temperatura en room_02?",
+            classify("observation", ["temperature"], {"compartment_id": "room_01"}))
+        self.assertEqual(plan['scope']['compartment_id'],'room_02')
+        facts={fact['fact_id']:fact for fact in self.context['scenario_facts']}
+        self.assertTrue(all(fact_rooms(self.context,facts[fid])=={'room_02'} for fid in answer['fact_ids']))
+        changed=copy.deepcopy(plan);changed['requested_scope']['compartment_id']='room_01'
+        with self.assertRaises(ValueError):render_question_answer(self.context,changed)
 
     def test_two_explicit_rooms_require_clarification(self):
         self.two_rooms()

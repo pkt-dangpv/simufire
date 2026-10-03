@@ -21,11 +21,12 @@ sys.path.insert(0, str(BASE_DIR))
 import pipeline
 from llm import plan_question
 from llm.question_context import context_fingerprint
+from llm.question_scope import literal_rooms
 from llm.render_question_answer import render_question_answer
 
 LEGACY_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
-PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v2'
-CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v3'
+PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v3'
+CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v4'
 
 
 def load_corpus(directory=CORPUS_DIR):
@@ -143,10 +144,13 @@ def evaluate_case(case, context, classifier):
         answer = render_question_answer(context, plan)
         rendered = time.perf_counter()
         parsed = json.loads(raw)
+        rooms = literal_rooms(context, case['question'])
         # Timeline topics are intentionally derived from selected facts by code.
         result['checks'] = {
             'model_intent':parsed['intent']==expected['intent'],
             'model_topics':None if expected['intent']=='timeline' else set(parsed['topics'])==set(expected['topics']),
+            'model_room_consistency':None if len(rooms)!=1 or expected['intent']=='concept' else
+                parsed['scope']['compartment_id'] in (None, next(iter(rooms))),
             'final_intent':plan['intent']==expected['intent'],
             'final_topics':set(plan['topics'])==set(expected['topics']),
             'answer_status':answer['answer_status']==expected['answer_status'],

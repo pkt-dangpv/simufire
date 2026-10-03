@@ -51,6 +51,58 @@ class ExplicitQuestionTests(unittest.TestCase):
                 self.assertEqual(result['raw_model_response'],raw)
                 self.assertEqual(result['grounding_errors'],[])
 
+    def test_replay_four_v3_failures_with_raw_metrics_intact(self):
+        records=json.loads((BASE_DIR/'tests/data/question_model_regressions_v3.json').read_text(encoding='utf-8'))
+        contexts=evaluation.build_contexts(records)
+        self.assertEqual(len(records),4)
+        for record in records:
+            with self.subTest(case=record['case_id']):
+                case=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+                raw=json.dumps(record['raw_classification'])
+                result=evaluation.evaluate_case(case,contexts[record['fixture']],lambda p,s:raw)
+                self.assertTrue(result['answer_passed'],result)
+                self.assertFalse(result['passed'])
+                self.assertEqual(result['raw_model_response'],raw)
+                self.assertEqual(result['grounding_errors'],[])
+                if record['case_id']=='dev_036':
+                    self.assertFalse(result['checks']['model_room_consistency'])
+                    self.assertEqual(result['answer']['scope']['compartment_id'],'room_02')
+                    self.assertNotIn('475',result['answer']['answer'])
+
+    def test_generic_topic_repair_requires_unique_explicit_measured_variable(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='condition',topics=['fire_dynamics'],clarification_needed='topic')
+        for text,topics in (
+            ('que limites tiene el descenso de la capa de humo',['smoke_layer']),
+            ('resume los datos de temperatura',['temperature']),
+            ('que limites tiene el incendio',['fire_dynamics']),
+            ('que limites tienen el hrr y la temperatura',['fire_dynamics'])):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value['topics'],topics)
+        for topic in ('oxygen','backdraft'):
+            value=copy.deepcopy(source);value['topics']=[topic]
+            explicit_request_contract('que limites tiene el descenso de la capa de humo',value)
+            self.assertEqual(value['topics'],[topic])
+
+    def test_new_presence_and_enumeration_forms_do_not_erase_other_requests(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        for text in ('quedo registrado un aumento de temperatura debido a la puerta',
+                     'quedo registrado un aumento de temperatura de cuantos grados',
+                     'lista todos los hechos registrados que causaron el aumento',
+                     'lista todos los hechos registrados sobre temperatura',
+                     'no lista todos los hechos registrados'):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value,source)
+
+    def test_saved_plan_room_cannot_be_repaired_like_a_model_proposal(self):
+        record=json.loads((BASE_DIR/'tests/data/question_model_regressions_v3.json').read_text(encoding='utf-8'))[0]
+        context=evaluation.build_contexts([record])[record['fixture']]
+        plan=create_question_plan(context,record['question'],'saved_room',
+            classifier=lambda p,s:json.dumps(record['raw_classification']))
+        for field in ('scope','requested_scope'):
+            value=copy.deepcopy(plan);value[field]['compartment_id']='room_01'
+            with self.assertRaises(ValueError):render_question_answer(context,value)
+
     def test_mentions_of_detection_do_not_erase_magnitude_cause_or_definition(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
         for text in ('cuanto subio la temperatura detectada', 'como se registro el descenso de la capa de humo',
@@ -111,10 +163,10 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'3')
-        self.assertEqual(report['summary']['total'],92)
-        self.assertEqual(report['summary']['passed'],92)
-        self.assertEqual(report['summary']['answer_passed'],92)
+        self.assertEqual(report['corpus_version'],'4')
+        self.assertEqual(report['summary']['total'],108)
+        self.assertEqual(report['summary']['passed'],108)
+        self.assertEqual(report['summary']['answer_passed'],108)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
@@ -128,6 +180,11 @@ class ExplicitQuestionTests(unittest.TestCase):
             for c in self.corpus['cases'] if c['question'] in old_questions))
         self.assertEqual(self.corpus['parent_corpus_sha256'],
             evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[1])
+        inherited={c['id']:c for c in self.corpus['cases'] if c['split']=='dev'}
+        self.assertEqual(set(inherited),{c['id'] for c in old['cases']})
+        for previous in old['cases']:
+            for field in ('question','fixture','classification','expected'):
+                self.assertEqual(inherited[previous['id']][field],previous[field])
 
     def test_definition_negation_and_unrelated_words_do_not_override(self):
         classification=copy.deepcopy(self.corpus['cases'][0]['classification'])

@@ -685,7 +685,7 @@ PREGUNTA:
     errors = list(validator.iter_errors(plan))
     if errors:
         raise ValueError(f'El plan no cumple el schema: {errors[0].message}')
-    interpreted = interpret_explicit_scope(context, question, plan)
+    interpreted = interpret_explicit_scope(context, question, plan, model_proposal=True)
     resolution = resolve_question(context, interpreted)
     result = {
         "schema_version": "0.4", "scenario_id": context["scenario_id"],
