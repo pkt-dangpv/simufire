@@ -33,7 +33,8 @@ TESTS = [
     "simufire_ai/tests/test_analysis_pipeline.py",
     "simufire_ai/tests/test_question_scope.py",
     "simufire_ai/tests/test_validation_exit_codes.py",
-    "simufire_ai/tests/test_question_evaluation.py"
+    "simufire_ai/tests/test_question_evaluation.py",
+    "simufire_ai/tests/test_explicit_question_contract.py"
 ]
 
 

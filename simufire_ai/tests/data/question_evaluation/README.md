@@ -1,5 +1,10 @@
 # Evaluación de preguntas, versión 1
 
+**Archivo histórico:** desde el corpus 2 estas 60 preguntas son regresiones.
+El reservado de esta versión ya se ha usado para correcciones y no debe volver
+a presentarse como evaluación independiente. El evaluador usa por defecto
+`question_evaluation_v2`; para reproducir esta versión indica `--corpus-dir`.
+
 60 preguntas en español: **44 de desarrollo y 16 reservadas**, siete intenciones
 y nueve variantes sintéticas del mismo escenario base. Incluyen patrón positivo,
 señales contradictorias, historial corto, hueco entre muestras, ausencia de apertura,

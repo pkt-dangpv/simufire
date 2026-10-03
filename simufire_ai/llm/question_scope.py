@@ -16,6 +16,45 @@ TOPIC_LITERALS = {
     "ventilation_limited": ("limitado por ventilacion", "limitada por ventilacion", "ventilacion limitada"),
     "flashover": ("flashover",), "backdraft": ("backdraft",), "rollover": ("rollover",),
 }
+BEFORE_CUE = r"(?:antes(?:\s+de)?|previ[oa]s?\s+a|anterior(?:es)?\s+a|con\s+anterioridad\s+a)"
+AFTER_CUE = r"(?:despues(?:\s+de)?|posterior(?:es)?\s+a|tras|luego\s+de)"
+
+
+def explicit_request_contract(text, classification):
+    """Constrain unmistakable requests; leave general language to Qwen.
+
+    These rules describe the requested response, never fire physics. In
+    particular an explicit request for limitations must not become a bare
+    measurement because the classifier chose observation.
+    """
+    start = text.lstrip("¿¡ \t\n")
+    limits = re.match(r"^(?:(?:que|cuales)(?:\s+son)?\s+(?:(?:las?|los?)\s+)?|"
+                      r"(?:explica|describe)\s+(?:(?:las?|los?)\s+)?)"
+                      r"(?:limitaciones|incertidumbre|limites)\b", start)
+    summary = re.match(r"^(?:resume\b|(?:ofrece|dame|haz|presenta|elabora)\s+(?:un\s+)?resumen\b)", start)
+    constrained = False
+    if limits:
+        classification["intent"] = "uncertainty"
+        constrained = True
+    elif summary and classification["intent"] not in ("concept", "causality"):
+        classification["intent"] = "general"
+        constrained = True
+    elif classification["intent"] == "timeline" and re.match(
+            r"^como\s+(?:cambio|ha\s+cambiado|vario)\b", start):
+        measured_topics = [topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
+            if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
+                   for term in TOPIC_LITERALS[topic])]
+        if measured_topics:
+            classification["intent"] = "observation"
+            classification["topics"] = measured_topics
+    if constrained and not classification["topics"]:
+        mentioned = {topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
+            if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
+                   for term in TOPIC_LITERALS[topic])}
+        # Only fill a missing measured variable when its literal name is unique.
+        # Unknown or multiple effects still require the classifier/clarification.
+        if len(mentioned) == 1:
+            classification["topics"] = sorted(mentioned)
 
 
 def candidate_actions(context, scope, text):
@@ -43,6 +82,8 @@ def interpret_explicit_scope(context, question, classification):
     Qwen handles general language; literal identifiers/ranges never get guessed.
     """
     result = copy.deepcopy(classification)
+    text = ''.join(ch for ch in unicodedata.normalize("NFD", question.lower()) if not unicodedata.combining(ch))
+    explicit_request_contract(text, result)
     scope = result["scope"]
     # Header fields are retained for legacy plans; only timeline uses them as
     # temporal bounds. The 0.4 scope owns temporal semantics for other intents.
@@ -50,7 +91,6 @@ def interpret_explicit_scope(context, question, classification):
         result["timeline_relation"] = "not_applicable"
         if result["intent"] != "causality":
             result["anchor_fact_id"] = None
-    text = ''.join(ch for ch in unicodedata.normalize("NFD", question.lower()) if not unicodedata.combining(ch))
     if result["clarification_needed"] == "topic" and result["topics"] and all(
         any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text) for term in TOPIC_LITERALS.get(topic, (topic,)))
         for topic in result["topics"]
@@ -81,8 +121,8 @@ def interpret_explicit_scope(context, question, classification):
         scope["compartment_id"] = None
     numeric = r"(?:t\s*=\s*)?(\d+(?:[.,]\d+)?)\s*(?:s\b|segundos?\b)?"
     interval = re.search(r"\bentre\s+" + numeric + r"\s+y\s+" + numeric, text)
-    before = bool(re.search(r"\bantes\b", text))
-    after = bool(re.search(r"\bdespues\b", text))
+    before = bool(re.search(r"\b" + BEFORE_CUE + r"\b", text))
+    after = bool(re.search(r"\b" + AFTER_CUE + r"\b", text))
     if interval:
         scope.update(time_relation="between", anchor_fact_id=None,
                      start_time_s=float(interval[1].replace(',', '.')), end_time_s=float(interval[2].replace(',', '.')))
@@ -95,7 +135,7 @@ def interpret_explicit_scope(context, question, classification):
         if scope["time_relation"] not in ("all", relation):
             raise ValueError("La relación temporal clasificada contradice la pregunta")
         scope["time_relation"] = relation
-        explicit_seconds = re.search(r"\b(?:antes|despues)\s+de\s+" + numeric + r"(?:\s|$|[?.])", text)
+        explicit_seconds = re.search(r"\b(?:" + BEFORE_CUE + "|" + AFTER_CUE + r")\s+" + numeric + r"(?:\s|$|[?.])", text)
         if explicit_seconds:
             value = float(explicit_seconds[1].replace(',', '.'))
             scope.update(anchor_fact_id=None, start_time_s=value if after else None, end_time_s=value if before else None)

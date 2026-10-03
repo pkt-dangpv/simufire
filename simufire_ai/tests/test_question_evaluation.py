@@ -20,16 +20,16 @@ from llm.render_question_answer import render_question_answer
 class EvaluationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.corpus, cls.digest = evaluation.load_corpus()
+        cls.corpus, cls.digest = evaluation.load_corpus(evaluation.LEGACY_CORPUS_DIR)
         cls.cases = cls.corpus['cases']
-        cls.contexts = evaluation.build_contexts(cls.cases)
+        cls.contexts = evaluation.build_contexts(cls.cases,evaluation.LEGACY_CORPUS_DIR)
 
     def setUp(self):
         network = patch('urllib.request.urlopen',side_effect=AssertionError('Unexpected network access'))
         network.start(); self.addCleanup(network.stop)
 
     def test_all_frozen_contracts_without_network(self):
-        report = evaluation.run_evaluation()
+        report = evaluation.run_evaluation(directory=evaluation.LEGACY_CORPUS_DIR)
         for result in report['results']:
             with self.subTest(case=result['case_id']):
                 self.assertTrue(result['passed'],result)

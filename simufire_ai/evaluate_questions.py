@@ -23,7 +23,8 @@ from llm import plan_question
 from llm.question_context import context_fingerprint
 from llm.render_question_answer import render_question_answer
 
-CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
+LEGACY_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
+CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v2'
 
 
 def load_corpus(directory=CORPUS_DIR):
@@ -152,6 +153,8 @@ def evaluate_case(case, context, classifier):
             'knowledge_selection':set(answer['knowledge_ids'])==set(expected['knowledge_ids']),
             'wording_constraints':all(text in answer['answer'] for text in expected['contains'])
                                   and all(text not in answer['answer'] for text in expected['excludes']),
+            'scope':None if 'scope' not in expected else all(
+                plan['scope'].get(key)==value for key,value in expected['scope'].items()),
         }
         result['grounding_errors'] = grounding_errors(context, plan, answer)
         result['plan'], result['answer'] = plan, answer
@@ -163,6 +166,8 @@ def evaluate_case(case, context, classifier):
     result.update(raw_model_response=raw, classifier_duration_s=classify_duration,
                   total_duration_s=time.perf_counter()-start, prompt_sha256=prompt_digest)
     result['passed'] = not result.get('error') and not result['grounding_errors'] and all(value is not False for value in result['checks'].values())
+    result['answer_passed'] = not result.get('error') and not result['grounding_errors'] and all(
+        value is not False for key, value in result['checks'].items() if not key.startswith('model_'))
     return result
 
 
@@ -170,9 +175,11 @@ def summarize(results):
     checks = sorted({key for result in results for key in result['checks']})
     durations = sorted(result['classifier_duration_s'] for result in results if result['classifier_duration_s'] is not None)
     per_split = {split:{'total':sum(r['split']==split for r in results),
-                       'passed':sum(r['split']==split and r['passed'] for r in results)}
+                       'passed':sum(r['split']==split and r['passed'] for r in results),
+                       'answer_passed':sum(r['split']==split and r['answer_passed'] for r in results)}
                  for split in sorted({r['split'] for r in results})}
     return {'total':len(results),'passed':sum(result['passed'] for result in results),
+            'answer_passed':sum(result['answer_passed'] for result in results),
             'errors':sum(bool(result.get('error')) for result in results),
             'grounding_violations':sum(bool(result['grounding_errors']) for result in results),
             'checks':{key:{'passed':sum(r['checks'].get(key) is True for r in results),
@@ -206,7 +213,8 @@ def run_evaluation(*, mode='offline', split='all', directory=CORPUS_DIR, progres
         raise ValueError('Evaluation inputs changed during run')
     if mode=='ollama' and model_metadata()!=model:
         raise ValueError('Installed model changed during evaluation')
-    return {'report_version':'1','created_at_utc':datetime.now(timezone.utc).isoformat(),
+    return {'report_version':'2','created_at_utc':datetime.now(timezone.utc).isoformat(),
+        'corpus_version':corpus['version'],'corpus_policy':corpus['policy'],
         'mode':mode,'split':split,'corpus_sha256':digest,'source_sha256':source,
         'engine_sha256':pipeline.engine_fingerprint(),'runtime':{'python':sys.version,'jsonschema':pipeline.version('jsonschema')},
         'model':model,'context_sha256':{name:context_fingerprint(ctx) for name,ctx in contexts.items()},
@@ -223,12 +231,13 @@ def main():
     parser.add_argument('--ollama',action='store_true')
     parser.add_argument('--split',choices=('dev','holdout','all'),default='all')
     parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--corpus-dir',type=Path,default=CORPUS_DIR)
     args = parser.parse_args()
     if args.output.exists(): parser.error('Refusing to overwrite an evaluation report')
     def progress(index, total, result):
-        print(f'{index}/{total} {result["case_id"]}: {"PASS" if result["passed"] else "FAIL"}',flush=True)
+        print(f'{index}/{total} {result["case_id"]}: {"PASS" if result["passed"] else "FAIL"}; answer={"PASS" if result["answer_passed"] else "FAIL"}',flush=True)
     try:
-        report = run_evaluation(mode='ollama' if args.ollama else 'offline',split=args.split,progress=progress)
+        report = run_evaluation(mode='ollama' if args.ollama else 'offline',split=args.split,directory=args.corpus_dir,progress=progress)
         args.output.parent.mkdir(parents=True,exist_ok=True)
         # Exclusive file creation keeps previous measurements intact.
         with args.output.open('x',encoding='utf-8') as stream:

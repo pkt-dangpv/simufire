@@ -1,0 +1,237 @@
+[
+  {
+    "case_id": "dev_019",
+    "question": "¿Qué limitaciones hay para atribuir el aumento de temperatura a la puerta?",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "dev_019",
+      "intent": "observation",
+      "topics": [
+        "temperature"
+      ],
+      "include_limitations": true,
+      "timeline_relation": "not_applicable",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    },
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [
+        "no son suficientes"
+      ],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_005",
+        "FACT_007"
+      ],
+      "intent": "uncertainty",
+      "knowledge_ids": [
+        "TEMPERATURE_001"
+      ],
+      "topics": [
+        "temperature"
+      ]
+    },
+    "fixture": "positive"
+  },
+  {
+    "case_id": "dev_020",
+    "question": "Resume los datos disponibles sobre el HRR.",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "dev_020",
+      "intent": "observation",
+      "topics": [
+        "hrr"
+      ],
+      "include_limitations": true,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    },
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_003"
+      ],
+      "intent": "general",
+      "knowledge_ids": [
+        "HRR_001"
+      ],
+      "topics": [
+        "hrr"
+      ]
+    },
+    "fixture": "positive"
+  },
+  {
+    "case_id": "dev_042",
+    "question": "¿Cómo cambió la temperatura antes y después de abrir la puerta?",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "dev_042",
+      "intent": "timeline",
+      "topics": [],
+      "include_limitations": false,
+      "timeline_relation": "before",
+      "anchor_fact_id": "FACT_001",
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    },
+    "expected": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "observation",
+      "knowledge_ids": [],
+      "topics": [
+        "temperature"
+      ]
+    },
+    "fixture": "positive"
+  },
+  {
+    "case_id": "holdout_007",
+    "question": "Ofrece un resumen de los datos sobre el oxígeno.",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "holdout_007",
+      "intent": "observation",
+      "topics": [
+        "oxygen"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    },
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_009"
+      ],
+      "intent": "general",
+      "knowledge_ids": [
+        "OXYGEN_001"
+      ],
+      "topics": [
+        "oxygen"
+      ]
+    },
+    "fixture": "positive"
+  },
+  {
+    "case_id": "holdout_009",
+    "question": "¿Hay un patrón detectado de incendio limitado por ventilación previo a abrir door_01?",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "holdout_009",
+      "intent": "condition",
+      "topics": [
+        "ventilation_limited"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "before",
+      "anchor_fact_id": "FACT_001",
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "action"
+    },
+    "expected": {
+      "answer_status": "not_detected",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "fixture": "negative"
+  },
+  {
+    "case_id": "dev_019",
+    "question": "¿Qué limitaciones hay para atribuir el aumento de temperatura a la puerta?",
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "dev_019",
+      "intent": "general",
+      "topics": [],
+      "include_limitations": true,
+      "timeline_relation": "not_applicable",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    },
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [
+        "no son suficientes"
+      ],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_005",
+        "FACT_007"
+      ],
+      "intent": "uncertainty",
+      "knowledge_ids": [
+        "TEMPERATURE_001"
+      ],
+      "topics": [
+        "temperature"
+      ]
+    },
+    "fixture": "positive",
+    "capture_run": "corpus_v2_dev_initial"
+  }
+]
