@@ -27,7 +27,7 @@ from llm.question_context import context_fingerprint
 QUESTION_ID = "question_vl_001"
 QUESTION = "¿El incendio estaba limitado por ventilación antes de abrir la puerta?"
 CLASSIFICATION = {
-    "schema_version": "0.3",
+    "schema_version": "0.4",
     "scenario_id": "basic_room_001",
     "question_id": QUESTION_ID,
     "intent": "condition",
@@ -35,6 +35,8 @@ CLASSIFICATION = {
     "include_limitations": False,
     "timeline_relation": "not_applicable",
     "anchor_fact_id": None,
+    "scope": {"compartment_id": None, "time_relation": "all", "anchor_fact_id": None, "start_time_s": None, "end_time_s": None},
+    "clarification_needed": "none",
 }
 
 
@@ -79,10 +81,10 @@ class QuestionFlowTests(unittest.TestCase):
         self.plan_path = self.plan_dir / f"basic_room_001_{QUESTION_ID}.json"
         self.answer_path = self.answer_dir / f"basic_room_001_{QUESTION_ID}_answer.json"
 
-    def plan(self, classification=None, use_ollama=False):
+    def plan(self, classification=None, use_ollama=False, question=QUESTION):
         args = [
             "--context", str(self.context_path), "--question-id", QUESTION_ID,
-            "--question", QUESTION, "--output-dir", str(self.plan_dir),
+            "--question", question, "--output-dir", str(self.plan_dir),
         ]
         if use_ollama:
             result = run_script("llm/plan_question.py", *args, timeout=150)
@@ -263,7 +265,7 @@ class QuestionFlowTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         answer = load_json(self.answer_path)
         self.assertEqual(answer["answer"],
-                         "No hay una condición detectada que permita responder a esta pregunta.")
+                         "Los datos disponibles no permiten evaluar un incendio limitado por ventilación en el ámbito solicitado. No se puede concluir que esté ausente.")
         self.assertEqual(answer["source_ids"], [])
 
     def test_alternate_numeric_evidence_never_uses_normal_events(self):
@@ -279,7 +281,7 @@ class QuestionFlowTests(unittest.TestCase):
                 else:
                     del context["source_events"]
                 save_json(self.context_path, context)
-                self.plan({**CLASSIFICATION, "intent": "observation", "topics": ["temperature"]})
+                self.plan({**CLASSIFICATION, "intent": "observation", "topics": ["temperature"]}, question="¿Cómo cambió la temperatura?")
                 result = self.render()
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 answer = load_json(self.answer_path)

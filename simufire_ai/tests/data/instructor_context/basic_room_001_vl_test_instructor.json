@@ -556,5 +556,220 @@
     "do_not_invent_missing_variables": true,
     "do_not_invent_phenomena": true,
     "distinguish_scenario_from_general_theory": true
+  },
+  "analysis_coverage": {
+    "schema_version": "0.1",
+    "compartments": [
+      {
+        "id": "room_01",
+        "name": "Habitación"
+      }
+    ],
+    "state_times_s": [
+      150,
+      160,
+      170,
+      179,
+      195
+    ],
+    "supported_topics": [
+      "hrr",
+      "temperature",
+      "smoke_layer",
+      "oxygen",
+      "ventilation",
+      "ventilation_limited"
+    ],
+    "windows": [
+      {
+        "topic": "temperature",
+        "compartment_id": "room_01",
+        "reference_time_s": 160,
+        "start_time_s": 150,
+        "end_time_s": 160,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "smoke_layer",
+        "compartment_id": "room_01",
+        "reference_time_s": 160,
+        "start_time_s": 150,
+        "end_time_s": 160,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "hrr",
+        "compartment_id": "room_01",
+        "reference_time_s": 160,
+        "start_time_s": 150,
+        "end_time_s": 160,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "ventilation",
+        "compartment_id": "room_01",
+        "reference_time_s": 160,
+        "start_time_s": 150,
+        "end_time_s": 160,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "oxygen",
+        "compartment_id": "room_01",
+        "reference_time_s": 160,
+        "start_time_s": 150,
+        "end_time_s": 160,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "temperature",
+        "compartment_id": "room_01",
+        "reference_time_s": 170,
+        "start_time_s": 160,
+        "end_time_s": 170,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "smoke_layer",
+        "compartment_id": "room_01",
+        "reference_time_s": 170,
+        "start_time_s": 160,
+        "end_time_s": 170,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "hrr",
+        "compartment_id": "room_01",
+        "reference_time_s": 170,
+        "start_time_s": 160,
+        "end_time_s": 170,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "ventilation",
+        "compartment_id": "room_01",
+        "reference_time_s": 170,
+        "start_time_s": 160,
+        "end_time_s": 170,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "oxygen",
+        "compartment_id": "room_01",
+        "reference_time_s": 170,
+        "start_time_s": 160,
+        "end_time_s": 170,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "temperature",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 170,
+        "end_time_s": 179,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "smoke_layer",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 170,
+        "end_time_s": 179,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "hrr",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 170,
+        "end_time_s": 179,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "ventilation",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 170,
+        "end_time_s": 179,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "oxygen",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 170,
+        "end_time_s": 179,
+        "evaluable": false,
+        "reason": "no_opening_window"
+      },
+      {
+        "topic": "temperature",
+        "compartment_id": "room_01",
+        "reference_time_s": 195,
+        "start_time_s": 179,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "smoke_layer",
+        "compartment_id": "room_01",
+        "reference_time_s": 195,
+        "start_time_s": 179,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "hrr",
+        "compartment_id": "room_01",
+        "reference_time_s": 195,
+        "start_time_s": 179,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "ventilation",
+        "compartment_id": "room_01",
+        "reference_time_s": 180,
+        "start_time_s": 179,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "oxygen",
+        "compartment_id": "room_01",
+        "reference_time_s": 195,
+        "start_time_s": 179,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      },
+      {
+        "topic": "ventilation_limited",
+        "compartment_id": "room_01",
+        "reference_time_s": 179,
+        "start_time_s": 150,
+        "end_time_s": 195,
+        "evaluable": true,
+        "reason": "requirements_met"
+      }
+    ]
   }
 }

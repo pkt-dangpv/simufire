@@ -1,19 +1,48 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "scenario_id": "basic_room_001",
   "question_id": "question_vl_001",
+  "question": "¿El incendio estaba limitado por ventilación antes de abrir la puerta?",
   "intent": "condition",
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": null,
+  "requested_scope": {
+    "compartment_id": null,
+    "time_relation": "before",
+    "anchor_fact_id": "FACT_001",
+    "start_time_s": null,
+    "end_time_s": null
+  },
+  "scope": {
+    "compartment_id": null,
+    "time_relation": "before",
+    "anchor_fact_id": "FACT_001",
+    "start_time_s": null,
+    "end_time_s": 180
+  },
+  "clarification_needed": "none",
+  "answer_status": "evidence_found",
+  "topic_assessments": [
+    {
+      "topic": "ventilation_limited",
+      "compartment_id": "room_01",
+      "status": "evidence_found",
+      "reason": "scoped_evidence"
+    }
+  ],
   "topics": [
     "ventilation_limited"
   ],
   "include_limitations": false,
-  "timeline_relation": "not_applicable",
-  "anchor_fact_id": null,
+  "primary_fact_ids": [
+    "FACT_010"
+  ],
+  "supporting_fact_ids": [],
   "resolved_fact_ids": [
     "FACT_010"
   ],
   "resolved_knowledge_ids": [
     "VENTILATION_LIMITED_001"
   ],
-  "source_context_sha256": "7488b2c1c951a6d8494325688e99b836175e75c741631adc52d5b165a6903bdf"
+  "source_context_sha256": "68fe17931c1eb2a4e2313c161e95b24b0c680fa89cf099a085ac33f999a3fc9d"
 }

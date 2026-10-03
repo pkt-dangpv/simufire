@@ -399,14 +399,14 @@ def render_timeline(facts):
     )
 
 
-def render_condition(facts):
+def render_condition(facts, include_observations=False):
 
     condition_facts = [
         fact
         for fact in facts
         if (
             fact["fact_type"]
-            == "association"
+            in (("association", "observation") if include_observations else ("association",))
         )
     ]
 
@@ -470,15 +470,41 @@ def render_condition(facts):
 
 
 
+TOPIC_LABELS = {
+    "hrr": "un aumento del HRR", "temperature": "un aumento de temperatura",
+    "smoke_layer": "un descenso de la interfaz entre capas", "oxygen": "un aumento de oxígeno",
+    "ventilation": "un aumento de ventilación", "ventilation_limited": "un incendio limitado por ventilación",
+    "flashover": "flashover", "backdraft": "backdraft", "rollover": "rollover",
+}
+
+
+def render_assessment(assessment):
+    label = TOPIC_LABELS.get(assessment["topic"], assessment["topic"])
+    status = assessment["status"]
+    if status == "not_detected":
+        return f"No se detectó {label} en las ventanas evaluables del ámbito solicitado. Esto no demuestra su ausencia."
+    if status == "insufficient_data":
+        if assessment["reason"] == "measurement_crosses_time_boundary":
+            return f"Las mediciones de {label} cruzan el límite temporal solicitado y no permiten aislar ese periodo. No se puede concluir que esté ausente."
+        return f"Los datos disponibles no permiten evaluar {label} en el ámbito solicitado. No se puede concluir que esté ausente."
+    if status == "unsupported":
+        return f"La evaluación de {label} para esta pregunta no está disponible en el analizador. No se puede confirmar ni descartar este fenómeno."
+    if status == "knowledge_unavailable":
+        return f"No hay conocimiento técnico disponible sobre {label} en esta ejecución."
+    return None
+
+
 def render_question_answer(context, plan):
     """Render only the bound context, without I/O or a language model call."""
     validate_context(context)
-    validate_plan_context(plan, context, plan.get('question_id'))
+    validate_plan_context(plan, context, plan.get('question_id') if isinstance(plan, dict) else None)
     facts_by_id = {fact['fact_id']: fact for fact in context['scenario_facts']}
     knowledge_by_id = {item['knowledge_id']: item for item in context['technical_knowledge']}
     events_by_id = {event['event_id']: event for event in context.get('source_events', [])}
     selected_facts = []
-    for fact_id in plan['resolved_fact_ids']:
+    scoped = plan["schema_version"] == "0.4"
+    primary_ids = plan["primary_fact_ids"] if scoped else plan["resolved_fact_ids"]
+    for fact_id in primary_ids:
         if fact_id not in facts_by_id:
             raise ValueError(f'No existe {fact_id} en el contexto seleccionado')
         selected_facts.append(facts_by_id[fact_id])
@@ -487,18 +513,40 @@ def render_question_answer(context, plan):
         if knowledge_id not in knowledge_by_id:
             raise ValueError(f'No existe {knowledge_id} en el contexto seleccionado')
         selected_knowledge.append(knowledge_by_id[knowledge_id])
+    if scoped:
+        if __package__:
+            from .question_scope import available_rooms, fact_rooms
+        else:
+            from question_scope import available_rooms, fact_rooms
+        if len(available_rooms(context)) > 1:
+            selected_facts = [dict(fact, statement="En " + (plan["scope"]["compartment_id"] or ", ".join(sorted(fact_rooms(context, fact)))) + ": " + fact["statement"])
+                              if fact_rooms(context, fact) else fact for fact in selected_facts]
     actions = [fact for fact in selected_facts if fact['fact_type'] == 'action']
     associations = [fact for fact in selected_facts if fact['fact_type'] == 'association']
     observations = [fact for fact in selected_facts if fact['fact_type'] == 'observation']
     limitations = [fact for fact in selected_facts if fact['fact_type'] == 'limitation']
     intent = plan['intent']
     answer_parts = []
-    if intent == 'concept':
+    clarification = scoped and plan["answer_status"] == "clarification_required"
+    empty_scoped = scoped and not primary_ids and intent != "concept"
+    if clarification:
+        prompts = {
+            "action": "¿A qué apertura te refieres? Indica el elemento y el instante.",
+            "compartment": "¿Qué compartimento quieres analizar? Indica su nombre o identificador.",
+            "time": "¿Qué periodo quieres analizar? Indica un intervalo o un instante concreto.",
+            "topic": "¿Qué variable o fenómeno quieres consultar?",
+        }
+        answer_parts.append(prompts[plan["clarification_needed"]])
+    elif empty_scoped:
+        if intent == "timeline":
+            answer_parts.append("No hay hechos registrados que permitan responder en el ámbito solicitado. No se puede reconstruir lo ocurrido con estos datos.")
+    elif intent == 'concept':
         if not selected_knowledge:
             answer_parts.append('No hay conocimiento técnico disponible para responder a esta pregunta.')
         else:
             for item in selected_knowledge:
-                answer_parts.append(item['content'])
+                prefix = "Como marco teórico general: " if scoped else ""
+                answer_parts.append(prefix + item['content'])
     elif intent == 'observation':
         if not observations:
             answer_parts.append('No hay una observación disponible para responder a esta pregunta.')
@@ -510,7 +558,7 @@ def render_question_answer(context, plan):
                     paragraph += ' ' + render_change(change)
                 answer_parts.append(paragraph)
     elif intent == 'condition':
-        answer_parts.append(render_condition(selected_facts))
+        answer_parts.append(render_condition(selected_facts, include_observations=scoped))
     elif intent == 'timeline':
         timeline_facts = [fact for fact in selected_facts if fact['fact_type'] != 'limitation']
         if not timeline_facts:
@@ -518,7 +566,7 @@ def render_question_answer(context, plan):
         else:
             answer_parts.append(render_timeline(timeline_facts))
     elif intent == 'causality':
-        if limitations:
+        if limitations or scoped:
             answer_parts.append('Con los datos disponibles no puede afirmarse esa relación causal.')
         evidence = actions + associations + observations
         if evidence:
@@ -532,12 +580,23 @@ def render_question_answer(context, plan):
             answer_parts.append(' '.join((fact['statement'] for fact in limitations)))
         else:
             answer_parts.append('No hay una limitación específica registrada para esta pregunta.')
+            if scoped:
+                answer_parts.append("Esto no autoriza a establecer una relación causal con los datos disponibles.")
     else:
         evidence = actions + associations + observations
         if evidence:
             answer_parts.append(' '.join((fact['statement'] for fact in evidence)))
         if limitations:
             answer_parts.append(' '.join((fact['statement'] for fact in limitations)))
+    if scoped and not clarification:
+        if intent == "causality" and empty_scoped:
+            answer_parts.insert(0, "Con los datos disponibles no puede afirmarse esa relación causal.")
+        for assessment in plan["topic_assessments"]:
+            note = render_assessment(assessment)
+            if note:
+                if len(available_rooms(context)) > 1 and assessment.get("compartment_id"):
+                    note = "En " + assessment["compartment_id"] + ": " + note
+                answer_parts.append(note)
     knowledge_was_used = False
     if intent in ['condition', 'causality', 'uncertainty', 'general'] and selected_knowledge:
         theory_parts = []
@@ -554,9 +613,20 @@ def render_question_answer(context, plan):
             source_id = item['source']['source_id']
             if source_id not in source_ids:
                 source_ids.append(source_id)
-    result = {'schema_version': '0.3', 'scenario_id': plan['scenario_id'], 'question_id': plan['question_id'], 'intent': intent, 'topics': plan['topics'], 'fact_ids': plan['resolved_fact_ids'], 'knowledge_ids': plan['resolved_knowledge_ids'], 'answer': answer, 'source_ids': source_ids}
+    result = {'schema_version': plan['schema_version'], 'scenario_id': plan['scenario_id'], 'question_id': plan['question_id'], 'intent': intent, 'topics': plan['topics'], 'fact_ids': primary_ids, 'knowledge_ids': plan['resolved_knowledge_ids'], 'answer': answer, 'source_ids': source_ids}
     result['source_context_sha256'] = context_fingerprint(context)
     result['fact_metadata'] = [{key: fact[key] for key in ('fact_id', 'certainty', 'causal') if key in fact} for fact in selected_facts]
+    if scoped:
+        for key in ("answer_status", "topic_assessments", "scope", "supporting_fact_ids"):
+            result[key] = plan[key]
+        result["supporting_fact_metadata"] = [
+            {key: facts_by_id[fact_id][key] for key in ("fact_id", "certainty", "causal")}
+            for fact_id in plan["supporting_fact_ids"]
+        ]
+        result["fact_provenance"] = [
+            {key: fact[key] for key in ("fact_id", "time_s", "compartment_id", "compartment_ids", "event_ids", "evidence_interval_s") if key in fact}
+            for fact in selected_facts
+        ]
     if 'run_id' in context:
         result['run_id'] = context['run_id']
     return result

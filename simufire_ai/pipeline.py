@@ -19,6 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
 from analyzer.build_grounded_facts import build_facts
+from analyzer.assessment_coverage import build_assessment_coverage
 from analyzer.fire_event_analyzer import analyze_timeline
 from knowledge.context_builder import build_context
 from knowledge.retriever import load_entries
@@ -27,7 +28,7 @@ from llm.question_context import context_fingerprint, load_schema, unique_index,
 from llm.render_question_answer import render_question_answer
 
 
-PIPELINE_VERSION = "0.1"
+PIPELINE_VERSION = "0.2"
 ARTIFACTS = (
     "scenario.json", "states.json", "thresholds.json", "knowledge.json",
     "events.json", "facts.json", "context.json",
@@ -70,6 +71,7 @@ def engine_fingerprint():
         "pipeline.py", "analyzer/fire_event_analyzer.py", "analyzer/action_context.py",
         "analyzer/build_grounded_facts.py", "knowledge/context_builder.py",
         "llm/question_context.py",
+        "analyzer/assessment_coverage.py", "llm/question_scope.py",
     )]
     sources.extend(sorted((BASE_DIR / "schemas").glob("*.json")))
     return context_fingerprint({
@@ -145,8 +147,15 @@ def build_analysis(scenario, states, run_id, *, thresholds=None, entries=None):
     entries = load_entries() if entries is None else entries
     scenario, states, thresholds, entries = normalize_inputs(scenario, states, thresholds, entries)
     events = analyze_timeline(states, scenario, thresholds)
-    facts = build_facts(scenario, events)
-    context = build_context(scenario["scenario_id"], facts, events, entries, run_id=run_id)
+    fact_scenario = copy.deepcopy(scenario)
+    # The input scenario can contain a schedule beyond the recorded states.
+    # Such actions are not recorded occurrences in this analysis.
+    fact_scenario["actions"] = [action for action in scenario["actions"]
+                               if states[0]["time_s"] <= action["time_s"] <= states[-1]["time_s"]]
+    facts = build_facts(fact_scenario, events)
+    coverage = build_assessment_coverage(scenario, states, thresholds)
+    context = build_context(scenario["scenario_id"], facts, events, entries, run_id=run_id,
+                            analysis_coverage=coverage, include_general_knowledge=True)
     artifacts = dict(zip(ARTIFACTS, (scenario, states, thresholds, entries, events, facts, context)))
     manifest = {
         "schema_version": "0.1", "pipeline_version": PIPELINE_VERSION,

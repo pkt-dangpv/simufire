@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "scenario_id": "basic_room_001",
   "question_id": "question_vl_001",
   "intent": "condition",
@@ -16,12 +16,44 @@
   "source_ids": [
     "NIST_FIRE_DYNAMICS"
   ],
-  "source_context_sha256": "7488b2c1c951a6d8494325688e99b836175e75c741631adc52d5b165a6903bdf",
+  "source_context_sha256": "68fe17931c1eb2a4e2313c161e95b24b0c680fa89cf099a085ac33f999a3fc9d",
   "fact_metadata": [
     {
       "fact_id": "FACT_010",
       "certainty": "moderate",
       "causal": false
+    }
+  ],
+  "answer_status": "evidence_found",
+  "topic_assessments": [
+    {
+      "topic": "ventilation_limited",
+      "compartment_id": "room_01",
+      "status": "evidence_found",
+      "reason": "scoped_evidence"
+    }
+  ],
+  "scope": {
+    "compartment_id": null,
+    "time_relation": "before",
+    "anchor_fact_id": "FACT_001",
+    "start_time_s": null,
+    "end_time_s": 180
+  },
+  "supporting_fact_ids": [],
+  "supporting_fact_metadata": [],
+  "fact_provenance": [
+    {
+      "fact_id": "FACT_010",
+      "time_s": 179,
+      "compartment_id": "room_01",
+      "event_ids": [
+        "ventilation_limited_179_room_01"
+      ],
+      "evidence_interval_s": {
+        "start": 150,
+        "end": 195
+      }
     }
   ]
 }

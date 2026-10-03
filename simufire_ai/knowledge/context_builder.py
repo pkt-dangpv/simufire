@@ -42,7 +42,9 @@ def build_knowledge_matches(facts, entries=None):
     return sorted(matches.values(), key=lambda item: item["knowledge_id"])
 
 
-def build_context(scenario_id, facts, events, entries=None, *, run_id=None):
+def build_context(scenario_id, facts, events, entries=None, *, run_id=None,
+                  analysis_coverage=None, include_general_knowledge=False):
+    entries = load_entries() if entries is None else entries
     context = {
         "schema_version": "0.1", "scenario_id": scenario_id,
         "scenario_facts": copy.deepcopy(facts), "source_events": copy.deepcopy(events),
@@ -51,5 +53,16 @@ def build_context(scenario_id, facts, events, entries=None, *, run_id=None):
     }
     if run_id is not None:
         context["run_id"] = run_id
+    if include_general_knowledge:
+        matched_ids = {entry["knowledge_id"] for entry in context["technical_knowledge"]}
+        for entry in entries:
+            if entry["knowledge_id"] not in matched_ids:
+                projection = {key: copy.deepcopy(entry[key]) for key in
+                              ("knowledge_id", "topic", "title", "content", "source", "confidence")}
+                projection.update(matched_topic=entry["topic"], matched_fact_ids=[])
+                context["technical_knowledge"].append(projection)
+        context["technical_knowledge"].sort(key=lambda item: item["knowledge_id"])
+    if analysis_coverage is not None:
+        context["analysis_coverage"] = copy.deepcopy(analysis_coverage)
     validate_context(context)
     return context

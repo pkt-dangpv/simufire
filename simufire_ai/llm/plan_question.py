@@ -16,6 +16,12 @@ else:
     )
 
 
+if __package__:
+    from .question_scope import interpret_explicit_scope, resolve_question, available_rooms
+else:
+    from question_scope import interpret_explicit_scope, resolve_question, available_rooms
+
+
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 CONTEXT_PATH = (
@@ -469,9 +475,10 @@ def create_question_plan(context, question, question_id, *, classifier=None):
     if not question or not question_id:
         raise ValueError("La pregunta y question_id no pueden estar vacíos.")
     validate_context(context)
-    schema = load_json(SCHEMA_PATH)
+    schema = load_json(BASE_DIR / "schemas/question_classification.schema.json")
     scenario_facts = context['scenario_facts']
-    available_topics = sorted({topic for fact in scenario_facts for topic in fact.get('knowledge_topics', [])})
+    available_topics = schema['properties']['topics']['items']['enum']
+    compartments = context.get('analysis_coverage', {}).get('compartments', [{'id': room, 'name': room} for room in sorted(available_rooms(context))])
     action_candidates = [{'fact_id': fact['fact_id'], 'time_s': fact['time_s'], 'statement': fact['statement']} for fact in scenario_facts if fact['fact_type'] == 'action']
     prompt = f"""
 Eres el planificador de preguntas de SimuFire AI.
@@ -528,6 +535,8 @@ Ejemplos:
 antes de abrir la puerta?"
 -> intent = condition
 -> topics = ["ventilation_limited"]
+-> scope.time_relation = "before"
+-> scope.anchor_fact_id = acción de apertura disponible
 
 "¿Qué ocurrió antes de abrir la puerta?"
 -> intent = timeline
@@ -537,9 +546,15 @@ REGLAS:
 
 - Para observation selecciona solamente
   el topic de la variable preguntada.
+  observation se refiere a valores o cambios de HRR, temperatura, oxígeno
+  o altura de interfaz. La presencia de un fenómeno no es observation.
 
 - Para condition selecciona solamente
   el topic de la condición preguntada.
+  "¿Hubo backdraft?", "¿Se produjo flashover?" y "¿Se detectó rollover?"
+  son condition, aunque el analizador no pueda evaluarlos.
+  Ejemplo: "¿Hubo backdraft?" -> intent="condition", topics=["backdraft"],
+  scope all sin ancla, clarification_needed="none".
 
 - Una condition detectada debe conservar
   el grado de certeza del Grounded Fact.
@@ -548,6 +563,8 @@ REGLAS:
 
 - Para concept selecciona solamente
   el topic del concepto preguntado.
+  "¿Qué significa incendio limitado por ventilación?" -> intent="concept",
+  topics=["ventilation_limited"], scope all sin ancla y sin compartimento.
 
 - Para causality:
     * topics debe contener el fenómeno EFECTO
@@ -578,7 +595,39 @@ REGLAS:
 
 - Devuelve exclusivamente el JSON solicitado.
 
-schema_version = "0.3"
+CONTRATO DE ÁMBITO:
+
+- Devuelve scope con compartment_id, time_relation, anchor_fact_id,
+  start_time_s y end_time_s. Incluye clarification_needed siempre.
+- Sin límites pedidos: time_relation="all", ancla y tiempos=null.
+- Antes/después de una acción: time_relation="before"/"after",
+  scope.anchor_fact_id=acción; start_time_s=end_time_s=null.
+  Esto también se aplica a condition, observation, uncertainty y general.
+- Antes/después de segundos explícitos: ancla=null y solo end_time_s/start_time_s.
+- Entre dos instantes: time_relation="between", ancla=null, inicio y fin.
+- En un instante: time_relation="at", ancla=null, inicio=fin.
+- compartment_id solo puede ser uno de los compartimentos disponibles;
+  null significa todos los compartimentos, sin elegir una habitación arbitraria.
+- Para concept no hay afirmación sobre la simulación: usa scope all sin ancla.
+- Para timeline copia la relación y ancla del scope en timeline_relation y
+  anchor_fact_id; para between/at usa timeline_relation="all".
+- Para causality el anchor_fact_id principal representa la causa propuesta;
+  el scope.anchor_fact_id solo representa el límite temporal de la pregunta.
+- Si falta identificar puerta, apertura repetida, habitación o tema, usa
+  clarification_needed="action", "compartment" o "topic"; "time" para un
+  periodo ambiguo. Usa "none" si la pregunta es resoluble.
+- Una variable explícita y un intervalo numérico no necesitan aclaración.
+  "¿Cómo cambió la temperatura entre 179 y 195 segundos?" -> observation,
+  topics=["temperature"], scope between 179 y 195, ancla=null,
+  clarification_needed="none".
+- No elijas la primera de varias aperturas si el usuario no la distingue.
+- Los temas de la lista se pueden preguntar aunque no haya detección: el código
+  distingue evidencia, cobertura insuficiente y capacidades no disponibles.
+
+COMPARTIMENTOS DISPONIBLES:
+{json.dumps(compartments, ensure_ascii=False)}
+
+schema_version = "0.4"
 scenario_id = "{context["scenario_id"]}"
 question_id = "{question_id}"
 
@@ -608,43 +657,24 @@ PREGUNTA:
         raise ValueError('Qwen no devolvió JSON válido.')
     if not isinstance(plan, dict):
         raise ValueError('Qwen debe devolver un objeto JSON.')
-    plan['schema_version'] = '0.3'
+    plan['schema_version'] = '0.4'
     plan['scenario_id'] = context['scenario_id']
     plan['question_id'] = question_id
+    context_fingerprint(plan)
     validator = Draft202012Validator(schema)
     errors = list(validator.iter_errors(plan))
     if errors:
         raise ValueError(f'El plan no cumple el schema: {errors[0].message}')
-    intent = plan['intent']
-    include_limitations = intent in ['causality', 'uncertainty']
-    action_ids = {item['fact_id'] for item in action_candidates}
-    try:
-        if intent == 'timeline':
-            if plan['timeline_relation'] not in ['before', 'after', 'all']:
-                raise ValueError('Una pregunta timeline necesita una relación temporal válida.')
-            if plan['timeline_relation'] in ['before', 'after'] and plan['anchor_fact_id'] not in action_ids:
-                raise ValueError('anchor_fact_id no corresponde a una acción disponible.')
-            fact_ids = select_timeline_facts(scenario_facts, plan['timeline_relation'], plan['anchor_fact_id'])
-            topics = derive_topics(scenario_facts, fact_ids)
-        else:
-            if not plan['topics']:
-                raise ValueError('La pregunta necesita al menos un topic.')
-            topics = list(plan['topics'])
-            if intent == 'causality':
-                anchor_fact_id = plan.get('anchor_fact_id')
-                if anchor_fact_id is not None:
-                    if anchor_fact_id not in action_ids:
-                        raise ValueError('El anchor causal no corresponde a una acción disponible.')
-                    action_topics = derive_topics_from_action(scenario_facts, anchor_fact_id)
-                    for topic in action_topics:
-                        if topic not in topics:
-                            topics.append(topic)
-            fact_ids = select_topic_facts(scenario_facts, topics, include_limitations, intent)
-    except (ValueError, KeyError, RuntimeError) as error:
-        raise ValueError(str(error)) from error
-    knowledge_ids = select_knowledge(context['technical_knowledge'], topics)
-    result = {'schema_version': '0.3', 'scenario_id': context['scenario_id'], 'question_id': question_id, 'intent': intent, 'topics': topics, 'include_limitations': include_limitations, 'timeline_relation': plan['timeline_relation'], 'anchor_fact_id': plan['anchor_fact_id'], 'resolved_fact_ids': fact_ids, 'resolved_knowledge_ids': knowledge_ids}
-    result['source_context_sha256'] = context_fingerprint(context)
+    interpreted = interpret_explicit_scope(context, question, plan)
+    resolution = resolve_question(context, interpreted)
+    result = {
+        "schema_version": "0.4", "scenario_id": context["scenario_id"],
+        "question_id": question_id, "question": question,
+        "intent": interpreted["intent"],
+        "timeline_relation": interpreted["timeline_relation"],
+        "anchor_fact_id": interpreted["anchor_fact_id"],
+        **resolution, "source_context_sha256": context_fingerprint(context),
+    }
     if 'run_id' in context:
         result['run_id'] = context['run_id']
     validate_plan_context(result, context, question_id)

@@ -4,7 +4,6 @@
   "title": "SimuFire AI Question Plan",
   "type": "object",
   "additionalProperties": false,
-
   "required": [
     "schema_version",
     "scenario_id",
@@ -15,36 +14,34 @@
     "timeline_relation",
     "anchor_fact_id"
   ],
-
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "0.3"
+      "enum": [
+        "0.3",
+        "0.4"
+      ]
     },
-
     "scenario_id": {
       "type": "string",
       "minLength": 1
     },
-
     "question_id": {
       "type": "string",
       "minLength": 1
     },
-
-  "intent": {
-    "type": "string",
-    "enum": [
-      "timeline",
-      "causality",
-      "concept",
-      "observation",
-      "condition",
-      "uncertainty",
-      "general"
-    ]
-  },
-
+    "intent": {
+      "type": "string",
+      "enum": [
+        "timeline",
+        "causality",
+        "concept",
+        "observation",
+        "condition",
+        "uncertainty",
+        "general"
+      ]
+    },
     "topics": {
       "type": "array",
       "uniqueItems": true,
@@ -71,11 +68,9 @@
         ]
       }
     },
-
     "include_limitations": {
       "type": "boolean"
     },
-
     "timeline_relation": {
       "type": "string",
       "enum": [
@@ -85,12 +80,253 @@
         "not_applicable"
       ]
     },
-
     "anchor_fact_id": {
       "type": [
         "string",
         "null"
       ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compartment_id",
+        "time_relation",
+        "anchor_fact_id",
+        "start_time_s",
+        "end_time_s"
+      ],
+      "properties": {
+        "compartment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "time_relation": {
+          "enum": [
+            "all",
+            "before",
+            "after",
+            "between",
+            "at"
+          ]
+        },
+        "anchor_fact_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "start_time_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "end_time_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "requested_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compartment_id",
+        "time_relation",
+        "anchor_fact_id",
+        "start_time_s",
+        "end_time_s"
+      ],
+      "properties": {
+        "compartment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "time_relation": {
+          "enum": [
+            "all",
+            "before",
+            "after",
+            "between",
+            "at"
+          ]
+        },
+        "anchor_fact_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "start_time_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "end_time_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "clarification_needed": {
+      "enum": [
+        "none",
+        "compartment",
+        "action",
+        "topic",
+        "time"
+      ]
+    },
+    "answer_status": {
+      "enum": [
+        "evidence_found",
+        "theory_only",
+        "not_detected",
+        "insufficient_data",
+        "unsupported",
+        "clarification_required",
+        "knowledge_unavailable",
+        "partial",
+        "causal_not_established"
+      ]
+    },
+    "topic_assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topic",
+          "status",
+          "reason"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "enum": [
+              "fire_dynamics",
+              "hrr",
+              "ventilation",
+              "ventilation_limited",
+              "smoke_layer",
+              "flashover",
+              "backdraft",
+              "rollover",
+              "gas_flow",
+              "oxygen",
+              "temperature",
+              "fire_growth",
+              "suppression",
+              "zone_models",
+              "cfast",
+              "fds",
+              "simufire"
+            ]
+          },
+          "status": {
+            "enum": [
+              "evidence_found",
+              "theory_only",
+              "not_detected",
+              "insufficient_data",
+              "unsupported",
+              "clarification_required",
+              "knowledge_unavailable",
+              "partial",
+              "causal_not_established"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "coverage_unavailable",
+              "no_samples",
+              "outside_recorded_time",
+              "no_evaluable_window",
+              "sampling_gap",
+              "zero_hrr_baseline",
+              "ambiguous_interventions",
+              "no_opening_window",
+              "missing_pre_or_post_samples",
+              "insufficient_pre_history",
+              "measurement_crosses_time_boundary",
+              "no_matching_detection",
+              "general_theory",
+              "no_knowledge_entry",
+              "no_detector_for_request",
+              "scoped_evidence",
+              "temporal_association_is_not_causation"
+            ]
+          },
+          "compartment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "primary_fact_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "supporting_fact_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "0.4"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "scope",
+          "requested_scope",
+          "clarification_needed",
+          "answer_status",
+          "topic_assessments",
+          "primary_fact_ids",
+          "supporting_fact_ids",
+          "question"
+        ]
+      }
+    }
+  ]
 }

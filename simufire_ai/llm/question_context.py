@@ -51,6 +51,7 @@ def validate_time_provenance(item):
 
 
 def validate_context(context):
+    context_fingerprint(context)  # Reject non-finite numbers in all nested data.
     validate_schema(
         context, load_schema("instructor_context.schema.json"), "Contexto",
     )
@@ -126,10 +127,36 @@ def validate_context(context):
                 room_id = fact.get("compartment_id")
                 if room_id is not None and events[event_id].get("compartment_id") != room_id:
                     raise ValueError(f"Evento de otro compartimento: {event_id}")
+    coverage = context.get("analysis_coverage")
+    if coverage is not None:
+        rooms = unique_index(coverage["compartments"], "id")
+        for fact in facts.values():
+            declared = fact.get("compartment_ids", [])
+            if "compartment_id" in fact:
+                declared = [fact["compartment_id"]]
+            if any(room not in rooms for room in declared):
+                raise ValueError("Hecho de un compartimento ajeno a la cobertura")
+        if any(event.get("compartment_id") not in rooms for event in events.values()):
+            raise ValueError("Evento de un compartimento ajeno a la cobertura")
+        times = coverage["state_times_s"]
+        if times != sorted(set(times)):
+            raise ValueError("Los tiempos de cobertura deben ser únicos y ordenados")
+        for window in coverage["windows"]:
+            if window["compartment_id"] not in rooms:
+                raise ValueError("Ventana de cobertura de otro compartimento")
+            if not (times[0] <= window["start_time_s"] <= window["end_time_s"] <= times[-1]):
+                raise ValueError("Intervalo de cobertura fuera de los datos registrados")
+            if not window["start_time_s"] <= window["reference_time_s"] <= window["end_time_s"]:
+                # An unevaluable opening can sit beyond the recorded time span.
+                if window["evaluable"] or window["reason"] != "missing_pre_or_post_samples":
+                    raise ValueError("Intervalo de cobertura inválido")
+            if window["evaluable"] != (window["reason"] == "requirements_met"):
+                raise ValueError("Estado y motivo de cobertura contradictorios")
 
 
 def validate_plan_context(plan, context, question_id):
     """Reject stale/cross-context plans before resolving IDs or writing output."""
+    context_fingerprint(plan)
     schema = load_schema("question_plan.schema.json")
     for key in ("resolved_fact_ids", "resolved_knowledge_ids"):
         schema["required"].append(key)
@@ -180,3 +207,17 @@ def validate_plan_context(plan, context, question_id):
         anchor not in facts or facts[anchor]["fact_type"] != "action"
     ):
         raise ValueError("El anchor no corresponde a una acción del contexto")
+    if plan["schema_version"] == "0.4":
+        if __package__:
+            from .question_scope import interpret_explicit_scope, resolve_question
+        else:
+            from question_scope import interpret_explicit_scope, resolve_question
+        classification = {key: plan[key] for key in (
+            "intent", "topics", "timeline_relation", "anchor_fact_id", "clarification_needed",
+        )}
+        classification["scope"] = plan["requested_scope"]
+        interpreted = interpret_explicit_scope(context, plan["question"], classification)
+        expected = resolve_question(context, interpreted)
+        for key, value in expected.items():
+            if plan[key] != value:
+                raise ValueError(f"Plan resuelto no coincide con su ámbito/evidencia: {key}")

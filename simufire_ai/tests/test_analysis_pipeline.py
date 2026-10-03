@@ -24,9 +24,11 @@ QUESTION = "¿El incendio estaba limitado por ventilación antes de abrir la pue
 def classification(intent="condition", topics=None):
     # Deliberately wrong model identities: the code must assign actual identities.
     return {
-        "schema_version": "0.3", "scenario_id": "model_guess", "question_id": "model_guess",
+        "schema_version": "0.4", "scenario_id": "model_guess", "question_id": "model_guess",
         "intent": intent, "topics": topics or ["ventilation_limited"],
         "include_limitations": False, "timeline_relation": "not_applicable", "anchor_fact_id": None,
+        "scope": {"compartment_id": None, "time_relation": "all", "anchor_fact_id": None, "start_time_s": None, "end_time_s": None},
+        "clarification_needed": "none",
     }
 
 
@@ -137,7 +139,7 @@ class AnalysisPipelineTests(unittest.TestCase):
         run = self.build()
         with patch("pipeline.load_entries", side_effect=AssertionError("Live knowledge read")):
             artifacts = pipeline.load_run(run, replay=True)
-        self.assertEqual(artifacts["manifest.json"]["pipeline_version"], "0.1")
+        self.assertEqual(artifacts["manifest.json"]["pipeline_version"], "0.2")
         relocated = self.root / "renamed"
         run.rename(relocated)
         self.assertEqual(pipeline.load_run(relocated, replay=True), artifacts)
@@ -177,10 +179,10 @@ class AnalysisPipelineTests(unittest.TestCase):
         artifacts = pipeline.load_run(run, replay=True)
         self.assertEqual(artifacts["events.json"], [])
         self.assertEqual(artifacts["facts.json"], [])
-        answer = pipeline.ask_run(run, QUESTION, "question", classifier=self.classifier)
+        answer = pipeline.ask_run(run, "¿Se detectó un incendio limitado por ventilación?", "question", classifier=self.classifier)
         self.assertEqual(answer["fact_ids"], [])
         self.assertEqual(answer["source_ids"], [])
-        self.assertEqual(answer["answer"], "No hay una condición detectada que permita responder a esta pregunta.")
+        self.assertEqual(answer["answer"], "Los datos disponibles no permiten evaluar un incendio limitado por ventilación en el ámbito solicitado. No se puede concluir que esté ausente.")
 
     def test_rejects_invalid_inputs_without_creating_run(self):
         cases = []

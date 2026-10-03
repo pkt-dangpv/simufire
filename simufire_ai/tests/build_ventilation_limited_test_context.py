@@ -20,6 +20,7 @@ from analyzer.fire_event_analyzer import (
 from analyzer.build_grounded_facts import (
     build_facts
 )
+from analyzer.assessment_coverage import build_assessment_coverage
 
 from knowledge.context_builder import build_knowledge_matches
 
@@ -244,6 +245,8 @@ def main():
                 True
         }
     }
+    thresholds = load_json(BASE_DIR / "config/analyzer_thresholds.json")
+    context["analysis_coverage"] = build_assessment_coverage(scenario, states, thresholds)
 
     # ---------------------------------------------
     # VALIDACIÓN

@@ -80,6 +80,120 @@
     "run_id": {
       "type": "string",
       "minLength": 1
+    },
+    "analysis_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "compartments",
+        "state_times_s",
+        "supported_topics",
+        "windows"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "0.1"
+        },
+        "compartments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "state_times_s": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "supported_topics": {
+          "const": [
+            "hrr",
+            "temperature",
+            "smoke_layer",
+            "oxygen",
+            "ventilation",
+            "ventilation_limited"
+          ]
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topic",
+              "compartment_id",
+              "reference_time_s",
+              "start_time_s",
+              "end_time_s",
+              "evaluable",
+              "reason"
+            ],
+            "properties": {
+              "topic": {
+                "enum": [
+                  "hrr",
+                  "temperature",
+                  "smoke_layer",
+                  "oxygen",
+                  "ventilation",
+                  "ventilation_limited"
+                ]
+              },
+              "compartment_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_time_s": {
+                "type": "number",
+                "minimum": 0
+              },
+              "start_time_s": {
+                "type": "number",
+                "minimum": 0
+              },
+              "end_time_s": {
+                "type": "number",
+                "minimum": 0
+              },
+              "evaluable": {
+                "type": "boolean"
+              },
+              "reason": {
+                "enum": [
+                  "requirements_met",
+                  "sampling_gap",
+                  "zero_hrr_baseline",
+                  "ambiguous_interventions",
+                  "no_opening_window",
+                  "missing_pre_or_post_samples",
+                  "insufficient_pre_history"
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
