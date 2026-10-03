@@ -105,6 +105,26 @@ class QuestionScopeTests(unittest.TestCase):
         self.assertEqual(plan["scope"]["start_time_s"], 170)
         self.assertEqual(answer["fact_ids"], ["FACT_010"])
 
+    def test_explicit_point_clears_unneeded_action_or_time_clarification(self):
+        for ambiguity in ("action", "time"):
+            with self.subTest(ambiguity=ambiguity):
+                _, answer = self.query("¿Estaba limitado por ventilación en t=179 s?",
+                    classify(clarification=ambiguity))
+                self.assertEqual(answer["answer_status"], "evidence_found")
+                self.assertEqual(answer["fact_ids"], ["FACT_010"])
+
+    def test_unique_causal_action_clears_unneeded_clarification(self):
+        _, answer = self.query("¿La apertura de door_01 causó el aumento del HRR?",
+            classify("causality", ["hrr"], anchor="FACT_001", clarification="action"))
+        self.assertEqual(answer["answer_status"], "causal_not_established")
+        self.assertIn("no puede afirmarse", answer["answer"])
+
+    def test_unique_temporal_action_supplies_an_unambiguous_time_boundary(self):
+        _, answer = self.query("¿Estaba limitado por ventilación antes de abrir la puerta?",
+            classify(clarification="time"))
+        self.assertEqual(answer["answer_status"], "evidence_found")
+        self.assertEqual(answer["scope"]["end_time_s"],180)
+
     def test_measured_change_crossing_boundary_is_not_reported(self):
         _, answer = self.query("¿Cómo cambió la temperatura después de 180 s?", classify("observation", ["temperature"]))
         self.assertEqual(answer["fact_ids"], [])

@@ -1,0 +1,17 @@
+{
+  "files": {
+    "corpus.json": "256be397139328d066d6208ff0c06bc342d2a9e1d33f96d298fc4e74b2b50987",
+    "gap.json": "4591046ecd45c030af8bfa0c2c16658ee3dbf1a397ddfe0a56b2ca560998427f",
+    "knowledge.json": "e587e573581eee3f7d13ec0727adba3a4b9ca90df9fcc7a100cb50559e743010",
+    "negative.json": "37e5f71e80395dc312093d997f78b69351793e6a8214a40756ac9db7b07986d0",
+    "no_opening.json": "81425901fc5856d38348ef84646bb2d8b3eeae20e9656c83e6767b78b086b064",
+    "positive.json": "978c2fb6361cff110f4776808ad95d8e2a4339471880d54acae3c8d604a94c20",
+    "repeated.json": "4ebb820316cc5781aef98f26cb55d85d95375df2c3d96d0fb7913820e71271b5",
+    "short.json": "c6073bc696dfa01f70015b8e0175592af66b4ba214427bd924f8b54a4b899de9",
+    "threshold_below.json": "610d799f717b46197c1659c36c8ea3130ada45ec81f00fa7f53dbdbd1bfd4660",
+    "threshold_equal.json": "b8b4796e02499883842ef6398d571f4ed3583276f5cf3ddec240232898e6d880",
+    "thresholds.json": "fe368d6c9ce7e46f5e1305039f00af0bd0364b945c961e552de3b6146d112d80",
+    "two_rooms.json": "e28ce539b1bdc73fb9f1de45af9d9261a6959939898f68589d0ebb48b024719f"
+  },
+  "version": "1"
+}

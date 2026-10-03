@@ -106,7 +106,7 @@ def interpret_explicit_scope(context, question, classification):
                 if scope["anchor_fact_id"] not in (None, actions[0]["fact_id"]):
                     raise ValueError("El ancla temporal contradice la acción indicada en la pregunta")
                 scope.update(anchor_fact_id=actions[0]["fact_id"], start_time_s=None, end_time_s=None)
-                if result["clarification_needed"] == "action": result["clarification_needed"] = "none"
+                if result["clarification_needed"] in ("action", "time"): result["clarification_needed"] = "none"
             else:
                 scope.update(anchor_fact_id=None, start_time_s=None, end_time_s=None)
                 result["clarification_needed"] = "action"
@@ -115,6 +115,8 @@ def interpret_explicit_scope(context, question, classification):
         if point:
             value = float(point[1].replace(',', '.'))
             scope.update(time_relation="at", anchor_fact_id=None, start_time_s=value, end_time_s=value)
+            if result["clarification_needed"] in ("action", "time"):
+                result["clarification_needed"] = "none"
         elif any(value is not None for value in (scope["start_time_s"], scope["end_time_s"])):
             literals = {float(value.replace(',', '.')) for value in re.findall(r"(?<!\w)\d+(?:[.,]\d+)?(?!\w)", text)}
             if any(value is not None and value not in literals for value in (scope["start_time_s"], scope["end_time_s"])):
@@ -126,6 +128,8 @@ def interpret_explicit_scope(context, question, classification):
             result["clarification_needed"] = "action"
         elif result["anchor_fact_id"] != actions[0]["fact_id"]:
             raise ValueError("El ancla causal contradice la acción indicada en la pregunta")
+        elif result["clarification_needed"] == "action":
+            result["clarification_needed"] = "none"
     if result["intent"] == "timeline":
         result["timeline_relation"] = scope["time_relation"] if scope["time_relation"] in ("before", "after") else "all"
         result["anchor_fact_id"] = scope["anchor_fact_id"]

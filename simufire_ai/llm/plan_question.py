@@ -646,6 +646,26 @@ ACCIONES DISPONIBLES:
     ensure_ascii=False
 )}
 
+
+REVISIÓN FINAL ANTES DE CLASIFICAR:
+
+- Clasifica el texto de la pregunta, no la disponibilidad de datos físicos.
+  La cobertura de datos la comprueba el código. Si no se solicita periodo,
+  scope all es completo: no falta tiempo y clarification_needed="none".
+- "¿Hubo un aumento de temperatura?" y "¿Se detectó un aumento del HRR?"
+  preguntan SI existe una detección: intent=condition, NO observation.
+  "¿Cómo cambió la temperatura?" pregunta el cambio medido: observation.
+- Pedir limitaciones o incertidumbre es uncertainty; selecciona el tema del
+  efecto preguntado. Pedir un resumen de datos es general.
+- Sin tema identificable: topics=[], clarification_needed="topic".
+  "¿Qué se sabe?" -> general, topics=[], clarification_needed="topic".
+- Sin compartimento explícito, scope.compartment_id=null. Sin límite temporal,
+  scope.time_relation=all, scope.anchor_fact_id=null, start/end=null.
+- Una causa propuesta no es un límite temporal: causality usa scope all si
+  no se pidió antes/después/intervalo; solo anchor_fact_id principal identifica
+  la causa. Si una sola acción corresponde a la apertura pedida, no falta acción.
+- "en t=179 s" no necesita aclaración: at, start=end=179, ancla=null.
+
 PREGUNTA:
 
 {question}
