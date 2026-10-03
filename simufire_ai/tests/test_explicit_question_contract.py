@@ -37,17 +37,89 @@ class ExplicitQuestionTests(unittest.TestCase):
                 if record['case_id']!='holdout_009':
                     self.assertFalse(result['checks']['model_intent'])
 
+    def test_replay_four_v2_failures_preserves_raw_model_errors(self):
+        records=json.loads((BASE_DIR/'tests/data/question_model_regressions_v2.json').read_text(encoding='utf-8'))
+        contexts=evaluation.build_contexts(records)
+        self.assertEqual(len(records),4)
+        for record in records:
+            with self.subTest(case=record['case_id']):
+                original=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+                raw=json.dumps(record['raw_classification'])
+                result=evaluation.evaluate_case(original,contexts[record['fixture']],lambda p,s:raw)
+                self.assertTrue(result['answer_passed'],result)
+                self.assertFalse(result['checks']['model_intent'])
+                self.assertEqual(result['raw_model_response'],raw)
+                self.assertEqual(result['grounding_errors'],[])
+
+    def test_mentions_of_detection_do_not_erase_magnitude_cause_or_definition(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        for text in ('cuanto subio la temperatura detectada', 'como se registro el descenso de la capa de humo',
+                     'se registro un aumento de temperatura de cuanto',
+                     'se detecto un aumento de temperatura causado por la apertura',
+                     'se detecto un aumento de temperatura debido a abrir la puerta',
+                     'se detecto un aumento de temperatura de cuantos grados',
+                     'se registro un descenso de la capa de humo, que significa',
+                     'que significa un aumento detectado de hrr', 'no se ha detectado un aumento de temperatura',
+                     'enumera los hechos registrados sobre temperatura',
+                     'enumera los hechos registrados que causaron el aumento', 'enumera las temperaturas'):
+            with self.subTest(text=text):
+                value=copy.deepcopy(source);explicit_request_contract(text,value)
+                self.assertEqual(value,source)
+        for intent in ('concept','causality','uncertainty'):
+            value=copy.deepcopy(source);value['intent']=intent
+            original=copy.deepcopy(value)
+            explicit_request_contract('se ha detectado un aumento de temperatura',value)
+            self.assertEqual(value,original)
+
+    def test_enumeration_preserves_non_topic_ambiguity_and_physical_metadata(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='general',topics=[],clarification_needed='topic')
+        context=evaluation.build_contexts([{'fixture':'warehouse_growth'}])['warehouse_growth']
+        plan=create_question_plan(context,'Enumera los hechos registrados en Almacén.','list_facts',
+            classifier=lambda p,s:json.dumps(source))
+        answer=render_question_answer(context,plan)
+        self.assertEqual(answer['fact_ids'],['FACT_001','FACT_002','FACT_003'])
+        self.assertEqual(answer['knowledge_ids'],[])
+        self.assertEqual(answer['source_ids'],[])
+        self.assertEqual(answer['fact_metadata'],[
+            {'fact_id':f['fact_id'],'certainty':f['certainty'],'causal':f['causal']}
+            for f in context['scenario_facts'] if f['fact_type']!='limitation'])
+        for ambiguity in ('action','compartment','time'):
+            value=copy.deepcopy(source);value['clarification_needed']=ambiguity
+            explicit_request_contract('enumera los hechos registrados',value)
+            self.assertEqual(value['clarification_needed'],ambiguity)
+        repeated=evaluation.build_contexts([{'fixture':'repeated'}])['repeated']
+        plan=create_question_plan(repeated,'Enumera los hechos registrados antes de abrir door_01.','repeat_list',
+            classifier=lambda p,s:json.dumps(source))
+        self.assertEqual(plan['answer_status'],'clarification_required')
+        self.assertEqual(plan['clarification_needed'],'action')
+
+    def test_detection_request_never_fills_physical_facts_or_negative_coverage(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['temperature'])
+        contexts=evaluation.build_contexts([{'fixture':f} for f in ('warehouse_growth','warehouse_flat','gap')])
+        for fixture,status,facts in (('warehouse_growth','evidence_found',['FACT_003']),
+                                    ('warehouse_flat','not_detected',[]),('gap','insufficient_data',[])):
+            with self.subTest(fixture=fixture):
+                plan=create_question_plan(contexts[fixture],'¿Se ha detectado un aumento de temperatura?','detect',
+                    classifier=lambda p,s:json.dumps(source))
+                answer=render_question_answer(contexts[fixture],plan)
+                self.assertEqual(plan['intent'],'condition')
+                self.assertEqual(answer['answer_status'],status)
+                self.assertEqual(answer['fact_ids'],facts)
+                self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'2')
-        self.assertEqual(report['summary']['total'],76)
-        self.assertEqual(report['summary']['passed'],76)
-        self.assertEqual(report['summary']['answer_passed'],76)
+        self.assertEqual(report['corpus_version'],'3')
+        self.assertEqual(report['summary']['total'],92)
+        self.assertEqual(report['summary']['passed'],92)
+        self.assertEqual(report['summary']['answer_passed'],92)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
     def test_retired_holdout_is_regression_and_new_holdout_is_distinct(self):
-        old=evaluation.load_corpus(evaluation.LEGACY_CORPUS_DIR)[0]
+        old=evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[0]
         old_questions={c['question'] for c in old['cases']}
         fresh=[c for c in self.corpus['cases'] if c['split']=='holdout']
         self.assertEqual(len(fresh),16)
@@ -55,7 +127,7 @@ class ExplicitQuestionTests(unittest.TestCase):
         self.assertTrue(all(c['split']=='dev' and c['evaluation_role']=='regression'
             for c in self.corpus['cases'] if c['question'] in old_questions))
         self.assertEqual(self.corpus['parent_corpus_sha256'],
-            evaluation.load_corpus(evaluation.LEGACY_CORPUS_DIR)[1])
+            evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[1])
 
     def test_definition_negation_and_unrelated_words_do_not_override(self):
         classification=copy.deepcopy(self.corpus['cases'][0]['classification'])

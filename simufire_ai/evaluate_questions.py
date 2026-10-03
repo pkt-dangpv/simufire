@@ -24,7 +24,8 @@ from llm.question_context import context_fingerprint
 from llm.render_question_answer import render_question_answer
 
 LEGACY_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
-CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v2'
+PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v2'
+CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v3'
 
 
 def load_corpus(directory=CORPUS_DIR):

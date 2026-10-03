@@ -231,5 +231,17 @@ consultas concretas con el modelo real se ejecuta por separado:
 python simufire_ai/tests/test_question_scope.py --ollama
 ```
 
-Estos casos de regresión no sustituyen una evaluación representativa del lenguaje
-del modelo; esa evaluación, con casos reservados, es el siguiente hito.
+La evaluación reproducible usa ahora el corpus 3: 76 regresiones y 16 nuevas
+formulaciones reservadas sobre los mismos 11 historiales sintéticos. Las versiones
+anteriores y sus entradas congeladas se conservan. Consulta
+`tests/data/question_evaluation_v3/README.md` para ejecutar por separado contratos
+offline, desarrollo con Ollama y el nuevo reservado. El evaluador distingue la
+clasificación cruda de Qwen de la respuesta final validada.
+
+Los controles explícitos preservan peticiones sobre detección de cambios y
+enumeración de hechos registrados. No aportan hechos físicos: conservan la
+certeza, causalidad, cobertura y procedencia del análisis. Las consultas sobre
+magnitud, causa o definiciones no se sustituyen por una pregunta de detección.
+Las pruebas reproducen las cuatro respuestas erróneas del reservado 2 sin red.
+Los casos usados para corregir el código son regresiones; no constituyen una
+medición independiente ni sustituyen una revisión física y docente.

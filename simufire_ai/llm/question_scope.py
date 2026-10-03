@@ -32,6 +32,15 @@ def explicit_request_contract(text, classification):
                       r"(?:explica|describe)\s+(?:(?:las?|los?)\s+)?)"
                       r"(?:limitaciones|incertidumbre|limites)\b", start)
     summary = re.match(r"^(?:resume\b|(?:ofrece|dame|haz|presenta|elabora)\s+(?:un\s+)?resumen\b)", start)
+    presence = re.match(r"^se\s+(?:ha\s+)?(?:detecto|registro|detectado|registrado)\s+"
+                        r"(?:un|una)\s+(?:aumento|incremento|crecimiento|descenso|reduccion)\b", start)
+    enumeration = re.match(r"^(?:enumera|lista|ordena)\s+(?:los\s+)?hechos\s+registrados\b", start)
+    # A magnitude or causal question can mention detection without asking
+    # whether it occurred. Do not erase that request or a named variable filter.
+    other_request = re.search(r"\b(?:cuant[oa]s?|valor|magnitud|caus\w*|provoc\w*|porque|significa)\b|"
+                              r"\b(?:por\s+que|debido\s+a|que\s+es)\b", text)
+    literal_topic = any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
+                        for terms in TOPIC_LITERALS.values() for term in terms)
     constrained = False
     if limits:
         classification["intent"] = "uncertainty"
@@ -39,6 +48,14 @@ def explicit_request_contract(text, classification):
     elif summary and classification["intent"] not in ("concept", "causality"):
         classification["intent"] = "general"
         constrained = True
+    elif presence and not other_request and literal_topic and classification["intent"] not in ("concept", "causality", "uncertainty"):
+        classification["intent"] = "condition"
+        constrained = True
+    elif enumeration and not other_request and not literal_topic and classification["intent"] not in ("concept", "causality"):
+        classification["intent"] = "timeline"
+        classification["topics"] = []
+        if classification["clarification_needed"] == "topic":
+            classification["clarification_needed"] = "none"
     elif classification["intent"] == "timeline" and re.match(
             r"^como\s+(?:cambio|ha\s+cambiado|vario)\b", start):
         measured_topics = [topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")

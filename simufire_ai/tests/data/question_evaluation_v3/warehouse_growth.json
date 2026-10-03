@@ -1,0 +1,111 @@
+{
+  "scenario": {
+    "actions": [],
+    "compartments": [
+      {
+        "height_m": 3,
+        "id": "warehouse",
+        "length_m": 3,
+        "name": "Almacén",
+        "width_m": 5
+      }
+    ],
+    "description": "Independent synthetic test history",
+    "fires": [
+      {
+        "alpha_kw_s2": 0.0117,
+        "compartment": "warehouse",
+        "growth_model": "t_squared",
+        "id": "fire_02",
+        "max_hrr_kw": 1000,
+        "x_m": 2,
+        "y_m": 1
+      }
+    ],
+    "name": "Almacén sintético",
+    "openings": [
+      {
+        "from": "warehouse",
+        "height_m": 2.2,
+        "id": "hatch_02",
+        "sill_height_m": 0,
+        "state": "closed",
+        "to": "outside",
+        "type": "door",
+        "width_m": 1
+      }
+    ],
+    "scenario_id": "warehouse_growth_002",
+    "schema_version": "0.1",
+    "simulation": {
+      "duration_s": 300,
+      "time_step_s": 1
+    }
+  },
+  "states": [
+    {
+      "compartments": [
+        {
+          "hrr_kw": 80,
+          "id": "warehouse",
+          "interface_height_m": 2.6,
+          "lower_layer": {
+            "co2_percent": 0.05,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0,
+            "temperature_c": 20
+          },
+          "pressure_delta_pa": 0,
+          "upper_layer": {
+            "co2_percent": 0.1,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0.1,
+            "temperature_c": 25
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 80
+      },
+      "scenario_id": "warehouse_growth_002",
+      "schema_version": "0.1",
+      "time_s": 20
+    },
+    {
+      "compartments": [
+        {
+          "hrr_kw": 112,
+          "id": "warehouse",
+          "interface_height_m": 2.2,
+          "lower_layer": {
+            "co2_percent": 0.05,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0,
+            "temperature_c": 20
+          },
+          "pressure_delta_pa": 0,
+          "upper_layer": {
+            "co2_percent": 0.1,
+            "co_percent": 0,
+            "o2_percent": 20.4,
+            "smoke_mass_kg": 0.1,
+            "temperature_c": 80
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 112
+      },
+      "scenario_id": "warehouse_growth_002",
+      "schema_version": "0.1",
+      "time_s": 40
+    }
+  ]
+}

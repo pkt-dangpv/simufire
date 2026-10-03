@@ -11,7 +11,9 @@ son variantes relacionadas; los nuevos tampoco constituyen datos reales de un
 simulador ni una validación física o docente. Las etiquetas requieren revisión
 experta independiente. No se añaden detectores ni se cambian umbrales.
 
-El corpus 2 es el predeterminado del evaluador:
+El corpus 2 se conserva como archivo histórico. El predeterminado es ahora el
+corpus 3. Para reproducir esta versión, añade
+`--corpus-dir simufire_ai/tests/data/question_evaluation_v2` a cada evaluación:
 
 ```powershell
 python simufire_ai/tests/run_all_tests.py
@@ -23,7 +25,8 @@ python simufire_ai/evaluate_questions.py --ollama --split holdout --output evalu
 Una ruta de informe existente se rechaza. `--corpus-dir` permite reproducir otra
 versión, pero el antiguo reservado del corpus 1 ya no es una medición independiente:
 sus preguntas se han usado para diseñar correcciones y pruebas de regresión.
-No ajustar a partir del reservado 2 ni presentar repeticiones como otra evaluación.
+El reservado 2 ha revelado cuatro fallos y sus preguntas pasan a regresiones en
+el corpus 3. Una repetición sobre estos casos ya no es una evaluación independiente.
 
 Se mantienen las comprobaciones y el criterio estricto `passed` anteriores,
 incluidos intención y temas crudos de Qwen. Se añade **`answer_passed`**, que

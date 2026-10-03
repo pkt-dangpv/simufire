@@ -1,0 +1,164 @@
+[
+  {
+    "case_id": "holdout_v2_003",
+    "question": "¿Se registró un descenso de la interfaz de la capa de humo?",
+    "fixture": "warehouse_growth",
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_002"
+      ],
+      "intent": "condition",
+      "knowledge_ids": [
+        "SMOKE_LAYER_001"
+      ],
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "warehouse_growth_002",
+      "question_id": "holdout_v2_003",
+      "intent": "observation",
+      "topics": [
+        "smoke_layer"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "not_applicable",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  },
+  {
+    "case_id": "holdout_v2_007",
+    "question": "Enumera los hechos registrados en Almacén.",
+    "fixture": "warehouse_growth",
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_001",
+        "FACT_002",
+        "FACT_003"
+      ],
+      "intent": "timeline",
+      "knowledge_ids": [],
+      "scope": {
+        "compartment_id": "warehouse",
+        "time_relation": "all"
+      },
+      "topics": [
+        "hrr",
+        "smoke_layer",
+        "temperature"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "warehouse_growth_002",
+      "question_id": "holdout_v2_007",
+      "intent": "general",
+      "topics": [],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": "warehouse",
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    }
+  },
+  {
+    "case_id": "holdout_v2_009",
+    "question": "¿Se ha detectado un aumento de temperatura en Almacén?",
+    "fixture": "warehouse_flat",
+    "expected": {
+      "answer_status": "not_detected",
+      "contains": [
+        "no demuestra su ausencia"
+      ],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "scope": {
+        "compartment_id": "warehouse",
+        "time_relation": "all"
+      },
+      "topics": [
+        "temperature"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "warehouse_flat_003",
+      "question_id": "holdout_v2_009",
+      "intent": "observation",
+      "topics": [
+        "temperature"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": "warehouse",
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  },
+  {
+    "case_id": "holdout_v2_010",
+    "question": "¿Se ha detectado un crecimiento del HRR?",
+    "fixture": "warehouse_flat",
+    "expected": {
+      "answer_status": "not_detected",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "hrr"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "warehouse_flat_003",
+      "question_id": "holdout_v2_010",
+      "intent": "observation",
+      "topics": [
+        "hrr"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  }
+]

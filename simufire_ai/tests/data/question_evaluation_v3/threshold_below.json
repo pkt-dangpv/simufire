@@ -1,0 +1,117 @@
+{
+  "scenario": {
+    "actions": [
+      {
+        "target": "door_01",
+        "time_s": 180,
+        "type": "open"
+      }
+    ],
+    "compartments": [
+      {
+        "height_m": 2.5,
+        "id": "room_01",
+        "length_m": 4,
+        "name": "Habitación",
+        "width_m": 4
+      }
+    ],
+    "description": "Habitación de 4 x 4 m con una puerta cerrada y un incendio de crecimiento t cuadrado.",
+    "fires": [
+      {
+        "alpha_kw_s2": 0.0117,
+        "compartment": "room_01",
+        "growth_model": "t_squared",
+        "id": "fire_01",
+        "max_hrr_kw": 3000,
+        "x_m": 2,
+        "y_m": 2
+      }
+    ],
+    "name": "Incendio básico en habitación",
+    "openings": [
+      {
+        "from": "room_01",
+        "height_m": 2.0,
+        "id": "door_01",
+        "sill_height_m": 0,
+        "state": "closed",
+        "to": "outside",
+        "type": "door",
+        "width_m": 0.8
+      }
+    ],
+    "scenario_id": "basic_room_001",
+    "schema_version": "0.1",
+    "simulation": {
+      "duration_s": 600,
+      "time_step_s": 1
+    }
+  },
+  "states": [
+    {
+      "compartments": [
+        {
+          "hrr_kw": 720,
+          "id": "room_01",
+          "interface_height_m": 1.4,
+          "lower_layer": {
+            "co2_percent": 1.5,
+            "co_percent": 0.08,
+            "o2_percent": 18.4,
+            "smoke_mass_kg": 0.55,
+            "temperature_c": 65
+          },
+          "pressure_delta_pa": 4.5,
+          "upper_layer": {
+            "co2_percent": 5.8,
+            "co_percent": 0.35,
+            "o2_percent": 14.1,
+            "smoke_mass_kg": 4.2,
+            "temperature_c": 390
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 720
+      },
+      "scenario_id": "basic_room_001",
+      "schema_version": "0.1",
+      "time_s": 179
+    },
+    {
+      "compartments": [
+        {
+          "hrr_kw": 1280,
+          "id": "room_01",
+          "interface_height_m": 1.2,
+          "lower_layer": {
+            "co2_percent": 1.8,
+            "co_percent": 0.07,
+            "o2_percent": 19.2,
+            "smoke_mass_kg": 0.7,
+            "temperature_c": 82
+          },
+          "pressure_delta_pa": 6.1,
+          "upper_layer": {
+            "co2_percent": 6.4,
+            "co_percent": 0.28,
+            "o2_percent": 16.8,
+            "smoke_mass_kg": 5.1,
+            "temperature_c": 439
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 1280
+      },
+      "scenario_id": "basic_room_001",
+      "schema_version": "0.1",
+      "time_s": 195
+    }
+  ]
+}
