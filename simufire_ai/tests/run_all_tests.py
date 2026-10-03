@@ -26,7 +26,10 @@ TESTS = [
     "simufire_ai/tests/test_instructor_explanation_safety.py",
     "simufire_ai/tests/test_question_modes.py",
     "simufire_ai/tests/test_grounded_fact_ventilation_limited.py",
-    "simufire_ai/tests/test_question_ventilation_limited.py"
+    "simufire_ai/tests/test_question_ventilation_limited.py",
+    "simufire_ai/tests/test_question_answer_safety.py",
+    "simufire_ai/tests/test_question_vl_e2e.py",
+    "simufire_ai/tests/test_validation_exit_codes.py"
 ]
 
 
@@ -36,7 +39,7 @@ def main():
     failed = 0
 
     print("=" * 60)
-    print("SIMUFIRE AI - TEST SUITE")
+    print("SIMUFIRE AI - TEST SUITE DETERMINISTA (SIN OLLAMA)", flush=True)
     print("=" * 60)
 
     for test in TESTS:
@@ -51,6 +54,7 @@ def main():
         result = subprocess.run(
             [
                 sys.executable,
+                "-u",
                 str(test_path)
             ],
             cwd=REPO_ROOT

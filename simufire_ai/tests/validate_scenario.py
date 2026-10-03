@@ -46,7 +46,7 @@ def main():
 
     if not scenario_files:
         print("No hay escenarios para validar.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -57,6 +57,8 @@ def main():
     print()
     print(f"Resultado: {valid_count}/{len(scenario_files)} escenarios validos")
 
+    return int(valid_count != len(scenario_files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

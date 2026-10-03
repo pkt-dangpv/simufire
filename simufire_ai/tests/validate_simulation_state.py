@@ -58,7 +58,7 @@ def main():
 
     if not state_files:
         print("No hay estados para validar.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -72,6 +72,8 @@ def main():
         f"{valid_count}/{len(state_files)} estados validos"
     )
 
+    return int(valid_count != len(state_files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

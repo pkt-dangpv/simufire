@@ -6,6 +6,15 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+if __package__:
+    from .question_context import (
+        context_fingerprint, validate_context, validate_plan_context,
+    )
+else:
+    from question_context import (
+        context_fingerprint, validate_context, validate_plan_context,
+    )
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -101,9 +110,13 @@ def resolve_fact_dependencies(
             f"{fact_id}"
         )
 
-    visiting.add(fact_id)
+    visiting.add(
+        fact_id
+    )
 
-    fact = facts_by_id[fact_id]
+    fact = facts_by_id[
+        fact_id
+    ]
 
     for required_id in fact.get(
         "requires_fact_ids",
@@ -116,7 +129,9 @@ def resolve_fact_dependencies(
             visiting
         )
 
-    visiting.remove(fact_id)
+    visiting.remove(
+        fact_id
+    )
 
     if fact_id not in selected_ids:
         selected_ids.append(
@@ -137,7 +152,9 @@ def fact_depends_on(
     if fact_id in visiting:
         return False
 
-    visiting.add(fact_id)
+    visiting.add(
+        fact_id
+    )
 
     fact = facts_by_id.get(
         fact_id
@@ -466,6 +483,20 @@ def main():
         )
     )
 
+    parser.add_argument(
+        "--context",
+        default=None,
+        help=(
+            "Ruta opcional a un contexto "
+            "de instructor alternativo"
+        )
+    )
+
+    parser.add_argument(
+        "--output-dir", type=Path, default=OUTPUT_DIR,
+        help="Carpeta de salida (permite ejecutar pruebas aisladas)",
+    )
+
     args = parser.parse_args()
 
     question = (
@@ -490,9 +521,47 @@ def main():
         )
         sys.exit(1)
 
-    context = load_json(
-        CONTEXT_PATH
-    )
+    # -------------------------------------------------
+    # CONTEXTO
+    # -------------------------------------------------
+
+    if args.context:
+
+        context_path = Path(
+            args.context
+        )
+
+        if not context_path.is_absolute():
+
+            context_path = (
+                Path.cwd()
+                / context_path
+            ).resolve()
+
+    else:
+
+        context_path = (
+            CONTEXT_PATH
+        )
+
+    if not context_path.exists():
+
+        print(
+            "ERROR: no existe el "
+            "contexto indicado:"
+        )
+
+        print(
+            f"- {context_path}"
+        )
+
+        sys.exit(1)
+
+    try:
+        context = load_json(context_path)
+        validate_context(context)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"ERROR: {error}\n")
 
     schema = load_json(
         SCHEMA_PATH
@@ -557,8 +626,8 @@ preguntas sobre valores o cambios medidos.
 
 condition:
 preguntas sobre si una condición o fenómeno
-ha sido detectado en la simulación, por ejemplo
-si el incendio estaba limitado por ventilación.
+ha sido detectado o estaba presente en la
+simulación.
 
 uncertainty:
 preguntas sobre qué puede o no concluirse.
@@ -662,12 +731,18 @@ PREGUNTA:
         "Analizando pregunta..."
     )
 
+    print(
+        f"Contexto: "
+        f"{context_path.name}"
+    )
+
     raw = call_ollama(
         prompt,
         schema
     )
 
     try:
+
         plan = json.loads(
             raw
         )
@@ -679,15 +754,26 @@ PREGUNTA:
             "JSON válido."
         )
 
-        print(raw)
+        print(
+            raw
+        )
+
         sys.exit(1)
 
-    # Estos valores son autoritativos
-    # y no dependen del modelo.
-    plan["schema_version"] = "0.3"
-    plan["scenario_id"] = (
-        context["scenario_id"]
+    # -------------------------------------------------
+    # VALORES AUTORITATIVOS
+    # -------------------------------------------------
+
+    plan["schema_version"] = (
+        "0.3"
     )
+
+    plan["scenario_id"] = (
+        context[
+            "scenario_id"
+        ]
+    )
+
     plan["question_id"] = (
         question_id
     )
@@ -720,7 +806,9 @@ PREGUNTA:
 
         sys.exit(1)
 
-    intent = plan["intent"]
+    intent = plan[
+        "intent"
+    ]
 
     include_limitations = (
         intent in [
@@ -731,15 +819,22 @@ PREGUNTA:
 
     action_ids = {
         item["fact_id"]
-        for item in action_candidates
+        for item
+        in action_candidates
     }
 
     try:
 
+        # ---------------------------------------------
+        # TIMELINE
+        # ---------------------------------------------
+
         if intent == "timeline":
 
             if (
-                plan["timeline_relation"]
+                plan[
+                    "timeline_relation"
+                ]
                 not in [
                     "before",
                     "after",
@@ -753,7 +848,9 @@ PREGUNTA:
                 )
 
             if (
-                plan["timeline_relation"]
+                plan[
+                    "timeline_relation"
+                ]
                 in [
                     "before",
                     "after"
@@ -786,31 +883,45 @@ PREGUNTA:
                 fact_ids
             )
 
+        # ---------------------------------------------
+        # RESTO DE INTENCIONES
+        # ---------------------------------------------
+
         else:
 
-            if not plan["topics"]:
+            if not plan[
+                "topics"
+            ]:
                 raise ValueError(
                     "La pregunta necesita "
                     "al menos un topic."
                 )
 
             topics = list(
-                plan["topics"]
+                plan[
+                    "topics"
+                ]
             )
 
             # -----------------------------------------
-            # CAUSALIDAD:
-            # ampliar los topics a partir de la acción
+            # CAUSALIDAD
+            #
+            # Ampliar topics a partir de la acción
             # de forma determinista.
             # -----------------------------------------
 
             if intent == "causality":
 
-                anchor_fact_id = plan.get(
-                    "anchor_fact_id"
+                anchor_fact_id = (
+                    plan.get(
+                        "anchor_fact_id"
+                    )
                 )
 
-                if anchor_fact_id is not None:
+                if (
+                    anchor_fact_id
+                    is not None
+                ):
 
                     if (
                         anchor_fact_id
@@ -829,9 +940,14 @@ PREGUNTA:
                         )
                     )
 
-                    for topic in action_topics:
+                    for topic in (
+                        action_topics
+                    ):
 
-                        if topic not in topics:
+                        if (
+                            topic
+                            not in topics
+                        ):
                             topics.append(
                                 topic
                             )
@@ -857,6 +973,10 @@ PREGUNTA:
 
         sys.exit(1)
 
+    # -------------------------------------------------
+    # CONOCIMIENTO
+    # -------------------------------------------------
+
     knowledge_ids = (
         select_knowledge(
             context[
@@ -866,11 +986,18 @@ PREGUNTA:
         )
     )
 
+    # -------------------------------------------------
+    # RESULTADO
+    # -------------------------------------------------
+
     result = {
-        "schema_version": "0.3",
+        "schema_version":
+            "0.3",
 
         "scenario_id":
-            context["scenario_id"],
+            context[
+                "scenario_id"
+            ],
 
         "question_id":
             question_id,
@@ -901,13 +1028,19 @@ PREGUNTA:
             knowledge_ids
     }
 
-    OUTPUT_DIR.mkdir(
+    result["source_context_sha256"] = context_fingerprint(context)
+    try:
+        validate_plan_context(result, context, question_id)
+    except ValueError as error:
+        parser.exit(1, f"ERROR: {error}\n")
+
+    args.output_dir.mkdir(
         parents=True,
         exist_ok=True
     )
 
     output_path = (
-        OUTPUT_DIR
+        args.output_dir
         / (
             f"{context['scenario_id']}_"
             f"{question_id}.json"
@@ -926,29 +1059,42 @@ PREGUNTA:
             ensure_ascii=False
         )
 
+    # -------------------------------------------------
+    # SALIDA
+    # -------------------------------------------------
+
     print(
         "OK: plan de pregunta válido"
     )
 
     print()
+
     print(
-        f"Question ID: {question_id}"
+        f"Question ID: "
+        f"{question_id}"
     )
+
     print(
-        f"Pregunta: {question}"
+        f"Pregunta: "
+        f"{question}"
     )
+
     print(
-        f"Intent: {intent}"
+        f"Intent: "
+        f"{intent}"
     )
 
     if topics:
+
         print(
             "Topics: "
             + ", ".join(
                 topics
             )
         )
+
     else:
+
         print(
             "Topics: -"
         )
@@ -978,34 +1124,49 @@ PREGUNTA:
         )
 
     print()
+
     print(
         "HECHOS RESUELTOS:"
     )
 
     if fact_ids:
+
         for fact_id in fact_ids:
+
             print(
                 f"- {fact_id}"
             )
+
     else:
-        print("-")
+
+        print(
+            "-"
+        )
 
     print()
+
     print(
         "CONOCIMIENTO RESUELTO:"
     )
 
     if knowledge_ids:
+
         for knowledge_id in (
             knowledge_ids
         ):
+
             print(
                 f"- {knowledge_id}"
             )
+
     else:
-        print("-")
+
+        print(
+            "-"
+        )
 
     print()
+
     print(
         f"Guardado en: "
         f"{output_path.name}"

@@ -1,10 +1,14 @@
 import json
+import sys
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+
+from llm.question_context import validate_context
 
 SCHEMA_PATH = (
     BASE_DIR
@@ -36,7 +40,7 @@ def main():
 
     if not files:
         print("No hay contextos de instructor.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -50,6 +54,11 @@ def main():
         )
 
         if not errors:
+            try:
+                validate_context(data)
+            except ValueError as error:
+                print(f"ERROR: {path.name}: {error}")
+                continue
             print(f"OK: {path.name}")
             valid_count += 1
             continue
@@ -70,6 +79,8 @@ def main():
         f"contextos validos"
     )
 
+    return int(valid_count != len(files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

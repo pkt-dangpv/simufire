@@ -10,7 +10,7 @@ ANSWER_PATH = (
     / "tests"
     / "data"
     / "question_answers"
-    / "basic_room_001_question_001_answer.json"
+    / "basic_room_001_question_causality_001_answer.json"
 )
 
 

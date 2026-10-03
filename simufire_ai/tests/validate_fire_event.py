@@ -64,7 +64,7 @@ def main():
 
     if not event_files:
         print("No hay eventos para validar.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -78,6 +78,8 @@ def main():
         f"{valid_count}/{len(event_files)} eventos validos"
     )
 
+    return int(valid_count != len(event_files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

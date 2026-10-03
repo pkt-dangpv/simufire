@@ -66,7 +66,7 @@ def main():
 
     if not explanation_files:
         print("No hay explicaciones para validar.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -85,6 +85,8 @@ def main():
         f"explicaciones validas"
     )
 
+    return int(valid_count != len(explanation_files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -35,7 +35,7 @@ def main():
 
     if not files:
         print("No hay entradas de conocimiento.")
-        return
+        return 1
 
     valid_count = 0
 
@@ -78,6 +78,8 @@ def main():
         f"entradas validas"
     )
 
+    return int(valid_count != len(files))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

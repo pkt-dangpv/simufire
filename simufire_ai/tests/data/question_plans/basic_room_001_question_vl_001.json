@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_vl_001",
+  "intent": "condition",
+  "topics": [
+    "ventilation_limited"
+  ],
+  "include_limitations": false,
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": null,
+  "resolved_fact_ids": [
+    "FACT_010"
+  ],
+  "resolved_knowledge_ids": [
+    "VENTILATION_LIMITED_001"
+  ],
+  "source_context_sha256": "1d63e79ff8c434f1555fc0856ccb8ae1433c861f9268279503598188682143d3"
+}

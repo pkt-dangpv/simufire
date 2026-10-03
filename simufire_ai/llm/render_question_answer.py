@@ -3,6 +3,15 @@ import json
 import sys
 from pathlib import Path
 
+if __package__:
+    from .question_context import (
+        context_fingerprint, validate_context, validate_plan_context,
+    )
+else:
+    from question_context import (
+        context_fingerprint, validate_context, validate_plan_context,
+    )
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -19,13 +28,6 @@ QUESTION_PLANS_DIR = (
     / "tests"
     / "data"
     / "question_plans"
-)
-
-FACTS_DIR = (
-    BASE_DIR
-    / "tests"
-    / "data"
-    / "grounded_facts"
 )
 
 MANUAL_EVENTS_DIR = (
@@ -70,14 +72,17 @@ TOPIC_EVIDENCE_KEYWORDS = {
 
 
 def load_json(path: Path):
+
     with path.open(
         "r",
         encoding="utf-8"
     ) as f:
+
         return json.load(f)
 
 
 def load_json_directory(path: Path):
+
     items = {}
 
     if not path.exists():
@@ -86,27 +91,22 @@ def load_json_directory(path: Path):
     for file_path in sorted(
         path.glob("*.json")
     ):
-        data = load_json(file_path)
+
+        data = load_json(
+            file_path
+        )
 
         if "event_id" in data:
-            items[data["event_id"]] = data
+
+            items[
+                data["event_id"]
+            ] = data
 
     return items
 
 
-def load_facts():
-    facts = {}
-
-    for path in sorted(
-        FACTS_DIR.glob("*.json")
-    ):
-        fact = load_json(path)
-        facts[fact["fact_id"]] = fact
-
-    return facts
-
-
 def load_events():
+
     events = {}
 
     events.update(
@@ -125,12 +125,25 @@ def load_events():
 
 
 def format_number(value):
-    if isinstance(value, int):
-        return str(value)
 
-    if isinstance(value, float):
+    if isinstance(
+        value,
+        int
+    ):
+        return str(
+            value
+        )
+
+    if isinstance(
+        value,
+        float
+    ):
+
         if value.is_integer():
-            return str(int(value))
+
+            return str(
+                int(value)
+            )
 
         return (
             f"{value:.3f}"
@@ -138,23 +151,33 @@ def format_number(value):
             .rstrip(".")
         )
 
-    return str(value)
+    return str(
+        value
+    )
 
 
 def evidence_matches_topic(
     variable,
     topic
 ):
-    variable_lower = variable.lower()
+
+    variable_lower = (
+        variable.lower()
+    )
 
     keywords = (
         TOPIC_EVIDENCE_KEYWORDS
-        .get(topic, [])
+        .get(
+            topic,
+            []
+        )
     )
 
     return any(
-        keyword in variable_lower
-        for keyword in keywords
+        keyword
+        in variable_lower
+        for keyword
+        in keywords
     )
 
 
@@ -163,10 +186,12 @@ def find_numeric_change(
     topics,
     events_by_id
 ):
+
     for event_id in fact.get(
         "event_ids",
         []
     ):
+
         event = events_by_id.get(
             event_id
         )
@@ -178,13 +203,17 @@ def find_numeric_change(
             "evidence",
             []
         ):
+
             if (
                 "previous_value"
                 not in evidence
             ):
                 continue
 
-            if "value" not in evidence:
+            if (
+                "value"
+                not in evidence
+            ):
                 continue
 
             previous = evidence[
@@ -215,37 +244,65 @@ def find_numeric_change(
             matched_topic = None
 
             for topic in topics:
+
                 if evidence_matches_topic(
                     variable,
                     topic
                 ):
-                    matched_topic = topic
+
+                    matched_topic = (
+                        topic
+                    )
+
                     break
 
             if matched_topic is None:
                 continue
 
             return {
-                "topic": matched_topic,
-                "previous": previous,
-                "current": current,
-                "delta": current - previous,
-                "unit": evidence.get(
-                    "unit",
-                    ""
-                ),
-                "variable": variable
+                "topic":
+                    matched_topic,
+
+                "previous":
+                    previous,
+
+                "current":
+                    current,
+
+                "delta":
+                    current
+                    - previous,
+
+                "unit":
+                    evidence.get(
+                        "unit",
+                        ""
+                    ),
+
+                "variable":
+                    variable
             }
 
     return None
 
 
 def render_change(change):
-    delta = change["delta"]
-    unit = change["unit"]
-    topic = change.get("topic")
 
-    magnitude = abs(delta)
+    delta = change[
+        "delta"
+    ]
+
+    unit = change[
+        "unit"
+    ]
+
+    topic = change.get(
+        "topic"
+    )
+
+    magnitude = abs(
+        delta
+    )
 
     # -----------------------------------------------
     # TEMPERATURA
@@ -259,6 +316,7 @@ def render_change(change):
             "celsius",
             "degc"
         ]:
+
             unit = "°C"
 
         value_text = (
@@ -272,7 +330,10 @@ def render_change(change):
     # 14.1 % -> 16.8 % = 2.7 puntos porcentuales.
     # -----------------------------------------------
 
-    elif topic == "oxygen" and unit == "%":
+    elif (
+        topic == "oxygen"
+        and unit == "%"
+    ):
 
         value_text = (
             f"{format_number(magnitude)} "
@@ -285,29 +346,39 @@ def render_change(change):
 
     else:
 
-        value_text = format_number(
-            magnitude
+        value_text = (
+            format_number(
+                magnitude
+            )
         )
 
         if unit:
-            value_text += f" {unit}"
+
+            value_text += (
+                f" {unit}"
+            )
 
     if delta > 0:
+
         return (
-            f"Esto supone un aumento "
+            "Esto supone un aumento "
             f"de {value_text}."
         )
 
     if delta < 0:
+
         return (
-            f"Esto supone una disminución "
+            "Esto supone una disminución "
             f"de {value_text}."
         )
 
-    return "No se produjo variación."
+    return (
+        "No se produjo variación."
+    )
 
 
 def render_timeline(facts):
+
     facts = sorted(
         facts,
         key=lambda fact: (
@@ -319,34 +390,48 @@ def render_timeline(facts):
     groups = {}
 
     for fact in facts:
-        time_s = fact["time_s"]
+
+        time_s = fact[
+            "time_s"
+        ]
 
         groups.setdefault(
             time_s,
             []
         )
 
-        groups[time_s].append(
+        groups[
+            time_s
+        ].append(
             fact
         )
 
     paragraphs = []
 
-    for time_s in sorted(groups):
+    for time_s in sorted(
+        groups
+    ):
+
         statements = []
 
         time_text = (
-            f" en t={format_number(time_s)} s"
+            f" en t="
+            f"{format_number(time_s)} s"
         )
 
-        for fact in groups[time_s]:
+        for fact in groups[
+            time_s
+        ]:
+
             statement = fact[
                 "statement"
             ]
 
-            statement = statement.replace(
-                time_text,
-                ""
+            statement = (
+                statement.replace(
+                    time_text,
+                    ""
+                )
             )
 
             statements.append(
@@ -354,33 +439,49 @@ def render_timeline(facts):
             )
 
         paragraphs.append(
-            f"En t={format_number(time_s)} s: "
-            + " ".join(statements)
+            f"En t="
+            f"{format_number(time_s)} s: "
+            + " ".join(
+                statements
+            )
         )
 
     return "\n\n".join(
         paragraphs
     )
+
+
 def render_condition(facts):
 
     condition_facts = [
         fact
         for fact in facts
-        if fact["fact_type"]
-        == "association"
+        if (
+            fact["fact_type"]
+            == "association"
+        )
     ]
 
     if not condition_facts:
+
         return (
-            "No hay una condición detectada "
-            "que permita responder a esta pregunta."
+            "No hay una condición "
+            "detectada que permita "
+            "responder a esta pregunta."
         )
 
     certainty_labels = {
-        "certain": "cierta",
-        "high": "alta",
-        "moderate": "moderada",
-        "limited": "limitada"
+        "certain":
+            "cierta",
+
+        "high":
+            "alta",
+
+        "moderate":
+            "moderada",
+
+        "limited":
+            "limitada"
     }
 
     paragraphs = []
@@ -397,9 +498,11 @@ def render_condition(facts):
 
         if certainty:
 
-            label = certainty_labels.get(
-                certainty,
-                certainty
+            label = (
+                certainty_labels.get(
+                    certainty,
+                    certainty
+                )
             )
 
             paragraph += (
@@ -416,13 +519,62 @@ def render_condition(facts):
         paragraphs
     )
 
+
+def resolve_context_path(
+    context_argument
+):
+
+    if context_argument:
+
+        context_path = Path(
+            context_argument
+        )
+
+        if not context_path.is_absolute():
+
+            context_path = (
+                Path.cwd()
+                / context_path
+            ).resolve()
+
+    else:
+
+        context_path = (
+            CONTEXT_PATH
+        )
+
+    return context_path
+
+
 def main():
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--question-id",
         default="question_001",
-        help="Identificador de la pregunta a responder"
+        help=(
+            "Identificador de "
+            "la pregunta a responder"
+        )
+    )
+
+    parser.add_argument(
+        "--context",
+        default=None,
+        help=(
+            "Ruta opcional a un contexto "
+            "de instructor alternativo"
+        )
+    )
+
+    parser.add_argument(
+        "--output-dir", type=Path, default=OUTPUT_DIR,
+        help="Carpeta de salida (permite ejecutar pruebas aisladas)",
+    )
+    parser.add_argument(
+        "--plan-dir", type=Path, default=QUESTION_PLANS_DIR,
+        help="Carpeta que contiene el plan resuelto",
     )
 
     args = parser.parse_args()
@@ -432,75 +584,171 @@ def main():
     )
 
     if not question_id:
+
         print(
-            "ERROR: question_id está vacío."
+            "ERROR: question_id "
+            "está vacío."
         )
+
         sys.exit(1)
 
-    context = load_json(
-        CONTEXT_PATH
+    # ================================================
+    # CONTEXTO
+    # ================================================
+
+    context_path = (
+        resolve_context_path(
+            args.context
+        )
     )
+
+    if not context_path.exists():
+
+        print(
+            "ERROR: no existe el "
+            "contexto indicado:"
+        )
+
+        print(
+            f"- {context_path}"
+        )
+
+        sys.exit(1)
+
+    try:
+        context = load_json(context_path)
+        validate_context(context)
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"ERROR: {error}\n")
 
     scenario_id = context[
         "scenario_id"
     ]
 
-    plan_path = (
-        QUESTION_PLANS_DIR
-        / f"{scenario_id}_{question_id}.json"
-    )
+    # IMPORTANTE:
+    #
+    # Los hechos se obtienen del mismo contexto
+    # que utilizó el planificador.
+    #
+    # Esto evita mezclar FACT_010 del fixture
+    # con los hechos normales de basic_room_001.
 
-    if not plan_path.exists():
-        print(
-            "ERROR: no existe el plan:"
-        )
-        print(
-            f"- {plan_path}"
-        )
-        sys.exit(1)
-
-    plan = load_json(
-        plan_path
-    )
-
-    facts_by_id = load_facts()
-    events_by_id = load_events()
+    facts_by_id = {
+        fact["fact_id"]:
+            fact
+        for fact in context[
+            "scenario_facts"
+        ]
+    }
 
     knowledge_by_id = {
-        item["knowledge_id"]: item
+        item["knowledge_id"]:
+            item
         for item in context[
             "technical_knowledge"
         ]
     }
+
+    # ================================================
+    # PLAN DE PREGUNTA
+    # ================================================
+
+    plan_path = (
+        args.plan_dir
+        / (
+            f"{scenario_id}_"
+            f"{question_id}.json"
+        )
+    )
+
+    if not plan_path.exists():
+
+        print(
+            "ERROR: no existe el plan:"
+        )
+
+        print(
+            f"- {plan_path}"
+        )
+
+        sys.exit(1)
+
+    try:
+        plan = load_json(plan_path)
+        validate_plan_context(
+            plan, context, question_id,
+            allow_legacy=context_path.resolve() == CONTEXT_PATH.resolve(),
+        )
+    except (OSError, ValueError) as error:
+        parser.exit(1, f"ERROR: {error}\n")
+
+    # ================================================
+    # EVENTOS
+    # ================================================
+
+    # Alternate contexts never fall back to the normal scenario's events.
+    if "source_events" in context:
+        events_by_id = {
+            event["event_id"]: event for event in context["source_events"]
+        }
+    elif context_path.resolve() == CONTEXT_PATH.resolve():
+        events_by_id = {
+            event_id: event for event_id, event in load_events().items()
+            if event.get("scenario_id") == scenario_id
+        }
+    else:
+        events_by_id = {}
+
+    # ================================================
+    # HECHOS SELECCIONADOS
+    # ================================================
 
     selected_facts = []
 
     for fact_id in plan[
         "resolved_fact_ids"
     ]:
-        if fact_id not in facts_by_id:
+
+        if (
+            fact_id
+            not in facts_by_id
+        ):
+
             print(
-                f"ERROR: no existe {fact_id}"
+                f"ERROR: no existe "
+                f"{fact_id} en el "
+                "contexto seleccionado."
             )
+
             sys.exit(1)
 
         selected_facts.append(
-            facts_by_id[fact_id]
+            facts_by_id[
+                fact_id
+            ]
         )
+
+    # ================================================
+    # CONOCIMIENTO SELECCIONADO
+    # ================================================
 
     selected_knowledge = []
 
     for knowledge_id in plan[
         "resolved_knowledge_ids"
     ]:
+
         if (
             knowledge_id
             not in knowledge_by_id
         ):
+
             print(
                 f"ERROR: no existe "
-                f"{knowledge_id}"
+                f"{knowledge_id} en el "
+                "contexto seleccionado."
             )
+
             sys.exit(1)
 
         selected_knowledge.append(
@@ -509,31 +757,49 @@ def main():
             ]
         )
 
+    # ================================================
+    # CLASIFICACIÓN DE HECHOS
+    # ================================================
+
     actions = [
         fact
         for fact in selected_facts
-        if fact["fact_type"] == "action"
+        if (
+            fact["fact_type"]
+            == "action"
+        )
     ]
 
     associations = [
         fact
         for fact in selected_facts
-        if fact["fact_type"] == "association"
+        if (
+            fact["fact_type"]
+            == "association"
+        )
     ]
 
     observations = [
         fact
         for fact in selected_facts
-        if fact["fact_type"] == "observation"
+        if (
+            fact["fact_type"]
+            == "observation"
+        )
     ]
 
     limitations = [
         fact
         for fact in selected_facts
-        if fact["fact_type"] == "limitation"
+        if (
+            fact["fact_type"]
+            == "limitation"
+        )
     ]
 
-    intent = plan["intent"]
+    intent = plan[
+        "intent"
+    ]
 
     answer_parts = []
 
@@ -542,15 +808,21 @@ def main():
     # ================================================
 
     if intent == "concept":
+
         if not selected_knowledge:
+
             answer_parts.append(
-                "No hay conocimiento técnico "
-                "disponible para responder "
-                "a esta pregunta."
+                "No hay conocimiento "
+                "técnico disponible para "
+                "responder a esta pregunta."
             )
 
         else:
-            for item in selected_knowledge:
+
+            for item in (
+                selected_knowledge
+            ):
+
                 answer_parts.append(
                     item["content"]
                 )
@@ -560,7 +832,9 @@ def main():
     # ================================================
 
     elif intent == "observation":
+
         if not observations:
+
             answer_parts.append(
                 "No hay una observación "
                 "disponible para responder "
@@ -568,18 +842,23 @@ def main():
             )
 
         else:
+
             for fact in observations:
+
                 paragraph = fact[
                     "statement"
                 ]
 
-                change = find_numeric_change(
-                    fact,
-                    plan["topics"],
-                    events_by_id
+                change = (
+                    find_numeric_change(
+                        fact,
+                        plan["topics"],
+                        events_by_id
+                    )
                 )
 
                 if change:
+
                     paragraph += (
                         " "
                         + render_change(
@@ -590,6 +869,7 @@ def main():
                 answer_parts.append(
                     paragraph
                 )
+
     # ================================================
     # CONDITION
     # ================================================
@@ -601,25 +881,31 @@ def main():
                 selected_facts
             )
         )
+
     # ================================================
     # TIMELINE
     # ================================================
 
     elif intent == "timeline":
+
         timeline_facts = [
             fact
             for fact in selected_facts
-            if fact["fact_type"]
-            != "limitation"
+            if (
+                fact["fact_type"]
+                != "limitation"
+            )
         ]
 
         if not timeline_facts:
+
             answer_parts.append(
                 "No hay hechos temporales "
                 "disponibles para responder."
             )
 
         else:
+
             answer_parts.append(
                 render_timeline(
                     timeline_facts
@@ -631,7 +917,9 @@ def main():
     # ================================================
 
     elif intent == "causality":
+
         if limitations:
+
             answer_parts.append(
                 "Con los datos disponibles "
                 "no puede afirmarse esa "
@@ -645,9 +933,13 @@ def main():
         )
 
         if evidence:
-            evidence_text = " ".join(
-                fact["statement"]
-                for fact in evidence
+
+            evidence_text = (
+                " ".join(
+                    fact["statement"]
+                    for fact
+                    in evidence
+                )
             )
 
             answer_parts.append(
@@ -657,9 +949,13 @@ def main():
             )
 
         if limitations:
-            limitation_text = " ".join(
-                fact["statement"]
-                for fact in limitations
+
+            limitation_text = (
+                " ".join(
+                    fact["statement"]
+                    for fact
+                    in limitations
+                )
             )
 
             answer_parts.append(
@@ -672,15 +968,19 @@ def main():
     # ================================================
 
     elif intent == "uncertainty":
+
         if limitations:
+
             answer_parts.append(
                 " ".join(
                     fact["statement"]
-                    for fact in limitations
+                    for fact
+                    in limitations
                 )
             )
 
         else:
+
             answer_parts.append(
                 "No hay una limitación "
                 "específica registrada para "
@@ -692,6 +992,7 @@ def main():
     # ================================================
 
     else:
+
         evidence = (
             actions
             + associations
@@ -699,18 +1000,22 @@ def main():
         )
 
         if evidence:
+
             answer_parts.append(
                 " ".join(
                     fact["statement"]
-                    for fact in evidence
+                    for fact
+                    in evidence
                 )
             )
 
         if limitations:
+
             answer_parts.append(
                 " ".join(
                     fact["statement"]
-                    for fact in limitations
+                    for fact
+                    in limitations
                 )
             )
 
@@ -721,16 +1026,22 @@ def main():
     knowledge_was_used = False
 
     if (
-        intent in [
+        intent
+        in [
+            "condition",
             "causality",
             "uncertainty",
             "general"
         ]
         and selected_knowledge
     ):
+
         theory_parts = []
 
-        for item in selected_knowledge:
+        for item in (
+            selected_knowledge
+        ):
+
             theory_parts.append(
                 item["content"]
             )
@@ -745,6 +1056,7 @@ def main():
         knowledge_was_used = True
 
     if intent == "concept":
+
         knowledge_was_used = bool(
             selected_knowledge
         )
@@ -760,14 +1072,24 @@ def main():
     source_ids = []
 
     if knowledge_was_used:
-        for item in selected_knowledge:
+
+        for item in (
+            selected_knowledge
+        ):
+
             source_id = (
-                item["source"][
+                item[
+                    "source"
+                ][
                     "source_id"
                 ]
             )
 
-            if source_id not in source_ids:
+            if (
+                source_id
+                not in source_ids
+            ):
+
                 source_ids.append(
                     source_id
                 )
@@ -777,36 +1099,51 @@ def main():
     # ================================================
 
     result = {
-        "schema_version": "0.2",
+        "schema_version":
+            "0.3",
+
         "scenario_id":
             plan["scenario_id"],
+
         "question_id":
             plan["question_id"],
+
         "intent":
             intent,
+
         "topics":
             plan["topics"],
+
         "fact_ids":
             plan[
                 "resolved_fact_ids"
             ],
+
         "knowledge_ids":
             plan[
                 "resolved_knowledge_ids"
             ],
+
         "answer":
             answer,
+
         "source_ids":
             source_ids
     }
 
-    OUTPUT_DIR.mkdir(
+    result["source_context_sha256"] = context_fingerprint(context)
+    result["fact_metadata"] = [
+        {key: fact[key] for key in ("fact_id", "certainty", "causal") if key in fact}
+        for fact in selected_facts
+    ]
+
+    args.output_dir.mkdir(
         parents=True,
         exist_ok=True
     )
 
     output_path = (
-        OUTPUT_DIR
+        args.output_dir
         / (
             f"{scenario_id}_"
             f"{question_id}_answer.json"
@@ -817,6 +1154,7 @@ def main():
         "w",
         encoding="utf-8"
     ) as f:
+
         json.dump(
             result,
             f,
@@ -824,28 +1162,50 @@ def main():
             ensure_ascii=False
         )
 
+    # ================================================
+    # SALIDA
+    # ================================================
+
     print(
         "OK: respuesta generada"
     )
 
-    print()
     print(
-        f"Question ID: {question_id}"
+        f"Contexto: "
+        f"{context_path.name}"
     )
 
     print()
-    print(answer)
+
+    print(
+        f"Question ID: "
+        f"{question_id}"
+    )
+
+    print()
+
+    print(
+        answer
+    )
 
     if source_ids:
-        print()
-        print("FUENTES:")
 
-        for source_id in source_ids:
+        print()
+
+        print(
+            "FUENTES:"
+        )
+
+        for source_id in (
+            source_ids
+        ):
+
             print(
                 f"- {source_id}"
             )
 
     print()
+
     print(
         f"Guardado en: "
         f"{output_path.name}"
