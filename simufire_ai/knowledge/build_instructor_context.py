@@ -4,6 +4,8 @@ from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+from llm.question_context import validate_context
 
 FACTS_DIR = (
     BASE_DIR
@@ -90,6 +92,16 @@ def main():
             "distinguish_scenario_from_general_theory": True
         }
     }
+
+    # Historical fixture construction is explicit; rendering never reads these dirs.
+    events = {}
+    for directory in ("fire_events", "generated_events"):
+        for path in sorted((BASE_DIR / "tests/data" / directory).glob("*.json")):
+            event = load_json(path)
+            events[event["event_id"]] = event
+    event_ids = sorted({event_id for fact in selected_facts for event_id in fact["event_ids"]})
+    context["source_events"] = [events[event_id] for event_id in event_ids]
+    validate_context(context)
 
     OUTPUT_DIR.mkdir(
         parents=True,

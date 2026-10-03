@@ -85,6 +85,8 @@ def call_ollama(prompt, schema):
             )
         )
 
+    if not isinstance(result, dict) or not isinstance(result.get("response"), str):
+        raise ValueError("Ollama no devolvió un campo response de texto")
     return result["response"]
 
 
@@ -461,143 +463,16 @@ def select_knowledge(
     return selected_ids
 
 
-def main():
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--question",
-        required=True,
-        help=(
-            "Pregunta del usuario "
-            "sobre la simulación"
-        )
-    )
-
-    parser.add_argument(
-        "--question-id",
-        default="question_001",
-        help=(
-            "Identificador único "
-            "de la pregunta"
-        )
-    )
-
-    parser.add_argument(
-        "--context",
-        default=None,
-        help=(
-            "Ruta opcional a un contexto "
-            "de instructor alternativo"
-        )
-    )
-
-    parser.add_argument(
-        "--output-dir", type=Path, default=OUTPUT_DIR,
-        help="Carpeta de salida (permite ejecutar pruebas aisladas)",
-    )
-
-    args = parser.parse_args()
-
-    question = (
-        args.question.strip()
-    )
-
-    question_id = (
-        args.question_id.strip()
-    )
-
-    if not question:
-        print(
-            "ERROR: la pregunta "
-            "está vacía."
-        )
-        sys.exit(1)
-
-    if not question_id:
-        print(
-            "ERROR: question_id "
-            "está vacío."
-        )
-        sys.exit(1)
-
-    # -------------------------------------------------
-    # CONTEXTO
-    # -------------------------------------------------
-
-    if args.context:
-
-        context_path = Path(
-            args.context
-        )
-
-        if not context_path.is_absolute():
-
-            context_path = (
-                Path.cwd()
-                / context_path
-            ).resolve()
-
-    else:
-
-        context_path = (
-            CONTEXT_PATH
-        )
-
-    if not context_path.exists():
-
-        print(
-            "ERROR: no existe el "
-            "contexto indicado:"
-        )
-
-        print(
-            f"- {context_path}"
-        )
-
-        sys.exit(1)
-
-    try:
-        context = load_json(context_path)
-        validate_context(context)
-    except (OSError, ValueError) as error:
-        parser.exit(1, f"ERROR: {error}\n")
-
-    schema = load_json(
-        SCHEMA_PATH
-    )
-
-    scenario_facts = context[
-        "scenario_facts"
-    ]
-
-    available_topics = sorted({
-        topic
-        for fact in scenario_facts
-        for topic in fact.get(
-            "knowledge_topics",
-            []
-        )
-    })
-
-    action_candidates = [
-        {
-            "fact_id":
-                fact["fact_id"],
-
-            "time_s":
-                fact["time_s"],
-
-            "statement":
-                fact["statement"]
-        }
-        for fact in scenario_facts
-        if (
-            fact["fact_type"]
-            == "action"
-        )
-    ]
-
+def create_question_plan(context, question, question_id, *, classifier=None):
+    """Classify with Qwen, then resolve evidence deterministically in this context."""
+    question, question_id = question.strip(), question_id.strip()
+    if not question or not question_id:
+        raise ValueError("La pregunta y question_id no pueden estar vacíos.")
+    validate_context(context)
+    schema = load_json(SCHEMA_PATH)
+    scenario_facts = context['scenario_facts']
+    available_topics = sorted({topic for fact in scenario_facts for topic in fact.get('knowledge_topics', [])})
+    action_candidates = [{'fact_id': fact['fact_id'], 'time_s': fact['time_s'], 'statement': fact['statement']} for fact in scenario_facts if fact['fact_type'] == 'action']
     prompt = f"""
 Eres el planificador de preguntas de SimuFire AI.
 
@@ -726,452 +601,76 @@ PREGUNTA:
 
 {question}
 """
-
-    print(
-        "Analizando pregunta..."
-    )
-
-    print(
-        f"Contexto: "
-        f"{context_path.name}"
-    )
-
-    raw = call_ollama(
-        prompt,
-        schema
-    )
-
+    raw = (classifier or call_ollama)(prompt, schema)
     try:
-
-        plan = json.loads(
-            raw
-        )
-
+        plan = json.loads(raw)
     except json.JSONDecodeError:
-
-        print(
-            "ERROR: Qwen no devolvió "
-            "JSON válido."
-        )
-
-        print(
-            raw
-        )
-
-        sys.exit(1)
-
-    # -------------------------------------------------
-    # VALORES AUTORITATIVOS
-    # -------------------------------------------------
-
-    plan["schema_version"] = (
-        "0.3"
-    )
-
-    plan["scenario_id"] = (
-        context[
-            "scenario_id"
-        ]
-    )
-
-    plan["question_id"] = (
-        question_id
-    )
-
-    validator = (
-        Draft202012Validator(
-            schema
-        )
-    )
-
-    errors = list(
-        validator.iter_errors(
-            plan
-        )
-    )
-
+        raise ValueError('Qwen no devolvió JSON válido.')
+    if not isinstance(plan, dict):
+        raise ValueError('Qwen debe devolver un objeto JSON.')
+    plan['schema_version'] = '0.3'
+    plan['scenario_id'] = context['scenario_id']
+    plan['question_id'] = question_id
+    validator = Draft202012Validator(schema)
+    errors = list(validator.iter_errors(plan))
     if errors:
-
-        print(
-            "ERROR: el plan no cumple "
-            "el schema."
-        )
-
-        for error in errors:
-
-            print(
-                f"- {error.json_path}: "
-                f"{error.message}"
-            )
-
-        sys.exit(1)
-
-    intent = plan[
-        "intent"
-    ]
-
-    include_limitations = (
-        intent in [
-            "causality",
-            "uncertainty"
-        ]
-    )
-
-    action_ids = {
-        item["fact_id"]
-        for item
-        in action_candidates
-    }
-
+        raise ValueError(f'El plan no cumple el schema: {errors[0].message}')
+    intent = plan['intent']
+    include_limitations = intent in ['causality', 'uncertainty']
+    action_ids = {item['fact_id'] for item in action_candidates}
     try:
-
-        # ---------------------------------------------
-        # TIMELINE
-        # ---------------------------------------------
-
-        if intent == "timeline":
-
-            if (
-                plan[
-                    "timeline_relation"
-                ]
-                not in [
-                    "before",
-                    "after",
-                    "all"
-                ]
-            ):
-                raise ValueError(
-                    "Una pregunta timeline "
-                    "necesita una relación "
-                    "temporal válida."
-                )
-
-            if (
-                plan[
-                    "timeline_relation"
-                ]
-                in [
-                    "before",
-                    "after"
-                ]
-                and plan[
-                    "anchor_fact_id"
-                ]
-                not in action_ids
-            ):
-                raise ValueError(
-                    "anchor_fact_id no "
-                    "corresponde a una "
-                    "acción disponible."
-                )
-
-            fact_ids = (
-                select_timeline_facts(
-                    scenario_facts,
-                    plan[
-                        "timeline_relation"
-                    ],
-                    plan[
-                        "anchor_fact_id"
-                    ]
-                )
-            )
-
-            topics = derive_topics(
-                scenario_facts,
-                fact_ids
-            )
-
-        # ---------------------------------------------
-        # RESTO DE INTENCIONES
-        # ---------------------------------------------
-
+        if intent == 'timeline':
+            if plan['timeline_relation'] not in ['before', 'after', 'all']:
+                raise ValueError('Una pregunta timeline necesita una relación temporal válida.')
+            if plan['timeline_relation'] in ['before', 'after'] and plan['anchor_fact_id'] not in action_ids:
+                raise ValueError('anchor_fact_id no corresponde a una acción disponible.')
+            fact_ids = select_timeline_facts(scenario_facts, plan['timeline_relation'], plan['anchor_fact_id'])
+            topics = derive_topics(scenario_facts, fact_ids)
         else:
+            if not plan['topics']:
+                raise ValueError('La pregunta necesita al menos un topic.')
+            topics = list(plan['topics'])
+            if intent == 'causality':
+                anchor_fact_id = plan.get('anchor_fact_id')
+                if anchor_fact_id is not None:
+                    if anchor_fact_id not in action_ids:
+                        raise ValueError('El anchor causal no corresponde a una acción disponible.')
+                    action_topics = derive_topics_from_action(scenario_facts, anchor_fact_id)
+                    for topic in action_topics:
+                        if topic not in topics:
+                            topics.append(topic)
+            fact_ids = select_topic_facts(scenario_facts, topics, include_limitations, intent)
+    except (ValueError, KeyError, RuntimeError) as error:
+        raise ValueError(str(error)) from error
+    knowledge_ids = select_knowledge(context['technical_knowledge'], topics)
+    result = {'schema_version': '0.3', 'scenario_id': context['scenario_id'], 'question_id': question_id, 'intent': intent, 'topics': topics, 'include_limitations': include_limitations, 'timeline_relation': plan['timeline_relation'], 'anchor_fact_id': plan['anchor_fact_id'], 'resolved_fact_ids': fact_ids, 'resolved_knowledge_ids': knowledge_ids}
+    result['source_context_sha256'] = context_fingerprint(context)
+    if 'run_id' in context:
+        result['run_id'] = context['run_id']
+    validate_plan_context(result, context, question_id)
+    return result
 
-            if not plan[
-                "topics"
-            ]:
-                raise ValueError(
-                    "La pregunta necesita "
-                    "al menos un topic."
-                )
 
-            topics = list(
-                plan[
-                    "topics"
-                ]
-            )
-
-            # -----------------------------------------
-            # CAUSALIDAD
-            #
-            # Ampliar topics a partir de la acción
-            # de forma determinista.
-            # -----------------------------------------
-
-            if intent == "causality":
-
-                anchor_fact_id = (
-                    plan.get(
-                        "anchor_fact_id"
-                    )
-                )
-
-                if (
-                    anchor_fact_id
-                    is not None
-                ):
-
-                    if (
-                        anchor_fact_id
-                        not in action_ids
-                    ):
-                        raise ValueError(
-                            "El anchor causal "
-                            "no corresponde a "
-                            "una acción disponible."
-                        )
-
-                    action_topics = (
-                        derive_topics_from_action(
-                            scenario_facts,
-                            anchor_fact_id
-                        )
-                    )
-
-                    for topic in (
-                        action_topics
-                    ):
-
-                        if (
-                            topic
-                            not in topics
-                        ):
-                            topics.append(
-                                topic
-                            )
-
-            fact_ids = (
-                select_topic_facts(
-                    scenario_facts,
-                    topics,
-                    include_limitations,
-                    intent
-                )
-            )
-
-    except (
-        ValueError,
-        KeyError,
-        RuntimeError
-    ) as error:
-
-        print(
-            f"ERROR: {error}"
-        )
-
-        sys.exit(1)
-
-    # -------------------------------------------------
-    # CONOCIMIENTO
-    # -------------------------------------------------
-
-    knowledge_ids = (
-        select_knowledge(
-            context[
-                "technical_knowledge"
-            ],
-            topics
-        )
-    )
-
-    # -------------------------------------------------
-    # RESULTADO
-    # -------------------------------------------------
-
-    result = {
-        "schema_version":
-            "0.3",
-
-        "scenario_id":
-            context[
-                "scenario_id"
-            ],
-
-        "question_id":
-            question_id,
-
-        "intent":
-            intent,
-
-        "topics":
-            topics,
-
-        "include_limitations":
-            include_limitations,
-
-        "timeline_relation":
-            plan[
-                "timeline_relation"
-            ],
-
-        "anchor_fact_id":
-            plan[
-                "anchor_fact_id"
-            ],
-
-        "resolved_fact_ids":
-            fact_ids,
-
-        "resolved_knowledge_ids":
-            knowledge_ids
-    }
-
-    result["source_context_sha256"] = context_fingerprint(context)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--question', required=True)
+    parser.add_argument('--question-id', default='question_001')
+    parser.add_argument('--context', type=Path, default=CONTEXT_PATH)
+    parser.add_argument('--output-dir', type=Path, default=OUTPUT_DIR)
+    args = parser.parse_args()
     try:
-        validate_plan_context(result, context, question_id)
-    except ValueError as error:
-        parser.exit(1, f"ERROR: {error}\n")
-
-    args.output_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    output_path = (
-        args.output_dir
-        / (
-            f"{context['scenario_id']}_"
-            f"{question_id}.json"
-        )
-    )
-
-    with output_path.open(
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            result,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
-
-    # -------------------------------------------------
-    # SALIDA
-    # -------------------------------------------------
-
-    print(
-        "OK: plan de pregunta válido"
-    )
-
-    print()
-
-    print(
-        f"Question ID: "
-        f"{question_id}"
-    )
-
-    print(
-        f"Pregunta: "
-        f"{question}"
-    )
-
-    print(
-        f"Intent: "
-        f"{intent}"
-    )
-
-    if topics:
-
-        print(
-            "Topics: "
-            + ", ".join(
-                topics
-            )
-        )
-
-    else:
-
-        print(
-            "Topics: -"
-        )
-
-    print(
-        "Incluir limitaciones: "
-        f"{include_limitations}"
-    )
-
-    if intent == "timeline":
-
-        print(
-            "Relación temporal: "
-            f"{plan['timeline_relation']}"
-        )
-
-        print(
-            "Ancla: "
-            f"{plan['anchor_fact_id']}"
-        )
-
-    elif intent == "causality":
-
-        print(
-            "Ancla causal: "
-            f"{plan['anchor_fact_id']}"
-        )
-
-    print()
-
-    print(
-        "HECHOS RESUELTOS:"
-    )
-
-    if fact_ids:
-
-        for fact_id in fact_ids:
-
-            print(
-                f"- {fact_id}"
-            )
-
-    else:
-
-        print(
-            "-"
-        )
-
-    print()
-
-    print(
-        "CONOCIMIENTO RESUELTO:"
-    )
-
-    if knowledge_ids:
-
-        for knowledge_id in (
-            knowledge_ids
-        ):
-
-            print(
-                f"- {knowledge_id}"
-            )
-
-    else:
-
-        print(
-            "-"
-        )
-
-    print()
-
-    print(
-        f"Guardado en: "
-        f"{output_path.name}"
-    )
+        context = load_json(args.context)
+        result = create_question_plan(context, args.question, args.question_id)
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = args.output_dir / f"{context['scenario_id']}_{result['question_id']}.json"
+        output_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8')
+    except (OSError, ValueError, TimeoutError) as error:
+        parser.exit(1, f'ERROR: {error}\n')
+    print(f"OK: plan de pregunta válido ({result['intent']})")
+    print(f"Hechos: {', '.join(result['resolved_fact_ids']) or '-'}")
+    print(f"Conocimiento: {', '.join(result['resolved_knowledge_ids']) or '-'}")
+    print(f'Guardado en: {output_path}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

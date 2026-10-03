@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "scenario_id": "basic_room_001",
   "question_id": "question_timeline_001",
   "intent": "timeline",
@@ -26,5 +26,38 @@
     "VENTILATION_001"
   ],
   "answer": "En t=180 s: El elemento door_01 se abrió. El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01. El O₂ de la capa superior aumentó de 14.1 a 16.8 %.\n\nEn t=195 s: El HRR aumentó de 720 a 1280 kW. La interfaz entre capas descendió de 1.4 a 1.2 m. La temperatura de la capa superior aumentó de 390 a 475 °C.",
-  "source_ids": []
+  "source_ids": [],
+  "source_context_sha256": "ce1da4ec161ca505aea566623a2f2c2fc90d4217aa575400ee9af8ca9c662e15",
+  "fact_metadata": [
+    {
+      "fact_id": "FACT_001",
+      "certainty": "certain",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_002",
+      "certainty": "high",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_009",
+      "certainty": "high",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_003",
+      "certainty": "high",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_004",
+      "certainty": "high",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_005",
+      "certainty": "high",
+      "causal": false
+    }
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "scenario_id": "basic_room_001",
   "question_id": "question_oxygen_001",
   "intent": "observation",
@@ -15,5 +15,23 @@
     "OXYGEN_001"
   ],
   "answer": "El O₂ de la capa superior aumentó de 14.1 a 16.8 %. Esto supone un aumento de 2.7 puntos porcentuales.",
-  "source_ids": []
+  "source_ids": [],
+  "source_context_sha256": "ce1da4ec161ca505aea566623a2f2c2fc90d4217aa575400ee9af8ca9c662e15",
+  "fact_metadata": [
+    {
+      "fact_id": "FACT_001",
+      "certainty": "certain",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_002",
+      "certainty": "high",
+      "causal": false
+    },
+    {
+      "fact_id": "FACT_009",
+      "certainty": "high",
+      "causal": false
+    }
+  ]
 }

@@ -1,6 +1,5 @@
 import argparse
 import json
-import sys
 from pathlib import Path
 
 if __package__:
@@ -30,19 +29,7 @@ QUESTION_PLANS_DIR = (
     / "question_plans"
 )
 
-MANUAL_EVENTS_DIR = (
-    BASE_DIR
-    / "tests"
-    / "data"
-    / "fire_events"
-)
 
-GENERATED_EVENTS_DIR = (
-    BASE_DIR
-    / "tests"
-    / "data"
-    / "generated_events"
-)
 
 OUTPUT_DIR = (
     BASE_DIR
@@ -81,47 +68,8 @@ def load_json(path: Path):
         return json.load(f)
 
 
-def load_json_directory(path: Path):
-
-    items = {}
-
-    if not path.exists():
-        return items
-
-    for file_path in sorted(
-        path.glob("*.json")
-    ):
-
-        data = load_json(
-            file_path
-        )
-
-        if "event_id" in data:
-
-            items[
-                data["event_id"]
-            ] = data
-
-    return items
 
 
-def load_events():
-
-    events = {}
-
-    events.update(
-        load_json_directory(
-            MANUAL_EVENTS_DIR
-        )
-    )
-
-    events.update(
-        load_json_directory(
-            GENERATED_EVENTS_DIR
-        )
-    )
-
-    return events
 
 
 def format_number(value):
@@ -520,697 +468,125 @@ def render_condition(facts):
     )
 
 
-def resolve_context_path(
-    context_argument
-):
 
-    if context_argument:
 
-        context_path = Path(
-            context_argument
-        )
-
-        if not context_path.is_absolute():
-
-            context_path = (
-                Path.cwd()
-                / context_path
-            ).resolve()
-
+def render_question_answer(context, plan):
+    """Render only the bound context, without I/O or a language model call."""
+    validate_context(context)
+    validate_plan_context(plan, context, plan.get('question_id'))
+    facts_by_id = {fact['fact_id']: fact for fact in context['scenario_facts']}
+    knowledge_by_id = {item['knowledge_id']: item for item in context['technical_knowledge']}
+    events_by_id = {event['event_id']: event for event in context.get('source_events', [])}
+    selected_facts = []
+    for fact_id in plan['resolved_fact_ids']:
+        if fact_id not in facts_by_id:
+            raise ValueError(f'No existe {fact_id} en el contexto seleccionado')
+        selected_facts.append(facts_by_id[fact_id])
+    selected_knowledge = []
+    for knowledge_id in plan['resolved_knowledge_ids']:
+        if knowledge_id not in knowledge_by_id:
+            raise ValueError(f'No existe {knowledge_id} en el contexto seleccionado')
+        selected_knowledge.append(knowledge_by_id[knowledge_id])
+    actions = [fact for fact in selected_facts if fact['fact_type'] == 'action']
+    associations = [fact for fact in selected_facts if fact['fact_type'] == 'association']
+    observations = [fact for fact in selected_facts if fact['fact_type'] == 'observation']
+    limitations = [fact for fact in selected_facts if fact['fact_type'] == 'limitation']
+    intent = plan['intent']
+    answer_parts = []
+    if intent == 'concept':
+        if not selected_knowledge:
+            answer_parts.append('No hay conocimiento técnico disponible para responder a esta pregunta.')
+        else:
+            for item in selected_knowledge:
+                answer_parts.append(item['content'])
+    elif intent == 'observation':
+        if not observations:
+            answer_parts.append('No hay una observación disponible para responder a esta pregunta.')
+        else:
+            for fact in observations:
+                paragraph = fact['statement']
+                change = find_numeric_change(fact, plan['topics'], events_by_id)
+                if change:
+                    paragraph += ' ' + render_change(change)
+                answer_parts.append(paragraph)
+    elif intent == 'condition':
+        answer_parts.append(render_condition(selected_facts))
+    elif intent == 'timeline':
+        timeline_facts = [fact for fact in selected_facts if fact['fact_type'] != 'limitation']
+        if not timeline_facts:
+            answer_parts.append('No hay hechos temporales disponibles para responder.')
+        else:
+            answer_parts.append(render_timeline(timeline_facts))
+    elif intent == 'causality':
+        if limitations:
+            answer_parts.append('Con los datos disponibles no puede afirmarse esa relación causal.')
+        evidence = actions + associations + observations
+        if evidence:
+            evidence_text = ' '.join((fact['statement'] for fact in evidence))
+            answer_parts.append('Lo que sí muestra la simulación es lo siguiente: ' + evidence_text)
+        if limitations:
+            limitation_text = ' '.join((fact['statement'] for fact in limitations))
+            answer_parts.append('Limitación del análisis: ' + limitation_text)
+    elif intent == 'uncertainty':
+        if limitations:
+            answer_parts.append(' '.join((fact['statement'] for fact in limitations)))
+        else:
+            answer_parts.append('No hay una limitación específica registrada para esta pregunta.')
     else:
-
-        context_path = (
-            CONTEXT_PATH
-        )
-
-    return context_path
+        evidence = actions + associations + observations
+        if evidence:
+            answer_parts.append(' '.join((fact['statement'] for fact in evidence)))
+        if limitations:
+            answer_parts.append(' '.join((fact['statement'] for fact in limitations)))
+    knowledge_was_used = False
+    if intent in ['condition', 'causality', 'uncertainty', 'general'] and selected_knowledge:
+        theory_parts = []
+        for item in selected_knowledge:
+            theory_parts.append(item['content'])
+        answer_parts.append('Como marco teórico general: ' + ' '.join(theory_parts))
+        knowledge_was_used = True
+    if intent == 'concept':
+        knowledge_was_used = bool(selected_knowledge)
+    answer = '\n\n'.join(answer_parts)
+    source_ids = []
+    if knowledge_was_used:
+        for item in selected_knowledge:
+            source_id = item['source']['source_id']
+            if source_id not in source_ids:
+                source_ids.append(source_id)
+    result = {'schema_version': '0.3', 'scenario_id': plan['scenario_id'], 'question_id': plan['question_id'], 'intent': intent, 'topics': plan['topics'], 'fact_ids': plan['resolved_fact_ids'], 'knowledge_ids': plan['resolved_knowledge_ids'], 'answer': answer, 'source_ids': source_ids}
+    result['source_context_sha256'] = context_fingerprint(context)
+    result['fact_metadata'] = [{key: fact[key] for key in ('fact_id', 'certainty', 'causal') if key in fact} for fact in selected_facts]
+    if 'run_id' in context:
+        result['run_id'] = context['run_id']
+    return result
 
 
 def main():
-
     parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--question-id",
-        default="question_001",
-        help=(
-            "Identificador de "
-            "la pregunta a responder"
-        )
-    )
-
-    parser.add_argument(
-        "--context",
-        default=None,
-        help=(
-            "Ruta opcional a un contexto "
-            "de instructor alternativo"
-        )
-    )
-
-    parser.add_argument(
-        "--output-dir", type=Path, default=OUTPUT_DIR,
-        help="Carpeta de salida (permite ejecutar pruebas aisladas)",
-    )
-    parser.add_argument(
-        "--plan-dir", type=Path, default=QUESTION_PLANS_DIR,
-        help="Carpeta que contiene el plan resuelto",
-    )
-
+    parser.add_argument('--question-id', default='question_001')
+    parser.add_argument('--context', type=Path, default=CONTEXT_PATH)
+    parser.add_argument('--output-dir', type=Path, default=OUTPUT_DIR)
+    parser.add_argument('--plan-dir', type=Path, default=QUESTION_PLANS_DIR)
     args = parser.parse_args()
-
-    question_id = (
-        args.question_id.strip()
-    )
-
-    if not question_id:
-
-        print(
-            "ERROR: question_id "
-            "está vacío."
-        )
-
-        sys.exit(1)
-
-    # ================================================
-    # CONTEXTO
-    # ================================================
-
-    context_path = (
-        resolve_context_path(
-            args.context
-        )
-    )
-
-    if not context_path.exists():
-
-        print(
-            "ERROR: no existe el "
-            "contexto indicado:"
-        )
-
-        print(
-            f"- {context_path}"
-        )
-
-        sys.exit(1)
-
     try:
-        context = load_json(context_path)
+        context = load_json(args.context)
         validate_context(context)
+        question_id = args.question_id.strip()
+        plan = load_json(args.plan_dir / f"{context['scenario_id']}_{question_id}.json")
+        validate_plan_context(plan, context, question_id)
+        result = render_question_answer(context, plan)
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = args.output_dir / f"{context['scenario_id']}_{question_id}_answer.json"
+        output_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding='utf-8')
     except (OSError, ValueError) as error:
-        parser.exit(1, f"ERROR: {error}\n")
-
-    scenario_id = context[
-        "scenario_id"
-    ]
-
-    # IMPORTANTE:
-    #
-    # Los hechos se obtienen del mismo contexto
-    # que utilizó el planificador.
-    #
-    # Esto evita mezclar FACT_010 del fixture
-    # con los hechos normales de basic_room_001.
-
-    facts_by_id = {
-        fact["fact_id"]:
-            fact
-        for fact in context[
-            "scenario_facts"
-        ]
-    }
-
-    knowledge_by_id = {
-        item["knowledge_id"]:
-            item
-        for item in context[
-            "technical_knowledge"
-        ]
-    }
-
-    # ================================================
-    # PLAN DE PREGUNTA
-    # ================================================
-
-    plan_path = (
-        args.plan_dir
-        / (
-            f"{scenario_id}_"
-            f"{question_id}.json"
-        )
-    )
-
-    if not plan_path.exists():
-
-        print(
-            "ERROR: no existe el plan:"
-        )
-
-        print(
-            f"- {plan_path}"
-        )
-
-        sys.exit(1)
-
-    try:
-        plan = load_json(plan_path)
-        validate_plan_context(
-            plan, context, question_id,
-            allow_legacy=context_path.resolve() == CONTEXT_PATH.resolve(),
-        )
-    except (OSError, ValueError) as error:
-        parser.exit(1, f"ERROR: {error}\n")
-
-    # ================================================
-    # EVENTOS
-    # ================================================
-
-    # Alternate contexts never fall back to the normal scenario's events.
-    if "source_events" in context:
-        events_by_id = {
-            event["event_id"]: event for event in context["source_events"]
-        }
-    elif context_path.resolve() == CONTEXT_PATH.resolve():
-        events_by_id = {
-            event_id: event for event_id, event in load_events().items()
-            if event.get("scenario_id") == scenario_id
-        }
-    else:
-        events_by_id = {}
-
-    # ================================================
-    # HECHOS SELECCIONADOS
-    # ================================================
-
-    selected_facts = []
-
-    for fact_id in plan[
-        "resolved_fact_ids"
-    ]:
-
-        if (
-            fact_id
-            not in facts_by_id
-        ):
-
-            print(
-                f"ERROR: no existe "
-                f"{fact_id} en el "
-                "contexto seleccionado."
-            )
-
-            sys.exit(1)
-
-        selected_facts.append(
-            facts_by_id[
-                fact_id
-            ]
-        )
-
-    # ================================================
-    # CONOCIMIENTO SELECCIONADO
-    # ================================================
-
-    selected_knowledge = []
-
-    for knowledge_id in plan[
-        "resolved_knowledge_ids"
-    ]:
-
-        if (
-            knowledge_id
-            not in knowledge_by_id
-        ):
-
-            print(
-                f"ERROR: no existe "
-                f"{knowledge_id} en el "
-                "contexto seleccionado."
-            )
-
-            sys.exit(1)
-
-        selected_knowledge.append(
-            knowledge_by_id[
-                knowledge_id
-            ]
-        )
-
-    # ================================================
-    # CLASIFICACIÓN DE HECHOS
-    # ================================================
-
-    actions = [
-        fact
-        for fact in selected_facts
-        if (
-            fact["fact_type"]
-            == "action"
-        )
-    ]
-
-    associations = [
-        fact
-        for fact in selected_facts
-        if (
-            fact["fact_type"]
-            == "association"
-        )
-    ]
-
-    observations = [
-        fact
-        for fact in selected_facts
-        if (
-            fact["fact_type"]
-            == "observation"
-        )
-    ]
-
-    limitations = [
-        fact
-        for fact in selected_facts
-        if (
-            fact["fact_type"]
-            == "limitation"
-        )
-    ]
-
-    intent = plan[
-        "intent"
-    ]
-
-    answer_parts = []
-
-    # ================================================
-    # CONCEPT
-    # ================================================
-
-    if intent == "concept":
-
-        if not selected_knowledge:
-
-            answer_parts.append(
-                "No hay conocimiento "
-                "técnico disponible para "
-                "responder a esta pregunta."
-            )
-
-        else:
-
-            for item in (
-                selected_knowledge
-            ):
-
-                answer_parts.append(
-                    item["content"]
-                )
-
-    # ================================================
-    # OBSERVATION
-    # ================================================
-
-    elif intent == "observation":
-
-        if not observations:
-
-            answer_parts.append(
-                "No hay una observación "
-                "disponible para responder "
-                "a esta pregunta."
-            )
-
-        else:
-
-            for fact in observations:
-
-                paragraph = fact[
-                    "statement"
-                ]
-
-                change = (
-                    find_numeric_change(
-                        fact,
-                        plan["topics"],
-                        events_by_id
-                    )
-                )
-
-                if change:
-
-                    paragraph += (
-                        " "
-                        + render_change(
-                            change
-                        )
-                    )
-
-                answer_parts.append(
-                    paragraph
-                )
-
-    # ================================================
-    # CONDITION
-    # ================================================
-
-    elif intent == "condition":
-
-        answer_parts.append(
-            render_condition(
-                selected_facts
-            )
-        )
-
-    # ================================================
-    # TIMELINE
-    # ================================================
-
-    elif intent == "timeline":
-
-        timeline_facts = [
-            fact
-            for fact in selected_facts
-            if (
-                fact["fact_type"]
-                != "limitation"
-            )
-        ]
-
-        if not timeline_facts:
-
-            answer_parts.append(
-                "No hay hechos temporales "
-                "disponibles para responder."
-            )
-
-        else:
-
-            answer_parts.append(
-                render_timeline(
-                    timeline_facts
-                )
-            )
-
-    # ================================================
-    # CAUSALITY
-    # ================================================
-
-    elif intent == "causality":
-
-        if limitations:
-
-            answer_parts.append(
-                "Con los datos disponibles "
-                "no puede afirmarse esa "
-                "relación causal."
-            )
-
-        evidence = (
-            actions
-            + associations
-            + observations
-        )
-
-        if evidence:
-
-            evidence_text = (
-                " ".join(
-                    fact["statement"]
-                    for fact
-                    in evidence
-                )
-            )
-
-            answer_parts.append(
-                "Lo que sí muestra la "
-                "simulación es lo siguiente: "
-                + evidence_text
-            )
-
-        if limitations:
-
-            limitation_text = (
-                " ".join(
-                    fact["statement"]
-                    for fact
-                    in limitations
-                )
-            )
-
-            answer_parts.append(
-                "Limitación del análisis: "
-                + limitation_text
-            )
-
-    # ================================================
-    # UNCERTAINTY
-    # ================================================
-
-    elif intent == "uncertainty":
-
-        if limitations:
-
-            answer_parts.append(
-                " ".join(
-                    fact["statement"]
-                    for fact
-                    in limitations
-                )
-            )
-
-        else:
-
-            answer_parts.append(
-                "No hay una limitación "
-                "específica registrada para "
-                "esta pregunta."
-            )
-
-    # ================================================
-    # GENERAL
-    # ================================================
-
-    else:
-
-        evidence = (
-            actions
-            + associations
-            + observations
-        )
-
-        if evidence:
-
-            answer_parts.append(
-                " ".join(
-                    fact["statement"]
-                    for fact
-                    in evidence
-                )
-            )
-
-        if limitations:
-
-            answer_parts.append(
-                " ".join(
-                    fact["statement"]
-                    for fact
-                    in limitations
-                )
-            )
-
-    # ================================================
-    # TEORÍA COMPLEMENTARIA
-    # ================================================
-
-    knowledge_was_used = False
-
-    if (
-        intent
-        in [
-            "condition",
-            "causality",
-            "uncertainty",
-            "general"
-        ]
-        and selected_knowledge
-    ):
-
-        theory_parts = []
-
-        for item in (
-            selected_knowledge
-        ):
-
-            theory_parts.append(
-                item["content"]
-            )
-
-        answer_parts.append(
-            "Como marco teórico general: "
-            + " ".join(
-                theory_parts
-            )
-        )
-
-        knowledge_was_used = True
-
-    if intent == "concept":
-
-        knowledge_was_used = bool(
-            selected_knowledge
-        )
-
-    answer = "\n\n".join(
-        answer_parts
-    )
-
-    # ================================================
-    # FUENTES
-    # ================================================
-
-    source_ids = []
-
-    if knowledge_was_used:
-
-        for item in (
-            selected_knowledge
-        ):
-
-            source_id = (
-                item[
-                    "source"
-                ][
-                    "source_id"
-                ]
-            )
-
-            if (
-                source_id
-                not in source_ids
-            ):
-
-                source_ids.append(
-                    source_id
-                )
-
-    # ================================================
-    # RESULTADO
-    # ================================================
-
-    result = {
-        "schema_version":
-            "0.3",
-
-        "scenario_id":
-            plan["scenario_id"],
-
-        "question_id":
-            plan["question_id"],
-
-        "intent":
-            intent,
-
-        "topics":
-            plan["topics"],
-
-        "fact_ids":
-            plan[
-                "resolved_fact_ids"
-            ],
-
-        "knowledge_ids":
-            plan[
-                "resolved_knowledge_ids"
-            ],
-
-        "answer":
-            answer,
-
-        "source_ids":
-            source_ids
-    }
-
-    result["source_context_sha256"] = context_fingerprint(context)
-    result["fact_metadata"] = [
-        {key: fact[key] for key in ("fact_id", "certainty", "causal") if key in fact}
-        for fact in selected_facts
-    ]
-
-    args.output_dir.mkdir(
-        parents=True,
-        exist_ok=True
-    )
-
-    output_path = (
-        args.output_dir
-        / (
-            f"{scenario_id}_"
-            f"{question_id}_answer.json"
-        )
-    )
-
-    with output_path.open(
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        json.dump(
-            result,
-            f,
-            indent=2,
-            ensure_ascii=False
-        )
-
-    # ================================================
-    # SALIDA
-    # ================================================
-
-    print(
-        "OK: respuesta generada"
-    )
-
-    print(
-        f"Contexto: "
-        f"{context_path.name}"
-    )
-
-    print()
-
-    print(
-        f"Question ID: "
-        f"{question_id}"
-    )
-
-    print()
-
-    print(
-        answer
-    )
-
-    if source_ids:
-
-        print()
-
-        print(
-            "FUENTES:"
-        )
-
-        for source_id in (
-            source_ids
-        ):
-
-            print(
-                f"- {source_id}"
-            )
-
-    print()
-
-    print(
-        f"Guardado en: "
-        f"{output_path.name}"
-    )
-
-
-if __name__ == "__main__":
+        parser.exit(1, f'ERROR: {error}\n')
+    print('OK: respuesta generada')
+    print(result['answer'])
+    if result['source_ids']:
+        print('FUENTES: ' + ', '.join(result['source_ids']))
+    print(f'Guardado en: {output_path}')
+
+
+if __name__ == '__main__':
     main()

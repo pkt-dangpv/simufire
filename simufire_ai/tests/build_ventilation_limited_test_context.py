@@ -21,9 +21,7 @@ from analyzer.build_grounded_facts import (
     build_facts
 )
 
-from knowledge.retriever import (
-    retrieve_by_topics
-)
+from knowledge.context_builder import build_knowledge_matches
 
 
 SCENARIO_PATH = (
@@ -64,96 +62,6 @@ def load_json(path: Path):
         return json.load(f)
 
 
-def build_knowledge_matches(facts):
-
-    matches = {}
-
-    for fact in facts:
-
-        if fact["fact_type"] not in [
-            "observation",
-            "association"
-        ]:
-            continue
-
-        topics = fact.get(
-            "knowledge_topics",
-            []
-        )
-
-        if not topics:
-            continue
-
-        results = retrieve_by_topics(
-            topics
-        )
-
-        for result in results:
-
-            entry = result[
-                "entry"
-            ]
-
-            knowledge_id = entry[
-                "knowledge_id"
-            ]
-
-            if knowledge_id not in matches:
-
-                matches[
-                    knowledge_id
-                ] = {
-                    "knowledge_id":
-                        knowledge_id,
-
-                    "topic":
-                        entry["topic"],
-
-                    "title":
-                        entry["title"],
-
-                    "content":
-                        entry["content"],
-
-                    "source":
-                        entry["source"],
-
-                    "confidence":
-                        entry["confidence"],
-
-                    "matched_topic":
-                        result[
-                            "matched_topic"
-                        ],
-
-                    "matched_fact_ids": [
-                        fact["fact_id"]
-                    ]
-                }
-
-            else:
-
-                fact_ids = (
-                    matches[
-                        knowledge_id
-                    ][
-                        "matched_fact_ids"
-                    ]
-                )
-
-                if (
-                    fact["fact_id"]
-                    not in fact_ids
-                ):
-                    fact_ids.append(
-                        fact["fact_id"]
-                    )
-
-    return sorted(
-        matches.values(),
-        key=lambda item:
-            item["knowledge_id"]
-    )
 
 
 def main():

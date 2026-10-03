@@ -180,6 +180,17 @@ class QuestionFlowTests(unittest.TestCase):
         save_json(self.plan_path, plan)
         self.assert_rejected("no identifica su contexto")
 
+    def test_rejects_unbound_default_plan(self):
+        # Migration removes the former exception for the default context path.
+        self.plan_dir.mkdir()
+        plan = load_json(BASE_DIR / "tests/data/question_plans/basic_room_001_question_oxygen_001.json")
+        del plan["source_context_sha256"]
+        save_json(self.plan_dir / "basic_room_001_question_oxygen_001.json", plan)
+        result = self.render(plan_question.CONTEXT_PATH, "question_oxygen_001", self.plan_dir)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no identifica su contexto", result.stderr)
+        self.assertFalse((self.answer_dir / "basic_room_001_question_oxygen_001_answer.json").exists())
+
     def test_accepts_reformatted_relocated_identical_context(self):
         self.plan()
         relocated = self.root / "relocated.json"

@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "scenario_id": "basic_room_001",
   "question_id": "question_observation_001",
   "intent": "observation",
@@ -13,5 +13,13 @@
     "TEMPERATURE_001"
   ],
   "answer": "La temperatura de la capa superior aumentó de 390 a 475 °C. Esto supone un aumento de 85 °C.",
-  "source_ids": []
+  "source_ids": [],
+  "source_context_sha256": "ce1da4ec161ca505aea566623a2f2c2fc90d4217aa575400ee9af8ca9c662e15",
+  "fact_metadata": [
+    {
+      "fact_id": "FACT_005",
+      "certainty": "high",
+      "causal": false
+    }
+  ]
 }

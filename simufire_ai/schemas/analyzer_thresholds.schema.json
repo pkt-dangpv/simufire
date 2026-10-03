@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "timeline",
+    "hrr",
+    "temperature",
+    "smoke_layer",
+    "ventilation",
+    "ventilation_limited"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.3"
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_gap_s"
+      ],
+      "properties": {
+        "max_gap_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "hrr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "increase_ratio"
+      ],
+      "properties": {
+        "increase_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 1
+        }
+      }
+    },
+    "temperature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "upper_layer_increase_c"
+      ],
+      "properties": {
+        "upper_layer_increase_c": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "smoke_layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "descent_m"
+      ],
+      "properties": {
+        "descent_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "ventilation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_o2_increase_percent"
+      ],
+      "properties": {
+        "minimum_o2_increase_percent": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "ventilation_limited": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_pre_states",
+        "minimum_pre_o2_drop_percent",
+        "minimum_pre_hrr_drop_ratio",
+        "minimum_post_o2_increase_percent",
+        "minimum_post_hrr_increase_ratio"
+      ],
+      "properties": {
+        "minimum_pre_states": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "minimum_pre_o2_drop_percent": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minimum_pre_hrr_drop_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "minimum_post_o2_increase_percent": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minimum_post_hrr_increase_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 1
+        }
+      }
+    }
+  }
+}

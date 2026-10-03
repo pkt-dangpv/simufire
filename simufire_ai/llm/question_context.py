@@ -128,7 +128,7 @@ def validate_context(context):
                     raise ValueError(f"Evento de otro compartimento: {event_id}")
 
 
-def validate_plan_context(plan, context, question_id, *, allow_legacy=False):
+def validate_plan_context(plan, context, question_id):
     """Reject stale/cross-context plans before resolving IDs or writing output."""
     schema = load_schema("question_plan.schema.json")
     for key in ("resolved_fact_ids", "resolved_knowledge_ids"):
@@ -140,18 +140,22 @@ def validate_plan_context(plan, context, question_id, *, allow_legacy=False):
     schema["properties"]["source_context_sha256"] = {
         "type": "string", "pattern": "^[0-9a-f]{64}$",
     }
+    schema["properties"]["run_id"] = {
+        "type": "string", "minLength": 1,
+    }
     validate_schema(plan, schema, "Plan resuelto")
     if plan["scenario_id"] != context["scenario_id"]:
         raise ValueError("El plan pertenece a otro escenario")
     if plan["question_id"] != question_id:
         raise ValueError("El question_id del plan no coincide con el solicitado")
+    if plan.get("run_id") != context.get("run_id"):
+        raise ValueError("El plan pertenece a otra ejecución (run_id)")
 
     fingerprint = plan.get("source_context_sha256")
     if fingerprint is None:
-        if not allow_legacy:
-            raise ValueError(
-                "El plan no identifica su contexto. Regenera el plan con --context."
-            )
+        raise ValueError(
+            "El plan no identifica su contexto. Regenera el plan con --context."
+        )
     elif fingerprint != context_fingerprint(context):
         raise ValueError(
             "El plan no corresponde al contenido del contexto seleccionado. "

@@ -19,5 +19,6 @@
   "resolved_knowledge_ids": [
     "HRR_001",
     "VENTILATION_001"
-  ]
+  ],
+  "source_context_sha256": "ce1da4ec161ca505aea566623a2f2c2fc90d4217aa575400ee9af8ca9c662e15"
 }
