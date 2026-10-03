@@ -566,6 +566,29 @@ preguntas sobre qué puede o no concluirse.
 general:
 combinación de varios tipos.
 
+PRIORIDAD ENTRE INTENCIONES:
+
+- condition tiene prioridad sobre timeline cuando
+  la pregunta principal es si una condición o
+  fenómeno estaba presente, aunque incluya
+  expresiones temporales como "antes de",
+  "después de" o "en ese momento".
+
+- timeline se usa cuando la pregunta principal es
+  qué ocurrió, qué cambió o qué sucedió antes o
+  después de una acción.
+
+Ejemplos:
+
+"¿El incendio estaba limitado por ventilación
+antes de abrir la puerta?"
+-> intent = condition
+-> topics = ["ventilation_limited"]
+
+"¿Qué ocurrió antes de abrir la puerta?"
+-> intent = timeline
+-> topics = []
+
 REGLAS:
 
 - Para observation selecciona solamente
