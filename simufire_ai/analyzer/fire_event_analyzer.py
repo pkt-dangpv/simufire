@@ -1,6 +1,11 @@
 import json
 from pathlib import Path
 
+if __package__:
+    from .action_context import action_key, room_actions_between, sorted_actions
+else:
+    from action_context import action_key, room_actions_between, sorted_actions
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -46,10 +51,7 @@ def find_action_between(
 ):
     actions = []
 
-    for action in scenario.get(
-        "actions",
-        []
-    ):
+    for action in sorted_actions(scenario):
         if (
             start_time
             < action["time_s"]
@@ -58,6 +60,13 @@ def find_action_between(
             actions.append(action)
 
     return actions
+
+
+def event_time_token(time_s):
+    """Preserve fractional times without changing historical integer IDs."""
+    if isinstance(time_s, float) and time_s.is_integer():
+        return str(int(time_s))
+    return str(time_s)
 
 
 def get_compartment(
@@ -145,12 +154,6 @@ def analyze(
 
     start_time = before["time_s"]
     end_time = after["time_s"]
-
-    actions = find_action_between(
-        scenario,
-        start_time,
-        end_time
-    )
 
     hrr_increase_ratio = (
         thresholds["hrr"][
@@ -260,7 +263,7 @@ def analyze(
                     ],
                 "event_id": (
                     f"hrr_increase_"
-                    f"{int(end_time)}_"
+                    f"{event_time_token(end_time)}_"
                     f"{room_id}"
                 ),
                 "time_s": end_time,
@@ -306,7 +309,7 @@ def analyze(
                     ],
                 "event_id": (
                     "temperature_increase_"
-                    f"{int(end_time)}_"
+                    f"{event_time_token(end_time)}_"
                     f"{room_id}"
                 ),
                 "time_s": end_time,
@@ -353,7 +356,7 @@ def analyze(
                     ],
                 "event_id": (
                     "smoke_layer_descent_"
-                    f"{int(end_time)}_"
+                    f"{event_time_token(end_time)}_"
                     f"{room_id}"
                 ),
                 "time_s": end_time,
@@ -385,7 +388,13 @@ def analyze(
         # 4. Aumento de ventilación tras una apertura
         # ---------------------------------------------
 
-        for action in actions:
+        local_actions = room_actions_between(scenario, room_id, start_time, end_time)
+        # A shared measurement interval cannot distinguish several interventions.
+        unique_open = (
+            local_actions[0] if len(local_actions) == 1
+            and local_actions[0]["type"] == "open" else None
+        )
+        for action in ([unique_open] if unique_open is not None else []):
 
             if (
                 action["type"]
@@ -406,7 +415,7 @@ def analyze(
                         ],
                     "event_id": (
                         "ventilation_increase_"
-                        f"{int(action['time_s'])}_"
+                        f"{event_time_token(action['time_s'])}_"
                         f"{room_id}"
                     ),
                     "time_s":
@@ -421,6 +430,8 @@ def analyze(
                         f"{action['target']}"
                         "_opened"
                     ),
+                    "action_target": action["target"],
+                    "action_time_s": action["time_s"],
                     "confidence":
                         0.95,
                     "evidence": [
@@ -454,6 +465,8 @@ def analyze(
                     ]
                 })
 
+    for event in events:
+        event["evidence_interval_s"] = {"start": start_time, "end": end_time}
     return events
 
 
@@ -507,10 +520,7 @@ def detect_ventilation_limited_patterns(
 
     generated_ids = set()
 
-    for action in scenario.get(
-        "actions",
-        []
-    ):
+    for action in sorted_actions(scenario):
 
         if action.get("type") != "open":
             continue
@@ -583,6 +593,11 @@ def detect_ventilation_limited_patterns(
         ]:
 
             room_id = pre_room["id"]
+            local_actions = room_actions_between(
+                scenario, room_id, pre_state["time_s"], post_state["time_s"],
+            )
+            if len(local_actions) != 1 or action_key(local_actions[0]) != action_key(action):
+                continue
 
             post_room = get_compartment(
                 post_state,
@@ -737,7 +752,7 @@ def detect_ventilation_limited_patterns(
 
             event_id = (
                 "ventilation_limited_"
-                f"{int(pre_state['time_s'])}_"
+                f"{event_time_token(pre_state['time_s'])}_"
                 f"{room_id}"
             )
 
@@ -771,6 +786,11 @@ def detect_ventilation_limited_patterns(
                 # no una causalidad demostrada.
                 "cause":
                     "temporal_pattern",
+                "action_target": action["target"],
+                "action_time_s": action["time_s"],
+                "evidence_interval_s": {
+                    "start": history[0]["time_s"], "end": post_state["time_s"],
+                },
 
                 "confidence":
                     0.85,

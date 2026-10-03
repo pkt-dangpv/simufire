@@ -39,6 +39,17 @@ def unique_index(items, key):
     return result
 
 
+def validate_time_provenance(item):
+    interval = item.get("evidence_interval_s")
+    if interval is not None and not (
+        interval["start"] < interval["end"]
+        and interval["start"] <= item["time_s"] <= interval["end"]
+    ):
+        raise ValueError("Intervalo de evidencia no válido")
+    if ("action_target" in item) != ("action_time_s" in item):
+        raise ValueError("La procedencia de una acción necesita target y tiempo")
+
+
 def validate_context(context):
     validate_schema(
         context, load_schema("instructor_context.schema.json"), "Contexto",
@@ -48,11 +59,35 @@ def validate_context(context):
         validate_schema(fact, fact_schema, "Hecho del contexto")
         if fact["scenario_id"] != context["scenario_id"]:
             raise ValueError(f"{fact['fact_id']} pertenece a otro escenario")
+        validate_time_provenance(fact)
     facts = unique_index(context["scenario_facts"], "fact_id")
     for fact in facts.values():
         for dependency in fact["requires_fact_ids"]:
             if dependency not in facts:
                 raise ValueError(f"No existe el hecho requerido {dependency}")
+            dependency_fact = facts[dependency]
+            room_id = fact.get("compartment_id")
+            dependency_rooms = dependency_fact.get("compartment_ids", [])
+            if "compartment_id" in dependency_fact:
+                dependency_rooms = [dependency_fact["compartment_id"]]
+            if room_id is not None and dependency_rooms and room_id not in dependency_rooms:
+                raise ValueError(f"Dependencia entre compartimentos distintos: {dependency}")
+
+    visiting, visited = set(), set()
+
+    def visit(fact_id):
+        if fact_id in visiting:
+            raise ValueError(f"Dependencia circular detectada en {fact_id}")
+        if fact_id in visited:
+            return
+        visiting.add(fact_id)
+        for dependency in facts[fact_id]["requires_fact_ids"]:
+            visit(dependency)
+        visiting.remove(fact_id)
+        visited.add(fact_id)
+
+    for fact_id in facts:
+        visit(fact_id)
 
     # Instructor knowledge is a projection of an entry plus match provenance.
     entry_schema = load_schema("knowledge_entry.schema.json")
@@ -81,7 +116,16 @@ def validate_context(context):
         validate_schema(event, event_schema, "Evento del contexto")
         if event["scenario_id"] != context["scenario_id"]:
             raise ValueError(f"{event['event_id']} pertenece a otro escenario")
-    unique_index(context.get("source_events", []), "event_id")
+        validate_time_provenance(event)
+    events = unique_index(context.get("source_events", []), "event_id")
+    if "source_events" in context:
+        for fact in facts.values():
+            for event_id in fact["event_ids"]:
+                if event_id not in events:
+                    raise ValueError(f"No existe el evento de origen {event_id}")
+                room_id = fact.get("compartment_id")
+                if room_id is not None and events[event_id].get("compartment_id") != room_id:
+                    raise ValueError(f"Evento de otro compartimento: {event_id}")
 
 
 def validate_plan_context(plan, context, question_id, *, allow_legacy=False):

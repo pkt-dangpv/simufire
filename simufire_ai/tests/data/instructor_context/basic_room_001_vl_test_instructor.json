@@ -14,7 +14,12 @@
       "source_variables": [],
       "knowledge_topics": [],
       "requires_fact_ids": [],
-      "causal": false
+      "causal": false,
+      "compartment_ids": [
+        "room_01"
+      ],
+      "action_target": "door_01",
+      "action_time_s": 180
     },
     {
       "schema_version": "0.1",
@@ -37,7 +42,14 @@
       "requires_fact_ids": [
         "FACT_001"
       ],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -57,7 +69,12 @@
         "hrr"
       ],
       "requires_fact_ids": [],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -77,7 +94,12 @@
         "smoke_layer"
       ],
       "requires_fact_ids": [],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -97,7 +119,12 @@
         "temperature"
       ],
       "requires_fact_ids": [],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -107,8 +134,14 @@
       "fact_type": "limitation",
       "statement": "Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR.",
       "certainty": "certain",
-      "event_ids": [],
-      "source_variables": [],
+      "event_ids": [
+        "ventilation_increase_180_room_01",
+        "hrr_increase_195_room_01"
+      ],
+      "source_variables": [
+        "upper_layer.o2_percent",
+        "hrr_kw"
+      ],
       "knowledge_topics": [
         "ventilation",
         "hrr"
@@ -118,7 +151,14 @@
         "FACT_002",
         "FACT_003"
       ],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -128,8 +168,15 @@
       "fact_type": "limitation",
       "statement": "Los datos disponibles no son suficientes para afirmar una relación causal directa entre la apertura de la puerta y el aumento de temperatura.",
       "certainty": "certain",
-      "event_ids": [],
-      "source_variables": [],
+      "event_ids": [
+        "ventilation_increase_180_room_01",
+        "temperature_increase_195_room_01"
+      ],
+      "source_variables": [
+        "upper_layer.o2_percent",
+        "hrr_kw",
+        "upper_layer.temperature_c"
+      ],
       "knowledge_topics": [
         "ventilation",
         "temperature"
@@ -139,7 +186,14 @@
         "FACT_002",
         "FACT_005"
       ],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -149,15 +203,24 @@
       "fact_type": "limitation",
       "statement": "Se ha detectado un descenso de la interfaz entre capas, pero los datos disponibles no permiten atribuirle una causa física concreta.",
       "certainty": "certain",
-      "event_ids": [],
-      "source_variables": [],
+      "event_ids": [
+        "smoke_layer_descent_195_room_01"
+      ],
+      "source_variables": [
+        "interface_height_m"
+      ],
       "knowledge_topics": [
         "smoke_layer"
       ],
       "requires_fact_ids": [
         "FACT_004"
       ],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -179,7 +242,14 @@
       "requires_fact_ids": [
         "FACT_002"
       ],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -203,7 +273,14 @@
         "ventilation_limited"
       ],
       "requires_fact_ids": [],
-      "causal": false
+      "causal": false,
+      "compartment_id": "room_01",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 150,
+        "end": 195
+      }
     }
   ],
   "source_events": [
@@ -224,7 +301,11 @@
           "unit": "kW",
           "description": "Aumento significativo del HRR"
         }
-      ]
+      ],
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -243,7 +324,11 @@
           "unit": "C",
           "description": "Aumento de temperatura de la capa superior"
         }
-      ]
+      ],
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -262,7 +347,11 @@
           "unit": "m",
           "description": "Descenso de la interfaz entre capas"
         }
-      ]
+      ],
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -272,6 +361,8 @@
       "event_type": "ventilation_increase",
       "compartment_id": "room_01",
       "cause": "door_01_opened",
+      "action_target": "door_01",
+      "action_time_s": 180,
       "confidence": 0.95,
       "evidence": [
         {
@@ -288,7 +379,11 @@
           "unit": "kW",
           "description": "Cambio del HRR tras la apertura"
         }
-      ]
+      ],
+      "evidence_interval_s": {
+        "start": 179,
+        "end": 195
+      }
     },
     {
       "schema_version": "0.1",
@@ -298,6 +393,12 @@
       "event_type": "ventilation_limited",
       "compartment_id": "room_01",
       "cause": "temporal_pattern",
+      "action_target": "door_01",
+      "action_time_s": 180,
+      "evidence_interval_s": {
+        "start": 150,
+        "end": 195
+      },
       "confidence": 0.85,
       "evidence": [
         {

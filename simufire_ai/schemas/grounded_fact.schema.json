@@ -4,7 +4,6 @@
   "title": "SimuFire AI Grounded Fact",
   "type": "object",
   "additionalProperties": false,
-
   "required": [
     "schema_version",
     "scenario_id",
@@ -17,27 +16,22 @@
     "knowledge_topics",
     "requires_fact_ids"
   ],
-
   "properties": {
     "schema_version": {
       "type": "string"
     },
-
     "scenario_id": {
       "type": "string",
       "minLength": 1
     },
-
     "fact_id": {
       "type": "string",
       "minLength": 1
     },
-
     "time_s": {
       "type": "number",
       "minimum": 0
     },
-
     "fact_type": {
       "type": "string",
       "enum": [
@@ -47,12 +41,10 @@
         "limitation"
       ]
     },
-
     "statement": {
       "type": "string",
       "minLength": 1
     },
-
     "certainty": {
       "type": "string",
       "enum": [
@@ -62,21 +54,18 @@
         "limited"
       ]
     },
-
     "event_ids": {
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-
     "source_variables": {
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-
     "knowledge_topics": {
       "type": "array",
       "uniqueItems": true,
@@ -103,7 +92,6 @@
         ]
       }
     },
-
     "requires_fact_ids": {
       "type": "array",
       "uniqueItems": true,
@@ -111,9 +99,47 @@
         "type": "string"
       }
     },
-
     "causal": {
       "type": "boolean"
+    },
+    "action_target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "evidence_interval_s": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "compartment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "compartment_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     }
   }
 }

@@ -5,6 +5,23 @@ la pregunta; el código resuelve los hechos y el conocimiento del contexto. El
 renderer conserva las afirmaciones y la certeza de los hechos, separa la teoría
 general y no transforma asociaciones temporales en relaciones causales.
 
+Los hechos nuevos conservan el compartimento, la identidad de la apertura y el
+intervalo de sus evidencias cuando están disponibles. Las dependencias se resuelven
+a partir de sus acciones y eventos de origen, sin asignaciones fijas por número
+de hecho. La numeración del ejemplo básico sigue siendo compatible.
+
+Los detectores de ventilación comprueban los extremos de la apertura y no atribuyen
+un mismo intervalo de medidas a una apertura concreta si hay varias intervenciones
+locales. Una apertura entre dos compartimentos puede aportar evidencia a ambos;
+una apertura en otro compartimento no se considera una intervención local.
+
+Las limitaciones causales se vinculan a la observación y apertura correspondientes
+del mismo compartimento. Los eventos nuevos exigen que la apertura esté dentro
+del intervalo de la observación; para eventos históricos sin intervalo se usa la
+apertura previa, sin otras acciones locales intermedias. Esto organiza la evidencia
+y no demuestra causalidad. Los contextos rechazan ciclos, referencias inexistentes,
+intervalos inválidos y dependencias entre compartimentos incompatibles.
+
 Ejecutar desde la raíz del repositorio, con Python y `jsonschema` instalado.
 
 ## Pruebas deterministas

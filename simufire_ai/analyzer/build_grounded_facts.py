@@ -2,6 +2,15 @@ import json
 import sys
 from pathlib import Path
 
+if __package__:
+    from .action_context import (
+        action_key, action_compartments, matched_open_action, room_actions_between, sorted_actions,
+    )
+else:
+    from action_context import (
+        action_key, action_compartments, matched_open_action, room_actions_between, sorted_actions,
+    )
+
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 
@@ -52,537 +61,239 @@ def find_evidence(event, variable):
 
 
 def make_fact(
-    scenario_id,
-    fact_id,
-    time_s,
-    fact_type,
-    statement,
-    certainty,
-    event_ids,
-    source_variables=None,
-    knowledge_topics=None,
-    requires_fact_ids=None,
-    causal=False
+    scenario_id, fact_id, time_s, fact_type, statement, certainty, event_ids,
+    source_variables=None, knowledge_topics=None, requires_fact_ids=None,
+    causal=False, compartment_id=None, compartment_ids=None, action_target=None,
+    action_time_s=None, evidence_interval_s=None,
 ):
-    return {
-        "schema_version": "0.1",
-        "scenario_id": scenario_id,
-        "fact_id": fact_id,
-        "time_s": time_s,
-        "fact_type": fact_type,
-        "statement": statement,
-        "certainty": certainty,
-        "event_ids": event_ids,
-        "source_variables": source_variables or [],
-        "knowledge_topics": knowledge_topics or [],
-        "requires_fact_ids": requires_fact_ids or [],
-        "causal": causal
+    fact = {
+        "schema_version": "0.1", "scenario_id": scenario_id, "fact_id": fact_id,
+        "time_s": time_s, "fact_type": fact_type, "statement": statement,
+        "certainty": certainty, "event_ids": list(event_ids),
+        "source_variables": list(source_variables or []),
+        "knowledge_topics": list(knowledge_topics or []),
+        "requires_fact_ids": list(requires_fact_ids or []), "causal": causal,
     }
+    for key, value in (
+        ("compartment_id", compartment_id), ("compartment_ids", compartment_ids),
+        ("action_target", action_target), ("action_time_s", action_time_s),
+        ("evidence_interval_s", evidence_interval_s),
+    ):
+        if value is not None:
+            fact[key] = value
+    return fact
 
 
 def build_facts(scenario, events):
+    """Resolve dependencies from actual source objects, never FACT numbers.
 
+    Keep the historical ordering of categories for the basic-room example.
+    Limitations link observations in the same room and measurement interval;
+    historical events without intervals stop at the next local action.
+    """
     scenario_id = scenario["scenario_id"]
-    # Orden determinista de eventos.
-    # Evita que los FACT_xxx cambien de significado
-    # según el origen o el orden de entrada.
+    rooms = {room["id"] for room in scenario.get("compartments", [])}
     event_priority = {
-        "ventilation_increase": 10,
-        "hrr_increase": 20,
-        "smoke_layer_descent": 30,
-        "temperature_increase": 40,
-        "ventilation_limited": 50
+        "ventilation_increase": 10, "hrr_increase": 20, "smoke_layer_descent": 30,
+        "temperature_increase": 40, "ventilation_limited": 50,
     }
+    events = sorted(events, key=lambda e: (
+        e["time_s"], event_priority.get(e["event_type"], 999), e["event_id"],
+    ))
+    seen = set()
+    for event in events:
+        if event["scenario_id"] != scenario_id:
+            raise ValueError(f"Evento de otro escenario: {event['event_id']}")
+        if event["event_id"] in seen:
+            raise ValueError(f"Evento duplicado: {event['event_id']}")
+        seen.add(event["event_id"])
+        if "compartment_id" in event and event["compartment_id"] not in rooms:
+            raise ValueError(f"Compartimento desconocido: {event['compartment_id']}")
+        interval = event.get("evidence_interval_s")
+        if interval is not None and not (
+            interval["start"] < interval["end"]
+            and interval["start"] <= event["time_s"] <= interval["end"]
+        ):
+            raise ValueError(f"Intervalo de evidencia no válido: {event['event_id']}")
 
-    events = sorted(
-        events,
-        key=lambda event: (
-            event["time_s"],
-            event_priority.get(
-                event["event_type"],
-                999
-            ),
-            event["event_id"]
-        )
-    )
     facts = []
-    fact_number = 1
+    actions = sorted_actions(scenario)
+    action_facts = {}
+    ventilation = []
+    observations = []
 
-    def next_id():
-        nonlocal fact_number
+    def add_fact(**values):
+        fact = make_fact(
+            scenario_id=scenario_id, fact_id=f"FACT_{len(facts) + 1:03d}", **values,
+        )
+        facts.append(fact)
+        return fact
 
-        fact_id = f"FACT_{fact_number:03d}"
-        fact_number += 1
+    def provenance(event, action=None):
+        result = {}
+        if "compartment_id" in event:
+            result["compartment_id"] = event["compartment_id"]
+        if "evidence_interval_s" in event:
+            result["evidence_interval_s"] = dict(event["evidence_interval_s"])
+        if action is not None:
+            result.update(action_target=action["target"], action_time_s=action["time_s"])
+        return result
 
-        return fact_id
+    for action in actions:
+        if action["type"] != "open":
+            continue
+        compartments = action_compartments(scenario, action)
+        if not compartments:
+            raise ValueError(f"Apertura sin compartimento conocido: {action['target']}")
+        action_facts[action_key(action)] = add_fact(
+            time_s=action["time_s"], fact_type="action",
+            statement=f"El elemento {action['target']} se abrió en t={action['time_s']} s.",
+            certainty="certain", event_ids=[], compartment_ids=list(compartments),
+            action_target=action["target"], action_time_s=action["time_s"],
+        )
 
-    # -------------------------------------------------
-    # ACCIONES DEL ESCENARIO
-    # -------------------------------------------------
+    # Emit observed changes before limitations, oxygen and conditions to keep
+    # FACT_001...FACT_010 compatible for the existing single-room example.
+    measured = {
+        "hrr_increase": ("hrr_kw", "hrr", "El HRR aumentó de {previous} a {value} kW."),
+        "temperature_increase": (
+            "upper_layer.temperature_c", "temperature",
+            "La temperatura de la capa superior aumentó de {previous} a {value} °C.",
+        ),
+        "smoke_layer_descent": (
+            "interface_height_m", "smoke_layer",
+            "La interfaz entre capas descendió de {previous} a {value} m.",
+        ),
+    }
+    for event in events:
+        event_type = event["event_type"]
+        if event_type in measured:
+            variable, topic, template = measured[event_type]
+            evidence = find_evidence(event, variable)
+            if evidence is None or "previous_value" not in evidence:
+                continue
+            fact = add_fact(
+                time_s=event["time_s"], fact_type="observation",
+                statement=template.format(previous=evidence["previous_value"], value=evidence["value"]),
+                certainty="high", event_ids=[event["event_id"]],
+                source_variables=[variable], knowledge_topics=[topic], **provenance(event),
+            )
+            observations.append((event, fact))
+        elif event_type == "ventilation_increase":
+            action = matched_open_action(scenario, event)
+            statement = "El Fire Event Analyzer detectó un aumento de ventilación"
+            if action is not None:
+                statement += f" asociado a la apertura de {action['target']}"
+            dependency = action_facts[action_key(action)] if action is not None else None
+            fact = add_fact(
+                time_s=event["time_s"], fact_type="association", statement=statement + ".",
+                certainty="high", event_ids=[event["event_id"]],
+                source_variables=[item["variable"] for item in event.get("evidence", [])],
+                knowledge_topics=["ventilation"],
+                requires_fact_ids=[dependency["fact_id"]] if dependency else [],
+                **provenance(event, action),
+            )
+            ventilation.append((event, fact, action))
 
-    for action in scenario.get("actions", []):
+    def preceding_ventilation(effect):
+        room_id = effect.get("compartment_id")
+        if room_id is None:
+            return None
+        candidates = []
+        for event, fact, action in ventilation:
+            if action is None or event.get("compartment_id") != room_id:
+                continue
+            if action["time_s"] > effect["time_s"]:
+                continue
+            interval = effect.get("evidence_interval_s")
+            if interval and not interval["start"] < action["time_s"] <= interval["end"]:
+                continue
+            if room_actions_between(scenario, room_id, action["time_s"], effect["time_s"]):
+                continue
+            candidates.append((event, fact, action))
+        if not candidates:
+            return None
+        latest_time = max(item[2]["time_s"] for item in candidates)
+        latest = [item for item in candidates if item[2]["time_s"] == latest_time]
+        return latest[0] if len(latest) == 1 else None
 
-        if action["type"] == "open":
-
-            facts.append(
-                make_fact(
-                    scenario_id=scenario_id,
-                    fact_id=next_id(),
-                    time_s=action["time_s"],
-                    fact_type="action",
-                    statement=(
-                        f"El elemento {action['target']} "
-                        f"se abrió en t={action['time_s']} s."
-                    ),
-                    certainty="certain",
-                    event_ids=[],
-                    source_variables=[],
-                    knowledge_topics=[],
-                    causal=False
+    # Causal limitations are paired per observation, not by a global set of
+    # event types. References retain the actual action/association/observation.
+    for effect_type in ("hrr_increase", "temperature_increase"):
+        for effect, observation in observations:
+            if effect["event_type"] != effect_type:
+                continue
+            matched = preceding_ventilation(effect)
+            if matched is None:
+                continue
+            event, association, action = matched
+            opening = next(o for o in scenario["openings"] if o["id"] == action["target"])
+            label = {"door": "la puerta", "window": "la ventana"}.get(
+                opening["type"], f"{action['target']}",
+            )
+            if effect_type == "hrr_increase":
+                statement = (
+                    "Los datos disponibles no son suficientes para afirmar que "
+                    f"la apertura de {label} causó por sí sola el aumento del HRR."
                 )
+            else:
+                statement = (
+                    "Los datos disponibles no son suficientes para afirmar una "
+                    f"relación causal directa entre la apertura de {label} y el aumento de temperatura."
+                )
+            add_fact(
+                time_s=effect["time_s"], fact_type="limitation", statement=statement,
+                certainty="certain", event_ids=[event["event_id"], effect["event_id"]],
+                source_variables=list(dict.fromkeys(
+                    association["source_variables"] + observation["source_variables"],
+                )), knowledge_topics=["ventilation", observation["knowledge_topics"][0]],
+                requires_fact_ids=[
+                    action_facts[action_key(action)]["fact_id"], association["fact_id"], observation["fact_id"],
+                ], **provenance(effect, action),
             )
 
-    # -------------------------------------------------
-    # EVENTOS DETECTADOS
-    # -------------------------------------------------
+    for event, observation in observations:
+        if event["event_type"] == "smoke_layer_descent":
+            add_fact(
+                time_s=event["time_s"], fact_type="limitation",
+                statement=(
+                    "Se ha detectado un descenso de la interfaz entre capas, "
+                    "pero los datos disponibles no permiten atribuirle una causa física concreta."
+                ), certainty="certain", event_ids=[event["event_id"]],
+                source_variables=observation["source_variables"], knowledge_topics=["smoke_layer"],
+                requires_fact_ids=[observation["fact_id"]], **provenance(event),
+            )
+
+    # Every ventilation event keeps its own oxygen observation and dependency.
+    for event, association, action in ventilation:
+        evidence = find_evidence(event, "upper_layer.o2_percent")
+        if evidence is None or "previous_value" not in evidence:
+            continue
+        add_fact(
+            time_s=event["time_s"], fact_type="observation",
+            statement=(f"El O₂ de la capa superior aumentó de {evidence['previous_value']} "
+                       f"a {evidence['value']} %."), certainty="high",
+            event_ids=[event["event_id"]], source_variables=["upper_layer.o2_percent"],
+            knowledge_topics=["oxygen"], requires_fact_ids=[association["fact_id"]],
+            **provenance(event, action),
+        )
 
     for event in events:
-
-        event_type = event["event_type"]
-        event_id = event["event_id"]
-        time_s = event["time_s"]
-
-        # ---------------------------------------------
-        # HRR
-        # ---------------------------------------------
-
-        if event_type == "hrr_increase":
-
-            evidence = find_evidence(
-                event,
-                "hrr_kw"
-            )
-
-            if evidence:
-
-                facts.append(
-                    make_fact(
-                        scenario_id=scenario_id,
-                        fact_id=next_id(),
-                        time_s=time_s,
-                        fact_type="observation",
-                        statement=(
-                            "El HRR aumentó de "
-                            f"{evidence['previous_value']} "
-                            f"a {evidence['value']} kW."
-                        ),
-                        certainty="high",
-                        event_ids=[event_id],
-                        source_variables=[
-                            "hrr_kw"
-                        ],
-                        knowledge_topics=[
-                            "hrr"
-                        ],
-                        causal=False
-                    )
-                )
-
-        # ---------------------------------------------
-        # TEMPERATURA
-        # ---------------------------------------------
-
-        elif event_type == "temperature_increase":
-
-            evidence = find_evidence(
-                event,
-                "upper_layer.temperature_c"
-            )
-
-            if evidence:
-
-                facts.append(
-                    make_fact(
-                        scenario_id=scenario_id,
-                        fact_id=next_id(),
-                        time_s=time_s,
-                        fact_type="observation",
-                        statement=(
-                            "La temperatura de la capa superior "
-                            f"aumentó de {evidence['previous_value']} "
-                            f"a {evidence['value']} °C."
-                        ),
-                        certainty="high",
-                        event_ids=[event_id],
-                        source_variables=[
-                            "upper_layer.temperature_c"
-                        ],
-                        knowledge_topics=[
-                            "temperature"
-                        ],
-                        causal=False
-                    )
-                )
-
-        # ---------------------------------------------
-        # CAPA DE HUMO
-        # ---------------------------------------------
-
-        elif event_type == "smoke_layer_descent":
-
-            evidence = find_evidence(
-                event,
-                "interface_height_m"
-            )
-
-            if evidence:
-
-                facts.append(
-                    make_fact(
-                        scenario_id=scenario_id,
-                        fact_id=next_id(),
-                        time_s=time_s,
-                        fact_type="observation",
-                        statement=(
-                            "La interfaz entre capas descendió "
-                            f"de {evidence['previous_value']} "
-                            f"a {evidence['value']} m."
-                        ),
-                        certainty="high",
-                        event_ids=[event_id],
-                        source_variables=[
-                            "interface_height_m"
-                        ],
-                        knowledge_topics=[
-                            "smoke_layer"
-                        ],
-                        causal=False
-                    )
-                )
-
-        # ---------------------------------------------
-        # VENTILACION
-        # ---------------------------------------------
-
-        elif event_type == "ventilation_increase":
-
-            cause = event.get(
-                "cause",
-                "una apertura"
-            )
-
-            target = cause.replace(
-                "_opened",
-                ""
-            )
-
-            facts.append(
-                make_fact(
-                    scenario_id=scenario_id,
-                    fact_id=next_id(),
-                    time_s=time_s,
-                    fact_type="association",
-                    statement=(
-                        "El Fire Event Analyzer detectó "
-                        "un aumento de ventilación asociado "
-                        f"a la apertura de {target}."
-                    ),
-                    certainty="high",
-                    event_ids=[event_id],
-                    source_variables=[
-                        item["variable"]
-                        for item in event.get(
-                            "evidence",
-                            []
-                        )
-                    ],
-                    knowledge_topics=[
-                        "ventilation"
-                    ],
-                    causal=False
-                )
-            )
-
-    # -------------------------------------------------
-    # LIMITACIONES DE CAUSALIDAD
-    # -------------------------------------------------
-
-    event_types = {
-        event["event_type"]
-        for event in events
-    }
-
-    # Ventilación + HRR
-
-    if (
-        "ventilation_increase" in event_types
-        and "hrr_increase" in event_types
-    ):
-
-        facts.append(
-            make_fact(
-                scenario_id=scenario_id,
-                fact_id=next_id(),
-                time_s=max(
-                    event["time_s"]
-                    for event in events
-                ),
-                fact_type="limitation",
-                statement=(
-                    "Los datos disponibles no son suficientes "
-                    "para afirmar que la apertura de la puerta "
-                    "causó por sí sola el aumento del HRR."
-                ),
-                certainty="certain",
-                event_ids=[],
-                source_variables=[],
-                knowledge_topics=[
-                    "ventilation",
-                    "hrr"
-                ],
-                causal=False
-            )
+        if event["event_type"] != "ventilation_limited":
+            continue
+        action = matched_open_action(scenario, event)
+        statement = (
+            "El Fire Event Analyzer detectó un patrón temporal compatible con "
+            "una condición de incendio limitado por ventilación"
         )
-
-    # Ventilación + temperatura
-
-    if (
-        "ventilation_increase" in event_types
-        and "temperature_increase" in event_types
-    ):
-
-        facts.append(
-            make_fact(
-                scenario_id=scenario_id,
-                fact_id=next_id(),
-                time_s=max(
-                    event["time_s"]
-                    for event in events
-                ),
-                fact_type="limitation",
-                statement=(
-                    "Los datos disponibles no son suficientes "
-                    "para afirmar una relación causal directa "
-                    "entre la apertura de la puerta y el aumento "
-                    "de temperatura."
-                ),
-                certainty="certain",
-                event_ids=[],
-                source_variables=[],
-                knowledge_topics=[
-                    "ventilation",
-                    "temperature"
-                ],
-                causal=False
-            )
+        if action is not None:
+            statement += f" antes de la apertura de {action['target']}"
+        add_fact(
+            time_s=event["time_s"], fact_type="association", statement=statement + ".",
+            certainty="moderate", event_ids=[event["event_id"]],
+            source_variables=[item["variable"] for item in event.get("evidence", [])],
+            knowledge_topics=["ventilation_limited"], **provenance(event, action),
         )
-
-    # Descenso de la capa de humo
-
-    if "smoke_layer_descent" in event_types:
-
-        facts.append(
-            make_fact(
-                scenario_id=scenario_id,
-                fact_id=next_id(),
-                time_s=max(
-                    event["time_s"]
-                    for event in events
-                ),
-                fact_type="limitation",
-                statement=(
-                    "Se ha detectado un descenso de la interfaz "
-                    "entre capas, pero los datos disponibles no "
-                    "permiten atribuirle una causa física concreta."
-                ),
-                certainty="certain",
-                event_ids=[],
-                source_variables=[],
-                knowledge_topics=[
-                    "smoke_layer"
-                ],
-                causal=False
-            )
-        )
-
-    # -------------------------------------------------
-    # OXIGENO
-    #
-    # Se añade DESPUÉS de FACT_001...FACT_008 para
-    # conservar los IDs históricos y no romper tests.
-    # -------------------------------------------------
-
-    ventilation_event = next(
-        (
-            event
-            for event in events
-            if event["event_type"]
-            == "ventilation_increase"
-        ),
-        None
-    )
-
-    if ventilation_event:
-
-        oxygen_evidence = find_evidence(
-            ventilation_event,
-            "upper_layer.o2_percent"
-        )
-
-        if oxygen_evidence:
-
-            facts.append(
-                make_fact(
-                    scenario_id=scenario_id,
-                    fact_id=next_id(),
-                    time_s=ventilation_event["time_s"],
-                    fact_type="observation",
-                    statement=(
-                        "El O₂ de la capa superior aumentó de "
-                        f"{oxygen_evidence['previous_value']} "
-                        f"a {oxygen_evidence['value']} %."
-                    ),
-                    certainty="high",
-                    event_ids=[
-                        ventilation_event["event_id"]
-                    ],
-                    source_variables=[
-                        "upper_layer.o2_percent"
-                    ],
-                    knowledge_topics=[
-                        "oxygen"
-                    ],
-                    causal=False
-                )
-            )
-
-    # -------------------------------------------------
-    # DEPENDENCIAS ENTRE HECHOS
-    # -------------------------------------------------
-    # -------------------------------------------------
-    # INCENDIO LIMITADO POR VENTILACION
-    #
-    # Se añade DESPUES de FACT_001...FACT_009 para
-    # conservar los IDs historicos.
-    #
-    # Este hecho NO afirma causalidad demostrada.
-    # Describe un patron temporal detectado por
-    # el Fire Event Analyzer.
-    # -------------------------------------------------
-
-    ventilation_limited_events = [
-        event
-        for event in events
-        if (
-            event["event_type"]
-            == "ventilation_limited"
-        )
-    ]
-
-    for ventilation_limited_event in (
-        ventilation_limited_events
-    ):
-
-        event_time = (
-            ventilation_limited_event[
-                "time_s"
-            ]
-        )
-
-        # Buscar la primera apertura posterior
-        # al patron detectado.
-        next_open_action = None
-
-        for action in sorted(
-            scenario.get("actions", []),
-            key=lambda item: item["time_s"]
-        ):
-            if (
-                action.get("type") == "open"
-                and action["time_s"] > event_time
-            ):
-                next_open_action = action
-                break
-
-        if next_open_action:
-
-            statement = (
-                "El Fire Event Analyzer detectó "
-                "un patrón temporal compatible con "
-                "una condición de incendio limitado "
-                "por ventilación antes de la apertura "
-                f"de {next_open_action['target']}."
-            )
-
-        else:
-
-            statement = (
-                "El Fire Event Analyzer detectó "
-                "un patrón temporal compatible con "
-                "una condición de incendio limitado "
-                "por ventilación."
-            )
-
-        facts.append(
-            make_fact(
-                scenario_id=scenario_id,
-                fact_id=next_id(),
-                time_s=event_time,
-                fact_type="association",
-                statement=statement,
-                certainty="moderate",
-                event_ids=[
-                    ventilation_limited_event[
-                        "event_id"
-                    ]
-                ],
-                source_variables=[
-                    item["variable"]
-                    for item
-                    in ventilation_limited_event.get(
-                        "evidence",
-                        []
-                    )
-                ],
-                knowledge_topics=[
-                    "ventilation_limited"
-                ],
-                requires_fact_ids=[],
-                causal=False
-            )
-        )
-    dependencies = {
-        "FACT_002": [
-            "FACT_001"
-        ],
-
-        "FACT_006": [
-            "FACT_001",
-            "FACT_002",
-            "FACT_003"
-        ],
-
-        "FACT_007": [
-            "FACT_001",
-            "FACT_002",
-            "FACT_005"
-        ],
-
-        "FACT_008": [
-            "FACT_004"
-        ],
-
-        "FACT_009": [
-            "FACT_002"
-        ]
-    }
-
-    for fact in facts:
-        fact["requires_fact_ids"] = dependencies.get(
-            fact["fact_id"],
-            []
-        )
-
     return facts
 
 

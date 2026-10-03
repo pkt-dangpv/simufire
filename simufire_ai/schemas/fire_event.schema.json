@@ -4,7 +4,6 @@
   "title": "SimuFire AI Fire Event",
   "type": "object",
   "additionalProperties": false,
-
   "required": [
     "schema_version",
     "scenario_id",
@@ -14,27 +13,22 @@
     "confidence",
     "evidence"
   ],
-
   "properties": {
     "schema_version": {
       "type": "string"
     },
-
     "scenario_id": {
       "type": "string",
       "minLength": 1
     },
-
     "event_id": {
       "type": "string",
       "minLength": 1
     },
-
     "time_s": {
       "type": "number",
       "minimum": 0
     },
-
     "event_type": {
       "type": "string",
       "enum": [
@@ -59,57 +53,72 @@
         "rollover_conditions"
       ]
     },
-
     "compartment_id": {
       "type": "string"
     },
-
     "cause": {
       "type": "string"
     },
-
     "confidence": {
       "type": "number",
       "minimum": 0,
       "maximum": 1
     },
-
     "evidence": {
       "type": "array",
       "minItems": 1,
       "items": {
         "$ref": "#/$defs/evidence_item"
       }
+    },
+    "action_target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "evidence_interval_s": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
     }
   },
-
   "$defs": {
     "evidence_item": {
       "type": "object",
       "additionalProperties": false,
-
       "required": [
         "variable",
         "value"
       ],
-
       "properties": {
         "variable": {
           "type": "string"
         },
-
         "value": {
           "type": "number"
         },
-
         "previous_value": {
           "type": "number"
         },
-
         "unit": {
           "type": "string"
         },
-
         "description": {
           "type": "string"
         }
