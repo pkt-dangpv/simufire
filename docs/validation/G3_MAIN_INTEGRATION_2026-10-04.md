@@ -1,7 +1,12 @@
 # G3 - Gate de publicación e integración Git con main
 
-Fecha: 2026-10-04. Estado: **GO técnico para publicar e integrar la rama**,
+Fecha: 2026-10-04. Estado: **publicado e integrado en main**,
 con autorización explícita del usuario. No es GO a activar física nueva.
+
+Publicación técnica confirmada en `e7a0601f`: rama shareable y main remoto
+actualizados; main local avanzó solo por fast-forward. Los 80 hashes ajenos
+coinciden tras la actualización y ALL GUARDRAILS PASS, R2-1 incluido, desde
+main. Este registro final es documental; no cambia fuentes ni informes.
 
 ## Alcance y checkpoints
 

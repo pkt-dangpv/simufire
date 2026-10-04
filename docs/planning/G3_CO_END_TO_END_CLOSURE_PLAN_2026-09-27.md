@@ -27,6 +27,8 @@ adicionales en `sim/`. [Gate de integración Git](../validation/G3_MAIN_INTEGRAT
 GO tras importación limpia, AI 17/17, producto 168/168 y global 3535 passed /
 41 skipped / 2 xfailed / 42 subtests, 529,11 s sobre la combinación.
 No confundir integrar la rama con conectar el caller al paso de simulación.
+Publicación/integración Git confirmada el 04-10 en `e7a0601f`, con ambos
+remotos actualizados y los 80 archivos locales ajenos preservados por hash.
 Siguiente: evidencia térmica independiente y sensible, con atribución
 compatible de masa/material; el caller no identifica por sí mismo B real.
 

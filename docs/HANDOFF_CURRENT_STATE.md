@@ -1,6 +1,12 @@
 # Current Handoff State
 
-## Git integration gate - 2026-10-04 - G3 y main: GO
+## Git integration completed - 2026-10-04 - G3 publicado en main
+
+Publicación confirmada: rama shareable subida e integración por fast-forward
+en `main`; ambos remotos en `e7a0601f` antes de este registro documental.
+Los 80 archivos locales siguen intactos tras actualizar main; guardarraíles
+ALL PASS con R2-1 también desde el checkout principal. Este registro no
+cambia código ni informes y no requiere repetir la referencia.
 
 El usuario autoriza commit/push e integración en `main` cuando estén
 justificados. Checkpoint D1 aislado: `6f8f41b0`; combinación sin conflictos
