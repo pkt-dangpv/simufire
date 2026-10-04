@@ -32,43 +32,60 @@ def explicit_request_contract(text, classification):
                       r"(?:explica|describe)\s+(?:(?:las?|los?)\s+)?)"
                       r"(?:limitaciones|incertidumbre|limites)\b", start)
     summary = re.match(r"^(?:resume\b|(?:ofrece|dame|haz|presenta|elabora)\s+(?:un\s+)?resumen\b)", start)
-    presence = re.match(r"^(?:se\s+(?:ha\s+)?(?:detecto|registro|detectado|registrado)|"
-                        r"quedo\s+(?:detectado|registrado))\s+"
-                        r"(?:un|una)\s+(?:aumento|incremento|crecimiento|descenso|reduccion)\b", start)
+    presence = re.match(r"^(?:(?:se\s+(?:ha\s+)?(?:detecto|registro|detectado|registrado)|"
+                        r"quedo\s+(?:detectado|registrado))\s+(?:un|una)\s+|"
+                        r"hubo\s+(?:(?:un|una)\s+)?)"
+                        r"(?:aumento|incremento|crecimiento|descenso|reduccion)\b", start)
     enumeration = re.match(r"^(?:enumera|lista|ordena)\s+(?:todos\s+)?(?:los\s+)?hechos\s+registrados\b", start)
+    definition = re.match(r"^(?:define\b|que\s+(?:es|significa)\b|"
+                          r"explica\s+(?:el\s+)?(?:concepto|significado)\b)", start)
+    magnitude = re.match(r"^(?:(?:indica|describe|muestra)\s+)?(?:cuant[oa]s?\s+(?:ha\s+)?"
+                         r"(?:aumento|aumentado|descendio|descendido|cambio|cambiado|vario|variado|"
+                         r"subio|subido|bajo|bajado)\b|"
+                         r"como\s+(?:cambio|ha\s+cambiado|vario)\b)", start)
+    measured_topics = [topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
+        if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
+               for term in TOPIC_LITERALS[topic])]
+    causal_request = re.search(r"\b(?:caus\w*|provoc\w*|porque)\b|"
+                              r"\b(?:por\s+que|debido\s+a)\b", text)
     # A magnitude or causal question can mention detection without asking
     # whether it occurred. Do not erase that request or a named variable filter.
     other_request = re.search(r"\b(?:cuant[oa]s?|valor|magnitud|caus\w*|provoc\w*|porque|significa)\b|"
                               r"\b(?:por\s+que|debido\s+a|que\s+es)\b", text)
-    literal_topic = any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
-                        for terms in TOPIC_LITERALS.values() for term in terms)
+    literal_topics = {topic for topic, terms in TOPIC_LITERALS.items()
+                      if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text) for term in terms)}
+    single_measured_topic = len(measured_topics) == 1 and literal_topics == set(measured_topics)
     constrained = False
     if limits:
         classification["intent"] = "uncertainty"
         constrained = True
+    elif definition and single_measured_topic and not causal_request:
+        classification["intent"] = "concept"
+        classification["topics"] = measured_topics
+        constrained = True
+    elif magnitude and single_measured_topic and not causal_request:
+        # The named measured variable is authoritative for a direct magnitude
+        # request. This supplies no values or facts and does not split windows.
+        classification["intent"] = "observation"
+        classification["topics"] = measured_topics
     elif summary and classification["intent"] not in ("concept", "causality"):
         classification["intent"] = "general"
         constrained = True
-    elif presence and not other_request and literal_topic and classification["intent"] not in ("concept", "causality", "uncertainty"):
+    elif presence and not other_request and literal_topics and classification["intent"] not in ("concept", "causality", "uncertainty"):
         classification["intent"] = "condition"
         constrained = True
-    elif enumeration and not other_request and not literal_topic and classification["intent"] not in ("concept", "causality"):
+    elif enumeration and not other_request and not literal_topics and classification["intent"] not in ("concept", "causality"):
         classification["intent"] = "timeline"
         classification["topics"] = []
         if classification["clarification_needed"] == "topic":
             classification["clarification_needed"] = "none"
     elif classification["intent"] == "timeline" and re.match(
             r"^como\s+(?:cambio|ha\s+cambiado|vario)\b", start):
-        measured_topics = [topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
-            if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
-                   for term in TOPIC_LITERALS[topic])]
         if measured_topics:
             classification["intent"] = "observation"
             classification["topics"] = measured_topics
     if constrained:
-        mentioned = {topic for topic in ("hrr", "temperature", "oxygen", "smoke_layer")
-            if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
-                   for term in TOPIC_LITERALS[topic])}
+        mentioned = set(measured_topics)
         # A literal variable in a direct request overrides a generic topic guess.
         # Keep conflicting specific topics or multiple variables for clarification.
         generic_topics = {"fire_dynamics"}

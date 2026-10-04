@@ -69,6 +69,80 @@ class ExplicitQuestionTests(unittest.TestCase):
                     self.assertEqual(result['answer']['scope']['compartment_id'],'room_02')
                     self.assertNotIn('475',result['answer']['answer'])
 
+    def test_replay_three_v4_failures_preserves_raw_metrics(self):
+        records=json.loads((BASE_DIR/'tests/data/question_model_regressions_v4.json').read_text(encoding='utf-8'))
+        contexts=evaluation.build_contexts(records)
+        self.assertEqual(len(records),3)
+        for record in records:
+            with self.subTest(case=record['case_id']):
+                case=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+                raw=json.dumps(record['raw_classification'])
+                result=evaluation.evaluate_case(case,contexts[record['fixture']],lambda p,s:raw)
+                self.assertTrue(result['answer_passed'],result)
+                self.assertFalse(result['passed'])
+                self.assertEqual(result['raw_model_response'],raw)
+                self.assertEqual(result['grounding_errors'],[])
+                if record['case_id']=='holdout_v4_007':
+                    self.assertEqual(result['answer']['fact_ids'],[])
+                    self.assertEqual(result['answer']['source_ids'],['NIST_CFAST_V7_TECHNICAL_REFERENCE'])
+                if record['case_id']=='holdout_v4_012':
+                    self.assertNotIn('temperatura',result['answer']['answer'])
+                    self.assertEqual(result['answer']['fact_ids'],[])
+
+    def test_direct_requests_preserve_cause_negation_and_multiple_variables(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='general',topics=['fire_dynamics'])
+        for text in ('hubo crecimiento del hrr causado por la puerta',
+                     'no hubo crecimiento del hrr', 'no define la capa de humo',
+                     'define que causo el descenso de la capa de humo',
+                     'define temperatura y oxigeno',
+                     'define temperatura y backdraft',
+                     'cuanto cambio la temperatura y la ventilacion',
+                     'cuanto vale la temperatura',
+                     'cuanto representa el hrr como concepto',
+                     'indica cuanto aumento la temperatura y el hrr',
+                     'cuanto aumento la temperatura debido a la puerta',
+                     'el informe define la capa de humo'):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value,source,text)
+
+    def test_definition_has_theory_only_even_when_model_proposes_measurement(self):
+        context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['fire_dynamics'],clarification_needed='topic')
+        plan=create_question_plan(context,'Define la capa de humo como concepto.','concept_only',
+            classifier=lambda p,s:json.dumps(source))
+        answer=render_question_answer(context,plan)
+        self.assertEqual(plan['intent'],'concept')
+        self.assertEqual(answer['answer_status'],'theory_only')
+        self.assertEqual(answer['fact_ids'],[])
+        self.assertNotIn('2.8',answer['answer'])
+        self.assertEqual(answer['knowledge_ids'],['SMOKE_LAYER_001'])
+
+    def test_magnitude_uses_literal_variable_without_bypassing_time_coverage(self):
+        context=evaluation.build_contexts([{'fixture':'positive'}])['positive']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['temperature'])
+        for question,status,ids in (
+            ('Indica cuánto descendió la capa de humo entre 179 y 195 s.','evidence_found',['FACT_004']),
+            ('Indica cuánto descendió la capa de humo posterior a 180 s.','insufficient_data',[])):
+            plan=create_question_plan(context,question,'literal_measure',classifier=lambda p,s:json.dumps(source))
+            answer=render_question_answer(context,plan)
+            self.assertEqual(plan['topics'],['smoke_layer'])
+            self.assertEqual(answer['answer_status'],status)
+            self.assertEqual(answer['fact_ids'],ids)
+            self.assertNotIn('temperatura',answer['answer'])
+            self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+
+    def test_saved_explicit_intent_cannot_be_changed_after_resolution(self):
+        context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['hrr'])
+        plan=create_question_plan(context,'Indica cuánto aumentó el HRR entre 12 y 36 s.','intent_bound',
+            classifier=lambda p,s:json.dumps(source))
+        changed=copy.deepcopy(plan);changed['intent']='concept'
+        with self.assertRaises(ValueError):render_question_answer(context,changed)
+
     def test_generic_topic_repair_requires_unique_explicit_measured_variable(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
         source.update(intent='condition',topics=['fire_dynamics'],clarification_needed='topic')
@@ -105,13 +179,13 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_mentions_of_detection_do_not_erase_magnitude_cause_or_definition(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
-        for text in ('cuanto subio la temperatura detectada', 'como se registro el descenso de la capa de humo',
+        for text in ('como se registro el descenso de la capa de humo',
                      'se registro un aumento de temperatura de cuanto',
                      'se detecto un aumento de temperatura causado por la apertura',
                      'se detecto un aumento de temperatura debido a abrir la puerta',
                      'se detecto un aumento de temperatura de cuantos grados',
                      'se registro un descenso de la capa de humo, que significa',
-                     'que significa un aumento detectado de hrr', 'no se ha detectado un aumento de temperatura',
+                     'no se ha detectado un aumento de temperatura',
                      'enumera los hechos registrados sobre temperatura',
                      'enumera los hechos registrados que causaron el aumento', 'enumera las temperaturas'):
             with self.subTest(text=text):
@@ -122,6 +196,12 @@ class ExplicitQuestionTests(unittest.TestCase):
             original=copy.deepcopy(value)
             explicit_request_contract('se ha detectado un aumento de temperatura',value)
             self.assertEqual(value,original)
+        for text,intent,topics in (
+            ('cuanto subio la temperatura detectada','observation',['temperature']),
+            ('que significa un aumento detectado de hrr','concept',['hrr'])):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value['intent'],intent)
+            self.assertEqual(value['topics'],topics)
 
     def test_enumeration_preserves_non_topic_ambiguity_and_physical_metadata(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
@@ -163,10 +243,10 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'4')
-        self.assertEqual(report['summary']['total'],108)
-        self.assertEqual(report['summary']['passed'],108)
-        self.assertEqual(report['summary']['answer_passed'],108)
+        self.assertEqual(report['corpus_version'],'5')
+        self.assertEqual(report['summary']['total'],128)
+        self.assertEqual(report['summary']['passed'],128)
+        self.assertEqual(report['summary']['answer_passed'],128)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
@@ -174,7 +254,7 @@ class ExplicitQuestionTests(unittest.TestCase):
         old=evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[0]
         old_questions={c['question'] for c in old['cases']}
         fresh=[c for c in self.corpus['cases'] if c['split']=='holdout']
-        self.assertEqual(len(fresh),16)
+        self.assertEqual(len(fresh),20)
         self.assertFalse(old_questions & {c['question'] for c in fresh})
         self.assertTrue(all(c['split']=='dev' and c['evaluation_role']=='regression'
             for c in self.corpus['cases'] if c['question'] in old_questions))

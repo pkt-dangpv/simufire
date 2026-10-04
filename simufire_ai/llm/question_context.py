@@ -217,6 +217,9 @@ def validate_plan_context(plan, context, question_id):
         )}
         classification["scope"] = plan["requested_scope"]
         interpreted = interpret_explicit_scope(context, plan["question"], classification)
+        for key in ("intent", "timeline_relation", "anchor_fact_id"):
+            if plan[key] != interpreted[key]:
+                raise ValueError(f"Plan no coincide con la petición explícita: {key}")
         expected = resolve_question(context, interpreted)
         for key, value in expected.items():
             if plan[key] != value:

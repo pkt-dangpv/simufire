@@ -1,0 +1,125 @@
+[
+  {
+    "case_id": "holdout_v4_001",
+    "question": "¿Hubo crecimiento del HRR en Laboratorio?",
+    "fixture": "lab_growth",
+    "expected": {
+      "answer_status": "evidence_found",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_001"
+      ],
+      "intent": "condition",
+      "knowledge_ids": [
+        "HRR_001"
+      ],
+      "scope": {
+        "compartment_id": "lab",
+        "time_relation": "all"
+      },
+      "topics": [
+        "hrr"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "laboratory_growth_004",
+      "question_id": "holdout_v4_001",
+      "intent": "observation",
+      "topics": [
+        "hrr"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": "lab",
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  },
+  {
+    "case_id": "holdout_v4_007",
+    "question": "Define la capa de humo como concepto.",
+    "fixture": "lab_growth",
+    "expected": {
+      "answer_status": "theory_only",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "concept",
+      "knowledge_ids": [
+        "SMOKE_LAYER_001"
+      ],
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "laboratory_growth_004",
+      "question_id": "holdout_v4_007",
+      "intent": "concept",
+      "topics": [
+        "fire_dynamics"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    }
+  },
+  {
+    "case_id": "holdout_v4_012",
+    "question": "Indica cuánto descendió la capa de humo posterior a 180 segundos.",
+    "fixture": "positive",
+    "expected": {
+      "answer_status": "insufficient_data",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "observation",
+      "knowledge_ids": [],
+      "scope": {
+        "anchor_fact_id": null,
+        "start_time_s": 180,
+        "time_relation": "after"
+      },
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "basic_room_001",
+      "question_id": "holdout_v4_012",
+      "intent": "observation",
+      "topics": [
+        "temperature"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "all",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  }
+]

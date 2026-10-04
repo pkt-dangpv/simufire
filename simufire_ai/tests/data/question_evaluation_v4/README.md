@@ -1,5 +1,10 @@
 # Corpus 4: regresiones y reservado con nuevos historiales sintéticos
 
+Archivo histórico; el evaluador usa ahora el corpus 5. Para reproducir esta
+versión, añade `--corpus-dir simufire_ai/tests/data/question_evaluation_v4`.
+El reservado 4 ya se usó para desarrollar correcciones y sus casos son regresiones
+en el corpus 5; una repetición ya no constituye una medición independiente.
+
 108 preguntas: las 92 del corpus 3 pasan íntegramente a regresiones y 16
 formulaciones nuevas forman el reservado. Se añaden dos historiales sintéticos
 de Laboratorio, con otra geometría, tiempos y valores. Hay 13 historiales/variantes

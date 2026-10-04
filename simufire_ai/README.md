@@ -231,11 +231,11 @@ consultas concretas con el modelo real se ejecuta por separado:
 python simufire_ai/tests/test_question_scope.py --ollama
 ```
 
-La evaluación reproducible usa ahora el corpus 4: 92 regresiones y 16 nuevas
-formulaciones reservadas, con dos historiales sintéticos nuevos de Laboratorio y
-13 variantes/historiales en total. Las versiones
+La evaluación reproducible usa ahora el corpus 5: 108 regresiones y 20 nuevas
+formulaciones reservadas, con un historial sintético nuevo de Garaje por debajo
+de los umbrales y 14 variantes/historiales en total. Las versiones
 anteriores y sus entradas congeladas se conservan. Consulta
-`tests/data/question_evaluation_v4/README.md` para ejecutar por separado contratos
+`tests/data/question_evaluation_v5/README.md` para ejecutar por separado contratos
 offline, desarrollo con Ollama y el nuevo reservado. El evaluador distingue la
 clasificación cruda de Qwen de la respuesta final validada.
 
@@ -254,3 +254,11 @@ guardados alterados se rechazan. La evaluación conserva ese error del modelo en
 con una variable medida única pueden sustituir el tema genérico `fire_dynamics`;
 no se sustituyen temas específicos contradictorios. Se reproducen también los
 cuatro fallos del corpus 3 sin red. No cambian detectores ni umbrales físicos.
+
+Los controles explícitos también preservan consultas de detección «hubo crecimiento»,
+definiciones y peticiones de magnitud con una única variable medida literal. Estas
+dos últimas conservan la variable nombrada aunque el modelo proponga otra; las
+definiciones no incorporan hechos de la simulación. Las consultas causales o con
+varias variables siguen dependiendo de clasificación o aclaración. El validador
+rechaza cambios de intención/cabeceras temporales que contradigan la petición
+explícita de un plan guardado 0.4. Se reproducen los tres errores del corpus 4 sin red.
