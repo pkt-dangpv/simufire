@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1",
+  "knowledge_id": "BACKDRAFT_001",
+  "topic": "backdraft",
+  "title": "Backdraft: interpretación docente y límites de los datos",
+  "content": "El backdraft implica la ignición de una mezcla formada al entrar aire en un recinto caliente con oxígeno reducido y combustible gaseoso sin quemar acumulado, pudiendo producir una deflagración. Depende del combustible, su distribución, la mezcla y la fuente de ignición. Las mediciones de oxígeno del estudio citado no separaron claramente los casos con y sin backdraft. Por ello, O₂ < 10 % no se adopta aquí como requisito universal ni O₂ ≥ 10 % como criterio de descarte. Una temperatura de capa y un porcentaje de oxígeno no bastan para clasificar el fenómeno o asignarle un nivel de riesgo.",
+  "source": {
+    "source_id": "NIST_BACKDRAFT_2022",
+    "title": "Characterization of backdrafts generated from methane fires",
+    "organization": "National Institute of Standards and Technology",
+    "document": "2022 Spring Technical Meeting of the Eastern States Section of the Combustion Institute",
+    "section": "1. Introduction; 3.1 Oxygen concentration measurements",
+    "page": "1, 4",
+    "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=934112"
+  },
+  "confidence": "authoritative",
+  "tags": ["backdraft", "unburned_fuel", "mixing", "ignition", "oxygen", "teaching_limits"]
+}

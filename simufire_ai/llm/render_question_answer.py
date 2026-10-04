@@ -532,6 +532,8 @@ def render_question_answer(context, plan):
     intent = plan['intent']
     answer_parts = []
     measured_changes, comparison = evidence_for_question(context, plan)
+    from llm.teaching_context import teaching_context, teaching_text
+    teaching = teaching_context(context, plan, measured_changes) if scoped else None
     mechanism_explanation = (intent == "causality" and "smoke_layer" in plan["topics"]
                              and measured_changes and any("penacho" in item["content"] for item in selected_knowledge))
     concurrent = []
@@ -618,6 +620,8 @@ def render_question_answer(context, plan):
             elif (assessment["topic"] == "ventilation_limited" and intent in ("condition", "general")
                   and recovery_comparison(comparison)):
                 note = "Queda por determinar cuánto dura esta recuperación y cuál es el régimen posterior."
+            elif assessment['topic'] == 'ventilation_limited' and teaching['preopening_observations']:
+                note = None  # Numeric prehistory and the repeated-action limitation explain coverage.
             else:
                 note = render_assessment(assessment)
             if note:
@@ -642,6 +646,8 @@ def render_question_answer(context, plan):
         answer_parts.insert(0, summary)
     if comparison:
         answer_parts.insert(0, comparison_text(comparison))
+    if teaching:
+        answer_parts.extend(teaching_text(teaching))
     knowledge_was_used = False
     if intent in ['condition', 'causality', 'uncertainty', 'general'] and selected_knowledge:
         theory_parts = []
@@ -674,7 +680,8 @@ def render_question_answer(context, plan):
         result["measured_changes"] = measured_changes
         result["concurrent_measurements"] = concurrent
         result["detector_assessment_status"] = plan["answer_status"]
-        result["response_status"] = response_status(plan, measured_changes, comparison)
+        result["response_status"] = response_status(plan, measured_changes, comparison, teaching)
+        result['teaching_context'] = teaching
         result["opening_comparison"] = comparison
     result['source_context_sha256'] = context_fingerprint(context)
     result['fact_metadata'] = [{key: fact[key] for key in ('fact_id', 'certainty', 'causal') if key in fact} for fact in selected_facts]

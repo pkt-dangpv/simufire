@@ -1,0 +1,188 @@
+{
+  "dev_033": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  },
+  "holdout_012": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  },
+  "holdout_v2_016": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  },
+  "holdout_v3_013": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  },
+  "holdout_v5_019": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  },
+  "holdout_v6_016": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "tramo común anterior",
+        "sin cierre intermedio registrado"
+      ],
+      "excludes": [
+        "¿A qué apertura te refieres?"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "preopening_observations",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "clarification_required",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert E08: show common pre-first-opening observations and repeated-action anomaly; no new ILV detection."
+  }
+}

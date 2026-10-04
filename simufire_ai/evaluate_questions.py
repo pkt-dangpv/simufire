@@ -25,8 +25,8 @@ from llm.question_scope import literal_rooms
 from llm.render_question_answer import render_question_answer
 
 LEGACY_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
-PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v7'
-CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v8'
+PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v8'
+CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v9'
 
 
 def load_corpus(directory=CORPUS_DIR):
@@ -116,6 +116,8 @@ def grounding_errors(context, plan, answer):
     if "measurement_snapshot" in context:
         from llm.measurement_text import evidence_for_question, concurrent_changes, response_status
         expected_changes, comparison = evidence_for_question(context, plan)
+        from llm.teaching_context import teaching_context
+        teaching = teaching_context(context, plan, expected_changes)
         expected_concurrent = []
         if (plan['intent'] == 'causality' and 'smoke_layer' in plan['topics'] and expected_changes
                 and any('penacho' in knowledge[kid]['content'] for kid in plan['resolved_knowledge_ids'])):
@@ -127,7 +129,8 @@ def grounding_errors(context, plan, answer):
             ('concurrent_measurements', expected_concurrent, 'concurrent_measurements_changed'),
             ('opening_comparison', comparison, 'opening_comparison_changed'),
             ('detector_assessment_status', plan['answer_status'], 'detector_status_changed'),
-            ('response_status', response_status(plan, expected_changes, comparison), 'response_status_changed'),
+            ('response_status', response_status(plan, expected_changes, comparison, teaching), 'response_status_changed'),
+            ('teaching_context', teaching, 'teaching_context_changed'),
         ):
             if answer.get(key) != expected_value:
                 errors.append(error)

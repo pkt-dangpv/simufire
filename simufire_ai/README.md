@@ -354,3 +354,34 @@ El evaluador usa ahora el corpus 8: los 160 casos anteriores son regresiones y
 no hay reservado nuevo. Cuatro expectativas de redacción se versionaron
 explícitamente a petición del experto; los corpus anteriores siguen intactos.
 Las explicaciones nuevas se presentan para revisión humana antes del piloto.
+
+## Segunda tanda de revisión experta: E05–E08
+
+Las respuestas de temperatura añaden las aperturas registradas del mismo recinto
+y un resumen de la caída previa cuando el ámbito consultado incluye sus muestras.
+Una consulta con intervalo explícito no recupera mediciones externas. La apertura
+de una habitación distinta no se atribuye al recinto consultado; se conserva la
+distinción entre asociación temporal y causa física.
+
+`BACKDRAFT_001` aporta teoría docente contrastada con el estudio de NIST de 2022,
+sin añadir un detector ni un nivel de riesgo. La respuesta de presencia conserva
+`unsupported`, muestra una muestra disponible del ámbito y explica qué datos de
+combustible gaseoso, mezcla e ignición faltan. O₂ <10 % no es un requisito
+universal de backdraft ni ≥10 % lo descarta. Un HRR positivo no demuestra llama
+abierta. La teoría solo se utiliza si pertenece al contexto ligado al plan.
+
+Para una pregunta de condición de ILV anterior a aperturas repetidas del mismo
+elemento inicialmente cerrado, sin otras intervenciones locales, se explica el
+tramo común previo a la primera apertura. Se conservan las acciones y se señala
+su repetición sin cierre registrado. El resultado docente es
+`preopening_observations`; la cobertura interna sigue siendo `insufficient_data`
+y no se inventa un hecho de ILV. Aperturas diferentes, cierre/reapertura, estado
+inicial abierto, preguntas causales y periodos posteriores siguen requiriendo
+desambiguación. Los tiempos explícitos del usuario conservan su ámbito.
+
+`teaching_context` registra las observaciones y acciones suplementarias, con
+tiempos, recinto y `causal: false`. El evaluador verifica su correspondencia con
+el mismo contexto. El corpus 9 conserva 160 regresiones y entradas físicas
+históricas; seis expectativas de ámbito/presentación de E08 están versionadas
+explícitamente. No hay un reservado nuevo. La suite incluye
+`test_expert_followup.py` y sigue sin depender de Ollama.

@@ -247,6 +247,16 @@ def interpret_explicit_scope(context, question, classification, *, model_proposa
             if result["clarification_needed"] in ("action", "time"): result["clarification_needed"] = "none"
         else:
             actions = candidate_actions(context, scope, text)
+            if before and result['intent'] == 'condition' and result['topics'] == ['ventilation_limited']:
+                from llm.teaching_context import redundant_openings
+                repetition = redundant_openings(context, actions)
+                if repetition:
+                    # Explicitly use the common period preceding every repeated
+                    # open, never an arbitrary model anchor or post-opening span.
+                    earliest = min(actions, key=lambda a: a['time_s'])
+                    if model_proposal and scope['anchor_fact_id'] in {a['fact_id'] for a in actions}:
+                        scope['anchor_fact_id'] = None
+                    actions = [earliest]
             if len(actions) == 1:
                 if scope["anchor_fact_id"] not in (None, actions[0]["fact_id"]):
                     raise ValueError("El ancla temporal contradice la acción indicada en la pregunta")
@@ -489,7 +499,9 @@ def resolve_question(context, classification):
         status = assessments[0]["status"] if len({item["status"] for item in assessments}) == 1 else "partial"
     knowledge_ids = [entry["knowledge_id"] for entry in knowledge if entry["topic"] in topics
                      and (intent == "concept" or any(item["topic"] == entry["topic"]
-                          and item["status"] in ("evidence_found", "causal_not_established") for item in assessments))]
+                          and (item["status"] in ("evidence_found", "causal_not_established")
+                               or (entry['topic'] == 'backdraft' and intent == 'condition'
+                                   and item['status'] == 'unsupported')) for item in assessments))]
     if clarification != "none": knowledge_ids = []
     return {
         "timeline_relation": classification["timeline_relation"],

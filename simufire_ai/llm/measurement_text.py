@@ -36,6 +36,11 @@ def criterion_text(change):
     criterion = change.get("criterion")
     if criterion is None or criterion["met"] or change["sampling_gap"]:
         return None
+    # A falling temperature is not a subthreshold rise. Discuss the alert
+    # only when the measured change has the direction assessed by its rule.
+    if (change['topic'] in ('hrr', 'temperature') and change['delta'] <= 0
+            or change['topic'] == 'smoke_layer' and change['delta'] >= 0):
+        return None
     if change["topic"] == "hrr":
         threshold = (criterion["threshold"] - 1) * 100
         return (f"Nota sobre la alerta del software: no se disparó para este par de muestras porque exige un incremento estrictamente superior al {number(threshold)} % "
@@ -86,10 +91,12 @@ def recovery_comparison(comparison):
     return all(topic in changes and changes[topic]['delta'] > 0 for topic in ('hrr', 'oxygen'))
 
 
-def response_status(plan, changes, comparison):
+def response_status(plan, changes, comparison, teaching=None):
     """Presentation status; preserves separate detector/certainty contracts."""
     if plan['clarification_needed'] != 'none':
         return plan['answer_status']
+    if teaching and teaching['preopening_observations']:
+        return 'preopening_observations'
     if plan['intent'] in ('condition', 'general') and recovery_comparison(comparison):
         return 'ventilation_response_compatible'
     if changes and plan['intent'] in ('condition', 'observation'):

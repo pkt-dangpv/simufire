@@ -222,7 +222,7 @@ class QuestionScopeTests(unittest.TestCase):
                 _, answer = self.query(f"¿Se produjo {topic}?", classify("condition", [topic]))
                 self.assertEqual(answer["answer_status"], "unsupported")
                 self.assertEqual(answer["fact_ids"], [])
-                self.assertEqual(answer["source_ids"], [])
+                self.assertEqual(answer['source_ids'], ['NIST_BACKDRAFT_2022'] if topic == 'backdraft' else [])
                 self.assertIn("No se puede confirmar ni descartar", answer["answer"])
 
     def test_concept_available_without_detection(self):
@@ -236,7 +236,7 @@ class QuestionScopeTests(unittest.TestCase):
         self.assertEqual(answer["source_ids"], ["NIST_FIRE_DYNAMICS"])
 
     def test_missing_concept_is_explicit(self):
-        _, answer = self.query("¿Qué es backdraft?", classify("concept", ["backdraft"]))
+        _, answer = self.query("¿Qué es rollover?", classify("concept", ["rollover"]))
         self.assertEqual(answer["answer_status"], "knowledge_unavailable")
         self.assertEqual(answer["source_ids"], [])
 
@@ -296,14 +296,17 @@ class QuestionScopeTests(unittest.TestCase):
             self.query("¿Se detectó un incendio limitado por ventilación en room_02?", classify(scope={
                 "compartment_id": "room_02", "time_relation": "before", "anchor_fact_id": first_action["fact_id"]}))
 
-    def test_repeated_opening_does_not_silently_choose_first(self):
+    def test_repeated_opening_explicitly_answers_common_preperiod(self):
         self.repeated_opening()
         guessed = classify(scope={"time_relation": "before", "anchor_fact_id": "FACT_001"})
         plan, answer = self.query("¿Estaba limitado por ventilación antes de abrir door_01?", guessed)
-        self.assertEqual(plan["clarification_needed"], "action")
-        self.assertEqual(answer["answer_status"], "clarification_required")
-        self.assertEqual(answer["fact_ids"], [])
-        self.assertIn("elemento y el instante", answer["answer"])
+        self.assertEqual(plan['clarification_needed'], 'none')
+        self.assertEqual(plan['scope']['end_time_s'], 180)
+        self.assertEqual(answer['response_status'], 'preopening_observations')
+        self.assertEqual(answer['answer_status'], 'insufficient_data')
+        self.assertEqual(answer['fact_ids'], [])
+        self.assertIn('tramo común anterior', answer['answer'])
+        self.assertIn('sin cierre intermedio registrado', answer['answer'])
 
     def test_ordinal_and_explicit_action_time_disambiguate(self):
         self.repeated_opening()
@@ -423,7 +426,7 @@ class QuestionScopeTests(unittest.TestCase):
         self.repeated_opening()
         with tempfile.TemporaryDirectory() as directory:
             run = pipeline.analyze_run(self.scenario, self.states, "ambiguous", directory)
-            answer = pipeline.ask_run(run, "¿Estaba limitado por ventilación antes de abrir la puerta?", "clarify",
+            answer = pipeline.ask_run(run, "¿Estaba limitado por ventilación después de abrir la puerta?", "clarify",
                                       classifier=lambda prompt, schema: json.dumps(classify()))
             self.assertEqual(answer["answer_status"], "clarification_required")
             self.assertEqual(pipeline.read_json(run / "questions/clarify/answer.json"), answer)
@@ -460,8 +463,9 @@ def integration():
         case.repeated_opening()
         plan = create_question_plan(case.context, "¿Estaba limitado por ventilación antes de abrir la puerta?", "ambiguous")
         answer = render_question_answer(case.context, plan)
-        assert answer["answer_status"] == "clarification_required", answer
-        print("OK: apertura repetida -> clarification_required")
+        assert answer['response_status'] == 'preopening_observations', answer
+        assert answer['answer_status'] == 'insufficient_data', answer
+        print('OK: apertura repetida -> tramo común previo, sin confirmar ILV')
     finally:
         case.doCleanups()
 

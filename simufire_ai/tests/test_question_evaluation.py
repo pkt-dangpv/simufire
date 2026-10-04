@@ -30,9 +30,20 @@ class EvaluationTests(unittest.TestCase):
 
     def test_all_frozen_contracts_without_network(self):
         report = evaluation.run_evaluation(directory=evaluation.LEGACY_CORPUS_DIR)
+        authored = pipeline.read_json(evaluation.CORPUS_DIR / 'expectation_changes.json')
+        revised = {'dev_033', 'holdout_012'}
+        self.assertEqual({r['case_id'] for r in report['results'] if not r['passed']}, revised)
         for result in report['results']:
             with self.subTest(case=result['case_id']):
-                self.assertTrue(result['passed'],result)
+                if result['case_id'] in revised:
+                    change = authored[result['case_id']]
+                    self.assertEqual(change['before'], result['expected'])
+                    self.assertEqual(result['answer']['answer_status'], change['after']['answer_status'])
+                    self.assertEqual(result['answer']['response_status'], change['after']['response_status'])
+                    self.assertEqual({k for k, v in result['checks'].items() if v is False}, {'answer_status'})
+                    self.assertEqual(result['answer']['fact_ids'], [])
+                else:
+                    self.assertTrue(result['passed'],result)
         self.assertEqual(report['summary']['total'],60)
         self.assertEqual(report['summary']['grounding_violations'],0)
         self.assertIsNone(report['model'])
