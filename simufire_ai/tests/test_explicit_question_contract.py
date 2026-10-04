@@ -11,7 +11,7 @@ sys.path.insert(0,str(BASE_DIR))
 import evaluate_questions as evaluation
 from llm.plan_question import create_question_plan
 from llm.render_question_answer import render_question_answer
-from llm.question_scope import explicit_request_contract
+from llm.question_scope import explicit_request_contract, explicit_variable_cause
 
 
 class ExplicitQuestionTests(unittest.TestCase):
@@ -140,6 +140,89 @@ class ExplicitQuestionTests(unittest.TestCase):
             self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
             changed=copy.deepcopy(plan);changed['intent']='observation'
             with self.assertRaises(ValueError):render_question_answer(context,changed)
+
+    def test_replay_v7_variable_cause_preserves_original_raw_error_and_boundary(self):
+        record=json.loads((BASE_DIR/'tests/data/question_model_regressions_v7.json').read_text(encoding='utf-8'))[0]
+        case=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+        context=evaluation.build_contexts([record])[record['fixture']]
+        raw=record['raw_model_response']
+        self.assertEqual(json.loads(raw),record['raw_classification'])
+        result=evaluation.evaluate_case(case,context,lambda p,s:raw)
+        self.assertTrue(result['answer_passed'],result)
+        self.assertFalse(result['passed'])
+        self.assertFalse(result['checks']['model_intent'])
+        self.assertFalse(result['checks']['model_topics'])
+        self.assertEqual(result['raw_model_response'],raw)
+        self.assertIsNone(result['plan']['anchor_fact_id'])
+        self.assertEqual(result['answer']['answer_status'],'insufficient_data')
+        self.assertEqual(result['answer']['scope']['end_time_s'],36)
+        self.assertEqual(result['answer']['fact_ids'],[])
+        self.assertEqual(result['answer']['measured_changes'],[])
+        self.assertEqual(result['answer']['concurrent_measurements'],[])
+        self.assertIn('no puede afirmarse',result['answer']['answer'])
+        self.assertEqual(result['grounding_errors'],[])
+
+    def test_variable_cause_never_uses_fake_or_real_action_as_causal_anchor(self):
+        context=evaluation.build_contexts([{'fixture':'positive'}])['positive']
+        for anchor in ('action','FACT_001'):
+            source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+            source.update(intent='causality',topics=['smoke_layer'],anchor_fact_id=anchor,
+                          clarification_needed='action')
+            plan=create_question_plan(context,'¿La interfaz descendió debido al incremento del HRR?',
+                'variable_cause',classifier=lambda p,s:json.dumps(source))
+            answer=render_question_answer(context,plan)
+            self.assertIsNone(plan['anchor_fact_id'])
+            self.assertEqual(plan['clarification_needed'],'none')
+            self.assertEqual(answer['answer_status'],'causal_not_established')
+            self.assertIn('no puede afirmarse',answer['answer'])
+            self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+
+    def test_variable_cause_keeps_temporal_opening_anchor_separate(self):
+        context=evaluation.build_contexts([{'fixture':'positive'}])['positive']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['smoke_layer'],anchor_fact_id='action')
+        plan=create_question_plan(context,
+            '¿La interfaz descendió debido al incremento del HRR antes de abrir door_01?',
+            'temporal_action',classifier=lambda p,s:json.dumps(source))
+        answer=render_question_answer(context,plan)
+        self.assertIsNone(plan['anchor_fact_id'])
+        self.assertEqual(plan['scope']['anchor_fact_id'],'FACT_001')
+        self.assertEqual(plan['scope']['end_time_s'],180)
+        self.assertEqual(plan['scope']['time_relation'],'before')
+        self.assertNotEqual(answer['answer_status'],'clarification_required')
+        self.assertIn('no puede afirmarse',answer['answer'])
+        self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+
+    def test_actual_action_cause_keeps_strict_action_validation(self):
+        context=evaluation.build_contexts([{'fixture':'positive'}])['positive']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['hrr'],anchor_fact_id='FACT_001')
+        question='¿La apertura de door_01 causó el aumento del HRR?'
+        plan=create_question_plan(context,question,'real_action',classifier=lambda p,s:json.dumps(source))
+        self.assertEqual(plan['anchor_fact_id'],'FACT_001')
+        self.assertEqual(render_question_answer(context,plan)['answer_status'],'causal_not_established')
+        source['anchor_fact_id']='action'
+        with self.assertRaises(ValueError):
+            create_question_plan(context,question,'invalid_action',classifier=lambda p,s:json.dumps(source))
+
+    def test_persisted_variable_cause_plan_rejects_injected_real_action_anchor(self):
+        context=evaluation.build_contexts([{'fixture':'positive'}])['positive']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['smoke_layer'],anchor_fact_id=None)
+        plan=create_question_plan(context,'¿La interfaz descendió debido al incremento del HRR?',
+            'tampering',classifier=lambda p,s:json.dumps(source))
+        changed=copy.deepcopy(plan);changed['anchor_fact_id']='FACT_001'
+        with self.assertRaises(ValueError):render_question_answer(context,changed)
+
+    def test_variable_cause_guard_leaves_complex_or_action_causes_untouched(self):
+        for text in ('por que descendio la interfaz',
+                     'la interfaz no descendio debido al incremento del hrr',
+                     'la interfaz descendio debido al hrr o la temperatura',
+                     'la interfaz descendio debido a una causa desconocida',
+                     'la interfaz descendio debido a la apertura de door_01',
+                     'la interfaz descendio debido al hrr de la apertura de door_01',
+                     'la interfaz descendio debido al hrr y al oxigeno'):
+            with self.subTest(text=text):self.assertFalse(explicit_variable_cause(text))
 
     def test_explanation_repair_does_not_erase_negation_ambiguity_or_other_requests(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])

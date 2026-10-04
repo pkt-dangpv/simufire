@@ -1,0 +1,43 @@
+[
+  {
+    "case_id": "holdout_v7_008",
+    "question": "¿La interfaz descendió debido al incremento del HRR antes de 36 segundos?",
+    "fixture": "lab_growth",
+    "expected": {
+      "answer_status": "insufficient_data",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "causality",
+      "knowledge_ids": [],
+      "scope": {
+        "end_time_s": 36,
+        "time_relation": "before"
+      },
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "laboratory_growth_004",
+      "question_id": "holdout_v7_008",
+      "intent": "timeline",
+      "topics": [],
+      "include_limitations": false,
+      "timeline_relation": "before",
+      "anchor_fact_id": "action",
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    },
+    "raw_model_response": "{\n  \"schema_version\": \"0.4\",\n  \"scenario_id\": \"laboratory_growth_004\",\n  \"question_id\": \"holdout_v7_008\",\n  \"intent\": \"timeline\",\n  \"topics\": [],\n  \"include_limitations\": false,\n  \"timeline_relation\": \"before\",\n  \"anchor_fact_id\": \"action\",\n  \"scope\": {\n    \"compartment_id\": null,\n    \"time_relation\": \"all\",\n    \"anchor_fact_id\": null,\n    \"start_time_s\": null,\n    \"end_time_s\": null\n  },\n  \"clarification_needed\": \"none\"\n}",
+    "source_report": "0403a4013183491236dfa3257767b584bfc49cf9c1bed3f2c337c7e322cb46a5",
+    "source_corpus_sha256": "4120d1c137cf7b683972f6e9686d5e5b5f4575f43b8befa8d93c42f8e77f7899"
+  }
+]

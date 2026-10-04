@@ -116,6 +116,12 @@ def explicit_request_contract(text, classification):
     elif explanation_effect:
         classification["intent"] = "causality"
         classification["topics"] = [explanation_effect]
+        if explicit_variable_cause(start):
+            # A proposed measured-variable cause is not a recorded action.
+            # Temporal action bounds, if requested, are resolved separately.
+            classification['anchor_fact_id'] = None
+            if classification['clarification_needed'] == 'action':
+                classification['clarification_needed'] = 'none'
     elif causal_effect:
         classification["topics"] = [causal_effect]
     elif definition and single_measured_topic and not causal_request:
@@ -150,6 +156,22 @@ def explicit_request_contract(text, classification):
         generic_topics = {"fire_dynamics"}
         if len(mentioned) == 1 and set(classification["topics"]) <= generic_topics:
             classification["topics"] = sorted(mentioned)
+
+
+def explicit_variable_cause(text):
+    """Narrow due-to variable clause; neither identifies nor confirms a cause."""
+    if explicit_explanation_effect(text) is None:
+        return False
+    due = re.fullmatch(r"(?:el|la)\s+[^?!.,;:]+?\s+debido\s+a(?:l)?\s+(?P<cause>[^?!.,;:]+?)[?!]*", text)
+    if due is None:
+        return False
+    # Before/after describes the requested period, not the proposed cause.
+    cause = re.split(r"\b(?:" + BEFORE_CUE + "|" + AFTER_CUE + r"|entre)\b", due['cause'], maxsplit=1)[0]
+    variable = any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", cause)
+                   for topic in ('hrr', 'temperature', 'oxygen', 'smoke_layer') for term in TOPIC_LITERALS[topic])
+    action = re.search(r"\b(?:abr\w*|apertur\w*|cerr\w*|puertas?|ventanas?|door\w*|window\w*|"
+                       r"accion\w*|action\w*|extingu\w*|apag\w*|ignicion|encend\w*|agua|water)\b", cause)
+    return variable and action is None
 
 
 def candidate_actions(context, scope, text):
