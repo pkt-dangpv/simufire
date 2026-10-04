@@ -21,7 +21,12 @@ secuenciales por monitor >=6 GiB, UTF-8 heredado y temporales nuevos.
 Los intentos de producto abortados por codificación o memoria no se dan
 por aprobados; se repitió la cadena pendiente sin cambiar `sim/`.
 No integrar ni introducir datos reales,
-evaporación predictiva, U, muebles o CO/FED. Sin commit/push.
+evaporación predictiva, U, muebles o CO/FED. El avance técnico se confirmó
+en `6f8f41b0` y se combinó con el main remoto en `a5f575b2`, sin cambios
+adicionales en `sim/`. [Gate de integración Git](../validation/G3_MAIN_INTEGRATION_2026-10-04.md):
+GO tras importación limpia, AI 17/17, producto 168/168 y global 3535 passed /
+41 skipped / 2 xfailed / 42 subtests, 529,11 s sobre la combinación.
+No confundir integrar la rama con conectar el caller al paso de simulación.
 Siguiente: evidencia térmica independiente y sensible, con atribución
 compatible de masa/material; el caller no identifica por sí mismo B real.
 

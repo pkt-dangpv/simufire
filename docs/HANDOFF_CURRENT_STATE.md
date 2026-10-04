@@ -1,14 +1,22 @@
 # Current Handoff State
 
-## Publication authorization - 2026-10-04 - G3 y main
+## Git integration gate - 2026-10-04 - G3 y main: GO
 
 El usuario autoriza commit/push e integración en `main` cuando estén
-justificados. Se prepara un checkpoint del alcance D1 aislado ya validado:
-3535 pruebas globales PASS, producto 168/168, referencia 346/346 y 78 gaps.
-No activa el caller ni CO/FED. Los nueve commits de `origin/main` ausentes
-en esta rama añaden análisis/preguntas, cielo y gráficas, no cambian `sim/`.
-Integración pendiente de verificar la combinación; no atribuir todavía
-a este candidato las pruebas de la rama anterior.
+justificados. Checkpoint D1 aislado: `6f8f41b0`; combinación sin conflictos
+con `origin/main` (`c46f1d69`): `a5f575b2`. Los nueve commits incorporados
+añaden análisis/preguntas, cielo y gráficas; no cambian `sim/` respecto al
+checkpoint. Importación Godot limpia y cadena repetida sobre la combinación:
+producto 168/168 (81/81 lanzamientos limpios), global 3535 passed / 41 skipped /
+2 xfailed / 42 subtests, exit 0, 529,11 s. AI: 17/17, dependencia `jsonschema`
+en entorno temporal aislado. Prueba causal histórica apuntaba a una respuesta
+timeline y estaba omitida del runner: ruta corregida y prueba incluida,
+sin relajar contratos; ocho controles negativos rechazados.
+Referencia previa conservada, no reejecutada por este merge: 346/346 y
+78 gaps, ALL GUARDRAILS PASS con R2-1. Los 160 informes de caso conservados
+siguen byte idénticos; resumen solo `generated_at`. Integración Git aprobada;
+no integración física del caller ni activación de CO/FED.
+[Informe de integración](validation/G3_MAIN_INTEGRATION_2026-10-04.md).
 Los 80 ficheros locales ajenos del checkout principal (incluido
 `project.godot`, `demo/` y sidecars UID) están inventariados por SHA-256
 y quedan fuera de los commits. Las fuentes nuevas son NIST y conservan
@@ -45,12 +53,13 @@ intento. Se llegó a medir 3,95 GiB. No son corridas aprobadas; se repitieron
 tras liberar memoria (6,032 GiB antes de reanudar) y quedan superadas.
 No cambió `sim/`; referencia R2-1 actual conservada, no regenerada por el
 entorno. Cierre offline previo 27 PASS / 1 deselected, estilo/enlaces/diff
-PASS y hashes intactos. HEAD `cbab7b05`, sin commit/push.
+PASS y hashes intactos. Checkpoint histórico previo: HEAD `cbab7b05`,
+todavía sin commit/push en aquella comprobación; ver estado Git superior.
 Comprobación final tras global: guardarraíles incluido R2-1, estilo,
 enlaces y diff PASS; cuatro hashes GDScript e identidad de los 18 informes
 reconfirmados. Cero procesos Godot y cero cuadros de error.
 Memoria previa a referencia 6,67 GiB; pruebas secuenciales por monitor.
-Trabajo previo conservado, solo worktree de G3, sin commit/push.
+Trabajo previo conservado, solo worktree de G3 en aquella cadena.
 NO-GO a motor, entrada NIST real, U, muebles, evaporación predictiva y CO/FED.
 Siguiente gate científico: datos térmicos independientes y energía sensible
 compatibles con masa/material antes de cualquier integración o replay físico.
