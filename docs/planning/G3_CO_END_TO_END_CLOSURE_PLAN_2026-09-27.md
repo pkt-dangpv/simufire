@@ -6,6 +6,21 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 04-10:
+[Contrato de entalpía sensible](../validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md)
+listo para primera pieza GDScript: Cp(T) sintético isobárico con integral
+canónica, sin integración/masa/oxidación. Separar después A/S/B/Q y
+trabajo/entalpía frente a energía interna; no usar Cp como Cv.
+Fuente NBS 1954 y chequeo offline incorporados, sin convertir Csat a Cp
+ni adaptar en silencio escala histórica/ref/masa molar. S01-S20 y
+mutantes predeclarados, todavía no fixture de motor implementada.
+Orden: helper de propiedades -> ledger sensible -> propietario versionado;
+el caller de referencia actual queda congelado. NO-GO a predicción,
+muebles, transporte/FED promovidos o perfiles materiales automáticos.
+Focal inicial 113 PASS/30 nuevas; ampliada final 161 PASS con emisión/masa.
+Guardarraíles con R2-1/estilo/enlaces/diff PASS; manifiesto 43 entradas.
+No es prueba de S01-S20 ni implementación del helper todavía.
+
+Avance previo del 04-10:
 [Gate térmico independiente](../validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md)
 cerrado como revisión focal y auditor offline. TN 2162r1/snapshot MaCFP
 versionados; hay flujo medido hacia sensor, no solo datos invertidos de

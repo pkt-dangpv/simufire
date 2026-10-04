@@ -1,0 +1,66 @@
+{
+  "schema": "g3_heptane_sensible_source_audit_v1",
+  "decision": "GO_synthetic_enthalpy_contract_NO_GO_automatic_material_profile",
+  "source_sha256_raw": "40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9",
+  "gas_comparison_kind": "printed_equation_vs_derived_table_NOT_fire_experiment",
+  "gas_native_reference_temperature_k": 298.16,
+  "gas_comparison_rows": [
+    {
+      "temperature_k": 298.16,
+      "cp_residual_j_mol_k": -0.003632,
+      "delta_h_residual_j_mol": 0
+    },
+    {
+      "temperature_k": 300,
+      "cp_residual_j_mol_k": -0.006,
+      "delta_h_residual_j_mol": 0.29953856
+    },
+    {
+      "temperature_k": 310,
+      "cp_residual_j_mol_k": 0.002,
+      "delta_h_residual_j_mol": -0.27046144
+    },
+    {
+      "temperature_k": 320,
+      "cp_residual_j_mol_k": 0,
+      "delta_h_residual_j_mol": 0.13953856
+    },
+    {
+      "temperature_k": 330,
+      "cp_residual_j_mol_k": -0.002,
+      "delta_h_residual_j_mol": 0.52953856
+    },
+    {
+      "temperature_k": 340,
+      "cp_residual_j_mol_k": -0.004,
+      "delta_h_residual_j_mol": -0.10046144
+    },
+    {
+      "temperature_k": 350,
+      "cp_residual_j_mol_k": -0.006,
+      "delta_h_residual_j_mol": 0.24953856
+    },
+    {
+      "temperature_k": 360,
+      "cp_residual_j_mol_k": 0.002,
+      "delta_h_residual_j_mol": 0.57953856
+    },
+    {
+      "temperature_k": 370,
+      "cp_residual_j_mol_k": 0,
+      "delta_h_residual_j_mol": -0.11046144
+    }
+  ],
+  "gas_delta_h_298_16_to_370_j_mol": 13011.88953856,
+  "gas_equation_join_cp_difference_j_mol_k": -0.002236,
+  "gas_equation_join_forced_continuous": false,
+  "liquid_quantity": "Csat_not_isobaric_Cp",
+  "liquid_enthalpy_requires_V_dP_term": true,
+  "liquid_fixed_pressure_profile_approval": false,
+  "source_temperature_scale_conversion": null,
+  "source_to_canonical_reference_adapter": null,
+  "mol_to_kg_conversion_performed": false,
+  "physical_benchmark_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

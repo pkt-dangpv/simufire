@@ -1,5 +1,27 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-04 - Contrato sensible listo, sin implementación
+
+[Contrato sensible](validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md):
+GO a `SensibleEnthalpyModel.gd` aislado/sintético como siguiente pieza,
+no a ledger/caller sensible o integración en este gate. Esquema Cp(T)
+isobárico estricto, integral única, referencia común, signo conservado
+por debajo de referencia, sin extrapolación, Lref ni química dentro.
+S01-S20 y defectos/mutantes predeclarados; todavía no ejecutados en Godot.
+Fuente NBS 1954 archivada/revisada visualmente: Csat del líquido exige
+V*dP, no se relabela como Cp. Gas ideal en escala histórica: consistencia
+ecuación/tabla verificada, no validación de incendio ni perfil importado.
+No conversión automática 298,16/1948 -> 298,15/actual o 1 atm -> 1 bar.
+Ledger posterior separará A+S+B+Q, entalpía no energía interna de EOS;
+Q no financia la liberación en ese mismo paso. Caller actual no puede
+recomponer historial térmico variable solo desde masa acumulada: requiere
+sucesor versionado después, sin alterar el caller congelado ahora.
+Sin `sim/`, Godot, física, referencias o perfiles modificados. CO/FED OFF.
+Auditor de fuente/focal inicial 113 PASS, 30 nuevas; ampliada final con
+emisión/masa 161 PASS, 1,96 s. Guardarraíles ALL PASS con R2-1,
+estilo/enlaces/diff PASS y manifiesto 43 entradas. Estos tests no son
+S01-S20 GDScript ni una campaña nueva de mutaciones del motor.
+
 ## Current Program Update - 2026-10-04 - Evidencia térmica de piscina revisada
 
 [Gate térmico independiente](validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md):

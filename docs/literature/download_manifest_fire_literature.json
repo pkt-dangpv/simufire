@@ -346,5 +346,17 @@
         "bytes": 9787494,
         "sha256": "c0ba84b39fa6e790f1242bdf594492010c9463b8f5cb61a3616036d6958d11ba",
         "version_verified": "October 2024, supersedes June 2021; 123 PDF pages. Focal apparatus, instrumentation and table review; not full-report validation."
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf",
+        "destination": "docs/literature/NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf",
+        "title": "Calorimetric Properties of Normal Heptane From 0 to 520 K (NBS RP2526, 1954)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-04",
+        "bytes": 17614982,
+        "sha256": "40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9",
+        "version_verified": "Journal of Research NBS Vol.53 No.3, September 1954, pp.139-153; 15 PDF pages. Focal calorimetric path, scale and equations/tables reviewed."
     }
 ]

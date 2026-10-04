@@ -33,6 +33,16 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 04-10: Douglas et al., NBS RP2526 (1954),
+[fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf),
+[PDF local](NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf),
+[contrato sensible y revision focal](../validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md).
+Propiedades calorimetricas del heptano: gas ideal y liquido sobre
+saturacion, no rutas intercambiables. Escala de temperatura historica,
+perfil material automatico no aprobado. Manifiesto: 42 -> 43 entradas.
+No se redistribuye la compilacion SRD WebBook localizada ni el otro
+articulo candidato sin revisar. Ninguna activacion fisica.
+
 Actualizacion bibliografica adicional del 04-10: NIST TN 2162r1,
 octubre de 2024, 123 paginas,
 [PDF local](NIST/NIST_TN_2162r1_Medium_Scale_Pool_Fires.pdf),

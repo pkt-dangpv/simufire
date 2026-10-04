@@ -1,6 +1,10 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
 
+# PDFs are binary even when their long XML metadata precedes the first NUL.
+# Never normalize source PDF bytes or lint them as text.
+*.pdf binary
+
 # Preserve upstream whitespace in the two hash-pinned MaCFP source copies.
 # This does not exempt authored documentation, data transcriptions or code.
 docs/literature/data/NIST_POOL_FIRES_2024/SOURCE_DOCUMENTATION.md whitespace=-blank-at-eol,-blank-at-eof

@@ -1,0 +1,46 @@
+{
+  "schema": "g3_heptane_sensible_source_review_v1",
+  "source": {
+    "path": "docs/literature/NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf",
+    "url": "https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf",
+    "sha256_raw": "40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9"
+  },
+  "review": {
+    "version": "Journal of Research NBS 53(3), September 1954, RP2526, pp.139-153; 15 PDF pages",
+    "native_temperature_scale": "1948_International_Temperature_Scale_not_automatically_ITS90",
+    "native_reference_temperature_k": 298.16,
+    "gas_standard_pressure_pa": 101325,
+    "gas_model": "hypothetical_ideal_gas",
+    "gas_linear_equation_locator": "printed p.151, PDF p.13, eq.23",
+    "gas_linear_equation_range_k": [288, 370],
+    "gas_cp_unit": "J/(mol*K)",
+    "gas_cp_anchor_temperature_k": 370,
+    "gas_cp_anchor_j_mol_k": 197.28,
+    "gas_cp_slope_j_mol_k2": 0.4498,
+    "gas_high_equation_locator": "printed p.151, PDF p.13, eq.22; not extrapolated below 370 here",
+    "gas_high_equation_coefficients": [-0.987, 0.62191, -0.00023256],
+    "gas_table_locator": "printed p.152, PDF p.14, Table 10",
+    "gas_table_unit": "K,J/(mol*K),J/mol",
+    "gas_table_rows": [
+      [298.16, 164.97, 89219],
+      [300, 165.80, 89523],
+      [310, 170.29, 91204],
+      [320, 174.79, 92929],
+      [330, 179.29, 94699],
+      [340, 183.79, 96515],
+      [350, 188.29, 98375],
+      [360, 192.78, 100280],
+      [370, 197.28, 102231]
+    ],
+    "liquid_quantity": "Csat_not_isobaric_Cp",
+    "liquid_path": "saturation_pressure_changes_with_temperature",
+    "liquid_locators": "eq.5 p.146, eq.8 p.147, Table 5 and eq.9 p.149",
+    "liquid_enthalpy_requires_V_dP_term": true,
+    "liquid_fixed_pressure_profile_approval": false,
+    "source_temperature_scale_conversion": null,
+    "source_to_canonical_reference_adapter": null,
+    "production_activation": false,
+    "engine_integration": false,
+    "experimental_batch_approval": false
+  }
+}
