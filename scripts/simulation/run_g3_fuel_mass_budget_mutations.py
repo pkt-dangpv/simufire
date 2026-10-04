@@ -141,6 +141,8 @@ def main() -> int:
             model_copy.parent.mkdir(parents=True)
             fixture_copy.parent.mkdir(parents=True)
             model_copy.write_text(candidate, encoding="utf-8", newline="\n")
+            (project / "sim/fire/SensibleEnthalpyModel.gd").write_bytes(
+                (ROOT / "sim/fire/SensibleEnthalpyModel.gd").read_bytes())
             fixture_copy.write_bytes(fixture.read_bytes())
             (project / "project.godot").write_text(
                 'config_version=5\n[application]\nconfig/name="D1 isolated budget"\n',

@@ -59,10 +59,14 @@ def test_kernel_has_no_engine_objects_io_or_legacy_energy_conversion():
                      if not line.lstrip().startswith("#"))
     for forbidden in (
         "RoomModel", "FuelObjectModel", "SimulationEngine", "FileAccess",
-        "ResourceLoader", "preload(", "load(", "@export", "rand",
+        "ResourceLoader", "@export", "rand",
         "fuel_energy_MJ", "remaining_fuel_MJ", "g3_unburned", "retained_unburned",
     ):
         assert forbidden not in code, forbidden
+    assert code.count('preload(') == 1
+    assert 'preload("res://sim/fire/SensibleEnthalpyModel.gd")' in code
+    # No dynamic loading or runtime dependency; this is the pure Cp owner only.
+    assert 'load(' not in code.replace('preload(', '')
     assert "static func propose(" in code
 
 

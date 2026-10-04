@@ -20,6 +20,7 @@ from scripts.simulation.run_g3_fuel_mass_budget_mutations import changed_source 
 MODEL = ROOT / "sim/fire/PrescribedFuelReleaseModel.gd"
 FIXTURE = ROOT / "tests/fixtures/g3_prescribed_fuel_release.gd"
 ASSETS = [MODEL, FIXTURE, ROOT / "sim/fire/FuelMassBudgetModel.gd",
+          ROOT / "sim/fire/SensibleEnthalpyModel.gd",
           ROOT / "tests/fixtures/g3_mass_material_profile_synthetic.json"]
 MUTATIONS = {
     "M01_do_not_advance_clock": ('"time_s": float(preview["end_time_s"]),', '"time_s": float(progress["time_s"]),'),

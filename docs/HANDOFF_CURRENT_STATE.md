@@ -1,5 +1,31 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-04 - Ledger sensible cerrado técnicamente
+
+[Ledger sensible](validation/G3_D1_SENSIBLE_LEDGER_2026-10-04.md): API
+versionada en `FuelMassBudgetModel.gd`, separa A/S/B/Q y reutiliza las
+leyes de masa/CHO y el helper Cp canónicos. No se conecta a motor/producto.
+Perfiles sintéticos; no temperaturas o evaporación predichas ni Cp=Cv.
+Las once funciones y constantes anteriores conservan sus bytes LF;
+el provider, caller atómico anterior y helper Cp siguen sin cambios.
+La nueva extensión exige copiar la dependencia Cp a los proyectos de
+mutación aislados, no crear una segunda física. CO/FED siguen OFF/NO-GO.
+L01-L20: 915 checks PASS; diez oráculos independientes contrastados;
+23/23 mutantes válidos detectados en código final, fuentes intactas.
+Focal ampliada final 416 passed / 10 skipped. Campañas históricas
+10/10 masa, 12/12 referencia, 18/18 caller y 11/11 fuente, anteriores al
+último guard nuevo; funciones antiguas congeladas y regresión final posterior.
+Referencia 18/18 limpia, 346/346 required y 78 gaps; 160 informes byte
+idénticos y resumen solo generated_at. ALL GUARDRAILS PASS con R2-1.
+Producto 168/168; global 3640 passed / 41 skipped / 2 xfailed /
+42 subtests, exit 0, 552,47 s. Tandas largas secuenciales por monitor;
+global inicia con 6,551 GiB. No Godot directo ni procesos ajenos terminados.
+El guard de déficit cierra un desbordamiento reproducido antes del arreglo;
+los pasos sin cambios preservan las cuentas exactas. No nuevas tolerancias.
+Siguiente: propietario atómico sensible versionado con contexto e historia
+térmica, no restore inferido solo de masa ni conexión directa a EOS.
+CO/FED permanecen OFF/NO-GO. Archivos ajenos y UID/runs fuera del commit.
+
 ## Current Program Update - 2026-10-04 - Helper sensible cerrado técnicamente
 
 [Implementación sensible](validation/G3_D1_SENSIBLE_IMPLEMENTATION_2026-10-04.md):

@@ -81,17 +81,22 @@ def test_property_helper_has_no_runtime_owner_or_activation():
         for candidate in folder.rglob("*.gd"):
             if candidate != path and "SensibleEnthalpyModel" in candidate.read_text(encoding="utf-8"):
                 references.append(str(candidate))
-    assert references == [], "isolated prototype must not have a production caller"
+    # Authorized next phase: only the existing, isolated mass owner may consume Cp.
+    assert references == [str(ROOT / "sim/fire/FuelMassBudgetModel.gd")]
 
 
 @pytest.mark.parametrize("name, expected", [
-    ("FuelMassBudgetModel", "1a25b8486454085aefc53fa371c38650c0582852a0dadae9ffec49e0ba324f97"),
     ("PrescribedFuelReleaseModel", "89a8c5ad8c663c9f417e23381c6cbf0d2c07bc5c56f5ad01ff7dc1ed6e0cd9fc"),
     ("PrescribedPhaseBudgetController", "ce88db42f1f15325b1ae2a226a10fae01137993f8e4483f8115cd05394750667"),
 ])
-def test_three_reference_modules_remain_frozen(name, expected):
+def test_reference_provider_and_controller_remain_frozen(name, expected):
     raw = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(raw).hexdigest() == expected
+
+
+def test_extended_budget_keeps_old_functions_frozen():
+    from tests.test_g3_sensible_phase_budget import test_old_budget_functions_remain_byte_frozen
+    test_old_budget_functions_remain_byte_frozen()
 
 
 def test_predeclared_mutation_anchors():

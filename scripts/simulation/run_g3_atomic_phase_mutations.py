@@ -68,7 +68,7 @@ MUTATIONS = {
 
 def main():
     paths = [MODEL, FIXTURE, ROOT / "sim/fire/FuelMassBudgetModel.gd",
-             ROOT / "sim/fire/PrescribedFuelReleaseModel.gd"]
+             ROOT / "sim/fire/PrescribedFuelReleaseModel.gd", ROOT / "sim/fire/SensibleEnthalpyModel.gd"]
     originals = {p: p.read_bytes() for p in paths}
     source = originals[MODEL].decode("utf-8")
     variants = {name: changed_source(source, *patch) for name, patch in MUTATIONS.items()}

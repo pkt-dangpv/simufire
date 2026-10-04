@@ -6,6 +6,10 @@ Actualización posterior: [implementación sintética aislada](G3_D1_SENSIBLE_IM
 La primera pieza ya está cerrada técnicamente: S01-S20 / 342 checks,
 19/19 mutantes, referencia 346/346, producto 168/168 y global 3630 PASS.
 Su cierre no autoriza el ledger sensible, la integración o una calibración.
+Autorización posterior del usuario: se inicia la
+[API sensible del ledger](G3_D1_SENSIBLE_LEDGER_2026-10-04.md), ahora cerrada
+técnicamente (915 checks, 23/23 mutantes y cadena completa verde), sin caller
+sucesor ni integración; el alcance de esta primera pieza permanece histórico.
 Continúa el [gate térmico independiente](G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md).
 
 ## 1. Decisión y orden ejecutable
@@ -113,7 +117,7 @@ Estos números prueban la integral, no una propiedad del heptano.
 Usar 1e-9 kJ/kg absoluto + 1e-12 relativo en la fixture analítica,
 sin cambiar tolerancias del motor ni confundirlas con incertidumbre de datos.
 
-## 4. Contrato del ledger posterior, no autorizado en este primer cambio
+## 4. Contrato del ledger posterior (fuera del primer cambio)
 
 Mantener **A** (potencial químico/de fase de referencia), **S** (sensible
 del combustible), **B** (presupuesto térmico independiente) y **Q** (energía

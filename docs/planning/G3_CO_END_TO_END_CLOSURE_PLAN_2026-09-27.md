@@ -6,6 +6,19 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 04-10:
+[Ledger sensible cerrado técnicamente](../validation/G3_D1_SENSIBLE_LEDGER_2026-10-04.md):
+API versionada del dueño actual de masa/CHO, separa A/S/B/Q y conserva la
+entalpía de mezcla y oxidación. No cambia las once funciones anteriores,
+el helper Cp, provider o caller de referencia. No integración ni nueva
+calibración; CO/FED siguen OFF/NO-GO. L01-L20 / 915 checks; 23/23 mutantes
+válidos en código final; focal ampliada 416 passed / 10 skipped. Referencia
+346/346, 78 gaps y 160 informes byte idénticos, resumen solo generated_at;
+18 lanzamientos limpios y R2-1 PASS. Producto 168/168; global 3640 passed /
+41 skipped / 2 xfailed / 42 subtests, 552,47 s, exit 0. Tandas secuenciales.
+El propietario nuevo deberá ligar contenido e historial, no solo component_id.
+Orden posterior: propietario atómico sensible versionado -> gates físicos.
+
+Avance previo del 04-10:
 [Helper sensible implementado](../validation/G3_D1_SENSIBLE_IMPLEMENTATION_2026-10-04.md):
 Cp(T) isobárico sintético e integral firmada, S01-S20 / 342 checks en GDScript,
 oráculos analíticos Python previos; focal con módulos congelados 76 PASS.

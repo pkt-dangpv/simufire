@@ -99,10 +99,14 @@ Los 80 archivos ajenos de main siguen intactos por hash antes de integrar.
 `runs/`, los sidecars UID generados y los archivos ajenos quedan fuera
 del commit. Estilo habitual, enlaces locales y diff verificados al cierre.
 
-## Siguiente pieza, todavía no implementada
+## Siguiente pieza (estado histórico al cerrar el helper)
 
 API sensible versionada del ledger existente: separar A/S/B/Q y conservar
 la entalpía declarada, sin duplicar masas/química ni confundir Cp con Cv
 o entalpía con energía interna zonal. Después propietario atómico sucesor
 capaz de conservar historia térmica variable. No conectar al producto
 antes de los gates científicos posteriores.
+Actualización: el usuario autorizó después la
+[API sensible del ledger](G3_D1_SENSIBLE_LEDGER_2026-10-04.md).
+Su verificación y cierre se registran aparte; no alteran los resultados
+históricos de esta pieza ni autorizan el caller o producto.
