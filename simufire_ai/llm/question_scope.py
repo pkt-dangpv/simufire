@@ -20,6 +20,31 @@ BEFORE_CUE = r"(?:antes(?:\s+de)?|previ[oa]s?\s+a|anterior(?:es)?\s+a|con\s+ante
 AFTER_CUE = r"(?:despues(?:\s+de)?|posterior(?:es)?\s+a|tras|luego\s+de)"
 
 
+def explicit_causal_effect(text):
+    """Identify the requested effect in a narrow active causal question.
+
+    This only chooses a topic. It establishes neither the proposed cause nor
+    any causal relationship, and does not manufacture facts or action anchors.
+    Negations, alternatives and multiple clauses stay with the classifier.
+    """
+    match = re.fullmatch(
+        r"(?P<cause>(?:el|la)\s+(?:aumento|incremento|crecimiento|descenso|reduccion)\s+[^?!.,;:]+?)"
+        r"\s+(?:causo|provoco)\s+(?P<effect>[^?!.,;:]+?)[?!.]*", text)
+    if not match or re.search(r"\b(?:no|nunca|ni|o|si|aunque|segun|y)\b", text):
+        return None
+    if len(re.findall(r"\b(?:causo|provoco)\b", text)) != 1:
+        return None
+    parts = []
+    for clause in (match['cause'], match['effect']):
+        topics = {topic for topic, terms in TOPIC_LITERALS.items()
+                  if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", clause)
+                         for term in terms)}
+        if len(topics) != 1 or not topics <= {"hrr", "temperature", "oxygen", "smoke_layer"}:
+            return None
+        parts.append(next(iter(topics)))
+    return parts[1]
+
+
 def explicit_request_contract(text, classification):
     """Constrain unmistakable requests; leave general language to Qwen.
 
@@ -55,10 +80,13 @@ def explicit_request_contract(text, classification):
     literal_topics = {topic for topic, terms in TOPIC_LITERALS.items()
                       if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text) for term in terms)}
     single_measured_topic = len(measured_topics) == 1 and literal_topics == set(measured_topics)
+    causal_effect = explicit_causal_effect(start) if classification['intent'] == 'causality' else None
     constrained = False
     if limits:
         classification["intent"] = "uncertainty"
         constrained = True
+    elif causal_effect:
+        classification["topics"] = [causal_effect]
     elif definition and single_measured_topic and not causal_request:
         classification["intent"] = "concept"
         classification["topics"] = measured_topics

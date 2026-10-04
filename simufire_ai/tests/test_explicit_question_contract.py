@@ -89,6 +89,78 @@ class ExplicitQuestionTests(unittest.TestCase):
                     self.assertNotIn('temperatura',result['answer']['answer'])
                     self.assertEqual(result['answer']['fact_ids'],[])
 
+    def test_replay_v5_causal_effect_preserves_raw_error(self):
+        record=json.loads((BASE_DIR/'tests/data/question_model_regressions_v5.json').read_text(encoding='utf-8'))[0]
+        context=evaluation.build_contexts([record])[record['fixture']]
+        case=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+        raw=json.dumps(record['raw_classification'])
+        result=evaluation.evaluate_case(case,context,lambda p,s:raw)
+        self.assertTrue(result['answer_passed'],result)
+        self.assertFalse(result['checks']['model_topics'])
+        self.assertEqual(result['raw_model_response'],raw)
+        self.assertEqual(result['answer']['answer_status'],'causal_not_established')
+        self.assertEqual(result['answer']['fact_ids'],['FACT_002','FACT_004'])
+        self.assertEqual(result['grounding_errors'],[])
+        self.assertTrue(all(not f['causal'] for f in result['answer']['fact_metadata']))
+
+    def test_causal_roles_reverse_without_establishing_a_cause(self):
+        context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['hrr'],clarification_needed='topic')
+        for question,topics,ids,knowledge in (
+            ('¿El incremento del HRR causó el descenso de la interfaz de la capa de humo?',
+             ['smoke_layer'],['FACT_002','FACT_004'],['SMOKE_LAYER_001']),
+            ('¿El descenso de la interfaz de la capa de humo provocó el aumento del HRR?',
+             ['hrr'],['FACT_001'],['HRR_001'])):
+            source['topics']=['hrr' if topics==['smoke_layer'] else 'smoke_layer']
+            plan=create_question_plan(context,question,'roles',classifier=lambda p,s:json.dumps(source))
+            answer=render_question_answer(context,plan)
+            self.assertEqual(plan['intent'],'causality')
+            self.assertEqual(plan['topics'],topics)
+            self.assertIsNone(plan['anchor_fact_id'])
+            self.assertEqual(answer['fact_ids'],ids)
+            self.assertEqual(answer['knowledge_ids'],knowledge)
+            self.assertEqual(answer['answer_status'],'causal_not_established')
+            self.assertIn('no puede afirmarse',answer['answer'])
+            self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+
+    def test_causal_effect_repair_preserves_room_time_and_saved_plan_validation(self):
+        context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['hrr'])
+        plan=create_question_plan(context,
+            '¿El incremento del HRR causó el descenso de la capa de humo en Laboratorio antes de 36 s?',
+            'scoped_effect',classifier=lambda p,s:json.dumps(source))
+        answer=render_question_answer(context,plan)
+        self.assertEqual(plan['topics'],['smoke_layer'])
+        self.assertEqual(answer['scope']['compartment_id'],'lab')
+        self.assertEqual(answer['scope']['end_time_s'],36)
+        self.assertEqual(answer['answer_status'],'insufficient_data')
+        self.assertEqual(answer['fact_ids'],[])
+        changed=copy.deepcopy(plan);changed['topics']=['hrr']
+        with self.assertRaises(ValueError):render_question_answer(context,changed)
+
+    def test_causal_effect_ambiguous_unsupported_and_other_requests_are_not_rewritten(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='causality',topics=['hrr'])
+        for text in ('el incremento del hrr no causo el descenso de la capa de humo',
+                     'el incremento del hrr causo el descenso de la capa de humo y el aumento de temperatura',
+                     'el incremento del hrr o la temperatura causo el descenso de la capa de humo',
+                     'el incremento del hrr causo backdraft',
+                     'el incremento del hrr causo un cambio desconocido',
+                     'el incremento del hrr causo el descenso de humo, segun el informe',
+                     'si el incremento del hrr causo el descenso de la capa de humo',
+                     'resume si el incremento del hrr causo el descenso de la capa de humo',
+                     'la capa de humo fue causada por el incremento del hrr',
+                     'el incremento del hrr causo que la temperatura causo el descenso de la capa de humo'):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value,source,text)
+        for intent in ('concept','general','observation','uncertainty','condition','timeline'):
+            value=copy.deepcopy(source);value['intent']=intent
+            original=copy.deepcopy(value)
+            explicit_request_contract('el incremento del hrr causo el descenso de la capa de humo',value)
+            self.assertEqual(value,original,intent)
+
     def test_direct_requests_preserve_cause_negation_and_multiple_variables(self):
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
         source.update(intent='general',topics=['fire_dynamics'])
@@ -243,10 +315,10 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'5')
-        self.assertEqual(report['summary']['total'],128)
-        self.assertEqual(report['summary']['passed'],128)
-        self.assertEqual(report['summary']['answer_passed'],128)
+        self.assertEqual(report['corpus_version'],'6')
+        self.assertEqual(report['summary']['total'],144)
+        self.assertEqual(report['summary']['passed'],144)
+        self.assertEqual(report['summary']['answer_passed'],144)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
@@ -254,7 +326,7 @@ class ExplicitQuestionTests(unittest.TestCase):
         old=evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[0]
         old_questions={c['question'] for c in old['cases']}
         fresh=[c for c in self.corpus['cases'] if c['split']=='holdout']
-        self.assertEqual(len(fresh),20)
+        self.assertEqual(len(fresh),16)
         self.assertFalse(old_questions & {c['question'] for c in fresh})
         self.assertTrue(all(c['split']=='dev' and c['evaluation_role']=='regression'
             for c in self.corpus['cases'] if c['question'] in old_questions))

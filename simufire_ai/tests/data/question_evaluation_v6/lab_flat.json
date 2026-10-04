@@ -1,0 +1,111 @@
+{
+  "scenario": {
+    "actions": [],
+    "compartments": [
+      {
+        "height_m": 3.5,
+        "id": "lab",
+        "length_m": 4,
+        "name": "Laboratorio",
+        "width_m": 6
+      }
+    ],
+    "description": "Independent synthetic test history",
+    "fires": [
+      {
+        "alpha_kw_s2": 0.0117,
+        "compartment": "lab",
+        "growth_model": "t_squared",
+        "id": "lab_fire",
+        "max_hrr_kw": 1000,
+        "x_m": 3,
+        "y_m": 2
+      }
+    ],
+    "name": "Laboratorio estable sintético",
+    "openings": [
+      {
+        "from": "lab",
+        "height_m": 2.2,
+        "id": "lab_exit",
+        "sill_height_m": 0,
+        "state": "closed",
+        "to": "outside",
+        "type": "door",
+        "width_m": 1
+      }
+    ],
+    "scenario_id": "laboratory_flat_005",
+    "schema_version": "0.1",
+    "simulation": {
+      "duration_s": 300,
+      "time_step_s": 1
+    }
+  },
+  "states": [
+    {
+      "compartments": [
+        {
+          "hrr_kw": 50,
+          "id": "lab",
+          "interface_height_m": 2.8,
+          "lower_layer": {
+            "co2_percent": 0.05,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0,
+            "temperature_c": 20
+          },
+          "pressure_delta_pa": 0,
+          "upper_layer": {
+            "co2_percent": 0.1,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0.1,
+            "temperature_c": 35
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 50
+      },
+      "scenario_id": "laboratory_flat_005",
+      "schema_version": "0.1",
+      "time_s": 12
+    },
+    {
+      "compartments": [
+        {
+          "hrr_kw": 50,
+          "id": "lab",
+          "interface_height_m": 2.8,
+          "lower_layer": {
+            "co2_percent": 0.05,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0,
+            "temperature_c": 20
+          },
+          "pressure_delta_pa": 0,
+          "upper_layer": {
+            "co2_percent": 0.1,
+            "co_percent": 0,
+            "o2_percent": 20.9,
+            "smoke_mass_kg": 0.1,
+            "temperature_c": 35
+          }
+        }
+      ],
+      "global": {
+        "ambient_pressure_pa": 101325,
+        "ambient_temp_c": 20,
+        "total_hrr_kw": 50
+      },
+      "scenario_id": "laboratory_flat_005",
+      "schema_version": "0.1",
+      "time_s": 36
+    }
+  ]
+}

@@ -25,8 +25,8 @@ from llm.question_scope import literal_rooms
 from llm.render_question_answer import render_question_answer
 
 LEGACY_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation'
-PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v4'
-CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v5'
+PREVIOUS_CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v5'
+CORPUS_DIR = BASE_DIR / 'tests/data/question_evaluation_v6'
 
 
 def load_corpus(directory=CORPUS_DIR):

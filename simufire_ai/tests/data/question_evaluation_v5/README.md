@@ -1,5 +1,9 @@
 # Corpus 5: peticiones explícitas y ámbito de las mediciones
 
+Versión histórica: el reservado se utilizó para desarrollar la corrección del
+efecto en preguntas causales. Sus 128 preguntas son ahora regresiones del corpus 6;
+las entradas congeladas y etiquetas de esta versión se conservan intactas.
+
 128 preguntas: las 108 del corpus 4 pasan a regresiones y 20 formulaciones nuevas
 forman el reservado. Incluyen los siete tipos de petición y un historial sintético
 adicional de Garaje, con cambios que no alcanzan los umbrales de HRR, temperatura
