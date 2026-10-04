@@ -21,8 +21,26 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 - `Reviews_and_Models`: guias, revisiones y documentos de soporte para parametrizacion.
 - `Doors`: deformacion termica, integridad y fuga de gases en conjuntos de puerta.
 - `Glass`: fractura termica, desprendimiento y acristalamientos simples o multiples.
+- `data/NIST_FSE_2008`: CSV experimental original ISOHept9, aviso NIST y
+  [procedencia versionada](data/NIST_FSE_2008/PROVENANCE.json). Serie de masa
+  independiente de calorimetria; **no** salida FDS ni perfil activado.
+  [Revision D1 del 03-10](../validation/G3_D1_ISOHEPT9_BENCHMARK_GATE_2026-10-03.md):
+  [Replay cerrado tecnicamente](../validation/G3_D1_ISOHEPT9_REPLAY_2026-10-04.md),
+  no prediccion de evaporacion. Base energetica de referencia revisada en el
+  [gate con fases](../validation/G3_D1_HEPTANE_PHASE_BASIS_2026-10-04.md);
+  atribucion al ensayo, energia sensible, integracion y cola pendientes.
+  Estos artefactos de datos se inventarian aparte de los 39 PDF curados.
 
 ## Objetivos de calibracion para Simufire
+
+Actualizacion bibliografica del 04-10: NIST TN 2126-upd1, febrero 2026,
+[PDF local](NIST/NIST_TN_2126_upd1_Thermochemical_Properties.pdf),
+[fuente oficial](https://doi.org/10.6028/NIST.TN.2126-upd1).
+Calores netos/brutos, fases y entalpias de referencia de sustancias puras;
+no rendimientos de CO de muebles ni certificado del lote de ISOHept9.
+Manifiesto de descargas: 40 -> 41 entradas; el recuento original de 39
+documentos del apartado de 2026-09-16 es historico, no una nueva auditoria
+de disponibilidad de todas las entradas. SHA y version revisada registrados.
 
 - Tiempo a flashover y transicion a incendio limitado por ventilacion.
 - Transporte de humo y gases desde recinto origen a pasillos y recintos remotos.
@@ -117,6 +135,10 @@ Descarga registrada de TN 1889v2: 2026-09-17, 1 730 244 bytes, SHA-256
 | P1 | NIST | Home Smoke Alarm Project, Report of Test FR 4016 | 2005 | Series temporales de CO, CO2, O2, humo y temperatura en 27 ensayos residenciales | https://www.nist.gov/el/nist-report-test-fr-4016 | sin copia local verificada | fuente localizada; canales pendientes de auditoria |
 | P1 | NIST | Improving Smoke Alarm Performance, TN 1837 | 2014 | Muestreo superior y a 1,5 m en pasillo residencial; no usar como tabla temporal sin verificar datos | https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1837.pdf | sin copia local verificada | fuente localizada |
 | P1 | NIST | Experimental Study of the Effects of Fuel Type, Fuel Distribution, and Vent Size on Full-Scale Under-Ventilated Compartment Fires in an ISO 9705 Room (TN 1603) | 2008 | Fuego subventilado, especies, temperatura | https://www.nist.gov/el/fire-research-division-73300/nist-technical-note-1603 | `docs/literature/NIST/NIST_TN_1603_Underventilated_Compartment_Fires.pdf`, SHA-256 7ba8219496f8b52035fd97ed603182782e907034a94593bb51e7382c0cf453f5 (duplicado byte a byte con nombre largo `Experimental Study of the Effects...pdf.pdf`) | contenido verificado 2026-09-29; combustibles puros en bandejas con celulas de carga, CO en capa superior y escape solo en figuras; validacion de regimen subventilado, no mobiliario |
+| P1 | IAFSS / Peatross y Beyler | Ventilation Effects on Compartment Fire Characterization | 1997 | 24 ensayos de recinto con diesel, cunas de madera y placas de poliuretano; O₂ local y perdida de masa muestran tasa sensible a ventilacion | https://publications.iafss.org/publications/fss/5/403/view/fss_5-403.pdf | enlace primario abierto; sin copia local | D1: contraejemplo a pirólisis constante universal; no ofrece particion de masa ni ley para sofa |
+| P1 | IAFSS / Aljumaiah et al. | Air Starved Wood Crib Compartment Fire Heat Release and Toxic Gas Yields | 2011 | Cuna de pino: residuo solido a 3–5 ACH; CO e hidrocarburos sin quemar en regimen rico a 11–37 ACH; HRR por O₂ y masa | https://publications.iafss.org/publications/fss/10/1263/view/fss_10-1263.pdf | enlace primario abierto; sin copia local | D1: ambas rutas existen en la familia experimental, pero no es mobiliario ni da fraccion transferible; 5 ACH = 15 % en resumen y 17 % en cuerpo |
+| P1 | IAFSS / Yamada et al. | An Experimental Study of Ejected Flames and Combustion Efficiency | 2003 | Madera, PMMA y espuma flexible en recinto 1:7; masa, calorimetria y llamas exteriores | https://publications.iafss.org/publications/fss/7/903/view/fss_7-903.pdf | enlace primario abierto; sin copia local | D1: separa liberacion del combustible de lugar de combustion; no extrapolar escala |
+| P2 | IAFSS / Pau et al. | Sensitivity of Heat of Reaction for Polyurethane Foams | 2014 | Termogravimetria y calorimetria bajo nitrogeno: descomposicion de espuma sin O₂ con calor impuesto | https://publications.iafss.org/publications/fss/11/179/view/fss_11-179.pdf | enlace primario abierto; sin copia local | D1: mecanismo posible, no tasa de un sofa en recinto |
 | P1 | NIST | Experimental Study of the Three Dimensional Internal Structure of Underventilated Compartment Fires in an ISO 9705 Room (TN 1736) | 2012 | Mapas 3D de temperatura y especies | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=908944 | `docs/literature/NIST/NIST_TN_1736_Three_Dimensional_Internal_Structure.pdf` | pendiente-descarga |
 | P1 | NIST | Propane Gas Fire Experiments in Residential Scale Structures (TN 1953) | 2017 | Vivienda a escala real, ventilacion, PPV | https://doi.org/10.6028/NIST.TN.1953 | `docs/literature/NIST/NIST_TN_1953_Propane_Gas_Fire_Experiments_in_Residential_Scale_Structures.pdf` | pendiente-descarga |
 | P1 | NIST | Report on Residential Fireground Field Experiments (TN 1661) | 2010 | Experimentos de campo residenciales | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=904607 | `docs/literature/NIST/NIST_TN_1661_Residential_Fireground_Field_Experiments.pdf` | pendiente-descarga |

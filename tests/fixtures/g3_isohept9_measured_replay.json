@@ -1,0 +1,839 @@
+{
+  "schema": "g3_measured_mass_replay_fixture_v1",
+  "scope": "numerical_reservoir_depletion_replay_only",
+  "source_revision": "e5de6811036d252b4f9085866f08da66efdda7d3",
+  "source_sha256_lf": "66ad9437f81e93750e1d53b7f08b9e5c1068218ec809ed29d308fd9360dccce3",
+  "window_s": [
+    0,
+    500
+  ],
+  "mass_tolerance_kg": 1e-09,
+  "tolerance_basis": "numerical_not_experimental_uncertainty",
+  "quantity_attribution": "Measured liquid pan mass decrease; not modeled gaseous component emission",
+  "scientific_approval": false,
+  "engine_integration": false,
+  "production_activation": false,
+  "program": {
+    "profile_id": "ISOHept9_mass_only_0_500s",
+    "component_id": "observed_heptane_liquid_reservoir",
+    "initial_mass_kg": 19.665829,
+    "mode": "prescribed",
+    "quantity": "measured_reservoir_depletion",
+    "unit": "kg/s",
+    "time_origin": "ignition",
+    "interpolation": "piecewise_constant_left",
+    "outside_domain": "reject",
+    "samples": [
+      {
+        "time_s": 0.0,
+        "rate_kg_s": 0.0061972
+      },
+      {
+        "time_s": 5.0,
+        "rate_kg_s": 0.0100894
+      },
+      {
+        "time_s": 10.0,
+        "rate_kg_s": 0.010857
+      },
+      {
+        "time_s": 15.0,
+        "rate_kg_s": 0.014205
+      },
+      {
+        "time_s": 20.0,
+        "rate_kg_s": 0.0146874
+      },
+      {
+        "time_s": 25.0,
+        "rate_kg_s": 0.0145348
+      },
+      {
+        "time_s": 30.0,
+        "rate_kg_s": 0.0193132
+      },
+      {
+        "time_s": 35.0,
+        "rate_kg_s": 0.0283738
+      },
+      {
+        "time_s": 40.0,
+        "rate_kg_s": 0.0365116
+      },
+      {
+        "time_s": 45.0,
+        "rate_kg_s": 0.0439922
+      },
+      {
+        "time_s": 50.0,
+        "rate_kg_s": 0.0485796
+      },
+      {
+        "time_s": 55.0,
+        "rate_kg_s": 0.0465778
+      },
+      {
+        "time_s": 60.0,
+        "rate_kg_s": 0.0413978
+      },
+      {
+        "time_s": 65.0,
+        "rate_kg_s": 0.0391334
+      },
+      {
+        "time_s": 70.0,
+        "rate_kg_s": 0.0382522
+      },
+      {
+        "time_s": 75.0,
+        "rate_kg_s": 0.0395742
+      },
+      {
+        "time_s": 80.0,
+        "rate_kg_s": 0.0406812
+      },
+      {
+        "time_s": 85.0,
+        "rate_kg_s": 0.038977
+      },
+      {
+        "time_s": 90.0,
+        "rate_kg_s": 0.0389688
+      },
+      {
+        "time_s": 95.0,
+        "rate_kg_s": 0.0401532
+      },
+      {
+        "time_s": 100.0,
+        "rate_kg_s": 0.0403096
+      },
+      {
+        "time_s": 105.0,
+        "rate_kg_s": 0.0394712
+      },
+      {
+        "time_s": 110.0,
+        "rate_kg_s": 0.0382102
+      },
+      {
+        "time_s": 115.0,
+        "rate_kg_s": 0.0393946
+      },
+      {
+        "time_s": 120.0,
+        "rate_kg_s": 0.0395582
+      },
+      {
+        "time_s": 125.0,
+        "rate_kg_s": 0.039855
+      },
+      {
+        "time_s": 130.0,
+        "rate_kg_s": 0.041198
+      },
+      {
+        "time_s": 135.0,
+        "rate_kg_s": 0.039034
+      },
+      {
+        "time_s": 140.0,
+        "rate_kg_s": 0.0378854
+      },
+      {
+        "time_s": 145.0,
+        "rate_kg_s": 0.0387278
+      },
+      {
+        "time_s": 150.0,
+        "rate_kg_s": 0.0383442
+      },
+      {
+        "time_s": 155.0,
+        "rate_kg_s": 0.0393648
+      },
+      {
+        "time_s": 160.0,
+        "rate_kg_s": 0.0405586
+      },
+      {
+        "time_s": 165.0,
+        "rate_kg_s": 0.039006
+      },
+      {
+        "time_s": 170.0,
+        "rate_kg_s": 0.036144
+      },
+      {
+        "time_s": 175.0,
+        "rate_kg_s": 0.03656
+      },
+      {
+        "time_s": 180.0,
+        "rate_kg_s": 0.0378256
+      },
+      {
+        "time_s": 185.0,
+        "rate_kg_s": 0.0392414
+      },
+      {
+        "time_s": 190.0,
+        "rate_kg_s": 0.039022
+      },
+      {
+        "time_s": 195.0,
+        "rate_kg_s": 0.0391172
+      },
+      {
+        "time_s": 200.0,
+        "rate_kg_s": 0.0393156
+      },
+      {
+        "time_s": 205.0,
+        "rate_kg_s": 0.0399026
+      },
+      {
+        "time_s": 210.0,
+        "rate_kg_s": 0.042454
+      },
+      {
+        "time_s": 215.0,
+        "rate_kg_s": 0.040578
+      },
+      {
+        "time_s": 220.0,
+        "rate_kg_s": 0.0384278
+      },
+      {
+        "time_s": 225.0,
+        "rate_kg_s": 0.0398212
+      },
+      {
+        "time_s": 230.0,
+        "rate_kg_s": 0.0414776
+      },
+      {
+        "time_s": 235.0,
+        "rate_kg_s": 0.04156
+      },
+      {
+        "time_s": 240.0,
+        "rate_kg_s": 0.0404652
+      },
+      {
+        "time_s": 245.0,
+        "rate_kg_s": 0.040878
+      },
+      {
+        "time_s": 250.0,
+        "rate_kg_s": 0.0425016
+      },
+      {
+        "time_s": 255.0,
+        "rate_kg_s": 0.0460174
+      },
+      {
+        "time_s": 260.0,
+        "rate_kg_s": 0.0472896
+      },
+      {
+        "time_s": 265.0,
+        "rate_kg_s": 0.0456828
+      },
+      {
+        "time_s": 270.0,
+        "rate_kg_s": 0.0436142
+      },
+      {
+        "time_s": 275.0,
+        "rate_kg_s": 0.0409198
+      },
+      {
+        "time_s": 280.0,
+        "rate_kg_s": 0.0427976
+      },
+      {
+        "time_s": 285.0,
+        "rate_kg_s": 0.0425152
+      },
+      {
+        "time_s": 290.0,
+        "rate_kg_s": 0.041847
+      },
+      {
+        "time_s": 295.0,
+        "rate_kg_s": 0.042201
+      },
+      {
+        "time_s": 300.0,
+        "rate_kg_s": 0.0422024
+      },
+      {
+        "time_s": 305.0,
+        "rate_kg_s": 0.0423582
+      },
+      {
+        "time_s": 310.0,
+        "rate_kg_s": 0.042238
+      },
+      {
+        "time_s": 315.0,
+        "rate_kg_s": 0.0430232
+      },
+      {
+        "time_s": 320.0,
+        "rate_kg_s": 0.0409134
+      },
+      {
+        "time_s": 325.0,
+        "rate_kg_s": 0.0382078
+      },
+      {
+        "time_s": 330.0,
+        "rate_kg_s": 0.0385506
+      },
+      {
+        "time_s": 335.0,
+        "rate_kg_s": 0.0401072
+      },
+      {
+        "time_s": 340.0,
+        "rate_kg_s": 0.0414816
+      },
+      {
+        "time_s": 345.0,
+        "rate_kg_s": 0.0405216
+      },
+      {
+        "time_s": 350.0,
+        "rate_kg_s": 0.0393858
+      },
+      {
+        "time_s": 355.0,
+        "rate_kg_s": 0.040666
+      },
+      {
+        "time_s": 360.0,
+        "rate_kg_s": 0.0430392
+      },
+      {
+        "time_s": 365.0,
+        "rate_kg_s": 0.0456846
+      },
+      {
+        "time_s": 370.0,
+        "rate_kg_s": 0.0450256
+      },
+      {
+        "time_s": 375.0,
+        "rate_kg_s": 0.043561
+      },
+      {
+        "time_s": 380.0,
+        "rate_kg_s": 0.0426782
+      },
+      {
+        "time_s": 385.0,
+        "rate_kg_s": 0.0398662
+      },
+      {
+        "time_s": 390.0,
+        "rate_kg_s": 0.0383714
+      },
+      {
+        "time_s": 395.0,
+        "rate_kg_s": 0.040491
+      },
+      {
+        "time_s": 400.0,
+        "rate_kg_s": 0.0424888
+      },
+      {
+        "time_s": 405.0,
+        "rate_kg_s": 0.042516
+      },
+      {
+        "time_s": 410.0,
+        "rate_kg_s": 0.0453742
+      },
+      {
+        "time_s": 415.0,
+        "rate_kg_s": 0.0469678
+      },
+      {
+        "time_s": 420.0,
+        "rate_kg_s": 0.04396
+      },
+      {
+        "time_s": 425.0,
+        "rate_kg_s": 0.0423308
+      },
+      {
+        "time_s": 430.0,
+        "rate_kg_s": 0.0432118
+      },
+      {
+        "time_s": 435.0,
+        "rate_kg_s": 0.0415624
+      },
+      {
+        "time_s": 440.0,
+        "rate_kg_s": 0.0423114
+      },
+      {
+        "time_s": 445.0,
+        "rate_kg_s": 0.044226
+      },
+      {
+        "time_s": 450.0,
+        "rate_kg_s": 0.043702
+      },
+      {
+        "time_s": 455.0,
+        "rate_kg_s": 0.0456256
+      },
+      {
+        "time_s": 460.0,
+        "rate_kg_s": 0.0482418
+      },
+      {
+        "time_s": 465.0,
+        "rate_kg_s": 0.0459504
+      },
+      {
+        "time_s": 470.0,
+        "rate_kg_s": 0.040733
+      },
+      {
+        "time_s": 475.0,
+        "rate_kg_s": 0.0348878
+      },
+      {
+        "time_s": 480.0,
+        "rate_kg_s": 0.0314448
+      },
+      {
+        "time_s": 485.0,
+        "rate_kg_s": 0.0305328
+      },
+      {
+        "time_s": 490.0,
+        "rate_kg_s": 0.0298162
+      },
+      {
+        "time_s": 495.0,
+        "rate_kg_s": 0.0275
+      },
+      {
+        "time_s": 500.0,
+        "rate_kg_s": 0.0
+      }
+    ]
+  },
+  "observations": [
+    {
+      "time_s": 0.0,
+      "mass_kg": 19.665829
+    },
+    {
+      "time_s": 5.0,
+      "mass_kg": 19.634843
+    },
+    {
+      "time_s": 10.0,
+      "mass_kg": 19.584396
+    },
+    {
+      "time_s": 15.0,
+      "mass_kg": 19.530111
+    },
+    {
+      "time_s": 20.0,
+      "mass_kg": 19.459086
+    },
+    {
+      "time_s": 25.0,
+      "mass_kg": 19.385649
+    },
+    {
+      "time_s": 30.0,
+      "mass_kg": 19.312975
+    },
+    {
+      "time_s": 35.0,
+      "mass_kg": 19.216409
+    },
+    {
+      "time_s": 40.0,
+      "mass_kg": 19.07454
+    },
+    {
+      "time_s": 45.0,
+      "mass_kg": 18.891982
+    },
+    {
+      "time_s": 50.0,
+      "mass_kg": 18.672021
+    },
+    {
+      "time_s": 55.0,
+      "mass_kg": 18.429123
+    },
+    {
+      "time_s": 60.0,
+      "mass_kg": 18.196234
+    },
+    {
+      "time_s": 65.0,
+      "mass_kg": 17.989245
+    },
+    {
+      "time_s": 70.0,
+      "mass_kg": 17.793578
+    },
+    {
+      "time_s": 75.0,
+      "mass_kg": 17.602317
+    },
+    {
+      "time_s": 80.0,
+      "mass_kg": 17.404446
+    },
+    {
+      "time_s": 85.0,
+      "mass_kg": 17.20104
+    },
+    {
+      "time_s": 90.0,
+      "mass_kg": 17.006155
+    },
+    {
+      "time_s": 95.0,
+      "mass_kg": 16.811311
+    },
+    {
+      "time_s": 100.0,
+      "mass_kg": 16.610545
+    },
+    {
+      "time_s": 105.0,
+      "mass_kg": 16.408997
+    },
+    {
+      "time_s": 110.0,
+      "mass_kg": 16.211641
+    },
+    {
+      "time_s": 115.0,
+      "mass_kg": 16.02059
+    },
+    {
+      "time_s": 120.0,
+      "mass_kg": 15.823617
+    },
+    {
+      "time_s": 125.0,
+      "mass_kg": 15.625826
+    },
+    {
+      "time_s": 130.0,
+      "mass_kg": 15.426551
+    },
+    {
+      "time_s": 135.0,
+      "mass_kg": 15.220561
+    },
+    {
+      "time_s": 140.0,
+      "mass_kg": 15.025391
+    },
+    {
+      "time_s": 145.0,
+      "mass_kg": 14.835964
+    },
+    {
+      "time_s": 150.0,
+      "mass_kg": 14.642325
+    },
+    {
+      "time_s": 155.0,
+      "mass_kg": 14.450604
+    },
+    {
+      "time_s": 160.0,
+      "mass_kg": 14.25378
+    },
+    {
+      "time_s": 165.0,
+      "mass_kg": 14.050987
+    },
+    {
+      "time_s": 170.0,
+      "mass_kg": 13.855957
+    },
+    {
+      "time_s": 175.0,
+      "mass_kg": 13.675237
+    },
+    {
+      "time_s": 180.0,
+      "mass_kg": 13.492437
+    },
+    {
+      "time_s": 185.0,
+      "mass_kg": 13.303309
+    },
+    {
+      "time_s": 190.0,
+      "mass_kg": 13.107102
+    },
+    {
+      "time_s": 195.0,
+      "mass_kg": 12.911992
+    },
+    {
+      "time_s": 200.0,
+      "mass_kg": 12.716406
+    },
+    {
+      "time_s": 205.0,
+      "mass_kg": 12.519828
+    },
+    {
+      "time_s": 210.0,
+      "mass_kg": 12.320315
+    },
+    {
+      "time_s": 215.0,
+      "mass_kg": 12.108045
+    },
+    {
+      "time_s": 220.0,
+      "mass_kg": 11.905155
+    },
+    {
+      "time_s": 225.0,
+      "mass_kg": 11.713016
+    },
+    {
+      "time_s": 230.0,
+      "mass_kg": 11.51391
+    },
+    {
+      "time_s": 235.0,
+      "mass_kg": 11.306522
+    },
+    {
+      "time_s": 240.0,
+      "mass_kg": 11.098722
+    },
+    {
+      "time_s": 245.0,
+      "mass_kg": 10.896396
+    },
+    {
+      "time_s": 250.0,
+      "mass_kg": 10.692006
+    },
+    {
+      "time_s": 255.0,
+      "mass_kg": 10.479498
+    },
+    {
+      "time_s": 260.0,
+      "mass_kg": 10.249411
+    },
+    {
+      "time_s": 265.0,
+      "mass_kg": 10.012963
+    },
+    {
+      "time_s": 270.0,
+      "mass_kg": 9.784549
+    },
+    {
+      "time_s": 275.0,
+      "mass_kg": 9.566478
+    },
+    {
+      "time_s": 280.0,
+      "mass_kg": 9.361879
+    },
+    {
+      "time_s": 285.0,
+      "mass_kg": 9.147891
+    },
+    {
+      "time_s": 290.0,
+      "mass_kg": 8.935315
+    },
+    {
+      "time_s": 295.0,
+      "mass_kg": 8.72608
+    },
+    {
+      "time_s": 300.0,
+      "mass_kg": 8.515075
+    },
+    {
+      "time_s": 305.0,
+      "mass_kg": 8.304063
+    },
+    {
+      "time_s": 310.0,
+      "mass_kg": 8.092272
+    },
+    {
+      "time_s": 315.0,
+      "mass_kg": 7.881082
+    },
+    {
+      "time_s": 320.0,
+      "mass_kg": 7.665966
+    },
+    {
+      "time_s": 325.0,
+      "mass_kg": 7.461399
+    },
+    {
+      "time_s": 330.0,
+      "mass_kg": 7.27036
+    },
+    {
+      "time_s": 335.0,
+      "mass_kg": 7.077607
+    },
+    {
+      "time_s": 340.0,
+      "mass_kg": 6.877071
+    },
+    {
+      "time_s": 345.0,
+      "mass_kg": 6.669663
+    },
+    {
+      "time_s": 350.0,
+      "mass_kg": 6.467055
+    },
+    {
+      "time_s": 355.0,
+      "mass_kg": 6.270126
+    },
+    {
+      "time_s": 360.0,
+      "mass_kg": 6.066796
+    },
+    {
+      "time_s": 365.0,
+      "mass_kg": 5.8516
+    },
+    {
+      "time_s": 370.0,
+      "mass_kg": 5.623177
+    },
+    {
+      "time_s": 375.0,
+      "mass_kg": 5.398049
+    },
+    {
+      "time_s": 380.0,
+      "mass_kg": 5.180244
+    },
+    {
+      "time_s": 385.0,
+      "mass_kg": 4.966853
+    },
+    {
+      "time_s": 390.0,
+      "mass_kg": 4.767522
+    },
+    {
+      "time_s": 395.0,
+      "mass_kg": 4.575665
+    },
+    {
+      "time_s": 400.0,
+      "mass_kg": 4.37321
+    },
+    {
+      "time_s": 405.0,
+      "mass_kg": 4.160766
+    },
+    {
+      "time_s": 410.0,
+      "mass_kg": 3.948186
+    },
+    {
+      "time_s": 415.0,
+      "mass_kg": 3.721315
+    },
+    {
+      "time_s": 420.0,
+      "mass_kg": 3.486476
+    },
+    {
+      "time_s": 425.0,
+      "mass_kg": 3.266676
+    },
+    {
+      "time_s": 430.0,
+      "mass_kg": 3.055022
+    },
+    {
+      "time_s": 435.0,
+      "mass_kg": 2.838963
+    },
+    {
+      "time_s": 440.0,
+      "mass_kg": 2.631151
+    },
+    {
+      "time_s": 445.0,
+      "mass_kg": 2.419594
+    },
+    {
+      "time_s": 450.0,
+      "mass_kg": 2.198464
+    },
+    {
+      "time_s": 455.0,
+      "mass_kg": 1.979954
+    },
+    {
+      "time_s": 460.0,
+      "mass_kg": 1.751826
+    },
+    {
+      "time_s": 465.0,
+      "mass_kg": 1.510617
+    },
+    {
+      "time_s": 470.0,
+      "mass_kg": 1.280865
+    },
+    {
+      "time_s": 475.0,
+      "mass_kg": 1.0772
+    },
+    {
+      "time_s": 480.0,
+      "mass_kg": 0.902761
+    },
+    {
+      "time_s": 485.0,
+      "mass_kg": 0.745537
+    },
+    {
+      "time_s": 490.0,
+      "mass_kg": 0.592873
+    },
+    {
+      "time_s": 495.0,
+      "mass_kg": 0.443792
+    },
+    {
+      "time_s": 500.0,
+      "mass_kg": 0.306292
+    }
+  ]
+}

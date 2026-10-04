@@ -1,0 +1,1749 @@
+{
+  "code_sha256_raw": {
+    "sim/BuildingModel.gd": "3d6a2c6bf49370bc0ecd86e2ab93f90fa6d5d99dd7d19696d7e9d304817bddad",
+    "sim/core/Phase3ZoneMassSystem.gd": "569e4bb08b9a55d86a01dff92b95982c4aa660571f6ef2f550b147d7a61665b7",
+    "sim/core/SimulationStateBuilder.gd": "41fdf8bf6882d0b43c157b3919015f34dc1b435f7af14338fbe734eecf98ac11",
+    "sim/fire/CombustionSystem.gd": "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035",
+    "sim/fire/FuelObjectModel.gd": "cde32395f7eeddb68bab5817bd9b4606a68eb08f66387fbdf91217409ea4a326"
+  },
+  "schema": "g3_d1_declared_mass_inputs_v1",
+  "scope": "declared JSON only; no template expansion; presence is not validity",
+  "scopes": {
+    "scenarios": {
+      "declared_object_count": 107,
+      "field_presence_counts": {
+        "alpha_kw_s2": 0,
+        "char_growth_rate_m_per_kg": 0,
+        "char_mass_kg": 0,
+        "co_yield_kg_per_MJ": 107,
+        "elemental_composition": 0,
+        "fuel_energy_MJ": 107,
+        "heat_of_combustion_basis": 0,
+        "heat_of_combustion_kj_kg": 0,
+        "heat_of_gasification_kj_kg": 0,
+        "hrr_curve": 0,
+        "initial_fuel_mass_kg": 0,
+        "mass_loss_curve": 0,
+        "remaining_fuel_mass_kg": 0
+      },
+      "files": [
+        {
+          "file": "scenarios/compact_apartment_reference.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_kitchen_unit",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_table",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_tv",
+              "pointer": "/rooms_data/0/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_hall_runner",
+              "pointer": "/rooms_data/1/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_hall_console",
+              "pointer": "/rooms_data/1/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_bed",
+              "pointer": "/rooms_data/2/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_wardrobe",
+              "pointer": "/rooms_data/2/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_bath_textiles",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "compact_laundry_bin",
+              "pointer": "/rooms_data/4/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "41fd53c5461acf9e8970419bcb0ac20b6c9e26b9ac49212f49a0ede812569969"
+        },
+        {
+          "file": "scenarios/long_hallway_reference.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_bookshelf",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_coffee_table",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_runner_long",
+              "pointer": "/rooms_data/1/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_console_mid",
+              "pointer": "/rooms_data/1/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_storage_box",
+              "pointer": "/rooms_data/1/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_north_bed",
+              "pointer": "/rooms_data/2/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_center_bed",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_center_desk",
+              "pointer": "/rooms_data/3/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_kitchen_unit",
+              "pointer": "/rooms_data/4/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_kitchen_oil",
+              "pointer": "/rooms_data/4/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "hallway_entry_coats",
+              "pointer": "/rooms_data/5/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "3518529d73288b48e6c042d705c0f4ce4b35b243e5b6efd779eef6e11ac857d6"
+        },
+        {
+          "file": "scenarios/preset_compact_apartment.json",
+          "objects": [],
+          "sha256_raw": "e1500f42e7337ba4d60df61cacc4287be02a3855f388a22fa98898f7b77b050f"
+        },
+        {
+          "file": "scenarios/preset_ghanekar_bedroom_hallway.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "ghanekar_bed_mattress",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "ghanekar_room_contents",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            }
+          ],
+          "sha256_raw": "588ddad50c4146fce1175e25ffc532e47a1e6708bfd4dac39891880c00fc1895"
+        },
+        {
+          "file": "scenarios/preset_piso_mediterraneo.json",
+          "objects": [],
+          "sha256_raw": "0eb02f44bf941eeee4361a51863f6ba16326de22f07ef89727d17171efe60c8a"
+        },
+        {
+          "file": "scenarios/preset_ranch_family_house.json",
+          "objects": [],
+          "sha256_raw": "2599e25b4ea0b8f23aaac8d59ef7a5a4cdf589b09679580c4d5e4925d8e36e2f"
+        },
+        {
+          "file": "scenarios/preset_row_house_ground_floor.json",
+          "objects": [],
+          "sha256_raw": "2e08665a02736989c8830701febcb9b58d2f05a65341d83b948360e8e01d6367"
+        },
+        {
+          "file": "scenarios/preset_simple_house.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_mesa_centro",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_mueble_tv",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_libreria",
+              "pointer": "/rooms_data/0/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_alfombra",
+              "pointer": "/rooms_data/0/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_butaca",
+              "pointer": "/rooms_data/0/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_aparador",
+              "pointer": "/rooms_data/0/fuel_objects/6"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_alfombra",
+              "pointer": "/rooms_data/1/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_consola",
+              "pointer": "/rooms_data/1/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_zapatero",
+              "pointer": "/rooms_data/1/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_caja",
+              "pointer": "/rooms_data/1/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_cama",
+              "pointer": "/rooms_data/2/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_armario",
+              "pointer": "/rooms_data/2/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_alfombra",
+              "pointer": "/rooms_data/2/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_cortinas",
+              "pointer": "/rooms_data/2/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_comoda",
+              "pointer": "/rooms_data/2/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_mesilla",
+              "pointer": "/rooms_data/2/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_cama",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_armario",
+              "pointer": "/rooms_data/3/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_escritorio",
+              "pointer": "/rooms_data/3/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_alfombra",
+              "pointer": "/rooms_data/3/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_cajonera",
+              "pointer": "/rooms_data/3/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_encimera",
+              "pointer": "/rooms_data/4/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_columna",
+              "pointer": "/rooms_data/4/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_grasa",
+              "pointer": "/rooms_data/4/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_mesa",
+              "pointer": "/rooms_data/4/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_textiles",
+              "pointer": "/rooms_data/4/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_auxiliar",
+              "pointer": "/rooms_data/4/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_plasticos",
+              "pointer": "/rooms_data/5/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_textiles",
+              "pointer": "/rooms_data/5/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_mueble_lavabo",
+              "pointer": "/rooms_data/5/fuel_objects/2"
+            }
+          ],
+          "sha256_raw": "00eb37d6887d19f3810ca31c8f87036f795885b28838c9f5c6387a2e3bef3681"
+        },
+        {
+          "file": "scenarios/preset_three_bed_apartment.json",
+          "objects": [],
+          "sha256_raw": "e017d7b25470af9a578083d8dacec4d487d875fe7714918dc1d5ec411affbcfe"
+        },
+        {
+          "file": "scenarios/preset_two_bed_apartment.json",
+          "objects": [],
+          "sha256_raw": "f175327749be2e7d2498735942efb5acb2278d147d4074aeb9fe4c37e1a5970f"
+        },
+        {
+          "file": "scenarios/preset_two_storey_house.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_salon_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_salon_mueble",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_salon_alfombra",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_cocina_encimera",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_cocina_grasa",
+              "pointer": "/rooms_data/3/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_principal_cama",
+              "pointer": "/rooms_data/8/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_principal_armario",
+              "pointer": "/rooms_data/8/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_dorm2_cama",
+              "pointer": "/rooms_data/9/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_dorm3_cama",
+              "pointer": "/rooms_data/10/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "2p_estudio_mesa",
+              "pointer": "/rooms_data/12/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "e553c9abe61888983f31d7a8482e6e9167d2939dc90c08805deddf7eca1a861b"
+        },
+        {
+          "file": "scenarios/preset_uk_bungalow.json",
+          "objects": [],
+          "sha256_raw": "27a7c7d4dbe71035e16e7cd03f7ca25dd5a511a7a87a51ce357b7396e3d14be6"
+        },
+        {
+          "file": "scenarios/simple_house_objects.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_mesa_centro",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_mueble_tv",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_libreria",
+              "pointer": "/rooms_data/0/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_alfombra",
+              "pointer": "/rooms_data/0/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_butaca",
+              "pointer": "/rooms_data/0/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "salon_aparador",
+              "pointer": "/rooms_data/0/fuel_objects/6"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_alfombra",
+              "pointer": "/rooms_data/1/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_consola",
+              "pointer": "/rooms_data/1/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_zapatero",
+              "pointer": "/rooms_data/1/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pasillo_caja",
+              "pointer": "/rooms_data/1/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_cama",
+              "pointer": "/rooms_data/2/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_armario",
+              "pointer": "/rooms_data/2/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_alfombra",
+              "pointer": "/rooms_data/2/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_cortinas",
+              "pointer": "/rooms_data/2/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_comoda",
+              "pointer": "/rooms_data/2/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm1_mesilla",
+              "pointer": "/rooms_data/2/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_cama",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_armario",
+              "pointer": "/rooms_data/3/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_escritorio",
+              "pointer": "/rooms_data/3/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_alfombra",
+              "pointer": "/rooms_data/3/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "dorm2_cajonera",
+              "pointer": "/rooms_data/3/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_encimera",
+              "pointer": "/rooms_data/4/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_columna",
+              "pointer": "/rooms_data/4/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_grasa",
+              "pointer": "/rooms_data/4/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_mesa",
+              "pointer": "/rooms_data/4/fuel_objects/3"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_textiles",
+              "pointer": "/rooms_data/4/fuel_objects/4"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "cocina_auxiliar",
+              "pointer": "/rooms_data/4/fuel_objects/5"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_plasticos",
+              "pointer": "/rooms_data/5/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_textiles",
+              "pointer": "/rooms_data/5/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "bano_mueble_lavabo",
+              "pointer": "/rooms_data/5/fuel_objects/2"
+            }
+          ],
+          "sha256_raw": "d6583477280d392e9d50f7337fd3bb1c53a7c34c3aa23a41b813a598729b9a0d"
+        },
+        {
+          "file": "scenarios/two_storey_reference.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_sofa",
+              "pointer": "/rooms_data/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_tv",
+              "pointer": "/rooms_data/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_books",
+              "pointer": "/rooms_data/0/fuel_objects/2"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_kitchen_unit",
+              "pointer": "/rooms_data/2/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_kitchen_table",
+              "pointer": "/rooms_data/2/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_hall_rug",
+              "pointer": "/rooms_data/3/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_bed_main",
+              "pointer": "/rooms_data/5/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_wardrobe_main",
+              "pointer": "/rooms_data/5/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_bed_child",
+              "pointer": "/rooms_data/6/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_desk_child",
+              "pointer": "/rooms_data/6/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "two_storey_bath_textiles",
+              "pointer": "/rooms_data/7/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "5697d5a54423f2dc700b7db63f49c3a4936b48f6eac9fbcf396f4bfeb2bdfcb1"
+        }
+      ],
+      "files_with_objects": 7,
+      "json_file_count": 14
+    },
+    "sim/validation/cases": {
+      "declared_object_count": 14,
+      "field_presence_counts": {
+        "alpha_kw_s2": 0,
+        "char_growth_rate_m_per_kg": 3,
+        "char_mass_kg": 0,
+        "co_yield_kg_per_MJ": 14,
+        "elemental_composition": 0,
+        "fuel_energy_MJ": 14,
+        "heat_of_combustion_basis": 0,
+        "heat_of_combustion_kj_kg": 4,
+        "heat_of_gasification_kj_kg": 4,
+        "hrr_curve": 1,
+        "initial_fuel_mass_kg": 0,
+        "mass_loss_curve": 0,
+        "remaining_fuel_mass_kg": 0
+      },
+      "files": [
+        {
+          "file": "sim/validation/cases/bv031_t2_growth_pure.json",
+          "objects": [],
+          "sha256_raw": "90485972674454b11cce9dc202d8939ff38b671e6910b343d37467c023ad5849"
+        },
+        {
+          "file": "sim/validation/cases/c_balance_high_phi.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pu_foam_high_co",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "5b9e6890940c872146b3936c0033f003f689a19a0e6a7713cf5354c454b740cc"
+        },
+        {
+          "file": "sim/validation/cases/carbon_balance_creation.json",
+          "objects": [],
+          "sha256_raw": "287182210f9dec86503cbf62ac0df939fa28fdc7ec032a0988db329c2c6a7ae6"
+        },
+        {
+          "file": "sim/validation/cases/carbon_balance_hvac.json",
+          "objects": [],
+          "sha256_raw": "cfb24e084f2e597c3a1961b336f24fc37fda2c16a70958498320d3fba4a2a986"
+        },
+        {
+          "file": "sim/validation/cases/carbon_balance_loss.json",
+          "objects": [],
+          "sha256_raw": "fbb54ef7dc00d57483be74e1b630a0aefc1ae8b0d175d4e68be365074424f544"
+        },
+        {
+          "file": "sim/validation/cases/carbon_balance_transport.json",
+          "objects": [],
+          "sha256_raw": "ae37b156774f8bb581d9f212a7eb81d9d26d61e7e9287eaabc5fd265339b0a3e"
+        },
+        {
+          "file": "sim/validation/cases/carbon_balance_ventilation.json",
+          "objects": [],
+          "sha256_raw": "7134c98614fad1d8b27881d7be553e2b42105789ed12453798536bd196553c2a"
+        },
+        {
+          "file": "sim/validation/cases/cfast_bedroom_closed_door.json",
+          "objects": [],
+          "sha256_raw": "e68609b55d527d02d4f1a2d7b82f6d92ee91cce3118745423fb297bc3177542f"
+        },
+        {
+          "file": "sim/validation/cases/cfast_co2_stratification.json",
+          "objects": [],
+          "sha256_raw": "7b3c19265d90b3c56fd6a76b33edefa406bd43d5f9e7ece6a6cb9ea265384315"
+        },
+        {
+          "file": "sim/validation/cases/cfast_corridor_chain.json",
+          "objects": [],
+          "sha256_raw": "9e8eace869cf2f4f989d84c2f1bdf737320ddaea6f8789f608f1277b1ce1bef2"
+        },
+        {
+          "file": "sim/validation/cases/cfast_door_close_midfire.json",
+          "objects": [],
+          "sha256_raw": "331cf79442e3a96885fd24c2733313dfbe37c81b4f63b706350807db244ac5d4"
+        },
+        {
+          "file": "sim/validation/cases/cfast_fast_growth_closed.json",
+          "objects": [],
+          "sha256_raw": "929fff820438cdce9732060f8690749641f0f59e029d065e3b5e4871d1b126ed"
+        },
+        {
+          "file": "sim/validation/cases/cfast_fed_hypoxia_sealed.json",
+          "objects": [],
+          "sha256_raw": "14df6d24118ed32d1a56916eceab3474d80fc58286ca6235b442130f0b2baabb"
+        },
+        {
+          "file": "sim/validation/cases/cfast_hall_upper_o2_doorway.json",
+          "objects": [],
+          "sha256_raw": "9dbb2e20a73fe58809aece8bf3596675fe6d5413881a458a5f581d8e2d281dce"
+        },
+        {
+          "file": "sim/validation/cases/cfast_hrr_ventilation_limited_f2.json",
+          "objects": [],
+          "sha256_raw": "13db346b0b185aa24aae6d5eee812c6c4587964174fc36092201a772198e4ed9"
+        },
+        {
+          "file": "sim/validation/cases/cfast_hvac_residential.json",
+          "objects": [],
+          "sha256_raw": "69b91cb5c76d1fc91009c91f26abcaeebf35b17fc01a7e400dc039513a73e8be"
+        },
+        {
+          "file": "sim/validation/cases/cfast_ilv_audit.json",
+          "objects": [],
+          "sha256_raw": "63351cc91d5609e50db9c587c304c630550b5b106124892d6bc14d0cbd4776f6"
+        },
+        {
+          "file": "sim/validation/cases/cfast_ilv_open_window_repro.json",
+          "objects": [],
+          "sha256_raw": "74ab4da70d91ee47c0ea7c01acd97cd1127427e80d9ebd52003da04fe6275ef7"
+        },
+        {
+          "file": "sim/validation/cases/cfast_long_burnout_3600s.json",
+          "objects": [],
+          "sha256_raw": "0c61b2f91db91e4c0ac7e970e7f2485a5500c4f2765e541461ff171562480c64"
+        },
+        {
+          "file": "sim/validation/cases/cfast_multi_fuel_couch_tv.json",
+          "objects": [],
+          "sha256_raw": "0ca255630d7f596582658d9f5cd8f9364851c735db867a5e0aa2ad04b712b472"
+        },
+        {
+          "file": "sim/validation/cases/cfast_overpressure_sealed.json",
+          "objects": [],
+          "sha256_raw": "2a0c964737d34799654f67a3f30e0593db0fbb7ae86c4e7112c1cb3c2da11e13"
+        },
+        {
+          "file": "sim/validation/cases/cfast_pool_fire_open.json",
+          "objects": [],
+          "sha256_raw": "2f469427bbbd7d30d03c563d0767334ba34fba9e17424cc17c89ce4c9b2c90e2"
+        },
+        {
+          "file": "sim/validation/cases/cfast_post_flashover_vented.json",
+          "objects": [],
+          "sha256_raw": "6401b504901532e6518e6d82564a09b57bc17f2200df81a1d8fc54790d6e43f5"
+        },
+        {
+          "file": "sim/validation/cases/cfast_r0_window_360.json",
+          "objects": [],
+          "sha256_raw": "660e50020d1f09c19f4c1e14c253c5f1a5e280cdd902296396d12ff82d2a4fdf"
+        },
+        {
+          "file": "sim/validation/cases/cfast_single_room_closed.json",
+          "objects": [],
+          "sha256_raw": "044d10c3dd3a586223a036822965613cdf2b58b48428be2380b11fadcf902861"
+        },
+        {
+          "file": "sim/validation/cases/cfast_slow_growth_sealed.json",
+          "objects": [],
+          "sha256_raw": "dae9071957be4ba75986998999b1b5be4935835bc5dd5892b6a2c1441e8b1a17"
+        },
+        {
+          "file": "sim/validation/cases/cfast_suppression_water.json",
+          "objects": [],
+          "sha256_raw": "44d46ea56509b662e3ba120a88f63f457f711d4efa5b0af6aabf166c3ecc7bd7"
+        },
+        {
+          "file": "sim/validation/cases/cfast_two_floor_stairwell.json",
+          "objects": [],
+          "sha256_raw": "b81fdbc3751039ff8a7fa66a2df026a43f6157375e37f2c38923c83c5c23698b"
+        },
+        {
+          "file": "sim/validation/cases/cfast_two_room_door_open.json",
+          "objects": [],
+          "sha256_raw": "20735ea96ac35fa4a4fa6416125192d830ecb2dad6d3af8b165641cf2df7eded"
+        },
+        {
+          "file": "sim/validation/cases/cfast_window_break_t180.json",
+          "objects": [],
+          "sha256_raw": "73791d20e65e1b44a7d03cd3b64783228159c3a06480a0f0748f693ac64e91d9"
+        },
+        {
+          "file": "sim/validation/cases/char_layer_loi_wood.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "heat_of_gasification_kj_kg",
+                "heat_of_combustion_kj_kg",
+                "char_growth_rate_m_per_kg",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": 17500.0,
+              "id": "wood_panel_char",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "8f61f0da939203342cd4615dedc3ac4859073712a39727f6e98eff4751b3c752"
+        },
+        {
+          "file": "sim/validation/cases/co_oxidation_post_flashover.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "high_co_material",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "625be91a555b3f8c25aab497ad020f566d49f95733e394d019e3196eb3a3dc07"
+        },
+        {
+          "file": "sim/validation/cases/compact_apartment_smoke.json",
+          "objects": [],
+          "sha256_raw": "134fbd649053e47b5c3e98915b10aeb4d7a7163195b93430468a19e2addf1e7e"
+        },
+        {
+          "file": "sim/validation/cases/confinement_open_close.json",
+          "objects": [],
+          "sha256_raw": "3ebdc2c7f411ec3c767ba24dbb35f38116281cb93634ac8d003c754864bc1cdd"
+        },
+        {
+          "file": "sim/validation/cases/conservation_transport.json",
+          "objects": [],
+          "sha256_raw": "840feb85d56db2219e4495c4d7cfcc053c6b2f8a5e7075d551b8b403345326a6"
+        },
+        {
+          "file": "sim/validation/cases/energy_budget_living_room.json",
+          "objects": [],
+          "sha256_raw": "9cd7a1f57caf2a9ab70bd34f85434598c398028a8e12587d198f5f6f2c508c89"
+        },
+        {
+          "file": "sim/validation/cases/fds_simple_house_calibrated.json",
+          "objects": [],
+          "sha256_raw": "3107fe1e62beb293258bf7b1030d534305a0a676779f11a3585b6721aa575b5b"
+        },
+        {
+          "file": "sim/validation/cases/fds_simple_house_default.json",
+          "objects": [],
+          "sha256_raw": "5b79d4ce2e590f79608c9a479839d5f1abb4ac57904a24a715d68614e0bb4ace"
+        },
+        {
+          "file": "sim/validation/cases/fed_thermal_layer_smoke_only.json",
+          "objects": [],
+          "sha256_raw": "6a6e4ab3029f7f21cb47c513f537f9abd8bdfb463e0cceb35589a17ce84d39c2"
+        },
+        {
+          "file": "sim/validation/cases/flashover_simple_house.json",
+          "objects": [],
+          "sha256_raw": "6b41ba8b61f12e4fa0f36c162ab5083659b4cfd12a460b6a5581bcfc15a68aab"
+        },
+        {
+          "file": "sim/validation/cases/fp_ilv_open_partial_window.json",
+          "objects": [],
+          "sha256_raw": "08ba685ae0362233e12d358081764a432f091a30a62ea3176972f84179d57483"
+        },
+        {
+          "file": "sim/validation/cases/fp_ilv_upper_throttle_off.json",
+          "objects": [],
+          "sha256_raw": "4e2b7d5713236ffbe5391470e37fd755155b78e22d09823333af0ab6eeeb3621"
+        },
+        {
+          "file": "sim/validation/cases/fp_ilv_upper_throttle_on.json",
+          "objects": [],
+          "sha256_raw": "387d823598ec611165d15696bfe4e5c6879ab26a716acde40d67ff3c3808ae93"
+        },
+        {
+          "file": "sim/validation/cases/fuel_balance_diag_sealed.json",
+          "objects": [],
+          "sha256_raw": "ad5d3892478cfeeb6f96263840702623b629dc107bb805d717fcefc713b22628"
+        },
+        {
+          "file": "sim/validation/cases/g1_gie_confinement_attack.json",
+          "objects": [],
+          "sha256_raw": "10c8462f4642435d90bcda8cb97507cb9dfaa802f88b824c538088a93056fb08"
+        },
+        {
+          "file": "sim/validation/cases/g2_gie_transitional_attack.json",
+          "objects": [],
+          "sha256_raw": "59df6a4b4baedee4693e39f7d0586ea90f9d92d8949726954d47c9dd98d870d6"
+        },
+        {
+          "file": "sim/validation/cases/g3_gie_ppv_post_knockdown.json",
+          "objects": [],
+          "sha256_raw": "2cb207793d1204791f66c459e1100c343f54bf6611015fd2e2980ae24944fd83"
+        },
+        {
+          "file": "sim/validation/cases/g4_gie_delayed_entry_hazard.json",
+          "objects": [],
+          "sha256_raw": "ec821c4d199e7c49d43a474f31b325f3aaddec78931dfe7fa9b24460841fe019"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_bedroom_hallway.json",
+          "objects": [],
+          "sha256_raw": "94ca541e6394d67ff749e6b388cd761c55a54d181827f6282b7a810b350c8ecb"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_kitchen_living_room.json",
+          "objects": [],
+          "sha256_raw": "a9e70a90abeeb0e215eac6a62d4c7f155eb651be8be9ca47bbf4b050bbd7d5d7"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_kitchen_sweep_v1.json",
+          "objects": [],
+          "sha256_raw": "53b6eb80d55db17d8b05070445c29f9592bb70aec6c679f0d424535315e4740e"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_kitchen_sweep_v2.json",
+          "objects": [],
+          "sha256_raw": "6115d51819c399cce604ee9857e2e93d3e9895d1b87c72aa31b3f6c9414c2a32"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_kitchen_sweep_v3.json",
+          "objects": [],
+          "sha256_raw": "2b85671c0c73e26a73058f188b7bfe52f526e0dd4b84e028dba31f8d6970a42d"
+        },
+        {
+          "file": "sim/validation/cases/ghanekar_kitchen_v2.json",
+          "objects": [],
+          "sha256_raw": "c6fbe4a7a1a80f6c2a3c4a1b7c47022ffb39baa9546151be57e2ada6b5479e90"
+        },
+        {
+          "file": "sim/validation/cases/glass_break_window_spike.json",
+          "objects": [],
+          "sha256_raw": "011078f1958b27ea361b4432b305bc26a1ddc7c40d278b624b50b25b415aaf48"
+        },
+        {
+          "file": "sim/validation/cases/hrr_tabulated_curve_sofa.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "hrr_curve",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "sofa_hrr_curve",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "b79363f32ebef8a61f760de3c1e175dee13338bd8fdf71474d29ee6fc99d76b3"
+        },
+        {
+          "file": "sim/validation/cases/kitchen_grease_pool_fire.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "grease_pool",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            }
+          ],
+          "sha256_raw": "a86fbb7ef3333ce2f7908db1b4e3f88f5758cc81fe49a9faa1771f691bae3d1a"
+        },
+        {
+          "file": "sim/validation/cases/layer150_tenability.json",
+          "objects": [],
+          "sha256_raw": "e708b7e5c7d508109caaee904d8f5254851b1e8136677f87f778c5c20e5e5f67"
+        },
+        {
+          "file": "sim/validation/cases/layer_interface_single_room_window.json",
+          "objects": [],
+          "sha256_raw": "25392dd2f45dd6f96b964b6c167f80f918ed021ea1925b4d66eec2307b5f3f35"
+        },
+        {
+          "file": "sim/validation/cases/living_room_hallway.json",
+          "objects": [],
+          "sha256_raw": "cc849b8f9e06ecbb9a30f4f4c667c97b3fb72251a085f0efb40012367a58ed32"
+        },
+        {
+          "file": "sim/validation/cases/long_smoke_o2_1800.json",
+          "objects": [],
+          "sha256_raw": "e2600c1f8cd79579dfe9bcf809b45ac5effa68752763cc3e5450b683fd85faea"
+        },
+        {
+          "file": "sim/validation/cases/long_smoke_o2_debug.json",
+          "objects": [],
+          "sha256_raw": "6721938e0936a18ae381f76586e923a65d5679937ed46ba4327c12a06a4495ae"
+        },
+        {
+          "file": "sim/validation/cases/mediterraneo_concrete_wall_conduction.json",
+          "objects": [],
+          "sha256_raw": "06270d265c4108df25aa212e50277c5f76a01ccd64b30292f92dd2f3e6cc10cc"
+        },
+        {
+          "file": "sim/validation/cases/o2_stoich_diag_sealed.json",
+          "objects": [],
+          "sha256_raw": "fba1256ffc4fea3c6d0d01caedb7934c3f3dd442ce6367ff2bc8f107b0c4f339"
+        },
+        {
+          "file": "sim/validation/cases/piso_mediterraneo_smoke.json",
+          "objects": [],
+          "sha256_raw": "2d6ea566ebe65e42b46ae920fa40048a00ed794a8e3e441df7aa5615bacf57fd"
+        },
+        {
+          "file": "sim/validation/cases/postfire_decay.json",
+          "objects": [],
+          "sha256_raw": "7fa5dc090cf6e264525c0120e7b9899e506ce064e280ff3fb9e7c542154150a0"
+        },
+        {
+          "file": "sim/validation/cases/ppv_attack_pressurized.json",
+          "objects": [],
+          "sha256_raw": "d333f3663d16864435420e11ca7c0551e9d2cc49cb3c39fd4ba08d49918739e2"
+        },
+        {
+          "file": "sim/validation/cases/pu_sofa_fec_incapacitation.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pu_sofa",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pu_moqueta",
+              "pointer": "/room_overrides/0/fuel_objects/1"
+            }
+          ],
+          "sha256_raw": "810f5bad1f4b038faf839291048953df3f1c933691fe73eb877348880db48ac9"
+        },
+        {
+          "file": "sim/validation/cases/pvc_curtain_hcl_release.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pvc_cortinas",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pvc_suelo_vinilico",
+              "pointer": "/room_overrides/0/fuel_objects/1"
+            }
+          ],
+          "sha256_raw": "2116894a29687de2cba3c41da271b31fc1ee9e1a48729f005ff04da961acb4f0"
+        },
+        {
+          "file": "sim/validation/cases/ranch_family_house_smoke.json",
+          "objects": [],
+          "sha256_raw": "aa6fd2511ba1acb6227e7344827622e3bea1cf70e0b028daea16fa3dbf5f1d39"
+        },
+        {
+          "file": "sim/validation/cases/ranch_radiation_target_ignition.json",
+          "objects": [],
+          "sha256_raw": "8ab9a3056cf1fe2ecb81d33c21c688e822596771122f08700dfbd97c0a5d8b4a"
+        },
+        {
+          "file": "sim/validation/cases/row_house_ground_floor_smoke.json",
+          "objects": [],
+          "sha256_raw": "ae47662522ed75756b89f8552630930795f6ec090b2fc5bd5363eb4657c04129"
+        },
+        {
+          "file": "sim/validation/cases/secondary_ignition_demo.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "heat_of_gasification_kj_kg",
+                "heat_of_combustion_kj_kg",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": 26200.0,
+              "id": "pasillo_alfombra_pu",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "heat_of_gasification_kj_kg",
+                "heat_of_combustion_kj_kg",
+                "char_growth_rate_m_per_kg",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": 17500.0,
+              "id": "pasillo_mueble_madera",
+              "pointer": "/room_overrides/0/fuel_objects/1"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "heat_of_gasification_kj_kg",
+                "heat_of_combustion_kj_kg",
+                "char_growth_rate_m_per_kg",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": 17500.0,
+              "id": "pasillo_resto_madera",
+              "pointer": "/room_overrides/0/fuel_objects/2"
+            }
+          ],
+          "sha256_raw": "6e2f02c94312653b11683d60f37afb9f202bd1613d9cbaaef43c2de04eb73eca"
+        },
+        {
+          "file": "sim/validation/cases/tc_array_iso9705.json",
+          "objects": [],
+          "sha256_raw": "2036ec43ccae503f38526880f9315fd5c52e0d01d3b6710ff3d8c7be8bc53bb5"
+        },
+        {
+          "file": "sim/validation/cases/three_bed_apartment_smoke.json",
+          "objects": [],
+          "sha256_raw": "5c4b3475a5aef9f7a70c07ee68b9f96313bda8c5b914eb5a06a05e03c6726c79"
+        },
+        {
+          "file": "sim/validation/cases/tmp_r0_window_open_start.json",
+          "objects": [],
+          "sha256_raw": "5f39bbc6fe303708eb87545ded5725cce884f2dc5b530fc798555d5a2acc243a"
+        },
+        {
+          "file": "sim/validation/cases/tmp_r2_window_open_start.json",
+          "objects": [],
+          "sha256_raw": "7d796700e616bf31d6a27bba2d6505588359019d32a4ad1184a097d62d1cdff4"
+        },
+        {
+          "file": "sim/validation/cases/two_bed_apartment_smoke.json",
+          "objects": [],
+          "sha256_raw": "bf3e4b9a95ff6521eadd02a9475cc65749b2b7f9f6a810130b4e3c8e52c3aeaa"
+        },
+        {
+          "file": "sim/validation/cases/two_storey_smoke.json",
+          "objects": [],
+          "sha256_raw": "6069a35dcaa964dc91b45d63e0bdc916e83e53a835a6f2ed3073f9047df785e0"
+        },
+        {
+          "file": "sim/validation/cases/uk_bungalow_smoke.json",
+          "objects": [],
+          "sha256_raw": "b769cfdb595fa69b0e54efcffd54d40e2af1b01028560d9c8fdc4d5b3beeff94"
+        },
+        {
+          "file": "sim/validation/cases/ul_exterior_water_knockdown.json",
+          "objects": [],
+          "sha256_raw": "c8cabc4aaa4aa10d4763bfbbfba60c09f51365ac1a0d22e862a5d4e4bc41586b"
+        },
+        {
+          "file": "sim/validation/cases/v1_backdraft_accumulation.json",
+          "objects": [],
+          "sha256_raw": "cf6d98e7f2b664a9d39fe0fb720dfbf8f4094d4061248e313a399709f335d6ad"
+        },
+        {
+          "file": "sim/validation/cases/v1_m4_pool_release.json",
+          "objects": [],
+          "sha256_raw": "c1e5544acb754ebef73a7fc7884165e0b99b81005eebd9e98cec5d64c5030bf5"
+        },
+        {
+          "file": "sim/validation/cases/v2_sealed_room_o2_depletion.json",
+          "objects": [],
+          "sha256_raw": "8e4634a3633d2aa5ded02c00e0e8e8308c45caed372a6039013c13bedd29feb8"
+        },
+        {
+          "file": "sim/validation/cases/v3_hallway_fed_exposure.json",
+          "objects": [],
+          "sha256_raw": "be0502ad351adaac0824dd958242a608ec59c092b3c2cc02171dba8afb6695ad"
+        },
+        {
+          "file": "sim/validation/cases/v4_co_remote_rooms.json",
+          "objects": [],
+          "sha256_raw": "4010e4c659faf8403d0b32092652d473b7e5318410f19ef02598de42f8fefb84"
+        },
+        {
+          "file": "sim/validation/cases/v5_m4_ventilation_throttle.json",
+          "objects": [],
+          "sha256_raw": "bd1867bb1502e0ea20632e66fe746b792edf0ace52e0d60985830e4e9a1bc2af"
+        },
+        {
+          "file": "sim/validation/cases/v5_ventilation_hrr_spike.json",
+          "objects": [],
+          "sha256_raw": "0393bc29f446c75fbabd654372ebfc765fdd71b6be308faca017f03e7fe4aba3"
+        },
+        {
+          "file": "sim/validation/cases/v6_spread_to_hallway.json",
+          "objects": [],
+          "sha256_raw": "20108017210e389f781d4c96ba0bc1cb69760fc96c2ea670d5aa2f7bc0256a7a"
+        },
+        {
+          "file": "sim/validation/cases/v7_underventilated_co_peak.json",
+          "objects": [],
+          "sha256_raw": "099040b2f54e99e8bf6428a5e9421fb51f0d40aa336dd6e302b1dff20d41747f"
+        },
+        {
+          "file": "sim/validation/cases/v8_suppression_reburn.json",
+          "objects": [],
+          "sha256_raw": "727ddb7c998a0b32a8e924c9c4781ab426e9bce8d133c044463c6a273f10f29f"
+        },
+        {
+          "file": "sim/validation/cases/victim_fed_incapacitation.json",
+          "objects": [
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pu_sofa",
+              "pointer": "/room_overrides/0/fuel_objects/0"
+            },
+            {
+              "declared_fields": [
+                "fuel_energy_MJ",
+                "co_yield_kg_per_MJ"
+              ],
+              "heat_of_combustion_kj_kg": null,
+              "id": "pu_moqueta",
+              "pointer": "/room_overrides/0/fuel_objects/1"
+            }
+          ],
+          "sha256_raw": "84dac2847a91be1f1d217a9b8e314f3205739cad8aa85b15e88ae8e39b55cd3b"
+        },
+        {
+          "file": "sim/validation/cases/wind_assisted_exterior_spread.json",
+          "objects": [],
+          "sha256_raw": "2b7102c03456b393356f8938660deec1f753bf37c3c37581f982d2ab87a4d8b1"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_cocina_pulse.json",
+          "objects": [],
+          "sha256_raw": "e7f6796f8ce9b91995386d7c7e77a2a55bf401dca94fb3f000c5f08a2d752ef8"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_dormitorios_crossvent.json",
+          "objects": [],
+          "sha256_raw": "867d484eb1a288005accf101efad77e9971cb425a64e5a14e93905813173d2fe"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_ghanekar_remote.json",
+          "objects": [],
+          "sha256_raw": "3590659cbdaf72c80a4d9443c4e53838e8419b9504647f13c5f9a991560c6517"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_salon_confined.json",
+          "objects": [],
+          "sha256_raw": "77c0776a3f10c4c3d60f206caeace6216f1085611f8d708991afcc2c0bfeefa9"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_salon_pulse.json",
+          "objects": [],
+          "sha256_raw": "573c78e51b224232f18a6aa25d672fa2a68fe92d4368ee82e7571d1569d754bc"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_salon_spread_enabled.json",
+          "objects": [],
+          "sha256_raw": "e57d391207c4b201d3bb619347be9a62d1aedf74df5fbbf5cc09d0e089e155cb"
+        },
+        {
+          "file": "sim/validation/cases/window_matrix_salon_spread_stress.json",
+          "objects": [],
+          "sha256_raw": "a40f9e767721ee4124da497ad3fd507ca70ea983e7ea92d3b1f86f508408521d"
+        },
+        {
+          "file": "sim/validation/cases/wood_vc_reference.json",
+          "objects": [],
+          "sha256_raw": "6b8933064aeb82a391d7d6448ed8d33e19467bdda8cbf6a965b82e45d847cd58"
+        }
+      ],
+      "files_with_objects": 9,
+      "json_file_count": 101
+    }
+  }
+}

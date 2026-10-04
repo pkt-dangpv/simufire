@@ -1,0 +1,45 @@
+{
+  "schema": "g3_heptane_reference_phase_basis_v1",
+  "component": "reference_n_heptane_not_experimental_batch",
+  "formula": "C7H16",
+  "reference_temperature_k": 298.15,
+  "reference_pressure_pa": 100000,
+  "water_product_phase": "gas",
+  "reaction_scope": "complete_oxidation",
+  "quantity_unit": "kJ/mol",
+  "molar_mass_g_mol": 100.20,
+  "rounding_tolerance_kj_mol": 0.005,
+  "values": {
+    "liquid_gross_release": 4816.83,
+    "vapour_gross_release": 4853.48,
+    "liquid_net_release": 4464.88,
+    "vapour_net_release": 4501.53,
+    "liquid_formation_enthalpy": -224.11,
+    "vapour_formation_enthalpy": -187.46,
+    "fuel_vaporization_enthalpy": 36.65,
+    "water_vaporization_enthalpy": 43.994
+  },
+  "reported_uncertainty": {
+    "combustion_kj_mol": 0.46,
+    "fuel_vaporization_kj_mol": 0.20,
+    "water_vaporization_kj_mol": 0.037,
+    "interpretation": "Reported, not standard uncertainty; correlations and batch uncertainty unavailable. Not propagated as independent measurements."
+  },
+  "source": {
+    "path": "docs/literature/NIST/NIST_TN_2126_upd1_Thermochemical_Properties.pdf",
+    "url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2126-upd1.pdf",
+    "sha256_raw": "c964ba6afab1f029ed666fb9768fab2e7683b57c3169814d37693c386b6db21a",
+    "version": "NIST TN 2126-upd1, February 2026, 461 PDF pages",
+    "locators": {
+      "molar_mass": "printed p.9 / PDF p.17, formula and CAS 142-82-5",
+      "enthalpy_basis": "Table 4-1 printed p.250 / PDF p.258; Table 4-10 p.350 / PDF p.358",
+      "formation_and_transition": "Table 4-9(2) printed p.328 / PDF p.336",
+      "net_and_gross": "Table 4-10 printed p.352 / PDF p.360",
+      "water_transition": "Table 4-10 printed p.350 / PDF p.358"
+    },
+    "review": "Manual numerical transcription; relevant tables visually inspected. The audit checks hash and algebra, not automatic semantic extraction."
+  },
+  "experimental_batch_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

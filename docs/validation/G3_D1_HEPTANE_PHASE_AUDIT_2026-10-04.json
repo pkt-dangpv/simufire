@@ -1,0 +1,21 @@
+{
+  "schema": "g3_heptane_reference_phase_basis_v1",
+  "decision": "reference_cycle_consistent_not_batch_or_model_approval",
+  "source_sha256_raw": "c964ba6afab1f029ed666fb9768fab2e7683b57c3169814d37693c386b6db21a",
+  "specific_kj_kg": {
+    "liquid_net_release": 44559.68063872255,
+    "vapour_net_release": 44925.44910179641,
+    "fuel_vaporization_enthalpy": 365.7684630738523
+  },
+  "cycle_residuals_kj_mol": {
+    "net_phase_cycle": 0.0,
+    "gross_phase_cycle": 0.0,
+    "formation_phase_cycle": 0.0,
+    "liquid_water_basis": -0.002,
+    "vapour_water_basis": -0.002
+  },
+  "rounding_tolerance_kj_mol": 0.005,
+  "experimental_batch_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

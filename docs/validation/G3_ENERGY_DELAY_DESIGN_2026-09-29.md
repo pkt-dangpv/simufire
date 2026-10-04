@@ -2195,15 +2195,31 @@ decisión que los datos no dan:
 
 | Decisión mínima | Alternativa A | Alternativa B | Evidencia que hay |
 |---|---|---|---|
-| D1. Qué es `U` | gas pirolizado que sale del sólido (como CFAST: la pirólisis no depende del O₂) | sólido que no llega a pirolizar: no se debita al objeto | ninguna propia; A coincide con CFAST TN 1889v1 §3.2 |
+| D1. Qué es `U` | gas pirolizado que sale del sólido (supuesto de CFAST) | sólido que no llega a pirolizar | [evidencia ampliada](G3_D1_IDENTIDAD_INQUEMADO_2026-10-03.md): ambas rutas existen según el régimen; `U` no identifica ninguna |
 | D2. Conversión MJ→kg | calor de combustión declarado por objeto | el global de 10 000 kJ/kg del backdraft | solo 4 objetos lo declaran; el global no tiene fuente |
 | D3. Zona de destino | capa superior, por la pluma | mezcla de sala | ninguna propia |
 | D4. Ignición del inquemado | temperatura de gas y O₂ en su zona | la regla actual del depósito | ninguna propia |
 | D5. Límite de O₂ del calor | función continua | el umbral actual | §13 mide el efecto del salto, no cuál es correcto |
 
-D1 es la primera: sin ella no se sabe si `A_i` es masa que hay que llevar a
-una zona o combustible que hay que devolver al objeto. Las cuentas de §16.3
-valen para las dos alternativas, porque solo dicen cuánta energía es.
+D1 sigue siendo la primera, pero la dicotomía A/B de la tabla es un mapa de
+los dos extremos, **no una elección física exhaustiva**. La evidencia revisada
+el 2026-10-03 retiró la recomendación provisional de convertir todo `U`
+en gas. Hay que separar la tasa de salida del objeto de la oxidación y el
+transporte de lo ya liberado; la cuenta en MJ no permite inferir el reparto
+de masa. Las cuentas de §16.3 siguen válidas porque no asignan fase física.
+
+El diagnóstico de identificabilidad del 2026-10-03 queda cerrado en el
+documento D1: confirma ausencia de inventario kg por objeto, MLR usada como
+peso/HRR y Hcomb sin base declarada. Se permite como siguiente tramo técnico
+un núcleo puro `FuelMassBudgetModel.gd`, sin integración, con liberación y
+oxidación independientes, balance de masa/elementos/energía e inputs
+sintéticos. Esto **no** supera el gate científico para U ni autoriza una
+ley material, transporte, ignición o CO/FED. Su contrato y controles están
+en el documento D1. Posteriormente se escribió el
+[núcleo aislado](G3_D1_FUEL_MASS_BUDGET_2026-10-03.md), ya compilado y validado:
+271 checks / 39 grupos, 10/10 mutantes, referencia 346/346 con 78 gaps,
+producto 168/168 y global 3323 passed. No está integrado ni cierra la
+identidad física de U, una ley material o CO/FED.
 
 ### 16.5 Implementación [C]
 

@@ -1,0 +1,136 @@
+{
+  "schema": "g3_isohept9_emission_attribution_audit_v1",
+  "case_id": "ISOHept9",
+  "decision": "GO_conditional_reference_diagnostic_NO_GO_predictive_evaporation",
+  "source_revision": "e5de6811036d252b4f9085866f08da66efdda7d3",
+  "source_sha256_lf": "66ad9437f81e93750e1d53b7f08b9e5c1068218ec809ed29d308fd9360dccce3",
+  "apparatus_report_sha256_raw": "7ba8219496f8b52035fd97ed603182782e907034a94593bb51e7382c0cf453f5",
+  "phase_reference_sha256_raw": "c964ba6afab1f029ed666fb9768fab2e7683b57c3169814d37693c386b6db21a",
+  "review_locators_printed_tn1603": {
+    "pan_and_load_cells": "section 2.1.4 pp.9-10, Figures 2.4-2.5",
+    "experiment": "Table 3.1 p.38, section 3.2 pp.40-41",
+    "channel_attribution": "Table 2.5 p.32, Appendix A pp.145-146",
+    "heat_flux": "section 2.2.6 pp.29-30",
+    "uncertainty": "section 2.6 pp.35-36, Table 2.6"
+  },
+  "channel_count": 71,
+  "reviewed_channel_groups": {
+    "time": [
+      "Time"
+    ],
+    "room_species_and_soot": [
+      "O2Front",
+      "CO2Front",
+      "COFront",
+      "UHFront",
+      "O2Rear",
+      "CO2Rear",
+      "CORear",
+      "UHRear",
+      "O2Move",
+      "CO2Move",
+      "COMove",
+      "UHMove",
+      "YsootF",
+      "YsootR",
+      "I/Io"
+    ],
+    "gas_sampling_probe_temperature": [
+      "TFSampPtRh",
+      "TRSampPtRh",
+      "TRMoveSamp"
+    ],
+    "floor_ceiling_heat_flux_not_pan_net_heat": [
+      "HFRFL",
+      "HFFFL",
+      "HFOFL",
+      "HFRCE",
+      "HFCCE",
+      "HFFCE"
+    ],
+    "heat_flux_gauge_temperature_not_fuel": [
+      "THFRFL",
+      "THFFFL",
+      "THFOFL",
+      "THFRCE",
+      "THFCCE",
+      "THFFCE"
+    ],
+    "enclosure_inner_surface_temperature_not_fuel": [
+      "TSHFRFL",
+      "TSHFFFL",
+      "TSHFOFL",
+      "TSHFRCE",
+      "TSHFCCE",
+      "TSHFFCE"
+    ],
+    "enclosure_outer_surface_temperature_not_fuel": [
+      "TSXHFRFL",
+      "TSXHFFFL",
+      "TSXHFRCE",
+      "TSXHFCCE",
+      "TSXHFFCE"
+    ],
+    "pan_load_cell_mass_not_species_analyzer": [
+      "Mass1",
+      "Mass2"
+    ],
+    "room_thermocouple_tree_temperature_not_fuel": [
+      "TR3",
+      "TR30",
+      "TR60",
+      "TR90",
+      "TR105",
+      "TR120",
+      "TR135",
+      "TR150",
+      "TR180",
+      "TR210",
+      "TR237",
+      "TF3",
+      "TF30",
+      "TF60",
+      "TF90",
+      "TF105",
+      "TF120",
+      "TF135",
+      "TF150",
+      "TF180",
+      "TF210",
+      "TF237"
+    ],
+    "exhaust_calorimetry_species": [
+      "CalCO",
+      "CalCO2",
+      "CalO2"
+    ],
+    "ideal_hrr_derived_from_mass_not_independent": [
+      "IHRR"
+    ],
+    "exhaust_hrr_not_pan_absorbed_heat": [
+      "HRR2"
+    ]
+  },
+  "conditional_reference_work": {
+    "window_s": [
+      0,
+      500
+    ],
+    "measured_pan_decrease_kg": 19.359537,
+    "emission_assumption": "ALL_pan_decrease_is_reference_n_heptane_vapour",
+    "assumption_status": "declared_for_diagnostic_NOT_measured_species_fraction",
+    "reference_temperature_k": 298.15,
+    "reference_pressure_pa": 100000,
+    "latent_reference_kj_kg": 365.7684630738523,
+    "conditional_phase_work_kj": 7081.1080943113775,
+    "interpretation": "reference_transfer_cost_NOT_observed_heat_or_initial_B"
+  },
+  "independently_observed_pan_budget_B_kj": null,
+  "observed_liquid_temperature_series": null,
+  "observed_emitted_component_fraction": null,
+  "sensible_energy_identified": false,
+  "predictive_evaporation_approval": false,
+  "experimental_batch_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

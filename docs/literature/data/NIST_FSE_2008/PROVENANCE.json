@@ -1,0 +1,64 @@
+{
+  "schema": "g3_measured_mass_candidate_v1",
+  "case_id": "ISOHept9",
+  "review_date": "2026-10-03",
+  "repository": "https://github.com/firemodels/exp",
+  "revision": "e5de6811036d252b4f9085866f08da66efdda7d3",
+  "source": {
+    "path": "docs/literature/data/NIST_FSE_2008/ISOHept9.csv",
+    "url": "https://github.com/firemodels/exp/blob/e5de6811036d252b4f9085866f08da66efdda7d3/NIST_FSE_2008/ISOHept9.csv",
+    "git_blob_sha1": "36e3067c0bc1a795d1a15397321306b86b8c09c1",
+    "sha256_lf": "66ad9437f81e93750e1d53b7f08b9e5c1068218ec809ed29d308fd9360dccce3",
+    "downloaded_bytes": 130456,
+    "modifications": "None; original UTF-8/LF content retained. Repository checkout may normalize line endings."
+  },
+  "license": {
+    "path": "docs/literature/data/NIST_FSE_2008/LICENSE_FIREMODELS_EXP.md",
+    "url": "https://github.com/firemodels/exp/blob/e5de6811036d252b4f9085866f08da66efdda7d3/LICENSE.md",
+    "git_blob_sha1": "a3fddc8de0d7d355977e1df5a046cf26d561143c",
+    "downloaded_sha256": "38c542304b97afc4171a9b67866499eaf222509cab45c095ea69bf88d57755b7",
+    "sha256_lf": "69b4e82d8b8e5a917713dd8335e3becf6a25f09ba5b352938f473face7037ec1",
+    "modifications": "Only a final LF added to the license file; complete notice text unchanged.",
+    "attribution": "National Institute of Standards and Technology (NIST), Fire Research Division Experimental Database. Full repository notice retained. No FSRI data imported."
+  },
+  "report": {
+    "path": "docs/literature/NIST/NIST_TN_1603_Underventilated_Compartment_Fires.pdf",
+    "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1603.pdf",
+    "sha256_raw": "7ba8219496f8b52035fd97ed603182782e907034a94593bb51e7382c0cf453f5",
+    "printed_page_to_local_pdf_page_offset": 14
+  },
+  "columns_reviewed": {
+    "Time": {
+      "unit": "s",
+      "meaning": "Time relative to ignition; negative pre-ignition samples retained",
+      "locator": "TN 1603 section 2.5, printed p.33 / local PDF p.47"
+    },
+    "Mass1": {
+      "unit": "kg",
+      "meaning": "Load cell 1, center pan; reduced mass signal, NOT a nonnegative emission rate",
+      "locator": "TN 1603 Appendix A, printed p.145 / local PDF p.159: channel 62 Mass1, kg, center burner. Section 2.1.4 p.9 and section 3.2 p.40"
+    }
+  },
+  "experiment": {
+    "fuel_reported": "Heptane; approximately C7H16, not a batch-specific composition certificate",
+    "initial_mass_table_kg": 20,
+    "initial_mass_status": "Nominal value in Table 3.1, not substituted for Mass1 at ignition",
+    "pan_area_m2": 0.5,
+    "door_width_m": 0.2,
+    "door_height_m": 2.0,
+    "scope": "Free-burning liquid pool in an underventilated ISO 9705 room. Not solid furniture pyrolysis.",
+    "locators": ["TN 1603 Table 3.1 p.38", "TN 1603 section 3.2 p.40", "TN 1603 Appendix A p.145"]
+  },
+  "energy_basis_review": {
+    "status": "unresolved_for_current_kernel",
+    "reported_net_values_mj_kg": [44.4, 44.56],
+    "locator": "TN 1603 p.41 versus Table 6.1 p.115 and Table 6.2 p.125; cites SFPE Handbook 2002",
+    "limitation": "Do not average these values or import as released-vapor chemical energy. Fuel phase, vaporization accounting, batch and uncertainty require an explicit thermochemical contract."
+  },
+  "audit_windows_s": [[0, 500], [150, 500], [500, 840]],
+  "audit_window_purpose": "Predeclared diagnostics: growth/bulk depletion, report steady-state window, and tail. Not an acceptance filter or a chosen calibration interval.",
+  "rate_processing": "none",
+  "scientific_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

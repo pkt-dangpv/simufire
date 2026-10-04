@@ -1,0 +1,69 @@
+{
+  "schema": "g3_mass_material_profile_v1",
+  "id": "synthetic_mass_triangle_not_furniture",
+  "kind": "synthetic_control",
+  "component_id": "synthetic_CHO",
+  "scope": "single_CHO_no_residue",
+  "initial_mass": {
+    "value": 1.0,
+    "unit": "kg",
+    "basis": "modeled_component_mass",
+    "component_id": "synthetic_CHO",
+    "provenance": {
+      "type": "synthetic",
+      "reference": "synthetic: analytical boundary condition",
+      "locator": "fixture.initial_mass",
+      "uncertainty": "not_applicable_synthetic",
+      "regime": "not_an_experiment",
+      "scale": "algebraic_control"
+    }
+  },
+  "material": {
+    "component_id": "synthetic_CHO",
+    "mass_fractions": {"C": 0.6, "H": 0.1, "O": 0.3},
+    "composition_provenance": {
+      "type": "synthetic",
+      "reference": "synthetic: declared CHO component",
+      "locator": "fixture.material.mass_fractions",
+      "uncertainty": "not_applicable_synthetic",
+      "regime": "not_an_experiment",
+      "scale": "algebraic_control"
+    },
+    "chemical_heat": {
+      "value": 20000.0,
+      "unit": "kJ/kg",
+      "basis": "complete_oxidation_net",
+      "component_id": "synthetic_CHO",
+      "provenance": {
+        "type": "synthetic",
+        "reference": "synthetic: independent chemical energy input",
+        "locator": "fixture.material.chemical_heat",
+        "uncertainty": "not_applicable_synthetic",
+        "regime": "not_an_experiment",
+        "scale": "algebraic_control"
+      }
+    }
+  },
+  "release": {
+    "mode": "prescribed",
+    "quantity": "modeled_component_emission",
+    "unit": "kg/s",
+    "component_id": "synthetic_CHO",
+    "time_origin": "synthetic control start, not inferred ignition",
+    "interpolation": "piecewise_linear",
+    "outside_domain": "reject",
+    "samples": [
+      {"time_s": 0.0, "rate_kg_s": 0.0},
+      {"time_s": 5.0, "rate_kg_s": 0.1},
+      {"time_s": 10.0, "rate_kg_s": 0.0}
+    ],
+    "provenance": {
+      "type": "synthetic",
+      "reference": "synthetic: triangle integral 0.5 kg",
+      "locator": "fixture.release.samples",
+      "uncertainty": "not_applicable_synthetic",
+      "regime": "not_an_experiment",
+      "scale": "algebraic_control"
+    }
+  }
+}

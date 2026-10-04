@@ -1,9 +1,138 @@
 # G3 — Subplan de cierre del CO, combustible, transporte y exposición
 
-Fecha: 2026-09-27. Estado: **plan, no implementación**. Responsable científico
+Fecha: 2026-09-27. Estado: **plan activo, con avances registrados**. Responsable científico
 del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
+
+Último avance del 04-10:
+[Caller atómico aislado](../validation/G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md)
+implementado en GDScript y probado con datos sintéticos: 361 checks / 20
+grupos, 18/18 mutantes válidos detectados, focal 524 PASS / 10 skipped.
+Raíz única, generaciones/copias profundas y relojes separados; química e
+integral siguen en sus dueños originales, congelados por hash. Contratos
+de aislamiento adaptados únicamente al caller, sin carga desde producto.
+Referencia actual 346/346, 78 gaps y 18 informes byte idénticos, resumen
+solo fecha; ALL GUARDRAILS PASS con R2-1. **Cierre técnico aislado completo**:
+producto 168/168, 81 lanzamientos limpios; global 3535 passed / 41 skipped /
+2 xfailed / 42 subtests passed, exit 0, 516,80 s. Reanudación tras liberar
+memoria: 6,032 GiB antes de producto, 6,372829 antes de global; tandas
+secuenciales por monitor >=6 GiB, UTF-8 heredado y temporales nuevos.
+Los intentos de producto abortados por codificación o memoria no se dan
+por aprobados; se repitió la cadena pendiente sin cambiar `sim/`.
+No integrar ni introducir datos reales,
+evaporación predictiva, U, muebles o CO/FED. Sin commit/push.
+Siguiente: evidencia térmica independiente y sensible, con atribución
+compatible de masa/material; el caller no identifica por sí mismo B real.
+
+Avance previo del 04-10:
+[Contrato del caller atómico](../validation/G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md)
+cerrado como diseño tras revisar las dos APIs GDScript. GO a implementar
+controlador aislado con datos sintéticos: única raíz confirmada, generación,
+copias profundas, contexto completo, commit recalculado y restore conjunto.
+Cursor/masa/productos/B/Q comprobados con dueños canónicos; sin segunda
+integral/estequiometría. Reloj de fuente separado del físico para quemar
+vapor después del fin de curva. Caps válidos registran déficit sin cola;
+rechazos transaccionales no avanzan. 20 grupos/18 defectos predeclarados,
+no ejecutados; código del caller todavía no existe. Alcance cerrado sin
+contornos/pérdidas/retorno Q a B. Próximo cambio: módulo GDScript y fixture
+real, mutaciones/aislamiento y cadena R2-1 completa secuencial por monitor.
+No fuente real importada, integración, U, muebles o CO/FED. Sin Godot,
+commit/push ni modificación de `sim/` en el diseño.
+Regresión offline del alcance existente: 155 PASS, dos fixtures Godot
+excluidas; guardarraíles incluido R2-1, estilo/enlaces/diff PASS.
+No confundir esta regresión con prueba del caller que falta implementar.
+
+Avance previo del 04-10:
+[Atribución de emisión y B](../validation/G3_D1_ISOHEPT9_EMISSION_BASIS_2026-10-04.md)
+revisada en montaje/tablas originales de TN 1603. La pérdida de masa es
+base razonable de replay bajo hipótesis explícita; no mide composición
+gaseosa ni identifica calor neto absorbido/temperatura del líquido.
+Los 71 canales quedan clasificados y comprobados por auditor offline.
+Coste de fase de referencia condicionado: 7081,108094 kJ en 0-500 s,
+no B medido ni valor a imponer para validar evaporación. 127 pruebas
+offline PASS, 21 nuevas; sin Godot o cambios en `sim/`/informes.
+GO al diseño de caller atómico puro con masa/energía de contorno declaradas;
+NO-GO a predicción física, sensible identificado, integración, U, muebles
+y CO/FED. Siguiente: contrato conjunto demanda/aceptación/cursor/masa/energía
+y controles sintéticos de déficit, rechazo y reinicio. En paralelo de plan,
+revisar elegibilidad de TN 2162r1 para datos térmicos independientes; solo
+candidato localizado, no importado ni transferible al recinto por defecto.
+Sin commit/push; no atribuir al gate las suites completas previas.
+
+Avance previo del 04-10:
+[Ledger de fases](../validation/G3_D1_PHASE_LEDGER_2026-10-04.md) implementado
+en el núcleo GDScript aislado, sin integración. Coste de fase y potenciales
+líquido/vapor explícitos; A+B+Q cerrado en controles sintéticos. 502 checks,
+12/12 mutantes nuevos y 10/10 históricos; 1298 propuestas v1 byte idénticas.
+Focal conjunta 473 PASS / 10 skipped. **Cierre R2-1 completo sobre este
+núcleo**: referencia 346/346 y 78 gaps, 18 informes byte idénticos, resumen
+solo timestamp, ALL GUARDRAILS PASS; producto 168/168 y 81 solicitudes
+limpias; global 3484 passed / 41 skipped / 2 xfailed / 42 subtests, exit 0.
+Todo secuencial por monitor, con umbral 6 GiB antes de cada lanzamiento.
+NO-GO a integración, evaporación predictiva, lote ISOHept9, U, muebles y CO/FED.
+Sin commit/push; solo worktree de G3. No confundir ledger con validación
+experimental del incendio o corrección activa en escenarios.
+Siguiente gate: masa realmente emitida, energía sensible y origen térmico
+independiente de B antes de unir replay/ledger. No inventar presupuesto
+para forzar la curva medida ni interpretar el cap como predicción física.
+
+Avance previo del 04-10, después del replay:
+[Base energética con fases](../validation/G3_D1_HEPTANE_PHASE_BASIS_2026-10-04.md)
+identificada para n-heptano de referencia: fuente 2026 archivada, ciclos de
+Hess offline y contrato de potencial/energía térmica sin doble cuenta.
+140 pruebas offline PASS, 3 fixtures Godot excluidas; guardarraíles intactos.
+GO al prototipo GDScript puro con fases y oxidación canónica compartida;
+NO-GO a ensayo físico completo, integración y CO/FED. Falta energía sensible,
+atribución del lote y masa emitida. No cambios en `sim/` ni nuevas suites Godot.
+
+Avance previo del 04-10:
+[Replay numérico de masa](../validation/G3_D1_ISOHEPT9_REPLAY_2026-10-04.md)
+cerrado técnicamente; focalizada 110 PASS, fixture real 2459 checks, error ~1,1e-14
+kg. Formato constante por intervalo con identidad/cantidad separadas; modo
+lineal anterior byte idéntico. Mutantes 11 nuevos + 11 históricos detectados.
+**Cierre R2-1 completo**: referencia 346/346, 78 gaps, 18 informes byte
+idénticos; producto 168/168; global final 3426 passed, 39 skipped,
+2 xfailed, 42 subtests. Auditoría/focalizada final 415 PASS, 8 skipped tras
+adaptar la bandera de fallo de la fixture; once mutantes nuevos repetidos.
+No integración/activación, commit/push ni prueba de una ley de evaporación.
+Siguiente: fases/base
+energética antes del núcleo; U, muebles, química parcial y CO/FED NO-GO.
+
+Avance previo del 03-10:
+[serie medida ISOHept9](../validation/G3_D1_ISOHEPT9_BENCHMARK_GATE_2026-10-03.md)
+localizada/archivada con procedencia NIST, 187 muestras a 5 s, sin procesar.
+Auditor nuevo 27/27 PASS. GO parcial a preparar replay de masa 0-500 s
+del proveedor aislado, no benchmark físico completo: líquido no es sólido,
+medias de intervalo no son nodos de tasas lineales y fase/energía siguen
+pendientes. La cola tiene aumentos/masas negativas y no se recorta. No se
+toca `sim/` ni se lanza Godot; no nueva referencia/global, commit/push o
+perfil activable. No cambia el NO-GO de CO/FED, U, muebles e integración.
+
+Avance previo posterior del 03-10:
+[proveedor GDScript prescrito](../validation/G3_D1_PRESCRIBED_RELEASE_2026-10-03.md)
+cerrado técnicamente y sin integración: demanda kg por intervalo, confirmación
+separada, rechazo sin cola, cursor/fingerprint y reinicio conjunto con masa.
+Fixture conjunta 247 checks / 83 grupos, 72 pruebas PASS, 11/11 mutantes
+válidos detectados. Referencia nueva 346/346 y 78 gaps, 18 informes de caso
+idénticos byte a byte; producto 168/168; global 3382 passed, 37 skipped,
+2 xfailed y 42 subtests. Todo secuencial por monitor, sin commit/push.
+Siguiente gate: benchmark experimental de masa independiente y alcance
+estrecho, no integrar ni asignar perfiles reales antes de revisar fuentes,
+composición y base energética. Coherencia del dueño atómico, especie/zona,
+coste térmico, rendimiento con curvas reales y química siguen pendientes.
+
+Último avance del 03-10:
+[contrato del proveedor de masa/material](../validation/G3_D1_MASS_MATERIAL_PROVIDER_CONTRACT_2026-10-03.md)
+verificable offline, 46 pruebas nuevas y diez mutantes válidos contrastados;
+62 PASS con auditor y tests estáticos del núcleo. Masa inicial independiente,
+composición CHO/base química y emisión prescrita se atribuyen al mismo
+componente, con procedencia por magnitud. No datos reales importados ni
+perfil de producto aprobado: hash y esquema no son validación científica.
+No cambia `sim/` ni se repiten referencia/global; no se lanza Godot.
+Siguiente: proveedor aislado por intervalo y fixture GDScript conjunta,
+antes de integración y de cualquier ley de muebles o CO/FED. La identidad
+de U y la migración automática siguen NO-GO.
 
 Avance del 27-09: G3-0 tiene cinco controles dinámicos terminados y un
 defecto de atribución de CO reproducido (objeto sin arder → 2,92 veces más
@@ -100,6 +229,29 @@ global pasa una vez (3062 passed, 35 skipped, 2 xfailed). El
 mide el origen del cociente (subida τ≈10,8 s frente a bajada τ=20 s) y
 propone inventario `R` por objeto con liberación en la cola y paso al pool
 al extinguirse, con pruebas F1–F7; **pendiente de aprobación, sin implementar**.
+
+Avance del 03-10 ([D1 y su identificabilidad](../validation/G3_D1_IDENTIDAD_INQUEMADO_2026-10-03.md)):
+G3-4A tiene cuenta energética U implementada y verificada, sin asignar masa
+ni fase. Se retira la inferencia «todo U es gas». El diagnóstico estático
+confirma que no hay inventario de kg por objeto ni curva MLR declarada en
+los 107 objetos distribuidos; las fórmulas MLR existentes no debitan masa.
+El siguiente trabajo técnico es un núcleo puro en GDScript con masa
+liberada y oxidada independientes y balances, sin integración ni ley
+material. Mantener separados HOC efectivo de ensayo y energía química.
+G3-2, la física de U y CO/FED permanecen limitados/NO-GO; no se ha validado
+una emisión por material ni migrado los escenarios distribuidos. Este
+avance sustituye como trabajo pendiente la propuesta histórica de pasar
+R al pool, no altera los informes anteriores.
+
+Continuación del 03-10: escrito el
+[núcleo puro GDScript](../validation/G3_D1_FUEL_MASS_BUDGET_2026-10-03.md),
+sin integración, con fixture real 271 checks / 39 grupos y 10/10 mutantes
+válidos detectados. Tras liberar memoria se cerró secuencialmente R2-1
+(346/346, 78 gaps, 18 informes idénticos), producto (168/168) y global
+(3323 passed, 37 skipped, 2 xfailed, 42 subtests). GO técnico al núcleo,
+no a la física de U ni a la calibración de muebles/CO/FED. Siguiente:
+contrato del proveedor de masa/material con procedencia y bases explícitas;
+no migración ni integración automática.
 
 ## Objetivo y definición de cierre
 

@@ -1,14 +1,298 @@
 # Current Handoff State
 
+## Publication authorization - 2026-10-04 - G3 y main
+
+El usuario autoriza commit/push e integración en `main` cuando estén
+justificados. Se prepara un checkpoint del alcance D1 aislado ya validado:
+3535 pruebas globales PASS, producto 168/168, referencia 346/346 y 78 gaps.
+No activa el caller ni CO/FED. Los nueve commits de `origin/main` ausentes
+en esta rama añaden análisis/preguntas, cielo y gráficas, no cambian `sim/`.
+Integración pendiente de verificar la combinación; no atribuir todavía
+a este candidato las pruebas de la rama anterior.
+Los 80 ficheros locales ajenos del checkout principal (incluido
+`project.godot`, `demo/` y sidecars UID) están inventariados por SHA-256
+y quedan fuera de los commits. Las fuentes nuevas son NIST y conservan
+procedencia/aviso; no se añaden originales FSRI sujetos al límite de
+redistribución documentado. No se incluye `runs/`.
+
+## Current Program Update - 2026-10-04 - D1 caller aislado cerrado técnicamente
+
+[Caller atómico](validation/G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md), §10:
+GDScript real implementado sin conectarlo al motor. Raíz única, previews
+puros, commit recalculado, restauración integral/generación nueva y dos
+relojes; composición canónica sin segunda química ni integral.
+361 comprobaciones / 20 grupos PASS; 18/18 mutantes válidos detectados,
+originales intactos. Dos timeouts anteriores del arnés no se contabilizan;
+salidas reparadas y campaña completa repetida limpiamente.
+Focal conjunta 524 PASS / 10 skipped; 26 tests nuevos. Dos contratos
+históricos ajustados a la composición aislada, con frontera de producto
+comprobada explícitamente. Núcleo/proveedor congelados por SHA-256.
+Referencia actual 18/18, 346/346 y 78 gaps; informes byte idénticos y resumen
+solo fecha; ALL GUARDRAILS PASS, R2-1 incluido. Evidencia en
+`runs/reference_suite_monitored_20261004_134027/`, 3040,2 s de casos.
+**Cierre de cadena completo tras liberar memoria**:
+producto **168/168 PASS**, 81 solicitudes/81 lanzamientos limpios en
+`product_resume.health.jsonl`, sin rechazos de memoria ni incidencias.
+Global autoritativa **3535 passed / 41 skipped / 2 xfailed /
+42 subtests passed**, exit 0, 516,80 s; memoria previa 6,372829 GiB.
+Basetemp `pytest_global_resume` y APPDATA/TEMP/TMP externos nuevos,
+salvo el override interno del launcher de fixtures bajo `runs/`.
+UTF-8 heredado, monitor >=6 GiB, tandas secuenciales; nunca pytest raíz.
+Logs bajo `C:/Users/dangp/AppData/Local/Temp/simufire_atomic_caller_20261004__45gspjd/`.
+Incidencias históricas: primer producto abortado por codificación; segundo
+con 27 lanzamientos limpios y 54 rechazados por memoria, sin global en ese
+intento. Se llegó a medir 3,95 GiB. No son corridas aprobadas; se repitieron
+tras liberar memoria (6,032 GiB antes de reanudar) y quedan superadas.
+No cambió `sim/`; referencia R2-1 actual conservada, no regenerada por el
+entorno. Cierre offline previo 27 PASS / 1 deselected, estilo/enlaces/diff
+PASS y hashes intactos. HEAD `cbab7b05`, sin commit/push.
+Comprobación final tras global: guardarraíles incluido R2-1, estilo,
+enlaces y diff PASS; cuatro hashes GDScript e identidad de los 18 informes
+reconfirmados. Cero procesos Godot y cero cuadros de error.
+Memoria previa a referencia 6,67 GiB; pruebas secuenciales por monitor.
+Trabajo previo conservado, solo worktree de G3, sin commit/push.
+NO-GO a motor, entrada NIST real, U, muebles, evaporación predictiva y CO/FED.
+Siguiente gate científico: datos térmicos independientes y energía sensible
+compatibles con masa/material antes de cualquier integración o replay físico.
+
+## Current Program Update - 2026-10-04 - D1 contrato del caller listo
+
+[Contrato de unión atómica](validation/G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md)
+revisado contra las APIs GDScript actuales; **diseño, no implementación**.
+GO a implementar `PrescribedPhaseBudgetController.gd` aislado, primero con
+datos sintéticos. No integrar motor, muebles, U/HRR, fuente NIST ni CO/FED.
+Una raíz confirmada posee tiempo físico, cursor, fase, productos y generación.
+Preview sin escritura; commit recalcula desde el estado vigente y no admite
+candidato externo. Snapshot/cursor/fase vinculados por contexto completo,
+cuentas y recomposición mediante el núcleo canónico; no segunda química.
+Finitud, tipos/identidades y validación completa antes de sustituir la raíz.
+Dos relojes: fuente acaba pero vapor previo puede oxidarse en pasos físicos
+posteriores. Rechazo transaccional conserva todo; cap válido avanza fuente,
+registra déficit y no reemite. Restore completo incrementa generación vigente.
+20 grupos y 18 defectos predeclarados, todavía no ejecutados en el caller.
+Alcance inicial cerrado sin entradas/pérdidas/retorno Q a B; contornos futuros
+requieren otro contrato. Atomicidad de un hilo/en memoria, no persistencia
+ni garantía de autenticidad de snapshots. Sin cambios en `sim/` ni Godot,
+commit o push; la cadena completa anterior no se presenta como repetida.
+Verificación del diseño: 155 pruebas previas offline PASS, dos fixtures
+Godot excluidas; no validación dinámica de los 20 grupos futuros.
+Guardarraíles incluido R2-1, estilo, enlaces y diff check PASS.
+Núcleo/proveedor/resumen con hashes intactos. No tests nuevos en este gate.
+
+## Current Program Update - 2026-10-04 - D1 atribución de masa/B revisada
+
+[Gate de emisión y energía](validation/G3_D1_ISOHEPT9_EMISSION_BASIS_2026-10-04.md)
+cerrado como diagnóstico de fuentes. TN 1603 revisada visualmente: Mass1
+es pérdida de combustible del quemador central, usada por autores para
+potencia ideal; no mide composición gaseosa. Los 71 canales publicados
+no identifican temperatura del líquido ni calor neto absorbido por la
+bandeja. Flujo en suelo/techo, temperatura de pared/sensor y HRR del escape
+no son B. Incertidumbres de instrumento/ideal/calorimetría no se intercambian.
+Coste condicionado a transferencia como vapor de referencia: 19,359537 kg
+por 365,768463 kJ/kg = 7081,108094 kJ. Calculado, no calor medido ni B inicial.
+GO al diseño de caller atómico puro con masa prescrita/contorno declarado;
+NO-GO a evaporación predictiva, sensible identificado, integración y CO/FED.
+No exigir certificado de lote para un control condicionado, ni certificar
+el ensayo real con ese control. Auditor/reporte offline reproducible,
+127 pruebas PASS, 21 nuevas; sin Godot ni cambio en `sim/` o informes.
+No nueva referencia/producto/global atribuida a esta revisión.
+Fuente candidata para siguiente evidencia térmica: NIST TN 2162r1/piscinas
+de 30 cm, localizada por página primaria; aún no importada/revisada completa.
+No transferir aire libre/estacionario a recinto subventilado o muebles.
+También reconciliados encabezados antiguos que aún llamaban futuro al
+ledger ya implementado. Sin commit/push; checkout principal fuera de alcance.
+Salida: guardarraíles ALL PASS, incluido R2-1; estilo, enlaces de siete
+documentos y diff check PASS. Núcleo/proveedor/resumen con hashes intactos.
+
+## Current Program Update - 2026-10-04 - D1 ledger de fases cerrado técnicamente
+
+[Ledger de fases](validation/G3_D1_PHASE_LEDGER_2026-10-04.md) implementado
+en `sim/fire/FuelMassBudgetModel.gd`, sin integración ni activación.
+API explícita líquido/vapor, coste de fase pagado solo por B previo,
+oxidación canónica compartida y conservación A+B+Q. Solo material sintético;
+no ley de evaporación, energía sensible ni propiedades del lote ISOHept9.
+Fixture real 502 checks; 12/12 mutantes nuevos y 10/10 históricos detectados.
+Primer intento P10 vivo: añadido control sin actividad y campaña repetida.
+1298 propuestas API v1 byte idénticas, proveedor anterior intacto por hash.
+Focal conjunta 473 passed / 10 skipped, exit 0; sin Godot residual al acabar.
+**Cadena R2-1 completada sobre este código**, no resultados heredados.
+Referencia `runs/reference_suite_monitored_20261004_094854/`: 18/18 limpias,
+346/346 y 78 gaps; 18 informes byte idénticos y resumen solo `generated_at`
+(2026-10-04T08:45:54Z). ALL GUARDRAILS PASS, incluido R2-1.
+Producto 168/168, 81/81 solicitudes con salud limpia; global **3484 passed,
+41 skipped, 2 xfailed, 42 subtests passed**, exit 0, 602,04 s.
+Tandas secuenciales por monitor; memoria mínima antes de cada lanzamiento
+6 GiB, no promesa de mínimo durante la corrida. Tras bajada transitoria a
+5,22 GiB se pidió liberar memoria; global empezó con 6,61 GiB.
+Pin final/auditor 330 passed / 10 skipped. Evidencia/temporales externos
+en `simufire_phase_ledger_20261004_01`; núcleo/proveedor congelados entre tandas.
+Siguiente gate: masa realmente emitida, energía sensible y origen de B
+antes de unir replay/ledger o validar un ensayo físico. No presupuesto
+inventado para forzar la curva; caller atómico, integración, U, muebles y
+CO/FED siguen NO-GO. Sin commit/push; principal fuera de alcance.
+Comprobación de salida: guardarraíles de nuevo ALL PASS, enlaces de cuatro
+documentos y diff check limpios; hashes congelados e identidad de los 18
+informes preservados tras pytest. Cero Godot, HEAD sigue `cbab7b05`.
+
+## Current Program Update - 2026-10-04 - D1 base energética con fases
+
+[Gate líquido-vapor](validation/G3_D1_HEPTANE_PHASE_BASIS_2026-10-04.md):
+fuente NIST TN 2126-upd1 (febrero 2026) archivada y revisada visualmente;
+44,55968 MJ/kg netos desde líquido, 44,92545 desde vapor, diferencia
+0,365768 MJ/kg a 298,15 K. Auditor offline de cinco ciclos, sin solver nuevo.
+Base de referencia identificada; no certifica lote, ley de evaporación o CO.
+GO al prototipo puro de ledger con fases explícitas y API v1 preservada;
+NO-GO a integración/activación. El líquido no se etiqueta como sólido.
+140 pruebas offline PASS (33 nuevas + 107 previas), 3 fixtures Godot
+excluidas explícitamente. Resultado guardado reproducible; guardarraíles
+ALL PASS y R2-1 intacto sobre referencia anterior. Fuente/manifiesto validos.
+No se ha cambiado `sim/` ni informes ni lanzado Godot. Sin commit/push.
+
+## Current Program Update - 2026-10-04 - D1 replay de masa cerrado técnicamente
+
+[Replay ISOHept9 0-500 s](validation/G3_D1_ISOHEPT9_REPLAY_2026-10-04.md)
+implementado en `PrescribedFuelReleaseModel.gd`: formato constante por
+intervalo, cantidad medida distinta de emisión y fingerprint separado.
+No se carga en producto ni usa el núcleo de combustión. 2459 checks reales,
+máximo error numérico ~1,1e-14 kg; 110 pruebas conjuntas PASS. Trace lineal
+anterior/actual byte idéntico; 11 mutantes nuevos y 11 históricos detectados.
+Referencia 346/346 y 78 gaps; 18 informes byte idénticos, resumen solo
+`generated_at`. Producto 168/168, 81 solicitudes limpias. Global final
+3426 passed, 39 skipped, 2 xfailed, 42 subtests; exit 0. Primera global
+falló por faltar la bandera `_failed` exigida por el auditor de fixtures:
+adaptada solo en `tests/`, sin relajar contratos. Auditoría + focalizada
+415 PASS / 8 skipped y once mutantes repetidos sobre la fixture final.
+Guardarraíles R2-1 en verde; cero Godot al terminar. Sin commit/push.
+
+Es replay numérico condicionado, no predicción de evaporación ni aprobación
+de emisión/composición. Siguiente tras cierre: base energética/fases del
+líquido y vapor; integración, U, muebles, química parcial y CO/FED NO-GO.
+
+## Current Program Update - 2026-10-03 - D1 serie experimental de masa localizada
+
+[Gate ISOHept9](validation/G3_D1_ISOHEPT9_BENCHMARK_GATE_2026-10-03.md):
+CSV original NIST/Firemodels archivado con revisión/hash y aviso íntegro.
+Masa de célula de carga independiente de HRR, kg confirmados en apéndice;
+187 muestras a 5 s. 0-500 s: 19,359537 kg de descenso, sin aumentos.
+Cola 500-840 s: 44 aumentos, 19 masas negativas; recortar tasas negativas
+añadiría 0,485504 kg. Auditor offline reproducible, 27/27 PASS tras repetir
+con temporal externo por permisos. Regresión offline 97 PASS, 2 fixtures
+Godot excluidas; guardarraíles, enlaces y diff PASS. Sin procesado propio,
+perfil ni aprobación: el CSV publicado ya está reducido por NIST.
+
+GO parcial a preparar replay de masa aislado 0-500 s, **no** a validar
+pirólisis de sólidos, calor, CO/FED o integrar. Medias de intervalo no son
+nodos de tasa lineal; falta representación fiel. Líquido no debe entrar
+como sólido: fase/energía de liberación y oxidación siguen sin resolver.
+La calibración predictiva y la cola requieren evidencia propia. No se
+toca `sim/`, no Godot, referencia/global nueva, commit ni push. La cadena
+anterior del proveedor permanece vigente, no se presenta como repetida.
+
+## Current Program Update - 2026-10-03 - D1 proveedor prescrito cerrado técnicamente
+
+`sim/fire/PrescribedFuelReleaseModel.gd`, aislado y sin carga desde producto:
+integra la curva declarada kg/s por intervalo; preview sin efectos, reloj
+solo al confirmar masa aceptada, rechazo registrado sin cola ni reemisión.
+Fingerprint de programa/versionado y reinicio reproducible restaurando
+cursor e inventario juntos. No calcula HRR, no interpreta U/R, no es ley
+predictiva de pirólisis ni perfil de mueble.
+
+[Diseño y evidencia](validation/G3_D1_PRESCRIBED_RELEASE_2026-10-03.md):
+247 checks / 83 grupos de GDScript real, 72 pruebas conjuntas PASS; 11/11
+mutantes válidos detectados en copias, originales intactos. Referencia
+18/18 limpia, 346/346 y 78 gaps, informes de caso idénticos byte a byte,
+resumen solo `generated_at`. Producto 168/168 y 81 lanzamientos limpios;
+global **3382 passed, 37 skipped, 2 xfailed, 42 subtests passed**, exit 0.
+Tandas secuenciales por monitor, >=6 GiB; hash del núcleo anterior intacto.
+Sin commit/push; checkout principal fuera de alcance.
+
+Límites explícitos: el cap con inventario reducido es control sintético,
+no prueba de coherencia histórica; fingerprint de tasas no aprueba material;
+coste por llamada lineal en muestras sin benchmark de 107 objetos; terminar
+la curva no equivale a extinguir gas remanente. Integración requiere dueño
+atómico único del cursor, masa y productos, además de especie/zona/energía.
+
+Siguiente: benchmark experimental de masa independiente y alcance estrecho,
+con fuentes/composición/energía atribuibles, antes de importar perfiles o
+integrar. U, ley de muebles, química parcial y CO/FED siguen NO-GO.
+
+## Current Program Update - 2026-10-03 - D1 contrato de masa/material verificable
+
+[Contrato offline](validation/G3_D1_MASS_MATERIAL_PROVIDER_CONTRACT_2026-10-03.md)
+y validador `scripts/simulation/validate_g3_mass_material_profile.py`:
+masa kg independiente, composición CHO y energía con base propia, identidad
+de componente y curva prescrita kg/s, dominio temporal y procedencia por
+magnitud. Rechaza MJ como masa, HOC efectivo como químico, pérdida global
+como emisión de componente, composición/identidad incompatible y fuentes
+con hash incorrecto. No transforma los 107 objetos ni invoca el núcleo.
+
+46 pruebas nuevas PASS, diez mutantes offline válidos contrastados; 62 PASS
+con auditor y pruebas estáticas previas, una dinámica excluida. Repetición
+con basetemp externo tras dos errores de permisos del sandbox. Guardarraíles
+ALL PASS, sin cambios en `sim/`, sin otra referencia/global ni Godot.
+Los perfiles externos completos quedan **pendientes de revisión científica**,
+no aprobados por el esquema; solo hay una fixture sintética, no muebles
+calibrados. Sin commit/push; checkout principal fuera de alcance.
+
+Siguiente: proveedor puro por intervalo y fixture con el núcleo, aún sin
+integración; predeclarar cómo se conserva progreso y masa cuando se rechaza
+demanda. Después benchmark experimental de masa independiente y alcance
+estrecho. U, importación de muebles, integración y CO/FED siguen NO-GO.
+
+## Current Program Update - 2026-10-03 - D1 núcleo GDScript cerrado técnicamente
+
+Implementado `sim/fire/FuelMassBudgetModel.gd`, **sin integración**. Emisión
+y oxidación independientes, masa/O₂/productos y balances C/H/O/energía;
+modo impuesto o limitado por presupuesto térmico explícito. Solo un
+componente CHO y oxidación completa, no calibración ni CO/HCN. U/R no lo
+alimentan.
+
+[Contrato y evidencia final](validation/G3_D1_FUEL_MASS_BUDGET_2026-10-03.md):
+fixture real 271 comprobaciones / 39 grupos, focalizada 11 PASS, mutaciones
+10/10 válidas muertas, original intacto. Tras liberar memoria: referencia
+18/18 limpia, 346/346 y 78 gaps, informes idénticos byte a byte, resumen
+solo `generated_at`. Guardarraíles ALL PASS; producto 168/168 con 81
+lanzamientos limpios; global 3323 passed, 37 skipped, 2 xfailed y 42
+subtests passed. Todo secuencial y por monitor.
+
+GO técnico al núcleo aislado, **no a una ley de muebles ni a la identidad
+de U**. Siguiente: contrato/procedencia del proveedor de masa y material;
+integración exige especie de gas, zona, coste térmico y fuente canónica
+únicos. No conversiones automáticas de U/R; CO/FED siguen NO-GO.
+Sin commit/push; checkout principal fuera de alcance y trabajo preservado.
+
+## Current Program Update - 2026-10-03 - D1 identificabilidad cerrada
+
+Diagnóstico estático en `codex/g3-fed-co-zonal-shareable` @ `cbab7b05`, sin
+cambiar `sim/`. Los 107 objetos declarados en producto tienen CO kg/MJ, pero
+ninguno masa inicial/MLR/composición/base de Hcomb; los 14 declarados en
+casos de validación tampoco tienen esas masas, y cuatro tienen Hgas/Hcomb.
+La fórmula MLR existente calcula HRR local o pesos de reparto: no descuenta
+kg de un inventario de objeto. Char es espesor, no masa. Sí hay transporte
+zonal de especies, pero no acredita el origen de masa desde el objeto.
+
+[Diagnóstico, fuentes y contrato del siguiente tramo](validation/G3_D1_IDENTIDAD_INQUEMADO_2026-10-03.md):
+GO técnico a un núcleo puro `FuelMassBudgetModel.gd`, con liberación y
+oxidación independientes e inventarios explícitos, primero con flujos
+sintéticos, sin integración. NO-GO a convertir U, importar HOC efectivo
+como energía química sin base, predecir pirólisis de muebles o activar
+CO/FED. No hace falta otra búsqueda general para iniciar el núcleo aislado;
+la calibración material sí queda pendiente. Auditor reproducible y seis
+pruebas nuevas PASS (16 al incluir el inventario G3 existente); informe
+reproducido, enlaces y diff limpios. No Godot, commit ni push en este tramo.
+
 ## Current Program Update - 2026-10-03 - G3-4A en commit; D1 separado
 
 G3-4A está en el commit local `a4ee6ff`, sin push. Su cuenta energética en
 MJ, OFF por defecto, cierra la contabilidad pero **no es un inventario
 físico**; calor, O₂ y especies no cambian. El
 [gate D1 de identidad física](validation/G3_D1_IDENTIDAD_INQUEMADO_2026-10-03.md)
-queda abierto para que el usuario elija entre gas pirolizado y sólido que aún
-no ha pirolizado. La cuenta no autoriza conversión a kg, zona, transporte ni
-ignición. CO/FED siguen en NO-GO.
+se amplió con ensayos primarios: hay tanto pérdida de masa sensible a la
+ventilación como productos combustibles que salen sin oxidarse del todo. Se
+retira la recomendación provisional de tratar todo U como gas; tampoco puede
+tratarse todo como sólido retenido. D1 continúa en NO-GO hasta separar masa
+del objeto, liberación de volátiles, oxidación y transporte. La cuenta no
+autoriza conversión a kg, zona ni ignición. CO/FED siguen en NO-GO.
 
 ## Current Program Update - 2026-10-03 - G3-4A: cuenta energética del pirolizado sin inventario
 
@@ -36,7 +320,8 @@ débito son idénticos.
   objetos de dos casos de validación, y la única conversión global
   (10 000 kJ/kg, la del backdraft) no tiene fuente. Un inventario en kg por
   zona exige decidir antes, en este orden:
-  - **D1**: qué es `U`, gas pirolizado o sólido que no llega a pirolizar;
+  - **D1**: identidad de `U`; gas liberado y sólido retenido son extremos,
+    no una elección exhaustiva; falta un contrato de masa y fases;
   - **D2**: la conversión MJ→kg;
   - **D3**: la zona de destino;
   - **D4**: la ignición del inquemado;

@@ -322,5 +322,17 @@
         "downloaded_at":  "2026-09-17",
         "bytes":  1730244,
         "sha256":  "a2f638938e83ec8008946bdbc5b2e29e3700d4cf4162a2c01fcc2532810afb85"
+    },
+    {
+        "source": "https://doi.org/10.6028/NIST.TN.2126-upd1",
+        "destination": "docs/literature/NIST/NIST_TN_2126_upd1_Thermochemical_Properties.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2126-upd1.pdf",
+        "title": "Heats of Combustion and Related Properties of Pure Substances (NIST TN 2126-upd1)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-04",
+        "bytes": 10571808,
+        "sha256": "c964ba6afab1f029ed666fb9768fab2e7683b57c3169814d37693c386b6db21a",
+        "version_verified": "PDF cover: published December 2023, updated February 2026; 461 pages. Not the 467-page 2023 copy indexed by web search."
     }
 ]

@@ -1,0 +1,600 @@
+{
+  "schema": "g3_measured_mass_audit_v1",
+  "case_id": "ISOHept9",
+  "source_path": "docs/literature/data/NIST_FSE_2008/ISOHept9.csv",
+  "source_revision": "e5de6811036d252b4f9085866f08da66efdda7d3",
+  "source_sha256_lf": "66ad9437f81e93750e1d53b7f08b9e5c1068218ec809ed29d308fd9360dccce3",
+  "row_count": 187,
+  "sample_steps_s": [
+    5.0
+  ],
+  "mass_at_ignition_kg": 19.665829,
+  "nominal_table_mass_kg": 20,
+  "nominal_minus_ignition_kg": 0.334171,
+  "whole_record": {
+    "window_s": [
+      -90.0,
+      840.0
+    ],
+    "sample_count": 187,
+    "start_mass_kg": 19.660657,
+    "end_mass_kg": 0.095984,
+    "net_measured_decrease_kg": 19.564673,
+    "sum_positive_decreases_kg": 20.065085,
+    "sum_mass_increases_kg": 0.500412,
+    "increase_interval_count": 53,
+    "negative_sample_count": 19,
+    "largest_increase_kg": 0.044498,
+    "negative_rate_intervals": [
+      {
+        "start_s": -90.0,
+        "end_s": -85.0,
+        "measured_increase_kg": 0.002689
+      },
+      {
+        "start_s": -85.0,
+        "end_s": -80.0,
+        "measured_increase_kg": 0.002713
+      },
+      {
+        "start_s": -80.0,
+        "end_s": -75.0,
+        "measured_increase_kg": 0.00443
+      },
+      {
+        "start_s": -70.0,
+        "end_s": -65.0,
+        "measured_increase_kg": 5.2e-05
+      },
+      {
+        "start_s": -60.0,
+        "end_s": -55.0,
+        "measured_increase_kg": 0.002306
+      },
+      {
+        "start_s": -35.0,
+        "end_s": -30.0,
+        "measured_increase_kg": 0.000283
+      },
+      {
+        "start_s": -25.0,
+        "end_s": -20.0,
+        "measured_increase_kg": 0.001129
+      },
+      {
+        "start_s": -15.0,
+        "end_s": -10.0,
+        "measured_increase_kg": 0.001298
+      },
+      {
+        "start_s": -10.0,
+        "end_s": -5.0,
+        "measured_increase_kg": 8e-06
+      },
+      {
+        "start_s": 545.0,
+        "end_s": 550.0,
+        "measured_increase_kg": 0.002685
+      },
+      {
+        "start_s": 550.0,
+        "end_s": 555.0,
+        "measured_increase_kg": 0.038919
+      },
+      {
+        "start_s": 555.0,
+        "end_s": 560.0,
+        "measured_increase_kg": 0.032558
+      },
+      {
+        "start_s": 560.0,
+        "end_s": 565.0,
+        "measured_increase_kg": 0.022255
+      },
+      {
+        "start_s": 565.0,
+        "end_s": 570.0,
+        "measured_increase_kg": 0.0307
+      },
+      {
+        "start_s": 570.0,
+        "end_s": 575.0,
+        "measured_increase_kg": 0.037975
+      },
+      {
+        "start_s": 575.0,
+        "end_s": 580.0,
+        "measured_increase_kg": 0.044498
+      },
+      {
+        "start_s": 580.0,
+        "end_s": 585.0,
+        "measured_increase_kg": 0.039983
+      },
+      {
+        "start_s": 585.0,
+        "end_s": 590.0,
+        "measured_increase_kg": 0.034066
+      },
+      {
+        "start_s": 590.0,
+        "end_s": 595.0,
+        "measured_increase_kg": 0.029587
+      },
+      {
+        "start_s": 595.0,
+        "end_s": 600.0,
+        "measured_increase_kg": 0.023682
+      },
+      {
+        "start_s": 600.0,
+        "end_s": 605.0,
+        "measured_increase_kg": 0.020655
+      },
+      {
+        "start_s": 605.0,
+        "end_s": 610.0,
+        "measured_increase_kg": 0.021553
+      },
+      {
+        "start_s": 610.0,
+        "end_s": 615.0,
+        "measured_increase_kg": 0.016539
+      },
+      {
+        "start_s": 615.0,
+        "end_s": 620.0,
+        "measured_increase_kg": 0.014906
+      },
+      {
+        "start_s": 620.0,
+        "end_s": 625.0,
+        "measured_increase_kg": 0.013008
+      },
+      {
+        "start_s": 625.0,
+        "end_s": 630.0,
+        "measured_increase_kg": 0.010554
+      },
+      {
+        "start_s": 630.0,
+        "end_s": 635.0,
+        "measured_increase_kg": 0.00491
+      },
+      {
+        "start_s": 635.0,
+        "end_s": 640.0,
+        "measured_increase_kg": 0.004386
+      },
+      {
+        "start_s": 640.0,
+        "end_s": 645.0,
+        "measured_increase_kg": 0.004462
+      },
+      {
+        "start_s": 645.0,
+        "end_s": 650.0,
+        "measured_increase_kg": 0.000641
+      },
+      {
+        "start_s": 650.0,
+        "end_s": 655.0,
+        "measured_increase_kg": 0.000129
+      },
+      {
+        "start_s": 655.0,
+        "end_s": 660.0,
+        "measured_increase_kg": 0.001386
+      },
+      {
+        "start_s": 660.0,
+        "end_s": 665.0,
+        "measured_increase_kg": 0.000214
+      },
+      {
+        "start_s": 680.0,
+        "end_s": 685.0,
+        "measured_increase_kg": 0.001024
+      },
+      {
+        "start_s": 695.0,
+        "end_s": 700.0,
+        "measured_increase_kg": 0.000178
+      },
+      {
+        "start_s": 700.0,
+        "end_s": 705.0,
+        "measured_increase_kg": 0.000753
+      },
+      {
+        "start_s": 705.0,
+        "end_s": 710.0,
+        "measured_increase_kg": 0.000633
+      },
+      {
+        "start_s": 710.0,
+        "end_s": 715.0,
+        "measured_increase_kg": 0.000322
+      },
+      {
+        "start_s": 720.0,
+        "end_s": 725.0,
+        "measured_increase_kg": 0.004224
+      },
+      {
+        "start_s": 735.0,
+        "end_s": 740.0,
+        "measured_increase_kg": 0.000931
+      },
+      {
+        "start_s": 740.0,
+        "end_s": 745.0,
+        "measured_increase_kg": 0.001254
+      },
+      {
+        "start_s": 750.0,
+        "end_s": 755.0,
+        "measured_increase_kg": 0.001439
+      },
+      {
+        "start_s": 755.0,
+        "end_s": 760.0,
+        "measured_increase_kg": 0.006619
+      },
+      {
+        "start_s": 760.0,
+        "end_s": 765.0,
+        "measured_increase_kg": 0.001176
+      },
+      {
+        "start_s": 770.0,
+        "end_s": 775.0,
+        "measured_increase_kg": 0.000335
+      },
+      {
+        "start_s": 785.0,
+        "end_s": 790.0,
+        "measured_increase_kg": 0.000584
+      },
+      {
+        "start_s": 790.0,
+        "end_s": 795.0,
+        "measured_increase_kg": 0.002786
+      },
+      {
+        "start_s": 795.0,
+        "end_s": 800.0,
+        "measured_increase_kg": 0.004422
+      },
+      {
+        "start_s": 800.0,
+        "end_s": 805.0,
+        "measured_increase_kg": 0.002027
+      },
+      {
+        "start_s": 805.0,
+        "end_s": 810.0,
+        "measured_increase_kg": 0.001133
+      },
+      {
+        "start_s": 815.0,
+        "end_s": 820.0,
+        "measured_increase_kg": 0.001705
+      },
+      {
+        "start_s": 820.0,
+        "end_s": 825.0,
+        "measured_increase_kg": 0.002487
+      },
+      {
+        "start_s": 825.0,
+        "end_s": 830.0,
+        "measured_increase_kg": 0.001221
+      }
+    ],
+    "signed_secant_rate_range_kg_s": [
+      -0.0088996,
+      0.0485796
+    ],
+    "nonnegative_rate_compatible_without_processing": false
+  },
+  "windows": [
+    {
+      "window_s": [
+        0.0,
+        500.0
+      ],
+      "sample_count": 101,
+      "start_mass_kg": 19.665829,
+      "end_mass_kg": 0.306292,
+      "net_measured_decrease_kg": 19.359537,
+      "sum_positive_decreases_kg": 19.359537,
+      "sum_mass_increases_kg": 0.0,
+      "increase_interval_count": 0,
+      "negative_sample_count": 0,
+      "largest_increase_kg": 0.0,
+      "negative_rate_intervals": [],
+      "signed_secant_rate_range_kg_s": [
+        0.0061972,
+        0.0485796
+      ],
+      "nonnegative_rate_compatible_without_processing": true
+    },
+    {
+      "window_s": [
+        150.0,
+        500.0
+      ],
+      "sample_count": 71,
+      "start_mass_kg": 14.642325,
+      "end_mass_kg": 0.306292,
+      "net_measured_decrease_kg": 14.336033,
+      "sum_positive_decreases_kg": 14.336033,
+      "sum_mass_increases_kg": 0.0,
+      "increase_interval_count": 0,
+      "negative_sample_count": 0,
+      "largest_increase_kg": 0.0,
+      "negative_rate_intervals": [],
+      "signed_secant_rate_range_kg_s": [
+        0.0275,
+        0.0482418
+      ],
+      "nonnegative_rate_compatible_without_processing": true
+    },
+    {
+      "window_s": [
+        500.0,
+        840.0
+      ],
+      "sample_count": 69,
+      "start_mass_kg": 0.306292,
+      "end_mass_kg": 0.095984,
+      "net_measured_decrease_kg": 0.210308,
+      "sum_positive_decreases_kg": 0.695812,
+      "sum_mass_increases_kg": 0.485504,
+      "increase_interval_count": 44,
+      "negative_sample_count": 19,
+      "largest_increase_kg": 0.044498,
+      "negative_rate_intervals": [
+        {
+          "start_s": 545.0,
+          "end_s": 550.0,
+          "measured_increase_kg": 0.002685
+        },
+        {
+          "start_s": 550.0,
+          "end_s": 555.0,
+          "measured_increase_kg": 0.038919
+        },
+        {
+          "start_s": 555.0,
+          "end_s": 560.0,
+          "measured_increase_kg": 0.032558
+        },
+        {
+          "start_s": 560.0,
+          "end_s": 565.0,
+          "measured_increase_kg": 0.022255
+        },
+        {
+          "start_s": 565.0,
+          "end_s": 570.0,
+          "measured_increase_kg": 0.0307
+        },
+        {
+          "start_s": 570.0,
+          "end_s": 575.0,
+          "measured_increase_kg": 0.037975
+        },
+        {
+          "start_s": 575.0,
+          "end_s": 580.0,
+          "measured_increase_kg": 0.044498
+        },
+        {
+          "start_s": 580.0,
+          "end_s": 585.0,
+          "measured_increase_kg": 0.039983
+        },
+        {
+          "start_s": 585.0,
+          "end_s": 590.0,
+          "measured_increase_kg": 0.034066
+        },
+        {
+          "start_s": 590.0,
+          "end_s": 595.0,
+          "measured_increase_kg": 0.029587
+        },
+        {
+          "start_s": 595.0,
+          "end_s": 600.0,
+          "measured_increase_kg": 0.023682
+        },
+        {
+          "start_s": 600.0,
+          "end_s": 605.0,
+          "measured_increase_kg": 0.020655
+        },
+        {
+          "start_s": 605.0,
+          "end_s": 610.0,
+          "measured_increase_kg": 0.021553
+        },
+        {
+          "start_s": 610.0,
+          "end_s": 615.0,
+          "measured_increase_kg": 0.016539
+        },
+        {
+          "start_s": 615.0,
+          "end_s": 620.0,
+          "measured_increase_kg": 0.014906
+        },
+        {
+          "start_s": 620.0,
+          "end_s": 625.0,
+          "measured_increase_kg": 0.013008
+        },
+        {
+          "start_s": 625.0,
+          "end_s": 630.0,
+          "measured_increase_kg": 0.010554
+        },
+        {
+          "start_s": 630.0,
+          "end_s": 635.0,
+          "measured_increase_kg": 0.00491
+        },
+        {
+          "start_s": 635.0,
+          "end_s": 640.0,
+          "measured_increase_kg": 0.004386
+        },
+        {
+          "start_s": 640.0,
+          "end_s": 645.0,
+          "measured_increase_kg": 0.004462
+        },
+        {
+          "start_s": 645.0,
+          "end_s": 650.0,
+          "measured_increase_kg": 0.000641
+        },
+        {
+          "start_s": 650.0,
+          "end_s": 655.0,
+          "measured_increase_kg": 0.000129
+        },
+        {
+          "start_s": 655.0,
+          "end_s": 660.0,
+          "measured_increase_kg": 0.001386
+        },
+        {
+          "start_s": 660.0,
+          "end_s": 665.0,
+          "measured_increase_kg": 0.000214
+        },
+        {
+          "start_s": 680.0,
+          "end_s": 685.0,
+          "measured_increase_kg": 0.001024
+        },
+        {
+          "start_s": 695.0,
+          "end_s": 700.0,
+          "measured_increase_kg": 0.000178
+        },
+        {
+          "start_s": 700.0,
+          "end_s": 705.0,
+          "measured_increase_kg": 0.000753
+        },
+        {
+          "start_s": 705.0,
+          "end_s": 710.0,
+          "measured_increase_kg": 0.000633
+        },
+        {
+          "start_s": 710.0,
+          "end_s": 715.0,
+          "measured_increase_kg": 0.000322
+        },
+        {
+          "start_s": 720.0,
+          "end_s": 725.0,
+          "measured_increase_kg": 0.004224
+        },
+        {
+          "start_s": 735.0,
+          "end_s": 740.0,
+          "measured_increase_kg": 0.000931
+        },
+        {
+          "start_s": 740.0,
+          "end_s": 745.0,
+          "measured_increase_kg": 0.001254
+        },
+        {
+          "start_s": 750.0,
+          "end_s": 755.0,
+          "measured_increase_kg": 0.001439
+        },
+        {
+          "start_s": 755.0,
+          "end_s": 760.0,
+          "measured_increase_kg": 0.006619
+        },
+        {
+          "start_s": 760.0,
+          "end_s": 765.0,
+          "measured_increase_kg": 0.001176
+        },
+        {
+          "start_s": 770.0,
+          "end_s": 775.0,
+          "measured_increase_kg": 0.000335
+        },
+        {
+          "start_s": 785.0,
+          "end_s": 790.0,
+          "measured_increase_kg": 0.000584
+        },
+        {
+          "start_s": 790.0,
+          "end_s": 795.0,
+          "measured_increase_kg": 0.002786
+        },
+        {
+          "start_s": 795.0,
+          "end_s": 800.0,
+          "measured_increase_kg": 0.004422
+        },
+        {
+          "start_s": 800.0,
+          "end_s": 805.0,
+          "measured_increase_kg": 0.002027
+        },
+        {
+          "start_s": 805.0,
+          "end_s": 810.0,
+          "measured_increase_kg": 0.001133
+        },
+        {
+          "start_s": 815.0,
+          "end_s": 820.0,
+          "measured_increase_kg": 0.001705
+        },
+        {
+          "start_s": 820.0,
+          "end_s": 825.0,
+          "measured_increase_kg": 0.002487
+        },
+        {
+          "start_s": 825.0,
+          "end_s": 830.0,
+          "measured_increase_kg": 0.001221
+        }
+      ],
+      "signed_secant_rate_range_kg_s": [
+        -0.0088996,
+        0.025171
+      ],
+      "nonnegative_rate_compatible_without_processing": false
+    }
+  ],
+  "decision": "measured_mass_candidate_not_engine_profile",
+  "rate_processing": "none",
+  "profile_generated": false,
+  "scientific_approval": false,
+  "engine_integration": false,
+  "production_activation": false,
+  "limits": [
+    "Signed measured changes are not emitted component masses.",
+    "Secants are interval averages, not piecewise-linear rate nodes.",
+    "No clipping, smoothing, interpolation or HRR inversion applied.",
+    "Liquid experiment does not validate solid pyrolysis or CO/FED.",
+    "Uncertainty, component attribution and phase/energy basis remain open."
+  ]
+}
