@@ -34,7 +34,10 @@ class MeasurementTests(unittest.TestCase):
 
     def test_e04_real_twenty_percent_is_not_reported_as_no_increase(self):
         answer = self.answer(self.context('garage_below'), '¿Hubo un incremento del HRR en Garaje?', 'hrr')
+        self.assertTrue(answer['answer'].startswith('Sí hubo un incremento real del HRR del 20.0 % (+20 kW)'))
         self.assertIn('el HRR aumentó de 100 a 120 kW', answer['answer'])
+        self.assertEqual(answer['response_status'], 'measured_change')
+        self.assertNotIn('no demuestra su ausencia', answer['answer'])
         self.assertIn('+20.0 %', answer['answer'])
         self.assertIn('estrictamente superior al 20 %', answer['answer'])
         self.assertIn('tasa media entre las dos muestras es 1 kW/s', answer['answer'])
@@ -75,8 +78,11 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual((comparison['action_time_s'], comparison['related_fact_id']), (180, 'FACT_010'))
         self.assertFalse(comparison['causal'])
         self.assertIn('incluye una muestra anterior y otra posterior', answer['answer'])
-        self.assertIn('no basta para demostrar', answer['answer'])
-        self.assertIn('no un intervalo completamente posterior', answer['answer'])
+        self.assertEqual(answer['response_status'], 'ventilation_response_compatible')
+        self.assertIn('recuperación del oxígeno y del HRR', answer['answer'])
+        self.assertIn('+77.8 %', answer['answer'])
+        self.assertNotIn('Los datos disponibles no permiten evaluar', answer['answer'])
+        self.assertIn('no es un intervalo completamente posterior', answer['answer'])
         self.assertTrue(all(c['role'] == 'opening_comparison' for c in comparison['changes']))
 
     def test_e03_geometry_and_positive_theory_without_invented_causes(self):
@@ -88,6 +94,9 @@ class MeasurementTests(unittest.TestCase):
         self.assertIn('0.3 m³/s', answer['answer'])
         self.assertIn('penacho transporta productos de combustión y arrastra aire', answer['answer'])
         self.assertIn('PV = mRT', answer['answer'])
+        self.assertIn('alimentada por los gases del incendio y el aire arrastrado por el penacho térmico', answer['answer'])
+        self.assertIn('La limitación pendiente es cuantitativa', answer['answer'])
+        self.assertNotIn('no puede afirmarse una causa única', answer['answer'])
         self.assertIn('no demuestra retención del 100 %', answer['answer'])
         self.assertTrue(all(not m['causal'] for m in answer['fact_metadata']))
         self.assertFalse(answer['answer'].startswith('Con los datos disponibles no puede afirmarse'))
@@ -153,6 +162,14 @@ class MeasurementTests(unittest.TestCase):
         self.assertTrue(answer['measured_changes'][0]['sampling_gap'])
         self.assertIn('no describe la evolución intermedia',answer['answer'])
 
+    def test_real_subthreshold_change_does_not_confirm_its_cause(self):
+        answer=self.answer(self.context('garage_below'),'¿Por qué aumentó la temperatura en Garaje?', 'temperature','causality')
+        self.assertEqual(answer['response_status'],'causal_not_established')
+        self.assertEqual(answer['detector_assessment_status'],'not_detected')
+        self.assertIn('+49.9 °C',answer['answer'])
+        self.assertNotIn('no demuestra su ausencia',answer['answer'])
+        self.assertTrue(all(not change['causal'] for change in answer['measured_changes']))
+
     def test_evaluation_detects_altered_measurement_and_comparison_metadata(self):
         import evaluate_questions as evaluation
         for fixture, question, topic in (
@@ -164,6 +181,9 @@ class MeasurementTests(unittest.TestCase):
                 classifier=lambda p,s:json.dumps(classification('condition',[topic])))
             answer=render_question_answer(context,plan)
             self.assertEqual(evaluation.grounding_errors(context,plan,answer),[])
+            changed=copy.deepcopy(answer)
+            changed['response_status']='fuel_limited_confirmed'
+            self.assertIn('response_status_changed',evaluation.grounding_errors(context,plan,changed))
             if fixture=='garage_below':
                 for field, value in (('current',999),('delta',0),('causal',True),('compartment_id','other'),('start_time_s',0)):
                     changed=copy.deepcopy(answer)

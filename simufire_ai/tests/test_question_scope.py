@@ -90,7 +90,9 @@ class QuestionScopeTests(unittest.TestCase):
         self.assertEqual(answer["fact_ids"], [])
         self.assertEqual(answer["answer_status"], "insufficient_data")
         self.assertNotIn("detectó un patrón", answer["answer"])
-        self.assertIn("No se puede concluir", answer["answer"])
+        self.assertEqual(answer["response_status"], "ventilation_response_compatible")
+        self.assertIn("Queda por determinar", answer["answer"])
+        self.assertNotIn("Los datos disponibles no permiten evaluar", answer["answer"])
 
     def test_numeric_before_boundary_and_at_reference(self):
         _, before = self.query("¿Estaba limitado por ventilación antes de 170 s?")

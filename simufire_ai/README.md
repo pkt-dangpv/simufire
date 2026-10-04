@@ -321,3 +321,36 @@ Las pruebas offline de `tests/test_measurement_evidence.py` comprueban estos
 casos y el rechazo de mezclas y metadatos alterados. Las integraciones reales
 con Ollama se siguen ejecutando explícitamente y por separado. La revisión
 humana de la nueva redacción y del uso docente continúa pendiente.
+
+
+## Presentación docente tras la segunda revisión experta
+
+`response_status` es el resultado principal para la presentación docente de las
+respuestas 0.4 con mediciones: `measured_change`, `unchanged_endpoints` o
+`ventilation_response_compatible`, cuando corresponde. Ante una aclaración,
+concepto o fenómeno no evaluado conserva el estado de la consulta. No declara
+causalidad ni un nuevo régimen físico. `answer_status` y
+`detector_assessment_status` conservan el contrato técnico de detección/cobertura
+para compatibilidad; no deben usarse como etiqueta principal de una observación
+que sí contiene cambios medidos. Ninguna bandera física o umbral se modifica.
+
+En E04 la primera línea afirma el aumento real del 20 % (+20 kW) y la nota
+siguiente explica por qué no se activó la alerta estricta >20 %. Se elimina la
+advertencia de ausencia cuando los valores ya documentan un cambio. Para
+extremos iguales se aclara que la igualdad se refiere solo a esas muestras.
+
+En E02 se presenta la recuperación de O₂ y HRR y la inversión de su decaimiento
+previo alrededor de la apertura, como respuesta compatible con nueva ventilación.
+La clasificación de régimen posterior continúa pendiente. Dos porcentajes de
+O₂ no son un balance de caudales másicos ni demuestran que dejó de limitar la
+combustión. La comparación conserva ambos tiempos; no se presenta como un
+intervalo completamente posterior ni como una relación causal demostrada.
+
+El cierre de E03 explica cualitativamente el llenado por el penacho en el marco
+de dos zonas; lo pendiente es desglosar cuantitativamente los términos del balance.
+La aprobación del experto de E01 no convierte «posible» en probabilidad calibrada.
+
+El evaluador usa ahora el corpus 8: los 160 casos anteriores son regresiones y
+no hay reservado nuevo. Cuatro expectativas de redacción se versionaron
+explícitamente a petición del experto; los corpus anteriores siguen intactos.
+Las explicaciones nuevas se presentan para revisión humana antes del piloto.

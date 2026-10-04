@@ -16,7 +16,7 @@ else:
 BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR))
 
-from llm.measurement_text import evidence_for_question, measurement_text, criterion_text, geometry_text, comparison_text, concurrent_changes
+from llm.measurement_text import evidence_for_question, measurement_text, criterion_text, geometry_text, comparison_text, concurrent_changes, recovery_comparison, response_status, hrr_increase_summary
 
 CONTEXT_PATH = (
     BASE_DIR
@@ -608,9 +608,18 @@ def render_question_answer(context, plan):
                        and change["compartment_id"] == assessment.get("compartment_id")]
             # 'not_detected' remains the detector status. Endpoint measurements
             # answer the physical-change question independently of that status.
-            note = ("El detector no activó su regla en las ventanas evaluables del ámbito solicitado. "
-                    "La falta de activación no demuestra su ausencia como fenómeno físico en todo el periodo; "
-                    "los valores entre las muestras se describen por separado.") if numeric and assessment["status"] == "not_detected" else render_assessment(assessment)
+            if numeric and assessment["status"] == "not_detected" and any(change["delta"] != 0 for change in numeric):
+                # Actual values have answered the change question. No absence
+                # disclaimer: the criterion note already explains the alert.
+                note = None
+            elif numeric and assessment["status"] == "not_detected":
+                note = ("El detector no activó su regla. Esto no demuestra su ausencia en todo el periodo; "
+                        "las muestras mostradas tienen los mismos valores.")
+            elif (assessment["topic"] == "ventilation_limited" and intent in ("condition", "general")
+                  and recovery_comparison(comparison)):
+                note = "Queda por determinar cuánto dura esta recuperación y cuál es el régimen posterior."
+            else:
+                note = render_assessment(assessment)
             if note:
                 if len(available_rooms(context)) > 1 and assessment.get("compartment_id"):
                     note = "En " + assessment["compartment_id"] + ": " + note
@@ -628,6 +637,9 @@ def render_question_answer(context, plan):
             paragraphs.append("En los mismos pares de muestras se observan además estos cambios, sin atribuir causalidad entre ellos: "
                               + " ".join(measurement_text(change) for change in concurrent))
         answer_parts = paragraphs + answer_parts
+    summary = hrr_increase_summary(plan, measured_changes) if scoped else None
+    if summary:
+        answer_parts.insert(0, summary)
     if comparison:
         answer_parts.insert(0, comparison_text(comparison))
     knowledge_was_used = False
@@ -639,11 +651,17 @@ def render_question_answer(context, plan):
         knowledge_was_used = True
     if intent == 'concept':
         knowledge_was_used = bool(selected_knowledge)
-    if measured_changes and intent == "causality" and "smoke_layer" in plan["topics"]:
-        answer_parts.append("En esta ejecución, el cambio medido permite calcular la variación neta de volumen de la capa. "
-                            "La teoría explica los mecanismos; los datos no permiten repartir cuantitativamente la contribución "
-                            "del penacho, las salidas y la expansión térmica. Con los datos disponibles no puede afirmarse "
-                            "una causa única ni cuantificar el balance completo con estas muestras.")
+    if mechanism_explanation and any(change["topic"] == "smoke_layer" and change["delta"] < 0 for change in measured_changes):
+        answer_parts.append("Conclusión en la representación de dos zonas: el descenso corresponde al llenado de la capa superior, "
+                            "alimentada por los gases del incendio y el aire arrastrado por el penacho térmico, "
+                            "con una contribución adicional posible de la expansión por calentamiento. "
+                            "La limitación pendiente es cuantitativa: no puede afirmarse cuánto aporta cada término "
+                            "del balance con estas muestras. Esta explicación del modelo no atribuye por sí sola "
+                            "todo el descenso al aumento del HRR.")
+    elif measured_changes and intent == "causality" and "smoke_layer" in plan["topics"]:
+        answer_parts.append("El cambio de interfaz permite calcular una variación geométrica neta. "
+                            "Con los datos disponibles no puede afirmarse una relación causal específica "
+                            "ni desglosar los términos del balance.")
     answer = '\n\n'.join(answer_parts)
     source_ids = []
     if knowledge_was_used:
@@ -656,6 +674,7 @@ def render_question_answer(context, plan):
         result["measured_changes"] = measured_changes
         result["concurrent_measurements"] = concurrent
         result["detector_assessment_status"] = plan["answer_status"]
+        result["response_status"] = response_status(plan, measured_changes, comparison)
         result["opening_comparison"] = comparison
     result['source_context_sha256'] = context_fingerprint(context)
     result['fact_metadata'] = [{key: fact[key] for key in ('fact_id', 'certainty', 'causal') if key in fact} for fact in selected_facts]

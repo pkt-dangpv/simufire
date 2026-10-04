@@ -1,0 +1,150 @@
+{
+  "dev_002": {
+    "after": {
+      "answer_status": "insufficient_data",
+      "contains": [
+        "recuperación del oxígeno y del HRR",
+        "+77.8 %"
+      ],
+      "excludes": [
+        "Los datos disponibles no permiten evaluar"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "ventilation_response_compatible",
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "before": {
+      "answer_status": "insufficient_data",
+      "contains": [],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "topics": [
+        "ventilation_limited"
+      ]
+    },
+    "reason": "Expert review of version 2, E02/E04: measurements are the primary presentation; alert status is separate."
+  },
+  "holdout_v5_001": {
+    "after": {
+      "answer_status": "not_detected",
+      "contains": [
+        "Sí hubo un incremento real del HRR del 20.0 % (+20 kW)",
+        "estrictamente superior al 20 %"
+      ],
+      "excludes": [
+        "no demuestra su ausencia"
+      ],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "response_status": "measured_change",
+      "scope": {
+        "compartment_id": "garage",
+        "time_relation": "all"
+      },
+      "topics": [
+        "hrr"
+      ]
+    },
+    "before": {
+      "answer_status": "not_detected",
+      "contains": [
+        "no demuestra su ausencia"
+      ],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "condition",
+      "knowledge_ids": [],
+      "scope": {
+        "compartment_id": "garage",
+        "time_relation": "all"
+      },
+      "topics": [
+        "hrr"
+      ]
+    },
+    "reason": "Expert review of version 2, E02/E04: measurements are the primary presentation; alert status is separate."
+  },
+  "holdout_v6_006": {
+    "after": {
+      "answer_status": "not_detected",
+      "contains": [
+        "la interfaz descendió de 2.5 a 2.351 m"
+      ],
+      "excludes": [
+        "no demuestra su ausencia"
+      ],
+      "fact_ids": [],
+      "intent": "causality",
+      "knowledge_ids": [],
+      "response_status": "causal_not_established",
+      "scope": {
+        "compartment_id": "garage"
+      },
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "before": {
+      "answer_status": "not_detected",
+      "contains": [
+        "no demuestra su ausencia"
+      ],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "causality",
+      "knowledge_ids": [],
+      "scope": {
+        "compartment_id": "garage"
+      },
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "reason": "Expert review of version 2, E02/E04: measurements are the primary presentation; alert status is separate. The measured effect is explicit, but the question asks its cause: primary status is causal_not_established."
+  },
+  "holdout_v7_004": {
+    "after": {
+      "answer_status": "not_detected",
+      "contains": [
+        "+49.9 °C"
+      ],
+      "excludes": [
+        "no demuestra su ausencia"
+      ],
+      "fact_ids": [],
+      "intent": "causality",
+      "knowledge_ids": [],
+      "response_status": "causal_not_established",
+      "scope": {
+        "compartment_id": "garage"
+      },
+      "topics": [
+        "temperature"
+      ]
+    },
+    "before": {
+      "answer_status": "not_detected",
+      "contains": [
+        "no demuestra su ausencia"
+      ],
+      "excludes": [],
+      "fact_ids": [],
+      "intent": "causality",
+      "knowledge_ids": [],
+      "scope": {
+        "compartment_id": "garage"
+      },
+      "topics": [
+        "temperature"
+      ]
+    },
+    "reason": "Expert review of version 2, E02/E04: measurements are the primary presentation; alert status is separate. The measured effect is explicit, but the question asks its cause: primary status is causal_not_established."
+  }
+}

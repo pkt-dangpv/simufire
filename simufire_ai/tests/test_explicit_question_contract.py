@@ -376,28 +376,36 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'7')
+        self.assertEqual(report['corpus_version'],'8')
         self.assertEqual(report['summary']['total'],160)
         self.assertEqual(report['summary']['passed'],160)
         self.assertEqual(report['summary']['answer_passed'],160)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
-    def test_retired_holdout_is_regression_and_new_holdout_is_distinct(self):
+    def test_expert_successor_preserves_inputs_and_declares_all_cases_as_regressions(self):
         old=evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[0]
-        old_questions={c['question'] for c in old['cases']}
-        fresh=[c for c in self.corpus['cases'] if c['split']=='holdout']
-        self.assertEqual(len(fresh),16)
-        self.assertFalse(old_questions & {c['question'] for c in fresh})
-        self.assertTrue(all(c['split']=='dev' and c['evaluation_role']=='regression'
-            for c in self.corpus['cases'] if c['question'] in old_questions))
-        self.assertEqual(self.corpus['parent_corpus_sha256'],
-            evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[1])
-        inherited={c['id']:c for c in self.corpus['cases'] if c['split']=='dev'}
+        authored=json.loads((evaluation.CORPUS_DIR/'expectation_changes.json').read_text(encoding='utf-8'))
+        self.assertEqual(set(authored),{'dev_002','holdout_v5_001','holdout_v6_006','holdout_v7_004'})
+        self.assertTrue(all(c['split']=='dev' and c['evaluation_role']=='regression' for c in self.corpus['cases']))
+        self.assertEqual(self.corpus['parent_corpus_sha256'],evaluation.load_corpus(evaluation.PREVIOUS_CORPUS_DIR)[1])
+        inherited={c['id']:c for c in self.corpus['cases']}
         self.assertEqual(set(inherited),{c['id'] for c in old['cases']})
         for previous in old['cases']:
-            for field in ('question','fixture','classification','expected'):
-                self.assertEqual(inherited[previous['id']][field],previous[field])
+            current=inherited[previous['id']]
+            for field in ('question','fixture','classification'):
+                self.assertEqual(current[field],previous[field])
+            if previous['id'] in authored:
+                change=authored[previous['id']]
+                self.assertEqual(change['before'],previous['expected'])
+                self.assertEqual(change['after'],current['expected'])
+                for field in ('intent','topics','answer_status','fact_ids','knowledge_ids'):
+                    self.assertEqual(current['expected'][field],previous['expected'][field])
+            else:
+                self.assertEqual(current['expected'],previous['expected'])
+        for path in evaluation.PREVIOUS_CORPUS_DIR.glob('*.json'):
+            if path.name not in ('corpus.json','freeze.json'):
+                self.assertEqual(path.read_bytes(),(evaluation.CORPUS_DIR/path.name).read_bytes())
 
     def test_definition_negation_and_unrelated_words_do_not_override(self):
         classification=copy.deepcopy(self.corpus['cases'][0]['classification'])

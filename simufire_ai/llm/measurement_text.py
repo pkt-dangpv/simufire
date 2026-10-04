@@ -38,7 +38,7 @@ def criterion_text(change):
         return None
     if change["topic"] == "hrr":
         threshold = (criterion["threshold"] - 1) * 100
-        return (f"Nota sobre el criterio de detección: la regla exige un incremento estrictamente superior al {number(threshold)} % "
+        return (f"Nota sobre la alerta del software: no se disparó para este par de muestras porque exige un incremento estrictamente superior al {number(threshold)} % "
                 f"(HRR final > HRR inicial × {number(criterion['threshold'])}). Este par de muestras no cumple el criterio. "
                 "Esto distingue la activación del detector del cambio físico medido.")
     label = "aumento de temperatura" if change["topic"] == "temperature" else "descenso de interfaz"
@@ -80,16 +80,57 @@ def concurrent_changes(context, changes, topics):
     return result
 
 
+def recovery_comparison(comparison):
+    """An observed reversal, not a mass-flow balance or regime detector."""
+    changes = {change['topic']: change for change in comparison['changes']} if comparison else {}
+    return all(topic in changes and changes[topic]['delta'] > 0 for topic in ('hrr', 'oxygen'))
+
+
+def response_status(plan, changes, comparison):
+    """Presentation status; preserves separate detector/certainty contracts."""
+    if plan['clarification_needed'] != 'none':
+        return plan['answer_status']
+    if plan['intent'] in ('condition', 'general') and recovery_comparison(comparison):
+        return 'ventilation_response_compatible'
+    if changes and plan['intent'] in ('condition', 'observation'):
+        return 'measured_change' if any(change['delta'] != 0 for change in changes) else 'unchanged_endpoints'
+    if changes and plan['intent'] == 'causality':
+        return 'causal_not_established'
+    return plan['answer_status']
+
+
+def hrr_increase_summary(plan, changes):
+    if plan['intent'] not in ('condition', 'observation') or plan['topics'] != ['hrr']:
+        return None
+    increases = [change for change in changes if change['delta'] > 0]
+    if not increases:
+        return None
+    change = increases[0]
+    percent = change['relative_change_percent']
+    magnitude = (f"del {percent:.1f} % (+{number(change['delta'])} kW)" if percent is not None
+                 else f"de +{number(change['delta'])} kW")
+    return (f"Sí hubo un incremento real del HRR {magnitude}: de {number(change['previous'])} "
+            f"a {number(change['current'])} kW en {change['compartment_id']}, entre "
+            f"{number(change['start_time_s'])} s y {number(change['end_time_s'])} s.")
+
+
 def comparison_text(comparison):
     changes = comparison["changes"]
     start, end = changes[0]["start_time_s"], changes[0]["end_time_s"]
-    text = (f"Como comparación alrededor de la apertura de {comparison['action_target']} en t={number(comparison['action_time_s'])} s "
+    text = ("Se observa una recuperación del oxígeno y del HRR alrededor de la apertura. " if recovery_comparison(comparison) else "")
+    text += (f"Como comparación alrededor de la apertura de {comparison['action_target']} en t={number(comparison['action_time_s'])} s "
             f"(intervalo {number(start)}–{number(end)} s, que incluye una muestra anterior y otra posterior): ")
     for change in changes:
         text += f"{LABELS[change['topic']]} pasa de {number(change['previous'])} a {number(change['current'])} {change['unit']}; "
     text = text.rstrip("; ") + "."
-    text += (" Estos datos describen la respuesta alrededor de la apertura, no un intervalo completamente posterior. "
-             "Si oxígeno, HRR y temperatura aumentan, eso es compatible con una respuesta a la nueva ventilación; "
-             "no basta para demostrar que dejó de estar limitado por ventilación, que pasó a estar limitado por combustible "
-             "o que ocurrió flashover. El régimen posterior requiere más datos sobre suministro de oxígeno y demanda de combustible.")
+    hrr = next(change for change in changes if change['topic'] == 'hrr')
+    if hrr['relative_change_percent'] is not None:
+        text += f" El cambio relativo del HRR es {hrr['relative_change_percent']:+.1f} %."
+    if recovery_comparison(comparison):
+        text += (" La caída previa del oxígeno y del HRR da paso a un aumento en este par de muestras. "
+                 "La evolución es compatible con una reactivación de la combustión acoplada a la nueva ventilación. "
+                 "Se describe una recuperación observada; no se está anticipando un régimen permanente limitado por combustible ni confirmando flashover.")
+    else:
+        text += " Este par no muestra una recuperación conjunta del oxígeno y del HRR."
+    text += " El intervalo rodea la apertura; no es un intervalo completamente posterior."
     return text
