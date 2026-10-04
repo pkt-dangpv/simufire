@@ -1,0 +1,138 @@
+[
+  {
+    "confidence": "authoritative",
+    "content": "La tasa de liberación de calor o HRR representa la velocidad a la que un incendio libera energía. Es una medida de potencia y se expresa normalmente en vatios, kilovatios o megavatios. El HRR no debe confundirse con la temperatura: dos fuegos pueden presentar temperaturas de llama similares y, sin embargo, liberar cantidades de energía por unidad de tiempo muy diferentes. En el análisis de una simulación, un aumento del HRR indica que ha aumentado la tasa de liberación de energía del incendio, pero ese aumento por sí solo no demuestra cuál ha sido su causa.",
+    "knowledge_id": "HRR_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "NIST Fire Dynamics",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Measuring Fire - Heat Release Rate",
+      "source_id": "NIST_FIRE_DYNAMICS",
+      "title": "Fire Dynamics"
+    },
+    "tags": [
+      "HRR",
+      "heat_release_rate",
+      "fire_power",
+      "fire_growth",
+      "energy"
+    ],
+    "title": "Definición y significado de la tasa de liberación de calor",
+    "topic": "hrr"
+  },
+  {
+    "confidence": "authoritative",
+    "content": "El oxígeno disponible condiciona la combustión en un incendio de compartimento. Cuando la ventilación no aporta suficiente oxígeno para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La entrada de aire a través de una nueva abertura puede modificar la disponibilidad de oxígeno y alterar el comportamiento del incendio. Sin embargo, una variación de la concentración de oxígeno observada en una simulación no permite por sí sola determinar la causa concreta de otros cambios como el HRR o la temperatura; esas relaciones deben establecerse utilizando conjuntamente los datos disponibles y las reglas del Fire Event Analyzer.",
+    "knowledge_id": "OXYGEN_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "Fire Dynamics",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Fire Behavior in a Structure",
+      "source_id": "NIST_FIRE_DYNAMICS",
+      "title": "Fire Dynamics"
+    },
+    "tags": [
+      "oxygen",
+      "o2",
+      "ventilation",
+      "ventilation_limited",
+      "combustion",
+      "compartment_fire"
+    ],
+    "title": "Disponibilidad de oxígeno y combustión en incendios de compartimento",
+    "topic": "oxygen"
+  },
+  {
+    "confidence": "authoritative",
+    "content": "En un modelo de incendios de dos zonas, cada recinto se representa mediante una capa superior y una capa inferior de gases. La altura de la interfaz indica la separación vertical entre ambas capas. Un descenso de la interfaz significa que la capa superior ocupa una mayor parte de la altura del recinto. Este cambio puede utilizarse para describir la evolución de la estratificación de gases y humo dentro del compartimento. Sin embargo, el descenso de la interfaz por sí solo no identifica la causa física concreta que lo ha producido; esa interpretación requiere analizar conjuntamente otros datos de la simulación.",
+    "knowledge_id": "SMOKE_LAYER_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "NIST TN 1889v1",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Two-zone compartment model",
+      "source_id": "NIST_CFAST_V7_TECHNICAL_REFERENCE",
+      "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7 Volume 1: Technical Reference Guide"
+    },
+    "tags": [
+      "smoke_layer",
+      "layer_height",
+      "interface_height",
+      "upper_layer",
+      "lower_layer",
+      "zone_model"
+    ],
+    "title": "Interfaz entre capas en un modelo de dos zonas",
+    "topic": "smoke_layer"
+  },
+  {
+    "confidence": "authoritative",
+    "content": "En un modelo de incendios de dos zonas, el recinto se representa mediante una capa superior y una capa inferior, cada una con una temperatura media calculada. La temperatura de la capa superior representa el estado térmico medio de los gases de esa zona y no debe interpretarse como temperatura de llama. Un aumento de la temperatura de la capa superior indica que los gases de esa capa han aumentado su temperatura media durante el intervalo analizado. Ese incremento, por sí solo, no permite determinar cuál ha sido su causa física concreta; para establecerla deben analizarse conjuntamente el HRR, la ventilación, los flujos de gases, las pérdidas térmicas y otros datos disponibles.",
+    "knowledge_id": "TEMPERATURE_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "NIST TN 1889",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Layer temperatures and compartment outputs",
+      "source_id": "NIST_CFAST_V7",
+      "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7"
+    },
+    "tags": [
+      "temperature",
+      "upper_layer_temperature",
+      "lower_layer_temperature",
+      "gas_temperature",
+      "zone_model"
+    ],
+    "title": "Temperatura de las capas en un modelo de dos zonas",
+    "topic": "temperature"
+  },
+  {
+    "confidence": "authoritative",
+    "content": "La ventilación es uno de los factores que condicionan el desarrollo de un incendio en un recinto. Cuando la disponibilidad de oxígeno es insuficiente para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La apertura de una puerta, ventana u otra vía de ventilación puede modificar el suministro de oxígeno y producir cambios importantes en el comportamiento del incendio. Sin embargo, en el análisis de una simulación concreta no debe atribuirse automáticamente un cambio de HRR o temperatura a una apertura únicamente por proximidad temporal; esa relación debe estar respaldada por los datos y por el Fire Event Analyzer.",
+    "knowledge_id": "VENTILATION_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "NIST Fire Dynamics",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Fire Behavior in a Structure - Ventilation Limited",
+      "source_id": "NIST_FIRE_DYNAMICS",
+      "title": "Fire Dynamics"
+    },
+    "tags": [
+      "ventilation",
+      "ventilation_limited",
+      "oxygen",
+      "door",
+      "window",
+      "fire_growth"
+    ],
+    "title": "Influencia de la ventilación en el desarrollo del incendio",
+    "topic": "ventilation"
+  },
+  {
+    "confidence": "authoritative",
+    "content": "Un incendio de compartimento puede quedar limitado por ventilación cuando el suministro de oxígeno disponible no es suficiente para mantener la combustión potencial del combustible presente. En estas condiciones, el agotamiento de oxígeno puede reducir la tasa de liberación de calor y la temperatura, aunque siga existiendo combustible capaz de arder. Si posteriormente se introduce nueva ventilación, por ejemplo mediante la apertura de una puerta o ventana, la entrada de oxígeno puede producir un aumento importante de la tasa de liberación de energía. La identificación de un incendio limitado por ventilación no debe basarse únicamente en un valor aislado de concentración de oxígeno. Debe evaluarse conjuntamente la evolución del oxígeno, el HRR, la ventilación y otros datos disponibles del incendio.",
+    "knowledge_id": "VENTILATION_LIMITED_001",
+    "schema_version": "0.1",
+    "source": {
+      "document": "Fire Dynamics",
+      "organization": "National Institute of Standards and Technology",
+      "section": "Fire Behavior in a Structure",
+      "source_id": "NIST_FIRE_DYNAMICS",
+      "title": "Fire Dynamics"
+    },
+    "tags": [
+      "ventilation",
+      "ventilation_limited",
+      "under_ventilated",
+      "oxygen",
+      "hrr",
+      "compartment_fire"
+    ],
+    "title": "Incendio limitado por ventilación",
+    "topic": "ventilation_limited"
+  }
+]

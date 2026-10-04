@@ -45,6 +45,33 @@ def explicit_causal_effect(text):
     return parts[1]
 
 
+def explicit_explanation_effect(text):
+    """Constrain direct why/due requests, without supplying a physical cause."""
+    why = re.fullmatch(r"por\s+que\s+(?:aumento|descendio|cambio|vario|subio|bajo)\s+"
+                       r"(?P<effect>[^?!.,;:]+?)[?!]*", text)
+    due = re.fullmatch(r"(?P<effect>(?:el|la)\s+[^?!.,;:]+?)\s+debido\s+a(?:l)?\s+"
+                       r"(?P<cause>[^?!.,;:]+?)[?!]*", text)
+    match = why or due
+    if not match or re.search(r"\b(?:no|nunca|ni|o|si|aunque|segun|concepto|definicion|significa)\b", text):
+        return None
+    if due and not re.search(r"\b(?:aumento|descendio|cambio|vario|subio|bajo)\b", due['effect']):
+        return None
+    # A numerical interval can contain 'y'; it does not introduce a second effect.
+    clauses = [match['effect']] + ([due['cause']] if due else [])
+    for clause in clauses:
+        without_interval = re.sub(r"\bentre\s+\d+(?:[.,]\d+)?\s+(?:y|a)\s+\d+(?:[.,]\d+)?", "", clause)
+        if re.search(r"\by\b", without_interval):
+            return None
+    topics_by_clause = []
+    for clause in clauses:
+        topics = {topic for topic, terms in TOPIC_LITERALS.items()
+                  if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", clause) for term in terms)}
+        if len(topics) != 1 or not topics <= {"hrr", "temperature", "oxygen", "smoke_layer"}:
+            return None
+        topics_by_clause.append(next(iter(topics)))
+    return topics_by_clause[0]
+
+
 def explicit_request_contract(text, classification):
     """Constrain unmistakable requests; leave general language to Qwen.
 
@@ -72,19 +99,23 @@ def explicit_request_contract(text, classification):
         if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text)
                for term in TOPIC_LITERALS[topic])]
     causal_request = re.search(r"\b(?:caus\w*|provoc\w*|porque)\b|"
-                              r"\b(?:por\s+que|debido\s+a)\b", text)
+                              r"\b(?:por\s+que|debido\s+a(?:l)?)\b", text)
     # A magnitude or causal question can mention detection without asking
     # whether it occurred. Do not erase that request or a named variable filter.
     other_request = re.search(r"\b(?:cuant[oa]s?|valor|magnitud|caus\w*|provoc\w*|porque|significa)\b|"
-                              r"\b(?:por\s+que|debido\s+a|que\s+es)\b", text)
+                              r"\b(?:por\s+que|debido\s+a(?:l)?|que\s+es)\b", text)
     literal_topics = {topic for topic, terms in TOPIC_LITERALS.items()
                       if any(re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text) for term in terms)}
     single_measured_topic = len(measured_topics) == 1 and literal_topics == set(measured_topics)
     causal_effect = explicit_causal_effect(start) if classification['intent'] == 'causality' else None
+    explanation_effect = explicit_explanation_effect(start)
     constrained = False
     if limits:
         classification["intent"] = "uncertainty"
         constrained = True
+    elif explanation_effect:
+        classification["intent"] = "causality"
+        classification["topics"] = [explanation_effect]
     elif causal_effect:
         classification["topics"] = [causal_effect]
     elif definition and single_measured_topic and not causal_request:

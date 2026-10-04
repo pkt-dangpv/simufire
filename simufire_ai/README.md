@@ -231,11 +231,11 @@ consultas concretas con el modelo real se ejecuta por separado:
 python simufire_ai/tests/test_question_scope.py --ollama
 ```
 
-La evaluación reproducible usa ahora el corpus 6: 128 regresiones y 16 nuevas
+La evaluación reproducible usa ahora el corpus 7: 144 regresiones y 16 nuevas
 formulaciones reservadas sobre los mismos 14 historiales sintéticos, incluidas
-preguntas causales con dirección inversa y filtros temporales y espaciales. Las versiones
+preguntas «por qué» y «debido a» con filtros temporales y espaciales. Las versiones
 anteriores y sus entradas congeladas se conservan. Consulta
-`tests/data/question_evaluation_v6/README.md` para ejecutar por separado contratos
+`tests/data/question_evaluation_v7/README.md` para ejecutar por separado contratos
 offline, desarrollo con Ollama y el nuevo reservado. El evaluador distingue la
 clasificación cruda de Qwen de la respuesta final validada.
 
@@ -269,3 +269,9 @@ La causa propuesta no es evidencia de una relación causal. Negaciones,
 alternativas, varias cláusulas y efectos desconocidos siguen dependiendo de la
 clasificación o aclaración. Se reproduce el error del corpus 5 sin red y se
 comprueba la dirección inversa, la cobertura y el rechazo de planes alterados.
+
+Las explicaciones directas «por qué aumentó/descendió X» y «X cambió debido a Y»,
+con variables medidas únicas e inequívocas, conservan la intención causal aunque
+el modelo proponga una observación. No atribuyen una causa: seleccionan el efecto
+y sus limitaciones. Negaciones, conceptos, alternativas y efectos desconocidos
+no se reparan con esa regla. Se reproducen los dos errores del corpus 6 sin red.

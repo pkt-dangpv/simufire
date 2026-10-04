@@ -1,0 +1,88 @@
+[
+  {
+    "case_id": "holdout_v6_007",
+    "question": "¿Por qué descendió la interfaz de la capa de humo?",
+    "fixture": "lab_growth",
+    "expected": {
+      "answer_status": "causal_not_established",
+      "contains": [
+        "no puede afirmarse"
+      ],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_002",
+        "FACT_004"
+      ],
+      "intent": "causality",
+      "knowledge_ids": [
+        "SMOKE_LAYER_001"
+      ],
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "laboratory_growth_004",
+      "question_id": "holdout_v6_007",
+      "intent": "observation",
+      "topics": [
+        "smoke_layer"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "not_applicable",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "topic"
+    }
+  },
+  {
+    "case_id": "holdout_v6_008",
+    "question": "¿La capa de humo descendió debido al incremento del HRR?",
+    "fixture": "lab_growth",
+    "expected": {
+      "answer_status": "causal_not_established",
+      "contains": [
+        "no puede afirmarse"
+      ],
+      "excludes": [],
+      "fact_ids": [
+        "FACT_002",
+        "FACT_004"
+      ],
+      "intent": "causality",
+      "knowledge_ids": [
+        "SMOKE_LAYER_001"
+      ],
+      "topics": [
+        "smoke_layer"
+      ]
+    },
+    "raw_classification": {
+      "schema_version": "0.4",
+      "scenario_id": "laboratory_growth_004",
+      "question_id": "holdout_v6_008",
+      "intent": "observation",
+      "topics": [
+        "temperature"
+      ],
+      "include_limitations": false,
+      "timeline_relation": "not_applicable",
+      "anchor_fact_id": null,
+      "scope": {
+        "compartment_id": null,
+        "time_relation": "all",
+        "anchor_fact_id": null,
+        "start_time_s": null,
+        "end_time_s": null
+      },
+      "clarification_needed": "none"
+    }
+  }
+]

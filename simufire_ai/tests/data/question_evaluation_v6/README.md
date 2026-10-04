@@ -1,5 +1,9 @@
 # Corpus 6: separar causa propuesta y efecto consultado
 
+Versión histórica: el reservado se utilizó para corregir «por qué» y «debido a».
+Sus 144 preguntas pasan a regresiones del corpus 7. Los JSON congelados y las
+etiquetas de esta versión no se modifican.
+
 144 preguntas: las 128 del corpus 5 pasan íntegramente a regresiones y 16
 formulaciones nuevas constituyen el reservado. Conserva los mismos 14 historiales
 sintéticos, sin añadir datos reales ni escenarios independientes. Las etiquetas

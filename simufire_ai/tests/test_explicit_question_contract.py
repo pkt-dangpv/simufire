@@ -103,6 +103,67 @@ class ExplicitQuestionTests(unittest.TestCase):
         self.assertEqual(result['grounding_errors'],[])
         self.assertTrue(all(not f['causal'] for f in result['answer']['fact_metadata']))
 
+    def test_replay_v6_why_and_due_keeps_causal_limitations_and_raw_errors(self):
+        records=json.loads((BASE_DIR/'tests/data/question_model_regressions_v6.json').read_text(encoding='utf-8'))
+        contexts=evaluation.build_contexts(records)
+        self.assertEqual(len(records),2)
+        for record in records:
+            with self.subTest(case=record['case_id']):
+                case=next(c for c in self.corpus['cases'] if c['id']==record['case_id'])
+                raw=json.dumps(record['raw_classification'])
+                result=evaluation.evaluate_case(case,contexts[record['fixture']],lambda p,s:raw)
+                self.assertTrue(result['answer_passed'],result)
+                self.assertFalse(result['checks']['model_intent'])
+                self.assertEqual(result['raw_model_response'],raw)
+                self.assertEqual(result['answer']['fact_ids'],['FACT_002','FACT_004'])
+                self.assertEqual(result['answer']['answer_status'],'causal_not_established')
+                self.assertIn('no puede afirmarse',result['answer']['answer'])
+                self.assertNotIn('temperatura',result['answer']['answer'])
+                self.assertTrue(all(not f['causal'] for f in result['answer']['fact_metadata']))
+
+    def test_why_and_due_preserve_effect_room_and_complete_window(self):
+        context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['temperature'],clarification_needed='none')
+        for question,status,ids in (
+            ('¿Por qué descendió la capa de humo en Laboratorio entre 12 y 36 s?',
+             'causal_not_established',['FACT_002','FACT_004']),
+            ('¿La capa de humo descendió debido al incremento del HRR en Laboratorio antes de 36 s?',
+             'insufficient_data',[])):
+            plan=create_question_plan(context,question,'explanation',classifier=lambda p,s:json.dumps(source))
+            answer=render_question_answer(context,plan)
+            self.assertEqual(plan['intent'],'causality')
+            self.assertEqual(plan['topics'],['smoke_layer'])
+            self.assertEqual(answer['scope']['compartment_id'],'lab')
+            self.assertEqual(answer['answer_status'],status)
+            self.assertEqual(answer['fact_ids'],ids)
+            self.assertTrue(all(not f['causal'] for f in answer['fact_metadata']))
+            changed=copy.deepcopy(plan);changed['intent']='observation'
+            with self.assertRaises(ValueError):render_question_answer(context,changed)
+
+    def test_explanation_repair_does_not_erase_negation_ambiguity_or_other_requests(self):
+        source=copy.deepcopy(self.corpus['cases'][0]['classification'])
+        source.update(intent='observation',topics=['temperature'])
+        for text in ('por que no descendio la capa de humo',
+                     'por que descendio la capa de humo y aumento la temperatura',
+                     'por que descendio la interfaz o el hrr',
+                     'por que descendio el backdraft',
+                     'por que descendio la variable desconocida',
+                     'por que el concepto de hrr significa potencia',
+                     'define por que descendio la capa de humo',
+                     'cuanto descendio la capa de humo debido al incremento del hrr',
+                     'la capa de humo no descendio debido al incremento del hrr',
+                     'la capa de humo descendio debido al incremento del hrr o la temperatura',
+                     'la definicion de la capa de humo cambio debido al concepto de hrr',
+                     'segun el informe la capa de humo descendio debido al incremento del hrr',
+                     'la capa de humo descendio debido al backdraft',
+                     'la capa de humo descendio debido a una causa desconocida'):
+            value=copy.deepcopy(source);explicit_request_contract(text,value)
+            self.assertEqual(value,source,text)
+        value=copy.deepcopy(source)
+        explicit_request_contract('se detecto un aumento del hrr debido al oxigeno',value)
+        self.assertEqual(value,source)
+
     def test_causal_roles_reverse_without_establishing_a_cause(self):
         context=evaluation.build_contexts([{'fixture':'lab_growth'}])['lab_growth']
         source=copy.deepcopy(self.corpus['cases'][0]['classification'])
@@ -315,10 +376,10 @@ class ExplicitQuestionTests(unittest.TestCase):
 
     def test_successor_contract_corpus_and_scope_expectations(self):
         report=evaluation.run_evaluation()
-        self.assertEqual(report['corpus_version'],'6')
-        self.assertEqual(report['summary']['total'],144)
-        self.assertEqual(report['summary']['passed'],144)
-        self.assertEqual(report['summary']['answer_passed'],144)
+        self.assertEqual(report['corpus_version'],'7')
+        self.assertEqual(report['summary']['total'],160)
+        self.assertEqual(report['summary']['passed'],160)
+        self.assertEqual(report['summary']['answer_passed'],160)
         scoped=sum('scope' in case['expected'] for case in self.corpus['cases'])
         self.assertEqual(report['summary']['checks']['scope'],{'passed':scoped,'evaluated':scoped})
 
