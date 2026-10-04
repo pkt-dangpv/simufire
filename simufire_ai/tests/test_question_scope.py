@@ -373,6 +373,7 @@ class QuestionScopeTests(unittest.TestCase):
     def test_context_without_coverage_never_claims_a_negative(self):
         context = copy.deepcopy(self.context)
         context.pop("analysis_coverage")
+        context.pop("measurement_snapshot", None)
         context["scenario_facts"] = [fact for fact in context["scenario_facts"] if "ventilation_limited" not in fact["knowledge_topics"]]
         for entry in context["technical_knowledge"]:
             entry["matched_fact_ids"] = [fact_id for fact_id in entry["matched_fact_ids"] if fact_id != "FACT_010"]

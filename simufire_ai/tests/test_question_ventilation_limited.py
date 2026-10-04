@@ -169,7 +169,7 @@ def main():
     )
 
     assert (
-        "patrón temporal compatible"
+        "evolución registrada es compatible"
         in answer_lower
     )
 

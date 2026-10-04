@@ -145,7 +145,7 @@ def main():
         fact["statement"].lower()
     )
 
-    assert "patrón" in statement
+    assert "evolución registrada" in statement
 
     assert "compatible" in statement
 

@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 if __package__:
@@ -13,6 +14,9 @@ else:
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+
+from llm.measurement_text import evidence_for_question, measurement_text, criterion_text, geometry_text, comparison_text, concurrent_changes
 
 CONTEXT_PATH = (
     BASE_DIR
@@ -527,6 +531,14 @@ def render_question_answer(context, plan):
     limitations = [fact for fact in selected_facts if fact['fact_type'] == 'limitation']
     intent = plan['intent']
     answer_parts = []
+    measured_changes, comparison = evidence_for_question(context, plan)
+    mechanism_explanation = (intent == "causality" and "smoke_layer" in plan["topics"]
+                             and measured_changes and any("penacho" in item["content"] for item in selected_knowledge))
+    concurrent = []
+    if mechanism_explanation:
+        concurrent = concurrent_changes(context, measured_changes, ["hrr", "temperature"])
+    elif intent in ("condition", "observation") and plan["topics"] == ["hrr"] and plan.get("answer_status") == "not_detected":
+        concurrent = concurrent_changes(context, measured_changes, ["temperature", "smoke_layer"])
     clarification = scoped and plan["answer_status"] == "clarification_required"
     empty_scoped = scoped and not primary_ids and intent != "concept"
     if clarification:
@@ -566,13 +578,13 @@ def render_question_answer(context, plan):
         else:
             answer_parts.append(render_timeline(timeline_facts))
     elif intent == 'causality':
-        if limitations or scoped:
+        if (limitations or scoped) and not (measured_changes and 'smoke_layer' in plan['topics']):
             answer_parts.append('Con los datos disponibles no puede afirmarse esa relación causal.')
         evidence = actions + associations + observations
         if evidence:
             evidence_text = ' '.join((fact['statement'] for fact in evidence))
             answer_parts.append('Lo que sí muestra la simulación es lo siguiente: ' + evidence_text)
-        if limitations:
+        if limitations and not mechanism_explanation:
             limitation_text = ' '.join((fact['statement'] for fact in limitations))
             answer_parts.append('Limitación del análisis: ' + limitation_text)
     elif intent == 'uncertainty':
@@ -592,11 +604,32 @@ def render_question_answer(context, plan):
         if intent == "causality" and empty_scoped:
             answer_parts.insert(0, "Con los datos disponibles no puede afirmarse esa relación causal.")
         for assessment in plan["topic_assessments"]:
-            note = render_assessment(assessment)
+            numeric = [change for change in measured_changes if change["topic"] == assessment["topic"]
+                       and change["compartment_id"] == assessment.get("compartment_id")]
+            # 'not_detected' remains the detector status. Endpoint measurements
+            # answer the physical-change question independently of that status.
+            note = ("El detector no activó su regla en las ventanas evaluables del ámbito solicitado. "
+                    "La falta de activación no demuestra su ausencia como fenómeno físico en todo el periodo; "
+                    "los valores entre las muestras se describen por separado.") if numeric and assessment["status"] == "not_detected" else render_assessment(assessment)
             if note:
                 if len(available_rooms(context)) > 1 and assessment.get("compartment_id"):
                     note = "En " + assessment["compartment_id"] + ": " + note
                 answer_parts.append(note)
+    if measured_changes:
+        paragraphs = []
+        for change in measured_changes:
+            paragraphs.append(measurement_text(change))
+            if intent in ("condition", "observation"):
+                note = criterion_text(change)
+                if note: paragraphs.append(note)
+            if intent == "causality" and change["topic"] == "smoke_layer":
+                paragraphs.append(geometry_text(change))
+        if concurrent:
+            paragraphs.append("En los mismos pares de muestras se observan además estos cambios, sin atribuir causalidad entre ellos: "
+                              + " ".join(measurement_text(change) for change in concurrent))
+        answer_parts = paragraphs + answer_parts
+    if comparison:
+        answer_parts.insert(0, comparison_text(comparison))
     knowledge_was_used = False
     if intent in ['condition', 'causality', 'uncertainty', 'general'] and selected_knowledge:
         theory_parts = []
@@ -606,6 +639,11 @@ def render_question_answer(context, plan):
         knowledge_was_used = True
     if intent == 'concept':
         knowledge_was_used = bool(selected_knowledge)
+    if measured_changes and intent == "causality" and "smoke_layer" in plan["topics"]:
+        answer_parts.append("En esta ejecución, el cambio medido permite calcular la variación neta de volumen de la capa. "
+                            "La teoría explica los mecanismos; los datos no permiten repartir cuantitativamente la contribución "
+                            "del penacho, las salidas y la expansión térmica. Con los datos disponibles no puede afirmarse "
+                            "una causa única ni cuantificar el balance completo con estas muestras.")
     answer = '\n\n'.join(answer_parts)
     source_ids = []
     if knowledge_was_used:
@@ -614,6 +652,11 @@ def render_question_answer(context, plan):
             if source_id not in source_ids:
                 source_ids.append(source_id)
     result = {'schema_version': plan['schema_version'], 'scenario_id': plan['scenario_id'], 'question_id': plan['question_id'], 'intent': intent, 'topics': plan['topics'], 'fact_ids': primary_ids, 'knowledge_ids': plan['resolved_knowledge_ids'], 'answer': answer, 'source_ids': source_ids}
+    if "measurement_snapshot" in context and scoped:
+        result["measured_changes"] = measured_changes
+        result["concurrent_measurements"] = concurrent
+        result["detector_assessment_status"] = plan["answer_status"]
+        result["opening_comparison"] = comparison
     result['source_context_sha256'] = context_fingerprint(context)
     result['fact_metadata'] = [{key: fact[key] for key in ('fact_id', 'certainty', 'causal') if key in fact} for fact in selected_facts]
     if scoped:

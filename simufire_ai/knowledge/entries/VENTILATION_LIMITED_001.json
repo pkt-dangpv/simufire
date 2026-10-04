@@ -3,13 +3,14 @@
   "knowledge_id": "VENTILATION_LIMITED_001",
   "topic": "ventilation_limited",
   "title": "Incendio limitado por ventilación",
-  "content": "Un incendio de compartimento puede quedar limitado por ventilación cuando el suministro de oxígeno disponible no es suficiente para mantener la combustión potencial del combustible presente. En estas condiciones, el agotamiento de oxígeno puede reducir la tasa de liberación de calor y la temperatura, aunque siga existiendo combustible capaz de arder. Si posteriormente se introduce nueva ventilación, por ejemplo mediante la apertura de una puerta o ventana, la entrada de oxígeno puede producir un aumento importante de la tasa de liberación de energía. La identificación de un incendio limitado por ventilación no debe basarse únicamente en un valor aislado de concentración de oxígeno. Debe evaluarse conjuntamente la evolución del oxígeno, el HRR, la ventilación y otros datos disponibles del incendio.",
+  "content": "Un incendio de compartimento puede quedar limitado por ventilación cuando el suministro de oxígeno disponible no es suficiente para mantener la combustión potencial del combustible presente. En estas condiciones, el agotamiento de oxígeno puede reducir la tasa de liberación de calor y la temperatura, aunque siga existiendo combustible capaz de arder. Si posteriormente se introduce nueva ventilación, por ejemplo mediante la apertura de una puerta o ventana, la entrada de oxígeno puede producir un aumento importante de la tasa de liberación de energía. La identificación de un incendio limitado por ventilación no debe basarse únicamente en un valor aislado de concentración de oxígeno. Debe evaluarse conjuntamente la evolución del oxígeno, el HRR, la ventilación y otros datos disponibles del incendio. La apertura puede favorecer un crecimiento rápido y, si se alcanzan las condiciones necesarias, un flashover inducido por ventilación. Es una posibilidad física, no una detección de flashover en esta ejecución. Disponer de nueva ventilación no garantiza que el oxígeno deje de limitar la combustión: el régimen posterior exige comparar el suministro de oxígeno con la demanda del combustible. Un aumento de HRR y temperatura por sí solo no confirma un incendio limitado por combustible ni un flashover.",
   "source": {
     "source_id": "NIST_FIRE_DYNAMICS",
     "title": "Fire Dynamics",
     "organization": "National Institute of Standards and Technology",
     "document": "Fire Dynamics",
-    "section": "Fire Behavior in a Structure"
+    "section": "Fire Behavior in a Structure",
+    "url": "https://www.nist.gov/el/fire-research-division-73300/firegov-fire-service/fire-dynamics"
   },
   "confidence": "authoritative",
   "tags": [

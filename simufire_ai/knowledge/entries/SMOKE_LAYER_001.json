@@ -3,19 +3,16 @@
   "knowledge_id": "SMOKE_LAYER_001",
   "topic": "smoke_layer",
   "title": "Interfaz entre capas en un modelo de dos zonas",
-
-  "content": "En un modelo de incendios de dos zonas, cada recinto se representa mediante una capa superior y una capa inferior de gases. La altura de la interfaz indica la separación vertical entre ambas capas. Un descenso de la interfaz significa que la capa superior ocupa una mayor parte de la altura del recinto. Este cambio puede utilizarse para describir la evolución de la estratificación de gases y humo dentro del compartimento. Sin embargo, el descenso de la interfaz por sí solo no identifica la causa física concreta que lo ha producido; esa interpretación requiere analizar conjuntamente otros datos de la simulación.",
-
+  "content": "En un modelo de dos zonas, el descenso de la interfaz corresponde al aumento del volumen de la capa superior. El penacho transporta productos de combustión y arrastra aire desde la capa inferior; el balance entre entradas y salidas determina la acumulación neta. El calentamiento aumenta el volumen específico de los gases a presión aproximadamente constante y también puede contribuir al descenso. La relación de gas ideal es PV = mRT: para una masa y composición constantes, el volumen es proporcional a la temperatura absoluta si la presión se mantiene. Un mayor HRR convectivo puede aumentar el arrastre del penacho, cuya magnitud depende además de la altura y la geometría. Estos mecanismos explican físicamente el llenado de la capa; cuantificar cada contribución en una ejecución exige balances de masa y energía, presión y caudales por las aberturas. Una puerta cerrada o la ausencia de acciones no demuestra retención del 100 % ni ausencia de fugas.",
   "source": {
     "source_id": "NIST_CFAST_V7_TECHNICAL_REFERENCE",
     "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7 Volume 1: Technical Reference Guide",
     "organization": "National Institute of Standards and Technology",
     "document": "NIST TN 1889v1",
-    "section": "Two-zone compartment model"
+    "section": "Section 2.1, equations 2.2–2.4 (mass, enthalpy and ideal gas); section 3.3 (plumes); chapter 4 (ventilation)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1889v1.pdf"
   },
-
   "confidence": "authoritative",
-
   "tags": [
     "smoke_layer",
     "layer_height",

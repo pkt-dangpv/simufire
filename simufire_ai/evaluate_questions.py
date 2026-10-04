@@ -113,6 +113,23 @@ def grounding_errors(context, plan, answer):
     allowed_sources = {knowledge[kid]['source']['source_id'] for kid in answer['knowledge_ids'] if kid in knowledge}
     if not set(answer['source_ids']) <= allowed_sources:
         errors.append('foreign_source')
+    if "measurement_snapshot" in context:
+        from llm.measurement_text import evidence_for_question, concurrent_changes
+        expected_changes, comparison = evidence_for_question(context, plan)
+        expected_concurrent = []
+        if (plan['intent'] == 'causality' and 'smoke_layer' in plan['topics'] and expected_changes
+                and any('penacho' in knowledge[kid]['content'] for kid in plan['resolved_knowledge_ids'])):
+            expected_concurrent = concurrent_changes(context, expected_changes, ['hrr', 'temperature'])
+        elif plan['intent'] in ('condition', 'observation') and plan['topics'] == ['hrr'] and plan['answer_status'] == 'not_detected':
+            expected_concurrent = concurrent_changes(context, expected_changes, ['temperature', 'smoke_layer'])
+        for key, expected_value, error in (
+            ('measured_changes', expected_changes, 'measurement_evidence_changed'),
+            ('concurrent_measurements', expected_concurrent, 'concurrent_measurements_changed'),
+            ('opening_comparison', comparison, 'opening_comparison_changed'),
+            ('detector_assessment_status', plan['answer_status'], 'detector_status_changed'),
+        ):
+            if answer.get(key) != expected_value:
+                errors.append(error)
     if (plan['intent']=='causality' and answer['answer_status']!='clarification_required'
             and 'no puede afirmarse' not in answer['answer']):
         errors.append('causal_caveat_missing')

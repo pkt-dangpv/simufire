@@ -20,6 +20,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from analyzer.build_grounded_facts import build_facts
 from analyzer.assessment_coverage import build_assessment_coverage
+from analyzer.measurement_evidence import snapshot
 from analyzer.fire_event_analyzer import analyze_timeline
 from knowledge.context_builder import build_context
 from knowledge.retriever import load_entries
@@ -28,7 +29,7 @@ from llm.question_context import context_fingerprint, load_schema, unique_index,
 from llm.render_question_answer import render_question_answer
 
 
-PIPELINE_VERSION = "0.2"
+PIPELINE_VERSION = "0.3"
 ARTIFACTS = (
     "scenario.json", "states.json", "thresholds.json", "knowledge.json",
     "events.json", "facts.json", "context.json",
@@ -71,7 +72,7 @@ def engine_fingerprint():
         "pipeline.py", "analyzer/fire_event_analyzer.py", "analyzer/action_context.py",
         "analyzer/build_grounded_facts.py", "knowledge/context_builder.py",
         "llm/question_context.py",
-        "analyzer/assessment_coverage.py", "llm/question_scope.py",
+        "analyzer/assessment_coverage.py", "analyzer/measurement_evidence.py", "llm/question_scope.py",
     )]
     sources.extend(sorted((BASE_DIR / "schemas").glob("*.json")))
     return context_fingerprint({
@@ -155,7 +156,8 @@ def build_analysis(scenario, states, run_id, *, thresholds=None, entries=None):
     facts = build_facts(fact_scenario, events)
     coverage = build_assessment_coverage(scenario, states, thresholds)
     context = build_context(scenario["scenario_id"], facts, events, entries, run_id=run_id,
-                            analysis_coverage=coverage, include_general_knowledge=True)
+                            analysis_coverage=coverage, include_general_knowledge=True,
+                            measurement_snapshot=snapshot(scenario, states, thresholds))
     artifacts = dict(zip(ARTIFACTS, (scenario, states, thresholds, entries, events, facts, context)))
     manifest = {
         "schema_version": "0.1", "pipeline_version": PIPELINE_VERSION,
@@ -216,6 +218,10 @@ def load_run(run_dir, *, replay=False):
         raise ValueError("Eventos o hechos mezclados en la ejecución")
     if artifacts["scenario.json"]["scenario_id"] != manifest["scenario_id"]:
         raise ValueError("Escenario mezclado en la ejecución")
+    if "measurement_snapshot" in context:
+        expected = snapshot(artifacts["scenario.json"], artifacts["states.json"], artifacts["thresholds.json"])
+        if context["measurement_snapshot"] != expected:
+            raise ValueError("Mediciones mezcladas en la ejecución")
     if replay:
         if manifest["engine_sha256"] != engine_fingerprint():
             raise ValueError("El motor ha cambiado; la reproducción exige la misma versión de código")

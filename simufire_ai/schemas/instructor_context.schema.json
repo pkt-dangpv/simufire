@@ -194,6 +194,31 @@
           }
         }
       }
+    },
+    "measurement_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario",
+        "states",
+        "thresholds"
+      ],
+      "properties": {
+        "scenario": {
+          "type": "object"
+        },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        },
+        "thresholds": {
+          "type": "object"
+        }
+      },
+      "description": "Original inputs of this analysis; validated individually and against events/coverage. Part of the context fingerprint."
     }
   }
 }

@@ -2,10 +2,13 @@
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 SCHEMAS_DIR = Path(__file__).resolve().parents[1] / "schemas"
 
@@ -152,6 +155,10 @@ def validate_context(context):
                     raise ValueError("Intervalo de cobertura inválido")
             if window["evaluable"] != (window["reason"] == "requirements_met"):
                 raise ValueError("Estado y motivo de cobertura contradictorios")
+
+    if "measurement_snapshot" in context:
+        from analyzer.measurement_evidence import validate_measurements
+        validate_measurements(context, validate_schema, load_schema, unique_index)
 
 
 def validate_plan_context(plan, context, question_id):

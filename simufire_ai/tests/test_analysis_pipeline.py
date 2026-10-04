@@ -139,7 +139,7 @@ class AnalysisPipelineTests(unittest.TestCase):
         run = self.build()
         with patch("pipeline.load_entries", side_effect=AssertionError("Live knowledge read")):
             artifacts = pipeline.load_run(run, replay=True)
-        self.assertEqual(artifacts["manifest.json"]["pipeline_version"], "0.2")
+        self.assertEqual(artifacts["manifest.json"]["pipeline_version"], "0.3")
         relocated = self.root / "renamed"
         run.rename(relocated)
         self.assertEqual(pipeline.load_run(relocated, replay=True), artifacts)

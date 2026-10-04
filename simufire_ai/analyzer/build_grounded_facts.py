@@ -283,8 +283,7 @@ def build_facts(scenario, events):
             continue
         action = matched_open_action(scenario, event)
         statement = (
-            "El Fire Event Analyzer detectó un patrón temporal compatible con "
-            "una condición de incendio limitado por ventilación"
+            "La evolución registrada es compatible con un incendio limitado por ventilación"
         )
         if action is not None:
             statement += f" antes de la apertura de {action['target']}"

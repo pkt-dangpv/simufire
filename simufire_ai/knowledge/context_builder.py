@@ -43,7 +43,7 @@ def build_knowledge_matches(facts, entries=None):
 
 
 def build_context(scenario_id, facts, events, entries=None, *, run_id=None,
-                  analysis_coverage=None, include_general_knowledge=False):
+                  analysis_coverage=None, include_general_knowledge=False, measurement_snapshot=None):
     entries = load_entries() if entries is None else entries
     context = {
         "schema_version": "0.1", "scenario_id": scenario_id,
@@ -64,5 +64,7 @@ def build_context(scenario_id, facts, events, entries=None, *, run_id=None,
         context["technical_knowledge"].sort(key=lambda item: item["knowledge_id"])
     if analysis_coverage is not None:
         context["analysis_coverage"] = copy.deepcopy(analysis_coverage)
+    if measurement_snapshot is not None:
+        context["measurement_snapshot"] = copy.deepcopy(measurement_snapshot)
     validate_context(context)
     return context

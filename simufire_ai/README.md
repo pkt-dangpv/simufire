@@ -275,3 +275,49 @@ con variables medidas únicas e inequívocas, conservan la intención causal aun
 el modelo proponga una observación. No atribuyen una causa: seleccionan el efecto
 y sus limitaciones. Negaciones, conceptos, alternativas y efectos desconocidos
 no se reparan con esa regla. Se reproducen los dos errores del corpus 6 sin red.
+
+
+## Mediciones y revisión experta E01–E04
+
+La versión 0.3 del pipeline conserva en `measurement_snapshot` el escenario,
+los estados y los umbrales de la ejecución. Ese bloque forma parte de la huella
+del contexto. Se validan los estados y se recomputan eventos y cobertura para
+evitar mezclar entradas; al cargar una ejecución también se compara con sus
+artefactos originales. Los contextos antiguos siguen siendo válidos, pero no
+recuperan valores que no contienen: para disponer de estas mediciones se debe
+crear un análisis nuevo desde los estados originales.
+
+El renderer devuelve `measured_changes` por pares de muestras originales, con
+habitación, ambos tiempos, valores, diferencia y, para HRR, porcentaje relativo
+y tasa media. Exige que ambas muestras pertenezcan al ámbito temporal solicitado;
+no interpola, cruza límites ni convierte dos valores en crecimiento continuo.
+Una separación excesiva se marca como `sampling_gap` y no constituye una ventana
+evaluable del detector. Un HRR inicial cero no tiene porcentaje relativo definido.
+
+`answer_status` y `topic_assessments` mantienen su contrato de detección/cobertura;
+`detector_assessment_status` explicita esa interpretación. Un estado `not_detected`
+puede coexistir con un aumento físico medido. Por ejemplo, 100 → 120 kW es +20 %,
+pero no cumple una regla estricta HRR final > 1.20 × HRR inicial. `criterion.met`
+describe el predicado numérico; la elegibilidad de la ventana y los detectores
+existentes conservan la decisión de registrar un evento. No cambian los umbrales.
+
+`concurrent_measurements` muestra otras variables del mismo par y habitación
+cuando ayudan a explicar E03/E04, sin atribuir causalidad entre ellas.
+`opening_comparison` presenta, por separado, un par que rodea una apertura
+identificada por un patrón previo de limitación por ventilación. Declara el
+intervalo completo y el hecho relacionado; nunca lo presenta como evidencia
+primaria de un periodo completamente posterior, ni cambia su cobertura.
+
+El cambio geométrico de volumen de capa se calcula como área × descenso de
+interfaz bajo la representación de capas horizontales del recinto rectangular.
+Su tasa es neta: no equivale al caudal del penacho ni al volumen de humo puro.
+La teoría de masa, energía, arrastre y expansión se identifica con NIST CFAST;
+no se deduce retención del 100 % a partir de una puerta cerrada. La posibilidad
+de flashover inducido por ventilación se presenta como teoría condicional, no
+como una detección. Aumento de HRR/temperatura no basta para declarar flashover
+o un régimen limitado por combustible.
+
+Las pruebas offline de `tests/test_measurement_evidence.py` comprueban estos
+casos y el rechazo de mezclas y metadatos alterados. Las integraciones reales
+con Ollama se siguen ejecutando explícitamente y por separado. La revisión
+humana de la nueva redacción y del uso docente continúa pendiente.
