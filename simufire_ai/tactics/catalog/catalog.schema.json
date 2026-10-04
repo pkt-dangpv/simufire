@@ -1,0 +1,333 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_id",
+    "created_on",
+    "sources",
+    "equipment",
+    "tactical_references"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "catalog_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "title",
+          "url",
+          "edition",
+          "locator",
+          "accessed_on",
+          "retrieval_sha256",
+          "inspection",
+          "authority"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "accessed_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "retrieval_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "inspection": {
+            "enum": [
+              "relevant_passages_only"
+            ]
+          },
+          "authority": {
+            "enum": [
+              "manufacturer",
+              "research_institute"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "equipment_id",
+          "category",
+          "manufacturer",
+          "model",
+          "configuration",
+          "review_status",
+          "simulation_availability",
+          "facts",
+          "curve_documents",
+          "data_gaps",
+          "conflicts",
+          "usable_for_hydraulic_profile"
+        ],
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "enum": [
+              "pump",
+              "hose",
+              "nozzle",
+              "fan"
+            ]
+          },
+          "manufacturer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configuration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "review_status": {
+            "enum": [
+              "expert_pending"
+            ]
+          },
+          "simulation_availability": {
+            "enum": [
+              "not_declared"
+            ]
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "value",
+                "unit",
+                "source_id",
+                "conditions",
+                "status"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "minItems": 1
+                    }
+                  ]
+                },
+                "unit": {
+                  "enum": [
+                    "L/min",
+                    "bar",
+                    "m",
+                    "rpm",
+                    "degree",
+                    "mm",
+                    "g/m",
+                    "kg",
+                    "m3/h",
+                    "h",
+                    "dB"
+                  ]
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "conditions": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "status": {
+                  "enum": [
+                    "transcribed",
+                    "conflicting"
+                  ]
+                }
+              }
+            },
+            "minItems": 1
+          },
+          "curve_documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source_id",
+                "representation",
+                "status",
+                "conditions"
+              ],
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "representation": {
+                  "enum": [
+                    "graph"
+                  ]
+                },
+                "status": {
+                  "enum": [
+                    "digitization_pending"
+                  ]
+                },
+                "conditions": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "minItems": 0
+          },
+          "data_gaps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "usable_for_hydraulic_profile": {
+            "const": false
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "tactical_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reference_id",
+          "source_id",
+          "topics",
+          "summary",
+          "applicability",
+          "limitations",
+          "required_scenario_inputs",
+          "review_status",
+          "automatic_tactical_rule"
+        ],
+        "properties": {
+          "reference_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "applicability": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "required_scenario_inputs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "review_status": {
+            "enum": [
+              "expert_pending"
+            ]
+          },
+          "automatic_tactical_rule": {
+            "const": false
+          }
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/tactics/reference-catalog-0.1.schema.json"
+}

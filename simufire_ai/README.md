@@ -417,3 +417,57 @@ el mismo contexto. El corpus 9 conserva 160 regresiones y entradas físicas
 históricas; seis expectativas de ámbito/presentación de E08 están versionadas
 explícitamente. No hay un reservado nuevo. La suite incluye
 `test_expert_followup.py` y sigue sin depender de Ollama.
+
+## Catálogo de equipos y consulta de referencias por internet
+
+`tactics/catalog/equipment_and_references.json` contiene siete fichas iniciales:
+Rosenbauer N25, Godiva Prima P2_2010, AWG Turbo 2130 y 2400 estándar, GH Titan
+3F de 45 y 70 mm y LEADER MT236 NEO2. Incluye tres referencias tácticas de NIST
+con ámbito experimental, datos que requiere un ejercicio y límites de aplicación.
+Las fuentes conservan URL, edición, pasaje consultado, fecha y huella del documento
+recuperado. La lectura es parcial; las fichas esperan revisión experta.
+
+```powershell
+python simufire_ai/equipment_catalog.py --query "bomba"
+python simufire_ai/equipment_catalog.py --query "ventilación" --category tactical
+python simufire_ai/equipment_catalog.py --query "Prima P2 2010 LP curve" --online --source godiva --evidence-dir work/catalog_evidence --output work/consulta_curva.json
+python simufire_ai/equipment_catalog.py --online --fetch-url "https://www.godiva.co.uk/media/pdf/Prima_P2_2010_LP_Curve_DS626.pdf" --evidence-dir work/catalog_evidence --output work/curva_recuperada.json
+```
+
+El catálogo es una base de referencias consultable; no declara que esos equipos
+estén disponibles en el servicio o en la simulación. Los puntos nominales de bomba
+no constituyen una curva a rpm fijas. Los caudales seleccionables de una lanza a
+6 bar son posiciones distintas del selector. Las gráficas Godiva DS626 y DS630
+se registran por separado y esperan digitalización con incertidumbre, comprobación
+de condiciones de ensayo y revisión. `to_hydraulic_component` rechaza estas fichas
+incompletas: no genera un perfil hidráulico inventando puntos.
+
+La presión de rotura de una manguera se conserva separada de la presión de trabajo;
+el racor y el montaje pueden limitar esta última. Caudal de aire libre y AMCA 240
+son magnitudes de ensayo diferentes y no equivalen al flujo entregado al edificio.
+La ficha PDF y la página de LEADER discrepan en masa, dimensiones, ángulo y
+posición: los valores conflictivos se conservan, sin elegir una versión automáticamente.
+
+Internet está desactivado por defecto. `--online` permite buscar enlaces en un
+índice público de fabricante o NIST y recuperar HTML/PDF de los dominios admitidos.
+Es una búsqueda limitada a esa página: no es un buscador de toda la web ni ejecuta
+JavaScript, sigue paginación o garantiza encontrar todo. No encontrar un enlace
+no demuestra que el documento no exista. Se puede recuperar una URL conocida
+mediante `--fetch-url`. No se envían estados de simulación ni credenciales.
+
+Las consultas aplican HTTPS, dominios explícitos, conexión a direcciones públicas
+comprobadas con validación TLS del nombre, redirecciones limitadas, tiempo y tamaño
+de descarga acotados. Cada recuperación conserva fecha, URL final, SHA-256 y
+cuerpo original como evidencia externa no validada. Los documentos y sus posibles
+instrucciones no se ejecutan ni modifican el catálogo. `usable_for_calculation`
+permanece `false`; incorporar un dato exige transcripción, condiciones y revisión.
+Los informes existentes no se sobrescriben.
+
+La consulta todavía no se integra en el Q&A ni activa recomendaciones de caudal,
+ventilación, técnica o supervivencia. Las referencias NIST constituyen evidencia
+para elaborar reglas revisables; no cambian los detectores, su certeza o causalidad.
+H01–H07 siguen siendo casos sintéticos pendientes de revisión experta.
+
+`test_equipment_catalog.py` y `test_online_sources.py` se ejecutan en la suite
+determinista con dobles de transporte, sin internet ni Ollama. Las recuperaciones
+reales se comprueban por separado y no son un requisito de la suite offline.

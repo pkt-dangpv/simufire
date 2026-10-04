@@ -1,0 +1,614 @@
+{
+  "schema_version": "0.1",
+  "catalog_id": "primary_equipment_nist_v1",
+  "created_on": "2026-10-04",
+  "sources": [
+    {
+      "source_id": "pumps",
+      "title": "Rosenbauer: Truck-mounted fire pumps",
+      "url": "https://www.rosenbauer.com/Sharepoint/Built-InSystems/Documents%20Built-In%20Pumps/docs/PC2XX_Pumps_Brochure_TruckMountedFirePumps_EN.pdf",
+      "edition": "VI1912 / EN 2023_09_231220",
+      "locator": "Printed page 6: normal-pressure output",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "b9d2c0fe1e19df139bfaf1c5907885af2aec41d68f4a387d34273e7e3ec44ad4",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "godiva_spec",
+      "title": "Godiva Prima Data Sheet",
+      "url": "https://www.godiva.co.uk/media/pdf/Prima_Data_Sheet.pdf",
+      "edition": "Copyright 2019",
+      "locator": "Page 2: P1/P2_2010 rated performance and basis of data",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "2bc452b6635f0f98b28f4f01d38a900b52c40409076d3e8610b75f897caa2166",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "godiva_lp",
+      "title": "Godiva P2_2010 LP curve DS626",
+      "url": "https://www.godiva.co.uk/media/pdf/Prima_P2_2010_LP_Curve_DS626.pdf",
+      "edition": "Issue 1, 10-08-07",
+      "locator": "Page 1: graph, total head; 100 mm suction; test conditions refer to DS474",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "f6a64de6b025ac549a980dd2b0d5210ad6a72dee57560102ba4a3a24375de1ca",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "godiva_hp",
+      "title": "Godiva P2_2010 & 3010 HP curve DS630",
+      "url": "https://www.godiva.co.uk/media/pdf/Prima_P2_2010-3010_HP_Curve_DS630.pdf",
+      "edition": "Issue 1, 25-09-07",
+      "locator": "Page 1: graph; high pressure only",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "fcd7b1cd64606db40de4bcc714132d97e6076b6923e0722798e7dc29ffbe0d1d",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "awg_manual",
+      "title": "AWG Turbo nozzle operating manual M1003B10",
+      "url": "https://awg-fittings.com/images/content/downloads/betriebsanleitungen/2025/M1003B10_AWG%20Betriebsanleitung_Turbospritze_04-0924_online.pdf",
+      "edition": "Rev. 04-09/24",
+      "locator": "PDF page 34 / printed page 8 EN: section 3.4, standard 2130 and 2400",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "efddc09851bc948eb280cf2f6033788c1172ea29e0369e26c686dc992773f71d",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "gh",
+      "title": "Gollmer & Hummel GH Titan 3F product data",
+      "url": "https://gollmer-hummel.com/en/type1-firehose-gh-titan-3f",
+      "edition": "Undated live product page",
+      "locator": "Datasheet table, diameter rows 45 and 70 mm; pressure footnote",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "2a98b8b60fea41ac5b2b26251fe186d05e3102e4125f6de2e46516cd8b613414",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "fan",
+      "title": "LEADER MT236 NEO 2 product page",
+      "url": "https://www.leader-group.company/fr/materiel-lutte-incendie/ventilateurs-lutte-incendie/ventilateurs-thermiques/ventilateur-thermique-mt236-neo-2",
+      "edition": "Undated live product page",
+      "locator": "Technical characteristics",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "cfc10d44dc354f76dd39ae94f2ed63cf5272bccd871383ee2a9775cde5aba7cc",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "fan_pdf",
+      "title": "LEADER MT236 NEO2 datasheet",
+      "url": "https://www.leader-group.company/sites/default/files/2025-11/FT_MT236_NEO2_ZF03.427.FR_.2.pdf",
+      "edition": "ZF.03.427.FR.2",
+      "locator": "Pages 1–2; reference 160-10-253N",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "6726a525741c8193510760eacf9835ded86a6854949040da36449054213cd166",
+      "inspection": "relevant_passages_only",
+      "authority": "manufacturer"
+    },
+    {
+      "source_id": "nist_pressure",
+      "title": "NISTIR 7412: high-rise pressure experiments",
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir7412.pdf",
+      "edition": "March 2007",
+      "locator": "Abstract, printed page 6; 160 experiments, variables and measurements",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "4eadc76543cd8e97e299ca0fd779947325538322b582648cdd7b943d1c10835b",
+      "inspection": "relevant_passages_only",
+      "authority": "research_institute"
+    },
+    {
+      "source_id": "nist_wind",
+      "title": "NIST FireGov: Wind Driven Fires",
+      "url": "https://www.nist.gov/el/fire-research-division-73300/firegov-fire-service/wind-driven-fires",
+      "edition": "Updated 2025-09-09",
+      "locator": "7-story building experiments and lessons learned; 2008 experiments",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "2120cf7746ac5844f5ece4d5972f7f6128c8402f43f40685e7daa4a8585567e0",
+      "inspection": "relevant_passages_only",
+      "authority": "research_institute"
+    },
+    {
+      "source_id": "nist_crew",
+      "title": "NIST TN 1661: Residential Fireground Field Experiments",
+      "url": "https://www.nist.gov/publications/report-residential-fireground-field-experiments-0",
+      "edition": "2010-04-27",
+      "locator": "Publication abstract: experimental scope, two-story 2000 ft² facility",
+      "accessed_on": "2026-10-04",
+      "retrieval_sha256": "c6861a4620c6073a469c590532d409e7add978d7682f77afd79e2cfc16b3f28a",
+      "inspection": "relevant_passages_only",
+      "authority": "research_institute"
+    }
+  ],
+  "equipment": [
+    {
+      "equipment_id": "rosenbauer_n25_np",
+      "category": "pump",
+      "manufacturer": "Rosenbauer",
+      "model": "N25",
+      "configuration": "Normal pressure, no simultaneous HP use",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "rated_flow",
+          "value": 2500,
+          "unit": "L/min",
+          "source_id": "pumps",
+          "conditions": "10 bar, 3 m suction lift; external suction configuration matters",
+          "status": "transcribed"
+        },
+        {
+          "name": "rated_pressure",
+          "value": 10,
+          "unit": "bar",
+          "source_id": "pumps",
+          "conditions": "Normal-pressure rated point; not a fixed-speed curve",
+          "status": "transcribed"
+        },
+        {
+          "name": "rated_suction_lift",
+          "value": 3,
+          "unit": "m",
+          "source_id": "pumps",
+          "conditions": "Rated point only",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Fixed-speed pressure/flow curve with rpm and suction conditions",
+        "Exact installed vehicle configuration"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "godiva_prima_p2_2010",
+      "category": "pump",
+      "manufacturer": "Godiva",
+      "model": "Prima P2_2010",
+      "configuration": "LP and HP documents separate; no simultaneous-operation model",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "rated_flow",
+          "value": 2000,
+          "unit": "L/min",
+          "source_id": "godiva_spec",
+          "conditions": "10 bar at 3 m lift; piston primer, 2 UK delivery valves, 4 inch RT suction, standard platform",
+          "status": "transcribed"
+        },
+        {
+          "name": "rated_pressure",
+          "value": 10,
+          "unit": "bar",
+          "source_id": "godiva_spec",
+          "conditions": "Low-pressure EN1028:1 rated performance",
+          "status": "transcribed"
+        },
+        {
+          "name": "maximum_recommended_speed",
+          "value": 3600,
+          "unit": "rpm",
+          "source_id": "godiva_spec",
+          "conditions": "Manufacturer limit; does not identify selected operating speed",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [
+        {
+          "source_id": "godiva_lp",
+          "representation": "graph",
+          "status": "digitization_pending",
+          "conditions": "P2_2010, total head, 100 mm suction; 2400/2800/3200/3600 rpm and suction-lift envelopes must not be mixed"
+        },
+        {
+          "source_id": "godiva_hp",
+          "representation": "graph",
+          "status": "digitization_pending",
+          "conditions": "P2_2010 and 3010, HP only; separate fixed-rpm curves; excludes simultaneous LP use"
+        }
+      ],
+      "data_gaps": [
+        "DS474 test conditions referenced by DS626",
+        "Select LP or HP and fixed rpm; digitize with uncertainty and review",
+        "Installed unit/edition correspondence"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "awg_turbo_2130_standard",
+      "category": "nozzle",
+      "manufacturer": "AWG",
+      "model": "Turbo 2130",
+      "configuration": "Standard PN16 family; excludes HD, E, GOLD and VSP; inlet/coupling not selected",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "selectable_flows",
+          "value": [
+            40,
+            80,
+            130
+          ],
+          "unit": "L/min",
+          "source_id": "awg_manual",
+          "conditions": "Distinct selector positions at reference pressure 6 bar; NOT points on one fixed-selector curve",
+          "status": "transcribed"
+        },
+        {
+          "name": "reference_pressure",
+          "value": 6,
+          "unit": "bar",
+          "source_id": "awg_manual",
+          "conditions": "Pressure at nozzle inlet",
+          "status": "transcribed"
+        },
+        {
+          "name": "nominal_pressure",
+          "value": 16,
+          "unit": "bar",
+          "source_id": "awg_manual",
+          "conditions": "Standard family, not PN40 / HD",
+          "status": "transcribed"
+        },
+        {
+          "name": "spray_angle_range",
+          "value": [
+            0,
+            120
+          ],
+          "unit": "degree",
+          "source_id": "awg_manual",
+          "conditions": "Standard model",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Fixed-selector pressure/flow curve",
+        "Exact product number and inlet/coupling compatibility"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "awg_turbo_2400_standard",
+      "category": "nozzle",
+      "manufacturer": "AWG",
+      "model": "Turbo 2400",
+      "configuration": "Standard PN16 family; excludes HD, E, GOLD and VSP; inlet/coupling not selected",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "selectable_flows",
+          "value": [
+            130,
+            235,
+            400
+          ],
+          "unit": "L/min",
+          "source_id": "awg_manual",
+          "conditions": "Distinct selector positions at reference pressure 6 bar; NOT points on one fixed-selector curve",
+          "status": "transcribed"
+        },
+        {
+          "name": "reference_pressure",
+          "value": 6,
+          "unit": "bar",
+          "source_id": "awg_manual",
+          "conditions": "Pressure at nozzle inlet",
+          "status": "transcribed"
+        },
+        {
+          "name": "nominal_pressure",
+          "value": 16,
+          "unit": "bar",
+          "source_id": "awg_manual",
+          "conditions": "Standard family, not PN40 / HD",
+          "status": "transcribed"
+        },
+        {
+          "name": "spray_angle_range",
+          "value": [
+            0,
+            120
+          ],
+          "unit": "degree",
+          "source_id": "awg_manual",
+          "conditions": "Standard model",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Fixed-selector pressure/flow curve",
+        "Exact product number and inlet/coupling compatibility"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "gh_titan_3f_45",
+      "category": "hose",
+      "manufacturer": "Gollmer & Hummel",
+      "model": "GH Titan 3F",
+      "configuration": "45 mm, uncoated type 1, EPDM lining; bare hose, assembly unspecified",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "inside_diameter",
+          "value": 45,
+          "unit": "mm",
+          "source_id": "gh",
+          "conditions": "Selected product-table row",
+          "status": "transcribed"
+        },
+        {
+          "name": "mass_per_length",
+          "value": 275,
+          "unit": "g/m",
+          "source_id": "gh",
+          "conditions": "Bare hose, no couplings",
+          "status": "transcribed"
+        },
+        {
+          "name": "working_pressure",
+          "value": 16,
+          "unit": "bar",
+          "source_id": "gh",
+          "conditions": "Bare hose, water at 20 °C; couplings/assembly can reduce allowable line pressure",
+          "status": "transcribed"
+        },
+        {
+          "name": "burst_pressure",
+          "value": 60,
+          "unit": "bar",
+          "source_id": "gh",
+          "conditions": "Burst pressure; never a working pressure",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Pressure-loss curve for this exact hose/diameter and layout",
+        "Coupling and assembled-line pressure rating"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "gh_titan_3f_70",
+      "category": "hose",
+      "manufacturer": "Gollmer & Hummel",
+      "model": "GH Titan 3F",
+      "configuration": "70 mm, uncoated type 1, EPDM lining; bare hose, assembly unspecified",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "inside_diameter",
+          "value": 70,
+          "unit": "mm",
+          "source_id": "gh",
+          "conditions": "Selected product-table row",
+          "status": "transcribed"
+        },
+        {
+          "name": "mass_per_length",
+          "value": 465,
+          "unit": "g/m",
+          "source_id": "gh",
+          "conditions": "Bare hose, no couplings",
+          "status": "transcribed"
+        },
+        {
+          "name": "working_pressure",
+          "value": 16,
+          "unit": "bar",
+          "source_id": "gh",
+          "conditions": "Bare hose, water at 20 °C; couplings/assembly can reduce allowable line pressure",
+          "status": "transcribed"
+        },
+        {
+          "name": "burst_pressure",
+          "value": 60,
+          "unit": "bar",
+          "source_id": "gh",
+          "conditions": "Burst pressure; never a working pressure",
+          "status": "transcribed"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Pressure-loss curve for this exact hose/diameter and layout",
+        "Coupling and assembled-line pressure rating"
+      ],
+      "conflicts": [],
+      "usable_for_hydraulic_profile": false
+    },
+    {
+      "equipment_id": "leader_mt236_neo2",
+      "category": "fan",
+      "manufacturer": "LEADER",
+      "model": "MT236 NEO2",
+      "configuration": "Thermal PPV, Honda GX200; PDF reference 160-10-253N",
+      "review_status": "expert_pending",
+      "simulation_availability": "not_declared",
+      "facts": [
+        {
+          "name": "free_air_flow",
+          "value": 68300,
+          "unit": "m3/h",
+          "source_id": "fan_pdf",
+          "conditions": "Free-air rating; not delivered building flow",
+          "status": "transcribed"
+        },
+        {
+          "name": "amca_240_flow",
+          "value": 36280,
+          "unit": "m3/h",
+          "source_id": "fan_pdf",
+          "conditions": "AMCA 240 rating; not interchangeable with free-air rating",
+          "status": "transcribed"
+        },
+        {
+          "name": "propeller_diameter",
+          "value": 420,
+          "unit": "mm",
+          "source_id": "fan_pdf",
+          "conditions": "MT236 NEO2",
+          "status": "transcribed"
+        },
+        {
+          "name": "rated_full_speed_autonomy",
+          "value": 2,
+          "unit": "h",
+          "source_id": "fan_pdf",
+          "conditions": "Manufacturer rating, not guaranteed mission duration",
+          "status": "transcribed"
+        },
+        {
+          "name": "noise_level",
+          "value": 93,
+          "unit": "dB",
+          "source_id": "fan_pdf",
+          "conditions": "3 m distance",
+          "status": "transcribed"
+        },
+        {
+          "name": "mass",
+          "value": 37.5,
+          "unit": "kg",
+          "source_id": "fan_pdf",
+          "conditions": "Approximate; conflicting live page",
+          "status": "conflicting"
+        },
+        {
+          "name": "mass",
+          "value": 40.5,
+          "unit": "kg",
+          "source_id": "fan",
+          "conditions": "Live page; conflicts with PDF",
+          "status": "conflicting"
+        },
+        {
+          "name": "tilt_range",
+          "value": [
+            -20,
+            20
+          ],
+          "unit": "degree",
+          "source_id": "fan_pdf",
+          "conditions": "Conflicts with live page",
+          "status": "conflicting"
+        },
+        {
+          "name": "tilt_range",
+          "value": [
+            -10,
+            20
+          ],
+          "unit": "degree",
+          "source_id": "fan",
+          "conditions": "Conflicts with PDF",
+          "status": "conflicting"
+        }
+      ],
+      "curve_documents": [],
+      "data_gaps": [
+        "Resolve mass/dimensions/tilt/setback discrepancies and exact unit variant",
+        "Pressure/flow curve and building openings, wind, flow path, arrangement"
+      ],
+      "conflicts": [
+        "PDF vs live page: mass, dimensions, tilt and setback; no automatic source precedence"
+      ],
+      "usable_for_hydraulic_profile": false
+    }
+  ],
+  "tactical_references": [
+    {
+      "reference_id": "nist_wind_flow_path",
+      "source_id": "nist_wind",
+      "topics": [
+        "wind",
+        "ventilation",
+        "door_control",
+        "external_water"
+      ],
+      "summary": "En los ensayos con viento, la VPP por sí sola no venció el flujo inducido. Combinada con control de puertas y otros medios de control y extinción mejoró las condiciones de la escalera.",
+      "applicability": "Ensayos de incendios dominados por viento en edificio de siete plantas, Governors Island, febrero de 2008; instrumentos de temperatura, presión y velocidad.",
+      "limitations": [
+        "No permite recomendar ventilación solo a partir del caudal nominal del ventilador",
+        "No fija un caudal universal de extinción ni garantiza condiciones seguras"
+      ],
+      "required_scenario_inputs": [
+        "Wind direction/speed",
+        "Inlet and outlet openings",
+        "Door state and flow path",
+        "Fire location and suppression status",
+        "Crew/victim locations"
+      ],
+      "review_status": "expert_pending",
+      "automatic_tactical_rule": false
+    },
+    {
+      "reference_id": "nist_ppv_stair_pressure",
+      "source_id": "nist_pressure",
+      "topics": [
+        "ventilation",
+        "fan",
+        "pressure"
+      ],
+      "summary": "La presurización obtenida depende de tamaño, número, orientación y posición de ventiladores y del estado de puertas y salidas. Las configuraciones deben evaluarse como sistema.",
+      "applicability": "160 ensayos de presión en edificio vacío de oficinas de 30 plantas en Toledo; no convertir este protocolo de presurización en un ensayo de extinción.",
+      "limitations": [
+        "No traduce m³/h de catálogo directamente a presión de escalera",
+        "No predice supervivencia individual ni comportamiento de un incendio concreto"
+      ],
+      "required_scenario_inputs": [
+        "Building geometry",
+        "Openings and leakage",
+        "Fan arrangement and pressure/flow performance",
+        "External conditions"
+      ],
+      "review_status": "expert_pending",
+      "automatic_tactical_rule": false
+    },
+    {
+      "reference_id": "nist_crew_timing",
+      "source_id": "nist_crew",
+      "topics": [
+        "crew",
+        "timing",
+        "rescue",
+        "suppression"
+      ],
+      "summary": "El estudio compara dotaciones de dos a cinco personas, llegada de vehículos y tiempos de 22 tareas, junto con mediciones del ambiente térmico y tóxico.",
+      "applicability": "Vivienda experimental de dos plantas, 2000 ft², Rockville; publicación de 2010.",
+      "limitations": [
+        "Los tiempos pertenecen al escenario experimental",
+        "No define una dotación universal ni una probabilidad individual de supervivencia"
+      ],
+      "required_scenario_inputs": [
+        "Staffing and assignments",
+        "Arrival times",
+        "Task dependencies",
+        "Victim location and exposure history"
+      ],
+      "review_status": "expert_pending",
+      "automatic_tactical_rule": false
+    }
+  ]
+}

@@ -37,7 +37,9 @@ TESTS = [
     "simufire_ai/tests/test_explicit_question_contract.py",
     "simufire_ai/tests/test_measurement_evidence.py",
     "simufire_ai/tests/test_expert_followup.py",
-    "simufire_ai/tests/test_tactical_hydraulics.py"
+    "simufire_ai/tests/test_tactical_hydraulics.py",
+    "simufire_ai/tests/test_equipment_catalog.py",
+    "simufire_ai/tests/test_online_sources.py"
 ]
 
 
