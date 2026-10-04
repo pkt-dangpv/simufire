@@ -1,0 +1,92 @@
+{
+  "schema_version": "0.1",
+  "profile_id": "synthetic_single_line_001",
+  "data_kind": "synthetic",
+  "sources": [
+    {
+      "source_id": "SYNTHETIC_CURVES",
+      "title": "Curvas ficticias para comprobar el cálculo; no corresponden a material comercial",
+      "locator": "simufire_ai/tests/data/hydraulic_profile_synthetic.json"
+    },
+    {
+      "source_id": "TRAINING_OBJECTIVE",
+      "title": "Objetivo hidráulico ficticio; no es una estimación de caudal necesario para un incendio",
+      "locator": "Ejercicio hidráulico H01"
+    }
+  ],
+  "pump": {
+    "id": "pump_demo",
+    "source_id": "SYNTHETIC_CURVES",
+    "configuration": "Una curva fija ficticia a la salida de bomba",
+    "curve": [
+      {
+        "flow_l_min": 100,
+        "pressure_bar": 12
+      },
+      {
+        "flow_l_min": 500,
+        "pressure_bar": 8
+      }
+    ]
+  },
+  "nozzle": {
+    "id": "nozzle_demo",
+    "source_id": "SYNTHETIC_CURVES",
+    "configuration": "Una configuración fija ficticia de lanza",
+    "curve": [
+      {
+        "flow_l_min": 100,
+        "pressure_bar": 2
+      },
+      {
+        "flow_l_min": 500,
+        "pressure_bar": 6
+      }
+    ]
+  },
+  "hose": {
+    "id": "hose_demo",
+    "source_id": "SYNTHETIC_CURVES",
+    "configuration": "Un único tipo ficticio de manguera",
+    "reference_length_m": 20,
+    "curve": [
+      {
+        "flow_l_min": 100,
+        "pressure_bar": 0.2
+      },
+      {
+        "flow_l_min": 500,
+        "pressure_bar": 1
+      }
+    ]
+  },
+  "accessories": {
+    "source_id": "SYNTHETIC_CURVES",
+    "configuration": "Pérdida agregada ficticia de los accesorios en serie",
+    "curve": [
+      {
+        "flow_l_min": 100,
+        "pressure_bar": 0.1
+      },
+      {
+        "flow_l_min": 500,
+        "pressure_bar": 0.5
+      }
+    ]
+  },
+  "installation": {
+    "topology": "single_line",
+    "hose_length_m": 60,
+    "elevation_m": 0,
+    "max_line_pressure_bar": 16
+  },
+  "objective": {
+    "flow_l_min": 400,
+    "source_id": "TRAINING_OBJECTIVE"
+  },
+  "water_supply": {
+    "tank_l": 2000,
+    "reserve_l": 400,
+    "inflow_l_min": 0
+  }
+}

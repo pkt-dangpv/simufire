@@ -24,6 +24,38 @@ intervalos inválidos y dependencias entre compartimentos incompatibles.
 
 Ejecutar desde la raíz del repositorio, con Python y `jsonschema` instalado.
 
+## Hidráulica de una línea para entrenamiento
+
+El módulo determinista calcula el balance de presión para un objetivo de caudal,
+la intersección de curvas de bomba e instalación y el tiempo hasta la reserva
+de agua. Usa perfiles con procedencia de los datos, curvas de bomba y lanza,
+pérdidas de manguera y accesorios, longitud, desnivel y abastecimiento.
+
+```powershell
+python simufire_ai/hydraulics.py --profile simufire_ai/tests/data/hydraulic_profile_synthetic.json --output hydraulic_example.json
+```
+
+El perfil de ejemplo y sus curvas son ficticios. El objetivo de 400 L/min está
+dado; el módulo no determina si ese caudal basta para extinguir un incendio.
+La respuesta distingue presión suficiente, límite declarado de presión y agua
+utilizable. Predice el punto con una configuración fija de bomba y lanza;
+no selecciona un ajuste de bomba para alcanzar el objetivo.
+
+El contrato `tactics/hydraulic_profile.schema.json` admite una única línea sin
+otras salidas, régimen estacionario, un tipo de manguera y desnivel monotónico.
+Interpola linealmente solo dentro del intervalo común de las curvas. Cada curva
+y el objetivo deben identificar su fuente. Fuera del rango no predice caudal
+ni autonomía; un límite de presión desconocido queda sin evaluar. No calcula
+cavitación ni disponibilidad de presión en aspiración. El aporte se presupone
+constante y adecuado para alimentar la bomba.
+
+El resultado incluye la huella del perfil y del cálculo. La salida no sobrescribe
+informes previos. Este comando no usa Ollama y aún no está conectado al Q&A de
+ejecuciones ni a las decisiones tácticas de ventilación, extinción o rescate.
+La ecuación de línea y el punto de funcionamiento se referencian al Manual de
+incendios del CEIS Guadalajara, parte 2, edición 2015.10.05, páginas 77–79;
+no se incorporan tablas ni datos de equipo de ese manual como valores por defecto.
+
 ## Pruebas deterministas
 
 ```powershell

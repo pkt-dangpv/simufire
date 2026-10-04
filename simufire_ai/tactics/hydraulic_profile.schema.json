@@ -1,0 +1,319 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "data_kind": {
+      "enum": [
+        "synthetic",
+        "reference"
+      ]
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "source_id",
+          "title",
+          "locator"
+        ]
+      }
+    },
+    "pump": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "curve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flow_l_min": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "pressure_bar": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "flow_l_min",
+              "pressure_bar"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "configuration",
+        "curve"
+      ]
+    },
+    "nozzle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "curve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flow_l_min": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "pressure_bar": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "flow_l_min",
+              "pressure_bar"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "configuration",
+        "curve"
+      ]
+    },
+    "hose": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reference_length_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "curve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flow_l_min": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "pressure_bar": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "flow_l_min",
+              "pressure_bar"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "source_id",
+        "configuration",
+        "reference_length_m",
+        "curve"
+      ]
+    },
+    "accessories": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "configuration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "curve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flow_l_min": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "pressure_bar": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "flow_l_min",
+              "pressure_bar"
+            ]
+          }
+        }
+      },
+      "required": [
+        "source_id",
+        "configuration",
+        "curve"
+      ]
+    },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "topology": {
+          "const": "single_line"
+        },
+        "hose_length_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "elevation_m": {
+          "type": "number"
+        },
+        "max_line_pressure_bar": {
+          "anyOf": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "topology",
+        "hose_length_m",
+        "elevation_m",
+        "max_line_pressure_bar"
+      ]
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "flow_l_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "flow_l_min",
+        "source_id"
+      ]
+    },
+    "water_supply": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tank_l": {
+          "type": "number",
+          "minimum": 0
+        },
+        "reserve_l": {
+          "type": "number",
+          "minimum": 0
+        },
+        "inflow_l_min": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "tank_l",
+        "reserve_l",
+        "inflow_l_min"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile_id",
+    "data_kind",
+    "sources",
+    "pump",
+    "nozzle",
+    "hose",
+    "accessories",
+    "installation",
+    "objective",
+    "water_supply"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hydraulic training profile 0.1"
+}
