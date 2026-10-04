@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_observation_001",
+  "intent": "observation",
+  "topics": [
+    "temperature"
+  ],
+  "include_limitations": false,
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": null,
+  "resolved_fact_ids": [
+    "FACT_005"
+  ],
+  "resolved_knowledge_ids": [
+    "TEMPERATURE_001"
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/analysis_context.schema.json",
+  "title": "SimuFire AI Analysis Context",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario",
+    "timeline",
+    "actions",
+    "detected_events",
+    "final_state",
+    "analysis_rules"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+
+    "scenario": {
+      "type": "object",
+      "required": [
+        "scenario_id",
+        "name",
+        "description"
+      ],
+      "additionalProperties": false,
+
+      "properties": {
+        "scenario_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "timeline": {
+      "type": "object",
+      "required": [
+        "start_time_s",
+        "end_time_s",
+        "states_available"
+      ],
+      "additionalProperties": false,
+
+      "properties": {
+        "start_time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end_time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "states_available": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+
+    "actions": {
+      "type": "array"
+    },
+
+    "detected_events": {
+      "type": "array"
+    },
+
+    "final_state": {
+      "type": "object"
+    },
+
+    "analysis_rules": {
+      "type": "object",
+      "required": [
+        "physical_engine_is_authoritative",
+        "do_not_invent_missing_data",
+        "uncertain_phenomena_must_be_qualified"
+      ],
+      "additionalProperties": false,
+
+      "properties": {
+        "physical_engine_is_authoritative": {
+          "type": "boolean"
+        },
+        "do_not_invent_missing_data": {
+          "type": "boolean"
+        },
+        "uncertain_phenomena_must_be_qualified": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

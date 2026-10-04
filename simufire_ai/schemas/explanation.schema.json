@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/explanation.schema.json",
+  "title": "SimuFire AI Explanation",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "explanation_id",
+    "language",
+    "audience_level",
+    "summary",
+    "explanation",
+    "confidence",
+    "event_ids",
+    "limitations"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "explanation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "language": {
+      "type": "string",
+      "enum": [
+        "es",
+        "en",
+        "fr",
+        "de",
+        "it",
+        "pt"
+      ]
+    },
+
+    "audience_level": {
+      "type": "string",
+      "enum": [
+        "student",
+        "firefighter",
+        "instructor",
+        "technical"
+      ]
+    },
+
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "explanation": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+
+    "event_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "source_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

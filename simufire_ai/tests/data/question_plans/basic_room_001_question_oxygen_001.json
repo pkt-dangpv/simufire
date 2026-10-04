@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_oxygen_001",
+  "intent": "observation",
+  "topics": [
+    "oxygen"
+  ],
+  "include_limitations": false,
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": null,
+  "resolved_fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_009"
+  ],
+  "resolved_knowledge_ids": [
+    "OXYGEN_001"
+  ]
+}

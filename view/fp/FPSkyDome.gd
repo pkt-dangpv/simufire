@@ -1,11 +1,13 @@
 extends RefCounted
-## Domo de cielo para la vista FP.
+## Domo de cielo de reserva para la vista FP: solo se usa con
+## FirstPersonController.sky3d_enabled = OFF (el cielo normal es Sky3D).
 ##
-## El proyecto renderiza en GL Compatibility, donde el `sky` de un
-## Environment asignado por Camera3D no se dibuja (se veia negro por las
-## ventanas). Este domo es geometria real (esfera invertida) con gradiente
-## cenit->horizonte y disco solar, asi que se ve siempre. Vive en el mundo
-## FP, por lo que no afecta a la vista 3D.
+## Nacio porque el `sky` del Environment de la camara FP se veia negro por las
+## ventanas, y se atribuyo a GL Compatibility. No era eso: la niebla de humo
+## iba encendida con densidad 0 y fog_sky_affect = 1, y en Compatibility eso
+## pinta el cielo entero del color de la niebla (casi negro). Este domo es
+## geometria real (esfera invertida) con gradiente cenit->horizonte y disco
+## solar. Vive en el mundo FP, por lo que no afecta a la vista 3D.
 ##
 ## TODO editable desde Godot:
 ##  - Shader:   view/fp/fp_sky_dome.gdshader

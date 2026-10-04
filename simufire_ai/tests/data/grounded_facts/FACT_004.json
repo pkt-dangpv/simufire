@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_004",
+  "time_s": 195,
+  "fact_type": "observation",
+  "statement": "La interfaz entre capas descendió de 1.4 a 1.2 m.",
+  "certainty": "high",
+  "event_ids": [
+    "smoke_layer_descent_195_room_01"
+  ],
+  "source_variables": [
+    "interface_height_m"
+  ],
+  "knowledge_topics": [
+    "smoke_layer"
+  ],
+  "requires_fact_ids": [],
+  "causal": false
+}

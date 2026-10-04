@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "event_id": "hrr_increase_195_room_01",
+  "time_s": 195,
+  "event_type": "hrr_increase",
+  "compartment_id": "room_01",
+  "cause": "detected_change",
+  "confidence": 0.95,
+  "evidence": [
+    {
+      "variable": "hrr_kw",
+      "previous_value": 720,
+      "value": 1280,
+      "unit": "kW",
+      "description": "Aumento significativo del HRR"
+    }
+  ]
+}

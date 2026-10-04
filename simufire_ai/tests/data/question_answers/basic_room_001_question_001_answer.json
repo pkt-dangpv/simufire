@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.2",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_001",
+  "intent": "timeline",
+  "topics": [
+    "ventilation",
+    "hrr",
+    "smoke_layer",
+    "temperature"
+  ],
+  "fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003",
+    "FACT_004",
+    "FACT_005"
+  ],
+  "knowledge_ids": [
+    "HRR_001",
+    "SMOKE_LAYER_001",
+    "TEMPERATURE_001",
+    "VENTILATION_001"
+  ],
+  "answer": "En t=180 s: El elemento door_01 se abrió. El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01.\n\nEn t=195 s: El HRR aumentó de 720 a 1280 kW. La interfaz entre capas descendió de 1.4 a 1.2 m. La temperatura de la capa superior aumentó de 390 a 475 °C.",
+  "source_ids": []
+}

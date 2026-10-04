@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "explanation_id": "grounded_explanation_001",
+  "language": "es",
+  "audience_level": "firefighter",
+  "summary": "El elemento door_01 se abrió en t=180 s. El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01. El HRR aumentó de 720 a 1280 kW. La interfaz entre capas descendió de 1.4 a 1.2 m. La temperatura de la capa superior aumentó de 390 a 475 °C.",
+  "explanation": "El elemento door_01 se abrió en t=180 s. El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01. El HRR aumentó de 720 a 1280 kW. La interfaz entre capas descendió de 1.4 a 1.2 m. La temperatura de la capa superior aumentó de 390 a 475 °C. Limitaciones de interpretación: Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR. Los datos disponibles no son suficientes para afirmar una relación causal directa entre la apertura de la puerta y el aumento de temperatura. Se ha detectado un descenso de la interfaz entre capas, pero los datos disponibles no permiten atribuirle una causa física concreta.",
+  "confidence": 0.9,
+  "event_ids": [
+    "ventilation_increase_180_room_01",
+    "hrr_increase_195_room_01",
+    "smoke_layer_descent_195_room_01",
+    "temperature_increase_195_room_01"
+  ],
+  "source_ids": [],
+  "limitations": [
+    "Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR.",
+    "Los datos disponibles no son suficientes para afirmar una relación causal directa entre la apertura de la puerta y el aumento de temperatura.",
+    "Se ha detectado un descenso de la interfaz entre capas, pero los datos disponibles no permiten atribuirle una causa física concreta."
+  ]
+}

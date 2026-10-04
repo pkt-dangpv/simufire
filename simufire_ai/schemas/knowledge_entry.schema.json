@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/knowledge_entry.schema.json",
+  "title": "SimuFire AI Knowledge Entry",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "knowledge_id",
+    "topic",
+    "title",
+    "content",
+    "source",
+    "confidence",
+    "tags"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1"
+    },
+
+    "knowledge_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "topic": {
+      "type": "string",
+      "enum": [
+        "fire_dynamics",
+        "hrr",
+        "ventilation",
+        "ventilation_limited",
+        "smoke_layer",
+        "flashover",
+        "backdraft",
+        "rollover",
+        "gas_flow",
+        "oxygen",
+        "temperature",
+        "fire_growth",
+        "suppression",
+        "zone_models",
+        "cfast",
+        "fds",
+        "simufire"
+      ]
+    },
+
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "content": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "source_id",
+        "title"
+      ],
+
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "organization": {
+          "type": "string"
+        },
+
+        "document": {
+          "type": "string"
+        },
+
+        "section": {
+          "type": "string"
+        },
+
+        "page": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "high",
+        "moderate"
+      ]
+    },
+
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

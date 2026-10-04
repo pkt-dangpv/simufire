@@ -1,0 +1,16 @@
+{
+  "schema_version": "0.3",
+  "scenario_id": "basic_room_001",
+  "question_id": "question_concept_001",
+  "intent": "concept",
+  "topics": [
+    "hrr"
+  ],
+  "include_limitations": false,
+  "timeline_relation": "not_applicable",
+  "anchor_fact_id": null,
+  "resolved_fact_ids": [],
+  "resolved_knowledge_ids": [
+    "HRR_001"
+  ]
+}

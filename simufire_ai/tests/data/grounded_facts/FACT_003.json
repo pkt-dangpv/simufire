@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_003",
+  "time_s": 195,
+  "fact_type": "observation",
+  "statement": "El HRR aumentó de 720 a 1280 kW.",
+  "certainty": "high",
+  "event_ids": [
+    "hrr_increase_195_room_01"
+  ],
+  "source_variables": [
+    "hrr_kw"
+  ],
+  "knowledge_topics": [
+    "hrr"
+  ],
+  "requires_fact_ids": [],
+  "causal": false
+}

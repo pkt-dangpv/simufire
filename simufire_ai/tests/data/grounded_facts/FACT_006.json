@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_006",
+  "time_s": 195,
+  "fact_type": "limitation",
+  "statement": "Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR.",
+  "certainty": "certain",
+  "event_ids": [],
+  "source_variables": [],
+  "knowledge_topics": [
+    "ventilation",
+    "hrr"
+  ],
+  "requires_fact_ids": [
+    "FACT_001",
+    "FACT_002",
+    "FACT_003"
+  ],
+  "causal": false
+}

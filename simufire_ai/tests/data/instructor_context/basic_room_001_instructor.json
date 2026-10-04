@@ -1,0 +1,285 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "scenario_facts": [
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_001",
+      "time_s": 180,
+      "fact_type": "action",
+      "statement": "El elemento door_01 se abrió en t=180 s.",
+      "certainty": "certain",
+      "event_ids": [],
+      "source_variables": [],
+      "knowledge_topics": [],
+      "requires_fact_ids": [],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_002",
+      "time_s": 180,
+      "fact_type": "association",
+      "statement": "El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01.",
+      "certainty": "high",
+      "event_ids": [
+        "ventilation_increase_180_room_01"
+      ],
+      "source_variables": [
+        "upper_layer.o2_percent",
+        "hrr_kw"
+      ],
+      "knowledge_topics": [
+        "ventilation"
+      ],
+      "requires_fact_ids": [
+        "FACT_001"
+      ],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_003",
+      "time_s": 195,
+      "fact_type": "observation",
+      "statement": "El HRR aumentó de 720 a 1280 kW.",
+      "certainty": "high",
+      "event_ids": [
+        "hrr_increase_195_room_01"
+      ],
+      "source_variables": [
+        "hrr_kw"
+      ],
+      "knowledge_topics": [
+        "hrr"
+      ],
+      "requires_fact_ids": [],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_004",
+      "time_s": 195,
+      "fact_type": "observation",
+      "statement": "La interfaz entre capas descendió de 1.4 a 1.2 m.",
+      "certainty": "high",
+      "event_ids": [
+        "smoke_layer_descent_195_room_01"
+      ],
+      "source_variables": [
+        "interface_height_m"
+      ],
+      "knowledge_topics": [
+        "smoke_layer"
+      ],
+      "requires_fact_ids": [],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_005",
+      "time_s": 195,
+      "fact_type": "observation",
+      "statement": "La temperatura de la capa superior aumentó de 390 a 475 °C.",
+      "certainty": "high",
+      "event_ids": [
+        "temperature_increase_195_room_01"
+      ],
+      "source_variables": [
+        "upper_layer.temperature_c"
+      ],
+      "knowledge_topics": [
+        "temperature"
+      ],
+      "requires_fact_ids": [],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_009",
+      "time_s": 180,
+      "fact_type": "observation",
+      "statement": "El O₂ de la capa superior aumentó de 14.1 a 16.8 %.",
+      "certainty": "high",
+      "event_ids": [
+        "ventilation_increase_180_room_01"
+      ],
+      "source_variables": [
+        "upper_layer.o2_percent"
+      ],
+      "knowledge_topics": [
+        "oxygen"
+      ],
+      "requires_fact_ids": [
+        "FACT_002"
+      ],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_006",
+      "time_s": 195,
+      "fact_type": "limitation",
+      "statement": "Los datos disponibles no son suficientes para afirmar que la apertura de la puerta causó por sí sola el aumento del HRR.",
+      "certainty": "certain",
+      "event_ids": [],
+      "source_variables": [],
+      "knowledge_topics": [
+        "ventilation",
+        "hrr"
+      ],
+      "requires_fact_ids": [
+        "FACT_001",
+        "FACT_002",
+        "FACT_003"
+      ],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_007",
+      "time_s": 195,
+      "fact_type": "limitation",
+      "statement": "Los datos disponibles no son suficientes para afirmar una relación causal directa entre la apertura de la puerta y el aumento de temperatura.",
+      "certainty": "certain",
+      "event_ids": [],
+      "source_variables": [],
+      "knowledge_topics": [
+        "ventilation",
+        "temperature"
+      ],
+      "requires_fact_ids": [
+        "FACT_001",
+        "FACT_002",
+        "FACT_005"
+      ],
+      "causal": false
+    },
+    {
+      "schema_version": "0.1",
+      "scenario_id": "basic_room_001",
+      "fact_id": "FACT_008",
+      "time_s": 195,
+      "fact_type": "limitation",
+      "statement": "Se ha detectado un descenso de la interfaz entre capas, pero los datos disponibles no permiten atribuirle una causa física concreta.",
+      "certainty": "certain",
+      "event_ids": [],
+      "source_variables": [],
+      "knowledge_topics": [
+        "smoke_layer"
+      ],
+      "requires_fact_ids": [
+        "FACT_004"
+      ],
+      "causal": false
+    }
+  ],
+  "technical_knowledge": [
+    {
+      "knowledge_id": "HRR_001",
+      "topic": "hrr",
+      "title": "Definición y significado de la tasa de liberación de calor",
+      "content": "La tasa de liberación de calor o HRR representa la velocidad a la que un incendio libera energía. Es una medida de potencia y se expresa normalmente en vatios, kilovatios o megavatios. El HRR no debe confundirse con la temperatura: dos fuegos pueden presentar temperaturas de llama similares y, sin embargo, liberar cantidades de energía por unidad de tiempo muy diferentes. En el análisis de una simulación, un aumento del HRR indica que ha aumentado la tasa de liberación de energía del incendio, pero ese aumento por sí solo no demuestra cuál ha sido su causa.",
+      "source": {
+        "source_id": "NIST_FIRE_DYNAMICS",
+        "title": "Fire Dynamics",
+        "organization": "National Institute of Standards and Technology",
+        "document": "NIST Fire Dynamics",
+        "section": "Measuring Fire - Heat Release Rate"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "hrr",
+      "matched_fact_ids": [
+        "FACT_003"
+      ]
+    },
+    {
+      "knowledge_id": "OXYGEN_001",
+      "topic": "oxygen",
+      "title": "Disponibilidad de oxígeno y combustión en incendios de compartimento",
+      "content": "El oxígeno disponible condiciona la combustión en un incendio de compartimento. Cuando la ventilación no aporta suficiente oxígeno para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La entrada de aire a través de una nueva abertura puede modificar la disponibilidad de oxígeno y alterar el comportamiento del incendio. Sin embargo, una variación de la concentración de oxígeno observada en una simulación no permite por sí sola determinar la causa concreta de otros cambios como el HRR o la temperatura; esas relaciones deben establecerse utilizando conjuntamente los datos disponibles y las reglas del Fire Event Analyzer.",
+      "source": {
+        "source_id": "NIST_FIRE_DYNAMICS",
+        "title": "Fire Dynamics",
+        "organization": "National Institute of Standards and Technology",
+        "document": "Fire Dynamics",
+        "section": "Fire Behavior in a Structure"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "oxygen",
+      "matched_fact_ids": [
+        "FACT_009"
+      ]
+    },
+    {
+      "knowledge_id": "SMOKE_LAYER_001",
+      "topic": "smoke_layer",
+      "title": "Interfaz entre capas en un modelo de dos zonas",
+      "content": "En un modelo de incendios de dos zonas, cada recinto se representa mediante una capa superior y una capa inferior de gases. La altura de la interfaz indica la separación vertical entre ambas capas. Un descenso de la interfaz significa que la capa superior ocupa una mayor parte de la altura del recinto. Este cambio puede utilizarse para describir la evolución de la estratificación de gases y humo dentro del compartimento. Sin embargo, el descenso de la interfaz por sí solo no identifica la causa física concreta que lo ha producido; esa interpretación requiere analizar conjuntamente otros datos de la simulación.",
+      "source": {
+        "source_id": "NIST_CFAST_V7_TECHNICAL_REFERENCE",
+        "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7 Volume 1: Technical Reference Guide",
+        "organization": "National Institute of Standards and Technology",
+        "document": "NIST TN 1889v1",
+        "section": "Two-zone compartment model"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "smoke_layer",
+      "matched_fact_ids": [
+        "FACT_004"
+      ]
+    },
+    {
+      "knowledge_id": "TEMPERATURE_001",
+      "topic": "temperature",
+      "title": "Temperatura de las capas en un modelo de dos zonas",
+      "content": "En un modelo de incendios de dos zonas, el recinto se representa mediante una capa superior y una capa inferior, cada una con una temperatura media calculada. La temperatura de la capa superior representa el estado térmico medio de los gases de esa zona y no debe interpretarse como temperatura de llama. Un aumento de la temperatura de la capa superior indica que los gases de esa capa han aumentado su temperatura media durante el intervalo analizado. Ese incremento, por sí solo, no permite determinar cuál ha sido su causa física concreta; para establecerla deben analizarse conjuntamente el HRR, la ventilación, los flujos de gases, las pérdidas térmicas y otros datos disponibles.",
+      "source": {
+        "source_id": "NIST_CFAST_V7",
+        "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7",
+        "organization": "National Institute of Standards and Technology",
+        "document": "NIST TN 1889",
+        "section": "Layer temperatures and compartment outputs"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "temperature",
+      "matched_fact_ids": [
+        "FACT_005"
+      ]
+    },
+    {
+      "knowledge_id": "VENTILATION_001",
+      "topic": "ventilation",
+      "title": "Influencia de la ventilación en el desarrollo del incendio",
+      "content": "La ventilación es uno de los factores que condicionan el desarrollo de un incendio en un recinto. Cuando la disponibilidad de oxígeno es insuficiente para mantener la combustión potencial del combustible presente, el incendio puede quedar limitado por ventilación. En esas condiciones, la reducción de oxígeno puede disminuir la tasa de liberación de calor y la temperatura. La apertura de una puerta, ventana u otra vía de ventilación puede modificar el suministro de oxígeno y producir cambios importantes en el comportamiento del incendio. Sin embargo, en el análisis de una simulación concreta no debe atribuirse automáticamente un cambio de HRR o temperatura a una apertura únicamente por proximidad temporal; esa relación debe estar respaldada por los datos y por el Fire Event Analyzer.",
+      "source": {
+        "source_id": "NIST_FIRE_DYNAMICS",
+        "title": "Fire Dynamics",
+        "organization": "National Institute of Standards and Technology",
+        "document": "NIST Fire Dynamics",
+        "section": "Fire Behavior in a Structure - Ventilation Limited"
+      },
+      "confidence": "authoritative",
+      "matched_topic": "ventilation",
+      "matched_fact_ids": [
+        "FACT_002"
+      ]
+    }
+  ],
+  "rules": {
+    "scenario_facts_are_authoritative": true,
+    "knowledge_is_general_theory": true,
+    "do_not_convert_association_into_causation": true,
+    "do_not_invent_missing_variables": true,
+    "do_not_invent_phenomena": true,
+    "distinguish_scenario_from_general_theory": true
+  }
+}

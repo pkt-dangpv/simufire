@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "knowledge_id": "TEMPERATURE_001",
+  "topic": "temperature",
+  "title": "Temperatura de las capas en un modelo de dos zonas",
+
+  "content": "En un modelo de incendios de dos zonas, el recinto se representa mediante una capa superior y una capa inferior, cada una con una temperatura media calculada. La temperatura de la capa superior representa el estado térmico medio de los gases de esa zona y no debe interpretarse como temperatura de llama. Un aumento de la temperatura de la capa superior indica que los gases de esa capa han aumentado su temperatura media durante el intervalo analizado. Ese incremento, por sí solo, no permite determinar cuál ha sido su causa física concreta; para establecerla deben analizarse conjuntamente el HRR, la ventilación, los flujos de gases, las pérdidas térmicas y otros datos disponibles.",
+
+  "source": {
+    "source_id": "NIST_CFAST_V7",
+    "title": "CFAST - Consolidated Model of Fire Growth and Smoke Transport Version 7",
+    "organization": "National Institute of Standards and Technology",
+    "document": "NIST TN 1889",
+    "section": "Layer temperatures and compartment outputs"
+  },
+
+  "confidence": "authoritative",
+
+  "tags": [
+    "temperature",
+    "upper_layer_temperature",
+    "lower_layer_temperature",
+    "gas_temperature",
+    "zone_model"
+  ]
+}

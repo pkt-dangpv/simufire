@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_002",
+  "time_s": 180,
+  "fact_type": "association",
+  "statement": "El Fire Event Analyzer detectó un aumento de ventilación asociado a la apertura de door_01.",
+  "certainty": "high",
+  "event_ids": [
+    "ventilation_increase_180_room_01"
+  ],
+  "source_variables": [
+    "upper_layer.o2_percent",
+    "hrr_kw"
+  ],
+  "knowledge_topics": [
+    "ventilation"
+  ],
+  "requires_fact_ids": [
+    "FACT_001"
+  ],
+  "causal": false
+}

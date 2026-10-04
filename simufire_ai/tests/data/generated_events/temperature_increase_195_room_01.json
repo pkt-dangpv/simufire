@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "event_id": "temperature_increase_195_room_01",
+  "time_s": 195,
+  "event_type": "temperature_increase",
+  "compartment_id": "room_01",
+  "cause": "detected_change",
+  "confidence": 0.9,
+  "evidence": [
+    {
+      "variable": "upper_layer.temperature_c",
+      "previous_value": 390,
+      "value": 475,
+      "unit": "C",
+      "description": "Aumento de temperatura de la capa superior"
+    }
+  ]
+}

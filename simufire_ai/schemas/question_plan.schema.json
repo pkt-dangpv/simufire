@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/question_plan.schema.json",
+  "title": "SimuFire AI Question Plan",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "question_id",
+    "intent",
+    "topics",
+    "include_limitations",
+    "timeline_relation",
+    "anchor_fact_id"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.3"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "question_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "intent": {
+      "type": "string",
+      "enum": [
+        "timeline",
+        "causality",
+        "concept",
+        "observation",
+        "uncertainty",
+        "general"
+      ]
+    },
+
+    "topics": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "fire_dynamics",
+          "hrr",
+          "ventilation",
+          "ventilation_limited",
+          "smoke_layer",
+          "flashover",
+          "backdraft",
+          "rollover",
+          "gas_flow",
+          "oxygen",
+          "temperature",
+          "fire_growth",
+          "suppression",
+          "zone_models",
+          "cfast",
+          "fds",
+          "simufire"
+        ]
+      }
+    },
+
+    "include_limitations": {
+      "type": "boolean"
+    },
+
+    "timeline_relation": {
+      "type": "string",
+      "enum": [
+        "before",
+        "after",
+        "all",
+        "not_applicable"
+      ]
+    },
+
+    "anchor_fact_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

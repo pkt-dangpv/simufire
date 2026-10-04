@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "fact_id": "FACT_001",
+  "time_s": 180,
+  "fact_type": "action",
+  "statement": "El elemento door_01 se abrió en t=180 s.",
+  "certainty": "certain",
+  "event_ids": [],
+  "source_variables": [],
+  "knowledge_topics": [],
+  "requires_fact_ids": [],
+  "causal": false
+}

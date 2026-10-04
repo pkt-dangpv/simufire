@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "event_id": "smoke_layer_descent_195_room_01",
+  "time_s": 195,
+  "event_type": "smoke_layer_descent",
+  "compartment_id": "room_01",
+  "cause": "detected_change",
+  "confidence": 0.95,
+  "evidence": [
+    {
+      "variable": "interface_height_m",
+      "previous_value": 1.4,
+      "value": 1.2,
+      "unit": "m",
+      "description": "Descenso de la interfaz entre capas"
+    }
+  ]
+}

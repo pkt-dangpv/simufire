@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "knowledge_id": "HRR_001",
+  "topic": "hrr",
+  "title": "Definición y significado de la tasa de liberación de calor",
+
+  "content": "La tasa de liberación de calor o HRR representa la velocidad a la que un incendio libera energía. Es una medida de potencia y se expresa normalmente en vatios, kilovatios o megavatios. El HRR no debe confundirse con la temperatura: dos fuegos pueden presentar temperaturas de llama similares y, sin embargo, liberar cantidades de energía por unidad de tiempo muy diferentes. En el análisis de una simulación, un aumento del HRR indica que ha aumentado la tasa de liberación de energía del incendio, pero ese aumento por sí solo no demuestra cuál ha sido su causa.",
+
+  "source": {
+    "source_id": "NIST_FIRE_DYNAMICS",
+    "title": "Fire Dynamics",
+    "organization": "National Institute of Standards and Technology",
+    "document": "NIST Fire Dynamics",
+    "section": "Measuring Fire - Heat Release Rate"
+  },
+
+  "confidence": "authoritative",
+
+  "tags": [
+    "HRR",
+    "heat_release_rate",
+    "fire_power",
+    "fire_growth",
+    "energy"
+  ]
+}

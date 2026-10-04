@@ -1,0 +1,36 @@
+{
+  "schema_version": "0.1",
+  "scenario_id": "basic_room_001",
+  "event_id": "event_001",
+  "time_s": 180,
+
+  "event_type": "ventilation_increase",
+  "compartment_id": "room_01",
+  "cause": "door_open",
+
+  "confidence": 0.95,
+
+  "evidence": [
+    {
+      "variable": "o2_percent",
+      "previous_value": 14.1,
+      "value": 16.8,
+      "unit": "%",
+      "description": "Aumento del oxigeno tras la apertura"
+    },
+    {
+      "variable": "hrr_kw",
+      "previous_value": 720,
+      "value": 1280,
+      "unit": "kW",
+      "description": "Aumento del HRR tras la entrada de aire"
+    },
+    {
+      "variable": "upper_layer.temperature_c",
+      "previous_value": 390,
+      "value": 475,
+      "unit": "C",
+      "description": "Aumento de temperatura en la capa superior"
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/fire_event.schema.json",
+  "title": "SimuFire AI Fire Event",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "event_id",
+    "time_s",
+    "event_type",
+    "confidence",
+    "evidence"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "hrr_increase",
+        "hrr_decrease",
+        "oxygen_decrease",
+        "temperature_increase",
+        "temperature_decrease",
+        "smoke_layer_descent",
+        "smoke_layer_rise",
+        "ventilation_increase",
+        "ventilation_decrease",
+        "ventilation_limited",
+        "fuel_limited",
+        "fire_spread",
+        "water_application",
+        "gas_cooling",
+        "extinction",
+        "reignition",
+        "flashover_conditions",
+        "backdraft_conditions",
+        "rollover_conditions"
+      ]
+    },
+
+    "compartment_id": {
+      "type": "string"
+    },
+
+    "cause": {
+      "type": "string"
+    },
+
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_item"
+      }
+    }
+  },
+
+  "$defs": {
+    "evidence_item": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "variable",
+        "value"
+      ],
+
+      "properties": {
+        "variable": {
+          "type": "string"
+        },
+
+        "value": {
+          "type": "number"
+        },
+
+        "previous_value": {
+          "type": "number"
+        },
+
+        "unit": {
+          "type": "string"
+        },
+
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

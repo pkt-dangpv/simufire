@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://simufire.local/schemas/simulation_state.schema.json",
+  "title": "SimuFire AI Simulation State",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "time_s",
+    "compartments"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+
+    "compartments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/compartment_state"
+      }
+    },
+
+    "global": {
+      "$ref": "#/$defs/global_state"
+    }
+  },
+
+  "$defs": {
+    "compartment_state": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "id",
+        "interface_height_m",
+        "upper_layer",
+        "lower_layer",
+        "hrr_kw"
+      ],
+
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+
+        "interface_height_m": {
+          "type": "number",
+          "minimum": 0
+        },
+
+        "upper_layer": {
+          "$ref": "#/$defs/layer_state"
+        },
+
+        "lower_layer": {
+          "$ref": "#/$defs/layer_state"
+        },
+
+        "hrr_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+
+        "pressure_delta_pa": {
+          "type": "number"
+        }
+      }
+    },
+
+    "layer_state": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "required": [
+        "temperature_c",
+        "o2_percent"
+      ],
+
+      "properties": {
+        "temperature_c": {
+          "type": "number"
+        },
+
+        "o2_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+
+        "co_percent": {
+          "type": "number",
+          "minimum": 0
+        },
+
+        "co2_percent": {
+          "type": "number",
+          "minimum": 0
+        },
+
+        "smoke_mass_kg": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+
+    "global_state": {
+      "type": "object",
+      "additionalProperties": false,
+
+      "properties": {
+        "total_hrr_kw": {
+          "type": "number",
+          "minimum": 0
+        },
+
+        "ambient_temp_c": {
+          "type": "number"
+        },
+
+        "ambient_pressure_pa": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

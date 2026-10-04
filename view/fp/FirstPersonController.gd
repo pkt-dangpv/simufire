@@ -320,9 +320,92 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_facade_fill_day_color: Color = Color(0.76, 0.84, 0.92, 1.0)
 @export var exterior_facade_fill_night_color: Color = Color(0.24, 0.31, 0.43, 1.0)
 @export_range(6.0, 32.0, 0.5) var exterior_facade_fill_range_m: float = 18.0
-## Cielo: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd). Se usa
-## geometria porque el renderer GL Compatibility no dibuja el sky de un
-## Environment por camara.
+
+@export_subgroup("Cielo Sky3D")
+## Cielo atmosferico del addon Sky3D (addons/sky_3d): sol, luna con fases,
+## estrellas y nubes que se mueven con la hora. Su sol y su luna sustituyen a
+## la luz direccional fija del exterior (misma energia y mismos ajustes de
+## sombra). Con OFF vuelve el domo geometrico FPSkyDome de abajo.
+##
+## Sky3D solo esta en el arbol mientras la vista FP esta activa: es un
+## WorldEnvironment y sus luces cuelgan de un Node, asi que ocultar el mundo FP
+## no las apagaria y la vista 3D tecnica heredaria cielo, luz y tonemap.
+@export var sky3d_enabled: bool = true:
+	set(value):
+		sky3d_enabled = value
+		_rebuild_if_live()
+## Hora local a la que se pone el reloj con exterior_lighting_mode = "Dia" y
+## "Noche". Con la fecha y el lugar por defecto, a las 11:00 el sol va a unos
+## 50 grados y a las 23:30 hay luna llena sobre el horizonte.
+@export_range(0.0, 23.99, 0.25) var sky3d_day_hour: float = 11.0:
+	set(value):
+		sky3d_day_hour = value
+		_sky3d_mode_applied = ""
+		_apply_sky3d_settings()
+@export_range(0.0, 23.99, 0.25) var sky3d_night_hour: float = 23.5:
+	set(value):
+		sky3d_night_hour = value
+		_sky3d_mode_applied = ""
+		_apply_sky3d_settings()
+## Deja correr el reloj. Al cruzar el amanecer o el anochecer se cambia
+## exterior_lighting_mode y el mundo se reconstruye (ventanas y farolas de la
+## ciudad son de dia o de noche), lo que da un tiron breve en ese instante.
+@export var sky3d_time_flow_enabled: bool = false:
+	set(value):
+		sky3d_time_flow_enabled = value
+		_apply_sky3d_settings()
+## Duracion de un dia completo en minutos reales, con el reloj corriendo.
+@export_range(1.0, 1440.0, 0.5) var sky3d_minutes_per_day: float = 30.0:
+	set(value):
+		sky3d_minutes_per_day = value
+		_apply_sky3d_settings()
+## Lugar y fecha: fijan por donde sale el sol y la fase de la luna. Por
+## defecto Madrid en horario de verano y una noche de luna llena.
+@export_range(-90.0, 90.0, 0.01) var sky3d_latitude_deg: float = 40.42:
+	set(value):
+		sky3d_latitude_deg = value
+		_apply_sky3d_settings()
+@export_range(-180.0, 180.0, 0.01) var sky3d_longitude_deg: float = -3.70:
+	set(value):
+		sky3d_longitude_deg = value
+		_apply_sky3d_settings()
+@export_range(-12.0, 14.0, 0.25) var sky3d_utc_offset_h: float = 2.0:
+	set(value):
+		sky3d_utc_offset_h = value
+		_apply_sky3d_settings()
+## Fecha como (anio, mes, dia).
+@export var sky3d_date: Vector3i = Vector3i(2026, 5, 1):
+	set(value):
+		sky3d_date = value
+		_apply_sky3d_settings()
+## Brillo del cielo pintado (SkyDome.exposure). Sky3D esta pensado para tonemap
+## ACES y la camara FP usa el lineal: a 1,0 las nubes de mediodia se queman a
+## blanco plano; a 0,75 conservan el volumen y la noche sigue legible.
+@export_range(0.1, 4.0, 0.05) var sky3d_sky_exposure: float = 0.75:
+	set(value):
+		sky3d_sky_exposure = value
+		_apply_sky3d_settings()
+@export var sky3d_clouds_enabled: bool = true:
+	set(value):
+		sky3d_clouds_enabled = value
+		_apply_sky3d_settings()
+## Bruma atmosferica de Sky3D sobre la geometria lejana (funde la ciudad con
+## el horizonte). Es independiente de la niebla de humo de la camara.
+@export var sky3d_atmospheric_fog_enabled: bool = true:
+	set(value):
+		sky3d_atmospheric_fog_enabled = value
+		_apply_sky3d_settings()
+## Recorrido de referencia (m) para velar el cielo con la niebla de humo. El
+## cielo esta en el infinito, pero desde dentro se ve a traves de unos pocos
+## metros de sala: con esta distancia el humo lo tapa en la misma medida que
+## taparia una pared a esa distancia.
+@export_range(1.0, 60.0, 0.5) var fp_fog_sky_reference_m: float = 8.0
+
+@export_subgroup("Domo de cielo sin Sky3D")
+## Cielo de reserva: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd).
+## Solo se usa con sky3d_enabled = OFF. Nacio creyendo que GL Compatibility no
+## dibuja el sky de un Environment por camara; si lo dibuja, lo que lo tapaba
+## era la niebla de humo encendida con densidad 0 y fog_sky_affect = 1.
 @export var exterior_procedural_sky_enabled: bool = true:
 	set(value):
 		exterior_procedural_sky_enabled = value
@@ -1000,6 +1083,13 @@ var _visibility_overlay: ColorRect = null
 var _current_room_id: int = -1
 var _room_rects_cache: Dictionary = {}
 var _fog_env: Environment = null
+## Cielo Sky3D. Persiste entre reconstrucciones del mundo y entra y sale del
+## arbol con la vista FP (ver _sync_sky3d_presence).
+var _sky3d: Sky3D = null
+## Modo dia/noche con el que se puso el reloj por ultima vez: solo se vuelve a
+## poner cuando cambia el modo, para que el tiempo que corre no salte atras.
+var _sky3d_mode_applied: String = ""
+var _sky3d_applying: bool = false
 var _fog_density_current: float = 0.0
 var _fog_height_density_current: float = 0.0
 var _fp_fire_phase: float = 0.0
@@ -1088,6 +1178,7 @@ func set_active(enabled: bool) -> void:
 		if _visibility_overlay != null:
 			_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
 		_stop_detector_alarms()
+	_sync_sky3d_presence()
 
 
 ## Reconstruye el mundo si ya existe. Lo usan los setters de los parametros
@@ -1292,16 +1383,112 @@ func apply_hud_layout() -> void:
 		_apply_panel_rect(_prompt_panel, fp_prompt_panel_rect)
 
 
-## Aplica el cielo procedural dia/noche al Environment FP (o lo desactiva).
+## Pone el fondo del Environment FP: el Sky de Sky3D si esta en uso, o un color
+## neutro detras del domo geometrico FPSkyDome si no.
 func _apply_fp_sky() -> void:
-	# El cielo lo pinta el domo geometrico (FPSkyDome): GL Compatibility no
-	# dibuja el sky de un Environment por camara. Aqui solo se deja un color
-	# de fondo neutro para lo que quede fuera del domo.
 	if _fog_env == null:
+		return
+	# La camara FP lleva Environment propio (la niebla de humo), asi que el
+	# WorldEnvironment de Sky3D no le llega: se comparte su recurso Sky, que es
+	# el que Sky3D actualiza con la hora. La luz ambiente sigue apagada como en
+	# el .tres: el cielo iluminaria por igual el interior de las salas.
+	if _sky3d_wanted() and _sky3d != null and is_instance_valid(_sky3d) and _sky3d.environment != null:
+		_fog_env.background_mode = Environment.BG_SKY
+		_fog_env.sky = _sky3d.environment.sky
 		return
 	_fog_env.background_mode = Environment.BG_COLOR
 	var night: bool = _exterior_is_night()
 	_fog_env.background_color = sky_night_horizon_color if night else sky_day_horizon_color
+
+
+func _sky3d_wanted() -> bool:
+	return sky3d_enabled and exterior_context_enabled and building != null
+
+
+## Mete Sky3D en el arbol mientras la vista FP esta activa y lo saca si no.
+## Fuera del arbol no pinta nada: ni fondo del mundo, ni sol, ni luna, ni bruma.
+func _sync_sky3d_presence() -> void:
+	if not is_inside_tree():
+		return
+	var present: bool = _sky3d != null and is_instance_valid(_sky3d)
+	if _active and _sky3d_wanted():
+		if not present:
+			_sky3d = Sky3D.new()
+			_sky3d.name = "Sky3D"
+			# Sky3D crea su Environment, su SkyDome, su TimeOfDay y las luces
+			# SunLight y MoonLight al entrar en el arbol.
+			add_child(_sky3d)
+			_sky3d.sky.day_night_changed.connect(_on_sky3d_day_night_changed)
+			_sky3d_mode_applied = ""
+		elif not _sky3d.is_inside_tree():
+			add_child(_sky3d)
+		_apply_sky3d_settings()
+	elif present and _sky3d.is_inside_tree():
+		remove_child(_sky3d)
+	_apply_fp_sky()
+
+
+## Lleva al nodo Sky3D los ajustes de este controlador. Vale en cualquier
+## momento: sin Sky3D creado no hace nada.
+func _apply_sky3d_settings() -> void:
+	if _sky3d == null or not is_instance_valid(_sky3d) or _sky3d.tod == null:
+		return
+	# Cambiar lugar y fecha uno a uno puede pasar el sol por debajo del
+	# horizonte un instante; esos cruces no son el reloj corriendo y no deben
+	# tocar el modo dia/noche (ver _on_sky3d_day_night_changed).
+	_sky3d_applying = true
+	var tod: TimeOfDay = _sky3d.tod
+	tod.latitude = deg_to_rad(sky3d_latitude_deg)
+	tod.longitude = deg_to_rad(sky3d_longitude_deg)
+	tod.utc = sky3d_utc_offset_h
+	tod.year = sky3d_date.x
+	tod.month = sky3d_date.y
+	tod.day = sky3d_date.z
+	_sky3d.game_time_enabled = sky3d_time_flow_enabled
+	_sky3d.minutes_per_day = sky3d_minutes_per_day
+	# Con un dia de decenas de minutos, 10 actualizaciones por segundo no se
+	# notan y ahorran recalcular cielo y luces en cada fotograma.
+	_sky3d.update_interval = 0.1
+	_sky3d.skydome_energy = sky3d_sky_exposure
+	_sky3d.clouds_enabled = sky3d_clouds_enabled
+	_sky3d.fog_enabled = sky3d_atmospheric_fog_enabled
+	# Misma energia que tenia la luz direccional fija, para no descalibrar el
+	# interior. Sky3D la modula con la altura del sol y la fase de la luna.
+	_sky3d.sun_energy = exterior_day_sky_light_energy
+	_sky3d.moon_energy = exterior_night_sky_light_energy
+	for light in [_sky3d.sun, _sky3d.moon]:
+		var dl := light as DirectionalLight3D
+		if dl == null:
+			continue
+		dl.shadow_bias = exterior_sky_shadow_bias
+		dl.shadow_normal_bias = exterior_sky_shadow_normal_bias
+		dl.shadow_blur = exterior_sky_shadow_blur
+		dl.directional_shadow_max_distance = exterior_sky_shadow_max_distance_m
+		dl.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	if _sky3d_mode_applied != exterior_lighting_mode:
+		_sky3d_mode_applied = exterior_lighting_mode
+		_sky3d.current_time = sky3d_night_hour if _exterior_is_night() else sky3d_day_hour
+	_sky3d_applying = false
+
+
+## Con el reloj corriendo, el paso por el amanecer o el anochecer cambia el modo
+## dia/noche del resto del exterior (ventanas, farolas, fachadas).
+func _on_sky3d_day_night_changed(is_day: bool) -> void:
+	if not sky3d_time_flow_enabled or _sky3d_applying:
+		return
+	var next_mode: String = "Dia" if is_day else "Noche"
+	if next_mode == exterior_lighting_mode:
+		return
+	# Se marca antes de asignar: el reloj ya esta en la hora buena y la
+	# reconstruccion no debe devolverlo a sky3d_day_hour / sky3d_night_hour.
+	_sky3d_mode_applied = next_mode
+	exterior_lighting_mode = next_mode
+
+
+func _notification(what: int) -> void:
+	# Fuera del arbol, Sky3D no lo libera nadie al liberar el controlador.
+	if what == NOTIFICATION_PREDELETE and _sky3d != null and is_instance_valid(_sky3d) and not _sky3d.is_inside_tree():
+		_sky3d.free()
 
 
 func _apply_panel_rect(panel: Control, rect: Rect2) -> void:
@@ -1374,6 +1561,7 @@ func _rebuild_world() -> void:
 	# Sin esto, tocar un parametro de material en el inspector no se veria: la
 	# reconstruccion reutilizaria los materiales cacheados de la anterior.
 	_material_cache.clear()
+	_sync_sky3d_presence()
 
 	if building == null:
 		return
@@ -5323,7 +5511,7 @@ func _create_exterior_window_reveal(
 
 ## Domo de cielo geometrico (gradiente + sol) centrado en el edificio.
 func _create_sky_dome(parent: Node3D) -> void:
-	if not exterior_procedural_sky_enabled:
+	if not exterior_procedural_sky_enabled or _sky3d_wanted():
 		return
 	var dome := FPSkyDome.create(sky_dome_radius_m)
 	var night: bool = _exterior_is_night()
@@ -5364,18 +5552,9 @@ func _create_sky_dome(parent: Node3D) -> void:
 
 
 func _create_exterior_lighting(parent: Node3D) -> void:
-	var sky_light := DirectionalLight3D.new()
-	sky_light.name = "ExteriorSkyLight"
-	sky_light.light_color = exterior_day_sky_light_color if not _exterior_is_night() else exterior_night_sky_light_color
-	sky_light.light_energy = exterior_day_sky_light_energy if not _exterior_is_night() else exterior_night_sky_light_energy
-	sky_light.shadow_enabled = exterior_sky_light_cast_shadows
-	sky_light.shadow_bias = exterior_sky_shadow_bias
-	sky_light.shadow_normal_bias = exterior_sky_shadow_normal_bias
-	sky_light.shadow_blur = exterior_sky_shadow_blur
-	sky_light.directional_shadow_max_distance = exterior_sky_shadow_max_distance_m
-	sky_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sky_light.rotation = Vector3(deg_to_rad(exterior_sky_light_pitch_deg), deg_to_rad(exterior_sky_light_yaw_deg), 0.0)
-	parent.add_child(sky_light)
+	# Con Sky3D, el sol y la luna son sus luces direccionales.
+	if not _sky3d_wanted():
+		_create_exterior_sky_light(parent)
 
 	var exterior_fill := OmniLight3D.new()
 	exterior_fill.name = "ExteriorSoftFill"
@@ -5389,6 +5568,21 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 		_bounds_m.position.y + _bounds_m.size.y * 0.5
 	))
 	parent.add_child(exterior_fill)
+
+
+func _create_exterior_sky_light(parent: Node3D) -> void:
+	var sky_light := DirectionalLight3D.new()
+	sky_light.name = "ExteriorSkyLight"
+	sky_light.light_color = exterior_day_sky_light_color if not _exterior_is_night() else exterior_night_sky_light_color
+	sky_light.light_energy = exterior_day_sky_light_energy if not _exterior_is_night() else exterior_night_sky_light_energy
+	sky_light.shadow_enabled = exterior_sky_light_cast_shadows
+	sky_light.shadow_bias = exterior_sky_shadow_bias
+	sky_light.shadow_normal_bias = exterior_sky_shadow_normal_bias
+	sky_light.shadow_blur = exterior_sky_shadow_blur
+	sky_light.directional_shadow_max_distance = exterior_sky_shadow_max_distance_m
+	sky_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sky_light.rotation = Vector3(deg_to_rad(exterior_sky_light_pitch_deg), deg_to_rad(exterior_sky_light_yaw_deg), 0.0)
+	parent.add_child(sky_light)
 
 
 func _create_exterior_facade_fill(parent: Node3D, node_name: String, position: Vector3, target_height_m: float) -> void:
@@ -6605,6 +6799,7 @@ func set_visibility_representation_enabled(enabled: bool) -> void:
 			_fog_height_density_current = 0.0
 			_fog_env.fog_density = 0.0
 			_fog_env.fog_height_density = 0.0
+			_fog_env.fog_sky_affect = 0.0
 
 
 func _update_visibility_overlay() -> void:
@@ -6678,6 +6873,7 @@ func _update_fp_fog(room_state: Dictionary, smoke_view: Dictionary, heat_tint: f
 	_fog_env.fog_light_color = fp_fog_color.lerp(fp_fog_hot_color, heat_tint)
 	_fog_env.fog_height = _get_room_floor_level(_current_room_id) + layer_m
 	_fog_env.fog_height_density = _fog_height_density_current
+	_fog_env.fog_sky_affect = _fp_fog_sky_affect()
 
 
 func _decay_fp_fog() -> void:
@@ -6688,6 +6884,15 @@ func _decay_fp_fog() -> void:
 	_fog_height_density_current = lerpf(_fog_height_density_current, 0.0, w)
 	_fog_env.fog_density = _fog_density_current
 	_fog_env.fog_height_density = _fog_height_density_current
+	_fog_env.fog_sky_affect = _fp_fog_sky_affect()
+
+
+## Cuanto vela el humo al cielo. En GL Compatibility el cielo recibe el color
+## de la niebla segun fog_sky_affect SIN mirar la densidad: con 1 fijo, una
+## niebla encendida a densidad 0 pintaba el cielo entero de gris oscuro. Se
+## escala con la densidad como si el cielo estuviera a fp_fog_sky_reference_m.
+func _fp_fog_sky_affect() -> float:
+	return clampf(1.0 - exp(-maxf(0.0, _fog_density_current) * fp_fog_sky_reference_m), 0.0, 1.0)
 
 
 func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
