@@ -152,7 +152,8 @@ repite ni atribuye una suite global después de añadir estos tests offline.
 
 1. Diseñar el **caller atómico puro** que une replay y ledger de referencia:
    [Diseño completado en la continuación](G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md),
-   todavía no implementado; GO primero a controles sintéticos aislados.
+   implementado y validado aisladamente en la continuación (§10 del
+   contrato); no conectado al motor. Controles sintéticos cerrados.
    demanda, aceptación, cursor, inventario, coste de fase, oxidación y
    productos se confirman juntos o no se confirma nada. Mantener identidad
    v1 y no derivar emisión de U/HRR. Hipótesis de emisión y energía de
@@ -167,10 +168,10 @@ repite ni atribuye una suite global después de añadir estos tests offline.
    Candidato localizado: [NIST, Structure of Medium-Scale Pool Fires](https://www.nist.gov/el/fcd/structure-medium-scale-pool-fires),
    [TN 2162r1, octubre de 2024](https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2162r1.pdf)
    y [datos MaCFP](https://github.com/MaCFP/macfp-db/tree/master/Liquid_Pool_Fires/NIST_Pool_Fires).
-   La página primaria describe temperaturas del líquido/superficie y
-   retroalimentación en piscinas de 30 cm. **Candidato, no serie importada
-   ni revisión completa del PDF**; verificar qué flujos son medidos y
-   cuáles invertidos desde la masa. Aire libre/estacionario/enfriamiento
+   [Revisión focal posterior completada](G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md):
+   fuente/snapshot incorporados; perfil hacia sensor medido e independiente
+   de masa, pero B neto/temperatura del líquido no identificados. No revisión
+   integral del PDF ni replay térmico aprobado. Aire libre/estacionario/enfriamiento
    del quemador no validan por transferencia ISOHept9 subventilado o muebles.
 
 Antes de cambiar `sim/`: contrato del caller revisado, controles/mutantes

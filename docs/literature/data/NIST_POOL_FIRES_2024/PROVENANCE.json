@@ -1,0 +1,76 @@
+{
+  "schema": "g3_nist_pool_thermal_review_v1",
+  "revision": "213206ec45b91b2bd7d5f344ebd519662404892b",
+  "retrieved_at": "2026-10-04",
+  "artifacts": {
+    "report": {
+      "path": "docs/literature/NIST/NIST_TN_2162r1_Medium_Scale_Pool_Fires.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2162r1.pdf",
+      "sha256_raw": "c0ba84b39fa6e790f1242bdf594492010c9463b8f5cb61a3616036d6958d11ba"
+    },
+    "documentation": {
+      "path": "docs/literature/data/NIST_POOL_FIRES_2024/SOURCE_DOCUMENTATION.md",
+      "url": "https://raw.githubusercontent.com/MaCFP/macfp-db/213206ec45b91b2bd7d5f344ebd519662404892b/Liquid_Pool_Fires/NIST_Pool_Fires/Documentation/README.md",
+      "sha256_lf": "195bb63d33e444140b22f69c24fc9c4e43feab76804c4575947957d104591be6"
+    },
+    "license": {
+      "path": "docs/literature/data/NIST_POOL_FIRES_2024/LICENSE_MaCFP.txt",
+      "url": "https://raw.githubusercontent.com/MaCFP/macfp-db/213206ec45b91b2bd7d5f344ebd519662404892b/LICENSE",
+      "sha256_lf": "6c620fe0b123c62fd0e8e0bef732d15949efafb55db144398e18bcd60e9e66f7"
+    },
+    "inventory": {
+      "path": "docs/literature/data/NIST_POOL_FIRES_2024/EXPERIMENTAL_INVENTORY.json",
+      "url": "https://api.github.com/repos/MaCFP/macfp-db/contents/Liquid_Pool_Fires/NIST_Pool_Fires/Experimental_Data?ref=213206ec45b91b2bd7d5f344ebd519662404892b",
+      "sha256_lf": "635a3db89babee94cf65d9d56efc105b09dd943b645f50b9ad59958e939b57fe"
+    },
+    "boundary_csv": {
+      "path": "docs/literature/data/NIST_POOL_FIRES_2024/Heptane_30_cm_HRR_Sung_2024.csv",
+      "url": "https://raw.githubusercontent.com/MaCFP/macfp-db/213206ec45b91b2bd7d5f344ebd519662404892b/Liquid_Pool_Fires/NIST_Pool_Fires/Experimental_Data/Heptane_30_cm_HRR_Sung_2024.csv",
+      "sha256_lf": "7952de10a66394764ed0879249c69acd00e830c4aa7713e1fa9ab35dcf8ee98e"
+    }
+  },
+  "review": {
+    "report_version": "October 2024, 123 PDF pages; supersedes June 2021",
+    "printed_to_pdf_page_offset": 16,
+    "apparatus_locator": "TN2162r1 sections 2.1 pp.4-5",
+    "pool_diameter_m": 0.301,
+    "fuel_supply": "gravity_feed_constant_level_not_closed_inventory",
+    "cooling": "water_cooled_bottom_not_game_water_application",
+    "local_flux_locator": "TN2162r1 Table F38 pp.97-98, sections 2.9 and 3.8",
+    "local_flux_instrument": "water_cooled_Gardon_total_flux_not_liquid_net_B",
+    "profile_unit": "r_cm,z_cm,q_kw_m2,sd_kw_m2,repeat",
+    "heptane_flux_rows": [
+      [0, 1.3, 21.6, null, 1],
+      [2, 1.3, 20.9, null, 1],
+      [4, 1.3, 19.4, null, 1],
+      [5, 1.3, 20.1, null, 1],
+      [6, 1.3, 19.0, null, 1],
+      [8, 1.3, 18.6, null, 1],
+      [10, 1.3, 17.8, null, 1],
+      [12, 1.3, 16.2, null, 1],
+      [13, 1.3, 14.4, null, 1],
+      [14, 1.3, 15.6, null, 1],
+      [15, 1.3, 20.1, null, 1]
+    ],
+    "surface_temperature_conflict": {
+      "table12_c": 65,
+      "table12_plus_minus_c": 1,
+      "table13_c": null,
+      "appendix_G_heptane_series": null,
+      "accepted_heptane_temperature_k": null
+    },
+    "height_conflict": {
+      "section3_8_above_surface_m": 0.003,
+      "tableF38_above_surface_m": 0.013,
+      "section2_9_above_rim_m": 0.003,
+      "accepted_comparison_height_m": null
+    },
+    "table10_diameter_header": "cm",
+    "table10_heptane_diameter_literal": 0.30,
+    "tn_table2_ideal_hrr_kw": 106.6,
+    "independently_observed_liquid_net_B_kj": null,
+    "liquid_cp_T_identified": false,
+    "engine_integration": false,
+    "production_activation": false
+  }
+}

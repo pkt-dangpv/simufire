@@ -334,5 +334,17 @@
         "bytes": 10571808,
         "sha256": "c964ba6afab1f029ed666fb9768fab2e7683b57c3169814d37693c386b6db21a",
         "version_verified": "PDF cover: published December 2023, updated February 2026; 461 pages. Not the 467-page 2023 copy indexed by web search."
+    },
+    {
+        "source": "https://doi.org/10.6028/NIST.TN.2162r1",
+        "destination": "docs/literature/NIST/NIST_TN_2162r1_Medium_Scale_Pool_Fires.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2162r1.pdf",
+        "title": "The Structure of Medium-Scale Pool Fires (NIST TN 2162r1)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-04",
+        "bytes": 9787494,
+        "sha256": "c0ba84b39fa6e790f1242bdf594492010c9463b8f5cb61a3616036d6958d11ba",
+        "version_verified": "October 2024, supersedes June 2021; 123 PDF pages. Focal apparatus, instrumentation and table review; not full-report validation."
     }
 ]

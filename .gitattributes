@@ -1,2 +1,7 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Preserve upstream whitespace in the two hash-pinned MaCFP source copies.
+# This does not exempt authored documentation, data transcriptions or code.
+docs/literature/data/NIST_POOL_FIRES_2024/SOURCE_DOCUMENTATION.md whitespace=-blank-at-eol,-blank-at-eof
+docs/literature/data/NIST_POOL_FIRES_2024/LICENSE_MaCFP.txt whitespace=-blank-at-eol,-blank-at-eof

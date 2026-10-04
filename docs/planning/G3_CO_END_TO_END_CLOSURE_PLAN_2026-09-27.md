@@ -6,6 +6,18 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 04-10:
+[Gate térmico independiente](../validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md)
+cerrado como revisión focal y auditor offline. TN 2162r1/snapshot MaCFP
+versionados; hay flujo medido hacia sensor, no solo datos invertidos de
+masa. GO al observable de sensor y diseño sensible aislado; NO-GO a B
+neto, evaporación predictiva o integración. Temperatura/altura de heptano
+no resueltas; constantes MaCFP no son una curva transitoria medida.
+50 tests nuevos, focal 131 PASS; no Godot ni cambios de `sim/`/referencia.
+Siguiente: Cp(T), estados y almacenamiento con referencia común,
+primero diseño y controles sintéticos. No inventar B para cerrar ese
+contrato; la elegibilidad del benchmark neto se resuelve por separado.
+
+Avance previo del 04-10:
 [Caller atómico aislado](../validation/G3_D1_ATOMIC_CALLER_CONTRACT_2026-10-04.md)
 implementado en GDScript y probado con datos sintéticos: 361 checks / 20
 grupos, 18/18 mutantes válidos detectados, focal 524 PASS / 10 skipped.

@@ -1,0 +1,52 @@
+{
+  "schema": "g3_pool_thermal_evidence_audit_v1",
+  "decision": "GO_independent_gauge_observables_NO_GO_liquid_net_budget",
+  "revision": "213206ec45b91b2bd7d5f344ebd519662404892b",
+  "report_sha256_raw": "c0ba84b39fa6e790f1242bdf594492010c9463b8f5cb61a3616036d6958d11ba",
+  "profile_source": "manual_Table_F38_transcription_not_raw_acquisition",
+  "profile_sample_count": 11,
+  "profile_repeat_per_location": 1,
+  "profile_sd_kw_m2": null,
+  "independent_of_mass_loss_inversion": true,
+  "gauge_profile_diagnostic": {
+    "covered_radius_m": 0.15,
+    "covered_area_fraction": 0.9933665191333428,
+    "axisymmetric_piecewise_linear_gauge_power_kw": 1.2414317529925425,
+    "edge_extrapolation": false,
+    "liquid_net_B_kj": null,
+    "integrated_uncertainty_kw": null
+  },
+  "boundary_csv": {
+    "row_count": 2,
+    "kind": "constant_boundary_NOT_transient_measurement",
+    "hrr_kw": 112.6,
+    "mlr_kg_s": 0.00253,
+    "mlrpua_kg_s_m2": 0.0355,
+    "x_rad": 0.31
+  },
+  "heptane_inventory": [
+    "Heptane_30_cm_HRR_Sung_2024.csv",
+    "Heptane_30_cm_TC_r=0_cm_Sung_2024.csv",
+    "Heptane_30_cm_U_r=0_Sung_2024.csv"
+  ],
+  "tn_table2_ideal_hrr_kw": 106.6,
+  "cross_source_hrr_substitution": false,
+  "surface_temperature_conflict": {
+    "table12_c": 65,
+    "table12_plus_minus_c": 1,
+    "table13_c": null,
+    "appendix_G_heptane_series": null,
+    "accepted_heptane_temperature_k": null
+  },
+  "height_conflict": {
+    "section3_8_above_surface_m": 0.003,
+    "tableF38_above_surface_m": 0.013,
+    "section2_9_above_rim_m": 0.003,
+    "accepted_comparison_height_m": null
+  },
+  "liquid_cp_T_identified": false,
+  "sensible_energy_identified": false,
+  "physical_benchmark_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

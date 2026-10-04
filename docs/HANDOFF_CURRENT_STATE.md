@@ -1,5 +1,25 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-04 - Evidencia térmica de piscina revisada
+
+[Gate térmico independiente](validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md):
+TN 2162r1 y snapshot MaCFP incorporados con versión, hashes y licencia.
+GO a observables hacia sensor refrigerado y contrato sensible aislado;
+NO-GO a B neto del líquido, evaporación predictiva, integración o CO/FED.
+Perfil F38 medido, no invertido de masa: 11 posiciones/una repetición,
+desviación ausente, integral diagnóstica 1,241431753 kW sin extrapolación.
+No es B. Discrepancias de temperatura y altura en cuarentena; CSV con
+dos extremos iguales clasificado como contorno constante, no adquisición
+transitoria. No mezclar HRR 112,6 de MaCFP con 106,6 de otra tabla.
+Auditor offline y 50 pruebas nuevas; focal conjunta 131 PASS. Primera
+corrida inválida por permisos de basetemp, repetida externamente.
+Guardarraíles ALL PASS con R2-1, estilo/enlaces/diff PASS; manifiesto 42
+entradas. La incorporación de fuentes no aprueba un benchmark neto.
+Sin cambio de `sim/`, referencia, interruptores o escenarios; no Godot,
+producto/global nuevos. La cadena anterior pertenece a `6273c6a8`.
+Siguiente: contrato Cp(T)/entalpía/almacenamiento con referencia común y
+controles sintéticos; benchmark experimental neto separado y limitado.
+
 ## Git integration completed - 2026-10-04 - G3 publicado en main
 
 Publicación confirmada: rama shareable subida e integración por fast-forward

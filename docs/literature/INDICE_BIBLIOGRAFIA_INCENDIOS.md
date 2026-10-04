@@ -33,6 +33,17 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion bibliografica adicional del 04-10: NIST TN 2162r1,
+octubre de 2024, 123 paginas,
+[PDF local](NIST/NIST_TN_2162r1_Medium_Scale_Pool_Fires.pdf),
+[fuente oficial](https://doi.org/10.6028/NIST.TN.2162r1).
+[Snapshot MaCFP, licencia e inventario](data/NIST_POOL_FIRES_2024/PROVENANCE.json)
+y [revision termica focal](../validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md).
+Perfil hacia sensor medido, no B neto del liquido; discrepancias de altura
+y temperatura preservadas. CSV constante: contorno, no señal transitoria
+ni salida FDS. Ninguna activacion. Manifiesto: 41 -> 42 entradas;
+datos MaCFP inventariados aparte, licencia MIT conservada.
+
 Actualizacion bibliografica del 04-10: NIST TN 2126-upd1, febrero 2026,
 [PDF local](NIST/NIST_TN_2126_upd1_Thermochemical_Properties.pdf),
 [fuente oficial](https://doi.org/10.6028/NIST.TN.2126-upd1).
