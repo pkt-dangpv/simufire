@@ -1,7 +1,11 @@
 # G3/D1 - Contrato de entalpía sensible y almacenamiento
 
 Fecha: 2026-10-04. Entrada: `c92eb904`, rama shareable integrada en main.
-**Diseño y verificación de fuente, no implementación GDScript nueva.**
+**Documento de diseño y verificación de fuente; implementación posterior aparte.**
+Actualización posterior: [implementación sintética aislada](G3_D1_SENSIBLE_IMPLEMENTATION_2026-10-04.md).
+La primera pieza ya está cerrada técnicamente: S01-S20 / 342 checks,
+19/19 mutantes, referencia 346/346, producto 168/168 y global 3630 PASS.
+Su cierre no autoriza el ledger sensible, la integración o una calibración.
 Continúa el [gate térmico independiente](G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md).
 
 ## 1. Decisión y orden ejecutable
@@ -194,7 +198,7 @@ diff limpio. Sin repetir una suite global ni atribuirle los tests añadidos.
 No Godot ni cambios de `sim/`; no referencia/producto/global nuevos
 en este gate de diseño. La cadena previa pertenece a `c92eb904` y anteriores.
 
-**Siguiente ejecución:** implementar solo `SensibleEnthalpyModel.gd` y
+**Siguiente ejecución al cerrar este diseño (histórico):** implementar solo `SensibleEnthalpyModel.gd` y
 fixture S01-S20; controles analíticos, mutaciones, aislamiento y preservación
 de los tres módulos anteriores. Al tocar `sim/`, cerrar R2-1 por monitor,
 producto y global secuencialmente con memoria suficiente. No integrar el

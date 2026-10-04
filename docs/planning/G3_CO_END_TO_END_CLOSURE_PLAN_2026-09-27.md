@@ -6,6 +6,18 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 04-10:
+[Helper sensible implementado](../validation/G3_D1_SENSIBLE_IMPLEMENTATION_2026-10-04.md):
+Cp(T) isobárico sintético e integral firmada, S01-S20 / 342 checks en GDScript,
+oráculos analíticos Python previos; focal con módulos congelados 76 PASS.
+Sin integración física ni ledger/caller sensibles. Cierre técnico en verde:
+19/19 mutantes válidos; focal ampliada 406 passed / 10 skipped; referencia
+346/346, 78 gaps y 160 informes byte idénticos; R2-1 PASS; producto 168/168;
+global final 3630 passed / 41 skipped / 2 xfailed / 42 subtests, 523,10 s.
+Primera global con dos fallos del arnés nuevo, corregidos sin tocar tests
+históricos o el modelo, y repetida completa. CO/FED siguen NO-GO.
+Orden posterior: ledger sensible -> propietario versionado -> gates físicos.
+
+Avance previo del 04-10:
 [Contrato de entalpía sensible](../validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md)
 listo para primera pieza GDScript: Cp(T) sintético isobárico con integral
 canónica, sin integración/masa/oxidación. Separar después A/S/B/Q y

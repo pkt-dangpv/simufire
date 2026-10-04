@@ -1,5 +1,25 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-04 - Helper sensible cerrado técnicamente
+
+[Implementación sensible](validation/G3_D1_SENSIBLE_IMPLEMENTATION_2026-10-04.md):
+GDScript puro `SensibleEnthalpyModel.gd`, Cp(T) sintético isobárico e integral
+canónica con signo. S01-S20: 342 checks; siete oráculos independientes Python
+fijados antes del GDScript. Focal con módulos congelados: 76 passed.
+Sin carga desde producto, química nueva, ledger sensible o caller sucesor.
+19/19 mutantes válidos detectados, repetidos sobre la fixture final;
+focal ampliada con contratos históricos: 406 passed / 10 skipped.
+Referencia 346/346 y 78 gaps; 18 lanzamientos limpios y 160 informes byte
+idénticos. Resumen solo generated_at; ALL GUARDRAILS PASS con R2-1.
+Producto 168/168; global final 3630 passed / 41 skipped / 2 xfailed /
+42 subtests, exit 0, 523,10 s, memoria inicial 6,726 GiB.
+Primer global falló en dos contratos de forma/propiedad de los tests nuevos;
+se adaptan solo ellos, sin modificar pruebas históricas ni el modelo.
+Global final repetido completo; la primera pasada no se presenta como verde.
+CO/FED siguen OFF/NO-GO; no es una calibración de material o incendio.
+Próximo paso tras cerrar esta pieza: API sensible versionada del ledger,
+no integración zonal ni evaporación predictiva.
+
 ## Current Program Update - 2026-10-04 - Contrato sensible listo, sin implementación
 
 [Contrato sensible](validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md):
