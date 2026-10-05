@@ -35,6 +35,9 @@ Módulos congelados: espera decisión del usuario.
 Siguiente gate propuesto, no iniciado ni aprobado: perfil Cp real de
 heptano con adaptador declarado y elegibilidad de un B neto independiente.
 Ninguna integración antes. Archivos ajenos y UID/runs fuera del commit.
+Publicado en `c6b24cbc`: rama shareable y main (fast-forward) subidos, las
+cuatro referencias iguales; 80 archivos ajenos de main y 57 UID intactos
+por hash; guardarraíles con R2-1 verdes también desde main.
 
 ## Current Program Update - 2026-10-04 - Ledger sensible cerrado técnicamente
 

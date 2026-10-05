@@ -613,3 +613,28 @@ software de contabilidad sino evidencia física, y requiere decisiones:
 
 Ninguna integración en `SimulationEngine`, EOS, transporte, editor o
 producto antes de esos gates. No se inicia automáticamente.
+
+## 15. Publicación (registro documental posterior)
+
+Commit `c6b24cbc` (`feat(fire): add isolated sensible atomic phase owner`),
+once archivos, ninguno de `runs/`, sidecars `.uid`, `demo/` ni
+`project.godot`. Rama shareable subida sin forzar; main integrado por
+fast-forward desde `167f5c1a` y subido. Las cuatro referencias (main y
+shareable, locales y remotas) coinciden en `c6b24cbc`. El remoto no había
+avanzado y no hubo divergencia ni conflicto.
+
+Después de integrar: los 80 archivos ajenos del checkout principal y los
+57 `.uid` del checkout de trabajo siguen idénticos por SHA-256 a los
+inventarios tomados al empezar; ALL GUARDRAILS PASS con R2-1 también desde
+main; ningún proceso Godot residual. No se ejecutó ninguna suite Godot en
+el checkout principal, que conserva su `project.godot` modificado.
+
+**Aclaración del hash del resumen.** El valor `feef37d2...` de §11 es el
+del archivo tal como lo genera la suite, con fin de línea CRLF. Git lo
+versiona en LF y su blob es
+`0559f5bcc8d3ab99171957b73a14a1e207d8ef52052481af2f78df435d3aa3e6`.
+Comprobado que ambos son idénticos tras normalizar el fin de línea; quien
+verifique desde un checkout limpio verá el segundo.
+
+Este registro solo añade documentación: no cambia fuentes, pruebas ni
+informes, y no altera el estado de CO/FED (OFF/NO-GO) ni los pendientes.
