@@ -1,0 +1,591 @@
+{
+  "schema": "g3_heptane_liquid_eligibility_audit_v1",
+  "decision": {
+    "liquid": "GO_partial_isobaric_cp_at_100_kPa_native_280_to_371.139_K_by_justified_conversion",
+    "gas": "GO_partial_unchanged_conditional_on_declared_assumptions",
+    "joint_adapter": "GO_partial_design_only_same_real_schema_family",
+    "current_synthetic_contract": "NO_GO_by_design_requires_versioned_real_schema",
+    "net_heat_budget_B": "NO_GO_separate_gate"
+  },
+  "review_sha256": "8d5bbc873b5282005d812687b65aa9c942d645fb88c41f0c0ceea9b8969b9fda",
+  "sources_sha256": "d4caffbd6b0121dfd9e7e838157cf20d6c8d485aedf1bb78cf94d4bb307bec02",
+  "required_property": {
+    "quantity": "isobaric_specific_heat",
+    "phase": "liquid",
+    "pressure_path": "constant_pressure",
+    "reference_pressure_pa": 100000,
+    "reference_temperature_k": 298.15,
+    "use": "sensible enthalpy of the liquid between the reference and its boiling point at the reference pressure"
+  },
+  "volumetric": {
+    "data_set": "n-heptane Mass density, kg/m3",
+    "evidence_kind": "primary_measurement_as_captured_by_NIST_TRC_not_checked_against_the_printed_article",
+    "uncertainty_kind": "expanded_95_percent_evaluated_by_the_data_file_compiler",
+    "sample_purity_mol_percent": 99.3,
+    "isobar_100_kpa_kg_m3": [
+      [
+        233.15,
+        733.288
+      ],
+      [
+        253.15,
+        717.087
+      ],
+      [
+        273.15,
+        700.685
+      ],
+      [
+        293.15,
+        683.987
+      ],
+      [
+        313.15,
+        666.896
+      ],
+      [
+        333.15,
+        649.294
+      ],
+      [
+        353.15,
+        631.038
+      ],
+      [
+        373.15,
+        611.926
+      ],
+      [
+        393.15,
+        591.704
+      ]
+    ],
+    "extrapolated_isotherms_k": [
+      373.15,
+      393.15
+    ],
+    "extrapolation_quadratic_minus_cubic_kg_m3": {
+      "373.15": 0.0044,
+      "393.15": 0.008
+    },
+    "density_slope_22_5_c_kg_m3_k": -0.84605,
+    "density_slope_ratio_to_brooks": 0.9965,
+    "density_20_c_minus_brooks_percent": 0.047,
+    "v_dp_dt_22_5_c_j_mol_k": 0.04023,
+    "osborne_ginnings_dh_dt_minus_csat_j_mol_k": 0.0401
+  },
+  "conversion": {
+    "relation": "Cp(T,P0) = Csat(T) + T*(dV/dT)_p*(dPsat/dT) - T*integral from Psat to P0 of (d2V/dT2)_p dP",
+    "exactness": "exact_identity_with_approximate_inputs",
+    "derivative_method": "cubic through four isotherms; quadratic and quartic stencils as spread",
+    "rows": [
+      {
+        "native_k": 280.0,
+        "its90_k": 279.9855,
+        "saturation_pressure_pa": 2288.2,
+        "csat_j_mol_k": 218.23,
+        "first_term_j_mol_k": 0.00646,
+        "second_term_j_mol_k": -0.0161,
+        "cp_minus_csat_j_mol_k": -0.00964,
+        "cp_j_mol_k": 218.2204
+      },
+      {
+        "native_k": 285.0,
+        "its90_k": 284.9825,
+        "saturation_pressure_pa": 3043.6,
+        "csat_j_mol_k": 219.97,
+        "first_term_j_mol_k": 0.00851,
+        "second_term_j_mol_k": -0.017,
+        "cp_minus_csat_j_mol_k": -0.00849,
+        "cp_j_mol_k": 219.9615
+      },
+      {
+        "native_k": 290.0,
+        "its90_k": 289.9794,
+        "saturation_pressure_pa": 3999.3,
+        "csat_j_mol_k": 221.75,
+        "first_term_j_mol_k": 0.01109,
+        "second_term_j_mol_k": -0.01787,
+        "cp_minus_csat_j_mol_k": -0.00678,
+        "cp_j_mol_k": 221.7432
+      },
+      {
+        "native_k": 295.0,
+        "its90_k": 294.9768,
+        "saturation_pressure_pa": 5195.3,
+        "csat_j_mol_k": 223.57,
+        "first_term_j_mol_k": 0.01429,
+        "second_term_j_mol_k": -0.01878,
+        "cp_minus_csat_j_mol_k": -0.00449,
+        "cp_j_mol_k": 223.5655
+      },
+      {
+        "native_k": 298.16,
+        "its90_k": 298.1355,
+        "saturation_pressure_pa": 6095.3,
+        "csat_j_mol_k": 224.74,
+        "first_term_j_mol_k": 0.01671,
+        "second_term_j_mol_k": -0.01943,
+        "cp_minus_csat_j_mol_k": -0.00272,
+        "cp_j_mol_k": 224.7373
+      },
+      {
+        "native_k": 300.0,
+        "its90_k": 299.9747,
+        "saturation_pressure_pa": 6676.8,
+        "csat_j_mol_k": 225.44,
+        "first_term_j_mol_k": 0.01826,
+        "second_term_j_mol_k": -0.01979,
+        "cp_minus_csat_j_mol_k": -0.00152,
+        "cp_j_mol_k": 225.4385
+      },
+      {
+        "native_k": 310.0,
+        "its90_k": 309.9708,
+        "saturation_pressure_pa": 10705.6,
+        "csat_j_mol_k": 229.27,
+        "first_term_j_mol_k": 0.02904,
+        "second_term_j_mol_k": -0.0215,
+        "cp_minus_csat_j_mol_k": 0.00753,
+        "cp_j_mol_k": 229.2775
+      },
+      {
+        "native_k": 320.0,
+        "its90_k": 319.9675,
+        "saturation_pressure_pa": 16561.7,
+        "csat_j_mol_k": 233.25,
+        "first_term_j_mol_k": 0.04471,
+        "second_term_j_mol_k": -0.02298,
+        "cp_minus_csat_j_mol_k": 0.02173,
+        "cp_j_mol_k": 233.2717
+      },
+      {
+        "native_k": 330.0,
+        "its90_k": 329.965,
+        "saturation_pressure_pa": 24817.3,
+        "csat_j_mol_k": 237.38,
+        "first_term_j_mol_k": 0.06702,
+        "second_term_j_mol_k": -0.02359,
+        "cp_minus_csat_j_mol_k": 0.04342,
+        "cp_j_mol_k": 237.4234
+      },
+      {
+        "native_k": 340.0,
+        "its90_k": 339.964,
+        "saturation_pressure_pa": 36142.8,
+        "csat_j_mol_k": 241.67,
+        "first_term_j_mol_k": 0.09794,
+        "second_term_j_mol_k": -0.02319,
+        "cp_minus_csat_j_mol_k": 0.07475,
+        "cp_j_mol_k": 241.7448
+      },
+      {
+        "native_k": 350.0,
+        "its90_k": 349.9633,
+        "saturation_pressure_pa": 51306.5,
+        "csat_j_mol_k": 246.09,
+        "first_term_j_mol_k": 0.1404,
+        "second_term_j_mol_k": -0.02041,
+        "cp_minus_csat_j_mol_k": 0.12,
+        "cp_j_mol_k": 246.21
+      },
+      {
+        "native_k": 360.0,
+        "its90_k": 359.9629,
+        "saturation_pressure_pa": 71171.3,
+        "csat_j_mol_k": 250.63,
+        "first_term_j_mol_k": 0.19736,
+        "second_term_j_mol_k": -0.01411,
+        "cp_minus_csat_j_mol_k": 0.18325,
+        "cp_j_mol_k": 250.8133
+      },
+      {
+        "native_k": 370.0,
+        "its90_k": 369.9636,
+        "saturation_pressure_pa": 96689.0,
+        "csat_j_mol_k": 255.3,
+        "first_term_j_mol_k": 0.27349,
+        "second_term_j_mol_k": -0.00188,
+        "cp_minus_csat_j_mol_k": 0.27161,
+        "cp_j_mol_k": 255.5716
+      },
+      {
+        "native_k": 371.1392,
+        "its90_k": 371.1029,
+        "saturation_pressure_pa": 100000.0,
+        "csat_j_mol_k": 255.8468,
+        "first_term_j_mol_k": 0.28358,
+        "second_term_j_mol_k": -0.0,
+        "cp_minus_csat_j_mol_k": 0.28358,
+        "cp_j_mol_k": 256.1304
+      }
+    ],
+    "max_abs_cp_minus_csat_j_mol_k": 0.28358,
+    "max_abs_percent_of_csat": 0.1108,
+    "first_derivative_method_spread_max": 0.00443,
+    "second_derivative_method_spread_max": 0.0893,
+    "declared_conversion_abs_j_mol_k": 0.01
+  },
+  "closure": {
+    "printed_delta_h_sat_j_mol": 17214,
+    "csat_simpson_298_16_to_370_j_mol": 17199.9364,
+    "v_dp_measured_volume_j_mol": 14.2523,
+    "v_dp_measured_minus_equation_12_j_mol": 0.9099,
+    "saturation_residual_j_mol": -0.1887,
+    "pressure_step_298_16_j_mol": 8.6878,
+    "pressure_step_370_j_mol": 0.2237,
+    "isobaric_delta_h_from_printed_rows_j_mol": 17205.536,
+    "cp_simpson_298_16_to_370_j_mol": 17205.7113,
+    "isobaric_residual_j_mol": 0.1753,
+    "csat_as_cp_error_j_mol": -5.5995,
+    "canonical_delta_h_298_16_to_370_j_mol": 17206.6161,
+    "canonical_minus_simpson_j_mol": 0.9048,
+    "closure_abs_tol_j_mol": 1.6
+  },
+  "scale": {
+    "kind": "approximate_on_smoothed_values",
+    "exact_conversion_needs": "raw_heat_and_initial_and_final_temperatures",
+    "same_numerical_temperature_rows": [
+      {
+        "its90_k": 298.15,
+        "this_gate_percent": 0.0438,
+        "labels_only_percent": 0.0041,
+        "jpcrd_percent": 0.06,
+        "jpcrd_nbs_csat_j_mol_k": 224.88
+      },
+      {
+        "its90_k": 310,
+        "this_gate_percent": 0.0427,
+        "labels_only_percent": 0.0051,
+        "jpcrd_percent": 0.04,
+        "jpcrd_nbs_csat_j_mol_k": 229.37
+      },
+      {
+        "its90_k": 340,
+        "this_gate_percent": 0.0119,
+        "labels_only_percent": 0.0066,
+        "jpcrd_percent": 0.04,
+        "jpcrd_nbs_csat_j_mol_k": 241.76
+      },
+      {
+        "its90_k": 370,
+        "this_gate_percent": -0.0058,
+        "labels_only_percent": 0.0068,
+        "jpcrd_percent": 0.05,
+        "jpcrd_nbs_csat_j_mol_k": 255.42
+      }
+    ],
+    "max_abs_difference_to_jpcrd_percent": 0.0558,
+    "declared_difference_percent": 0.07,
+    "difference_includes_recorrelation_of_the_raw_data": true
+  },
+  "contrast_jpcrd_1994": {
+    "citation": "Zabransky and Ruzicka, J. Phys. Chem. Ref. Data 23, 55 (1994)",
+    "archived": false,
+    "sha256_raw": "f0593e09bf9281ecb0a2bbfa5aadc5643662959cdd323d93e294e263c5b1d72e",
+    "evidence_kind": "critical_evaluation_of_the_same_primary_data_not_an_independent_measurement",
+    "cp_definition": "isobaric at the saturation pressure, eq.(9); volume derivative taken along saturation",
+    "rows": [
+      {
+        "its90_k": 298.15,
+        "csat_percent": -0.0246,
+        "cp_at_saturation_percent": -0.0171,
+        "first_term_minus_jpcrd_difference_j_mol_k": 0.0167
+      },
+      {
+        "its90_k": 330,
+        "csat_percent": -0.0212,
+        "cp_at_saturation_percent": -0.0098,
+        "first_term_minus_jpcrd_difference_j_mol_k": 0.0271
+      },
+      {
+        "its90_k": 350,
+        "csat_percent": -0.0225,
+        "cp_at_saturation_percent": -0.0222,
+        "first_term_minus_jpcrd_difference_j_mol_k": 0.0006
+      },
+      {
+        "its90_k": 370,
+        "csat_percent": -0.0488,
+        "cp_at_saturation_percent": -0.059,
+        "first_term_minus_jpcrd_difference_j_mol_k": -0.0262
+      }
+    ],
+    "bureau_of_mines_minus_nbs_max_percent": 0.089,
+    "stated_uncertainty_percent_up_to_370_k": 0.1
+  },
+  "discretization": {
+    "largest_printed_second_difference_j_mol_k": 0.16,
+    "cp_interpolation_bound_j_mol_k": 0.02,
+    "declared_j_mol_k": 0.025
+  },
+  "joint": {
+    "liquid_its90_support_k": [
+      279.985531,
+      371.102911
+    ],
+    "gas_its90_support_k": [
+      298.135458,
+      469.991581
+    ],
+    "emission_window_its90_k": [
+      298.135458,
+      371.102911
+    ],
+    "vaporization_basis": "NIST_TN_2126_upd1_at_298.15_K_not_recomputed_here",
+    "shared_fields": [
+      "calibration_status",
+      "caloric_model",
+      "component_id",
+      "declared_errors",
+      "evidence_tiers",
+      "interpolation",
+      "molar_mass_g_mol",
+      "native_support_k",
+      "phase",
+      "pressure_path",
+      "provenance",
+      "quantity",
+      "quantity_unit",
+      "reference_pressure_pa",
+      "reference_temperature_k",
+      "samples",
+      "schema",
+      "temperature_scale",
+      "witnesses"
+    ],
+    "ledger_scope_labels_still_synthetic": true
+  },
+  "gas_review": {
+    "decision_changed": false,
+    "authorized_native_range_k": [
+      298.16,
+      470
+    ],
+    "original_calorimetry_obtained": false,
+    "scale_and_molar_mass_verified_at_origin": false,
+    "same_laboratory_molar_mass_relative_difference": 2e-05,
+    "same_laboratory_evidence_applies_to": "liquid calorimetry of 1947-1954, not the 1947 vapour-flow calorimetry",
+    "contrast_kind": "correlated_values_for_the_ideal_gas_not_measurements",
+    "contrast_independence": "the correlation uses the extant vapour heat capacity data, so it is not independent of the cited calorimetry above 357 K",
+    "contrast_rows": [
+      {
+        "temperature_k": 298.15,
+        "correlated_cp_j_mol_k": 165.18432,
+        "source_cp_j_mol_k": 164.96637,
+        "correlated_minus_source_j_mol_k": 0.218,
+        "percent": 0.132
+      },
+      {
+        "temperature_k": 300,
+        "correlated_cp_j_mol_k": 165.97928,
+        "source_cp_j_mol_k": 165.794,
+        "correlated_minus_source_j_mol_k": 0.1853,
+        "percent": 0.112
+      },
+      {
+        "temperature_k": 400,
+        "correlated_cp_j_mol_k": 210.6644,
+        "source_cp_j_mol_k": 210.5674,
+        "correlated_minus_source_j_mol_k": 0.097,
+        "percent": 0.046
+      }
+    ],
+    "contrast_label_note": "298.15 K of the correlation is compared with the source row at 298.16 K",
+    "equation_22_extrapolated_minus_correlated_percent": -0.858,
+    "delta_h_300_to_400_correlated_j_mol": 18828.0,
+    "delta_h_300_to_400_source_j_mol": 18826.3811,
+    "correlation_range_k": [
+      0,
+      1500
+    ],
+    "gas_range_extension_decided_here": false
+  },
+  "synthetic_schema_conflicts": {
+    "schema": [
+      "g3_real_liquid_isobaric_cp_v1",
+      "g3_synthetic_isobaric_cp_v1"
+    ],
+    "temperature_scale": [
+      "ITS-90_kelvin",
+      "synthetic_kelvin"
+    ],
+    "calibration_status": [
+      "primary_source_property_not_fire_validation",
+      "synthetic_not_material_calibration"
+    ],
+    "provenance": [
+      "primary:sha256:40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9",
+      "synthetic:*"
+    ],
+    "unexpected_fields": [
+      "declared_errors",
+      "evidence_tiers",
+      "molar_mass_g_mol",
+      "native_support_k",
+      "witnesses"
+    ]
+  },
+  "contract_preview": {
+    "schema": "g3_real_liquid_isobaric_cp_v1",
+    "component_id": "n-heptane",
+    "caloric_model": "declared_liquid",
+    "pressure_path": "constant_pressure",
+    "temperature_scale": "ITS-90_kelvin",
+    "quantity": "isobaric_specific_heat",
+    "quantity_unit": "kJ/(kg*K)",
+    "interpolation": "piecewise_linear",
+    "calibration_status": "primary_source_property_not_fire_validation",
+    "phase": "liquid",
+    "reference_temperature_k": 298.15,
+    "reference_pressure_pa": 100000.0,
+    "samples": [
+      {
+        "temperature_k": 279.985531,
+        "cp_kj_kg_k": 2.179215962949
+      },
+      {
+        "temperature_k": 284.982459,
+        "cp_kj_kg_k": 2.196576751529
+      },
+      {
+        "temperature_k": 289.979375,
+        "cp_kj_kg_k": 2.2142672158
+      },
+      {
+        "temperature_k": 294.976764,
+        "cp_kj_kg_k": 2.232225908265
+      },
+      {
+        "temperature_k": 298.135458,
+        "cp_kj_kg_k": 2.243777431822
+      },
+      {
+        "temperature_k": 299.974747,
+        "cp_kj_kg_k": 2.250774872159
+      },
+      {
+        "temperature_k": 309.970808,
+        "cp_kj_kg_k": 2.289061653596
+      },
+      {
+        "temperature_k": 319.967501,
+        "cp_kj_kg_k": 2.328729021619
+      },
+      {
+        "temperature_k": 329.965047,
+        "cp_kj_kg_k": 2.369941480907
+      },
+      {
+        "temperature_k": 339.964031,
+        "cp_kj_kg_k": 2.412751495369
+      },
+      {
+        "temperature_k": 349.963317,
+        "cp_kj_kg_k": 2.457365590438
+      },
+      {
+        "temperature_k": 359.962863,
+        "cp_kj_kg_k": 2.503129939684
+      },
+      {
+        "temperature_k": 369.963586,
+        "cp_kj_kg_k": 2.550293730934
+      },
+      {
+        "temperature_k": 371.102911,
+        "cp_kj_kg_k": 2.555857655428
+      }
+    ],
+    "provenance": "primary:sha256:40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9;volumetric:sha256:07643839f2f4c98f344faed4d2eed5c6bf671098a31d524d69ea8720c1dca73b;sources:sha256:d4caffbd6b0121dfd9e7e838157cf20d6c8d485aedf1bb78cf94d4bb307bec02;review:sha256:8d5bbc873b5282005d812687b65aa9c942d645fb88c41f0c0ceea9b8969b9fda;adapter:g3_heptane_liquid_cp_adapter_v1",
+    "molar_mass_g_mol": 100.2,
+    "native_support_k": [
+      280.0,
+      371.139179
+    ],
+    "evidence_tiers": [
+      {
+        "native_range_k": [
+          280,
+          360
+        ],
+        "its90_range_k": [
+          279.985531,
+          359.962863
+        ],
+        "evidence_kind": "tabulated_Csat_of_the_source_converted_to_Cp_here"
+      },
+      {
+        "native_range_k": [
+          360,
+          370
+        ],
+        "its90_range_k": [
+          359.962863,
+          369.963586
+        ],
+        "evidence_kind": "same_table_with_source_error_rising_above_360_K"
+      },
+      {
+        "native_range_k": [
+          370,
+          371.139179
+        ],
+        "its90_range_k": [
+          369.963586,
+          371.102911
+        ],
+        "evidence_kind": "interpolation_towards_a_row_beyond_the_adjusted_table"
+      }
+    ],
+    "declared_errors": {
+      "source_probable_error_percent_280_to_360_k": 0.1,
+      "source_error_kind": "probable_error_as_stated_not_a_standard_uncertainty",
+      "source_error_statement_above_360_k_percent": null,
+      "conversion_abs_j_mol_k": 0.01,
+      "scale_conversion_kind": "approximate_on_smoothed_values",
+      "scale_difference_to_published_evaluation_percent": 0.07,
+      "cp_interpolation_abs_j_mol_k": 0.025,
+      "label_abs_k": 0.0006,
+      "scale_factor_abs": 0.0001,
+      "volumetric_sample_purity_mol_percent": 99.3,
+      "volumetric_article_inspected": false,
+      "fire_validation": false
+    },
+    "witnesses": [
+      {
+        "temperature_k": 279.985531,
+        "specific_sensible_enthalpy_kj_kg": -40.165288739730016
+      },
+      {
+        "temperature_k": 369.963586,
+        "specific_sensible_enthalpy_kj_kg": 171.69008627095383
+      },
+      {
+        "temperature_k": 371.102911,
+        "specific_sensible_enthalpy_kj_kg": 174.59886923508722
+      }
+    ]
+  },
+  "negative_searches": [
+    "NBS Circular 461 (1947): densities at 20 and 25 degC only, no density-temperature table for n-heptane",
+    "Smith, Beattie and Kay, J. Am. Chem. Soc. 59, 1587 (1937): publisher copy not open, not obtained",
+    "No primary measurement of isobaric Cp of the liquid at 100 kPa over 280-371 K was found; the calorimetric standard is Csat by construction"
+  ],
+  "net_heat_budget_B_missing_evidence": [
+    "net_heat_absorbed_by_the_liquid_not_flux_to_a_cooled_gauge",
+    "surface_reradiation_reflection_and_transmission_losses",
+    "liquid_temperature_history_and_in_depth_profile_of_the_same_test",
+    "heat_to_burner_walls_cooled_pan_and_fuel_feed_enthalpy",
+    "published_uncertainty_and_repeatability_of_the_flux_profile",
+    "flux_mass_and_temperature_channels_synchronised_in_one_run"
+  ],
+  "csat_accepted_as_cp_substitute": false,
+  "gas_assumptions_verified_at_origin": false,
+  "gas_range_extended": false,
+  "volumetric_article_inspected": false,
+  "adapter_implemented_in_sim": false,
+  "physical_benchmark_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

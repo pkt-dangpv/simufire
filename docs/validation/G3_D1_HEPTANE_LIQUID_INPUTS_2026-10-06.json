@@ -1,0 +1,143 @@
+{
+  "schema": "g3_heptane_liquid_source_review_v1",
+  "prior_review": {
+    "path": "docs/validation/G3_D1_HEPTANE_REAL_PROFILE_INPUTS_2026-10-05.json",
+    "sha256_lf": "7e703cb4530fb4ce8299fc883704e998d0480406027cb18f7bcab2056f3a6abd"
+  },
+  "sources": {
+    "volumetric": {
+      "path": "docs/literature/data/NIST_THERMOML_HEPTANE_2008/ThermoML_10.1016_j.jct.2008.02.020.json",
+      "url": "https://trc.nist.gov/ThermoML/10.1016/j.jct.2008.02.020.json",
+      "sha256_lf": "07643839f2f4c98f344faed4d2eed5c6bf671098a31d524d69ea8720c1dca73b"
+    },
+    "gas_correlation": {
+      "path": "docs/literature/Reviews_and_Models/USBM_Bulletin_666_Alkane_Ideal_Gas_Properties_1974.pdf",
+      "url": "https://digital.library.unt.edu/ark:/67531/metadc12811/m2/1/high_res_d/Bulletin0666.pdf",
+      "sha256_raw": "e2eb9547815339f7cbeb29032b8178fb8586a4cc40b085d229932411b417e5b2"
+    }
+  },
+  "contrast_not_archived": {
+    "citation": "M. Zabransky and V. Ruzicka Jr., J. Phys. Chem. Ref. Data 23(1), 55-61 (1994)",
+    "url": "https://srd.nist.gov/JPCRD/jpcrd469.pdf",
+    "doi": "10.1063/1.555944",
+    "sha256_raw": "f0593e09bf9281ecb0a2bbfa5aadc5643662959cdd323d93e294e263c5b1d72e",
+    "bytes": 888812,
+    "archived": false,
+    "rights": "Copyright 1994 by the U.S. Secretary of Commerce, assigned to the American Institute of Physics and the American Chemical Society. Not redistributed; only the few values below are quoted for contrast."
+  },
+  "review": {
+    "method": "Manual transcription; every cited page, equation and table row inspected on rendered page images. The ThermoML file is read by the auditor, not transcribed.",
+    "required_property": {
+      "quantity": "isobaric_specific_heat",
+      "phase": "liquid",
+      "pressure_path": "constant_pressure",
+      "reference_pressure_pa": 100000,
+      "reference_temperature_k": 298.15,
+      "use": "sensible enthalpy of the liquid between the reference and its boiling point at the reference pressure"
+    },
+    "relation": {
+      "form": "Cp(T,P0) = Csat(T) + T*(dV/dT)_p*(dPsat/dT) - T*integral from Psat to P0 of (d2V/dT2)_p dP",
+      "first_term_sources": "Osborne and Ginnings 1947 printed p.471 (PDF p.19); Zabransky and Ruzicka 1994 eq.(9) printed p.60",
+      "second_term_basis": "Maxwell relation (dCp/dP)_T = -T*(d2V/dT2)_p; named as needed by Osborne and Ginnings p.471",
+      "exactness": "exact_identity_with_approximate_inputs",
+      "needs": ["molar volume on isobars", "first temperature derivative of volume",
+                "second temperature derivative of volume", "saturation pressure and its temperature derivative"]
+    },
+    "liquid_rows_below_290": {
+      "locator": "calorimetry printed p.149, PDF p.11, Table 5, at saturation pressures",
+      "unit": "K,J/(mol*K),J/mol",
+      "rows": [
+        [280, 218.23, 48574],
+        [285, 219.97, 49670]
+      ]
+    },
+    "volumetric": {
+      "data_set_number": 1,
+      "compound_name": "n-heptane",
+      "property_name": "Mass density, kg/m3",
+      "points": 151,
+      "isotherms_k": [233.15, 253.15, 273.15, 293.15, 313.15, 333.15, 353.15, 373.15, 393.15],
+      "sample_purity_mol_percent": 99.3,
+      "temperature_scale": "ITS-90 assumed for a 2008 measurement; the article was not inspected",
+      "original_article_inspected": false,
+      "evidence_kind": "primary_measurement_as_captured_by_NIST_TRC_not_checked_against_the_printed_article",
+      "uncertainty_kind": "expanded_95_percent_evaluated_by_the_data_file_compiler",
+      "archive_doi": "10.18434/mds2-2422",
+      "archive_version": "1.2.6",
+      "license": "https://www.nist.gov/open/license"
+    },
+    "contrast_jpcrd_1994": {
+      "table_4_locator": "printed p.60, PDF p.6: reference Csat and Cp on ITS-90",
+      "table_4_unit": "K(ITS-90),J/(mol*K),J/(mol*K)",
+      "table_4_rows": [
+        [298.15, 224.89, 224.89],
+        [330, 237.49, 237.53],
+        [350, 246.18, 246.32],
+        [370, 255.41, 255.71]
+      ],
+      "table_2_locator": "printed p.58, PDF p.4: NBS and Bureau of Mines columns and deviation d at the same numerical temperature",
+      "table_2_unit": "K(ITS-90),J/(mol*K) NBS,percent d NBS,J/(mol*K) Bureau of Mines",
+      "table_2_rows": [
+        [298.15, 224.88, 0.06, 225.08],
+        [310, 229.37, 0.04, 229.51],
+        [340, 241.76, 0.04, 241.69],
+        [370, 255.42, 0.05, 255.37]
+      ],
+      "cp_definition": "isobaric at the saturation pressure, eq.(9); volume derivative taken along saturation",
+      "stated_uncertainty_percent": {"up_to_370_k": 0.1, "above_370_k": 0.3},
+      "molar_mass_g_mol": 100.20404,
+      "conversion_statement": "exact conversion needs raw heat, initial and final temperatures; applying the correction formula to smoothed values is not exact (printed pp.56-57)",
+      "above_360_k": "only temperatures were converted (Table 2 footnote d)",
+      "nbs_accuracy_statement_percent": 0.1,
+      "bureau_of_mines_liquid_calorimetry": {
+        "molar_mass_g_mol": 100.198,
+        "calorie_j": 4.184,
+        "scale": "ITS-48",
+        "locator": "printed p.59, PDF p.5, quoting McCullough and Messerly, U.S. Bur. Mines Bull. 596 (1961)",
+        "applies_to": "liquid calorimetry of 1947-1954, not the 1947 vapour-flow calorimetry"
+      },
+      "evidence_kind": "critical_evaluation_of_the_same_primary_data_not_an_independent_measurement"
+    },
+    "contrast_bulletin_666": {
+      "locator": "D. W. Scott, U.S. Bureau of Mines Bulletin 666 (1974), Table 14, printed p.17, PDF p.23",
+      "unit": "K,cal/(K*mol)",
+      "cp_rows": [
+        [298.15, 39.48],
+        [300, 39.67],
+        [400, 50.35]
+      ],
+      "enthalpy_unit": "K,kcal/mol above 0 K",
+      "enthalpy_rows": [
+        [300, 8.02],
+        [400, 12.52]
+      ],
+      "calorie_j": 4.184,
+      "calorie_locator": "printed p.2, PDF p.8",
+      "range_k": [0, 1500],
+      "evidence_kind": "correlated_values_for_the_ideal_gas_not_measurements",
+      "independence": "the correlation uses the extant vapour heat capacity data, so it is not independent of the cited calorimetry above 357 K"
+    },
+    "gas_original_calorimetry": {
+      "citation": "G. Waddington, S. S. Todd and H. M. Huffman, J. Am. Chem. Soc. 69, 22 (1947)",
+      "doi": "10.1021/ja01193a007",
+      "obtained": false,
+      "reason": "publisher copy not open; not found on the NIST or OSTI servers",
+      "scale_and_molar_mass_verified_at_origin": false
+    },
+    "negative_searches": [
+      "NBS Circular 461 (1947): densities at 20 and 25 degC only, no density-temperature table for n-heptane",
+      "Smith, Beattie and Kay, J. Am. Chem. Soc. 59, 1587 (1937): publisher copy not open, not obtained",
+      "No primary measurement of isobaric Cp of the liquid at 100 kPa over 280-371 K was found; the calorimetric standard is Csat by construction"
+    ],
+    "approvals": {
+      "liquid_conversion_review": true,
+      "csat_accepted_as_cp_substitute": false,
+      "gas_assumptions_verified_at_origin": false,
+      "gas_range_extension": false,
+      "adapter_implemented_in_sim": false,
+      "experimental_batch_approval": false,
+      "engine_integration": false,
+      "production_activation": false
+    }
+  }
+}

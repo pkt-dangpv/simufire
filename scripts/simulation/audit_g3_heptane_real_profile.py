@@ -353,6 +353,58 @@ def _interp(points, x):
     raise ValueError("interpolation outside support")
 
 
+def checked_samples(samples):
+    """Structure of the canonical sample list; shared by the gas and liquid contracts."""
+    if not isinstance(samples, list) or len(samples) < 2:
+        raise ValueError("samples must be a list of at least two points")
+    previous = None
+    for sample in samples:
+        if not isinstance(sample, dict) or set(sample) != {"temperature_k", "cp_kj_kg_k"}:
+            raise ValueError("sample must have exactly temperature_k and cp_kj_kg_k")
+        if not _finite(sample["temperature_k"]) or not _finite(sample["cp_kj_kg_k"]):
+            raise ValueError("sample values must be finite numbers, never bool or text")
+        if previous is not None and sample["temperature_k"] <= previous:
+            raise ValueError("temperatures must be strictly increasing")
+        if sample["cp_kj_kg_k"] <= 0:
+            raise ValueError("Cp must be strictly positive")
+        previous = sample["temperature_k"]
+    return samples
+
+
+def matched_knots(samples, knots):
+    """Each sample must sit on a reviewed knot; the reference must stay inside."""
+    used = []
+    for sample in samples:
+        nearest = min(knots, key=lambda k: abs(k["its90_k"] - sample["temperature_k"]))
+        gap = abs(nearest["its90_k"] - sample["temperature_k"])
+        if gap <= 1e-6:
+            used.append(nearest)
+        elif not knots[0]["its90_k"] - 0.5 <= sample["temperature_k"] <= knots[-1]["its90_k"] + 0.5:
+            raise ValueError("extrapolation outside the reviewed support")
+        else:
+            raise ValueError("temperature labels do not follow the archived 1948-1968-1990 "
+                             "mapping, or knots were resampled")
+    if not samples[0]["temperature_k"] <= REFERENCE_K <= samples[-1]["temperature_k"]:
+        raise ValueError("reference outside profile support")
+    return used
+
+
+def check_witnesses(samples, witnesses, temperatures):
+    """Signed witness enthalpies recomputed with the canonical integral."""
+    wanted = [{"temperature_k": temperature,
+               "specific_sensible_enthalpy_kj_kg": canonical_enthalpy(samples, temperature)}
+              for temperature in temperatures]
+    matches = (isinstance(witnesses, list) and len(witnesses) == len(wanted) and all(
+        isinstance(w, dict) and set(w) == set(e) and all(_finite(v) for v in w.values())
+        and math.isclose(w["temperature_k"], e["temperature_k"], abs_tol=1e-9)
+        and math.isclose(w["specific_sensible_enthalpy_kj_kg"],
+                         e["specific_sensible_enthalpy_kj_kg"], rel_tol=1e-9, abs_tol=1e-12)
+        for w, e in zip(witnesses, wanted)))
+    if not matches or not wanted[0]["specific_sensible_enthalpy_kj_kg"] < 0 < wanted[-1][
+            "specific_sensible_enthalpy_kj_kg"]:
+        raise ValueError("witness enthalpy does not match the canonical signed integral")
+
+
 def check_candidate(candidate, record=None, root=ROOT):
     """Contract controls of the proposed real schema against the pinned review."""
     prior, review = _reviewed(record, root)
@@ -374,34 +426,8 @@ def check_candidate(candidate, record=None, root=ROOT):
         raise ValueError("molar mass differs from the basis stated by the source")
     if candidate["provenance"] != expected["provenance"]:
         raise ValueError("provenance does not match the reviewed sources")
-    samples = candidate["samples"]
-    if not isinstance(samples, list) or len(samples) < 2:
-        raise ValueError("samples must be a list of at least two points")
-    previous = None
-    for sample in samples:
-        if not isinstance(sample, dict) or set(sample) != {"temperature_k", "cp_kj_kg_k"}:
-            raise ValueError("sample must have exactly temperature_k and cp_kj_kg_k")
-        if not _finite(sample["temperature_k"]) or not _finite(sample["cp_kj_kg_k"]):
-            raise ValueError("sample values must be finite numbers, never bool or text")
-        if previous is not None and sample["temperature_k"] <= previous:
-            raise ValueError("temperatures must be strictly increasing")
-        if sample["cp_kj_kg_k"] <= 0:
-            raise ValueError("Cp must be strictly positive")
-        previous = sample["temperature_k"]
-    knots = _knots(prior, review)
-    used = []
-    for sample in samples:
-        nearest = min(knots, key=lambda k: abs(k["its90_k"] - sample["temperature_k"]))
-        gap = abs(nearest["its90_k"] - sample["temperature_k"])
-        if gap <= 1e-6:
-            used.append(nearest)
-        elif not knots[0]["its90_k"] - 0.5 <= sample["temperature_k"] <= knots[-1]["its90_k"] + 0.5:
-            raise ValueError("extrapolation outside the reviewed support")
-        else:
-            raise ValueError("temperature labels do not follow the archived 1948-1968-1990 "
-                             "mapping, or knots were resampled")
-    if not samples[0]["temperature_k"] <= REFERENCE_K <= samples[-1]["temperature_k"]:
-        raise ValueError("reference outside profile support")
+    samples = checked_samples(candidate["samples"])
+    used = matched_knots(samples, _knots(prior, review))
     for sample, knot in zip(samples, used):
         if not math.isclose(sample["cp_kj_kg_k"], knot["cp_kj_kg_k"], rel_tol=1e-9, abs_tol=0.0):
             raise ValueError("Cp does not reproduce the source value on the declared unit, "
@@ -412,20 +438,8 @@ def check_candidate(candidate, record=None, root=ROOT):
     for key in ["native_support_k", "evidence_tiers", "declared_errors"]:
         if candidate[key] != expected[key]:
             raise ValueError("declared limits altered: " + key)
-    witnesses = candidate["witnesses"]
-    wanted = [{"temperature_k": w["temperature_k"],
-               "specific_sensible_enthalpy_kj_kg":
-                   canonical_enthalpy(samples, w["temperature_k"])}
-              for w in expected["witnesses"]]
-    matches = (isinstance(witnesses, list) and len(witnesses) == len(wanted) and all(
-        isinstance(w, dict) and set(w) == set(e) and all(_finite(v) for v in w.values())
-        and math.isclose(w["temperature_k"], e["temperature_k"], abs_tol=1e-9)
-        and math.isclose(w["specific_sensible_enthalpy_kj_kg"],
-                         e["specific_sensible_enthalpy_kj_kg"], rel_tol=1e-9, abs_tol=1e-12)
-        for w, e in zip(witnesses, wanted)))
-    if not matches or not wanted[0]["specific_sensible_enthalpy_kj_kg"] < 0 < wanted[-1][
-            "specific_sensible_enthalpy_kj_kg"]:
-        raise ValueError("witness enthalpy does not match the canonical signed integral")
+    check_witnesses(samples, candidate["witnesses"],
+                    [w["temperature_k"] for w in expected["witnesses"]])
     return {"valid": True, "knots": len(samples), "engine_profile": False}
 
 

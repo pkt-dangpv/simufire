@@ -6,6 +6,11 @@ y auditor offline. Sin cambios en `sim/`, escenarios, interruptores ni
 informes de referencia. No se ejecuta Godot. El adaptador **no** se
 implementa en esta fase.
 
+Revisado el 06-10 por el
+[gate del líquido](G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md): el NO-GO
+del líquido pasa a GO parcial por conversión justificada, y la conversión
+de escala se reclasifica como aproximada. El resto se mantiene.
+
 ## Decisión
 
 | Pregunta | Decisión | Alcance exacto |

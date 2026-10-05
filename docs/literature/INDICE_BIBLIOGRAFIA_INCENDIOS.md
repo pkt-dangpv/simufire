@@ -33,6 +33,26 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 06-10: gate del Cp del heptano liquido,
+[decision y requisitos](../validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md).
+Densidad (p, rho, T) del n-heptano liquido, 233 a 393 K y 0,1 a 30 MPa, del
+archivo ThermoML del NIST (doi:10.18434/mds2-2422, NIST Open License):
+[datos sin modificar y procedencia](data/NIST_THERMOML_HEPTANE_2008/PROVENANCE.json);
+es la captura del NIST de un articulo de 2008 que no se inspecciono.
+Scott, U.S. Bureau of Mines Bulletin 666 (1974), gas ideal de los alcanos
+de 0 a 1500 K, valores correlacionados
+([fuente oficial](https://digital.library.unt.edu/ark:/67531/metadc12811/),
+[PDF local](Reviews_and_Models/USBM_Bulletin_666_Alkane_Ideal_Gas_Properties_1974.pdf)).
+Solo localizador, sin archivar por derechos reservados: Zabransky y
+Ruzicka, J. Phys. Chem. Ref. Data 23, 55 (1994),
+[copia servida por el NIST](https://srd.nist.gov/JPCRD/jpcrd469.pdf),
+reevaluacion del Csat del heptano en ITS-90; se citan veinte valores como
+contraste. Resultado negativo: NBS Circular 461 solo da densidad a 20 y
+25 C. No obtenidos: los dos articulos de JACS de 1937 y 1947.
+Liquido: GO parcial por conversion justificada de Csat a Cp; gas: GO
+parcial condicionado sin cambio de rango. Manifiesto: 47 -> 48 entradas;
+los datos de densidad se inventarian aparte. Ninguna activacion fisica.
+
 Actualizacion adicional del 05-10: cuatro fuentes primarias del NBS/NIST
 para el gate de propiedades termicas reales del heptano,
 [decision y contrato](../validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md):

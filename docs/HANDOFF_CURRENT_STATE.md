@@ -1,5 +1,41 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-06 - Cp del heptano líquido y supuestos del gas
+
+[Cp del líquido y revisión del gas](validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md):
+gate científico offline, sin cambios en `sim/` y sin Godot. Revisa el
+NO-GO del líquido del 05-10 con evidencia nueva.
+**Líquido: GO parcial.** Cp isobárico a 100 kPa entre 280 K y el punto de
+ebullición a 100 kPa (279,9855 a 371,1029 K en ITS-90), obtenido de Csat
+por la identidad termodinámica completa, no por reetiquetado. La
+transformación exige volumen sobre isobaras, sus derivadas primera y
+segunda y la presión de vapor con su pendiente; los aporta la densidad
+(p, ρ, T) del archivo ThermoML del NIST, con licencia abierta. La
+corrección va de −0,010 a +0,284 J/(mol·K), como mucho un 0,11 %, y es
+negativa por debajo de unos 302 K. Cierra con la columna de entalpía
+impresa en 0,18 J/mol de 17 206. Csat **no** se acepta como sustituto.
+Límites: el artículo de la densidad no se inspeccionó; muestra al 99,3 %;
+derivadas sobre una tabla de 20 K, con dependencia del método medida.
+**Escala: aproximada, no exacta.** Convertir valores suavizados cambia la
+magnitud además de las etiquetas, pero la conversión exacta exige datos
+crudos. Frente a la reevaluación publicada en ITS-90 (JPCRD 1994, no
+archivada por derechos), la diferencia llega a 0,056 %. Corrige el informe
+del 05-10.
+**Gas: GO parcial condicionado, mismo rango.** La calorimetría original no
+se obtuvo; masa molar y escala siguen como supuestos acotados. El tramo
+supuesto queda a un 0,13 % de la correlación de Bulletin 666, que no es una
+medición ni del todo independiente.
+**Conjunto: GO parcial, solo diseño.** Dos perfiles de una misma familia de
+esquema real, con ventana común 298,1355 a 371,1029 K. Contrato sintético:
+NO-GO por diseño. **B neto: NO-GO, gate aparte.**
+Auditor offline nuevo con 93 pruebas y 34/34 mutantes offline en Python;
+la campaña del gas sigue en 28/28 tras extraer tres comprobaciones
+compartidas. Manifiesto 47 → 48. ALL GUARDRAILS PASS con R2-1; referencia
+no regenerada porque `sim/` no cambia.
+Siguiente decisión, del usuario: autorizar o no la implementación del
+esquema real en el helper. Adaptador en `sim/`, integración, B predictivo
+y CO/FED no iniciados; CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-05 - Elegibilidad de propiedades térmicas reales del heptano
 
 [Elegibilidad y contrato](validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md):

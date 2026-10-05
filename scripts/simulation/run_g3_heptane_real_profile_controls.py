@@ -1,10 +1,11 @@
-"""Sensitivity of the offline heptane controls: Python mutants of the auditor.
+"""Sensitivity of the offline heptane controls: Python mutants of the auditors.
 
 These are NOT engine mutants and no Godot process is started. Each case edits
-an in-memory copy of the offline auditor, loads it under the auditor's module
+an in-memory copy of an offline auditor, loads it under the auditor's module
 name in a fresh interpreter and expects the focal tests to fail. The saved
 snapshot test is deselected, so a kill comes from an expectation fixed
 independently of the auditor output. The file on disk is never modified.
+Two campaigns: the gas auditor (default) and the liquid auditor.
 """
 from __future__ import annotations
 
@@ -21,7 +22,6 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE = "scripts.simulation.audit_g3_heptane_real_profile"
 TARGET = ROOT / "scripts/simulation/audit_g3_heptane_real_profile.py"
 TESTS = "tests/test_g3_heptane_real_profile.py"
-SNAPSHOT = TESTS + "::test_saved_audit_reproduces_and_promotes_nothing"
 BOOT = """
 import importlib, sys, types
 name, real_path, source_path = sys.argv[1:4]
@@ -94,14 +94,89 @@ MUTANTS = [
 ]
 # A survivor is reported as such; none is excused in advance.
 EXPECTED_SURVIVORS = {}
+LIQUID_MODULE = "scripts.simulation.audit_g3_heptane_liquid_profile"
+LIQUID_TARGET = ROOT / "scripts/simulation/audit_g3_heptane_liquid_profile.py"
+LIQUID_TESTS = "tests/test_g3_heptane_liquid_profile.py"
+LIQUID_MUTANTS = [
+    ("first_term_dropped", 'first = t90 * volume(ctx, t90, pressure, nodes)[1] * slope',
+     "first = Decimal(0)"),
+    ("pressure_term_dropped",
+     "second = -t90 * volume(ctx, t90, (pressure + P0) / 2, nodes)[2] * (P0 - pressure)",
+     "second = Decimal(0)"),
+    ("pressure_term_sign_inverted", "second = -t90 * volume(", "second = t90 * volume("),
+    ("csat_relabelled_as_cp", '"cp_j_mol_k": csat + first + second}', '"cp_j_mol_k": csat}'),
+    ("reference_pressure_one_atmosphere", "P0 = Decimal(100000)", "P0 = Decimal(101325)"),
+    ("volume_per_kilogram", '    kilogram_per_mole = ctx["molar_mass"] / 1000\n    points = [',
+     '    kilogram_per_mole = ctx["molar_mass"]\n    points = ['),
+    ("linear_temperature_stencil", "def volume(ctx, t90, pressure_pa, nodes=4):",
+     "def volume(ctx, t90, pressure_pa, nodes=2):"),
+    ("linear_pressure_interpolation", '    points = ctx["isotherms"][key][:3]',
+     '    points = ctx["isotherms"][key][:2]'),
+    ("scale_factor_dropped", '(result["cp_j_mol_k"] * factor / ctx["molar_mass"])',
+     '(result["cp_j_mol_k"] / ctx["molar_mass"])'),
+    ("engine_nominal_molar_mass", '(result["cp_j_mol_k"] * factor / ctx["molar_mass"])',
+     '(result["cp_j_mol_k"] * factor / Decimal(100))'),
+    ("joule_kilojoule_slip", '(result["cp_j_mol_k"] * factor / ctx["molar_mass"])',
+     '(result["cp_j_mol_k"] * factor / ctx["molar_mass"] / 1000)'),
+    ("vapour_pressure_left_in_atmospheres",
+     'pressure = real._vapour_pressure_atm(ctx["gas_review"], celsius) * ATM',
+     'pressure = real._vapour_pressure_atm(ctx["gas_review"], celsius)'),
+    ("slope_without_natural_logarithm", "pressure * Decimal(10).ln() * b", "pressure * b"),
+    ("celsius_offset_of_another_convention",
+     '    celsius = t - number(ctx["gas_review"]["temperature"]["native_kelvin_offset"], "offset")\n'
+     "    pressure =",
+     '    celsius = t - Decimal("273.15")\n    pressure ='),
+    ("boiling_point_at_one_atmosphere", "(P0 / ATM).log10()", "Decimal(1).log10()"),
+    ("liquid_range_not_enforced",
+     '    if not NATIVE_LOW <= t <= top:\n        raise ValueError("outside the reviewed liquid '
+     'support; no extrapolation")\n', ""),
+    ("pressure_support_not_enforced", "    if not 0 < pressure <= points[-1][0]:", "    if False:"),
+    ("data_set_identity_not_checked",
+     '            or len(data["NumValues"]) != spec["points"]):\n'
+     '        raise ValueError("volumetric data set is not the reviewed one")',
+     '            or len(data["NumValues"]) != spec["points"]):\n        pass'),
+    ("review_hash_not_checked", "hashlib.sha256(encoded).hexdigest() != REVIEW_SHA", "False"),
+    ("source_identity_not_checked", 'record["sources"] != SOURCES or', "False or"),
+    ("contrast_identity_not_checked",
+     'contrast.get("sha256_raw") != CONTRAST_SHA or contrast.get("archived") is not False',
+     "False"),
+    ("prior_identity_not_checked", 'record["prior_review"] != PRIOR', "False"),
+    ("data_file_bytes_not_checked", "        _, data = confined_artifact(root, source, text=True)",
+     '        data = (root / source["path"]).read_bytes()'),
+    ("gas_phase_accepted", 'if candidate["phase"] != "liquid":', "if False:"),
+    ("reference_state_not_checked",
+     '(candidate["reference_temperature_k"] != real.REFERENCE_K\n'
+     '            or candidate["reference_pressure_pa"] != real.REFERENCE_PA)', "False"),
+    ("molar_mass_label_not_checked",
+     'candidate["molar_mass_g_mol"] != expected["molar_mass_g_mol"]', "False"),
+    ("provenance_not_checked", 'candidate["provenance"] != expected["provenance"]', "False"),
+    ("basis_tolerance_one_percent", "rel_tol=1e-9, abs_tol=0.0", "rel_tol=1e-2, abs_tol=0.0"),
+    ("discretization_not_checked",
+     "    if _interpolation_error(knots, used) > float(CP_INTERPOLATION_ABS_TOL):", "    if False:"),
+    ("declared_limits_not_checked", "        if candidate[key] != expected[key]:", "        if False:"),
+    ("simpson_weights_wrong", "+ Decimal(30) / 8 * (v[5]", "+ Decimal(10) / 3 * (v[5]"),
+    ("pressure_step_sign", "return (v - t90 * v1) * (P0 - pressure)",
+     "return (v + t90 * v1) * (P0 - pressure)"),
+    ("calorie_of_another_definition", 'calorie = number(scott["calorie_j"], "calorie")',
+     'calorie = Decimal("4.1868")'),
+    ("scale_factor_not_in_contrast",
+     'new_csat = [(k["its90_k"], float(k["csat_j_mol_k"] * k["scale_factor"])) for k in knots]',
+     'new_csat = [(k["its90_k"], float(k["csat_j_mol_k"])) for k in knots]'),
+]
+CAMPAIGNS = {
+    "gas": (MODULE, TARGET, TESTS, MUTANTS),
+    "liquid": (LIQUID_MODULE, LIQUID_TARGET, LIQUID_TESTS, LIQUID_MUTANTS),
+}
+SNAPSHOT_TEST = "::test_saved_audit_reproduces_and_promotes_nothing"
 
 
-def run_case(source, basetemp, name):
+def run_case(source, basetemp, name, campaign="gas"):
+    module, target, tests, _ = CAMPAIGNS[campaign]
     with tempfile.TemporaryDirectory() as folder:
         mutant = Path(folder) / "mutant.py"
         mutant.write_text(source, encoding="utf-8", newline="\n")
-        command = [sys.executable, "-c", BOOT, MODULE, str(TARGET), str(mutant), TESTS, "-q",
-                   "--color=no", "-p", "no:cacheprovider", "--deselect", SNAPSHOT,
+        command = [sys.executable, "-c", BOOT, module, str(target), str(mutant), tests, "-q",
+                   "--color=no", "-p", "no:cacheprovider", "--deselect", tests + SNAPSHOT_TEST,
                    "--basetemp", str(Path(basetemp) / name)]
         done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=600)
     tail = [line for line in done.stdout.splitlines() if line.strip()][-1:] or [""]
@@ -115,22 +190,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--basetemp", type=Path, required=True,
                         help="new directory outside the repository")
+    parser.add_argument("--campaign", choices=sorted(CAMPAIGNS), default="gas")
     args = parser.parse_args()
     if args.basetemp.resolve().is_relative_to(ROOT):
         parser.error("basetemp must be outside the repository")
     args.basetemp.mkdir(parents=True, exist_ok=False)
-    original = TARGET.read_text(encoding="utf-8")
-    before = hashlib.sha256(TARGET.read_bytes()).hexdigest()
-    code, tail, _ = run_case(original, args.basetemp, "baseline")
+    _, target, _, mutants = CAMPAIGNS[args.campaign]
+    original = target.read_text(encoding="utf-8")
+    before = hashlib.sha256(target.read_bytes()).hexdigest()
+    code, tail, _ = run_case(original, args.basetemp, "baseline", args.campaign)
     cases = []
     if code != 0:
         print(json.dumps({"valid": False, "error": "baseline does not pass", "tail": tail}))
         return 2
-    for name, old, new in MUTANTS:
+    for name, old, new in mutants:
         if original.count(old) != 1:
             cases.append({"mutant": name, "outcome": "invalid", "detail": "anchor not unique"})
             continue
-        code, tail, failed = run_case(original.replace(old, new), args.basetemp, name)
+        code, tail, failed = run_case(original.replace(old, new), args.basetemp, name,
+                                      args.campaign)
         outcome = {0: "survived", 1: "killed"}.get(code, "invalid")
         if outcome == "survived" and name in EXPECTED_SURVIVORS:
             outcome = "survived_as_declared"
@@ -138,8 +216,9 @@ def main():
                       "detail": EXPECTED_SURVIVORS.get(name, tail)})
     counts = {key: sum(case["outcome"] == key for case in cases)
               for key in ["killed", "survived", "survived_as_declared", "invalid"]}
-    unchanged = hashlib.sha256(TARGET.read_bytes()).hexdigest() == before
+    unchanged = hashlib.sha256(target.read_bytes()).hexdigest() == before
     report = {"kind": "offline_python_mutants_of_the_auditor_NOT_engine_mutants",
+              "campaign": args.campaign,
               "snapshot_test_deselected": True, "auditor_file_unchanged": unchanged,
               "total": len(cases), **counts, "cases": cases}
     print(json.dumps(report, indent=2))

@@ -5,7 +5,25 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 05-10:
+Último avance del 06-10:
+[Cp del heptano líquido y supuestos del gas](../validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md).
+Gate científico offline: sin `sim/`, sin Godot, sin física nueva. Líquido:
+**GO parcial**, Cp isobárico a 100 kPa entre 280 K y el punto de ebullición,
+convertido desde Csat con la identidad termodinámica completa y densidad
+(p, ρ, T) del archivo ThermoML del NIST; corrección máxima 0,11 %; Csat no
+se acepta como sustituto. La conversión de escala se reclasifica como
+aproximada, con hasta 0,056 % de diferencia frente a la reevaluación
+publicada. Gas: **GO parcial condicionado**, mismo rango; la calorimetría
+original no se obtuvo y el tramo supuesto queda a un 0,13 % de una
+correlación oficial. Conjunto: GO parcial de diseño, dos perfiles de una
+misma familia de esquema real, sin implementar. Contrato sintético: NO-GO
+por diseño. B neto: NO-GO, gate aparte. Auditor offline con 93 pruebas y
+34/34 mutantes offline; gas 28/28; ALL GUARDRAILS PASS con R2-1; referencia
+no regenerada. Siguiente paso, pendiente de decisión del usuario: fase de
+implementación del esquema real en el helper, con cadena R2-1. CO/FED
+siguen OFF/NO-GO. Sin efecto en plazos.
+
+Avance previo del 05-10:
 [Elegibilidad de propiedades térmicas reales del heptano](../validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md).
 Gate científico offline: sin `sim/`, sin Godot, sin física nueva. Gas:
 **GO parcial**, Cp° de gas ideal entre 298,16 y 470 K de la fuente, con el

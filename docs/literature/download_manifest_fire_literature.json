@@ -406,5 +406,17 @@
         "bytes": 10279902,
         "sha256": "3f85b59231716430e73fed7e503d710083b42c674df52523578c0c1d0e0e1082",
         "version_verified": "Journal of Research NBS Vol.24, January 1940, pp.33-45; 13 PDF pages. Focal review: n-heptane row of Table 3 (printed p.44, PDF p.12): boiling point, density at 20 and 25 degC and dD/dt."
+    },
+    {
+        "source": "https://digital.library.unt.edu/ark:/67531/metadc12811/",
+        "destination": "docs/literature/Reviews_and_Models/USBM_Bulletin_666_Alkane_Ideal_Gas_Properties_1974.pdf",
+        "error": null,
+        "resolved_url": "https://digital.library.unt.edu/ark:/67531/metadc12811/m2/1/high_res_d/Bulletin0666.pdf",
+        "title": "Chemical Thermodynamic Properties of Hydrocarbons and Related Substances: Alkanes C1 through C10 in the Ideal Gas State From 0 to 1500 K (U.S. Bureau of Mines Bulletin 666, 1974)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-06",
+        "bytes": 31616796,
+        "sha256": "e2eb9547815339f7cbeb29032b8178fb8586a4cc40b085d229932411b417e5b2",
+        "version_verified": "D. W. Scott, Bulletin 666, U.S. Government Printing Office 1974; 194 PDF pages, image-only scan from the UNT Digital Library. Focal review: units p.2 (PDF p.8) and Table 14, n-heptane, p.17 (PDF p.23)."
     }
 ]
