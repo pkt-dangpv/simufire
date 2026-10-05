@@ -90,9 +90,12 @@ def test_new_api_reuses_canonical_owners_without_runtime_caller():
     for call in ['SensibleProperties.evaluate(', 'propose_phase_reference(',
                  '_accepted_masses(', '_oxidation_quantities(', '_mass_element_balance(']:
         assert call in new
+    # The versioned sensible owner is the single, still unintegrated, caller;
+    # its own contract forbids loading it from any product resource.
+    isolated = {path, ROOT / 'sim/fire/PrescribedSensiblePhaseController.gd'}
     for folder in ['sim', 'editor', 'ui', 'view', 'scenarios', 'scenes', 'tools']:
         for candidate in (ROOT / folder).rglob('*'):
-            if candidate.is_file() and candidate != path and candidate.suffix in {'.gd', '.json', '.tscn'}:
+            if candidate.is_file() and candidate not in isolated and candidate.suffix in {'.gd', '.json', '.tscn'}:
                 assert 'propose_phase_sensible' not in candidate.read_text(encoding='utf-8')
     # No additional simulation switch; only the false approval field may end in _enabled.
     assert set(re.findall(r'\b[a-z_]+_enabled\b', new)) == {'integration_enabled'}

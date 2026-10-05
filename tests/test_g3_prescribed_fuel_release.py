@@ -38,10 +38,11 @@ def test_provider_is_not_loaded_by_product_and_has_no_engine_or_io():
     source = MODEL.read_text(encoding="utf-8")
     for forbidden in ("FileAccess", "load(", "preload(", "SimulationEngine", "RoomModel", "FuelObjectModel"):
         assert forbidden not in source
-    isolated = {MODEL, ROOT / "sim/fire/PrescribedPhaseBudgetController.gd"}
+    isolated = {MODEL, ROOT / "sim/fire/PrescribedPhaseBudgetController.gd",
+                ROOT / "sim/fire/PrescribedSensiblePhaseController.gd"}
     for folder in ("sim", "editor", "ui", "view", "scenarios", "scenes", "tools"):
         for path in (ROOT / folder).rglob("*"):
-            # Only the unintegrated atomic caller may compose this provider.
+            # Only the two unintegrated atomic owners may compose this provider.
             if path not in isolated and path.is_file() and path.suffix in {".gd", ".tscn", ".tres", ".json"}:
                 assert "PrescribedFuelReleaseModel" not in path.read_text(encoding="utf-8")
     assert "PrescribedFuelReleaseModel" not in (ROOT / "project.godot").read_text(encoding="utf-8")

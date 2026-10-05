@@ -5,7 +5,26 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 04-10:
+Último avance del 05-10:
+[Propietario atómico sensible cerrado técnicamente](../validation/G3_D1_SENSIBLE_OWNER_2026-10-05.md).
+Módulo nuevo aislado que posee contexto, progreso, fases, cuentas térmicas,
+relojes y generación; no deduce el sensible de la masa acumulada. No toca
+ledger, helper Cp, proveedor ni caller de referencia. No integración ni
+calibración; CO/FED siguen OFF/NO-GO. W01-W22 / 4663 checks; 40/40
+mutantes válidos en código final tras una primera campaña con dos
+inválidos que no contó. Focal 917 passed / 10 skipped. Referencia 346/346,
+78 gaps y 160 informes byte idénticos, resumen solo generated_at;
+18 lanzamientos limpios y R2-1 PASS. Producto 168/168. Global 3667 passed /
+41 skipped / 2 xfailed / 42 subtests, 586,90 s, exit 0; un primer intento
+con nueve rechazos por memoria bajo 6 GiB no contó. Tandas secuenciales.
+El fingerprint liga contenido, no firma ni autentica la historia.
+Pendiente separado sin corregir: error de tipos en proveedor, referencia
+y caller anterior. Con esto la cadena helper → ledger → propietario queda
+completa como contrato sintético. Siguiente gate **propuesto, no iniciado
+ni aprobado**: perfil Cp real de heptano y elegibilidad de un B neto
+independiente. Este avance no altera plazos de publicación.
+
+Avance previo del 04-10:
 [Ledger sensible cerrado técnicamente](../validation/G3_D1_SENSIBLE_LEDGER_2026-10-04.md):
 API versionada del dueño actual de masa/CHO, separa A/S/B/Q y conserva la
 entalpía de mezcla y oxidación. No cambia las once funciones anteriores,

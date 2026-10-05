@@ -1,5 +1,41 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-05 - Propietario sensible cerrado técnicamente
+
+[Propietario sensible](validation/G3_D1_SENSIBLE_OWNER_2026-10-05.md):
+`PrescribedSensiblePhaseController.gd` nuevo, versionado y aislado. Posee a
+la vez contexto, progreso de fuente, fases, cuentas térmicas acumuladas,
+relojes y generación; el ledger sigue siendo propuesta pura. **No
+reconstruye el sensible desde la masa**: conserva las cuentas y solo las
+contrasta entre sí. Ledger, helper Cp, proveedor y caller de referencia sin
+cambios, fijados por hash. Sin motor, EOS, transporte, editor ni producto.
+Fingerprint de contenido completo con bits IEEE-754 exactos y claves
+ordenadas; no es firma ni prueba de historia. CO/FED siguen OFF/NO-GO.
+Oráculos Python previos al GDScript: dos parejas de igual masa y distinta
+historia térmica, una incluso con igual calentamiento total.
+W01-W22: 4663 checks PASS; 87 valores predeclarados contrastados.
+40/40 mutantes válidos detectados en código final, 0 supervivientes,
+0 inválidos, cinco originales intactos. La primera campaña dio 38 y dos
+inválidos (fixture ciega a un alias; mutante mal formado): no contaron.
+Focal 917 passed / 10 skipped. Referencia 18/18 limpia, 346/346 required
+y 78 gaps; 160 informes byte idénticos y resumen solo generated_at.
+ALL GUARDRAILS PASS con R2-1. Producto 168/168, 81/81 lanzamientos limpios.
+Global autoritativa 3667 passed / 41 skipped / 2 xfailed / 42 subtests,
+exit 0, 586,90 s, arrancando con 7,98 GiB; stderr vacío y sin residuales.
+Un primer intento NO verde no cuenta: 9 failed / 3658 passed, los nueve
+rechazos del umbral de 6 GiB con 5,90-5,91 GiB medidos en cada salida, no
+ejecuciones fallidas. No se relajó umbral ni se cerró proceso ajeno.
+Referencia, producto, focal y mutaciones se reutilizan: código idéntico
+por hash al que las produjo. Tandas largas secuenciales por monitor.
+Es un cierre técnico sintético aislado, no validación física ni de CO/FED.
+Pendiente separado, reproducido y NO corregido: proveedor,
+`propose_phase_reference` y caller anterior abortan con error de script
+ante un número donde esperan texto; el propietario nuevo lo rechaza.
+Módulos congelados: espera decisión del usuario.
+Siguiente gate propuesto, no iniciado ni aprobado: perfil Cp real de
+heptano con adaptador declarado y elegibilidad de un B neto independiente.
+Ninguna integración antes. Archivos ajenos y UID/runs fuera del commit.
+
 ## Current Program Update - 2026-10-04 - Ledger sensible cerrado técnicamente
 
 [Ledger sensible](validation/G3_D1_SENSIBLE_LEDGER_2026-10-04.md): API

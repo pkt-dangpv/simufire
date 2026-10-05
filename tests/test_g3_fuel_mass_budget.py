@@ -39,11 +39,12 @@ def test_analytical_controls_on_actual_gdscript():
 
 def test_kernel_is_not_integrated_or_loaded_by_product():
     assert "FuelMassBudgetModel" not in (ROOT / "project.godot").read_text(encoding="utf-8")
-    isolated = {MODEL, ROOT / "sim/fire/PrescribedPhaseBudgetController.gd"}
+    isolated = {MODEL, ROOT / "sim/fire/PrescribedPhaseBudgetController.gd",
+                ROOT / "sim/fire/PrescribedSensiblePhaseController.gd"}
     for folder in ("sim", "editor", "ui", "view", "scenes", "scenarios", "tools"):
         for path in (ROOT / folder).rglob("*"):
-            # The isolated caller is the only new consumer, not product wiring.
-            # Its own contract checks that no product resource loads the caller.
+            # The two isolated owners are the only consumers, not product wiring.
+            # Each owner contract checks that no product resource loads it.
             if path in isolated or not path.is_file() or path.suffix not in {
                 ".gd", ".tscn", ".tres", ".json"
             }:
