@@ -388,3 +388,24 @@ Godot hasta la liberación posterior. HEAD continúa `cbab7b05`, sin commit/push
 Mantener NO-GO a entrada real ISOHept9, evaporación predictiva, sensible,
 contornos nuevos, U, muebles y CO/FED. El cierre técnico del caller no
 resuelve la masa realmente emitida ni el origen térmico independiente de B.
+
+## 11. Correcciones posteriores del caller (2026-10-05)
+
+Las secciones anteriores son el registro de su fecha y no se reescriben.
+Dos correcciones posteriores cambian cómo el caller **decide** aceptar un
+estado, sin cambiar ninguna identidad, tolerancia, esquema, API pública
+ni fingerprint de este contrato:
+
+- [Guardas de tipo](G3_D1_TYPE_GUARD_HOTFIX_2026-10-05.md): `schema` y
+  `context_fingerprint` se comprueban por tipo antes de compararse. Antes,
+  un valor mal tipado abortaba la validación y `restore` aceptaba el
+  snapshot.
+- [Veredicto positivo explícito](G3_D1_POSITIVE_VERDICT_2026-10-05.md):
+  §4 y §5 hablaban de "verificar" y "validar" el agregado; en el código
+  eso equivalía a que la lista de errores quedara vacía. Ahora
+  `_check_owned` devuelve un veredicto y `initialize`, `preview_step`,
+  `commit_step` y `restore` exigen que sea positivo antes de continuar o
+  escribir. Los hashes del caller citados en §10 son los de entonces.
+
+Sigue vigente lo dicho en §1 y §4: la validación es coherencia del
+agregado, no autenticidad de un snapshot.

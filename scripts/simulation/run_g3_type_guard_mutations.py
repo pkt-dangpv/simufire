@@ -77,10 +77,10 @@ MUTATIONS = {
         CALLER, _CONTEXT, "if c.get(\"schema\") != \"g3_prescribed_phase_context_v1\":",
         "caller initialize schema structured"),
     "G08_caller_snapshot_unguarded": (
-        CALLER, _SNAPSHOT, "var textual: bool = true", "forged snapshot behind mistyped schema no write"),
+        CALLER, _SNAPSHOT, "var textual: bool = true", "forged snapshot behind mistyped schema explains the identity mismatch"),
     "G09_caller_snapshot_fingerprint_unguarded": (
         CALLER, _SNAPSHOT, "var textual: bool = typeof(s.get(\"schema\")) in " + TEXT,
-        "caller restore context_fingerprint structured"),
+        "caller restore context_fingerprint explains the identity mismatch"),
     "G10_provider_literals_coerced": (
         PROVIDER, _LITERALS, "if str(data.get(key)) != PROGRAM_LITERALS[key]:", "provider impostor mode structured"),
     "G11_reference_literals_coerced": (

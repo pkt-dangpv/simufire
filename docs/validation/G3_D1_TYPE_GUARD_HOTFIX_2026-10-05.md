@@ -331,6 +331,14 @@ guardas, anterior al endurecimiento de su regla.
   prueba estática exige guarda en toda comparación de texto de los tres
   módulos, pero un aborto futuro de otra clase volvería a no añadir
   errores. No se ha encontrado ninguno.
+  **Actualización posterior: cerrado en una fase aparte**, la del
+  [veredicto positivo explícito](G3_D1_POSITIVE_VERDICT_2026-10-05.md).
+  Este punto se conserva como el límite que este hotfix dejó abierto.
+  Esa fase reforzó además la fixture de este hotfix: retirar la guarda
+  del snapshot (G08, G09) ya no permite escribir un estado, así que esos
+  dos mutantes mueren ahora porque el rechazo deja de explicarse como
+  desajuste de identidad. La fixture pasa de 3981 a 4013 comprobaciones;
+  las cifras de §2, §4 y §5 son las de la versión de este hotfix.
 - **Texto admitido.** `String` y `StringName` en los literales que ya los
   admitían; solo `String` en identificadores y procedencias, como antes.
   La diferencia entre campos es heredada y no se unifica aquí.

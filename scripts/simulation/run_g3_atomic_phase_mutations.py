@@ -37,7 +37,7 @@ MUTATIONS = {
         'func commit_step(end_time_s: Variant, oxidation_requested_kg: Variant, expected_generation: Variant) -> Dictionary:\n\tif typeof(end_time_s) == TYPE_DICTIONARY:\n\t\t_owned["phase"] = end_time_s.duplicate(true)\n'),
     "C08_omit_coupled_history_validation": (
         'var source: Dictionary = Release.propose(context["program"], progress, progress["time_s"])',
-        'return # mutant: typed but decoupled snapshots admitted\n\tvar source: Dictionary = Release.propose(context["program"], progress, progress["time_s"])'),
+        'return true # mutant: typed but decoupled snapshots admitted\n\tvar source: Dictionary = Release.propose(context["program"], progress, progress["time_s"])'),
     "C09_material_seed_not_bound": (
         'return (VERSION + JSON.stringify(context, "", true, true)).sha256_text()',
         'var reduced: Dictionary = context.duplicate(true)\n\treduced.erase("material")\n\treduced.erase("seed")\n\treturn (VERSION + JSON.stringify(reduced, "", true, true)).sha256_text()'),

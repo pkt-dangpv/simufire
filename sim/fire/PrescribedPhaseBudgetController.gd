@@ -63,8 +63,7 @@ func initialize(context: Variant) -> Dictionary:
 		"phase": checked["candidate"].duplicate(true),
 		"totals": {"oxidized_fuel_kg": 0.0, "co2_kg": 0.0, "water_vapour_kg": 0.0},
 	}
-	_check_owned(candidate, c, errors)
-	if not errors.is_empty():
+	if not _accepted(candidate, c, errors):
 		return _failure(errors)
 	_context = c.duplicate(true)
 	_owned = candidate.duplicate(true)
@@ -79,12 +78,12 @@ func preview_step(end_time_s: Variant, oxidation_requested_kg: Variant) -> Dicti
 	var errors: Array[String] = []
 	if _owned.is_empty():
 		return _failure(["not initialized"])
-	_check_owned(_owned, _context, errors)
+	var current: bool = _accepted(_owned, _context, errors)
 	var end: float = _number(end_time_s, "end_time_s", errors)
 	var oxidation: float = _number(oxidation_requested_kg, "oxidation_requested_kg", errors)
 	if end < float(_owned["physical_time_s"]):
 		errors.append("physical time cannot go backwards")
-	if not errors.is_empty():
+	if not current or not errors.is_empty():
 		return _failure(errors)
 	var physical_dt: float = end - float(_owned["physical_time_s"])
 	if physical_dt > 0.0 and int(_owned["generation"]) == MAX_GENERATION:
@@ -110,8 +109,7 @@ func preview_step(end_time_s: Variant, oxidation_requested_kg: Variant) -> Dicti
 	candidate["totals"]["oxidized_fuel_kg"] += float(phase["accepted_oxidation_kg"])
 	candidate["totals"]["co2_kg"] += float(phase["products_kg"]["co2"])
 	candidate["totals"]["water_vapour_kg"] += float(phase["products_kg"]["water_vapour"])
-	_check_owned(candidate, _context, errors)
-	if not errors.is_empty():
+	if not _accepted(candidate, _context, errors):
 		return _failure(errors)
 	return {"valid": true, "errors": [], "candidate": candidate.duplicate(true), "step": {
 		"physical_dt_s": physical_dt, "source_dt_s": demand["dt_s"],
@@ -126,8 +124,12 @@ func commit_step(end_time_s: Variant, oxidation_requested_kg: Variant, expected_
 	if not _generation_matches(expected_generation):
 		return _failure(["generation conflict or uninitialized owner"])
 	var proposal: Dictionary = preview_step(end_time_s, oxidation_requested_kg)
-	if not proposal["valid"]:
+	# An explicit preview result is required. A rejection passes through; anything
+	# short of valid=true with its candidate and step never reaches the write.
+	if typeof(proposal.get("valid")) == TYPE_BOOL and not proposal["valid"]:
 		return proposal
+	if typeof(proposal.get("valid")) != TYPE_BOOL or typeof(proposal.get("candidate")) != TYPE_DICTIONARY or typeof(proposal.get("step")) != TYPE_DICTIONARY:
+		return _failure(["step preview returned no explicit positive result"])
 	var no_op: bool = proposal["step"]["physical_dt_s"] == 0.0
 	if not no_op:
 		_owned = proposal["candidate"].duplicate(true)
@@ -140,9 +142,9 @@ func restore(saved: Variant, expected_generation: Variant) -> Dictionary:
 	if int(_owned["generation"]) == MAX_GENERATION:
 		return _failure(["generation overflow"])
 	var errors: Array[String] = []
-	_check_owned(_owned, _context, errors)
-	_check_owned(saved, _context, errors)
-	if not errors.is_empty():
+	var current: bool = _accepted(_owned, _context, errors)
+	var requested: bool = _accepted(saved, _context, errors)
+	if not current or not requested:
 		return _failure(errors)
 	var candidate: Dictionary = saved.duplicate(true)
 	candidate["generation"] = int(_owned["generation"]) + 1
@@ -150,7 +152,10 @@ func restore(saved: Variant, expected_generation: Variant) -> Dictionary:
 	return _success({}, false)
 
 
-func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) -> void:
+## Explicit verdict. True only from the last statement, when every check ran and
+## this call reported nothing; every early exit is false.
+func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) -> bool:
+	var reported: int = errors.size()
 	var s: Dictionary = _object(value, OWNED_KEYS, "snapshot", errors)
 	# Type first: an aborted check would add no error and let the snapshot through.
 	var textual: bool = typeof(s.get("schema")) in [TYPE_STRING, TYPE_STRING_NAME] and typeof(s.get("context_fingerprint")) in [TYPE_STRING, TYPE_STRING_NAME]
@@ -166,24 +171,24 @@ func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) ->
 	for key in TOTAL_KEYS:
 		_number(totals.get(key), "totals." + key, errors)
 	var progress: Dictionary = _object(s.get("progress"), Release.PROGRESS_KEYS, "progress", errors)
-	if not errors.is_empty():
-		return
+	if errors.size() != reported:
+		return false
 	var source: Dictionary = Release.propose(context["program"], progress, progress["time_s"])
 	if not source.get("valid", false):
 		errors.append("invalid source progress")
-		return
+		return false
 	if float(progress["time_s"]) != minf(physical_time, _domain_end(context)):
 		errors.append("physical/source clocks disagree")
 	var recomposed_release: Dictionary = Budget.propose_phase_reference(_seed_phase(context),
 		_request(1.0, progress["accepted_kg"], 0.0), context["material"])
 	if not recomposed_release.get("valid", false):
 		errors.append("invalid canonical release recomposition")
-		return
+		return false
 	var recomposed: Dictionary = Budget.propose_phase_reference(recomposed_release["candidate"],
 		_request(1.0, 0.0, totals["oxidized_fuel_kg"]), context["material"])
 	if not recomposed.get("valid", false):
 		errors.append("invalid canonical oxidation recomposition")
-		return
+		return false
 	_compare(progress["accepted_kg"], recomposed_release["accepted_release_kg"], false, "release history", errors)
 	_compare(totals["oxidized_fuel_kg"], recomposed["accepted_oxidation_kg"], false, "oxidation history", errors)
 	for key in Budget.PHASE_STATE_KEYS:
@@ -197,6 +202,19 @@ func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) ->
 	var initial_total: float = float(context["program"]["initial_mass_kg"]) * float(material["liquid_heat_kj_kg"]) + float(context["seed"]["initial_thermal_budget_kj"])
 	var final_total: float = float(phase["liquid_fuel_kg"]) * float(material["liquid_heat_kj_kg"]) + float(phase["vapour_fuel_kg"]) * float(material["vapour_heat_kj_kg"]) + float(phase["thermal_budget_kj"]) + float(phase["deposited_heat_kj"])
 	_compare(initial_total, final_total, true, "aggregate A+B+Q", errors)
+	return errors.size() == reported
+
+
+## An empty error list is not acceptance: an interrupted check adds no error.
+## Accept only an explicit true verdict from a check that reported nothing.
+func _accepted(value: Variant, context: Dictionary, errors: Array[String]) -> bool:
+	var reported: int = errors.size()
+	var verdict: Variant = _check_owned(value, context, errors)
+	if typeof(verdict) == TYPE_BOOL and verdict and errors.size() == reported:
+		return true
+	if errors.size() == reported:
+		errors.append("state validation ended without a positive verdict")
+	return false
 
 
 func _report() -> Dictionary:

@@ -313,7 +313,7 @@ def test_canonical_owners_have_only_the_isolated_consumers():
 
 @pytest.mark.parametrize("name, expected", [
     ("PrescribedFuelReleaseModel", "db58278f2fff141d31148301095d41234f3732a66fa4140f74abfbaff483897d"),
-    ("PrescribedPhaseBudgetController", "69f74112d52ca77c7c4c3c07987d21747920b970d3e1221fa03464d6170942ed"),
+    ("PrescribedPhaseBudgetController", "41e6e36768eb386f5b9c6f9e9cb5b1e002227526cfef5d013926f8a595e4e6c6"),
     ("FuelMassBudgetModel", "7ab01e1628441c048d55a45a512fc85aed8347dbd8140a29c98160e82fcd3f12"),
     ("SensibleEnthalpyModel", "0340a7263591276a3fb210c570d44eba97ce0326b5c90c539be72e29b1672627"),
 ])

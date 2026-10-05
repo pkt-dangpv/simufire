@@ -14,6 +14,10 @@ const PROGRAM_LITERALS: Array[String] = ["mode", "unit", "outside_domain", "inte
 const PROGRAM_NAMES: Array[String] = ["profile_id", "component_id", "time_origin"]
 const REFERENCE_LITERALS: Array[String] = ["schema", "liquid_phase", "vapour_phase", "water_product_phase",
 	"atom_mass_basis", "chemical_energy_basis"]
+## A guarded comparison explains its rejection; an aborted validation cannot,
+## and the caller reports only that no positive verdict was reached.
+const IDENTITY: String = "snapshot/context identity mismatch"
+const NO_VERDICT: String = "state validation ended without a positive verdict"
 var _failed: bool = false
 var _failures: Array[String] = []
 var _checks: int = 0
@@ -310,13 +314,17 @@ func _t07() -> void:
 			var edited: Dictionary = saved.duplicate(true)
 			edited[key] = bad
 			var copy: Dictionary = edited.duplicate(true)
-			_rejects(owner.restore(edited, 1), "caller restore " + key)
+			var refused: Variant = owner.restore(edited, 1)
+			_rejects(refused, "caller restore " + key)
+			_expect(_explains(refused, IDENTITY), "caller restore " + key + " explains the identity mismatch")
 			_expect(_snapshot(owner) == saved, "caller restore " + key + " no write")
 			_expect(edited == copy, "caller restore " + key + " input untouched")
 		for other: Variant in [null, "", "unknown_text"]:
 			var edited: Dictionary = saved.duplicate(true)
 			edited[key] = other
-			_rejects(owner.restore(edited, 1), "caller restore unknown " + key)
+			var unknown: Variant = owner.restore(edited, 1)
+			_rejects(unknown, "caller restore unknown " + key)
+			_expect(_explains(unknown, IDENTITY), "caller restore unknown " + key + " explains the identity mismatch")
 			_expect(_snapshot(owner) == saved, "caller restore unknown " + key + " no write")
 		var missing: Dictionary = saved.duplicate(true)
 		missing.erase(key)
@@ -349,7 +357,9 @@ func _t08() -> void:
 			forged[key] = bad
 			forged["phase"]["thermal_budget_kj"] = 5000.0
 			forged["phase"]["liquid_fuel_kg"] = 0.25
-			_rejects(owner.restore(forged, 1), "forged snapshot behind mistyped " + key)
+			var refused: Variant = owner.restore(forged, 1)
+			_rejects(refused, "forged snapshot behind mistyped " + key)
+			_expect(_explains(refused, IDENTITY), "forged snapshot behind mistyped " + key + " explains the identity mismatch")
 			_expect(_snapshot(owner) == saved, "forged snapshot behind mistyped " + key + " no write")
 	_near(float(_snapshot(owner).get("phase", {}).get("thermal_budget_kj", NAN)), 900.0, "owner budget not forged")
 	_expect(_is_text(_snapshot(owner).get("schema"), "g3_prescribed_phase_snapshot_v1"), "owner schema still text")
@@ -519,6 +529,14 @@ func _number(result: Variant, key: String) -> float:
 	if typeof(result) != TYPE_DICTIONARY or typeof(result.get(key)) not in [TYPE_INT, TYPE_FLOAT]:
 		return NAN
 	return float(result[key])
+
+
+## True when the rejection carries its own reason and not the generic one.
+func _explains(result: Variant, reason: String) -> bool:
+	if typeof(result) != TYPE_DICTIONARY or typeof(result.get("errors")) != TYPE_ARRAY:
+		return false
+	var errors: Array = result["errors"]
+	return errors.has(reason) and not errors.has(NO_VERDICT)
 
 
 ## The fixture must not repeat the defect it tests: type before comparing.

@@ -1,5 +1,44 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-05 - Veredicto positivo explícito del caller cerrado técnicamente
+
+[Veredicto positivo explícito](validation/G3_D1_POSITIVE_VERDICT_2026-10-05.md):
+cierra el límite que dejó el hotfix de guardas. En
+`PrescribedPhaseBudgetController.gd`, `_check_owned` devolvía `void` y sus
+consumidores tomaban una lista de errores vacía por aceptación. Medido en
+Godot 4.7.1: una función tipada que aborta devuelve el valor por defecto
+de su tipo y el llamador sigue. Reproducido sobre `089e35bf` con un
+validador sustituido que no añade errores ni confirma nada: `restore`
+escribía un snapshot falsificado (900 → 5000 kJ).
+Ahora `_check_owned` devuelve `bool`, `true` solo desde su última
+sentencia; `_accepted` exige ese `true` y que la llamada no añadiera
+errores; `initialize`, `preview_step` y `restore` deciden por esa puerta y
+`commit_step` exige un resultado explícito del preview antes de escribir.
+Un solo archivo de `sim/`, 34 líneas añadidas y 16 quitadas; deshacer las
+doce ediciones reproduce el hash anterior. Sin cambios en API, esquemas,
+tolerancias, fingerprint ni mensajes históricos. Proveedor, ledger,
+helper Cp y propietario sensible intactos por hash.
+Fixture P01-P08: 280 checks PASS, 0 errores de script. Control de aborto
+real aparte de la suite normal: 48 checks, 10 abortos provocados, todos
+en su línea marcada. Mutantes 17/17 con clasificador estricto.
+Histórica del caller 18/18 (C08 re-anclado a `return true`). Guardas de
+tipo 12/12 tras un primer intento 10/12 que no contó: con la guarda del
+snapshot retirada el estado ya no se escribe, así que G08/G09 no morían;
+se reforzó su fixture (3981 → 4013) para exigir que el rechazo se
+explique, sin relajar el criterio.
+Focal 977 passed / 10 skipped. Referencia 18/18 limpia, 346/346 required
+y 78 gaps; 160 informes de caso byte idénticos y resumen solo
+generated_at. ALL GUARDRAILS PASS con R2-1. Producto 168/168, 81/81.
+Global 3727 passed / 41 skipped / 2 xfailed / 42 subtests, exit 0,
+601,26 s. Tandas secuenciales por monitor.
+Es una corrección de la decisión de aceptación de este caller, no una
+protección general. Siguen abiertos: otros validadores sin revisar
+(incluido el propietario sensible), precisión de los fingerprints
+heredados, coherencia frente a autenticidad. CO/FED siguen OFF/NO-GO.
+Siguiente gate propuesto, no iniciado ni aprobado: perfil Cp real de
+heptano y elegibilidad de un B neto independiente.
+Archivos ajenos y UID/runs fuera del commit.
+
 ## Current Program Update - 2026-10-05 - Hotfix de guardas de tipo cerrado técnicamente
 
 [Hotfix de guardas de tipo](validation/G3_D1_TYPE_GUARD_HOTFIX_2026-10-05.md):

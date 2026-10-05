@@ -87,7 +87,7 @@ def test_property_helper_has_no_runtime_owner_or_activation():
 
 @pytest.mark.parametrize("name, expected", [
     ("PrescribedFuelReleaseModel", "db58278f2fff141d31148301095d41234f3732a66fa4140f74abfbaff483897d"),
-    ("PrescribedPhaseBudgetController", "69f74112d52ca77c7c4c3c07987d21747920b970d3e1221fa03464d6170942ed"),
+    ("PrescribedPhaseBudgetController", "41e6e36768eb386f5b9c6f9e9cb5b1e002227526cfef5d013926f8a595e4e6c6"),
 ])
 def test_reference_provider_and_controller_remain_frozen(name, expected):
     raw = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")

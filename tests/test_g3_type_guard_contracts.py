@@ -15,7 +15,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "tests/fixtures/g3_type_guard_contracts.gd"
 PREFIX = "G3_TYPE_GUARD_CONTRACTS"
-CHECKS = 3981  # Measured on the real fixture; never anticipated.
+CHECKS = 4013  # Measured on the real fixture; never anticipated.
 MUTANTS = 12
 TEXT = "[TYPE_STRING, TYPE_STRING_NAME]"
 OWNERS = ["PrescribedFuelReleaseModel", "FuelMassBudgetModel", "PrescribedPhaseBudgetController"]
@@ -113,8 +113,13 @@ def test_actual_type_guard_contracts_t01_t12():
 @pytest.mark.parametrize("name", OWNERS)
 def test_only_the_type_guards_changed(name):
     source = _source(name)
-    assert _sha(source) == CURRENT[name]
     reverted = source
+    if name == "PrescribedPhaseBudgetController":
+        # The explicit positive verdict (later fix) sits on top of these guards:
+        # its own module pins the current bytes and undoes it down to this hash.
+        from tests.test_g3_reference_caller_positive_verdict import undo_verdict_edits
+        reverted = undo_verdict_edits(source)
+    assert _sha(reverted) == CURRENT[name]
     for guarded, original in GUARD_EDITS[name]:
         assert reverted.count(guarded) == 1, guarded
         reverted = reverted.replace(guarded, original, 1)
