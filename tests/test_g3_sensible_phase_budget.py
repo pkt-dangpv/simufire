@@ -60,9 +60,12 @@ def test_old_budget_functions_remain_byte_frozen():
     constants = source[source.index('const MASS_ABS_TOL_KG'):source.index('const SensibleProperties')].rstrip()
     assert hashlib.sha256(constants.encode()).hexdigest() == (
         '1af95199e6cf9a44f3d681db3e173f3f4df41a06c490cfa271327d788bf4448c')
+    # 2026-10-05 type-guard hotfix: 'propose' and 'propose_phase_reference' each
+    # gained one typeof guard on a text comparison. Their previous pins and the
+    # proof that nothing else changed live in test_g3_type_guard_contracts.py.
     pins = {
-        'propose': '098b4e02d17950c616e85bb5c29a6aabb721da5460168039462b02c60f7a4b14',
-        'propose_phase_reference': '499eb9940b0acee1f0f243e8c29f356fd7bcb168bf110e516b9c20fc694a3a08',
+        'propose': 'f33942b37955085056461a7615ec0317b6aec3f9e7abce97a00430d67294d131',
+        'propose_phase_reference': '8e0d764e11bb6d565269c827f5ed91c785817e71e7960d334513406722da9992',
         '_oxygen_required': '7d16d87986cb916b1a77c7abcc985fa88e529872faa19ed42a533d94b36f4660',
         '_accepted_masses': '786337f4c82a9d6c4049890833476d2052f932673a958abcd26e3409dc4093d3',
         '_oxidation_quantities': '9138cfde22e685a7db337775eb68de706b3eac9720298bb419a935dfe430c929',

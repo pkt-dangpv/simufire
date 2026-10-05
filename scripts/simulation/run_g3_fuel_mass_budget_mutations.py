@@ -76,9 +76,11 @@ PHASE_MUTATIONS = {
         'oxygen_per_kg, "thermal_budgeted", budget, latent)',
         'oxygen_per_kg, "thermal_budgeted", budget + deposited, latent)'),
     "P08_schema_not_checked": (
-        'if m.get(key) != required[key]:', 'if key != "schema" and m.get(key) != required[key]:'),
+        'if typeof(m.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get(key) != required[key]:',
+        'if key != "schema" and (typeof(m.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get(key) != required[key]):'),
     "P09_liquid_phase_not_checked": (
-        'if m.get(key) != required[key]:', 'if key != "liquid_phase" and m.get(key) != required[key]:'),
+        'if typeof(m.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get(key) != required[key]:',
+        'if key != "liquid_phase" and (typeof(m.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get(key) != required[key]):'),
     "P10_no_Hess_check": (
         '_check_balance(vapour_heat, liquid_heat + latent, ENERGY_ABS_TOL_KJ, "reference phase enthalpy", errors)',
         'pass # mutant: incompatible phase basis admitted'),

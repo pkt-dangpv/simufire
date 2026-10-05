@@ -1,5 +1,43 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-05 - Hotfix de guardas de tipo cerrado técnicamente
+
+[Hotfix de guardas de tipo](validation/G3_D1_TYPE_GUARD_HOTFIX_2026-10-05.md):
+corrige el pendiente separado del propietario sensible. En Godot 4.7.1
+comparar un número, bool o contenedor con texto aborta el script; tres
+módulos aislados comparaban sin comprobar el tipo. Reproducido sobre
+`48287607`: 3981 comprobaciones, 777 fallidas, 520 errores de script.
+Era más amplio que lo documentado: también `propose` v1, la identidad del
+progreso del proveedor y la del snapshot del caller. **`restore` fallaba
+abierto**: un snapshot con `schema=1`, 5000 kJ y 0,25 kg se escribió sobre
+un estado de 900 kJ y 0,9 kg y anuló la comprobación de coherencia.
+Arreglo: 12 líneas añadidas y 8 quitadas en `PrescribedFuelReleaseModel`,
+`FuelMassBudgetModel` y `PrescribedPhaseBudgetController`; solo guardas
+`typeof` antes de comparar. Mismos mensajes, sin `str()`, sin leyes ni
+tolerancias tocadas, cinco fingerprints heredados idénticos. `String` y
+`StringName` siguen aceptándose donde ya se aceptaban. Propietario
+sensible y helper Cp sin cambios. Sin motor, EOS, editor ni producto.
+T01-T12: 3981 checks PASS, 0 errores de script. Deshacer las guardas
+reproduce los tres hashes antes congelados; solo se mueven esos tres pins
+y los de `propose` y `propose_phase_reference`.
+Mutantes de guardas 12/12 con clasificador propio: fixture terminada,
+fallo declarado y errores solo en el módulo mutado. La regla se endureció
+una vez y la campaña se repitió entera. Históricas: masa 10/10, referencia
+12/12, proveedor 11/11, réplica medida 11/11, caller 18/18, ledger 23/23
+y propietario sensible 40/40; esta última tras un primer intento
+interrumpido por memoria en O13 (12 de 40) que no contó.
+Focal 949 passed / 10 skipped. Referencia 18/18 limpia, 346/346 required
+y 78 gaps; 160 informes de caso byte idénticos y resumen solo
+generated_at. ALL GUARDRAILS PASS con R2-1. Producto 168/168, 81/81.
+Global 3700 passed / 41 skipped / 2 xfailed / 42 subtests, exit 0,
+593,69 s, arrancando con 8,02 GiB. Tandas secuenciales por monitor.
+Siguen abiertos: precisión de los fingerprints heredados con
+`JSON.stringify`; `_check_owned` aún no devuelve su veredicto; el mismo
+patrón no se auditó en el motor activo. CO/FED siguen OFF/NO-GO.
+Siguiente gate propuesto, no iniciado ni aprobado: perfil Cp real de
+heptano y elegibilidad de un B neto independiente.
+Archivos ajenos y UID/runs fuera del commit.
+
 ## Current Program Update - 2026-10-05 - Propietario sensible cerrado técnicamente
 
 [Propietario sensible](validation/G3_D1_SENSIBLE_OWNER_2026-10-05.md):

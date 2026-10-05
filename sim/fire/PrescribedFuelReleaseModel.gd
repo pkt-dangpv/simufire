@@ -42,7 +42,7 @@ static func propose(program: Variant, progress: Variant, end_time_s: Variant) ->
 		return checked
 	var errors: Array[String] = []
 	var p: Dictionary = _object(progress, PROGRESS_KEYS, "progress", errors)
-	if p.get("fingerprint") != checked["fingerprint"]:
+	if typeof(p.get("fingerprint")) not in [TYPE_STRING, TYPE_STRING_NAME] or p.get("fingerprint") != checked["fingerprint"]:
 		errors.append("progress fingerprint does not match rate program/version")
 	var start: float = _number(p.get("time_s"), "progress.time_s", errors)
 	var end: float = _number(end_time_s, "end_time_s", errors)
@@ -111,11 +111,13 @@ static func _program(program: Variant) -> Dictionary:
 	for key in ["profile_id", "component_id", "time_origin"]:
 		if typeof(data.get(key)) != TYPE_STRING or String(data.get(key, "")).strip_edges().is_empty():
 			errors.append(key + " must be a nonempty string")
+	# Type first: comparing a number, bool or container with text aborts the script.
 	for key in PROGRAM_LITERALS:
-		if data.get(key) != PROGRAM_LITERALS[key]:
+		if typeof(data.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or data.get(key) != PROGRAM_LITERALS[key]:
 			errors.append("unsupported rate program " + key)
-	var linear: bool = data.get("interpolation") == "piecewise_linear" and data.get("quantity") == "modeled_component_emission"
-	var measured: bool = data.get("interpolation") == "piecewise_constant_left" and data.get("quantity") == "measured_reservoir_depletion"
+	var textual: bool = typeof(data.get("interpolation")) in [TYPE_STRING, TYPE_STRING_NAME] and typeof(data.get("quantity")) in [TYPE_STRING, TYPE_STRING_NAME]
+	var linear: bool = textual and data.get("interpolation") == "piecewise_linear" and data.get("quantity") == "modeled_component_emission"
+	var measured: bool = textual and data.get("interpolation") == "piecewise_constant_left" and data.get("quantity") == "measured_reservoir_depletion"
 	if not linear and not measured:
 		errors.append("unsupported interpolation/quantity pair")
 	var mass: float = _number(data.get("initial_mass_kg"), "initial_mass_kg", errors)

@@ -6,6 +6,24 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 05-10:
+[Hotfix de guardas de tipo cerrado técnicamente](../validation/G3_D1_TYPE_GUARD_HOTFIX_2026-10-05.md).
+Corrige el pendiente separado que dejó el propietario sensible: proveedor,
+núcleo de masa/referencia y caller de referencia abortaban con error de
+script ante un valor mal tipado donde esperaban texto, y `restore` del
+caller fallaba abierto. Solo guardas de tipo: sin leyes, tolerancias,
+mensajes, fingerprints ni aceptación de entradas válidas cambiados; sin
+integración ni física nueva. CO/FED siguen OFF/NO-GO. Reproducción previa
+777 fallos / 520 errores de script; después 3981 checks y 0 errores.
+Mutantes de guardas 12/12; campañas históricas repetidas 10/10, 12/12,
+11/11, 11/11, 18/18, 23/23 y 40/40. Focal 949 passed / 10 skipped.
+Referencia 346/346, 78 gaps y 160 informes byte idénticos, resumen solo
+generated_at; R2-1 PASS. Producto 168/168. Global 3700 passed / 41 skipped
+/ 2 xfailed / 42 subtests, 593,69 s, exit 0. No cierra la precisión de
+los fingerprints heredados ni los gates físicos. Siguiente gate, sin
+cambios y **no iniciado ni aprobado**: perfil Cp real de heptano y
+elegibilidad de un B neto independiente. Sin efecto en plazos.
+
+Avance previo del 05-10:
 [Propietario atómico sensible cerrado técnicamente](../validation/G3_D1_SENSIBLE_OWNER_2026-10-05.md).
 Módulo nuevo aislado que posee contexto, progreso, fases, cuentas térmicas,
 relojes y generación; no deduce el sensible de la masa acumulada. No toca

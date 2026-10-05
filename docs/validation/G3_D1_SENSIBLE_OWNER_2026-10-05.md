@@ -542,7 +542,7 @@ versionados y sin modificar desde antes de esta fase (`c4cc99bc`,
   comparación `int != String` aborta el script: es el hallazgo de §3, no
   un fallo del monitor, que cerró solo su propio proceso.
 
-## 12. Hallazgo en propietarios congelados (no bloquea; no se corrige aquí)
+## 12. Hallazgo en propietarios congelados (no bloqueó; corregido después)
 
 Reproducido en un proyecto aislado, por el monitor, con copias exactas:
 un **número donde se espera texto** hace que tres módulos anteriores
@@ -569,10 +569,24 @@ entradas válidas. Evidencia: `probe2` bajo el temporal externo de la fase.
 **Queda como pendiente separado y abierto: no está corregido ni cerrado
 por esta fase**, y espera decisión del usuario.
 
+**Actualización posterior (2026-10-05): corregido en una fase aparte.** El
+[hotfix de guardas de tipo](G3_D1_TYPE_GUARD_HOTFIX_2026-10-05.md),
+autorizado por el usuario, corrige este defecto en los tres módulos. Lo
+escrito arriba es el registro de cuando se encontró y se mantiene tal
+cual: el defecto existió en `48287607` y anteriores, no es que nunca
+existiera. La reproducción completa mostró que era más amplio que estos
+tres casos (también la API v1 `propose`, la identidad del progreso del
+proveedor y la del snapshot del caller) y que en `restore` fallaba
+**abierto**: un snapshot mal tipado podía escribirse y anular la
+comprobación de coherencia. Los hashes de esos tres módulos que cita §9
+son los de esta fase; el hotfix los cambia y prueba que solo añade las
+guardas. El propietario sensible no se modificó.
+
 Segundo límite heredado, ya citado en §3: el fingerprint del proveedor y
 el del caller de referencia usan `JSON.stringify`, que no distingue algunos
 `float` vecinos. El fingerprint nuevo no tiene esa limitación; el del
-proveedor, que también viaja dentro de `progress`, sí.
+proveedor, que también viaja dentro de `progress`, sí. **Este límite
+sigue abierto**: el hotfix no lo toca.
 
 ## 13. Límites que siguen abiertos
 

@@ -45,7 +45,7 @@ def test_controller_reuses_physics_owners_not_their_laws():
 def test_existing_model_and_provider_remain_frozen():
     import hashlib
     pins = {
-        "PrescribedFuelReleaseModel.gd": "89a8c5ad8c663c9f417e23381c6cbf0d2c07bc5c56f5ad01ff7dc1ed6e0cd9fc",
+        "PrescribedFuelReleaseModel.gd": "db58278f2fff141d31148301095d41234f3732a66fa4140f74abfbaff483897d",
     }
     for name, checksum in pins.items():
         raw = (ROOT / "sim/fire" / name).read_bytes().replace(b"\r\n", b"\n")

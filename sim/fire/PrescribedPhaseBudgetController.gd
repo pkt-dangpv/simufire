@@ -27,7 +27,7 @@ func initialize(context: Variant) -> Dictionary:
 		return _failure(["already initialized; use a new owner for another context"])
 	var errors: Array[String] = []
 	var c: Dictionary = _object(context, CONTEXT_KEYS, "context", errors)
-	if c.get("schema") != "g3_prescribed_phase_context_v1":
+	if typeof(c.get("schema")) not in [TYPE_STRING, TYPE_STRING_NAME] or c.get("schema") != "g3_prescribed_phase_context_v1":
 		errors.append("incompatible context schema")
 	var a: Dictionary = _object(c.get("attribution"), ATTRIBUTION_KEYS, "attribution", errors)
 	var seed: Dictionary = _object(c.get("seed"), SEED_KEYS, "seed", errors)
@@ -152,7 +152,9 @@ func restore(saved: Variant, expected_generation: Variant) -> Dictionary:
 
 func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) -> void:
 	var s: Dictionary = _object(value, OWNED_KEYS, "snapshot", errors)
-	if s.get("schema") != "g3_prescribed_phase_snapshot_v1" or s.get("context_fingerprint") != _fingerprint(context):
+	# Type first: an aborted check would add no error and let the snapshot through.
+	var textual: bool = typeof(s.get("schema")) in [TYPE_STRING, TYPE_STRING_NAME] and typeof(s.get("context_fingerprint")) in [TYPE_STRING, TYPE_STRING_NAME]
+	if not textual or s.get("schema") != "g3_prescribed_phase_snapshot_v1" or s.get("context_fingerprint") != _fingerprint(context):
 		errors.append("snapshot/context identity mismatch")
 	if not _valid_generation(s.get("generation")):
 		errors.append("invalid generation")

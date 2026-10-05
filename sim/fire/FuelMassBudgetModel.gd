@@ -60,7 +60,7 @@ static func propose(state: Variant, request: Variant, material: Variant) -> Dict
 	var heat: float = _nonnegative(m, "chemical_heat_kj_per_kg", "material", errors)
 	if heat <= 0.0:
 		errors.append("chemical_heat_kj_per_kg must be > 0")
-	if m.get("chemical_energy_basis") != "complete_oxidation_net":
+	if typeof(m.get("chemical_energy_basis")) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get("chemical_energy_basis") != "complete_oxidation_net":
 		errors.append("chemical_energy_basis must be complete_oxidation_net")
 	if typeof(m.get("provenance")) != TYPE_STRING or String(m.get("provenance", "")).strip_edges().is_empty():
 		errors.append("material.provenance must be a nonempty string")
@@ -164,7 +164,7 @@ static func propose_phase_reference(state: Variant, request: Variant, material: 
 		"atom_mass_basis": "nominal_C12_H1_O16", "chemical_energy_basis": "complete_oxidation_net",
 	}
 	for key in required:
-		if m.get(key) != required[key]:
+		if typeof(m.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or m.get(key) != required[key]:
 			errors.append("phase_material incompatible " + key)
 	var reference_temp: float = _nonnegative(m, "reference_temperature_k", "phase_material", errors)
 	var reference_pressure: float = _nonnegative(m, "reference_pressure_pa", "phase_material", errors)

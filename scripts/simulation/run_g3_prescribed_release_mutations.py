@@ -27,9 +27,12 @@ MUTATIONS = {
     "M02_retry_rejected_demand": ('var request: float = _integral(samples, start, end, interpolation)',
                                   'var request: float = _integral(samples, start, end, interpolation) + rejected'),
     "M03_accept_above_request": ('if accepted > requested:', 'if false:'),
-    "M04_ignore_program_identity": ('if p.get("fingerprint") != checked["fingerprint"]:', 'if false:'),
-    "M05_ignore_rate_unit": ('if data.get(key) != PROGRAM_LITERALS[key]:',
-                            'if key != "unit" and data.get(key) != PROGRAM_LITERALS[key]:'),
+    "M04_ignore_program_identity": (
+        'if typeof(p.get("fingerprint")) not in [TYPE_STRING, TYPE_STRING_NAME] or p.get("fingerprint") != checked["fingerprint"]:',
+        'if false:'),
+    "M05_ignore_rate_unit": (
+        'if typeof(data.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or data.get(key) != PROGRAM_LITERALS[key]:',
+        'if key != "unit" and (typeof(data.get(key)) not in [TYPE_STRING, TYPE_STRING_NAME] or data.get(key) != PROGRAM_LITERALS[key]):'),
     "M06_extrapolate_past_domain": ('if start > domain_end or end > domain_end or end < start:',
                                    'if start > domain_end or end < start:'),
     "M07_left_rectangle": ('0.5 * left + 0.5 * right', 'left'),
