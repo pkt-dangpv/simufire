@@ -1,0 +1,468 @@
+{
+  "schema": "g3_heptane_real_profile_eligibility_audit_v1",
+  "decision": {
+    "gas": "GO_partial_ideal_gas_native_298.16_to_470_K",
+    "liquid": "NO_GO_isobaric_profile_native_Csat_only",
+    "current_synthetic_contract": "NO_GO_by_design_requires_versioned_real_schema",
+    "net_heat_budget_B": "NO_GO_separate_gate"
+  },
+  "review_sha256": "71e0c2fce7cee228e10d65629ea8dd8ed7eac559d89c2cd635fa69af71260bb3",
+  "sources_sha256": "22c38e5c2c9c17445c82d3defa3f5f99e4733b97c06ac78e5670daf29e267da2",
+  "scale": {
+    "steps": [
+      "kelvin_offset_273.16_to_273.15",
+      "IPTS-48_to_IPTS-68",
+      "IPTS-68_to_ITS-90"
+    ],
+    "mu_rows_checked": 37,
+    "mu_max_abs_residual_k": 5e-05,
+    "dmu_max_abs_residual": 5e-06,
+    "label_shift_min_k": -0.037137,
+    "label_shift_max_k": -0.008419,
+    "scale_factor_min": 0.99958,
+    "scale_factor_max": 1.000397,
+    "its90_reference_on_native_label_k": 298.1745,
+    "rows": [
+      {
+        "native_k": 298.16,
+        "its90_k": 298.135458,
+        "scale_factor": 1.000397
+      },
+      {
+        "native_k": 300,
+        "its90_k": 299.974747,
+        "scale_factor": 1.000396
+      },
+      {
+        "native_k": 310,
+        "its90_k": 309.970808,
+        "scale_factor": 1.000377
+      },
+      {
+        "native_k": 320,
+        "its90_k": 319.967501,
+        "scale_factor": 1.000287
+      },
+      {
+        "native_k": 330,
+        "its90_k": 329.965047,
+        "scale_factor": 1.000188
+      },
+      {
+        "native_k": 340,
+        "its90_k": 339.964031,
+        "scale_factor": 1.000054
+      },
+      {
+        "native_k": 350,
+        "its90_k": 349.963317,
+        "scale_factor": 1.000073
+      },
+      {
+        "native_k": 360,
+        "its90_k": 359.962863,
+        "scale_factor": 1.000001
+      },
+      {
+        "native_k": 370,
+        "its90_k": 369.963586,
+        "scale_factor": 0.999874
+      },
+      {
+        "native_k": 380,
+        "its90_k": 379.965044,
+        "scale_factor": 0.999836
+      },
+      {
+        "native_k": 390,
+        "its90_k": 389.966843,
+        "scale_factor": 0.999806
+      },
+      {
+        "native_k": 400,
+        "its90_k": 399.968914,
+        "scale_factor": 0.999782
+      },
+      {
+        "native_k": 410,
+        "its90_k": 409.971188,
+        "scale_factor": 0.999765
+      },
+      {
+        "native_k": 420,
+        "its90_k": 419.973604,
+        "scale_factor": 0.999735
+      },
+      {
+        "native_k": 430,
+        "its90_k": 429.976785,
+        "scale_factor": 0.999648
+      },
+      {
+        "native_k": 440,
+        "its90_k": 439.980313,
+        "scale_factor": 0.999648
+      },
+      {
+        "native_k": 450,
+        "its90_k": 449.983818,
+        "scale_factor": 0.999634
+      },
+      {
+        "native_k": 460,
+        "its90_k": 459.987939,
+        "scale_factor": 0.99958
+      },
+      {
+        "native_k": 470,
+        "its90_k": 469.991581,
+        "scale_factor": 0.999656
+      }
+    ],
+    "gas_equation_scale_is_assumed": true
+  },
+  "gas": {
+    "quantity": "ideal_gas_isobaric_molar_heat_capacity",
+    "comparison_kind": "printed_equation_vs_derived_table_NOT_fire_experiment",
+    "rows_above_370": [
+      {
+        "temperature_k": 380,
+        "cp_residual_j_mol_k": -0.002864,
+        "delta_h_residual_j_mol": 0.23562
+      },
+      {
+        "temperature_k": 390,
+        "cp_residual_j_mol_k": -0.004476,
+        "delta_h_residual_j_mol": -0.01232
+      },
+      {
+        "temperature_k": 400,
+        "cp_residual_j_mol_k": -0.0026,
+        "delta_h_residual_j_mol": -0.20894
+      },
+      {
+        "temperature_k": 410,
+        "cp_residual_j_mol_k": 0.002764,
+        "delta_h_residual_j_mol": 0.18064
+      },
+      {
+        "temperature_k": 420,
+        "cp_residual_j_mol_k": 0.001616,
+        "delta_h_residual_j_mol": -0.3087
+      },
+      {
+        "temperature_k": 430,
+        "cp_residual_j_mol_k": 0.003956,
+        "delta_h_residual_j_mol": -0.14208
+      },
+      {
+        "temperature_k": 440,
+        "cp_residual_j_mol_k": -0.000216,
+        "delta_h_residual_j_mol": 0.21538
+      },
+      {
+        "temperature_k": 450,
+        "cp_residual_j_mol_k": -0.0009,
+        "delta_h_residual_j_mol": 0.29856
+      },
+      {
+        "temperature_k": 460,
+        "cp_residual_j_mol_k": 0.001904,
+        "delta_h_residual_j_mol": -0.35766
+      },
+      {
+        "temperature_k": 470,
+        "cp_residual_j_mol_k": -0.001804,
+        "delta_h_residual_j_mol": -0.2184
+      }
+    ],
+    "delta_h_298_16_to_470_j_mol": 34911.67113856,
+    "printed_delta_h_298_16_to_470_j_mol": 34912,
+    "canonical_delta_h_same_states_j_mol": 34911.2603,
+    "interval_enthalpy_max_abs_residual_j_mol": 0.0808,
+    "cp_interpolation_max_abs_j_mol_k": 0.006932,
+    "assumed_range_model_form_spread": [
+      {
+        "temperature_k": 298.16,
+        "equation_22_minus_23_j_mol_k": -1.1991,
+        "percent": -0.727
+      },
+      {
+        "temperature_k": 357,
+        "equation_22_minus_23_j_mol_k": -0.0373,
+        "percent": -0.019
+      }
+    ],
+    "assumed_range_delta_h_equation_22_minus_23_j_mol": -28.621,
+    "assumed_range_delta_h_spread_percent": -0.22,
+    "real_gas_departure_not_applied": [
+      {
+        "temperature_k": 357.1,
+        "observed_j_mol_k_atm": 6.07,
+        "percent_of_ideal_cp_per_atm": 3.17
+      },
+      {
+        "temperature_k": 373.15,
+        "observed_j_mol_k_atm": 4.81,
+        "percent_of_ideal_cp_per_atm": 2.42
+      },
+      {
+        "temperature_k": 400.4,
+        "observed_j_mol_k_atm": 2.97,
+        "percent_of_ideal_cp_per_atm": 1.41
+      },
+      {
+        "temperature_k": 434.35,
+        "observed_j_mol_k_atm": 1.88,
+        "percent_of_ideal_cp_per_atm": 0.83
+      },
+      {
+        "temperature_k": 466.1,
+        "observed_j_mol_k_atm": 1.13,
+        "percent_of_ideal_cp_per_atm": 0.47
+      }
+    ],
+    "molar_mass_g_mol": 100.2,
+    "cp_370_native_kj_kg_k": 1.968862275,
+    "upper_limit_native_k": 470,
+    "covers_flame_temperatures": false
+  },
+  "liquid": {
+    "quantity": "Csat_heat_capacity_along_the_saturation_curve",
+    "path": "saturation_pressure_changes_with_temperature",
+    "isobaric_profile_approval": false,
+    "printed_delta_h_sat_298_16_to_370_j_mol": 17214,
+    "csat_trapezoid_298_16_to_370_j_mol": 17200.7656,
+    "gap_without_v_dp_j_mol": 13.2344,
+    "v_dp_term_298_16_to_370_j_mol": 13.3424,
+    "closure_residual_with_v_dp_j_mol": -0.108,
+    "closure_abs_tol_j_mol": 4.3,
+    "v_dp_dt_298_16_j_mol_k": 0.04225,
+    "v_dp_dt_370_j_mol_k": 0.44664,
+    "csat_equation_380_j_mol_k": 260.0982,
+    "csat_equation_390_j_mol_k": 265.0412,
+    "csat_equation_minus_table_298_16_j_mol_k": 0.1192,
+    "molar_volume_25_c_ml_mol": 147.4766,
+    "expansivity_20_25_c_per_k": 0.001245681,
+    "expansivity_times_t_at_22_5_c": 0.3683,
+    "cp_minus_csat_at_saturation_298_16_j_mol_k": 0.01569,
+    "pressure_term_bound_at_298_15_j_mol": 13.8487,
+    "volumetric_data_range_c": [
+      20,
+      25
+    ],
+    "vapour_pressure_at_brooks_boiling_point_atm": 0.999919,
+    "osborne_ginnings_csat_22_5_c_j_mol_k_unconverted_joule": 223.8167,
+    "table_csat_interpolated_22_5_c_j_mol_k": 223.8144,
+    "osborne_ginnings_dh_dt_minus_csat_j_mol_k": 0.0401,
+    "v_dp_dt_22_5_c_j_mol_k": 0.03815,
+    "stated_csat_vs_cp_bound_percent": 0.2,
+    "stated_bound_range_c": [
+      5,
+      45
+    ],
+    "stated_bound_kind": "estimate_stated_by_authors_not_a_measurement",
+    "missing_for_isobaric_conversion": [
+      "liquid_molar_volume_273_to_371_K",
+      "first_temperature_derivative_of_volume_273_to_371_K",
+      "second_temperature_derivative_of_volume_273_to_371_K"
+    ]
+  },
+  "synthetic_schema_conflicts": {
+    "schema": [
+      "g3_real_ideal_gas_cp_v1",
+      "g3_synthetic_isobaric_cp_v1"
+    ],
+    "temperature_scale": [
+      "ITS-90_kelvin",
+      "synthetic_kelvin"
+    ],
+    "calibration_status": [
+      "primary_source_property_not_fire_validation",
+      "synthetic_not_material_calibration"
+    ],
+    "provenance": [
+      "primary:sha256:40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9",
+      "synthetic:*"
+    ],
+    "unexpected_fields": [
+      "declared_errors",
+      "evidence_tiers",
+      "molar_mass_g_mol",
+      "native_support_k",
+      "witnesses"
+    ]
+  },
+  "contract_preview": {
+    "schema": "g3_real_ideal_gas_cp_v1",
+    "component_id": "n-heptane",
+    "caloric_model": "ideal_gas",
+    "pressure_path": "constant_pressure",
+    "temperature_scale": "ITS-90_kelvin",
+    "quantity": "isobaric_specific_heat",
+    "quantity_unit": "kJ/(kg*K)",
+    "interpolation": "piecewise_linear",
+    "calibration_status": "primary_source_property_not_fire_validation",
+    "phase": "gas",
+    "reference_temperature_k": 298.15,
+    "reference_pressure_pa": 100000.0,
+    "samples": [
+      {
+        "temperature_k": 298.135458,
+        "cp_kj_kg_k": 1.647024526068
+      },
+      {
+        "temperature_k": 299.974747,
+        "cp_kj_kg_k": 1.655285172344
+      },
+      {
+        "temperature_k": 309.970808,
+        "cp_kj_kg_k": 1.700161715221
+      },
+      {
+        "temperature_k": 319.967501,
+        "cp_kj_kg_k": 1.744911625286
+      },
+      {
+        "temperature_k": 329.965047,
+        "cp_kj_kg_k": 1.789638390095
+      },
+      {
+        "temperature_k": 339.964031,
+        "cp_kj_kg_k": 1.834289848782
+      },
+      {
+        "temperature_k": 349.963317,
+        "cp_kj_kg_k": 1.879219468873
+      },
+      {
+        "temperature_k": 359.962863,
+        "cp_kj_kg_k": 1.923974887077
+      },
+      {
+        "temperature_k": 369.963586,
+        "cp_kj_kg_k": 1.968614365624
+      },
+      {
+        "temperature_k": 379.965044,
+        "cp_kj_kg_k": 2.013214532283
+      },
+      {
+        "temperature_k": 389.966843,
+        "cp_kj_kg_k": 2.057339900617
+      },
+      {
+        "temperature_k": 399.968914,
+        "cp_kj_kg_k": 2.101012932396
+      },
+      {
+        "temperature_k": 409.971188,
+        "cp_kj_kg_k": 2.144233685152
+      },
+      {
+        "temperature_k": 419.973604,
+        "cp_kj_kg_k": 2.186962231784
+      },
+      {
+        "temperature_k": 429.976785,
+        "cp_kj_kg_k": 2.229095249667
+      },
+      {
+        "temperature_k": 439.980313,
+        "cp_kj_kg_k": 2.270954437207
+      },
+      {
+        "temperature_k": 449.983818,
+        "cp_kj_kg_k": 2.312318314025
+      },
+      {
+        "temperature_k": 459.987939,
+        "cp_kj_kg_k": 2.353121764226
+      },
+      {
+        "temperature_k": 469.991581,
+        "cp_kj_kg_k": 2.39376903456
+      }
+    ],
+    "provenance": "primary:sha256:40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9;sources:sha256:22c38e5c2c9c17445c82d3defa3f5f99e4733b97c06ac78e5670daf29e267da2;review:sha256:71e0c2fce7cee228e10d65629ea8dd8ed7eac559d89c2cd635fa69af71260bb3;adapter:g3_heptane_ideal_gas_cp_adapter_v1",
+    "molar_mass_g_mol": 100.2,
+    "native_support_k": [
+      298.16,
+      470.0
+    ],
+    "evidence_tiers": [
+      {
+        "native_range_k": [
+          298.16,
+          370
+        ],
+        "its90_range_k": [
+          298.135458,
+          369.963586
+        ],
+        "evidence_kind": "assumption_adopted_by_source_for_vapour_pressure_consistency"
+      },
+      {
+        "native_range_k": [
+          370,
+          466
+        ],
+        "its90_range_k": [
+          369.963586,
+          465.990266
+        ],
+        "evidence_kind": "fitted_correlation_of_cited_flow_calorimetry_extrapolated_to_zero_pressure"
+      },
+      {
+        "native_range_k": [
+          466,
+          470
+        ],
+        "its90_range_k": [
+          465.990266,
+          469.991581
+        ],
+        "evidence_kind": "extrapolation_tabulated_by_source"
+      }
+    ],
+    "declared_errors": {
+      "cp_interpolation_abs_j_mol_k": 0.007,
+      "label_abs_k": 0.0006,
+      "scale_factor_abs": 0.0001,
+      "source_fit_percent": 0.05,
+      "source_precision_percent": 0.1,
+      "source_accuracy_statement": null,
+      "source_uncertainty_in_assumed_range": null,
+      "real_gas_departure_applied": false,
+      "fire_validation": false
+    },
+    "witnesses": [
+      {
+        "temperature_k": 298.135458,
+        "specific_sensible_enthalpy_kj_kg": -0.023951505536310806
+      },
+      {
+        "temperature_k": 369.963586,
+        "specific_sensible_enthalpy_kj_kg": 129.83519178232677
+      },
+      {
+        "temperature_k": 469.991581,
+        "specific_sensible_enthalpy_kj_kg": 348.3918196182203
+      }
+    ]
+  },
+  "net_heat_budget_B_missing_evidence": [
+    "net_heat_absorbed_by_the_liquid_not_flux_to_a_cooled_gauge",
+    "surface_reradiation_reflection_and_transmission_losses",
+    "liquid_temperature_history_and_in_depth_profile_of_the_same_test",
+    "heat_to_burner_walls_cooled_pan_and_fuel_feed_enthalpy",
+    "published_uncertainty_and_repeatability_of_the_flux_profile",
+    "flux_mass_and_temperature_channels_synchronised_in_one_run"
+  ],
+  "adapter_implemented_in_sim": false,
+  "liquid_isobaric_profile_approval": false,
+  "real_gas_correction_applied": false,
+  "physical_benchmark_approval": false,
+  "engine_integration": false,
+  "production_activation": false
+}

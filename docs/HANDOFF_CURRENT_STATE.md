@@ -1,5 +1,44 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-05 - Elegibilidad de propiedades térmicas reales del heptano
+
+[Elegibilidad y contrato](validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md):
+gate científico offline, sin cambios en `sim/` y sin Godot. Decide por
+separado qué propiedades reales del n-heptano admiten un adaptador
+versionado.
+**Gas: GO parcial.** Cp° de gas ideal de NBS RP2526 entre 298,16 y 470 K
+de la fuente (298,1355 a 469,9916 K en ITS-90). Por debajo de 370 K es un
+supuesto adoptado por la fuente, no una medición; de 370 a 466 K es una
+correlación de calorimetría citada; no hay dato por encima de 470 K ni
+corrección de gas real (hasta un 3,2 % por atmósfera según la propia
+fuente).
+**Líquido: NO-GO como Cp isobárico.** La fuente mide Csat sobre la curva
+de saturación. Integrarlo como si fuera la derivada de la entalpía falla
+su propia tabla por 13,23 J/mol, que explica el término v·dP. Falta el
+volumen molar del líquido y sus dos derivadas entre 273 y 371 K; la
+evidencia archivada cubre solo 20-25 °C. El sesgo sería pequeño, pero no
+puede justificarse como conversión. Los datos quedan en su dominio nativo.
+**Escala: GO.** 1948 → 1968 → 1990 con dos fuentes primarias. Restar
+0,01 K solo corrige el origen del kelvin: el 298,16 K de la fuente es
+298,1355 K en ITS-90.
+**Contrato sintético actual: NO-GO por diseño.** Se propone el esquema
+`g3_real_ideal_gas_cp_v1`, que entrega la misma lista de muestras al mismo
+cálculo canónico y solo cambia la capa de etiquetas. No implementado.
+**B neto: NO-GO, gate aparte**; un Cp real no aporta la evidencia que
+falta.
+El ledger exige perfil de líquido y de vapor a la vez: el GO parcial del
+gas no permite todavía una corrida con propiedades reales en ambas fases.
+Cuatro fuentes primarias del NBS/NIST archivadas; manifiesto 43 → 47.
+Auditor offline nuevo, que reutiliza el del 04-10, con 107 pruebas cuyos
+valores esperados se fijaron antes; 28/28 mutantes offline del auditor en
+Python, que no son mutantes del motor. Focal 287 passed. ALL GUARDRAILS
+PASS con R2-1; referencia no regenerada porque `sim/` no cambia.
+Siguiente decisión, del usuario: fuente primaria de densidad del líquido
+de 0 a 100 °C, o aceptar expresamente Csat como sustituto con sesgo
+declarado. Después, fase de implementación del esquema real en el helper
+con cadena R2-1. Adaptador en `sim/`, integración, B predictivo y CO/FED
+no iniciados; CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-05 - Veredicto positivo explícito del caller cerrado técnicamente
 
 [Veredicto positivo explícito](validation/G3_D1_POSITIVE_VERDICT_2026-10-05.md):

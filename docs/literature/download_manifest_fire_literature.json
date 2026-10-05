@@ -358,5 +358,53 @@
         "bytes": 17614982,
         "sha256": "40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9",
         "version_verified": "Journal of Research NBS Vol.53 No.3, September 1954, pp.139-153; 15 PDF pages. Focal calorimetric path, scale and equations/tables reviewed."
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/jres/73A/jresv73An5p451_A1b.pdf",
+        "destination": "docs/literature/NIST/NBS_IPTS68_Conversion_Douglas_1969.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/jres/73A/jresv73An5p451_A1b.pdf",
+        "title": "Conversion of Existing Calorimetrically Determined Thermodynamic Properties to the Basis of the IPTS-68 (Douglas, J. Res. NBS 73A, 1969)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-05",
+        "bytes": 17904636,
+        "sha256": "11e9a97e0a157618e3df898f235098e4c010dfed8c44f763d83b92710e5a3c67",
+        "version_verified": "Journal of Research NBS 73A(5), September-October 1969, pp.451-470; 20 PDF pages. Focal review: kelvin offset p.453, eq.52-53, eq.77 and 80, Table 4 rows 273.15-480 K."
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1265.pdf",
+        "destination": "docs/literature/NIST/NIST_TN_1265_ITS90_Guidelines_1990.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1265.pdf",
+        "title": "Guidelines for Realizing the International Temperature Scale of 1990 (NIST TN 1265)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-05",
+        "bytes": 10260809,
+        "sha256": "5c90691e7a496becd0ec56e2d837dee8aef4aeb64fe750b76c3cf4bc7e2b5c1b",
+        "version_verified": "NIST Technical Note 1265, August 1990; 196 PDF pages. Focal review: Table 1 printed p.5 (PDF p.21) and the reproduced ITS-90 Table 6 (PDF p.113), rows 0-210 degC only."
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/jres/39/jresv39n5p453_A1b.pdf",
+        "destination": "docs/literature/NIST/NBS_Hydrocarbon_Heat_Capacity_Osborne_Ginnings_1947.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/jres/39/jresv39n5p453_A1b.pdf",
+        "title": "Measurements of Heat of Vaporization and Heat Capacity of a Number of Hydrocarbons (NBS RP1841, 1947)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-05",
+        "bytes": 29322035,
+        "sha256": "0dcceb5865b44de7cb6fb02e5d0f23d1257e63106d1f135400095c1340abd288",
+        "version_verified": "Journal of Research NBS Vol.39, November 1947, pp.453-477; 25 PDF pages. Focal review: Csat/Cp relation printed p.471 (PDF p.19) and the n-heptane rows of Table 2 (PDF p.20)."
+    },
+    {
+        "source": "https://nvlpubs.nist.gov/nistpubs/jres/24/jresv24n1p33_A1b.pdf",
+        "destination": "docs/literature/NIST/NBS_Aliphatic_Hydrocarbon_Properties_Brooks_1940.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/jres/24/jresv24n1p33_A1b.pdf",
+        "title": "Physical Properties of Some Purified Aliphatic Hydrocarbons (NBS RP1271, 1940)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-05",
+        "bytes": 10279902,
+        "sha256": "3f85b59231716430e73fed7e503d710083b42c674df52523578c0c1d0e0e1082",
+        "version_verified": "Journal of Research NBS Vol.24, January 1940, pp.33-45; 13 PDF pages. Focal review: n-heptane row of Table 3 (printed p.44, PDF p.12): boiling point, density at 20 and 25 degC and dD/dt."
     }
 ]

@@ -6,6 +6,26 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 05-10:
+[Elegibilidad de propiedades térmicas reales del heptano](../validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md).
+Gate científico offline: sin `sim/`, sin Godot, sin física nueva. Gas:
+**GO parcial**, Cp° de gas ideal entre 298,16 y 470 K de la fuente, con el
+tramo inferior a 370 K declarado como supuesto de la fuente, sin dato por
+encima de 470 K y sin corrección de gas real. Líquido: **NO-GO** como Cp
+isobárico; la fuente mide Csat y falta el volumen del líquido entre 273 y
+371 K para convertirlo; se conserva nativo. Escala 1948 → 1968 → 1990:
+GO con dos fuentes primarias. Contrato sintético actual: NO-GO por diseño;
+se propone el esquema real `g3_real_ideal_gas_cp_v1`, sin implementar.
+B neto: NO-GO, gate aparte. Cuatro fuentes primarias archivadas,
+manifiesto 43 → 47. Auditor offline con 107 pruebas y 28/28 mutantes
+offline del auditor; focal 287 passed; ALL GUARDRAILS PASS con R2-1;
+referencia no regenerada. El ledger exige ambas fases, así que aún no hay
+corrida con propiedades reales. Siguiente paso, pendiente de decisión del
+usuario: resolver el líquido (fuente de densidad o aceptación expresa de
+un sustituto con sesgo declarado) y, después, fase de implementación del
+esquema real con cadena R2-1. CO/FED siguen OFF/NO-GO. Sin efecto en
+plazos.
+
+Avance previo del 05-10:
 [Veredicto positivo explícito del caller cerrado técnicamente](../validation/G3_D1_POSITIVE_VERDICT_2026-10-05.md).
 Cierra el límite que dejó el hotfix de guardas: el caller de referencia
 aceptaba un estado cuando su validación no registraba errores, aunque no

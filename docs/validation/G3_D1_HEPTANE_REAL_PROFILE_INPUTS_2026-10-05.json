@@ -1,0 +1,284 @@
+{
+  "schema": "g3_heptane_real_profile_source_review_v1",
+  "prior_review": {
+    "path": "docs/validation/G3_D1_HEPTANE_SENSIBLE_INPUTS_2026-10-04.json",
+    "sha256_lf": "b167db1c281d2125d3abf11ca6556a2f491b3a05bed210353a50abea06a4931b"
+  },
+  "sources": {
+    "calorimetry": {
+      "path": "docs/literature/NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf",
+      "sha256_raw": "40138b0b81980477244431bd66c9b55adb775edbaf3d4e218f4f2d7b434bd3f9"
+    },
+    "scale_1948_to_1968": {
+      "path": "docs/literature/NIST/NBS_IPTS68_Conversion_Douglas_1969.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/jres/73A/jresv73An5p451_A1b.pdf",
+      "sha256_raw": "11e9a97e0a157618e3df898f235098e4c010dfed8c44f763d83b92710e5a3c67"
+    },
+    "scale_1968_to_1990": {
+      "path": "docs/literature/NIST/NIST_TN_1265_ITS90_Guidelines_1990.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1265.pdf",
+      "sha256_raw": "5c90691e7a496becd0ec56e2d837dee8aef4aeb64fe750b76c3cf4bc7e2b5c1b"
+    },
+    "saturation_relation": {
+      "path": "docs/literature/NIST/NBS_Hydrocarbon_Heat_Capacity_Osborne_Ginnings_1947.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/jres/39/jresv39n5p453_A1b.pdf",
+      "sha256_raw": "0dcceb5865b44de7cb6fb02e5d0f23d1257e63106d1f135400095c1340abd288"
+    },
+    "liquid_density": {
+      "path": "docs/literature/NIST/NBS_Aliphatic_Hydrocarbon_Properties_Brooks_1940.pdf",
+      "url": "https://nvlpubs.nist.gov/nistpubs/jres/24/jresv24n1p33_A1b.pdf",
+      "sha256_raw": "3f85b59231716430e73fed7e503d710083b42c674df52523578c0c1d0e0e1082"
+    }
+  },
+  "review": {
+    "method": "Manual transcription; every cited page, equation and table row inspected on rendered page images, not on the OCR text layer alone.",
+    "substance": "n-heptane, C7H16, CAS 142-82-5; calorimetric sample 99.999 +/- 0.002 mole percent (calorimetry printed p.140)",
+    "molar_mass": {
+      "value_g_mol": 100.20,
+      "locator": "calorimetry printed p.145, PDF p.7: taking 100.20 as the molecular weight of n-heptane",
+      "evidence_kind": "value_stated_by_source_for_its_own_mass_to_mole_conversion",
+      "gas_equation_basis": "not_stated_in_this_source_for_the_cited_gas_calorimetry_assumed_equal",
+      "consistent_with": "NIST TN 2126-upd1 tabulated 100.20 g/mol",
+      "not_the_engine_nominal_value_g_mol": 100.0
+    },
+    "energy_unit": {
+      "native": "absolute joule",
+      "destination": "joule",
+      "factor": 1,
+      "calorie_used_by_source_for_gas_equation_j": 4.1840,
+      "locator": "calorimetry printed p.151, PDF p.13"
+    },
+    "temperature": {
+      "native_scale": "International Temperature Scale of 1948 above 90 K",
+      "native_kelvin_offset": 273.16,
+      "native_locator": "calorimetry printed p.140 and footnote p.141, PDF pp.2-3",
+      "modern_kelvin_offset": 273.15,
+      "offset_locator": "Douglas 1969 printed p.453, PDF p.3: constant adopted for IPTS-68 and for IPTS-48 in 1954; usually taken as 273.16 between 1948 and 1954",
+      "gas_equation_scale": "not_stated_in_this_source_for_the_cited_gas_calorimetry_assumed_equal",
+      "mu_equation": {
+        "definition": "mu = T68 - T48 as a function of t68 in degrees Celsius",
+        "form": "a*t*(t-100)/(1-b*t) + c*(t/100)*(t/100-1)*(t/t1-1)*(t/t2-1)",
+        "a": 4.904e-07,
+        "b": 2.939e-04,
+        "c": 0.045,
+        "t1": 419.58,
+        "t2": 630.74,
+        "range_t68_c": [0, 630.74],
+        "locator": "Douglas 1969 eq.(77) printed p.464 PDF p.14 and eq.(80) printed p.465 PDF p.15",
+        "evidence_kind": "defining_relation_between_two_conventional_scales"
+      },
+      "mu_table_locator": "Douglas 1969 Table 4, printed pp.468-469, PDF pp.18-19",
+      "mu_table_unit": "K,K,dimensionless",
+      "mu_table_rows": [
+        [273.15, 0.0000, -0.00050],
+        [275, -0.0009, -0.00047],
+        [280, -0.0031, -0.00041],
+        [285, -0.0050, -0.00035],
+        [290, -0.0066, -0.00029],
+        [295, -0.0079, -0.00023],
+        [298.15, -0.0085, -0.00020],
+        [300, -0.0089, -0.00018],
+        [305, -0.0096, -0.00013],
+        [310, -0.0101, -0.00008],
+        [315, -0.0104, -0.00003],
+        [320, -0.0105, 0.00001],
+        [325, -0.0103, 0.00006],
+        [330, -0.0099, 0.00009],
+        [335, -0.0093, 0.00013],
+        [340, -0.0086, 0.00016],
+        [345, -0.0077, 0.00020],
+        [350, -0.0066, 0.00023],
+        [355, -0.0054, 0.00026],
+        [360, -0.0041, 0.00028],
+        [365, -0.0026, 0.00030],
+        [370, -0.0010, 0.00033],
+        [373.15, 0.0000, 0.00034],
+        [375, 0.0006, 0.00035],
+        [380, 0.0024, 0.00036],
+        [385, 0.0043, 0.00038],
+        [390, 0.0062, 0.00039],
+        [395, 0.0082, 0.00041],
+        [400, 0.0103, 0.00042],
+        [410, 0.0146, 0.00044],
+        [420, 0.0190, 0.00045],
+        [430, 0.0235, 0.00045],
+        [440, 0.0280, 0.00045],
+        [450, 0.0325, 0.00045],
+        [460, 0.0369, 0.00044],
+        [470, 0.0413, 0.00043],
+        [480, 0.0454, 0.00041]
+      ],
+      "t90_minus_t68_locator": "NIST TN 1265 Table 1 printed p.5, PDF p.21; same values in the reproduced ITS-90 text Table 6, PDF p.113",
+      "t90_minus_t68_unit": "degC,K",
+      "t90_minus_t68_resolution_k": 0.001,
+      "t90_minus_t68_rows": [
+        [0, 0.000],
+        [10, -0.002],
+        [20, -0.005],
+        [30, -0.007],
+        [40, -0.010],
+        [50, -0.013],
+        [60, -0.016],
+        [70, -0.018],
+        [80, -0.021],
+        [90, -0.024],
+        [100, -0.026],
+        [110, -0.028],
+        [120, -0.030],
+        [130, -0.032],
+        [140, -0.034],
+        [150, -0.036],
+        [160, -0.037],
+        [170, -0.038],
+        [180, -0.039],
+        [190, -0.039],
+        [200, -0.040],
+        [210, -0.040]
+      ],
+      "t90_minus_t68_evidence_kind": "tabulated_difference_between_two_conventional_scales"
+    },
+    "gas": {
+      "quantity": "ideal_gas_isobaric_molar_heat_capacity",
+      "state": "hypothetical ideal gas; standard pressure 1 atm matters for entropy only",
+      "state_locator": "calorimetry printed p.152, PDF p.14",
+      "evidence": [
+        {
+          "range_native_k": [370, 470],
+          "equation": 22,
+          "evidence_kind": "fitted_correlation_of_cited_flow_calorimetry_extrapolated_to_zero_pressure",
+          "measured_range_native_k": [357, 466],
+          "fit_statement_percent": 0.05,
+          "precision_statement_percent": 0.1,
+          "accuracy_statement": null,
+          "note": "Rows above 466 K are a 4 K extrapolation tabulated by the source itself."
+        },
+        {
+          "range_native_k": [298.16, 370],
+          "equation": 23,
+          "evidence_kind": "assumption_adopted_by_source_for_vapour_pressure_consistency",
+          "uncertainty_statement": null,
+          "note": "Tangent of equation 22 at 370 K; not a heat-capacity measurement below 357 K."
+        }
+      ],
+      "table_locator": "calorimetry printed p.152, PDF p.14, Table 10",
+      "table_unit": "K,J/(mol*K),J/mol",
+      "table_rows_above_370": [
+        [380, 201.76, 104226],
+        [390, 206.19, 106266],
+        [400, 210.57, 108350],
+        [410, 214.90, 110477],
+        [420, 219.19, 112648],
+        [430, 223.43, 114861],
+        [440, 227.63, 117116],
+        [450, 231.78, 119413],
+        [460, 235.88, 121752],
+        [470, 239.94, 124131]
+      ],
+      "pressure_coefficient_locator": "calorimetry printed p.150, PDF p.12, Table 6, observed column",
+      "pressure_coefficient_unit": "K,J/(mol*K*atm)",
+      "pressure_coefficient_observed_rows": [
+        [357.10, 6.07],
+        [373.15, 4.81],
+        [400.40, 2.97],
+        [434.35, 1.88],
+        [466.10, 1.13]
+      ],
+      "pressure_coefficient_applied": false,
+      "vaporization_at_native_reference_j_mol": 36547,
+      "ideal_gas_correction_at_native_reference_j_mol": 76,
+      "vaporization_locator": "calorimetry printed p.152, PDF p.14",
+      "vaporization_reconciled_with_tn2126": false
+    },
+    "liquid": {
+      "quantity": "Csat_heat_capacity_along_the_saturation_curve",
+      "path": "saturation_pressure_changes_with_temperature",
+      "definition_locator": "calorimetry eq.(2) printed p.143 PDF p.5; eq.(5) printed p.146 PDF p.8",
+      "table_locator": "calorimetry printed p.149, PDF p.11, Table 5, at saturation pressures",
+      "table_unit": "K,J/(mol*K),J/mol",
+      "table_note": "Between 270 and 370 K the table carries graphical adjustments and prevails over equation 8.",
+      "table_rows": [
+        [290, 221.75, 50774],
+        [295, 223.57, 51888],
+        [298.16, 224.74, 52596],
+        [300, 225.44, 53010],
+        [310, 229.27, 55285],
+        [320, 233.25, 57598],
+        [330, 237.38, 59952],
+        [340, 241.67, 62349],
+        [350, 246.09, 64790],
+        [360, 250.63, 67276],
+        [370, 255.30, 69810],
+        [380, 260.10, 72392],
+        [390, 265.04, 75024]
+      ],
+      "csat_equation": {
+        "form": "a0 + a1*T + a2*T^2 + a3*(tc-T)^(-1/2)*10^(-0.3*sqrt(tc-T))",
+        "a0": 173.733,
+        "a1": -0.031458,
+        "a2": 6.8055e-04,
+        "a3": 3790,
+        "tc": 540.17,
+        "range_native_k": [273, 523],
+        "locator": "calorimetry eq.(8) printed p.147, PDF p.9",
+        "evidence_kind": "fitted_correlation_of_this_source_measurements"
+      },
+      "probable_error_percent": {
+        "range_native_k": [280, 360],
+        "value": 0.1,
+        "rising_to_percent_at_500_k": 0.5,
+        "kind": "probable_error_as_stated_not_a_standard_uncertainty",
+        "locator": "calorimetry printed p.147, PDF p.9"
+      },
+      "v_dp_equation": {
+        "form": "log10(integral from 273.16 of v*(dP/dT) dT) = b1*T + b0 + b3*(tc-T)^3",
+        "b1": 0.0074729,
+        "b0": -1.2633,
+        "b3": -7.049e-08,
+        "tc": 540.17,
+        "stated_agreement_j_mol": 2,
+        "locator": "calorimetry eq.(12) printed p.150, PDF p.12",
+        "evidence_kind": "empirical_equation_of_values_computed_by_the_source"
+      },
+      "vapour_pressure_equation": {
+        "form": "log10(P/atm) = a - b/(t_c + c)",
+        "a": 4.02159,
+        "b": 1268.115,
+        "c": 216.900,
+        "locator": "calorimetry eq.(19) printed p.150, PDF p.12",
+        "evidence_kind": "fitted_correlation_cited_by_source"
+      },
+      "liquid_volume_in_source": "interpolated from a cited article that is not tabulated here and is not archived",
+      "saturation_relation": {
+        "statement": "Csat = (dH/dT)sat - v*dp/dT; values of Csat probably within 0.2 percent of Cp at 1 atm in that range",
+        "statement_range_c": [5, 45],
+        "exact_relation_needs": "specific volume and its second temperature derivative",
+        "locator": "Osborne and Ginnings 1947 printed p.471, PDF p.19",
+        "evidence_kind": "estimate_stated_by_authors_not_a_measurement",
+        "observed_csat_20_25_c_int_j_g_c": 2.2337,
+        "observed_dh_dt_20_25_c_int_j_g_c": 2.2341,
+        "observed_locator": "Osborne and Ginnings 1947 Table 2, PDF p.20"
+      },
+      "density": {
+        "rho_20_c_g_ml": 0.68368,
+        "rho_25_c_g_ml": 0.67943,
+        "d_rho_dt_g_ml_c": -0.000849,
+        "range_c": [20, 25],
+        "normal_boiling_point_c": 98.424,
+        "locator": "Brooks, Howard and Crafton 1940 Table 3, printed p.44, PDF p.12",
+        "evidence_kind": "measurement",
+        "accuracy_statement": "within a few units in the last decimal place given"
+      }
+    },
+    "approvals": {
+      "gas_native_domain_review": true,
+      "gas_scale_conversion_review": true,
+      "liquid_isobaric_profile": false,
+      "liquid_scale_conversion_applied": false,
+      "real_gas_correction": false,
+      "experimental_batch_approval": false,
+      "engine_integration": false,
+      "production_activation": false
+    }
+  }
+}

@@ -33,6 +33,26 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 05-10: cuatro fuentes primarias del NBS/NIST
+para el gate de propiedades termicas reales del heptano,
+[decision y contrato](../validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md):
+Douglas 1969, conversion de propiedades calorimetricas a la IPTS-68
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/73A/jresv73An5p451_A1b.pdf),
+[PDF local](NIST/NBS_IPTS68_Conversion_Douglas_1969.pdf));
+NIST TN 1265, diferencias entre ITS-90 e IPTS-68
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1265.pdf),
+[PDF local](NIST/NIST_TN_1265_ITS90_Guidelines_1990.pdf));
+Osborne y Ginnings, NBS RP1841 (1947), relacion entre Csat y Cp
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/39/jresv39n5p453_A1b.pdf),
+[PDF local](NIST/NBS_Hydrocarbon_Heat_Capacity_Osborne_Ginnings_1947.pdf));
+Brooks, Howard y Crafton, NBS RP1271 (1940), densidad del liquido a 20 y 25 C
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/24/jresv24n1p33_A1b.pdf),
+[PDF local](NIST/NBS_Aliphatic_Hydrocarbon_Properties_Brooks_1940.pdf)).
+Originales del servidor de publicaciones del NIST, revision focal de las
+paginas citadas, no integral. Gas ideal: GO parcial; liquido: NO-GO como Cp
+isobarico. Manifiesto: 43 -> 47 entradas. No se redistribuyen compilaciones
+SRD ni ecuaciones de estado con licencia. Ninguna activacion fisica.
+
 Actualizacion adicional del 04-10: Douglas et al., NBS RP2526 (1954),
 [fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf),
 [PDF local](NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf),
