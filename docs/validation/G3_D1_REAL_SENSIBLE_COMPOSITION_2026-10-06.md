@@ -496,7 +496,10 @@ PASS; enlaces de los documentos modificados PASS; `git diff --check`
 limpio. Las cifras de la cadena se escribieron en la documentación después
 de la global, sin tocar código ni pruebas; a continuación se repitieron,
 sin Godot, las pruebas que leen esos documentos y las estáticas de esta
-fase: 141 y 38 en verde.
+fase: 141 y 38 en verde. Ya publicado `c7f4f00b` y con memoria liberada
+por el usuario (7,79 GiB disponibles), se repitieron esos módulos enteros
+sobre ese commit: **156 passed**, incluidas las 15 pruebas que lanzan
+Godot; árbol limpio y ningún proceso Godot residual.
 
 ## Intentos que no cuentan
 
@@ -547,7 +550,9 @@ fase: 141 y 38 en verde.
   negaron a arrancar por la guarda de memoria, con 5,4 GiB disponibles y un
   navegador del usuario abierto. No se bajó el umbral. Esas 15 no leen
   documentación y habían pasado en la global sobre el mismo código; las 141
-  restantes, que sí incluyen las que la leen, pasaron.
+  restantes, que sí incluyen las que la leen, pasaron. Esa tanda no cuenta;
+  la que cuenta es la repetición posterior con memoria liberada, 156
+  passed, recogida en la cadena final.
 
 ## Qué sigue sin validar
 
