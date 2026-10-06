@@ -4,6 +4,11 @@ Fecha: 2026-10-04. Checkpoint de entrada: `6273c6a8` en la rama shareable,
 ya integrado en main. Alcance: revisión de fuentes y auditor offline;
 sin cambios en `sim/`, física, perfiles, escenarios o informes de referencia.
 
+Continuado el 06-10 por el
+[gate de B neto](G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md), que examina
+las dos publicaciones de las que TN 2162r1 toma el flujo del heptano y un
+benchmark de 2 m. Este informe se conserva como registro del gate.
+
 ## Decisión y avance permitido
 
 **GO a contrastar observables térmicos independientes y a diseñar el contrato

@@ -418,5 +418,17 @@
         "bytes": 31616796,
         "sha256": "e2eb9547815339f7cbeb29032b8178fb8586a4cc40b085d229932411b417e5b2",
         "version_verified": "D. W. Scott, Bulletin 666, U.S. Government Printing Office 1974; 194 PDF pages, image-only scan from the UNT Digital Library. Focal review: units p.2 (PDF p.8) and Table 14, n-heptane, p.17 (PDF p.23)."
+    },
+    {
+        "source": "https://www.osti.gov/biblio/1018470",
+        "destination": "docs/literature/Sandia/SNL_SAND2010-6377_Hydrocarbon_Characterization_Results_2011.pdf",
+        "error": null,
+        "resolved_url": "https://www.osti.gov/servlets/purl/1018470",
+        "title": "Hydrocarbon Characterization Experiments in Fully Turbulent Fires - Results and Data Analysis (Sandia SAND2010-6377, 2011)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-06",
+        "bytes": 10652080,
+        "sha256": "9722f1226c743ec892b37be4476b11b89c37c5871c19ce23a3b65f54c62860bd",
+        "version_verified": "T. K. Blanchat and J. Suo-Anttila, Unlimited Release, printed March 2011; 84 PDF pages, PDF page = printed page; cover: Approved for public release; further dissemination unlimited. Focal review: apparatus pp.14-20, Tables 1-2 pp.22-23, section 4.1.1-4.1.2 pp.26-38, Tables 4, 5 and 8 pp.30, 33 and 36, section 4.1.5 pp.46-47, Figure 56 p.73 and Table 12 p.76; heptane rows checked on page images."
     }
 ]

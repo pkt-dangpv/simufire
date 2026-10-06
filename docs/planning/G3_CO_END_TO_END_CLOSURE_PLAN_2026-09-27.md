@@ -6,6 +6,20 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 06-10:
+[Gate del presupuesto térmico neto del combustible](../validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md).
+Gate offline, sin tocar `sim/`. B se define como el calor neto que cruza
+la frontera del líquido. Benchmark elegido entre tres: piscina abierta de
+heptano de 2 m de Sandia (SAND2010-6377), con flujo y masa de la misma
+corrida. B neto: GO parcial como tasa estacionaria acotada (estimación
+independiente y demanda diagnóstica dentro del 12,5 %), NO-GO como valor
+puntual; NO-GO transitorio, predicción térmica y predicción de emisión.
+Cuatro términos sin medir, nombrados y sin rellenar. La segunda condición
+(NIST 0,30 m) no cierra ni al 20 %. Auditor y 51 pruebas offline. Contrato
+de la frontera térmica propuesto y no implementado. CO/FED siguen
+OFF/NO-GO. Siguiente paso, pendiente de decisión del usuario. Sin efecto
+en plazos.
+
+Avance previo del 06-10:
 [Composición aislada de perfiles reales, ledger sensible y propietario atómico](../validation/G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md).
 Los dos perfiles reales se componen con el ledger sensible y con un
 propietario atómico versionado, sin conectarlos a nada: propiedades reales

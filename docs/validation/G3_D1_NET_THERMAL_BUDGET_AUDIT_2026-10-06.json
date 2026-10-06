@@ -1,0 +1,314 @@
+{
+  "schema": "g3_net_thermal_budget_audit_v1",
+  "definition": "net heat that crosses the boundary of the liquid fuel control volume from its surroundings, per unit time when written as a rate",
+  "selected": "sandia_2m",
+  "second_condition": "nist_030m",
+  "rejected": {
+    "nist_alcohols_030m": "no approved property profile for these fuels; its fuel-side balance also leaves burner losses, reradiation, reflection and storage in one unmeasured remainder"
+  },
+  "latent_kj_kg": 365.7684630738523,
+  "supports_k": {
+    "liquid": [
+      279.985531,
+      371.102911
+    ],
+    "gas": [
+      298.135458,
+      469.991581
+    ]
+  },
+  "sandia_2m": {
+    "area_m2": 3.141592653589793,
+    "tests": {
+      "SNL011": {
+        "ring_mean_kw_m2": [
+          32.0,
+          32.4,
+          33.3,
+          29.049999999999997,
+          26.9,
+          24.95
+        ],
+        "pan_average_kw_m2": 29.766666666666666,
+        "gauge_power_kw": 93.51474132185618,
+        "independent_kw_range": [
+          84.16326718967056,
+          93.51474132185618
+        ],
+        "independent_uses_mass": false,
+        "mass_rate_g_s": 193.5,
+        "in_balance": true,
+        "feed_temperature_k": 306.15,
+        "surface_temperature_k": 357.15,
+        "demand_kj_kg": 452.6722352723333,
+        "demand_kj_kg_range": [
+          440.1177028604657,
+          465.23257749546445
+        ],
+        "demand_kw": 87.5920775251965,
+        "demand_kw_range": [
+          85.16277550350011,
+          90.02250374537238
+        ],
+        "storage_growth_kw": null,
+        "unknown_block_kw_range": [
+          -5.859236555701813,
+          8.351965818356064
+        ],
+        "closure": {
+          "relative_gap_range": [
+            -0.06508635409957711,
+            0.09807061558265918
+          ],
+          "worst_relative_gap": 0.09807061558265918,
+          "strict_fraction": 0.035510561809129405,
+          "strict_closure": false,
+          "loose_fraction": 0.2,
+          "loose_closure": true
+        }
+      },
+      "SNL012": {
+        "ring_mean_kw_m2": [
+          34.2,
+          35.4,
+          33.6,
+          30.85,
+          28.95,
+          26.9
+        ],
+        "pan_average_kw_m2": 31.650000000000002,
+        "gauge_power_kw": 99.43140748611695,
+        "independent_kw_range": [
+          89.48826673750526,
+          99.43140748611695
+        ],
+        "independent_uses_mass": false,
+        "mass_rate_g_s": 201.0,
+        "in_balance": true,
+        "feed_temperature_k": 305.15,
+        "surface_temperature_k": 357.15,
+        "demand_kj_kg": 454.9447474239277,
+        "demand_kj_kg_range": [
+          442.4017055726231,
+          467.493599086496
+        ],
+        "demand_kw": 91.44389423220947,
+        "demand_kw_range": [
+          88.92274282009724,
+          93.9662134163857
+        ],
+        "storage_growth_kw": null,
+        "unknown_block_kw_range": [
+          -4.477946678880443,
+          10.508664666019712
+        ],
+        "closure": {
+          "relative_gap_range": [
+            -0.047654859295411224,
+            0.11817746880885314
+          ],
+          "worst_relative_gap": 0.11817746880885314,
+          "strict_fraction": 0.035510561809129405,
+          "strict_closure": false,
+          "loose_fraction": 0.2,
+          "loose_closure": true
+        }
+      },
+      "SNL029": {
+        "ring_mean_kw_m2": [
+          32.5,
+          33.95,
+          33.2,
+          27.95,
+          27.25,
+          22.799999999999997
+        ],
+        "pan_average_kw_m2": 29.608333333333334,
+        "gauge_power_kw": 93.0173224850378,
+        "independent_kw_range": [
+          83.71559023653401,
+          93.0173224850378
+        ],
+        "independent_uses_mass": false,
+        "mass_rate_g_s": 181.3,
+        "in_balance": true,
+        "feed_temperature_k": 299.15,
+        "surface_temperature_k": 357.15,
+        "demand_kj_kg": 468.4993951706516,
+        "demand_kj_kg_range": [
+          456.0252879216268,
+          480.9797735961018
+        ],
+        "demand_kw": 84.93894034443915,
+        "demand_kw_range": [
+          82.67738470019094,
+          87.20163295297326
+        ],
+        "storage_growth_kw": null,
+        "unknown_block_kw_range": [
+          -3.4860427164392433,
+          10.339937784846853
+        ],
+        "closure": {
+          "relative_gap_range": [
+            -0.03997680546096221,
+            0.12506367759868164
+          ],
+          "worst_relative_gap": 0.12506367759868164,
+          "strict_fraction": 0.035510561809129405,
+          "strict_closure": false,
+          "loose_fraction": 0.2,
+          "loose_closure": true
+        }
+      },
+      "SNL030": {
+        "ring_mean_kw_m2": [
+          31.75,
+          32.55,
+          32.9,
+          28.55,
+          26.15,
+          24.15
+        ],
+        "pan_average_kw_m2": 29.341666666666665,
+        "gauge_power_kw": 92.17956444408051,
+        "independent_kw_range": [
+          82.96160799967247,
+          92.17956444408051
+        ],
+        "independent_uses_mass": false,
+        "mass_rate_g_s": null,
+        "in_balance": false,
+        "reason": "no mass rate printed for this test"
+      }
+    },
+    "tests_in_balance": [
+      "SNL011",
+      "SNL012",
+      "SNL029"
+    ],
+    "relative_to": "SNL011",
+    "run_to_run": {
+      "SNL012": {
+        "heat_flux_change": 0.06326987681970886,
+        "mass_rate_change": 0.03875968992248069
+      },
+      "SNL029": {
+        "heat_flux_change": -0.005319148936170137,
+        "mass_rate_change": -0.06304909560723504
+      }
+    },
+    "strict_fraction": 0.035510561809129405,
+    "strict_fraction_scope": "stated for a JP8 test averaged over 6 min; not stated for the heptane windows of 2 to 5.5 min",
+    "combined_gauge_uncertainty": null,
+    "total_uncertainty_quantified": false,
+    "strict_closure_every_run": false,
+    "loose_closure_every_run": true,
+    "term_status": {
+      "gauge_heat_flux": "measured",
+      "area_integral": "computed",
+      "mass_rate": "measured",
+      "surface_temperature": "measured",
+      "feed_temperature": "measured",
+      "surface_reflection": "measured",
+      "vapour_dome_absorption_below_the_gauge": "unknown",
+      "container_and_ground_losses": "unknown",
+      "liquid_storage_growth": "unknown",
+      "gauge_to_surface_convective_difference": "unknown",
+      "surface_reradiation": "modelled",
+      "feed_enthalpy": "calculated",
+      "chemical_heat": "demonstrably"
+    },
+    "unknown_terms": [
+      "container_and_ground_losses",
+      "gauge_to_surface_convective_difference",
+      "liquid_storage_growth",
+      "vapour_dome_absorption_below_the_gauge"
+    ]
+  },
+  "nist_030m": {
+    "area_m2": 0.0711578590019722,
+    "gauge_power_kw": 1.2414317529925425,
+    "published_q_fuel_kw": 1.16,
+    "independent_kw_range": [
+      1.1021274785016113,
+      1.1319218405734324
+    ],
+    "independent_uses_mass": false,
+    "independent_uses_ratio_to_mass_derived_quantity": true,
+    "demand_kj_kg_range": [
+      440.0536444063861,
+      518.2285605398201
+    ],
+    "storage_growth_kw": 0.0464,
+    "demand_kw_range": [
+      1.1905394754566039,
+      1.3937942574035322
+    ],
+    "surface_temperature_accepted_k": null,
+    "channels_from_one_run": false,
+    "closure": {
+      "relative_gap_range": [
+        -0.20926099914148044,
+        -0.049236195936039895
+      ],
+      "worst_relative_gap": -0.20926099914148044,
+      "strict_fraction": 0.1118033988749895,
+      "strict_closure": false,
+      "loose_fraction": 0.2,
+      "loose_closure": false
+    },
+    "total_uncertainty_quantified": false,
+    "term_status": {
+      "gauge_heat_flux": "measured",
+      "mass_rate": "measured",
+      "burner_loss": "measured",
+      "storage_growth": "calculated",
+      "reradiation": "modelled",
+      "wall_conduction": "estimated",
+      "surface_reflection": "measured",
+      "surface_temperature": "assumed",
+      "feed_temperature": "not",
+      "gauge_to_surface_convective_difference": "unknown"
+    }
+  },
+  "property_checks": {
+    "composite_latent_at_liquid_support_end_kj_kg": 323.2505714490851,
+    "handbook_latent_at_boiling_kj_kg": 316.0,
+    "latent_basis_gap_kj_kg": 7.2505714490851005,
+    "latent_basis_gap_over_demand": 0.016017265659607035,
+    "real_gas_departure_applied": false,
+    "control_volume_at_the_gauge_plane_200_c": "refused: surface temperature (gas): 473.15 K is outside the approved support 298.135458 to 469.991581 K",
+    "liquid_pv_work_per_k_over_cp": 8.160990649851153e-05,
+    "mass_basis_relevant_to_B": false
+  },
+  "sensitivities": {
+    "run": "SNL011",
+    "demand_change_per_k_of_feed_temperature": -0.005028676735782684,
+    "demand_change_per_k_of_surface_temperature": 0.004227392256283021,
+    "liquid_inventory_above_baffle_kg": 40.80903724271912,
+    "storage_kw_per_k_per_minute": 1.546953102465684,
+    "storage_kw_per_k_per_minute_over_gauge_power": 0.016542344881663396,
+    "vapour_superheat_to_gas_support_end_kw": 47.10083201885692,
+    "vapour_superheat_to_gas_support_end_over_gauge_power": 0.503672804448517,
+    "gas_support_end_k": 469.991581,
+    "deficit_at_independent_lower_bound_kw": 3.428810335525938,
+    "deficit_at_independent_upper_bound_kw": 0.0
+  },
+  "decisions": {
+    "benchmark_eligibility": "GO_partial_stationary_open_pool_2m_heptane",
+    "net_B_identifiability": "GO_partial_bounded_stationary_rate_NO_GO_point_value",
+    "balance_scope": "stationary_mean_only_NO_GO_transient",
+    "thermal_prediction": "NO_GO",
+    "emission_prediction": "NO_GO",
+    "second_condition_consistent_at_loose_level": false,
+    "second_condition_strict": false
+  },
+  "review_sha256": "b224c4bddfc1311fedd9e6e8f0562f6ab0f925cc08e2949053ff4044ffa9d32c",
+  "source_sha256_raw": "9722f1226c743ec892b37be4476b11b89c37c5871c19ce23a3b65f54c62860bd",
+  "predictive_thermal_input_approval": false,
+  "predictive_emission_approval": false,
+  "engine_integration": false,
+  "production_activation": false,
+  "co_fed_approval": false
+}

@@ -21,6 +21,7 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 - `Reviews_and_Models`: guias, revisiones y documentos de soporte para parametrizacion.
 - `Doors`: deformacion termica, integridad y fuga de gases en conjuntos de puerta.
 - `Glass`: fractura termica, desprendimiento y acristalamientos simples o multiples.
+- `Sandia`: informes de difusion ilimitada de Sandia National Laboratories.
 - `data/NIST_FSE_2008`: CSV experimental original ISOHept9, aviso NIST y
   [procedencia versionada](data/NIST_FSE_2008/PROVENANCE.json). Serie de masa
   independiente de calorimetria; **no** salida FDS ni perfil activado.
@@ -32,6 +33,24 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
   Estos artefactos de datos se inventarian aparte de los 39 PDF curados.
 
 ## Objetivos de calibracion para Simufire
+
+Actualizacion adicional del 06-10: gate del presupuesto termico neto del
+combustible,
+[decision y contrato](../validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md).
+Blanchat y Suo-Anttila, Sandia SAND2010-6377 (2011), piscinas de 2 m con
+flujo de calor a la superficie y perdida de masa de la misma corrida
+([fuente oficial](https://www.osti.gov/biblio/1018470),
+[PDF local](Sandia/SNL_SAND2010-6377_Hydrocarbon_Characterization_Results_2011.pdf));
+difusion ilimitada segun su portada. Solo localizador, sin archivar por
+derechos no aclarados: Hamins y otros, Combust. Sci. Technol. 97 (1994),
+[reimpresion servida por el NIST](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=909794),
+balance de calor de una piscina de heptano de 0,30 m; y Kim, Lee y Hamins,
+Fire Saf. J. 107 (2019),
+[manuscrito de autor](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928848).
+Resultado negativo: SAND2007-2391 es el plan de ensayos, sin resultados.
+B neto: GO parcial como tasa estacionaria acotada, NO-GO como valor
+puntual, transitorio y prediccion. Manifiesto: 48 -> 49 entradas. Ninguna
+activacion fisica.
 
 Actualizacion adicional del 06-10: gate del Cp del heptano liquido,
 [decision y requisitos](../validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md).

@@ -1,5 +1,42 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-06 - Gate de B neto: tasa estacionaria acotada, sin predicción
+
+[Gate del presupuesto térmico neto](validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md):
+gate científico offline, sin cambios en `sim/` y sin Godot. Define B como
+el calor neto que cruza la frontera del líquido; no es HRR, ni calor
+químico, ni flujo a un sensor, ni latente deducido de la masa.
+**Benchmark: GO parcial.** Sandia SAND2010-6377, piscina abierta de
+n-heptano de 2 m a nivel constante: flujo de calor a la superficie y
+pérdida de masa de la misma corrida, tres ensayos. Descartes: NIST de
+0,30 m (canales de corridas distintas, superficie sin medir) como segunda
+condición aparte, y alcoholes de 0,30 m por falta de perfiles aprobados.
+**B neto: GO parcial como tasa estacionaria acotada; NO-GO como valor
+puntual.** La estimación independiente (84 a 99 kW según ensayo, con la
+reflexión acotada entre 0 y 10 %) y la demanda diagnóstica (83 a 94 kW,
+masa por entalpía de los perfiles reales) difieren como mucho un 12,5 %:
+cumple el criterio laxo (20 %) y no el estricto (3,6 %). Cuatro términos
+quedan sin medir y no se rellenan: absorción en la cúpula de vapor,
+pérdidas al recipiente, almacenamiento en el líquido y diferencia
+convectiva entre galga y superficie.
+**NO-GO: balance transitorio, predicción térmica y predicción de
+emisión.** Entre ensayos la masa baja un 6,3 % con el flujo casi igual:
+no se autoriza ninguna regla B/L. La segunda condición del NIST no cierra
+ni al 20 % con propiedades reales (−21 a −5 %), así que no se generaliza.
+Bases de propiedades pendientes cuantificadas: 1,6 % por el latente
+compuesto; la base de masa nominal no interviene en B.
+Auditor reproducible y 51 pruebas offline con controles de unidades,
+signos, doble conteo, sensor frente a absorbido, soporte espacial,
+sincronización, mezcla de corridas, circularidad, incertidumbre ausente,
+procedencia y extrapolación.
+Contrato de la siguiente implementación, no iniciada: entrada de frontera
+por paso con clase, procedencia y banda; observable no circular (déficit
+de presupuesto frente a la emisión medida).
+Biblioteca: informe de Sandia archivado (difusión ilimitada); Hamins 1994
+y Kim 2019 solo enlazados. Manifiesto 48 → 49.
+ALL GUARDRAILS PASS con R2-1. La cadena Godot del cierre anterior no se
+repite: no es evidencia del B físico. CO/FED siguen OFF y NO-GO.
+
 ## Current Program Update - 2026-10-06 - Composición aislada de perfiles reales, ledger sensible y propietario atómico
 
 [Composición aislada](validation/G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md):
