@@ -10,6 +10,10 @@ Cp: se convierte.
 Continúa y revisa el
 [gate del 05-10](G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md).
 
+Implementado en aislamiento el 06-10:
+[esquemas reales en GDScript](G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md).
+Este informe se conserva como registro del gate.
+
 ## Decisión
 
 | Pregunta | Decisión | Alcance exacto |

@@ -11,6 +11,10 @@ Revisado el 06-10 por el
 del líquido pasa a GO parcial por conversión justificada, y la conversión
 de escala se reclasifica como aproximada. El resto se mantiene.
 
+Implementado en aislamiento el 06-10:
+[esquemas reales en GDScript](G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md).
+Este informe se conserva como registro del gate.
+
 ## Decisión
 
 | Pregunta | Decisión | Alcance exacto |

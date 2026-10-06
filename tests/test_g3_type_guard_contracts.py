@@ -42,7 +42,8 @@ CURRENT = {
     "PrescribedPhaseBudgetController": "69f74112d52ca77c7c4c3c07987d21747920b970d3e1221fa03464d6170942ed",
 }
 UNCHANGED = {
-    "SensibleEnthalpyModel": "0340a7263591276a3fb210c570d44eba97ce0326b5c90c539be72e29b1672627",
+    # Helper pin moved on 2026-10-06: its loop became the shared `integrate`; synthetic results are bit-identical.
+    "SensibleEnthalpyModel": "272de43f4a2b9fb1801c3924b08489c4b9d4d8c89026e576e3b4a8e62e796750",
     "PrescribedSensiblePhaseController": "63ea60420fa7a1995195addbc22e1fcfa4c30288b4fbb46174df44b120c01383",
 }
 GUARD_EDITS = {

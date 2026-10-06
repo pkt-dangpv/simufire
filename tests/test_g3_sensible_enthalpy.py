@@ -81,8 +81,12 @@ def test_property_helper_has_no_runtime_owner_or_activation():
         for candidate in folder.rglob("*.gd"):
             if candidate != path and "SensibleEnthalpyModel" in candidate.read_text(encoding="utf-8"):
                 references.append(str(candidate))
-    # Authorized next phase: only the existing, isolated mass owner may consume Cp.
-    assert references == [str(ROOT / "sim/fire/FuelMassBudgetModel.gd")]
+    # Two isolated consumers: the mass owner and, since 2026-10-06, the real-property
+    # adapter that reuses the shared integral. Neither is engine, editor or product.
+    assert sorted(references) == [str(ROOT / "sim/fire/FuelMassBudgetModel.gd"),
+                                  str(ROOT / "sim/fire/HeptaneRealCpProfiles.gd")]
+    public = re.findall(r"^static func ([a-z]\w*)\(", source, re.M)
+    assert public == ["validate_profile", "evaluate", "integrate"]
 
 
 @pytest.mark.parametrize("name, expected", [

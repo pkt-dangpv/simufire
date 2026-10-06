@@ -434,6 +434,9 @@
       "source_accuracy_statement": null,
       "source_uncertainty_in_assumed_range": null,
       "real_gas_departure_applied": false,
+      "scale_conversion_kind": "approximate_on_smoothed_values",
+      "scale_approximation_residual_percent": null,
+      "molar_mass_and_scale_verified_at_origin": false,
       "fire_validation": false
     },
     "witnesses": [

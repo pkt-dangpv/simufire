@@ -86,11 +86,27 @@ static func evaluate(profile: Variant, temperature_k: Variant) -> Dictionary:
 	if not _number(temperature_k):
 		return _reject(["query temperature must be finite numeric, never bool"])
 	var temperature: float = float(temperature_k)
-	var samples: Array = checked["candidate"]["samples"]
+	var integrated: Dictionary = integrate(checked["candidate"]["samples"], temperature)
+	if not integrated["errors"].is_empty():
+		return _reject(integrated["errors"])
+	var candidate: Dictionary = {"component_id": profile["component_id"], "phase": profile["phase"],
+		"caloric_model": profile["caloric_model"], "pressure_path": profile["pressure_path"],
+		"reference_temperature_k": REFERENCE_K, "reference_pressure_pa": REFERENCE_PA,
+		"minimum_temperature_k": integrated["minimum_temperature_k"],
+		"maximum_temperature_k": integrated["maximum_temperature_k"],
+		"temperature_k": temperature, "cp_kj_kg_k": integrated["cp_kj_kg_k"],
+		"specific_sensible_enthalpy_kj_kg": integrated["specific_sensible_enthalpy_kj_kg"],
+		"provenance": profile["provenance"], "calibration_status": profile["calibration_status"]}
+	return _success(candidate)
+
+
+## Canonical signed integral of piecewise-linear Cp from REFERENCE_K, shared by
+## every schema. The samples must already be validated by their own contract.
+static func integrate(samples: Array, temperature: float) -> Dictionary:
 	var minimum: float = float(samples[0]["temperature_k"])
 	var maximum: float = float(samples[-1]["temperature_k"])
 	if temperature < minimum or temperature > maximum:
-		return _reject(["query outside profile support; no extrapolation"])
+		return {"errors": ["query outside profile support; no extrapolation"]}
 	var lower: float = minf(REFERENCE_K, temperature)
 	var upper: float = maxf(REFERENCE_K, temperature)
 	var integral: float = 0.0
@@ -114,18 +130,14 @@ static func evaluate(profile: Variant, temperature_k: Variant) -> Dictionary:
 		var area: float = (0.5 * ca + 0.5 * cb) * (b - a)
 		integral += area
 		if not _number(area) or not _number(integral):
-			return _reject(["sensible integral overflow"])
+			return {"errors": ["sensible integral overflow"]}
 	if not _number(query_cp) or query_cp <= 0.0:
-		return _reject(["Cp evaluation overflow or underflow"])
+		return {"errors": ["Cp evaluation overflow or underflow"]}
 	var signed_integral: float = -integral if temperature < REFERENCE_K else integral
-	var candidate: Dictionary = {"component_id": profile["component_id"], "phase": profile["phase"],
-		"caloric_model": profile["caloric_model"], "pressure_path": profile["pressure_path"],
-		"reference_temperature_k": REFERENCE_K, "reference_pressure_pa": REFERENCE_PA,
-		"minimum_temperature_k": minimum, "maximum_temperature_k": maximum,
-		"temperature_k": temperature, "cp_kj_kg_k": query_cp,
+	return {"errors": [], "minimum_temperature_k": minimum, "maximum_temperature_k": maximum,
+		"cp_kj_kg_k": query_cp,
 		"specific_sensible_enthalpy_kj_kg": signed_integral,
-		"provenance": profile["provenance"], "calibration_status": profile["calibration_status"]}
-	return _success(candidate)
+		"temperature_k": temperature}
 
 
 static func _cp_at(t: float, t0: float, t1: float, c0: float, c1: float) -> float:

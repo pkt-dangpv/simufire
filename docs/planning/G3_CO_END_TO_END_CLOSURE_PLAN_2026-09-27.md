@@ -6,6 +6,21 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 06-10:
+[Esquemas reales de Cp del heptano implementados en aislamiento](../validation/G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md).
+Los dos perfiles aprobados por los gates offline se evalúan en GDScript:
+el bucle de integración del helper pasa a una función compartida y un
+adaptador nuevo valida de forma estricta contra el contenido aprobado y
+evalúa con esa misma integral. Sin predicción, sin B, sin gas real y sin
+integración; el ledger y el propietario sensible siguen rechazando
+perfiles reales y la composición queda para otra fase. Esquema sintético
+idéntico bit a bit (933 resultados) y campaña histórica 19/19. Fixture
+real 1417 comprobaciones; mutantes en Godot 55/55; regresiones
+helper 19/19, masa 10/10, fases 12/12, emisión 11/11, replay 11/11, caller 18/18, ledger sensible 23/23, propietario 40/40, guardas 12/12 y veredicto 17/17. Referencia 18/18, 346/346 required, 78 gaps, 160 informes de caso byte idénticos y resumen solo generated_at; R2-1 PASS. Producto 168/168.
+Global 3946 passed / 43 skipped / 2 xfailed / 42 subtests, 623,30 s, exit 0. CO/FED siguen OFF/NO-GO; B neto NO-GO. Siguiente paso,
+pendiente de decisión del usuario: composición con el ledger. Sin efecto
+en plazos.
+
+Avance previo del 06-10:
 [Cp del heptano líquido y supuestos del gas](../validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md).
 Gate científico offline: sin `sim/`, sin Godot, sin física nueva. Líquido:
 **GO parcial**, Cp isobárico a 100 kPa entre 280 K y el punto de ebullición,

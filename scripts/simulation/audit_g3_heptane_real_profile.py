@@ -52,8 +52,12 @@ REVIEW_SHA = "71e0c2fce7cee228e10d65629ea8dd8ed7eac559d89c2cd635fa69af71260bb3"
 SOURCES_SHA = hashlib.sha256(json.dumps(SOURCES, sort_keys=True).encode("utf-8")).hexdigest()
 
 # Synthetic helper reviewed for the compatibility verdict (LF-normalised hash).
+# Reviewed again on 2026-10-06 when its integration loop became the shared
+# `integrate` function: the synthetic validator, its fields and its fixed labels
+# did not change, so the synthetic schema still rejects the real labels. The
+# real schemas are validated by HeptaneRealCpProfiles.gd, not by this helper.
 SYNTHETIC_HELPER = "sim/fire/SensibleEnthalpyModel.gd"
-SYNTHETIC_HELPER_SHA_LF = "0340a7263591276a3fb210c570d44eba97ce0326b5c90c539be72e29b1672627"
+SYNTHETIC_HELPER_SHA_LF = "272de43f4a2b9fb1801c3924b08489c4b9d4d8c89026e576e3b4a8e62e796750"
 SYNTHETIC_FIELDS = ["schema", "component_id", "phase", "caloric_model", "pressure_path",
                     "reference_temperature_k", "reference_pressure_pa", "temperature_scale",
                     "quantity", "quantity_unit", "interpolation", "samples", "provenance",
@@ -93,6 +97,10 @@ DECLARED_ERRORS = {
     "source_accuracy_statement": None,
     "source_uncertainty_in_assumed_range": None,
     "real_gas_departure_applied": False,
+    # Limits established by the 2026-10-06 gate, carried with the profile.
+    "scale_conversion_kind": "approximate_on_smoothed_values",
+    "scale_approximation_residual_percent": None,
+    "molar_mass_and_scale_verified_at_origin": False,
     "fire_validation": False,
 }
 MISSING_B_EVIDENCE = [

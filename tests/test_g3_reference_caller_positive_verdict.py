@@ -186,7 +186,8 @@ def test_other_modules_are_not_part_of_this_fix():
     pins = {
         "PrescribedFuelReleaseModel": "db58278f2fff141d31148301095d41234f3732a66fa4140f74abfbaff483897d",
         "FuelMassBudgetModel": "7ab01e1628441c048d55a45a512fc85aed8347dbd8140a29c98160e82fcd3f12",
-        "SensibleEnthalpyModel": "0340a7263591276a3fb210c570d44eba97ce0326b5c90c539be72e29b1672627",
+        # Helper pin moved on 2026-10-06: its loop became the shared `integrate`; synthetic results are bit-identical.
+        "SensibleEnthalpyModel": "272de43f4a2b9fb1801c3924b08489c4b9d4d8c89026e576e3b4a8e62e796750",
         "PrescribedSensiblePhaseController": "63ea60420fa7a1995195addbc22e1fcfa4c30288b4fbb46174df44b120c01383",
     }
     for name, expected in pins.items():

@@ -1,5 +1,42 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-06 - Esquemas reales de Cp del heptano implementados en aislamiento
+
+[Implementación aislada](validation/G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md):
+los dos esquemas reales aprobados por los gates del 05-10 y del 06-10 se
+evalúan ya en GDScript, sin conectarlos a nada.
+`SensibleEnthalpyModel.gd`: el bucle de integración pasa, sin tocar su
+aritmética, a la función compartida `integrate`. `HeptaneRealCpProfiles.gd`
+(nuevo): contenido aprobado de `g3_real_liquid_isobaric_cp_v1` y
+`g3_real_ideal_gas_cp_v1`, validación estricta contra ese contenido y
+evaluación con la integral del helper; no contiene integral propia.
+Los nodos no se transcriben: un generador los toma de los auditores
+offline y una prueba falla si el script deja de coincidir.
+Líquido: 14 nodos, Cp a 100 kPa convertido desde Csat, 279,985531 a
+371,102911 K. Gas: 19 nodos, gas ideal, 298,135458 a 469,991581 K, con
+tramos supuesto, correlacionado y extrapolado diferenciados. Referencia
+298,15 K y 100 000 Pa; masa molar 100,20 g/mol; conversión a ITS-90
+aproximada. Cada resultado lleva el intervalo integrado, las clases de
+evidencia que atraviesa, los errores declarados con sus ausentes como
+`null` y cuatro aprobaciones en `false`.
+**Identidad sintética:** 933 resultados serializados bit a bit con el mismo
+SHA-256 antes y después; fixture histórica 342 comprobaciones; campaña
+histórica 19/19.
+**Aislamiento:** ledger y propietario sensible aceptan el control
+sintético y rechazan perfiles reales; sus cuatro módulos conservan hash.
+No hay cadena híbrida: la composición queda para otra fase.
+Fixture real en Godot: 1417 comprobaciones. Mutantes en Godot: 55/55
+(26 de código, 20 de contenido, 9 de la integral compartida).
+Regresiones repetidas: helper 19/19, masa 10/10, fases 12/12, emisión 11/11, replay 11/11, caller 18/18, ledger sensible 23/23, propietario 40/40, guardas 12/12 y veredicto 17/17.
+Referencia 18/18, 346/346 required, 78 gaps, 160 informes de caso byte idénticos y resumen solo generated_at; ALL GUARDRAILS PASS con R2-1. Producto
+168/168. Global 3946 passed / 43 skipped / 2 xfailed / 42 subtests, 623,30 s, exit 0.
+Límites: propiedad aislada, no predicción; la vinculación al contenido no
+es una firma; incertidumbre total no cuantificada; gas por debajo de 370 K
+es un supuesto de la fuente; sin dato sobre 470 K ni corrección de gas
+real. B neto y CO/FED siguen NO-GO.
+Siguiente decisión, del usuario: composición de estos perfiles con el
+ledger y el propietario sensible. No iniciada.
+
 ## Current Program Update - 2026-10-06 - Cp del heptano líquido y supuestos del gas
 
 [Cp del líquido y revisión del gas](validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md):
