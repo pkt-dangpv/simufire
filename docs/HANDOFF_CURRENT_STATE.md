@@ -1,5 +1,52 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-06 - Composición aislada de perfiles reales, ledger sensible y propietario atómico
+
+[Composición aislada](validation/G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md):
+los dos perfiles reales de n-heptano se componen por primera vez con el
+ledger sensible y con un propietario atómico, sin conectarlos a nada. **No
+es un incendio validado ni una predicción de evaporación.**
+Qué es cada pieza: Cp de líquido y gas, propiedad real con límites;
+química y calor latente, prototipo declarado con átomos nominales; emisión
+y calentamiento, entradas prescritas; presupuesto B, sintético. Cada
+informe las separa y todas las aprobaciones siguen en `false`, incluidas
+`co_fed_approval` y `fire_validation_approval`.
+`FuelMassBudgetModel.gd`: el cuerpo de `propose_phase_sensible` pasa, sin
+tocar su aritmética, a un núcleo compartido con dos contratos cerrados;
+se añade `propose_phase_sensible_real`. `PrescribedSensiblePhaseController.gd`:
+cuatro puntos de extensión con el comportamiento de siempre.
+`PrescribedRealSensiblePhaseController.gd` (nuevo): sucesor versionado que
+hereda y no añade ninguna ley. Esquemas nuevos versionados para estado,
+material, resultado, contexto, seed, request y snapshot; los sintéticos no
+aceptan perfiles reales.
+**Veredicto positivo:** la vía real acepta o escribe un estado solo con
+una confirmación explícita devuelta por la comprobación; una comprobación
+que calla o una puerta que se detiene son rechazo. La vía sintética
+conserva su regla.
+**Soporte:** cada fase contra el suyo, en entalpía; sin extrapolar, sin
+recortar y sin temperatura común. **Dos bases de masa** sin reconciliar:
+100,20 g/mol en los perfiles y átomos nominales en la estequiometría
+(0,21 % en O₂).
+**Identidad sintética:** 1985 resultados del ledger y del propietario
+serializados bit a bit con el mismo SHA-256 antes y después; deshacer
+textualmente las ediciones reproduce los hashes de `472705f1`, de modo que
+ningún pin histórico se mueve.
+**Oráculos:** método independiente en Python, datos de propiedad
+compartidos; contraste con columnas impresas de las fuentes.
+**Skips de identidad:** no se añade marcador PASS ni se elimina ningún
+skip; controles negativos sobre la salida real demuestran que una salida
+ausente, truncada o alterada hace fallar la comparación.
+Fixture real en Godot: 3670 comprobaciones. Mutantes: composición 94/94;
+históricas helper 19/19, masa 10/10, fases 12/12, emisión 11/11, replay 11/11, caller 18/18, ledger sensible 23/23, propietario 40/40, guardas 12/12, veredicto 17/17 y adaptador real 55/55.
+Referencia 18/18, 346/346 required, 78 gaps, 160 informes de caso byte idénticos y resumen solo generated_at; ALL GUARDRAILS PASS con R2-1. Producto
+168/168. Global 3981 passed / 45 skipped / 2 xfailed / 42 subtests, 675,30 s, exit 0.
+Límites: la emisión y su temperatura son entradas, no predicción; B es
+sintético; la química es un prototipo; las propiedades conservan los
+límites de sus gates; incertidumbre total no cuantificada.
+B neto y CO/FED siguen NO-GO.
+Siguiente decisión, del usuario. Esta fase no conecta la composición al
+incendio activo, no amplía el gas y no implementa un B predictivo.
+
 ## Current Program Update - 2026-10-06 - Esquemas reales de Cp del heptano implementados en aislamiento
 
 [Implementación aislada](validation/G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md):

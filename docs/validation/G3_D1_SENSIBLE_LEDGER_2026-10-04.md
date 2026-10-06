@@ -5,6 +5,13 @@ usuario después del cierre del helper de propiedades. No es integración
 en la simulación ni aprobación de CO/FED o propiedades de muebles.
 **Estado: cerrado técnicamente como ledger sintético aislado.**
 
+Actualización del 06-10: el cuerpo de esta API pasó, sin tocar su
+aritmética, a un núcleo compartido con un segundo contrato cerrado para
+perfiles reales
+([composición aislada](G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md)). La
+entrada sintética conserva nombre, entradas, rechazos y valores, bit a
+bit; este informe se conserva como registro de la fase.
+
 ## 1. Contrato predeclarado
 
 Nueva API `FuelMassBudgetModel.propose_phase_sensible`, en el dueño existente

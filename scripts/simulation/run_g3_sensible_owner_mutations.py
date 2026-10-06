@@ -23,11 +23,14 @@ from scripts.simulation.run_g3_fuel_mass_budget_mutations import changed_source,
 
 MODEL = ROOT / "sim/fire/PrescribedSensiblePhaseController.gd"
 FIXTURE = ROOT / "tests/fixtures/g3_sensible_phase_controller.gd"
+# The ledger preloads the real adapter since the composition phase (2026-10-06).
 DEPENDENCIES = [ROOT / "sim/fire/FuelMassBudgetModel.gd", ROOT / "sim/fire/PrescribedFuelReleaseModel.gd",
-                ROOT / "sim/fire/SensibleEnthalpyModel.gd"]
+                ROOT / "sim/fire/SensibleEnthalpyModel.gd", ROOT / "sim/fire/HeptaneRealCpProfiles.gd"]
 PREFIX = "G3_SENSIBLE_PHASE_CONTROLLER"
-_FINGERPRINT = "return (VERSION + _serialize(context)).sha256_text()"
-_SEED_AUDIT = ("var checked: Dictionary = Budget.propose_phase_sensible("
+# Anchors re-pointed on 2026-10-06: the owner reads its names and its ledger entry
+# through `_label` and `_ledger`. Each mutant injects the same defect as before.
+_FINGERPRINT = "return (_label(\"version\") + _serialize(context)).sha256_text()"
+_SEED_AUDIT = ("var checked: Dictionary = _ledger("
                "_seed_phase(canonical), _idle(), canonical[\"material\"])")
 # A structurally complete aggregate written BEFORE the ledger validates the seed.
 _EARLY_WRITE = ("_context = canonical\n\t_owned = {\"schema\": SNAPSHOT_SCHEMA, "
@@ -128,10 +131,11 @@ MUTATIONS = {
     "O36_product_recomposition_omitted": (
         "_compare(t[\"co2_kg\"], chemistry[\"products_kg\"][\"co2\"], false, \"cumulative CO2\", errors)", "pass"),
     "O37_request_schema_unchecked": (
-        "_literal(r.get(\"schema\"), REQUEST_SCHEMA, \"request schema\", errors)", "pass"),
-    "O38_seed_schema_unchecked": ("_literal(seed.get(\"schema\"), SEED_SCHEMA, \"seed schema\", errors)", "pass"),
+        "_literal(r.get(\"schema\"), _label(\"request\"), \"request schema\", errors)", "pass"),
+    "O38_seed_schema_unchecked": (
+        "_literal(seed.get(\"schema\"), _label(\"seed\"), \"seed schema\", errors)", "pass"),
     "O39_snapshot_schema_unchecked": (
-        "_literal(s.get(\"schema\"), SNAPSHOT_SCHEMA, \"snapshot schema\", errors)", "pass"),
+        "_literal(s.get(\"schema\"), _label(\"snapshot\"), \"snapshot schema\", errors)", "pass"),
     "O40_bool_admitted_as_number": (
         _NUMBER_GUARD, _NUMBER_GUARD.replace("[TYPE_INT, TYPE_FLOAT]", "[TYPE_INT, TYPE_FLOAT, TYPE_BOOL]")),
 }

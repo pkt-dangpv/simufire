@@ -35,7 +35,8 @@ MODEL = ROOT / "sim/fire/PrescribedPhaseBudgetController.gd"
 FIXTURE = ROOT / "tests/fixtures/g3_reference_caller_positive_verdict.gd"
 ABORT_FIXTURE = ROOT / "tests/fixtures/g3_reference_caller_abort_control.gd"
 DEPENDENCIES = [ROOT / "sim/fire/PrescribedFuelReleaseModel.gd", ROOT / "sim/fire/FuelMassBudgetModel.gd",
-                ROOT / "sim/fire/SensibleEnthalpyModel.gd"]
+                ROOT / "sim/fire/SensibleEnthalpyModel.gd",
+                ROOT / "sim/fire/HeptaneRealCpProfiles.gd"]  # preloaded by the ledger since 2026-10-06
 PREFIX = "G3_REFERENCE_CALLER_POSITIVE_VERDICT"
 ABORT_PREFIX = "G3_REFERENCE_CALLER_ABORT_CONTROL"
 REPRODUCTION_PREFIX = "G3_POSITIVE_VERDICT_REPRODUCTION"

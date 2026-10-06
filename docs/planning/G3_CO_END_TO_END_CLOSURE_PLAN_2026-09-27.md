@@ -6,6 +6,23 @@ física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
 Último avance del 06-10:
+[Composición aislada de perfiles reales, ledger sensible y propietario atómico](../validation/G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md).
+Los dos perfiles reales se componen con el ledger sensible y con un
+propietario atómico versionado, sin conectarlos a nada: propiedades reales
+con límites, química y latente de un prototipo declarado, emisión y
+calentamiento prescritos y presupuesto B sintético. No es un incendio
+validado ni una predicción de evaporación. El ledger gana un segundo
+contrato cerrado sobre las mismas leyes y el propietario cuatro puntos de
+extensión; el sucesor real hereda, no añade ninguna ley y exige un
+veredicto positivo explícito antes de aceptar o escribir. Vía sintética
+idéntica bit a bit (1985 resultados) y pins históricos sin mover. Fixture
+real 3670 comprobaciones; mutantes composición 94/94 e históricas
+helper 19/19, masa 10/10, fases 12/12, emisión 11/11, replay 11/11, caller 18/18, ledger sensible 23/23, propietario 40/40, guardas 12/12, veredicto 17/17 y adaptador real 55/55. Referencia 18/18, 346/346 required, 78 gaps, 160 informes de caso byte idénticos y resumen solo generated_at; R2-1 PASS. Producto 168/168.
+Global 3981 passed / 45 skipped / 2 xfailed / 42 subtests, 675,30 s, exit 0. CO/FED siguen OFF/NO-GO; B neto NO-GO. Siguiente paso,
+pendiente de decisión del usuario; esta fase no conecta la composición al
+incendio activo. Sin efecto en plazos.
+
+Avance previo del 06-10:
 [Esquemas reales de Cp del heptano implementados en aislamiento](../validation/G3_D1_HEPTANE_REAL_CP_IMPLEMENTATION_2026-10-06.md).
 Los dos perfiles aprobados por los gates offline se evalúan en GDScript:
 el bucle de integración del helper pasa a una función compartida y un

@@ -120,6 +120,10 @@ def test_only_the_type_guards_changed(name):
         # its own module pins the current bytes and undoes it down to this hash.
         from tests.test_g3_reference_caller_positive_verdict import undo_verdict_edits
         reverted = undo_verdict_edits(source)
+    if name == "FuelMassBudgetModel":
+        # So does the closed real contract of the composition phase (2026-10-06).
+        from tests.test_g3_real_sensible_composition import undo_real_contract_edits
+        reverted = undo_real_contract_edits(source)
     assert _sha(reverted) == CURRENT[name]
     for guarded, original in GUARD_EDITS[name]:
         assert reverted.count(guarded) == 1, guarded
@@ -130,7 +134,13 @@ def test_only_the_type_guards_changed(name):
 
 @pytest.mark.parametrize("name, expected", sorted(UNCHANGED.items()))
 def test_modules_outside_the_fix_remain_frozen(name, expected):
-    assert _sha(_source(name)) == expected
+    source = _source(name)
+    if name == "PrescribedSensiblePhaseController":
+        # The successor hooks of the composition phase (2026-10-06) sit on top: their
+        # own module pins the current bytes and undoes them down to this hash.
+        from tests.test_g3_real_sensible_composition import undo_successor_hooks
+        source = undo_successor_hooks(source)
+    assert _sha(source) == expected
 
 
 @pytest.mark.parametrize("name", OWNERS)

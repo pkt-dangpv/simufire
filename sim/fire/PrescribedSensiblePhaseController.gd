@@ -17,6 +17,7 @@ const REQUEST_SCHEMA: String = "g3_prescribed_sensible_request_v1"
 const SNAPSHOT_SCHEMA: String = "g3_prescribed_sensible_snapshot_v1"
 const PHASE_SCHEMA: String = "g3_phase_sensible_state_v1"
 const BOUNDARY_KIND: String = "synthetic_independent_initial_budget"
+const SCOPE: String = "isolated_synthetic_sensible_owner_not_evaporation_prediction_or_EOS"
 const MAX_GENERATION: int = 9223372036854775807
 const CONTEXT_KEYS: Array[String] = ["schema", "program", "material", "attribution", "seed"]
 const PROGRAM_TEXT_KEYS: Array[String] = [
@@ -50,12 +51,35 @@ var _context: Dictionary = {}
 var _owned: Dictionary = {}
 
 
+## Names of this owner version. A versioned successor overrides these hooks
+## (`_label`, `_ledger`, `_admits`, `_confirmed`) only; the transaction, the
+## accounts and every check stay here.
+func _label(name: String) -> String:
+	return {"version": VERSION, "context": CONTEXT_SCHEMA, "seed": SEED_SCHEMA,
+		"request": REQUEST_SCHEMA, "snapshot": SNAPSHOT_SCHEMA, "phase": PHASE_SCHEMA, "scope": SCOPE}[name]
+
+
+func _ledger(state: Dictionary, request: Dictionary, material: Dictionary) -> Dictionary:
+	return Budget.propose_phase_sensible(state, request, material)
+
+
+## Acceptance of an owned state. v1 decides as it always did: nothing reported.
+func _admits(value: Variant, context: Dictionary, errors: Array[String]) -> bool:
+	_check_owned(value, context, errors)
+	return errors.is_empty()
+
+
+## Reading of a preview before the write. v1 reads its verdict as it always did.
+func _confirmed(proposal: Dictionary) -> bool:
+	return proposal["valid"]
+
+
 func initialize(context: Variant) -> Dictionary:
 	if not _owned.is_empty():
 		return _failure(["already initialized; use a new owner for another context"])
 	var errors: Array[String] = []
 	var c: Dictionary = _object(context, CONTEXT_KEYS, "context", errors)
-	_literal(c.get("schema"), CONTEXT_SCHEMA, "context schema", errors)
+	_literal(c.get("schema"), _label("context"), "context schema", errors)
 	var program: Dictionary = _object(c.get("program"), Release.PROGRAM_KEYS, "program", errors)
 	var material: Dictionary = _object(c.get("material"), Budget.SENSIBLE_MATERIAL_KEYS, "material", errors)
 	var a: Dictionary = _object(c.get("attribution"), ATTRIBUTION_KEYS, "attribution", errors)
@@ -66,7 +90,7 @@ func initialize(context: Variant) -> Dictionary:
 	for key: String in ATTRIBUTION_KEYS:
 		_text(a.get(key), "attribution." + key, errors)
 	_text(material.get("component_id"), "material.component_id", errors)
-	_literal(seed.get("schema"), SEED_SCHEMA, "seed schema", errors)
+	_literal(seed.get("schema"), _label("seed"), "seed schema", errors)
 	_number(seed.get("initial_o2_kg"), false, "initial_o2_kg", errors)
 	_number(seed.get("initial_thermal_budget_kj"), false, "initial_thermal_budget_kj", errors)
 	_number(seed.get("initial_liquid_sensible_kj"), true, "initial_liquid_sensible_kj", errors)
@@ -90,18 +114,17 @@ func initialize(context: Variant) -> Dictionary:
 	var initialized: Dictionary = Release.initial_progress(canonical["program"])
 	if not initialized.get("valid", false):
 		return _failure(["invalid release program: " + str(initialized.get("errors"))])
-	var checked: Dictionary = Budget.propose_phase_sensible(_seed_phase(canonical), _idle(), canonical["material"])
+	var checked: Dictionary = _ledger(_seed_phase(canonical), _idle(), canonical["material"])
 	if not checked.get("valid", false):
 		return _failure(["invalid sensible material/seed: " + str(checked.get("errors"))])
 	var candidate: Dictionary = {
-		"schema": SNAPSHOT_SCHEMA, "context_fingerprint": _fingerprint(canonical),
+		"schema": _label("snapshot"), "context_fingerprint": _fingerprint(canonical),
 		"generation": 0, "physical_time_s": 0.0, "progress": initialized["candidate"].duplicate(true),
 		"phase": checked["candidate"].duplicate(true), "totals": {},
 	}
 	for key: String in TOTAL_KEYS:
 		candidate["totals"][key] = 0.0
-	_check_owned(candidate, canonical, errors)
-	if not errors.is_empty():
+	if not _admits(candidate, canonical, errors):
 		return _failure(errors)
 	_context = canonical
 	_owned = candidate
@@ -118,15 +141,15 @@ func preview_step(request: Variant) -> Dictionary:
 	if _owned.is_empty():
 		return _failure(["not initialized"])
 	var errors: Array[String] = []
-	_check_owned(_owned, _context, errors)
+	var current: bool = _admits(_owned, _context, errors)
 	var r: Dictionary = _object(request, REQUEST_KEYS, "request", errors)
-	_literal(r.get("schema"), REQUEST_SCHEMA, "request schema", errors)
+	_literal(r.get("schema"), _label("request"), "request schema", errors)
 	var end: float = _number(r.get("end_time_s"), false, "end_time_s", errors)
 	var oxidation: float = _number(r.get("oxidation_kg"), false, "oxidation_kg", errors)
 	var heat_liquid: float = _number(r.get("heat_liquid_kj"), false, "heat_liquid_kj", errors)
 	var heat_vapour: float = _number(r.get("heat_vapour_kj"), false, "heat_vapour_kj", errors)
 	var emitted_k: float = _number(r.get("emitted_vapour_temperature_k"), false, "emitted_vapour_temperature_k", errors)
-	if not errors.is_empty():
+	if not current or not errors.is_empty():
 		return _failure(errors)
 	if end < float(_owned["physical_time_s"]):
 		return _failure(["physical time cannot go backwards"])
@@ -138,7 +161,7 @@ func preview_step(request: Variant) -> Dictionary:
 	if not demand.get("valid", false):
 		return _failure(["source preview rejected: " + str(demand.get("errors"))])
 	var before: Dictionary = _owned["phase"].duplicate(true)
-	var ledger: Dictionary = Budget.propose_phase_sensible(before, {
+	var ledger: Dictionary = _ledger(before, {
 		"dt_s": physical_dt, "release_kg": demand["release_kg"], "oxidation_kg": oxidation,
 		"heat_liquid_kj": heat_liquid, "heat_vapour_kj": heat_vapour,
 		"emitted_vapour_temperature_k": emitted_k,
@@ -181,8 +204,7 @@ func preview_step(request: Variant) -> Dictionary:
 		"heating_vapour_kj", "release_cost_kj", "released_liquid_sensible_kj",
 		"emitted_vapour_sensible_kj", "oxidized_sensible_kj", "chemical_oxidation_heat_kj"]:
 		totals[key] += float(step[key])
-	_check_owned(candidate, _context, errors)
-	if not errors.is_empty():
+	if not _admits(candidate, _context, errors):
 		return _failure(errors)
 	return {"valid": true, "errors": [], "candidate": candidate, "step": step, "report": _report()}
 
@@ -192,7 +214,7 @@ func commit_step(request: Variant, expected_generation: Variant) -> Dictionary:
 	if not _generation_matches(expected_generation):
 		return _failure(["generation conflict or uninitialized owner"])
 	var proposal: Dictionary = preview_step(request)
-	if not proposal["valid"]:
+	if not _confirmed(proposal):
 		return proposal
 	var no_op: bool = proposal["step"]["physical_dt_s"] == 0.0
 	if not no_op:
@@ -208,9 +230,9 @@ func restore(saved: Variant, expected_generation: Variant) -> Dictionary:
 	if int(_owned["generation"]) == MAX_GENERATION:
 		return _failure(["generation overflow"])
 	var errors: Array[String] = []
-	_check_owned(_owned, _context, errors)
-	_check_owned(saved, _context, errors)
-	if not errors.is_empty():
+	var current: bool = _admits(_owned, _context, errors)
+	var requested: bool = _admits(saved, _context, errors)
+	if not current or not requested:
 		return _failure(errors)
 	var candidate: Dictionary = saved.duplicate(true)
 	candidate["generation"] = int(_owned["generation"]) + 1
@@ -222,7 +244,7 @@ func restore(saved: Variant, expected_generation: Variant) -> Dictionary:
 func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) -> Dictionary:
 	var before: int = errors.size()
 	var s: Dictionary = _object(value, OWNED_KEYS, "snapshot", errors)
-	_literal(s.get("schema"), SNAPSHOT_SCHEMA, "snapshot schema", errors)
+	_literal(s.get("schema"), _label("snapshot"), "snapshot schema", errors)
 	_literal(s.get("context_fingerprint"), _fingerprint(context), "snapshot/context identity", errors)
 	if not _valid_generation(s.get("generation")):
 		errors.append("invalid generation")
@@ -243,8 +265,8 @@ func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) ->
 	if float(progress["time_s"]) != minf(physical_time, _domain_end(context)):
 		errors.append("physical/source clocks disagree")
 	var material: Dictionary = context["material"]
-	var audit: Dictionary = Budget.propose_phase_sensible(phase, _idle(), material)
-	var origin: Dictionary = Budget.propose_phase_sensible(_seed_phase(context), _idle(), material)
+	var audit: Dictionary = _ledger(phase, _idle(), material)
+	var origin: Dictionary = _ledger(_seed_phase(context), _idle(), material)
 	if not audit.get("valid", false) or not origin.get("valid", false):
 		errors.append("invalid sensible phase state: " + str(audit.get("errors")))
 		return {}
@@ -286,8 +308,8 @@ func _check_owned(value: Variant, context: Dictionary, errors: Array[String]) ->
 
 func _report() -> Dictionary:
 	var result: Dictionary = {
-		"scope": "isolated_synthetic_sensible_owner_not_evaporation_prediction_or_EOS",
-		"controller_version": VERSION, "initialized": not _owned.is_empty(),
+		"scope": _label("scope"),
+		"controller_version": _label("version"), "initialized": not _owned.is_empty(),
 		"fingerprint_scope": "context_content_binding_not_signature_or_history_proof",
 		"scientific_approval": false, "predictive_evaporation_approval": false,
 		"engine_integration": false, "production_activation": false,
@@ -303,7 +325,7 @@ func _report() -> Dictionary:
 
 ## A, S and the total come from the ledger audit; Q is not chemical heat.
 func _accounts() -> Dictionary:
-	var audit: Dictionary = Budget.propose_phase_sensible(_owned["phase"], _idle(), _context["material"])
+	var audit: Dictionary = _ledger(_owned["phase"], _idle(), _context["material"])
 	if not audit.get("valid", false):
 		return {}
 	return {
@@ -334,8 +356,8 @@ static func _valid_generation(value: Variant) -> bool:
 
 ## Binds the full context CONTENT to this owner version. Not a signature:
 ## anyone can recompute it, and it proves nothing about a saved history.
-static func _fingerprint(context: Dictionary) -> String:
-	return (VERSION + _serialize(context)).sha256_text()
+func _fingerprint(context: Dictionary) -> String:
+	return (_label("version") + _serialize(context)).sha256_text()
 
 
 ## Sorted keys, ordered arrays, quoted text and exact IEEE-754 bits per number.
@@ -359,6 +381,11 @@ static func _serialize(value: Variant) -> String:
 			return "f64:" + PackedFloat64Array([number]).to_byte_array().hex_encode()
 		TYPE_STRING:
 			return JSON.stringify(value)
+		# No accepted v1 context holds these; the real profiles of a successor do.
+		TYPE_BOOL:
+			return "true" if value else "false"
+		TYPE_NIL:
+			return "null"
 	return "unsupported:" + str(typeof(value))
 
 
@@ -380,9 +407,9 @@ static func _canonical(value: Variant) -> Variant:
 	return value
 
 
-static func _seed_phase(context: Dictionary) -> Dictionary:
+func _seed_phase(context: Dictionary) -> Dictionary:
 	var mass: float = float(context["program"]["initial_mass_kg"])
-	return {"schema": PHASE_SCHEMA, "component_id": context["material"]["component_id"],
+	return {"schema": _label("phase"), "component_id": context["material"]["component_id"],
 		"initial_fuel_mass_kg": mass, "liquid_fuel_kg": mass, "vapour_fuel_kg": 0.0,
 		"o2_kg": float(context["seed"]["initial_o2_kg"]),
 		"thermal_budget_kj": float(context["seed"]["initial_thermal_budget_kj"]), "deposited_heat_kj": 0.0,

@@ -190,8 +190,13 @@ def test_other_modules_are_not_part_of_this_fix():
         "SensibleEnthalpyModel": "272de43f4a2b9fb1801c3924b08489c4b9d4d8c89026e576e3b4a8e62e796750",
         "PrescribedSensiblePhaseController": "63ea60420fa7a1995195addbc22e1fcfa4c30288b4fbb46174df44b120c01383",
     }
+    # The composition phase (2026-10-06) sits on top of the ledger and the sensible
+    # owner: its own module pins the current bytes and undoes its edits down to these hashes.
+    from tests.test_g3_real_sensible_composition import undo_real_contract_edits, undo_successor_hooks
+    undo = {"FuelMassBudgetModel": undo_real_contract_edits, "PrescribedSensiblePhaseController": undo_successor_hooks}
     for name, expected in pins.items():
         raw = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")
+        raw = undo.get(name, lambda text: text)(raw.decode("utf-8")).encode("utf-8")
         assert hashlib.sha256(raw).hexdigest() == expected, name
 
 

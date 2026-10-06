@@ -9,6 +9,12 @@ predictiva o propiedades de muebles. **Estado: cerrado técnicamente como
 propietario sintético aislado; cadena completa verde (§11).** Contrato y
 oráculos predeclarados en §1-§8; implementación y verificación desde §9.
 
+Actualización del 06-10: el propietario ganó cuatro puntos de extensión
+con su comportamiento de siempre, para que un sucesor versionado lo herede
+([composición aislada](G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md)). Su
+regla de aceptación no cambió y sus resultados son idénticos bit a bit;
+este informe se conserva como registro de la fase.
+
 ## 1. Decisión y límites
 
 Módulo nuevo `sim/fire/PrescribedSensiblePhaseController.gd`, `RefCounted`,

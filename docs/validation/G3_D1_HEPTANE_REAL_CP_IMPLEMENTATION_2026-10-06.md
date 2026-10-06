@@ -6,6 +6,12 @@ aprobaron los gates del
 [05-10](G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md) (gas) y del
 [06-10](G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md) (líquido).
 
+Compuesto en aislamiento el 06-10:
+[perfiles reales, ledger sensible y propietario atómico](G3_D1_REAL_SENSIBLE_COMPOSITION_2026-10-06.md).
+Desde entonces el ledger precarga el adaptador y admite estos perfiles
+solo por su contrato real; la vía sintética los sigue rechazando. Este
+informe se conserva como registro de la fase.
+
 Alcance: evaluación aislada de la propiedad. **No** hay predicción de
 temperatura ni de evaporación, inversión h→T, presupuesto B, calor latente
 nuevo, corrección de gas real, otro combustible ni integración en motor,

@@ -291,8 +291,11 @@ def test_owner_has_one_aggregate_root_and_a_closed_api():
 
 
 def test_owner_is_not_loaded_by_product():
+    # Its versioned successor extends it (composition phase, 2026-10-06) and is itself
+    # isolated: tests/test_g3_real_sensible_composition.py proves no product loads it.
+    successor = ROOT / "sim/fire/PrescribedRealSensiblePhaseController.gd"
     for path in _product_resources():
-        if path != MODEL:
+        if path not in (MODEL, successor):
             assert NAME not in path.read_text(encoding="utf-8", errors="replace"), path.relative_to(ROOT)
 
 
@@ -302,7 +305,9 @@ def test_canonical_owners_have_only_the_isolated_consumers():
     allowed = {
         "FuelMassBudgetModel": {fire / "FuelMassBudgetModel.gd", reference_caller, MODEL},
         "PrescribedFuelReleaseModel": {fire / "PrescribedFuelReleaseModel.gd", reference_caller, MODEL},
-        "propose_phase_sensible": {fire / "FuelMassBudgetModel.gd", MODEL},
+        # The real successor calls the real entry of the same ledger (2026-10-06).
+        "propose_phase_sensible": {fire / "FuelMassBudgetModel.gd", MODEL,
+                                   fire / "PrescribedRealSensiblePhaseController.gd"},
         "PrescribedPhaseBudgetController": {reference_caller},
     }
     texts = {path: path.read_text(encoding="utf-8", errors="replace") for path in _product_resources()}
@@ -320,6 +325,11 @@ def test_canonical_owners_have_only_the_isolated_consumers():
 ])
 def test_previous_owners_remain_frozen(name, expected):
     raw = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")
+    if name == "FuelMassBudgetModel":
+        # The closed real contract (2026-10-06) sits on top: its own module pins the
+        # current bytes and undoes its edits down to this hash.
+        from tests.test_g3_real_sensible_composition import undo_real_contract_edits
+        raw = undo_real_contract_edits(raw.decode("utf-8")).encode("utf-8")
     assert hashlib.sha256(raw).hexdigest() == expected
 
 
@@ -344,6 +354,7 @@ def test_isolated_mutation_projects_copy_every_dependency():
     source = MODEL.read_text(encoding="utf-8")
     needed = {ROOT / path.removeprefix("res://") for path in re.findall(r'preload\("([^"]+)"\)', source)}
     needed.add(ROOT / "sim/fire/SensibleEnthalpyModel.gd")  # Preloaded by the ledger.
+    needed.add(ROOT / "sim/fire/HeptaneRealCpProfiles.gd")  # Also by the ledger, since 2026-10-06.
     assert needed == set(campaign.DEPENDENCIES)
     assert campaign.MODEL == MODEL and campaign.FIXTURE == FIXTURE and campaign.PREFIX == PREFIX
 

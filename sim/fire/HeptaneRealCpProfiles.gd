@@ -4,7 +4,9 @@ extends RefCounted
 ## approved content below and the canonical integral of SensibleEnthalpyModel.
 ## Liquid: isobaric Cp at 100 kPa derived from Csat. Gas: ideal-gas Cp with an
 ## assumed, a correlated and a source-extrapolated range. The ITS-90 conversion
-## is approximate. No ledger, owner, engine, EOS or product consumes this.
+## is approximate. No engine, EOS, transport, editor or product consumes this;
+## its only consumers are the isolated sensible ledger and its versioned real
+## owner, which are prototypes and approve nothing.
 ## The binding compares against these constants; it is not a signature and does
 ## not prove where a profile came from.
 ## The liquid values are derived here from Csat of NBS RP2526 with liquid density

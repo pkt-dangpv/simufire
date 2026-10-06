@@ -90,12 +90,20 @@ def test_new_api_reuses_canonical_owners_without_runtime_caller():
     path = ROOT / 'sim/fire/FuelMassBudgetModel.gd'
     source = path.read_text(encoding='utf-8')
     new = source.split('static func propose_phase_sensible(', 1)[1]
-    for call in ['SensibleProperties.evaluate(', 'propose_phase_reference(',
+    # Since the composition phase (2026-10-06) the shared core reads its property
+    # provider from a closed contract: the synthetic entry still gets SensibleProperties.
+    for call in ['properties.evaluate(', 'propose_phase_reference(',
                  '_accepted_masses(', '_oxidation_quantities(', '_mass_element_balance(']:
         assert call in new
-    # The versioned sensible owner is the single, still unintegrated, caller;
-    # its own contract forbids loading it from any product resource.
-    isolated = {path, ROOT / 'sim/fire/PrescribedSensiblePhaseController.gd'}
+    assert new.startswith('state: Variant, request: Variant, material: Variant) -> Dictionary:\n'
+                          '\treturn _phase_sensible(state, request, material, SENSIBLE_SYNTHETIC)\n')
+    assert ('var properties: GDScript = RealProperties if contract["real_properties"] else SensibleProperties'
+            in new)
+    assert '"real_properties": false}' in source.split('const SENSIBLE_SYNTHETIC', 1)[1].split('const ', 1)[0]
+    # The two versioned sensible owners are the only, still unintegrated, callers;
+    # their own contracts forbid loading them from any product resource.
+    isolated = {path, ROOT / 'sim/fire/PrescribedSensiblePhaseController.gd',
+                ROOT / 'sim/fire/PrescribedRealSensiblePhaseController.gd'}
     for folder in ['sim', 'editor', 'ui', 'view', 'scenarios', 'scenes', 'tools']:
         for candidate in (ROOT / folder).rglob('*'):
             if candidate.is_file() and candidate not in isolated and candidate.suffix in {'.gd', '.json', '.tscn'}:
@@ -107,9 +115,12 @@ def test_new_api_reuses_canonical_owners_without_runtime_caller():
 def test_isolated_mutation_projects_copy_the_canonical_cp_dependency():
     from scripts.simulation import run_g3_prescribed_release_mutations as release
     assert ROOT / 'sim/fire/SensibleEnthalpyModel.gd' in release.ASSETS
+    assert ROOT / 'sim/fire/HeptaneRealCpProfiles.gd' in release.ASSETS
     for name in ['run_g3_fuel_mass_budget_mutations.py', 'run_g3_atomic_phase_mutations.py']:
-        assert 'sim/fire/SensibleEnthalpyModel.gd' in (
-            ROOT / 'scripts/simulation' / name).read_text(encoding='utf-8')
+        text = (ROOT / 'scripts/simulation' / name).read_text(encoding='utf-8')
+        assert 'sim/fire/SensibleEnthalpyModel.gd' in text
+        # The ledger preloads the real adapter since the composition phase (2026-10-06).
+        assert 'sim/fire/HeptaneRealCpProfiles.gd' in text
 
 
 def test_predeclared_sensible_ledger_mutants():

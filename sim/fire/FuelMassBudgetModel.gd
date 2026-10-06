@@ -43,6 +43,19 @@ const SENSIBLE_REQUEST_KEYS: Array[String] = ["dt_s", "release_kg", "oxidation_k
 	"heat_liquid_kj", "heat_vapour_kj", "emitted_vapour_temperature_k"]
 const SENSIBLE_MATERIAL_KEYS: Array[String] = ["schema", "component_id",
 	"reference_material", "liquid_profile", "vapour_profile"]
+const RealProperties = preload("res://sim/fire/HeptaneRealCpProfiles.gd")
+## Two closed sensible contracts over the SAME laws. They differ in the schema
+## names, the property provider and the declared scope; neither accepts the
+## other's state, material or profiles. In both, B and the reference chemistry
+## are declared inputs: the real contract makes the properties real, not them.
+const SENSIBLE_SYNTHETIC: Dictionary = {"state_schema": "g3_phase_sensible_state_v1",
+	"material_schema": "g3_phase_sensible_material_v1", "result_schema": "g3_phase_sensible_budget_v1",
+	"scope": "synthetic_isobaric_ledger_not_material_calibration", "real_properties": false}
+const SENSIBLE_REAL: Dictionary = {"state_schema": "g3_phase_real_sensible_state_v1",
+	"material_schema": "g3_phase_real_sensible_material_v1",
+	"result_schema": "g3_phase_real_sensible_budget_v1",
+	"scope": "real_limited_properties_declared_chemistry_synthetic_budget_not_fire_validation",
+	"real_properties": true}
 
 
 ## Returns a new candidate, never writes inputs. Rejection returns no candidate.
@@ -339,12 +352,24 @@ static func _rejected(errors: Array[String]) -> Dictionary:
 ## Heating requests are prescribed kJ/STEP; insufficient B rejects atomically.
 ## O2/products at reference. Signed Q includes the oxidized fuel's sensible.
 static func propose_phase_sensible(state: Variant, request: Variant, material: Variant) -> Dictionary:
+	return _phase_sensible(state, request, material, SENSIBLE_SYNTHETIC)
+
+
+## Same ledger with the approved real n-heptane profiles as property provider.
+## Prescribed heating and release, declared reference chemistry and a synthetic
+## independent budget: not a validated fire and not an evaporation prediction.
+static func propose_phase_sensible_real(state: Variant, request: Variant, material: Variant) -> Dictionary:
+	return _phase_sensible(state, request, material, SENSIBLE_REAL)
+
+
+static func _phase_sensible(state: Variant, request: Variant, material: Variant, contract: Dictionary) -> Dictionary:
+	var properties: GDScript = RealProperties if contract["real_properties"] else SensibleProperties
 	var errors: Array[String] = []
 	var s: Dictionary = _sensible_closed(state, SENSIBLE_STATE_KEYS, "state", errors)
 	var r: Dictionary = _sensible_closed(request, SENSIBLE_REQUEST_KEYS, "request", errors)
 	var m: Dictionary = _sensible_closed(material, SENSIBLE_MATERIAL_KEYS, "material", errors)
-	_sensible_literal(s, "schema", "g3_phase_sensible_state_v1", errors)
-	_sensible_literal(m, "schema", "g3_phase_sensible_material_v1", errors)
+	_sensible_literal(s, "schema", contract["state_schema"], errors)
+	_sensible_literal(m, "schema", contract["material_schema"], errors)
 	for data: Dictionary in [s, m]:
 		if typeof(data.get("component_id")) != TYPE_STRING or data["component_id"].strip_edges().is_empty():
 			errors.append("component_id must be nonempty String")
@@ -365,7 +390,7 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 			errors.append("reference." + key + " must be String")
 	var profiles: Dictionary = {}
 	for key: String in ["liquid_profile", "vapour_profile"]:
-		var checked: Dictionary = SensibleProperties.validate_profile(m.get(key))
+		var checked: Dictionary = properties.validate_profile(m.get(key))
 		if not checked["valid"]:
 			errors.append(key + ": " + str(checked["errors"]))
 		else:
@@ -374,7 +399,7 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 			if typeof(m.get("component_id")) == TYPE_STRING:
 				_sensible_literal(profiles[key], "component_id", m["component_id"], errors)
 	if not errors.is_empty():
-		return _sensible_rejected(errors)
+		return _sensible_rejected(contract, errors)
 	var audit_state: Dictionary = {}
 	for key: String in PHASE_STATE_KEYS:
 		audit_state[key] = n[key] if key not in ["thermal_budget_kj", "deposited_heat_kj"] else 0.0
@@ -386,25 +411,25 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 	var vapour: float = n["vapour_fuel_kg"]
 	var sl: float = n["liquid_sensible_kj"]
 	var sv: float = n["vapour_sensible_kj"]
-	_sensible_account(liquid, sl, profiles["liquid_profile"], "liquid initial", errors)
-	_sensible_account(vapour, sv, profiles["vapour_profile"], "vapour initial", errors)
-	var emission: Dictionary = SensibleProperties.evaluate(profiles["vapour_profile"], n["emitted_vapour_temperature_k"])
+	_sensible_account(properties, liquid, sl, profiles["liquid_profile"], "liquid initial", errors)
+	_sensible_account(properties, vapour, sv, profiles["vapour_profile"], "vapour initial", errors)
+	var emission: Dictionary = properties.evaluate(profiles["vapour_profile"], n["emitted_vapour_temperature_k"])
 	if not emission["valid"]:
 		errors.append("emitted vapour: " + str(emission["errors"]))
 	if not errors.is_empty():
-		return _sensible_rejected(errors)
+		return _sensible_rejected(contract, errors)
 	var heat_l: float = n["heat_liquid_kj"] if n["dt_s"] > 0.0 else 0.0
 	var heat_v: float = n["heat_vapour_kj"] if n["dt_s"] > 0.0 else 0.0
 	var heating: float = heat_l + heat_v
 	var budget: float = n["thermal_budget_kj"]
 	if not _finite(heating) or heating > budget:
-		return _sensible_rejected(["prescribed heating exceeds independent B or overflows"])
+		return _sensible_rejected(contract, ["prescribed heating exceeds independent B or overflows"])
 	var heated_sl: float = sl + heat_l
 	var heated_sv: float = sv + heat_v
-	_sensible_account(liquid, heated_sl, profiles["liquid_profile"], "liquid heated", errors)
-	_sensible_account(vapour, heated_sv, profiles["vapour_profile"], "vapour heated", errors)
+	_sensible_account(properties, liquid, heated_sl, profiles["liquid_profile"], "liquid heated", errors)
+	_sensible_account(properties, vapour, heated_sv, profiles["vapour_profile"], "vapour heated", errors)
 	if not errors.is_empty():
-		return _sensible_rejected(errors)
+		return _sensible_rejected(contract, errors)
 	var sl_specific: float = heated_sl / liquid if liquid > 0.0 else 0.0
 	var emitted_specific: float = emission["candidate"]["specific_sensible_enthalpy_kj_kg"]
 	var latent: float = ref["phase_enthalpy_kj_kg"]
@@ -412,11 +437,11 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 	if liquid > 0.0 and n["release_kg"] > 0.0 and n["dt_s"] > 0.0:
 		cost_per_kg = latent + emitted_specific - sl_specific
 	if not _finite(cost_per_kg) or cost_per_kg <= 0.0:
-		return _sensible_rejected(["nonpositive or nonfinite release cost requires another contract"])
+		return _sensible_rejected(contract, ["nonpositive or nonfinite release cost requires another contract"])
 	var available_budget: float = budget - heating
 	var release_deficit: float = maxf(0.0, minf(float(n["release_kg"]), liquid) * cost_per_kg - available_budget) if n["dt_s"] > 0.0 else 0.0
 	if not _finite(release_deficit):
-		return _sensible_rejected(["reported release budget deficit overflow"])
+		return _sensible_rejected(contract, ["reported release budget deficit overflow"])
 	var fractions: Dictionary = ref["mass_fractions"]
 	var c: float = fractions["C"]
 	var h: float = fractions["H"]
@@ -432,7 +457,7 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 	var mixed_mass: float = vapour + transferred
 	var mixed_sensible: float = heated_sv + transferred * emitted_specific
 	if not _finite(mixed_mass) or not _finite(mixed_sensible):
-		return _sensible_rejected(["vapour mixing overflow"])
+		return _sensible_rejected(contract, ["vapour mixing overflow"])
 	var mixed_specific: float = mixed_sensible / mixed_mass if mixed_mass > 0.0 else 0.0
 	var oxidized_sensible: float = oxidized * mixed_specific
 	var chemical_heat: float = oxidized * float(ref["vapour_heat_kj_kg"])
@@ -447,8 +472,8 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 	# Preserve idle accounts bit-for-bit rather than round-tripping S/m*m.
 	if heating == 0.0 and transferred == 0.0 and oxidized == 0.0:
 		after = s.duplicate(true)
-	_sensible_account(after["liquid_fuel_kg"], after["liquid_sensible_kj"], profiles["liquid_profile"], "liquid final", errors)
-	_sensible_account(after["vapour_fuel_kg"], after["vapour_sensible_kj"], profiles["vapour_profile"], "vapour final", errors)
+	_sensible_account(properties, after["liquid_fuel_kg"], after["liquid_sensible_kj"], profiles["liquid_profile"], "liquid final", errors)
+	_sensible_account(properties, after["vapour_fuel_kg"], after["vapour_sensible_kj"], profiles["vapour_profile"], "vapour final", errors)
 	var a_before: float = liquid * float(ref["liquid_heat_kj_kg"]) + vapour * float(ref["vapour_heat_kj_kg"])
 	var a_after: float = float(after["liquid_fuel_kg"]) * float(ref["liquid_heat_kj_kg"]) + float(after["vapour_fuel_kg"]) * float(ref["vapour_heat_kj_kg"])
 	var sensible_before: float = sl + sv
@@ -472,9 +497,9 @@ static func propose_phase_sensible(state: Variant, request: Variant, material: V
 		if not _finite(quantity):
 			errors.append("nonfinite sensible intermediate")
 	if not errors.is_empty():
-		return _sensible_rejected(errors)
+		return _sensible_rejected(contract, errors)
 	return {"valid": true, "errors": [], "candidate": after,
-		"schema": "g3_phase_sensible_budget_v1", "scope": "synthetic_isobaric_ledger_not_material_calibration",
+		"schema": contract["result_schema"], "scope": contract["scope"],
 		"physical_approval": false, "integration_enabled": false, "product_activation": false,
 		"accepted_release_kg": transferred, "rejected_release_kg": float(n["release_kg"]) - transferred,
 		"accepted_oxidation_kg": oxidized, "rejected_oxidation_kg": float(n["oxidation_kg"]) - oxidized,
@@ -516,7 +541,7 @@ static func _sensible_number(data: Dictionary, key: String, nonnegative: bool, e
 	return number
 
 
-static func _sensible_account(mass: float, sensible: float, profile: Dictionary, label: String, errors: Array[String]) -> void:
+static func _sensible_account(properties: GDScript, mass: float, sensible: float, profile: Dictionary, label: String, errors: Array[String]) -> void:
 	if not _finite(mass) or mass < 0.0 or not _finite(sensible):
 		errors.append(label + " invalid mass/sensible")
 		return
@@ -525,8 +550,8 @@ static func _sensible_account(mass: float, sensible: float, profile: Dictionary,
 			errors.append(label + " absent phase requires zero sensible")
 		return
 	var samples: Array = profile["samples"]
-	var low: Dictionary = SensibleProperties.evaluate(profile, samples[0]["temperature_k"])
-	var high: Dictionary = SensibleProperties.evaluate(profile, samples[-1]["temperature_k"])
+	var low: Dictionary = properties.evaluate(profile, samples[0]["temperature_k"])
+	var high: Dictionary = properties.evaluate(profile, samples[-1]["temperature_k"])
 	if not low["valid"] or not high["valid"]:
 		errors.append(label + " profile endpoint overflow")
 		return
@@ -536,7 +561,7 @@ static func _sensible_account(mass: float, sensible: float, profile: Dictionary,
 		errors.append(label + " sensible outside declared support")
 
 
-static func _sensible_rejected(errors: Array[String]) -> Dictionary:
+static func _sensible_rejected(contract: Dictionary, errors: Array[String]) -> Dictionary:
 	return {"valid": false, "errors": errors, "candidate": {},
-		"schema": "g3_phase_sensible_budget_v1", "scope": "synthetic_isobaric_ledger_not_material_calibration",
+		"schema": contract["result_schema"], "scope": contract["scope"],
 		"physical_approval": false, "integration_enabled": false, "product_activation": false}

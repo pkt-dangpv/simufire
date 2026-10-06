@@ -38,6 +38,7 @@ KERNEL = ROOT / "sim/fire/FuelMassBudgetModel.gd"
 CALLER = ROOT / "sim/fire/PrescribedPhaseBudgetController.gd"
 FIXTURE = ROOT / "tests/fixtures/g3_type_guard_contracts.gd"
 ASSETS = [PROVIDER, KERNEL, CALLER, ROOT / "sim/fire/SensibleEnthalpyModel.gd",
+          ROOT / "sim/fire/HeptaneRealCpProfiles.gd",  # preloaded by the ledger since 2026-10-06
           ROOT / "sim/fire/PrescribedSensiblePhaseController.gd", FIXTURE]
 PREFIX = "G3_TYPE_GUARD_CONTRACTS"
 PREFIX_COMMIT = "482876079a990035b1eed1ec2696ba4590f3f399"

@@ -15,6 +15,7 @@ import pytest
 from scripts.simulation import audit_g3_heptane_liquid_profile as liquid
 from scripts.simulation import audit_g3_heptane_real_profile as real
 from scripts.simulation import build_g3_heptane_real_cp_profiles as build
+from tests.g3_identity_output import identity_payload
 
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER = ROOT / "sim/fire/HeptaneRealCpProfiles.gd"
@@ -150,9 +151,10 @@ CHECKS = 1417
 
 
 def test_synthetic_schema_is_bit_identical_before_and_after():
-    payload, stdout = _run("tests/fixtures/g3_sensible_enthalpy_identity.gd", "G3_SENSIBLE_IDENTITY")
-    assert payload == SYNTHETIC_IDENTITY
-    assert "G3_SENSIBLE_IDENTITY_DONE" in stdout
+    _, stdout = _run("tests/fixtures/g3_sensible_enthalpy_identity.gd", "G3_SENSIBLE_IDENTITY")
+    # Strict reading: one complete report; its negative controls are in
+    # tests/test_g3_identity_fixture_controls.py.
+    assert identity_payload(stdout, "", "G3_SENSIBLE_IDENTITY") == SYNTHETIC_IDENTITY
 
 
 def test_one_integral_shared_by_every_schema():
@@ -187,14 +189,26 @@ def test_adapter_is_isolated_and_approves_nothing():
             if (candidate.suffix in {".gd", ".tscn", ".tres"} and candidate != ADAPTER
                     and "HeptaneRealCpProfiles" in candidate.read_text(encoding="utf-8", errors="replace")):
                 consumers.append(candidate.relative_to(ROOT).as_posix())
-    assert consumers == []
+    # Since the composition phase (2026-10-06) the ledger names it as the provider of
+    # its closed real contract and the versioned real owner reads its evidence. Both
+    # stay isolated: tests/test_g3_real_sensible_composition.py proves no product loads them.
+    assert sorted(consumers) == ["sim/fire/FuelMassBudgetModel.gd",
+                                 "sim/fire/PrescribedRealSensiblePhaseController.gd"]
 
 
 def test_ledger_and_owners_are_untouched_and_know_no_real_schema():
+    # The composition phase (2026-10-06) sits on top of the ledger and the sensible
+    # owner: its own module pins the current bytes and undoes its edits down to these hashes.
+    from tests.test_g3_real_sensible_composition import undo_real_contract_edits, undo_successor_hooks
+    undo = {"FuelMassBudgetModel": undo_real_contract_edits, "PrescribedSensiblePhaseController": undo_successor_hooks}
     for name, expected in FROZEN.items():
-        raw = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")
+        current = (ROOT / f"sim/fire/{name}.gd").read_bytes().replace(b"\r\n", b"\n")
+        raw = undo.get(name, lambda text: text)(current.decode("utf-8")).encode("utf-8")
         assert hashlib.sha256(raw).hexdigest() == expected, name
         assert b"g3_real_" not in raw and b"HeptaneRealCpProfiles" not in raw
+        # No Cp schema of the adapter is named outside it; the ledger only preloads its provider.
+        assert b"g3_real_" not in current
+        assert current.count(b"HeptaneRealCpProfiles") == (1 if name == "FuelMassBudgetModel" else 0)
     helper = HELPER.read_text(encoding="utf-8")
     assert "g3_real_" not in helper and "ITS-90" not in helper
     assert helper.count('"schema": "g3_synthetic_isobaric_cp_v1"') == 1

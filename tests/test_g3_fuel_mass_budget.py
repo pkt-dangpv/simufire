@@ -64,9 +64,11 @@ def test_kernel_has_no_engine_objects_io_or_legacy_energy_conversion():
         "fuel_energy_MJ", "remaining_fuel_MJ", "g3_unburned", "retained_unburned",
     ):
         assert forbidden not in code, forbidden
-    assert code.count('preload(') == 1
+    # Two pure property providers, one per closed sensible contract (the real one
+    # since the composition phase, 2026-10-06). No dynamic loading, no runtime dependency.
+    assert code.count('preload(') == 2
     assert 'preload("res://sim/fire/SensibleEnthalpyModel.gd")' in code
-    # No dynamic loading or runtime dependency; this is the pure Cp owner only.
+    assert 'preload("res://sim/fire/HeptaneRealCpProfiles.gd")' in code
     assert 'load(' not in code.replace('preload(', '')
     assert "static func propose(" in code
 

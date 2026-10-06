@@ -53,10 +53,10 @@ MUTATIONS = {
         '_sensible_literal(profiles[key], "component_id", m["component_id"], errors)',
         'pass # mutant: profile binding omitted'),
     'L17_ignore_state_schema': (
-        '_sensible_literal(s, "schema", "g3_phase_sensible_state_v1", errors)',
+        '_sensible_literal(s, "schema", contract["state_schema"], errors)',
         'pass # mutant: version validation omitted'),
     'L18_ignore_material_schema': (
-        '_sensible_literal(m, "schema", "g3_phase_sensible_material_v1", errors)',
+        '_sensible_literal(m, "schema", contract["material_schema"], errors)',
         'pass # mutant: version validation omitted'),
     'L19_erase_tiny_phase': ('if mass == 0.0:', 'if mass < 1e-12:'),
     'L20_zero_step_heats': (
@@ -81,7 +81,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--plan-only', action='store_true')
     args = parser.parse_args()
-    paths = [MODEL, FIXTURE, ROOT / 'sim/fire/SensibleEnthalpyModel.gd']
+    # The ledger preloads the real adapter since the composition phase (2026-10-06).
+    paths = [MODEL, FIXTURE, ROOT / 'sim/fire/SensibleEnthalpyModel.gd',
+             ROOT / 'sim/fire/HeptaneRealCpProfiles.gd']
     originals = {path: path.read_bytes() for path in paths}
     source = originals[MODEL].decode('utf-8')
     variants = prepared_variants(source)
