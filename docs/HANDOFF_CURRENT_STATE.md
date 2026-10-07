@@ -1,5 +1,36 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-07 - Ensayo de evaporación en cono: benchmark parcial, B neto sigue sin identificar
+
+[Ensayo de evaporación sin llama en cono como benchmark](validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md):
+revisión científica offline de Beji y otros (2021), sin cambios en `sim/`
+y sin Godot. Cinco decisiones separadas:
+observables **GO parcial** (masa acumulada y dos temperaturas puntuales,
+como digitalización de figuras); irradiación incidente **GO parcial**
+(consigna nominal y rango geométrico calculado, sin medida durante el
+ensayo); calor neto absorbido **NO-GO, no identificado**; calentamiento
+**GO parcial muy limitado** (solo el termopar inferior dentro del soporte);
+emisión **NO-GO**. **B neto sigue NO-GO.**
+Hechos: no hay series digitales públicas, solo figuras; la versión
+aceptada tiene copyright y no se incorpora, y la serie digitalizada
+tampoco se publica (solo script, huella y agregados). De diez términos de
+frontera, nueve sin medida ni cota. El factor de vista de los autores
+(0,95 a 0,70) no sale como media de área (0,91 a 0,67) y con la sombra
+del borde baja a 0,84 a 0,56. La bandeja de acero tiene un 44 % de la
+capacidad calorífica de la carga y no lleva termopar. Las repeticiones
+evaporan masas que difieren un 15 % y la masa inicial no se publica. El
+punto de ebullición queda fuera del soporte líquido aprobado. La demanda
+del ensayo completo es del 39 al 71 % de la consigna; ninguna ventana
+discrimina la entrada térmica. La discrepancia del 39 al 46 % cambia de
+signo con la geometría y no separa falta de energía de limitación de
+transferencia; la acumulación de vapor es una hipótesis de los autores.
+Auditor offline, digitalizador y 62 pruebas; 20 variantes de control
+detectadas. ALL GUARDRAILS PASS con R2-1.
+Siguiente acción, del usuario: autorizar o no la petición de datos a los
+autores (redactada, no enviada), decidir si la serie digitalizada puede
+publicarse y si interesa un modelo de columna que no identificaría B.
+Sigue pendiente la petición a Sandia. CO/FED siguen OFF y NO-GO.
+
 ## Current Program Update - 2026-10-07 - Revisión del gate de B neto: GO parcial retirado
 
 [Revisión del gate de B neto](validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md):

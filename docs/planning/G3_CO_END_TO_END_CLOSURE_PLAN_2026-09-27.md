@@ -5,7 +5,21 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 07-10:
+Último avance del 07-10, segundo del día:
+[Ensayo de evaporación sin llama en cono como benchmark](../validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md).
+Revisión offline, sin tocar `sim/`. Cinco decisiones separadas:
+observables GO parcial, irradiación incidente GO parcial, **calor neto
+absorbido NO-GO**, calentamiento GO parcial limitado al termopar inferior
+dentro del soporte, **emisión NO-GO**. El ensayo conoce la consigna del
+cono, no el calor que absorbe el líquido: nueve de diez términos de
+frontera sin medida ni cota, bandeja sin termopar y masa inicial sin
+publicar. Solo hay figuras; la serie digitalizada no se publica. B neto
+sigue NO-GO. No se autoriza ningún modelo térmico en `sim/`. Siguiente
+paso, pendiente del usuario: las dos peticiones de datos, a los autores
+del ensayo de cono y a Sandia, ninguna enviada. Sin efecto en plazos.
+CO/FED siguen OFF/NO-GO.
+
+Avance previo del 07-10:
 [Revisión del gate de B neto](../validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md).
 Revisión offline, sin tocar `sim/`. **Se retira el GO parcial a B neto del
 06-10:** la banda era la lectura de las galgas por un rango de reflexión.

@@ -1,0 +1,598 @@
+{
+ "document_sha256": "1c82a8219bdd36ddd074ef8cd7c6e627d67ff337dd1c56e6b52b2922bad945ff",
+ "immersion_rule": "level from the mass left over 684 kg/m3; thermocouple heights 6 and 20 mm plus half a bead",
+ "marker_step_s": 15.0,
+ "nature": "scalar aggregates of a digitisation of published figures; not raw data",
+ "panels": {
+  "figure_4a": {
+   "authors_horizontal_line": [],
+   "authors_vertical_line_s": [],
+   "marker_spacing_px": 9.037,
+   "seconds_per_px": 1.659751,
+   "units_per_px": 0.21978
+  },
+  "figure_4b": {
+   "authors_horizontal_line": [],
+   "authors_vertical_line_s": [],
+   "marker_spacing_px": 18.038,
+   "seconds_per_px": 0.831601,
+   "units_per_px": 0.43956
+  },
+  "figure_6a": {
+   "authors_horizontal_line": [
+    98.71
+   ],
+   "authors_vertical_line_s": [
+    134.72
+   ],
+   "marker_spacing_px": 24.05,
+   "seconds_per_px": 0.623701,
+   "units_per_px": 0.551471
+  },
+  "figure_6b": {
+   "authors_horizontal_line": [
+    98.71
+   ],
+   "authors_vertical_line_s": [
+    80.15
+   ],
+   "marker_spacing_px": 48.1,
+   "seconds_per_px": 0.31185,
+   "units_per_px": 0.551471
+  },
+  "figure_7a": {
+   "authors_horizontal_line": [
+    98.71
+   ],
+   "authors_vertical_line_s": [
+    395.01
+   ],
+   "marker_spacing_px": 14.43,
+   "seconds_per_px": 1.039501,
+   "units_per_px": 0.551471
+  },
+  "figure_7b": {
+   "authors_horizontal_line": [
+    98.71
+   ],
+   "authors_vertical_line_s": [
+    215.18
+   ],
+   "marker_spacing_px": 28.86,
+   "seconds_per_px": 0.519751,
+   "units_per_px": 0.551471
+  }
+ },
+ "runs": {
+  "H25#1": {
+   "lower": {
+    "first_marker_after_plateau_s": 465.0,
+    "highest_near_boiling_c": 108.0882,
+    "immersion_confirmed_until_s": 360.0,
+    "last_inside_support_s": 345.0,
+    "plateau_s": [
+     360.0,
+     450.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 18.75
+     },
+     "135": {
+      "half_width_c": 0.8272,
+      "value_c": 34.7426
+     },
+     "345": {
+      "half_width_c": 0.8272,
+      "value_c": 94.3015
+     },
+     "360": {
+      "half_width_c": 0.8272,
+      "value_c": 99.2647
+     },
+     "90": {
+      "half_width_c": 0.8272,
+      "value_c": 24.2647
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 18.75
+    },
+    "usable_until_s": 345.0
+   },
+   "mass": {
+    "accumulated_at": {
+     "135": {
+      "block_ends_at_marker": 2.604395,
+      "block_starts_at_marker": 2.16923,
+      "reading_half_width": 0.059343
+     },
+     "345": {
+      "block_ends_at_marker": 10.236267,
+      "block_starts_at_marker": 9.6033,
+      "reading_half_width": 0.133524
+     },
+     "360": {
+      "block_ends_at_marker": 10.869234,
+      "block_starts_at_marker": 10.236267,
+      "reading_half_width": 0.13847
+     },
+     "90": {
+      "block_ends_at_marker": 1.391208,
+      "block_starts_at_marker": 1.031868,
+      "reading_half_width": 0.044506
+     }
+    },
+    "assumed_between_neighbours_s": [],
+    "end_of_fall_s": 495.0,
+    "last_marker_s": 795.0,
+    "main_kg_m2": 16.081322,
+    "markers": 54,
+    "not_read_s": [],
+    "peak": {
+     "t_s": 450.0,
+     "value_g_m2_s": 48.3516
+    },
+    "reading_half_width_kg_m2": 0.351105,
+    "tail_kg_m2": 0.35275,
+    "total_kg_m2": 16.434072
+   },
+   "upper": {
+    "first_marker_after_plateau_s": 270.0,
+    "highest_near_boiling_c": 100.9191,
+    "immersion_confirmed_until_s": 90.0,
+    "last_inside_support_s": 135.0,
+    "plateau_s": [
+     150.0,
+     255.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 22.0588
+     },
+     "135": {
+      "half_width_c": 0.8272,
+      "value_c": 92.6471
+     },
+     "90": {
+      "half_width_c": 0.8272,
+      "value_c": 66.7279
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 22.0588
+    },
+    "usable_until_s": 90.0
+   }
+  },
+  "H25#2": {
+   "lower": {
+    "first_marker_after_plateau_s": 480.0,
+    "highest_near_boiling_c": 108.0882,
+    "immersion_confirmed_until_s": 315.0,
+    "last_inside_support_s": 360.0,
+    "plateau_s": [
+     375.0,
+     465.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 17.0956
+     },
+     "135": {
+      "half_width_c": 1.6544,
+      "value_c": 30.8824
+     },
+     "315": {
+      "half_width_c": 0.8272,
+      "value_c": 76.6544
+     },
+     "360": {
+      "half_width_c": 0.8272,
+      "value_c": 93.75
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 17.0956
+    },
+    "usable_until_s": 315.0
+   },
+   "mass": {
+    "accumulated_at": {
+     "135": {
+      "block_ends_at_marker": 2.670331,
+      "block_starts_at_marker": 2.235166,
+      "reading_half_width": 0.054399
+     },
+     "315": {
+      "block_ends_at_marker": 8.887916,
+      "block_starts_at_marker": 8.327476,
+      "reading_half_width": 0.113745
+     },
+     "360": {
+      "block_ends_at_marker": 10.692861,
+      "block_starts_at_marker": 10.076377,
+      "reading_half_width": 0.143417
+     }
+    },
+    "assumed_between_neighbours_s": [
+     345.0
+    ],
+    "end_of_fall_s": 465.0,
+    "last_marker_s": 585.0,
+    "main_kg_m2": 13.946709,
+    "markers": 54,
+    "not_read_s": [
+     600.0,
+     615.0,
+     630.0,
+     645.0,
+     660.0,
+     675.0,
+     690.0,
+     705.0,
+     720.0,
+     735.0,
+     750.0,
+     765.0,
+     780.0,
+     795.0
+    ],
+    "peak": {
+     "t_s": 405.0,
+     "value_g_m2_s": 42.6374
+    },
+    "reading_half_width_kg_m2": 0.230785,
+    "tail_kg_m2": 0.008242,
+    "total_kg_m2": 13.954951
+   },
+   "upper": {
+    "first_marker_after_plateau_s": 270.0,
+    "highest_near_boiling_c": 102.0221,
+    "immersion_confirmed_until_s": null,
+    "last_inside_support_s": 135.0,
+    "plateau_s": [
+     150.0,
+     255.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 19.8529
+     },
+     "135": {
+      "half_width_c": 0.8272,
+      "value_c": 92.0956
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 19.8529
+    },
+    "usable_until_s": null
+   }
+  },
+  "H25#3": {
+   "lower": null,
+   "mass": {
+    "accumulated_at": {},
+    "assumed_between_neighbours_s": [],
+    "end_of_fall_s": 495.0,
+    "last_marker_s": 795.0,
+    "main_kg_m2": 14.340658,
+    "markers": 54,
+    "not_read_s": [],
+    "peak": {
+     "t_s": 465.0,
+     "value_g_m2_s": 41.5385
+    },
+    "reading_half_width_kg_m2": 0.360993,
+    "tail_kg_m2": 0.06594,
+    "total_kg_m2": 14.406598
+   },
+   "upper": null
+  },
+  "H50#1": {
+   "lower": {
+    "first_marker_after_plateau_s": null,
+    "highest_near_boiling_c": 102.5735,
+    "immersion_confirmed_until_s": 180.0,
+    "last_inside_support_s": 180.0,
+    "plateau_s": [
+     195.0,
+     240.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 18.1985
+     },
+     "180": {
+      "half_width_c": 0.8272,
+      "value_c": 83.8235
+     },
+     "45": {
+      "half_width_c": 0.8272,
+      "value_c": 23.1618
+     },
+     "60": {
+      "half_width_c": 0.8272,
+      "value_c": 26.4706
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 18.1985
+    },
+    "usable_until_s": 180.0
+   },
+   "mass": {
+    "accumulated_at": {
+     "180": {
+      "block_ends_at_marker": 10.134066,
+      "block_starts_at_marker": 9.079121,
+      "reading_half_width": 0.128563
+     },
+     "45": {
+      "block_ends_at_marker": 1.483516,
+      "block_starts_at_marker": 0.797802,
+      "reading_half_width": 0.039558
+     },
+     "60": {
+      "block_ends_at_marker": 2.261538,
+      "block_starts_at_marker": 1.483516,
+      "reading_half_width": 0.049448
+     }
+    },
+    "assumed_between_neighbours_s": [],
+    "end_of_fall_s": 270.0,
+    "last_marker_s": 390.0,
+    "main_kg_m2": 16.048352,
+    "markers": 27,
+    "not_read_s": [],
+    "peak": {
+     "t_s": 240.0,
+     "value_g_m2_s": 86.5934
+    },
+    "reading_half_width_kg_m2": 0.267016,
+    "tail_kg_m2": 0.817583,
+    "total_kg_m2": 16.865934
+   },
+   "upper": {
+    "first_marker_after_plateau_s": null,
+    "highest_near_boiling_c": 102.0221,
+    "immersion_confirmed_until_s": 45.0,
+    "last_inside_support_s": 60.0,
+    "plateau_s": [
+     75.0,
+     120.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 23.7132
+     },
+     "45": {
+      "half_width_c": 0.8272,
+      "value_c": 63.4191
+     },
+     "60": {
+      "half_width_c": 0.8272,
+      "value_c": 83.2721
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 23.7132
+    },
+    "usable_until_s": 45.0
+   }
+  },
+  "H50#2": {
+   "lower": {
+    "first_marker_after_plateau_s": null,
+    "highest_near_boiling_c": 109.1912,
+    "immersion_confirmed_until_s": 180.0,
+    "last_inside_support_s": 180.0,
+    "plateau_s": [
+     195.0,
+     240.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 17.6471
+     },
+     "180": {
+      "half_width_c": 0.8272,
+      "value_c": 95.9559
+     },
+     "30": {
+      "half_width_c": 0.8272,
+      "value_c": 19.8529
+     },
+     "60": {
+      "half_width_c": 0.8272,
+      "value_c": 26.4706
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 17.6471
+    },
+    "usable_until_s": 180.0
+   },
+   "mass": {
+    "accumulated_at": {
+     "180": {
+      "block_ends_at_marker": 10.140657,
+      "block_starts_at_marker": 9.039558,
+      "reading_half_width": 0.168127
+     },
+     "30": {
+      "block_ends_at_marker": 0.896705,
+      "block_starts_at_marker": 0.323077,
+      "reading_half_width": 0.029669
+     },
+     "60": {
+      "block_ends_at_marker": 2.432967,
+      "block_starts_at_marker": 1.621978,
+      "reading_half_width": 0.069229
+     }
+    },
+    "assumed_between_neighbours_s": [],
+    "end_of_fall_s": 270.0,
+    "last_marker_s": 390.0,
+    "main_kg_m2": 15.573622,
+    "markers": 27,
+    "not_read_s": [],
+    "peak": {
+     "t_s": 225.0,
+     "value_g_m2_s": 81.3187
+    },
+    "reading_half_width_kg_m2": 0.309877,
+    "tail_kg_m2": 0.583519,
+    "total_kg_m2": 16.157142
+   },
+   "upper": {
+    "first_marker_after_plateau_s": 120.0,
+    "highest_near_boiling_c": 100.9191,
+    "immersion_confirmed_until_s": 30.0,
+    "last_inside_support_s": 60.0,
+    "plateau_s": [
+     75.0,
+     105.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 27.0221
+     },
+     "30": {
+      "half_width_c": 0.8272,
+      "value_c": 48.5294
+     },
+     "60": {
+      "half_width_c": 0.8272,
+      "value_c": 87.6838
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 27.0221
+    },
+    "usable_until_s": 30.0
+   }
+  },
+  "H50#3": {
+   "lower": {
+    "first_marker_after_plateau_s": null,
+    "highest_near_boiling_c": 104.7794,
+    "immersion_confirmed_until_s": 165.0,
+    "last_inside_support_s": 180.0,
+    "plateau_s": [
+     195.0,
+     240.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 20.4044
+     },
+     "165": {
+      "half_width_c": 0.8272,
+      "value_c": 77.2059
+     },
+     "180": {
+      "half_width_c": 0.8272,
+      "value_c": 90.4412
+     },
+     "75": {
+      "half_width_c": 0.8272,
+      "value_c": 36.3971
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 20.4044
+    },
+    "usable_until_s": 165.0
+   },
+   "mass": {
+    "accumulated_at": {
+     "165": {
+      "block_ends_at_marker": 9.395605,
+      "block_starts_at_marker": 8.314287,
+      "reading_half_width": 0.118674
+     },
+     "180": {
+      "block_ends_at_marker": 10.476924,
+      "block_starts_at_marker": 9.395605,
+      "reading_half_width": 0.128563
+     },
+     "75": {
+      "block_ends_at_marker": 3.382419,
+      "block_starts_at_marker": 2.505496,
+      "reading_half_width": 0.059337
+     }
+    },
+    "assumed_between_neighbours_s": [],
+    "end_of_fall_s": 255.0,
+    "last_marker_s": 390.0,
+    "main_kg_m2": 14.432968,
+    "markers": 27,
+    "not_read_s": [],
+    "peak": {
+     "t_s": 195.0,
+     "value_g_m2_s": 73.8462
+    },
+    "reading_half_width_kg_m2": 0.267016,
+    "tail_kg_m2": 0.059346,
+    "total_kg_m2": 14.492314
+   },
+   "upper": {
+    "first_marker_after_plateau_s": 120.0,
+    "highest_near_boiling_c": 102.5735,
+    "immersion_confirmed_until_s": null,
+    "last_inside_support_s": 75.0,
+    "plateau_s": [
+     90.0,
+     105.0
+    ],
+    "readings": {
+     "0": {
+      "half_width_c": 0.8272,
+      "value_c": 29.7794
+     },
+     "75": {
+      "half_width_c": 0.8272,
+      "value_c": 94.8529
+     }
+    },
+    "start": {
+     "half_width_c": 0.8272,
+     "t_s": 0.0,
+     "value_c": 29.7794
+    },
+    "usable_until_s": null
+   }
+  }
+ },
+ "schema": "g3_cone_evaporation_benchmark_aggregates_v1",
+ "series_sha256": "3062d34bba0415f88ba362fcfc3a06a400717985054d1fb300e9d57d12a426ae"
+}

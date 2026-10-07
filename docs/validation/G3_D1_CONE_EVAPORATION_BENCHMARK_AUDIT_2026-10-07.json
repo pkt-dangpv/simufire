@@ -1,0 +1,1287 @@
+{
+ "b_net": "NO_GO_not_identified",
+ "by_irradiation_level": {
+  "25": {
+   "any_window_discriminates": false,
+   "evaporated_kg_m2": [
+    13.715924,
+    16.785177
+   ],
+   "first_window_discriminates": false,
+   "first_window_over_nominal": [
+    0.233534,
+    1.086844
+   ],
+   "lower_highest_near_boiling_c": 108.0882,
+   "lower_start_c": [
+    17.0956,
+    18.75
+   ],
+   "mean_demand_kw_m2": [
+    10.011745,
+    17.673161
+   ],
+   "runs": [
+    "H25#1",
+    "H25#2",
+    "H25#3"
+   ],
+   "second_window_over_nominal": [
+    0.401719,
+    0.789161
+   ],
+   "upper_start_c": [
+    19.8529,
+    22.0588
+   ],
+   "whole_test_over_nominal": [
+    0.40047,
+    0.706926
+   ]
+  },
+  "50": {
+   "any_window_discriminates": false,
+   "evaporated_kg_m2": [
+    14.165952,
+    17.13295
+   ],
+   "first_window_discriminates": false,
+   "first_window_over_nominal": [
+    0.006561,
+    1.219577
+   ],
+   "lower_highest_near_boiling_c": 109.1912,
+   "lower_start_c": [
+    17.6471,
+    20.4044
+   ],
+   "mean_demand_kw_m2": [
+    19.693541,
+    33.072109
+   ],
+   "runs": [
+    "H50#1",
+    "H50#2",
+    "H50#3"
+   ],
+   "second_window_over_nominal": [
+    0.359554,
+    0.760792
+   ],
+   "upper_start_c": [
+    23.7132,
+    29.7794
+   ],
+   "whole_test_over_nominal": [
+    0.393871,
+    0.661442
+   ]
+  }
+ },
+ "co_fed": "OFF_NO_GO",
+ "decisions": {
+  "emission_validation": "NO_GO_no_independent_thermal_input",
+  "heating_validation": "GO_partial_lower_point_temperature_inside_support_NO_GO_energy_mean_and_surface_temperature",
+  "incident_irradiation": "GO_partial_nominal_set_point_and_calculated_geometric_range",
+  "net_absorbed_heat": "NO_GO_not_identified",
+  "observables_eligibility": "GO_partial_digitised_mass_and_two_point_temperatures"
+ },
+ "digitisation_check": {
+  "boiling_line_printed_c": 98.5,
+  "boiling_line_read_c": [
+   98.71
+  ],
+  "digitised_peaks_g_m2_s": {
+   "25": 48.3516,
+   "50": 86.5934
+  },
+  "printed_peaks_g_m2_s": {
+   "25": 48.0,
+   "50": 86.0
+  }
+ },
+ "facts": {
+  "frontier_identified": false,
+  "gas_side_measured": false,
+  "geometric_range_calculated": true,
+  "in_test_irradiation_measured": false,
+  "initial_mass_reported": false,
+  "lower_thermocouple_usable_runs": [
+   "H25#1",
+   "H25#2",
+   "H50#1",
+   "H50#2",
+   "H50#3"
+  ],
+  "mass_curves": true,
+  "nominal_checked_before_test": true,
+  "point_temperatures": true,
+  "raw_series_public": false,
+  "temperature_profile_measured": false,
+  "upper_thermocouple_usable_runs": [
+   "H25#1",
+   "H50#1",
+   "H50#2"
+  ],
+  "windows_inside_support": true
+ },
+ "frontier": {
+  "blocking": [
+   "set_point_at_calibration_point",
+   "distribution_over_surface_and_level",
+   "rim_shading_and_wall_reflection",
+   "attenuation_by_fuel_vapour",
+   "surface_reflection",
+   "convection_with_the_gas",
+   "exchange_with_the_pan",
+   "transmission_to_the_pan_bottom",
+   "loss_through_insulation"
+  ],
+  "classes": {
+   "attenuation_by_fuel_vapour": "unknown",
+   "convection_with_the_gas": "unknown",
+   "distribution_over_surface_and_level": "calculated_range",
+   "exchange_with_the_pan": "unknown",
+   "loss_through_insulation": "assumed",
+   "rim_shading_and_wall_reflection": "calculated_range",
+   "set_point_at_calibration_point": "nominal",
+   "surface_emission": "bounded",
+   "surface_reflection": "assumed",
+   "transmission_to_the_pan_bottom": "unknown"
+  },
+  "identified": false
+ },
+ "geometry": {
+  "area_average": {
+   "end": 0.670269,
+   "ratio": 0.735417,
+   "start": 0.911413
+  },
+  "assumption": "uniform diffuse cone surface; rim opaque and non-reflecting; calibration point taken as 1",
+  "authors": {
+   "end": 0.7,
+   "ratio": 0.736842,
+   "start": 0.95
+  },
+  "authors_ratio_reproduced": true,
+  "authors_values_reproduced_by_area_average": false,
+  "authors_values_reproduced_by_line_average": false,
+  "by_side_mm": {
+   "100": {
+    "empty": {
+     "area_average_open": 0.666238,
+     "area_average_open_by_quadrature": 0.666522,
+     "area_average_with_rim": 0.562157,
+     "centre": 0.764535,
+     "distance_to_cone_mm": 65.0,
+     "line_average_open": 0.716237,
+     "liquid_level_mm": 0.0
+    },
+    "initial_nominal": {
+     "area_average_open": 0.906439,
+     "area_average_open_by_quadrature": 0.90694,
+     "area_average_with_rim": 0.839354,
+     "centre": 1.0,
+     "distance_to_cone_mm": 40.0,
+     "line_average_open": 0.959353,
+     "liquid_level_mm": 25.0
+    },
+    "lower_thermocouple": {
+     "area_average_open": 0.717975,
+     "area_average_open_by_quadrature": 0.718315,
+     "area_average_with_rim": 0.618722,
+     "centre": 0.820551,
+     "distance_to_cone_mm": 59.0,
+     "line_average_open": 0.770942,
+     "liquid_level_mm": 6.0
+    },
+    "upper_thermocouple": {
+     "area_average_open": 0.84323,
+     "area_average_open_by_quadrature": 0.84366,
+     "area_average_with_rim": 0.760314,
+     "centre": 0.944853,
+     "distance_to_cone_mm": 46.0,
+     "line_average_open": 0.898496,
+     "liquid_level_mm": 19.0
+    }
+   },
+   "95": {
+    "empty": {
+     "area_average_open": 0.676159,
+     "area_average_open_by_quadrature": 0.676373,
+     "area_average_with_rim": 0.549424,
+     "centre": 0.764535,
+     "distance_to_cone_mm": 65.0,
+     "line_average_open": 0.721124,
+     "liquid_level_mm": 0.0
+    },
+    "initial_nominal": {
+     "area_average_open": 0.91852,
+     "area_average_open_by_quadrature": 0.918752,
+     "area_average_with_rim": 0.836122,
+     "centre": 1.0,
+     "distance_to_cone_mm": 40.0,
+     "line_average_open": 0.964318,
+     "liquid_level_mm": 25.0
+    },
+    "lower_thermocouple": {
+     "area_average_open": 0.728702,
+     "area_average_open_by_quadrature": 0.729207,
+     "area_average_with_rim": 0.606807,
+     "centre": 0.820551,
+     "distance_to_cone_mm": 59.0,
+     "line_average_open": 0.776097,
+     "liquid_level_mm": 6.0
+    },
+    "upper_thermocouple": {
+     "area_average_open": 0.855227,
+     "area_average_open_by_quadrature": 0.855728,
+     "area_average_with_rim": 0.754417,
+     "centre": 0.944853,
+     "distance_to_cone_mm": 46.0,
+     "line_average_open": 0.903775,
+     "liquid_level_mm": 19.0
+    }
+   },
+   "98": {
+    "empty": {
+     "area_average_open": 0.670269,
+     "area_average_open_by_quadrature": 0.670489,
+     "area_average_with_rim": 0.557155,
+     "centre": 0.764535,
+     "distance_to_cone_mm": 65.0,
+     "line_average_open": 0.718225,
+     "liquid_level_mm": 0.0
+    },
+    "initial_nominal": {
+     "area_average_open": 0.911413,
+     "area_average_open_by_quadrature": 0.911917,
+     "area_average_with_rim": 0.837585,
+     "centre": 1.0,
+     "distance_to_cone_mm": 40.0,
+     "line_average_open": 0.961395,
+     "liquid_level_mm": 25.0
+    },
+    "lower_thermocouple": {
+     "area_average_open": 0.722341,
+     "area_average_open_by_quadrature": 0.722697,
+     "area_average_with_rim": 0.613994,
+     "centre": 0.820551,
+     "distance_to_cone_mm": 59.0,
+     "line_average_open": 0.773042,
+     "liquid_level_mm": 6.0
+    },
+    "upper_thermocouple": {
+     "area_average_open": 0.848144,
+     "area_average_open_by_quadrature": 0.848656,
+     "area_average_with_rim": 0.758391,
+     "centre": 0.944853,
+     "distance_to_cone_mm": 46.0,
+     "line_average_open": 0.900658,
+     "liquid_level_mm": 19.0
+    }
+   }
+  },
+  "centre_factor_absolute": 0.679373,
+  "line_average": {
+   "end": 0.718225,
+   "ratio": 0.747065,
+   "start": 0.961395
+  },
+  "mass_free_range": {
+   "depends_on": [],
+   "envelope": [
+    0.557155,
+    0.911413
+   ],
+   "open": [
+    0.670269,
+    0.911413
+   ],
+   "with_rim": [
+    0.557155,
+    0.837585
+   ]
+  },
+  "quadrature_error": 0.000512
+ },
+ "nature_of_series": "digitisation of published figures; not raw data",
+ "objects": {
+  "demand_diagnostic": "energy the evaporated mass and the warming liquid must have received; rebuilt from the observables, never an independent input",
+  "incident_irradiation": "irradiation arriving at the regressing liquid surface during the test; calculated from geometry, not measured",
+  "net_absorbed_heat": "net heat crossing the boundary of the liquid; not identified",
+  "nominal_irradiation": "set point of the cone, checked with a heat flux gauge at one point before each test; nominal"
+ },
+ "pan": {
+  "bottom_kj_m2_k": 6.72,
+  "class": "calculated",
+  "liquid_charge_kj_m2_k": 39.883382,
+  "note": "dimensions from the text and steel properties from the authors' simulation table; no pan temperature was measured, so the exchange with the liquid has no sign or size",
+  "pan_kj_m2_k": 17.691429,
+  "pan_over_liquid": 0.443579,
+  "walls_kj_m2_k": 10.971429
+ },
+ "peak_discrepancy": {
+  "causes": [
+   {
+    "cause": "lower view factor as the surface regresses",
+    "status": "calculated by the authors: 5 to 30 % below nominal; said not to explain the deviation fully"
+   },
+   {
+    "cause": "surface reflection, surface emission and conduction to the pan walls",
+    "status": "said not to be substantial after preliminary calculations that are not shown"
+   },
+   {
+    "cause": "vapour accumulating in the chamber and making evaporation depend on concentration gradients",
+    "status": "proposed by the authors as likely; no vapour concentration was measured"
+   },
+   {
+    "cause": "further reduction of the view factor by the rim",
+    "status": "mentioned by the authors; not calculated by them"
+   },
+   {
+    "cause": "attenuation of the cone radiation by the vapour",
+    "status": "proposed by the authors; not measured"
+   },
+   {
+    "cause": "nominal irradiation lowered by 20 % in the simulations",
+    "status": "chosen afterwards so that the simulated mass loss matched; a fit, not a measurement"
+   }
+  ],
+  "compares": "peak of the 15 s mean mass loss rate against nominal irradiation over the latent heat alone",
+  "discriminates_energy_from_transfer": false,
+  "reason": "the residual moves from about -45 % to about +10 % with geometric and optical treatments that were not measured; vapour accumulation was proposed, not measured",
+  "residual_changes_sign_with_geometry": {
+   "25": true,
+   "50": true
+  },
+  "rows": [
+   {
+    "deviation": {
+     "area_average_open": -0.097675,
+     "area_average_with_rim": 0.085516,
+     "authors_factor": -0.136,
+     "nominal": -0.3952
+    },
+    "deviation_with_assumed_reflection": {
+     "area_average_open": -0.019212,
+     "area_average_with_rim": 0.179908,
+     "authors_factor": -0.06087,
+     "nominal": -0.342609
+    },
+    "estimate_g_m2_s": {
+     "area_average_open": 53.195919,
+     "area_average_with_rim": 44.218617,
+     "authors_factor": 55.555556,
+     "nominal": 79.365079
+    },
+    "measured_g_m2_s": 48.0,
+    "nominal_kw_m2": 25.0,
+    "printed_deviation": -0.39,
+    "printed_reproduced": true
+   },
+   {
+    "deviation": {
+     "area_average_open": -0.191667,
+     "area_average_with_rim": -0.027559,
+     "authors_factor": -0.226,
+     "nominal": -0.4582
+    },
+    "deviation_with_assumed_reflection": {
+     "area_average_open": -0.121378,
+     "area_average_with_rim": 0.057001,
+     "authors_factor": -0.158696,
+     "nominal": -0.411087
+    },
+    "estimate_g_m2_s": {
+     "area_average_open": 106.391838,
+     "area_average_with_rim": 88.437233,
+     "authors_factor": 111.111111,
+     "nominal": 158.730159
+    },
+    "measured_g_m2_s": 86.0,
+    "nominal_kw_m2": 50.0,
+    "printed_deviation": -0.46,
+    "printed_reproduced": true
+   }
+  ]
+ },
+ "record_sha256": "0622337ad2422799ca5a0840494ba39c40965ecb51f7d5fbf0436ce0a8e404b8",
+ "repeatability": {
+  "consequence": "the level history of each run, and with it the depth of the upper thermocouple, is not identified",
+  "evaporated_main_kg_m2": [
+   13.946709,
+   16.081322
+  ],
+  "evaporated_mass_spread_between_runs": 0.153055,
+  "initial_mass_reported": false
+ },
+ "runs": {
+  "H25#1": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    22.886
+   ],
+   "mass": {
+    "end_of_fall_s": 495.0,
+    "equivalent_initial_level_mm": [
+     22.997393,
+     24.539732
+    ],
+    "evaporated_kg_m2": [
+     15.730217,
+     16.785177
+    ],
+    "evaporated_over_nominal_charge": [
+     0.830206,
+     0.981589
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 48.3516,
+    "tail_kg_m2": 0.35275
+   },
+   "nominal_irradiation_kw_m2": 25.0,
+   "thermocouples": {
+    "lower": {
+     "highest_near_boiling_c": 108.0882,
+     "immersion_confirmed_until_s": 360.0,
+     "leaves_plateau_minus_end_of_fall_s": -30.0,
+     "leaves_plateau_s": 465.0,
+     "plateau_s": [
+      360.0,
+      450.0
+     ],
+     "start_c": 18.75,
+     "support_ends_s": 345.0,
+     "usable_until_s": 345.0
+    },
+    "upper": {
+     "highest_near_boiling_c": 100.9191,
+     "immersion_confirmed_until_s": 90.0,
+     "leaves_plateau_minus_end_of_fall_s": -225.0,
+     "leaves_plateau_s": 270.0,
+     "plateau_s": [
+      150.0,
+      255.0
+     ],
+     "start_c": 22.0588,
+     "support_ends_s": 135.0,
+     "usable_until_s": 90.0
+    }
+   },
+   "whole_test": {
+    "demand_kj_kg": [
+     370.503749,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     5828.104376,
+     8748.214631
+    ],
+    "mean_demand_kw_m2": [
+     11.773948,
+     17.673161
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.516734,
+     1.268816
+    ],
+    "over_nominal": [
+     0.470958,
+     0.706926
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": {
+     "demand_kj_m2": [
+      525.451039,
+      2445.399788
+     ],
+     "demand_over_nominal": [
+      0.233534,
+      1.086844
+     ],
+     "demand_relative_width": 1.292525,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      365.821323,
+      748.275352
+     ],
+     "ends_because": "last marker at which the upper thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 90.0,
+     "evaporated_kg_m2": [
+      0.987362,
+      1.435714
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 90.0,
+     "lower_thermocouple_c": 24.2647,
+     "nominal_irradiation_kj_m2": 2250.0,
+     "remaining_kg_m2": [
+      14.294503,
+      15.797815
+     ],
+     "remaining_level_mm": [
+      20.898396,
+      23.096221
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      159.629716,
+      1697.124437
+     ],
+     "support_ends_s": 135.0,
+     "upper_thermocouple_c": 66.7279
+    },
+    "second": {
+     "demand_kj_m2": [
+      3722.222269,
+      6806.510078
+     ],
+     "demand_over_nominal": [
+      0.431562,
+      0.789161
+     ],
+     "demand_relative_width": 0.58588,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      3508.587513,
+      5404.599389
+     ],
+     "ends_because": "last marker at which the lower thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 345.0,
+     "evaporated_kg_m2": [
+      9.469776,
+      10.369791
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 360.0,
+     "lower_thermocouple_c": 94.3015,
+     "nominal_irradiation_kj_m2": 8625.0,
+     "remaining_kg_m2": [
+      5.360426,
+      7.315401
+     ],
+     "remaining_level_mm": [
+      7.83688,
+      10.695031
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      213.634756,
+      1401.910689
+     ],
+     "support_ends_s": 345.0,
+     "upper_thermocouple_c": null
+    }
+   }
+  },
+  "H25#2": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    20.6801
+   ],
+   "mass": {
+    "end_of_fall_s": 465.0,
+    "equivalent_initial_level_mm": [
+     20.05252,
+     20.73938
+    ],
+    "evaporated_kg_m2": [
+     13.715924,
+     14.185736
+    ],
+    "evaporated_over_nominal_charge": [
+     0.723896,
+     0.829575
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 42.6374,
+    "tail_kg_m2": 0.008242
+   },
+   "nominal_irradiation_kw_m2": 25.0,
+   "thermocouples": {
+    "lower": {
+     "highest_near_boiling_c": 108.0882,
+     "immersion_confirmed_until_s": 315.0,
+     "leaves_plateau_minus_end_of_fall_s": 15.0,
+     "leaves_plateau_s": 480.0,
+     "plateau_s": [
+      375.0,
+      465.0
+     ],
+     "start_c": 17.0956,
+     "support_ends_s": 360.0,
+     "usable_until_s": 315.0
+    },
+    "upper": {
+     "highest_near_boiling_c": 102.0221,
+     "immersion_confirmed_until_s": null,
+     "leaves_plateau_minus_end_of_fall_s": -195.0,
+     "leaves_plateau_s": 270.0,
+     "plateau_s": [
+      150.0,
+      255.0
+     ],
+     "start_c": 19.8529,
+     "support_ends_s": 135.0,
+     "usable_until_s": null
+    }
+   },
+   "whole_test": {
+    "demand_kj_kg": [
+     375.427506,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     5149.335133,
+     7393.419994
+    ],
+    "mean_demand_kw_m2": [
+     11.073839,
+     15.899828
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.486007,
+     1.141502
+    ],
+    "over_nominal": [
+     0.442954,
+     0.635993
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": null,
+    "second": {
+     "demand_kj_m2": [
+      3163.53687,
+      5648.143699
+     ],
+     "demand_over_nominal": [
+      0.401719,
+      0.717225
+     ],
+     "demand_relative_width": 0.563935,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      3083.66054,
+      4691.547933
+     ],
+     "ends_because": "last marker at which the lower thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 315.0,
+     "evaporated_kg_m2": [
+      8.213731,
+      9.001661
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 315.0,
+     "lower_thermocouple_c": 76.6544,
+     "nominal_irradiation_kj_m2": 7875.0,
+     "remaining_kg_m2": [
+      4.714263,
+      5.972005
+     ],
+     "remaining_level_mm": [
+      6.892197,
+      8.731001
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      79.87633,
+      956.595766
+     ],
+     "support_ends_s": 360.0,
+     "upper_thermocouple_c": null
+    }
+   }
+  },
+  "H25#3": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    30.0
+   ],
+   "mass": {
+    "end_of_fall_s": 495.0,
+    "equivalent_initial_level_mm": [
+     20.438107,
+     21.590045
+    ],
+    "evaporated_kg_m2": [
+     13.979665,
+     14.767591
+    ],
+    "evaporated_over_nominal_charge": [
+     0.737816,
+     0.863602
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 41.5385,
+    "tail_kg_m2": 0.06594
+   },
+   "nominal_irradiation_kw_m2": 25.0,
+   "thermocouples": {},
+   "whole_test": {
+    "demand_kj_kg": [
+     354.501614,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     4955.813807,
+     7696.675207
+    ],
+    "mean_demand_kw_m2": [
+     10.011745,
+     15.548839
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.439394,
+     1.116303
+    ],
+    "over_nominal": [
+     0.40047,
+     0.621954
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": null,
+    "second": null
+   }
+  },
+  "H50#1": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    24.5404
+   ],
+   "mass": {
+    "end_of_fall_s": 270.0,
+    "equivalent_initial_level_mm": [
+     23.072129,
+     25.048173
+    ],
+    "evaporated_kg_m2": [
+     15.781336,
+     17.13295
+    ],
+    "evaporated_over_nominal_charge": [
+     0.832904,
+     1.001927
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 86.5934,
+    "tail_kg_m2": 0.817583
+   },
+   "nominal_irradiation_kw_m2": 50.0,
+   "thermocouples": {
+    "lower": {
+     "highest_near_boiling_c": 102.5735,
+     "immersion_confirmed_until_s": 180.0,
+     "leaves_plateau_minus_end_of_fall_s": null,
+     "leaves_plateau_s": null,
+     "plateau_s": [
+      195.0,
+      240.0
+     ],
+     "start_c": 18.1985,
+     "support_ends_s": 180.0,
+     "usable_until_s": 180.0
+    },
+    "upper": {
+     "highest_near_boiling_c": 102.0221,
+     "immersion_confirmed_until_s": 45.0,
+     "leaves_plateau_minus_end_of_fall_s": null,
+     "leaves_plateau_s": null,
+     "plateau_s": [
+      75.0,
+      120.0
+     ],
+     "start_c": 23.7132,
+     "support_ends_s": 60.0,
+     "usable_until_s": 45.0
+    }
+   },
+   "whole_test": {
+    "demand_kj_kg": [
+     366.799341,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     5788.583651,
+     8929.469369
+    ],
+    "mean_demand_kw_m2": [
+     21.439199,
+     33.072109
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.47046,
+     1.187179
+    ],
+    "over_nominal": [
+     0.428784,
+     0.661442
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": {
+     "demand_kj_m2": [
+      364.443334,
+      2523.591753
+     ],
+     "demand_over_nominal": [
+      0.161975,
+      1.121596
+     ],
+     "demand_relative_width": 1.495237,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      278.1234,
+      793.806241
+     ],
+     "ends_because": "last marker at which the upper thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 45.0,
+     "evaporated_kg_m2": [
+      0.758244,
+      1.523074
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 45.0,
+     "lower_thermocouple_c": 23.1618,
+     "nominal_irradiation_kj_m2": 2250.0,
+     "remaining_kg_m2": [
+      14.258262,
+      16.374706
+     ],
+     "remaining_level_mm": [
+      20.845412,
+      23.939629
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      86.319934,
+      1729.785513
+     ],
+     "support_ends_s": 60.0,
+     "upper_thermocouple_c": 63.4191
+    },
+    "second": {
+     "demand_kj_m2": [
+      3481.103194,
+      6813.23328
+     ],
+     "demand_over_nominal": [
+      0.386789,
+      0.757026
+     ],
+     "demand_relative_width": 0.647372,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      3283.05878,
+      5348.747956
+     ],
+     "ends_because": "last marker at which the lower thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 180.0,
+     "evaporated_kg_m2": [
+      8.950558,
+      10.262629
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 180.0,
+     "lower_thermocouple_c": 83.8235,
+     "nominal_irradiation_kj_m2": 9000.0,
+     "remaining_kg_m2": [
+      5.518707,
+      8.182392
+     ],
+     "remaining_level_mm": [
+      8.068285,
+      11.962561
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      198.044415,
+      1464.485324
+     ],
+     "support_ends_s": 180.0,
+     "upper_thermocouple_c": null
+    }
+   }
+  },
+  "H50#2": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    27.8493
+   ],
+   "mass": {
+    "end_of_fall_s": 270.0,
+    "equivalent_initial_level_mm": [
+     22.315417,
+     24.074589
+    ],
+    "evaporated_kg_m2": [
+     15.263745,
+     16.467019
+    ],
+    "evaporated_over_nominal_charge": [
+     0.805587,
+     0.962984
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 81.3187,
+    "tail_kg_m2": 0.583519
+   },
+   "nominal_irradiation_kw_m2": 50.0,
+   "thermocouples": {
+    "lower": {
+     "highest_near_boiling_c": 109.1912,
+     "immersion_confirmed_until_s": 180.0,
+     "leaves_plateau_minus_end_of_fall_s": null,
+     "leaves_plateau_s": null,
+     "plateau_s": [
+      195.0,
+      240.0
+     ],
+     "start_c": 17.6471,
+     "support_ends_s": 180.0,
+     "usable_until_s": 180.0
+    },
+    "upper": {
+     "highest_near_boiling_c": 100.9191,
+     "immersion_confirmed_until_s": 30.0,
+     "leaves_plateau_minus_end_of_fall_s": -150.0,
+     "leaves_plateau_s": 120.0,
+     "plateau_s": [
+      75.0,
+      105.0
+     ],
+     "start_c": 27.0221,
+     "support_ends_s": 60.0,
+     "usable_until_s": 30.0
+    }
+   },
+   "whole_test": {
+    "demand_kj_kg": [
+     359.359654,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     5485.174118,
+     8582.394845
+    ],
+    "mean_demand_kw_m2": [
+     20.31546,
+     31.786648
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.445801,
+     1.141035
+    ],
+    "over_nominal": [
+     0.406309,
+     0.635733
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": {
+     "demand_kj_m2": [
+      9.842084,
+      1829.364768
+     ],
+     "demand_over_nominal": [
+      0.006561,
+      1.219577
+     ],
+     "demand_relative_width": 1.978595,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      105.438997,
+      482.814008
+     ],
+     "ends_because": "last marker at which the upper thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 30.0,
+     "evaporated_kg_m2": [
+      0.293408,
+      0.926374
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 30.0,
+     "lower_thermocouple_c": 19.8529,
+     "nominal_irradiation_kj_m2": 1500.0,
+     "remaining_kg_m2": [
+      14.337371,
+      16.173611
+     ],
+     "remaining_level_mm": [
+      20.961069,
+      23.64563
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      -95.596913,
+      1346.55076
+     ],
+     "support_ends_s": 60.0,
+     "upper_thermocouple_c": 48.5294
+    },
+    "second": {
+     "demand_kj_m2": [
+      3326.822419,
+      6847.132159
+     ],
+     "demand_over_nominal": [
+      0.369647,
+      0.760792
+     ],
+     "demand_relative_width": 0.692024,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      3188.034372,
+      5372.803338
+     ],
+     "ends_because": "last marker at which the lower thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 180.0,
+     "evaporated_kg_m2": [
+      8.871431,
+      10.308784
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 180.0,
+     "lower_thermocouple_c": 95.9559,
+     "nominal_irradiation_kj_m2": 9000.0,
+     "remaining_kg_m2": [
+      4.954961,
+      7.595588
+     ],
+     "remaining_level_mm": [
+      7.244095,
+      11.104661
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      138.788046,
+      1474.328821
+     ],
+     "support_ends_s": 180.0,
+     "upper_thermocouple_c": null
+    }
+   }
+  },
+  "H50#3": {
+   "depends_on": [
+    "mass",
+    "temperature"
+   ],
+   "feed_temperature_c": [
+    15.0,
+    30.0
+   ],
+   "mass": {
+    "end_of_fall_s": 255.0,
+    "equivalent_initial_level_mm": [
+     20.710456,
+     21.577968
+    ],
+    "evaporated_kg_m2": [
+     14.165952,
+     14.75933
+    ],
+    "evaporated_over_nominal_charge": [
+     0.747647,
+     0.863119
+    ],
+    "nominal_charge_kg_m2": [
+     17.1,
+     18.947368
+    ],
+    "peak_g_m2_s": 73.8462,
+    "tail_kg_m2": 0.059346
+   },
+   "nominal_irradiation_kw_m2": 50.0,
+   "thermocouples": {
+    "lower": {
+     "highest_near_boiling_c": 104.7794,
+     "immersion_confirmed_until_s": 165.0,
+     "leaves_plateau_minus_end_of_fall_s": null,
+     "leaves_plateau_s": null,
+     "plateau_s": [
+      195.0,
+      240.0
+     ],
+     "start_c": 20.4044,
+     "support_ends_s": 180.0,
+     "usable_until_s": 165.0
+    },
+    "upper": {
+     "highest_near_boiling_c": 102.5735,
+     "immersion_confirmed_until_s": null,
+     "leaves_plateau_minus_end_of_fall_s": -135.0,
+     "leaves_plateau_s": 120.0,
+     "plateau_s": [
+      90.0,
+      105.0
+     ],
+     "start_c": 29.7794,
+     "support_ends_s": 75.0,
+     "usable_until_s": null
+    }
+   },
+   "whole_test": {
+    "demand_kj_kg": [
+     354.501614,
+     521.186916
+    ],
+    "demand_kj_m2": [
+     5021.852849,
+     7692.369682
+    ],
+    "mean_demand_kw_m2": [
+     19.693541,
+     30.166156
+    ],
+    "note": "the pan ends empty, so no stored energy has to be guessed; the surface temperature of the leaving vapour is not measured and spans the whole stated range",
+    "over_geometric_incident": [
+     0.432154,
+     1.082865
+    ],
+    "over_nominal": [
+     0.393871,
+     0.603323
+    ],
+    "role": "demand_diagnostic",
+    "storage_at_end_kj_m2": 0.0
+   },
+   "windows": {
+    "first": null,
+    "second": {
+     "demand_kj_m2": [
+      2966.323907,
+      6037.358595
+     ],
+     "demand_over_nominal": [
+      0.359554,
+      0.731801
+     ],
+     "demand_relative_width": 0.682173,
+     "discriminates_thermal_input": false,
+     "emitted_kj_m2": [
+      2905.358037,
+      4958.717728
+     ],
+     "ends_because": "last marker at which the lower thermocouple stays inside the liquid support and the mass still places the surface above it",
+     "ends_s": 165.0,
+     "evaporated_kg_m2": [
+      8.195613,
+      9.514279
+     ],
+     "geometric_relative_width": 0.482455,
+     "immersion_confirmed_until_s": 165.0,
+     "lower_thermocouple_c": 77.2059,
+     "nominal_irradiation_kj_m2": 8250.0,
+     "remaining_kg_m2": [
+      4.651673,
+      6.563717
+     ],
+     "remaining_level_mm": [
+      6.800692,
+      9.596077
+     ],
+     "stored_kind": "assumption_interval",
+     "stored_kj_m2": [
+      60.96587,
+      1078.640867
+     ],
+     "support_ends_s": 180.0,
+     "upper_thermocouple_c": null
+    }
+   }
+  }
+ },
+ "schema": "g3_cone_evaporation_benchmark_audit_v1",
+ "series_sha256": "3062d34bba0415f88ba362fcfc3a06a400717985054d1fb300e9d57d12a426ae",
+ "sim_implementation": "not_authorised",
+ "support": {
+  "boiling_point_inside_liquid_support": false,
+  "boiling_point_printed_k": 371.65,
+  "consequence": "the plateau of the thermocouples lies outside the liquid support; the windows end before it",
+  "gas_k": [
+   298.135458,
+   469.991581
+  ],
+  "initial_temperature_inside_liquid_support": true,
+  "liquid_k": [
+   279.985531,
+   371.102911
+  ]
+ },
+ "uncertainty": {
+  "between_runs": "reported only as the spread visible in the figures",
+  "combined": null,
+  "instrument": null,
+  "reading": "bitmap resolution of the digitisation, stated per reading"
+ },
+ "usable_temperature_stretch_s": {
+  "lower": {
+   "H25#1": 345.0,
+   "H25#2": 315.0,
+   "H50#1": 180.0,
+   "H50#2": 180.0,
+   "H50#3": 165.0
+  },
+  "upper": {
+   "H25#1": 90.0,
+   "H25#2": null,
+   "H50#1": 45.0,
+   "H50#2": 30.0,
+   "H50#3": null
+  }
+ }
+}

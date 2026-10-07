@@ -1,0 +1,262 @@
+{
+ "schema": "g3_cone_evaporation_benchmark_v1",
+ "date": "2026-10-07",
+ "question": "What the flameless n-heptane evaporation test in a controlled-atmosphere cone calorimeter allows to contrast about liquid heating and emission, without taking imposed irradiation for net absorbed heat.",
+ "source": {
+  "citation": "T. Beji, O. Helson, T. Rogaume, J. Luche, Experimental and numerical study on the evaporation rates of liquid fuels using a controlled atmosphere cone calorimeter, Fire Safety Journal 121 (2021) 103317",
+  "doi": "10.1016/j.firesaf.2021.103317",
+  "bibliographic_check": "volume 121, article 103317 and year 2021 agree in Crossref and in the Ghent University record",
+  "reviewed_version": "accepted version, 37 pages, distributed by the Ghent University repository",
+  "reviewed_url": "https://biblio.ugent.be/publication/8702056",
+  "other_locators": ["https://doi.org/10.1016/j.firesaf.2021.103317", "https://hal.science/hal-03678931"],
+  "document_sha256": "1c82a8219bdd36ddd074ef8cd7c6e627d67ff337dd1c56e6b52b2922bad945ff",
+  "document_bytes": 3933658,
+  "rights": "Ghent record: no license, in copyright; Crossref: copyright 2021 Elsevier Ltd, all rights reserved",
+  "archived_in_repository": false,
+  "reason_not_archived": "access to the accepted version is open, redistribution is not licensed",
+  "published_version_reviewed": false,
+  "published_version_note": "restricted in the Ghent record and closed at the publisher; not obtained",
+  "review": "text of the 37 pages; set-up drawings and photographs (figures 1 and 2), tables 1 to 6 and figures 4, 6 and 7 read on page images",
+  "public_data": {
+   "raw_series_located": false,
+   "status": "not located; whether they exist outside the laboratory is unknown",
+   "searched": [
+    "accepted version: no data availability statement and no supplementary material mentioned",
+    "Crossref record of the article: no relation to a dataset or supplement",
+    "Ghent University record: two files, accepted version (open) and published article (restricted); no dataset",
+    "HAL record hal-03678931: metadata pointing to the Ghent file; no dataset",
+    "DataCite search for controlled atmosphere cone calorimeter evaporation: no record",
+    "Zenodo search for cone calorimeter heptane evaporation: no matching record",
+    "OpenAlex: no dataset attached to the work; seven citing works, none a data publication",
+    "MaCFP repositories macfp-db, matl-db and radi-db: no cone evaporation case"
+   ]
+  }
+ },
+ "objects": {
+  "nominal_irradiation": "set point of the cone, checked with a heat flux gauge at one point before each test; nominal",
+  "incident_irradiation": "irradiation arriving at the regressing liquid surface during the test; calculated from geometry, not measured",
+  "net_absorbed_heat": "net heat crossing the boundary of the liquid; not identified",
+  "demand_diagnostic": "energy the evaporated mass and the warming liquid must have received; rebuilt from the observables, never an independent input"
+ },
+ "setup": {
+  "cone": {"base_radius_mm": 80.0, "top_radius_mm": 40.0, "height_mm": 68.0, "class": "nominal", "where": "section 2.5.1 and drawing of figure 2"},
+  "gap_rim_to_cone_mm": {"value": 25.0, "class": "nominal", "where": "protocol, step 1"},
+  "distance_initial_surface_to_cone_mm": {"value": 40.0, "class": "calculated", "where": "protocol, step 1: 25 mm plus the lip"},
+  "pan": {
+   "inner_side_mm": {"value": 98.0, "tolerance": 2.0, "alternatives": [95.0, 100.0], "class": "measured", "where": "section 2.2",
+                     "note": "the drawing of figure 2 prints 95; the evaporation time of 168 s quoted for equation 14 is reproduced only with 0.10 m by 0.10 m"},
+   "depth_mm": {"value": 40.0, "tolerance": 2.0, "class": "measured", "where": "section 2.2"},
+   "wall_mm": {"value": 2.1, "tolerance": 0.2, "class": "measured", "where": "section 2.2"},
+   "material": {"value": "stainless steel", "class": "nominal", "where": "section 2.2"},
+   "insulation": {"value": "calcium silicate, about 18 mm at the sides and about 57 mm below", "class": "nominal", "where": "section 2.2"},
+   "temperature": {"value": null, "class": "unknown", "note": "no thermocouple on the pan"}
+  },
+  "charge": {
+   "volume_ml": {"value": 250.0, "class": "nominal", "where": "section 2.2"},
+   "lip_mm": {"value": 15.0, "class": "nominal", "where": "section 2.2, approximately"},
+   "initial_mass_per_run": {"value": null, "class": "unknown", "note": "not reported; spillage before the test is reported for unnamed runs"},
+   "initial_level_mm": {"value": 25.0, "class": "calculated", "where": "pan depth minus lip; 250 ml over 98 mm by 98 mm gives 26.0"},
+   "initial_temperature_c": {"value": [15.0, 19.0], "class": "measured", "where": "section 2.2, stated range for all tests"}
+  },
+  "levels_mm": {"initial_nominal": 25.0, "upper_thermocouple": 19.0, "lower_thermocouple": 6.0, "empty": 0.0},
+  "thermocouples": {
+   "lower_height_mm": {"value": 6.0, "class": "nominal", "where": "section 2.2"},
+   "upper_height_mm": {"value": 19.0, "alternatives": [20.0], "class": "nominal", "where": "section 2.2 and caption of figure 6 say 19; section 2.5.2 and captions of figures 14 and 15 say 20"},
+   "bead_mm": {"value": 1.5, "class": "nominal", "where": "section 2.5.2"},
+   "in_liquid": {"value": "two at the centre, two at 1 cm from the side, same heights", "class": "nominal", "where": "section 2.2"},
+   "in_gas": {"value": "two at about 33 mm from the bottom, centre and near the wall", "class": "nominal", "where": "section 2.2"},
+   "published": {"value": "centre pair only; the near-wall pair is said to be quite similar and is not shown; the gas pair is not shown", "class": "nominal", "where": "section 2.5.2"},
+   "type_and_uncertainty": {"value": null, "class": "unknown"},
+   "surface_temperature": {"value": null, "class": "unknown", "note": "not measured"},
+   "profile_measured": false
+  },
+  "balance": {
+   "resolution_g": {"value": 0.01, "class": "nominal", "where": "section 2.2"},
+   "recording_step_s": {"value": 1.0, "class": "nominal", "where": "section 2.5.1"},
+   "published_form": {"value": "rate per unit area averaged every 15 s, as curves in figure 4", "class": "calculated", "where": "section 2.5.1"},
+   "area_used_for_the_rate": {"value": null, "class": "unknown"},
+   "placement_of_each_mean_in_its_block": {"value": null, "class": "unknown"},
+   "drift": {"value": null, "class": "unknown", "note": "a cooled gypsum board is fitted to limit it; no figure is given"}
+  },
+  "irradiation": {
+   "nominal_levels_kw_m2": {"value": [25.0, 50.0], "class": "nominal", "where": "section 2.2"},
+   "check_before_each_test": {"value": "Schmidt-Boelter gauge at the centre of the initial liquid surface position", "class": "nominal", "where": "section 2.2 and protocol, step 3"},
+   "reading_and_uncertainty_of_the_check": {"value": null, "class": "unknown"},
+   "irradiation_during_the_test": {"value": null, "class": "unknown", "note": "no gauge during the test"}
+  },
+  "atmosphere": {
+   "nitrogen_flow_l_min": {"value": 145.0, "tolerance": 5.0, "class": "measured", "where": "section 2.1"},
+   "inlets_mm": {"value": 19.5, "tolerance": 0.5, "class": "measured", "where": "section 2.1"},
+   "oxygen": {"value": "average not above 5 % in any test; typically below 2 % once stable", "class": "measured", "where": "section 2.1 and protocol, step 6", "note": "series not published; the enclosure is not fully sealed"},
+   "pressure": {"value": null, "class": "unknown"},
+   "extraction_flow": {"value": null, "class": "unknown"},
+   "fuel_vapour_concentration": {"value": null, "class": "unknown", "note": "not measured"},
+   "gas_temperature_above_the_liquid": {"value": null, "class": "unknown", "note": "measured, not published"}
+  },
+  "liquid_declared": {
+   "purity": "at least 99 %", "density_kg_m3": 684.0, "density_at_c": 25.0, "cp_kj_kg_k": 2.24, "latent_kj_kg": 315.0, "boiling_c": 98.5,
+   "class": "assumed", "where": "table 1, taken by the authors from another paper",
+   "note": "used here only to reproduce the authors' own figures and to convert mass into a nominal level; the energy sums use the approved SimuFire profiles"
+  },
+  "steel_simulation_properties": {"density_kg_m3": 8000.0, "conductivity_w_m_k": 40.0, "cp_kj_kg_k": 0.4, "class": "assumed", "where": "table 4"},
+  "reflectivity_assumed": {"value": 0.08, "class": "assumed", "where": "section 3.3.3, taken from another paper for a wide range of liquids"},
+  "authors_view_factor": {"start": 0.95, "end": 0.70, "class": "calculated", "where": "section 2.5.1 and table 6", "note": "average over the surface, the centre at the start taken as 1; the rim is not considered"}
+ },
+ "tests": [
+  {"id": "H25#1", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4a", "temperature_curves": ["figure 6a", "figure 7a"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 126.0, "plus_minus": 8.0, "class": "measured"}},
+   "flags": ["residual evaporation after the fall, attributed by the authors to spillage inside the enclosure"]},
+  {"id": "H25#2", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4a", "temperature_curves": ["figure 6a", "figure 7a"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 126.0, "plus_minus": 6.0, "class": "measured"}},
+   "flags": []},
+  {"id": "H25#3", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4a", "temperature_curves": [],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": null, "class": "unknown"}},
+   "flags": ["no temperature curve shown"]},
+  {"id": "H25#4", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4a", "temperature_curves": ["figure 6a", "figure 7a"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": false, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 125.0, "plus_minus": 7.0, "class": "measured"}},
+   "flags": ["variant: extraction off"]},
+  {"id": "H25#5", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4a", "temperature_curves": ["figure 6a", "figure 7a"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": false, "class": "nominal"}, "duct_gas_temperature_c": {"value": 116.0, "plus_minus": 14.0, "class": "measured"}},
+   "flags": ["variant: holder not insulated, a vermiculite plate under the pan"]},
+  {"id": "H50#1", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 50.0, "mass_curve": "figure 4b", "temperature_curves": ["figure 6b", "figure 7b"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 164.0, "plus_minus": 13.0, "class": "measured"}},
+   "flags": ["residual evaporation after the fall, attributed by the authors to spillage inside the enclosure"]},
+  {"id": "H50#2", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 50.0, "mass_curve": "figure 4b", "temperature_curves": ["figure 6b", "figure 7b"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 168.0, "plus_minus": 11.0, "class": "measured"}},
+   "flags": ["residual evaporation after the fall visible in the figure; not named by the authors"]},
+  {"id": "H50#3", "liquid": "n-heptane", "nominal_irradiation_kw_m2": 50.0, "mass_curve": "figure 4b", "temperature_curves": ["figure 6b", "figure 7b"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 174.0, "plus_minus": 7.0, "class": "measured"}},
+   "flags": []},
+  {"id": "M25#1", "liquid": "methanol", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4c", "temperature_curves": ["figure 6c", "figure 7c"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 122.0, "plus_minus": 8.0, "class": "measured"}},
+   "flags": ["no approved property profile for methanol"]},
+  {"id": "M25#2", "liquid": "methanol", "nominal_irradiation_kw_m2": 25.0, "mass_curve": "figure 4c", "temperature_curves": ["figure 6c", "figure 7c"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 119.0, "plus_minus": 9.0, "class": "measured"}},
+   "flags": ["no approved property profile for methanol"]},
+  {"id": "M50#1", "liquid": "methanol", "nominal_irradiation_kw_m2": 50.0, "mass_curve": "figure 4d", "temperature_curves": ["figure 6d", "figure 7d"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 162.0, "plus_minus": 30.0, "class": "measured"}},
+   "flags": ["no approved property profile for methanol"]},
+  {"id": "M50#2", "liquid": "methanol", "nominal_irradiation_kw_m2": 50.0, "mass_curve": "figure 4d", "temperature_curves": ["figure 6d", "figure 7d"],
+   "fields": {"irradiation": {"class": "nominal"}, "extraction_on": {"value": true, "class": "nominal"}, "insulated": {"value": true, "class": "nominal"}, "duct_gas_temperature_c": {"value": 170.0, "plus_minus": 14.0, "class": "measured"}},
+   "flags": ["no approved property profile for methanol"]}
+ ],
+ "test_matrix_notes": {
+  "plus_minus_of_the_duct_temperature": "its meaning is not stated",
+  "repetitions": "three at each level in the reference configuration for n-heptane; two for methanol",
+  "synchrony": "the paper does not state that the mass and temperature curves labelled alike were acquired in the same run, though the protocol starts all acquisitions together; curves are paired here by label only",
+  "low_oxygen": "a means to prevent ignition; it is not a validation of under-ventilated residential combustion"
+ },
+ "corpus": {
+  "criteria_fixed_before_reading_values": [
+   "n-heptane only, the fuel with approved property profiles",
+   "reference configuration only: extraction on and insulated holder",
+   "every repetition that meets the two previous criteria at both irradiation levels, with no choice by agreement",
+   "a run enters the heating corpus only if both of its centre temperature curves are shown"
+  ],
+  "runs": [
+   {"run": "H25#1", "role": "mass_and_temperature"},
+   {"run": "H25#2", "role": "mass_and_temperature"},
+   {"run": "H25#3", "role": "mass_only"},
+   {"run": "H50#1", "role": "mass_and_temperature"},
+   {"run": "H50#2", "role": "mass_and_temperature"},
+   {"run": "H50#3", "role": "mass_and_temperature"}
+  ],
+  "excluded": [
+   {"run": "H25#4", "reason": "variant without extraction"},
+   {"run": "H25#5", "reason": "variant without insulation"},
+   {"run": "M25#1, M25#2, M50#1, M50#2", "reason": "methanol: no approved profile"}
+  ]
+ },
+ "digitisation": {
+  "nature": "digitisation of published figures; not raw data",
+  "script": "scripts/simulation/digitise_g3_cone_benchmark_figures.py",
+  "figures": ["figure 4, panels a and b", "figure 6, panels a and b", "figure 7, panels a and b"],
+  "method": "each marker located by matching its shape at multiples of 15 s; pixels of other curves treated as unknown",
+  "reading_half_width": "1.5 pixels of the embedded bitmap, 3 pixels when partly hidden; a hidden marker is given as the range it can occupy",
+  "resolution": {"figure_4a_g_m2_s_per_px": 0.21978, "figure_4b_g_m2_s_per_px": 0.43956, "temperature_c_per_px": 0.551471},
+  "acquisition_rate_recoverable": false,
+  "instrument_uncertainty_recoverable": false,
+  "series_sha256": "3062d34bba0415f88ba362fcfc3a06a400717985054d1fb300e9d57d12a426ae",
+  "series_published": false,
+  "reason_series_not_published": "derived from figures of a copyrighted article; publication of the series is left to a decision of the project owner",
+  "published_instead": "docs/validation/G3_D1_CONE_EVAPORATION_BENCHMARK_AGGREGATES_2026-10-07.json"
+ },
+ "support": {
+  "liquid_lower_k": 279.985531, "liquid_upper_k": 371.102911,
+  "gas_lower_k": 298.135458, "gas_upper_k": 469.991581,
+  "rule": "nothing is evaluated outside the approved supports and no reading is clipped to them"
+ },
+ "windows": {
+  "first": "from the first marker to the last marker at which the upper thermocouple, with its reading range, stays inside the liquid support: both centre thermocouples are liquid temperatures with support",
+  "second": "from the end of the first window to the last marker at which the lower thermocouple stays inside the support: only the lower thermocouple has support",
+  "third": "from the end of the second window to the end of the fall of the mass loss rate: no liquid temperature with support, mass only",
+  "fixed_by": "the property support and the readings themselves; no candidate model is involved"
+ },
+ "balance": {
+  "control_volume": "the liquid in the pan, open at its surface, at constant pressure",
+  "sign": "heat entering the liquid is positive",
+  "identity": "net heat = change of the sensible energy stored in the remaining liquid + mass emitted times the enthalpy from liquid at its initial state to vapour at the surface temperature",
+  "feed_temperature_c": [15.0, 30.0],
+  "feed_temperature_note": "stated initial range 15 to 19 C; the upper thermocouple reads 20 to 30 C at the first marker, so the liquid is not uniform at the start; the range is an assumption interval, the liquid above the upper thermocouple is not measured",
+  "surface_temperature_c": [25.0, 98.5],
+  "surface_temperature_note": "not measured; from the lowest temperature of the approved gas profile to the boiling point printed in the paper; mass emitted with a colder surface is not covered",
+  "not_in_the_control_volume": ["steel pan", "insulation", "gas and vapour above the surface"]
+ },
+ "thermal_input": {
+  "in_test_irradiation_measured": false,
+  "nominal_checked_before_test": true,
+  "gas_side_measured": false
+ },
+ "frontier_terms": [
+  {"key": "set_point_at_calibration_point", "identification": "nominal", "evidence": "the check before each test is described; its reading and uncertainty are not reported"},
+  {"key": "distribution_over_surface_and_level", "identification": "calculated_range", "evidence": "geometric factor under a uniform diffuse emitter; depends on a level that is not measured"},
+  {"key": "rim_shading_and_wall_reflection", "identification": "calculated_range", "evidence": "shading calculated here with an opaque non-reflecting rim; reflection by the steel wall unknown"},
+  {"key": "attenuation_by_fuel_vapour", "identification": "unknown", "evidence": "proposed by the authors; vapour concentration not measured"},
+  {"key": "surface_reflection", "identification": "assumed", "evidence": "0.08 taken by the authors from another paper"},
+  {"key": "surface_emission", "identification": "bounded", "evidence": "at most black-body emission at the boiling point, about 1.1 kW/m2"},
+  {"key": "convection_with_the_gas", "identification": "unknown", "evidence": "gas thermocouples not published; set to zero in the authors' simulations"},
+  {"key": "exchange_with_the_pan", "identification": "unknown", "evidence": "no pan temperature; the pan holds about half the heat capacity of the liquid charge"},
+  {"key": "transmission_to_the_pan_bottom", "identification": "unknown", "evidence": "absorption coefficient explored by the authors over two orders of magnitude"},
+  {"key": "loss_through_insulation", "identification": "assumed", "evidence": "taken as negligible from the similarity of one uninsulated run"}
+ ],
+ "authors_peak_comparison": {
+  "where": "table 3",
+  "n_heptane": [
+   {"nominal_kw_m2": 25.0, "measured_g_m2_s": 48.0, "estimated_g_m2_s": 79.0, "printed_deviation": -0.39},
+   {"nominal_kw_m2": 50.0, "measured_g_m2_s": 86.0, "estimated_g_m2_s": 158.0, "printed_deviation": -0.46}
+  ],
+  "methanol": [
+   {"nominal_kw_m2": 25.0, "measured_g_m2_s": 21.0, "estimated_g_m2_s": 23.0, "printed_deviation": -0.09},
+   {"nominal_kw_m2": 50.0, "measured_g_m2_s": 37.0, "estimated_g_m2_s": 45.0, "printed_deviation": -0.18}
+  ]
+ },
+ "discrepancy": {
+  "authors_equation": "peak rate = net heat flux over latent heat, with the net heat flux set equal to the nominal irradiation",
+  "causes": [
+   {"cause": "lower view factor as the surface regresses", "status": "calculated by the authors: 5 to 30 % below nominal; said not to explain the deviation fully"},
+   {"cause": "surface reflection, surface emission and conduction to the pan walls", "status": "said not to be substantial after preliminary calculations that are not shown"},
+   {"cause": "vapour accumulating in the chamber and making evaporation depend on concentration gradients", "status": "proposed by the authors as likely; no vapour concentration was measured"},
+   {"cause": "further reduction of the view factor by the rim", "status": "mentioned by the authors; not calculated by them"},
+   {"cause": "attenuation of the cone radiation by the vapour", "status": "proposed by the authors; not measured"},
+   {"cause": "nominal irradiation lowered by 20 % in the simulations", "status": "chosen afterwards so that the simulated mass loss matched; a fit, not a measurement"}
+  ]
+ },
+ "authors_guide_lines": {
+  "what": "one vertical line per temperature panel: the authors' estimate of when the surface reaches the thermocouple, deduced from liquid heights calculated from the mass loss rate",
+  "class": "calculated",
+  "run_used": "not stated"
+ },
+ "contract": {
+  "independent_inputs": ["nominal irradiation level", "declared geometry of cone and pan", "nominal charge of 250 ml", "stated initial temperature range", "approved n-heptane profiles"],
+  "not_inputs": ["net absorbed heat", "irradiation on the surface during the test", "initial mass of each run", "surface temperature"],
+  "initial_state": "liquid between 15 and 19 C as stated, not uniform at the first marker; level known only as nominal",
+  "contrast_observables": ["accumulated mass per unit area at the markers", "centre temperature at the lower height inside the first and second windows", "centre temperature at the upper height inside the first window"],
+  "boundary_conditions_unknown": ["pan temperature", "gas temperature and vapour concentration above the liquid", "irradiation during the test"],
+  "range": "n-heptane, 250 ml in a 98 mm square steel pan, nominal 25 and 50 kW/m2, liquid from about 290 K to the upper end of the approved liquid support",
+  "uncertainties_known": ["reading range of the digitisation", "spread between repetitions visible in the figures", "stated dimensional tolerances"],
+  "uncertainties_absent": ["heat flux gauge", "thermocouples", "balance drift", "area used for the rate", "total uncertainty of any quantity"],
+  "calibratable_parameters": ["absorbed fraction of the nominal irradiation", "effective transport inside the liquid", "absorption depth of the radiation", "initial level of each run"],
+  "calibration_and_validation_split": "curves at one irradiation level may calibrate; only curves at the other level, never read during calibration, may serve as contrast; no curve serves both purposes",
+  "cannot_be_claimed": ["net heat absorbed by the fuel", "a law of emission", "a mean or surface temperature of the liquid", "validity under flame or with oxygen", "validation of CO or FED"]
+ }
+}

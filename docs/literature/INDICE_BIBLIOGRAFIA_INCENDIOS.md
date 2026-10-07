@@ -34,6 +34,18 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 07-10, segunda del dia: gate propio del
+ensayo de evaporacion sin llama en cono,
+[decision](../validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md).
+Beji, Helson, Rogaume y Luche, Fire Saf. J. 121 (2021) 103317,
+[version aceptada en el repositorio de Gante](https://biblio.ugent.be/publication/8702056),
+SHA-256 1c82a821...945ff. Sigue siendo solo localizador: con copyright y
+sin licencia de redistribucion, no se incorpora ni entra en el manifiesto.
+Version publicada no obtenida. Datos digitales y material suplementario no
+localizados (Crossref, Gante, HAL, DataCite, Zenodo, OpenAlex y MaCFP). La
+serie digitalizada de sus figuras tampoco se publica. Manifiesto sin
+cambio: 50 entradas. Ninguna activacion fisica.
+
 Actualizacion adicional del 07-10: revision del gate de B neto,
 [decision corregida](../validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md).
 Luketa, Sandia SAND2010-2511 (2010), analisis del propio laboratorio de

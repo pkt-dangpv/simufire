@@ -217,6 +217,13 @@ Tres, como máximo. Ninguna identifica hoy B neto.
 El ensayo de cono **no es validación de un incendio**. Sirve porque separa
 el calentamiento del líquido de la llama.
 
+> **Evaluado después en su propio gate**, el
+> [ensayo de cono como benchmark](G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md),
+> que precisa dos frases de la tabla: de los cuatro termopares del líquido
+> solo se publican los dos del centro, y la entrada «impuesta» es la
+> consigna nominal, no el calor absorbido. Su resultado: benchmark parcial;
+> el calor neto sigue sin identificar.
+
 ## Qué falta y qué lo resolvería
 
 | Dato que falta | Qué deja indeterminado | Qué lo resolvería |
