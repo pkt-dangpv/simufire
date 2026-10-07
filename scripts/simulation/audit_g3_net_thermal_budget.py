@@ -17,6 +17,14 @@ An unknown term stays unknown: it is named, never filled in so that the
 residual closes. An absent uncertainty is null, never zero. Temperatures
 outside an approved profile are refused, not clipped. Nothing here starts
 Godot, reads the engine or writes a file.
+
+REVISION OF 2026-10-07. `audit()` reproduces the record of 2026-10-06 and is
+kept as history. Its verdict on B, a partial GO as a bounded rate, is
+WITHDRAWN: the band it reported is the gauge reading times a reflection range
+and bounds none of the other terms that act between the gauge plane and the
+liquid. `review()` gives the current decision. It keeps four objects apart:
+the reading at the gauge plane, the conditional band, the net heat at the
+boundary of the liquid and the demand built from the mass.
 """
 from __future__ import annotations
 
@@ -40,6 +48,16 @@ INPUT = ROOT / "docs/validation/G3_D1_NET_THERMAL_BUDGET_INPUTS_2026-10-06.json"
 SAVED = ROOT / "docs/validation/G3_D1_NET_THERMAL_BUDGET_AUDIT_2026-10-06.json"
 # Pins the whole reviewed record: values, locators, term classification and approvals.
 REVIEW_SHA256 = "b224c4bddfc1311fedd9e6e8f0562f6ab0f925cc08e2949053ff4044ffa9d32c"
+REVIEW_INPUT = ROOT / "docs/validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_INPUTS_2026-10-07.json"
+REVIEW_SAVED = ROOT / "docs/validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_AUDIT_2026-10-07.json"
+# Pins the revision record: evidence, locators, class of every term, corrections and approvals.
+REVISION_SHA256 = "fdbdbc705d65dfa8d8848a30f5bfbad8714cd07ca9c17ce86931a72ab3d9ea8e"
+SUPERSEDED_VERDICT = "GO_partial_bounded_stationary_rate_NO_GO_point_value"
+STEFAN_BOLTZMANN_W_M2_K4 = 5.670374419e-8
+# A frontier term counts towards identification only in these classes.
+BOUNDING_CLASSES = ("measured", "bounded")
+TERM_CLASSES = BOUNDING_CLASSES + ("laboratory_range", "laboratory_assumption", "estimated_from_figure",
+                                   "assumed_equal_to_pre_ignition_liquid", "unknown")
 LIQUID = "g3_real_liquid_isobaric_cp_v1"
 GAS = "g3_real_ideal_gas_cp_v1"
 KELVIN = 273.15
@@ -353,16 +371,182 @@ def audit(record=None, root=ROOT):
     }
 
 
+def blackbody_kw_m2(temperature_k):
+    """Emission of a black surface, kW/m2. An upper bound of what a surface at that temperature emits."""
+    temperature = number(temperature_k, "temperature")
+    if temperature <= 0.0:
+        raise ValueError("an absolute temperature is required")
+    return STEFAN_BOLTZMANN_W_M2_K4 * temperature ** 4 / 1000.0
+
+
+def frontier_status(terms):
+    """Class of every frontier term, and which of them stop the identification of B."""
+    classes = {}
+    for name, term in terms.items():
+        if term.get("class") not in TERM_CLASSES:
+            raise ValueError(f"frontier term {name} has no recognised class")
+        classes[name] = term["class"]
+    acting = [name for name, term in terms.items() if term["side"] == "frontier"]
+    if "gauge_plane_to_surface" not in acting:
+        raise ValueError("the step from the gauge plane to the liquid surface must be a frontier term")
+    blocking = sorted(name for name in acting if classes[name] not in BOUNDING_CLASSES)
+    return classes, acting, blocking
+
+
+def conditional_net_range(reading_kw, area_m2, terms, gauge_exploration=None):
+    """What B would be IF the unbounded terms were zero. A scenario of assumptions, not an identified interval.
+
+    It takes no mass. `gauge_exploration` widens the reading by the fraction the laboratory explores.
+    """
+    reading = number(reading_kw, "gauge reading")
+    area = number(area_m2, "area")
+    low_r, high_r = (fraction(v, "reflection") for v in terms["surface_reflection"]["range_fraction_of_reading"])
+    emission = [number(v, "emission") * area for v in terms["surface_emission"]["bound_kw_m2"]]
+    bottom = [number(v, "bottom loss") * area for v in terms["pan_bottom_and_ground_loss"]["range_kw_m2"]]
+    spread = 0.0 if gauge_exploration is None else fraction(gauge_exploration, "gauge exploration")
+    return [reading * (1.0 - spread) * (1.0 - high_r) - max(emission) - max(bottom),
+            reading * (1.0 + spread) * (1.0 - low_r) - min(emission) - min(bottom)]
+
+
+def storage_estimate_kw(props, area_m2, term, feed_k):
+    """Growth of the sensible storage of the LIQUID only. A demand-side term, never a loss at the boundary."""
+    density = real.load_profile(real.INPUT)["review"]["liquid"]["density"]
+    rho = number(density["rho_20_c_g_ml"], "density") * 1000.0
+    cp = profiles._cp(props["liquid"], number(feed_k, "temperature"))
+    depths = [number(v, "depth") for v in term["fuel_depth_m"]]
+    rates = [number(v, "rate") for v in term["bottom_thermocouple_rate_k_per_min"]]
+    if min(depths) <= 0.0 or min(rates) < 0.0:
+        raise ValueError("depth must be positive and a warming rate nonnegative")
+    mass = [number(area_m2, "area") * depth * rho for depth in depths]
+    capacity = [value * cp for value in mass]
+    return {"liquid_mass_kg_range": mass, "liquid_heat_capacity_kj_k_range": capacity,
+            "storage_kw_range": [min(capacity) * min(rates) / 60.0, max(capacity) * max(rates) / 60.0],
+            "kind": term["class"], "is_a_bound": False, "side": "demand",
+            "solids_included": False}
+
+
+def review_decisions(blocking, strict_available):
+    """Seven separate decisions. B is identified only when no frontier term blocks it."""
+    identified = not blocking
+    return {
+        "sandia_as_contrast": "GO_partial_gauge_plane_flux_and_mass_rate_as_documented_observables",
+        "gauge_plane_heat": "GO_partial_measured_observable_without_combined_uncertainty",
+        "net_B": "GO_partial_bounded" if identified else "NO_GO_not_identified",
+        "stationary_balance": ("GO_partial" if identified and strict_available else
+                               "NO_GO_inconclusive_residual_does_not_identify_its_components"),
+        "transient_balance": "NO_GO",
+        "thermal_prediction": "NO_GO",
+        "emission_prediction": "NO_GO",
+        "previous_net_B_verdict": SUPERSEDED_VERDICT,
+        "previous_net_B_verdict_status": "withdrawn" if not identified else "confirmed",
+    }
+
+
+def review(record=None, root=ROOT):
+    """Current decision. It reuses the calculations of `audit()` and reclassifies what they support."""
+    root = Path(root).resolve()
+    if record is None:
+        record = load_profile(root / REVIEW_INPUT.relative_to(ROOT))
+    keys = {"schema", "reviewed_at", "revises", "sources", "search", "corrections_to_2026_10_06", "objects",
+            "frontier_terms", "demand_terms", "laboratory_balance_for_heptane", "uncertainty_kinds",
+            "alternatives", "rule", "review"}
+    if not isinstance(record, dict) or record.get("schema") != "g3_net_thermal_budget_revision_v1" \
+            or set(record) != keys:
+        raise ValueError("unreviewed revision record")
+    reviewed = json.dumps(record, sort_keys=True, allow_nan=False).encode("utf-8")
+    if hashlib.sha256(reviewed).hexdigest() != REVISION_SHA256:
+        raise ValueError("unreviewed evidence, class of a term, correction or approval")
+    if any(value is not False for value in record["review"].values()):
+        raise ValueError("an approval was promoted")
+    if record["revises"]["record_sha256"] != REVIEW_SHA256 or \
+            record["revises"]["withdrawn_verdict"] != SUPERSEDED_VERDICT:
+        raise ValueError("the revision does not point at the record it revises")
+    for name in ["sandia_2011", "luketa_2010"]:
+        source = record["sources"][name]
+        confined_artifact(root, {"path": source["path"], "sha256_raw": source["sha256_raw"]}, text=False)
+    previous = audit(None, root)
+    if previous["decisions"]["net_B_identifiability"] != SUPERSEDED_VERDICT:
+        raise ValueError("the historical audit no longer reproduces the verdict under revision")
+    props = properties(root)
+    terms = record["frontier_terms"]
+    classes, acting, blocking = frontier_status(terms)
+    demand_terms = record["demand_terms"]
+    if any(term["side"] != "demand" for term in demand_terms.values()):
+        raise ValueError("a demand term was placed at the boundary")
+    emission_bound = blackbody_kw_m2(371.0)
+    if abs(emission_bound - max(terms["surface_emission"]["bound_kw_m2"])) > 5.0e-5:
+        raise ValueError("the emission bound is not the black-body value it claims to be")
+    selected = previous["sandia_2m"]
+    area = selected["area_m2"]
+    exploration = terms["gauge_plane_to_surface"]["laboratory_exploration_fraction"]
+    runs = {}
+    for name in selected["tests_in_balance"]:
+        run = selected["tests"][name]
+        reading = run["gauge_power_kw"]
+        low_r, high_r = terms["surface_reflection"]["range_fraction_of_reading"]
+        storage = storage_estimate_kw(props, area, demand_terms["liquid_storage_growth"], run["feed_temperature_k"])
+        band = [independent_rate_kw(reading, high_r), independent_rate_kw(reading, low_r)]
+        runs[name] = {
+            "gauge_plane_reading_kw": reading,
+            "conditional_band_kw": band,
+            "conditional_band_is_net_B": False,
+            "net_B_kw": None, "net_B_kw_range": None,
+            "scenario_if_gauge_plane_equals_surface_kw": conditional_net_range(reading, area, terms),
+            "scenario_with_laboratory_exploration_kw": conditional_net_range(reading, area, terms, exploration),
+            "scenarios_are_identified_intervals": False,
+            "demand_kw_range": run["demand_kw_range"], "demand_uses_mass": True,
+            "storage_estimate": storage,
+            "demand_plus_storage_kw_range": [run["demand_kw_range"][0] + storage["storage_kw_range"][0],
+                                             run["demand_kw_range"][1] + storage["storage_kw_range"][1]],
+            "residual_band_minus_demand_kw_range": [band[0] - run["demand_kw_range"][1],
+                                                    band[1] - run["demand_kw_range"][0]],
+            "residual_identifies_components": False,
+        }
+    balance = record["laboratory_balance_for_heptane"]
+    measured = number(balance["measured_mass_flux_kg_m2_s"], "mass flux")
+    lab_gap = [number(balance[key], key) / measured - 1.0 for key in
+               ["calculated_mass_flux_fuego_kg_m2_s", "calculated_mass_flux_eq17_kg_m2_s"]]
+    return {
+        "schema": "g3_net_thermal_budget_revision_audit_v1",
+        "revises_record_sha256": REVIEW_SHA256, "revision_record_sha256": REVISION_SHA256,
+        "objects": record["objects"],
+        "frontier_term_class": classes, "frontier_terms_acting": sorted(acting),
+        "frontier_terms_blocking_identification": blocking,
+        "emission_bound_kw_m2": emission_bound,
+        "emission_at_measured_surface_kw_m2": blackbody_kw_m2(selected["tests"][selected["tests_in_balance"][0]]
+                                                              ["surface_temperature_k"]),
+        "runs": runs,
+        "laboratory_balance_relative_gap": lab_gap,
+        "storage_scale_correction_factor_range": [min(r["storage_estimate"]["liquid_mass_kg_range"]) /
+                                                  previous["sensitivities"]["liquid_inventory_above_baffle_kg"]
+                                                  for r in list(runs.values())[:1]] +
+                                                 [max(r["storage_estimate"]["liquid_mass_kg_range"]) /
+                                                  previous["sensitivities"]["liquid_inventory_above_baffle_kg"]
+                                                  for r in list(runs.values())[:1]],
+        "strict_criterion_fraction": None, "mass_rate_uncertainty_fraction":
+            demand_terms["mass_rate"]["uncertainty_fraction"],
+        "total_uncertainty_of_B": record["uncertainty_kinds"]["total_uncertainty_of_B"],
+        "loose_threshold_role": "contrast_between_two_estimates_only",
+        "decisions": review_decisions(blocking, strict_available=False),
+        "alternatives_examined": sorted(record["alternatives"]),
+        "predictive_thermal_input_approval": False, "predictive_emission_approval": False,
+        "engine_integration": False, "production_activation": False, "co_fed_approval": False,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="compare with the saved audit; write nothing")
+    parser.add_argument("--check", action="store_true", help="compare with the saved results; write nothing")
+    parser.add_argument("--history", action="store_true", help="print the superseded audit of 2026-10-06")
     args = parser.parse_args()
-    result = audit()
     if args.check:
-        saved = json.loads(SAVED.read_text(encoding="utf-8"))
-        print(json.dumps({"matches_saved": saved == json.loads(json.dumps(result))}))
-        return 0 if saved == json.loads(json.dumps(result)) else 1
-    print(json.dumps(result, indent=2, allow_nan=False))
+        matches = {"history_2026_10_06": json.loads(SAVED.read_text(encoding="utf-8")) ==
+                   json.loads(json.dumps(audit())),
+                   "review_2026_10_07": json.loads(REVIEW_SAVED.read_text(encoding="utf-8")) ==
+                   json.loads(json.dumps(review()))}
+        print(json.dumps(matches))
+        return 0 if all(matches.values()) else 1
+    print(json.dumps(audit() if args.history else review(), indent=2, allow_nan=False))
     return 0
 
 

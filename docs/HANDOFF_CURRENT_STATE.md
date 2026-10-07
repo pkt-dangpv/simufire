@@ -1,6 +1,44 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-07 - Revisión del gate de B neto: GO parcial retirado
+
+[Revisión del gate de B neto](validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md):
+revisión científica offline, sin cambios en `sim/` y sin Godot.
+**B neto: NO-GO, no identificado.** El GO parcial del 06-10 como «tasa
+estacionaria acotada» se retira: la banda de 84 a 99 kW era la lectura de
+las galgas por un rango de reflexión, y coincidir con una demanda hecha
+con la masa no acota los demás términos.
+Se separan cuatro objetos: lectura en el plano de las galgas (medida),
+banda condicional (calculada), B neto (no identificado) y demanda
+(diagnóstica). De seis términos de frontera, cinco bloquean la
+identificación; solo la emisión de la superficie está acotada.
+**Evidencia nueva:** Luketa, SAND2010-2511, análisis del propio
+laboratorio. A 1 ft una galga a 1,27 cm lee un 20 % más que a ras, sin
+trasladarlo a 2 m; explora ±30 % en la lectura como cuestión abierta;
+absorción por hollín frío y gases en la cúpula; fondo sin aislar con 0,2 a
+2 kW/m² supuestos; heptano semitransparente. Su balance del heptano no
+cierra: −25 y −43 %.
+**Correcciones al 06-10:** inventario de líquido de 45 a 55 mm, no 19 mm;
+los 47 kW de recalentamiento del vapor se retiran como evidencia; criterio
+estricto retirado; el criterio laxo es solo umbral de contraste.
+El almacenamiento queda en la demanda, no en la frontera; la transmisión
+por el líquido es redistribución interna. Incertidumbre total de B `null`.
+Decisiones: Sandia como contraste GO parcial; calor en el plano de la
+galga GO parcial; B neto, balance estacionario, transitorio, predicción
+térmica y de emisión NO-GO.
+Resultados negativos: artículo de los espectros localizado y no obtenido;
+datos brutos y ensayos de 1 ft no localizados. Alternativa examinada: un
+ensayo de evaporación de heptano sin llama en cono, la mejor para el
+calentamiento y todavía sin identificar el calor neto.
+Auditor extendido conservando la historia y 31 pruebas offline nuevas;
+focal 365 passed. ALL GUARDRAILS PASS con R2-1. Manifiesto 49 → 50.
+El contrato de frontera térmica del 06-10 no queda autorizado. Siguiente
+acción, del usuario: autorizar o no la petición de datos a Sandia, ya
+redactada y no enviada. CO/FED siguen OFF y NO-GO.
+
 ## Current Program Update - 2026-10-06 - Gate de B neto: tasa estacionaria acotada, sin predicción
+
+**Corregido el 07-10:** el GO parcial a B neto de esta entrada está retirado; ver la entrada anterior.
 
 [Gate del presupuesto térmico neto](validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md):
 gate científico offline, sin cambios en `sim/` y sin Godot. Define B como

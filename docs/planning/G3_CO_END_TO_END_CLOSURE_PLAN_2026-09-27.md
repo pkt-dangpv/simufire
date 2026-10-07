@@ -5,7 +5,22 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 06-10:
+Último avance del 07-10:
+[Revisión del gate de B neto](../validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md).
+Revisión offline, sin tocar `sim/`. **Se retira el GO parcial a B neto del
+06-10:** la banda era la lectura de las galgas por un rango de reflexión.
+B neto queda NO-GO, no identificado; cinco de seis términos de frontera
+sin cota. Evidencia nueva del propio laboratorio (SAND2010-2511): la
+lectura de la galga depende de su colocación, explora ±30 % como cuestión
+abierta y su balance del heptano no cierra (−25 y −43 %). Sandia sigue
+como contraste del flujo en el plano de las galgas. Corregidos el
+inventario de líquido y los criterios; el almacenamiento pasa a la
+demanda. Auditor extendido con la historia conservada y 31 pruebas nuevas.
+El contrato de frontera térmica no queda autorizado. Siguiente paso,
+pendiente del usuario: autorizar o no la petición de datos a Sandia. Sin
+efecto en plazos. CO/FED siguen OFF/NO-GO.
+
+Avance previo del 06-10, **corregido el 07-10**:
 [Gate del presupuesto térmico neto del combustible](../validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md).
 Gate offline, sin tocar `sim/`. B se define como el calor neto que cruza
 la frontera del líquido. Benchmark elegido entre tres: piscina abierta de

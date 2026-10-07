@@ -34,6 +34,24 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 07-10: revision del gate de B neto,
+[decision corregida](../validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md).
+Luketa, Sandia SAND2010-2511 (2010), analisis del propio laboratorio de
+los ensayos de piscina de 2 m: rangos de reflexion, transmision, perdida
+por el fondo y lectura de las galgas, y balance del heptano sin cerrar
+([fuente oficial](https://www.osti.gov/biblio/984087),
+[PDF local](Sandia/SNL_SAND2010-2511_Assessment_Simulation_Hydrocarbon_Pool_Fire_Tests_2010.pdf));
+difusion ilimitada segun su portada. Solo localizador: Beji, Helson,
+Rogaume y Luche, Fire Saf. J. (2021), evaporacion de heptano sin llama en
+cono de atmosfera controlada,
+[version de autor](https://biblio.ugent.be/publication/8702056), con
+copyright. Localizado y no obtenido por acceso cerrado: Suo-Anttila y
+otros, Proc. Combust. Inst. 32 (2009),
+[doi](https://doi.org/10.1016/j.proci.2008.06.044), espectros en la cupula
+de vapor. No localizados: datos brutos de SNL011, 012 y 029 ni los ensayos
+de 1 ft sobre colocacion de la galga. B neto: GO parcial retirado, NO-GO
+no identificado. Manifiesto: 49 -> 50 entradas. Ninguna activacion fisica.
+
 Actualizacion adicional del 06-10: gate del presupuesto termico neto del
 combustible,
 [decision y contrato](../validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md).

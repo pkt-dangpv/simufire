@@ -1,0 +1,225 @@
+{
+  "schema": "g3_net_thermal_budget_revision_audit_v1",
+  "revises_record_sha256": "b224c4bddfc1311fedd9e6e8f0562f6ab0f925cc08e2949053ff4044ffa9d32c",
+  "revision_record_sha256": "fdbdbc705d65dfa8d8848a30f5bfbad8714cd07ca9c17ce86931a72ab3d9ea8e",
+  "objects": {
+    "gauge_plane_reading": "integrated total heat flux read by the gauges at their plane and at their body temperature; measured",
+    "conditional_band": "the reading times one minus a reflection range; calculated, conditional on every other frontier term being zero",
+    "net_B": "net heat that crosses the boundary of the liquid; not identified",
+    "demand": "mass rate times the enthalpy of the approved profiles; diagnostic, built from the mass"
+  },
+  "frontier_term_class": {
+    "surface_reflection": "laboratory_range",
+    "gauge_plane_to_surface": "unknown",
+    "gauge_to_surface_convection": "unknown",
+    "surface_emission": "bounded",
+    "pan_bottom_and_ground_loss": "laboratory_assumption",
+    "rim_conduction": "laboratory_assumption",
+    "transmission_through_the_liquid": "laboratory_range"
+  },
+  "frontier_terms_acting": [
+    "gauge_plane_to_surface",
+    "gauge_to_surface_convection",
+    "pan_bottom_and_ground_loss",
+    "rim_conduction",
+    "surface_emission",
+    "surface_reflection"
+  ],
+  "frontier_terms_blocking_identification": [
+    "gauge_plane_to_surface",
+    "gauge_to_surface_convection",
+    "pan_bottom_and_ground_loss",
+    "rim_conduction",
+    "surface_reflection"
+  ],
+  "emission_bound_kw_m2": 1.074254978600293,
+  "emission_at_measured_surface_kw_m2": 0.9226019208406976,
+  "runs": {
+    "SNL011": {
+      "gauge_plane_reading_kw": 93.51474132185618,
+      "conditional_band_kw": [
+        84.16326718967056,
+        91.64444649541905
+      ],
+      "conditional_band_is_net_B": false,
+      "net_B_kw": null,
+      "net_B_kw_range": null,
+      "scenario_if_gauge_plane_equals_surface_kw": [
+        74.50506889473945,
+        91.01612796470108
+      ],
+      "scenario_with_laboratory_exploration_kw": [
+        49.25608873783828,
+        118.50946191332682
+      ],
+      "scenarios_are_identified_intervals": false,
+      "demand_kw_range": [
+        85.16277550350011,
+        90.02250374537238
+      ],
+      "demand_uses_mass": true,
+      "storage_estimate": {
+        "liquid_mass_kg_range": [
+          96.65298294328214,
+          118.13142359734482
+        ],
+        "liquid_heat_capacity_kj_k_range": [
+          219.83017771880773,
+          268.6813283229872
+        ],
+        "storage_kw_range": [
+          0.7327672590626925,
+          2.239011069358227
+        ],
+        "kind": "estimated_from_figure",
+        "is_a_bound": false,
+        "side": "demand",
+        "solids_included": false
+      },
+      "demand_plus_storage_kw_range": [
+        85.89554276256281,
+        92.2615148147306
+      ],
+      "residual_band_minus_demand_kw_range": [
+        -5.859236555701813,
+        6.481670991918932
+      ],
+      "residual_identifies_components": false
+    },
+    "SNL012": {
+      "gauge_plane_reading_kw": 99.43140748611695,
+      "conditional_band_kw": [
+        89.48826673750526,
+        97.44277933639461
+      ],
+      "conditional_band_is_net_B": false,
+      "net_B_kw": null,
+      "net_B_kw_range": null,
+      "scenario_if_gauge_plane_equals_surface_kw": [
+        79.83006844257415,
+        96.81446080567665
+      ],
+      "scenario_with_laboratory_exploration_kw": [
+        52.98358842132257,
+        126.04729460659503
+      ],
+      "scenarios_are_identified_intervals": false,
+      "demand_kw_range": [
+        88.92274282009724,
+        93.9662134163857
+      ],
+      "demand_uses_mass": true,
+      "storage_estimate": {
+        "liquid_mass_kg_range": [
+          96.65298294328214,
+          118.13142359734482
+        ],
+        "liquid_heat_capacity_kj_k_range": [
+          219.45997873410934,
+          268.2288628972447
+        ],
+        "storage_kw_range": [
+          0.7315332624470312,
+          2.235240524143706
+        ],
+        "kind": "estimated_from_figure",
+        "is_a_bound": false,
+        "side": "demand",
+        "solids_included": false
+      },
+      "demand_plus_storage_kw_range": [
+        89.65427608254427,
+        96.2014539405294
+      ],
+      "residual_band_minus_demand_kw_range": [
+        -4.477946678880443,
+        8.520036516297367
+      ],
+      "residual_identifies_components": false
+    },
+    "SNL029": {
+      "gauge_plane_reading_kw": 93.0173224850378,
+      "conditional_band_kw": [
+        83.71559023653401,
+        91.15697603533704
+      ],
+      "conditional_band_is_net_B": false,
+      "net_B_kw": null,
+      "net_B_kw_range": null,
+      "scenario_if_gauge_plane_equals_surface_kw": [
+        74.0573919416029,
+        90.52865750461908
+      ],
+      "scenario_with_laboratory_exploration_kw": [
+        48.9427148706427,
+        117.87575031522019
+      ],
+      "scenarios_are_identified_intervals": false,
+      "demand_kw_range": [
+        82.67738470019094,
+        87.20163295297326
+      ],
+      "demand_uses_mass": true,
+      "storage_estimate": {
+        "liquid_mass_kg_range": [
+          96.65298294328214,
+          118.13142359734482
+        ],
+        "liquid_heat_capacity_kj_k_range": [
+          217.2408382707202,
+          265.516580108658
+        ],
+        "storage_kw_range": [
+          0.7241361275690674,
+          2.21263816757215
+        ],
+        "kind": "estimated_from_figure",
+        "is_a_bound": false,
+        "side": "demand",
+        "solids_included": false
+      },
+      "demand_plus_storage_kw_range": [
+        83.40152082776001,
+        89.41427112054541
+      ],
+      "residual_band_minus_demand_kw_range": [
+        -3.4860427164392433,
+        8.479591335146097
+      ],
+      "residual_identifies_components": false
+    }
+  },
+  "laboratory_balance_relative_gap": [
+    -0.24590163934426235,
+    -0.42622950819672123
+  ],
+  "storage_scale_correction_factor_range": [
+    2.368421052631579,
+    2.8947368421052633
+  ],
+  "strict_criterion_fraction": null,
+  "mass_rate_uncertainty_fraction": null,
+  "total_uncertainty_of_B": null,
+  "loose_threshold_role": "contrast_between_two_estimates_only",
+  "decisions": {
+    "sandia_as_contrast": "GO_partial_gauge_plane_flux_and_mass_rate_as_documented_observables",
+    "gauge_plane_heat": "GO_partial_measured_observable_without_combined_uncertainty",
+    "net_B": "NO_GO_not_identified",
+    "stationary_balance": "NO_GO_inconclusive_residual_does_not_identify_its_components",
+    "transient_balance": "NO_GO",
+    "thermal_prediction": "NO_GO",
+    "emission_prediction": "NO_GO",
+    "previous_net_B_verdict": "GO_partial_bounded_stationary_rate_NO_GO_point_value",
+    "previous_net_B_verdict_status": "withdrawn"
+  },
+  "alternatives_examined": [
+    "beji_2021_cacc",
+    "nist_030m",
+    "sandia_one_foot_tests"
+  ],
+  "predictive_thermal_input_approval": false,
+  "predictive_emission_approval": false,
+  "engine_integration": false,
+  "production_activation": false,
+  "co_fed_approval": false
+}

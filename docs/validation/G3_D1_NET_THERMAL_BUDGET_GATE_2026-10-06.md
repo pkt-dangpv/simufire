@@ -10,6 +10,16 @@ donde B es sintético, y revisa el NO-GO de B del
 [gate térmico del 04-10](G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md) con
 fuentes primarias nuevas.
 
+> **Revisado y corregido el 07-10.** La
+> [revisión](G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md) **retira el GO
+> parcial a B neto** de este documento: la banda de 84 a 99 kW es la lectura
+> de las galgas por un rango de reflexión, no un intervalo de B, y el
+> criterio laxo no acota los términos desconocidos. También corrige el
+> inventario de líquido (45 a 55 mm, no 19 mm), retira como evidencia los
+> 47 kW de recalentamiento del vapor y retira el criterio estricto. El
+> contrato de frontera térmica del final **no queda autorizado**. El texto
+> que sigue se conserva como registro de la decisión anterior.
+
 ## Decisión
 
 Cinco decisiones separadas. Un GO en una no aprueba la siguiente.
