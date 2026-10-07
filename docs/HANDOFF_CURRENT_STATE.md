@@ -1,5 +1,33 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-07 - Limpieza 3D/FP: V0 verificado y prototipo V1 optativo
+
+Entrega solicitada por el usuario:
+[guía completa para la diseñadora](architecture/GUIA_REFORMA_VISUAL_3D_FP_DISENADORA_2026-10-07.md).
+Describe sistema actual, ajustes medidos, polígonos/texturas, límites de física
+y navegación y alternativas para sustituir la representación. La diseñadora
+decide la implementación; no se ha acordado quién programa ni autorizado borrado.
+Esta entrega es documental, sin nuevos cambios de código ni pruebas Godot.
+Commit/push documental autorizado por el usuario; no incluye el código WIP
+de viviendas ni el prototipo visual. Los documentos se publican por separado.
+
+El usuario cambia el foco desde publicar viviendas a limpiar su representación
+y el tratamiento de assets. [Plan V0–V5](planning/VISUAL_3D_FP_CLEANUP_2026-10-07.md)
+y [guía para arte](../assets/fp/README.md): mapa de paredes, techos, hall/portal,
+escaleras y capas que cambian talla/pose. Nuevo inspector y banco original vs
+cargador verificados tras liberar memoria. 38 arquetipos legacy medidos.
+Contrato optativo `authored_meters_v1` implementado y probado con pieza sintética:
+conserva talla/centro/giro, pasa por consumidores FP/3D, publica conflictos sin
+encoger y no cambia pose al actualizar estado. 67 pruebas / 42 subtests, fixture
+de 41 checks; guardias históricas runtime/distribución PASS (320 piezas).
+Catálogo aún sin migrar; V1 completo y V2–V5 pendientes. No hay refactor FP
+cerrado ni validación visual humana. Código sin commit/push.
+WIP de viviendas intacto
+en `runs/playable_homes`, rama `codex/playable-homes-isolated`, base `2e5d764a`.
+Al reanudar, revisar una pieza real con la diseñadora y completar V1 antes de
+migrar el catálogo o extraer FP. Cadena completa de publicación pendiente.
+No tocar física ni presentar geometría visual como validación CO/FED.
+
 ## Current Program Update - 2026-10-07 - Fuente de incendio por objeto: ensayo seleccionado, B neto cerrado en esta vía
 
 [Fuente de incendio por objeto: selección experimental](validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md):
@@ -37,6 +65,19 @@ Nota operativa: durante esta fase otra sesión cambió `runs/g3s` a la rama
 `codex/playable-homes` y trabaja ahí. Esta fase se verificó y publicó
 desde un worktree propio, `runs/g3_shareable`, que pasa a ser el checkout
 de `codex/g3-fed-co-zonal-shareable`; en `runs/g3s` no se tocó nada ajeno.
+
+## Current Program Update - 2026-10-07 - Viviendas jugables separadas: verificación final pendiente
+
+[Viviendas jugables independientes](validation/PLAYABLE_HOMES_SEPARATION_2026-10-07.md):
+trabajo autorizado por el usuario en `codex/playable-homes-isolated`. Los diez presets
+jugables tienen documentos propios en `scenarios/playable/`; las funciones
+científicas y JSON históricos están intactos y fijados por hash. Corregidos
+conexiones sin pared, vanos exteriores en medianeras, barridos de puertas,
+bisagras verticales FP y configuración de escalera de dos plantas.
+Se completa mobiliario visual sin añadir combustible. Las siete viviendas
+con carga agregada siguen pendientes de inventario físico por objeto en G3.
+Auditor offline diez PASS; falta aceptación Godot y cadena final antes del
+commit/push. CO/FED y B neto conservan sus NO-GO.
 
 ## Current Program Update - 2026-10-07 - Ensayo de evaporación en cono: benchmark parcial, B neto sigue sin identificar
 
