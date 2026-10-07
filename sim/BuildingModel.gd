@@ -692,6 +692,7 @@ func _load_from_template(data: Dictionary) -> void:
 		rooms[room_id].stair_flight_count = maxi(1, int(room_data.get("stair_flight_count", 1)))
 		if room_data.has("fuel_objects"):
 			rooms[room_id].fuel_objects = _build_fuel_objects(room_data["fuel_objects"])
+		rooms[room_id].visual_furniture_fill = bool(room_data.get("visual_furniture_fill", false))
 		# SF-AUD-014: propiedades de material de pared (1D lumped conduction). Sentinel -1.0 = global.
 		rooms[room_id].wall_k_kw_m_k = float(room_data.get("wall_k_kw_m_k", -1.0))
 		rooms[room_id].wall_rho_kg_m3 = float(room_data.get("wall_rho_kg_m3", -1.0))

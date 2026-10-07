@@ -320,8 +320,8 @@ comentado indefinidamente para poder recuperarlo.
 
 ### 9.1. Banco original frente a resultado del juego
 
-Disponible en el checkout WIP, no en esta publicación documental de `main`.
-Abrir `tools/preview_visual_asset.tscn` en Godot,
+Incluido en la entrega técnica del 08-10-2026.
+Abrir [el banco](../../tools/preview_visual_asset.tscn) en Godot,
 seleccionar el nodo raíz, elegir `archetype` y ejecutar esa escena.
 
 - Izquierda: wrapper original.
@@ -354,7 +354,7 @@ En este modo no se ajusta al tamaño solicitado ni se gira internamente. Las
 vistas solo convierten metros a unidades. Los conflictos de límite de sala y
 paso de puerta se publican como avisos, sin mover la pose manual.
 
-La referencia local WIP es `assets/fp/examples/authored_meter_reference.tscn`,
+La referencia es [authored_meter_reference.tscn](../../assets/fp/examples/authored_meter_reference.tscn),
 una caja asimétrica de 1,2 × 1,0 × 0,4 m, no un mueble real ni combustible.
 En el banco elegir `authored_meter_reference`: cambiar el tamaño solicitado
 no debe cambiar esa caja.
@@ -364,7 +364,7 @@ retrospectivamente. Reiniciar el banco tras cambiar un wrapper: el hot-reload
 de cachés no está certificado. No hay todavía panel de avisos del editor,
 colisiones exhaustivas entre poses manuales ni nuevas fichas visuales persistidas.
 
-Código local WIP del prototipo: `view/3d/furniture/VisualAssetContract.gd`.
+Código del prototipo: [VisualAssetContract.gd](../../view/3d/furniture/VisualAssetContract.gd).
 Detalles de uso: [guía de assets](../../assets/fp/README.md).
 
 ## 10. Primer ejemplo recomendado, sin imponer la arquitectura
@@ -405,23 +405,25 @@ no certifica estética, iluminación, legibilidad ni sensación de navegación.
 
 Este documento se redactó en `runs/playable_homes`, rama
 `codex/playable-homes-isolated`, sobre la base `2e5d764a`. El usuario autorizó
-publicar esta entrega documental por separado. El código visual, las escenas
-de prueba y las viviendas siguen en el checkout WIP y no se incluyen en ese
-commit ni push. La guía y sus documentos de continuidad sí se publican;
-no asumir que el prototipo o los presets nuevos estén disponibles en `main`.
+publicar la entrega documental por separado en `dd9390a9`. Después autorizó
+publicar el código, escenas de prueba y viviendas si toda la cadena pasaba.
+La entrega técnica del 08-10 incluye esos archivos; no sustituye la decisión
+de diseño ni presenta la reforma completa como terminada.
 
-Comprobado en la pasada previa: 67 pruebas y 42 subtests; fixture de contrato
-con 41 comprobaciones; 38 arquetipos inspeccionados sin reescribir sus assets;
-guardias históricas de mobiliario runtime y distribución en verde, estas
-últimas con 320 piezas, 277 de atrezo. Son controles del inspector y prototipo,
-no una validación de un generador arquitectónico nuevo.
+Cadena final: focal 70 pruebas y 42 subtests; contrato sintético 41 checks,
+rechazo modular tres checks; 38 arquetipos inspeccionados sin reescribir assets.
+Diez viviendas verificadas en FP: 2.804 checks, 359 piezas, 316 de atrezo.
+Referencia 346/346, 78 gaps, R2-1 verde, corpus sin cambios de contenido;
+producto 168/168 y global 4.241 passed / 53 skipped / 2 xfailed / 42 subtests.
+Son controles del inspector y prototipo, no de un generador arquitectónico nuevo.
 
 Pendiente: elegir y revisar un asset real, migración del catálogo, descripción
 geométrica común, nuevo sistema de polígonos/UV/materiales, extracción FP,
-aceptación visual y navegación y cadena completa de publicación.
+aceptación visual y navegación. La cadena automática de esta entrega sí pasó.
 
-El WIP anterior separa diez viviendas jugables en `scenarios/playable/` de
-los casos históricos del motor; su cierre sigue pendiente. Parte del mobiliario
+Esta entrega separa diez viviendas jugables en `scenarios/playable/` de
+los casos históricos del motor; aceptación automática completada, revisión
+humana y navegación integral pendientes. Parte del mobiliario
 añadido es solo visual. Las viviendas con carga de fuego agregada no se han
 convertido por ello en inventarios físicos completos por objeto. CO/FED
 conservan sus pendientes y no quedan validados por esta reforma.
@@ -429,7 +431,8 @@ conservan sus pendientes y no quedan validados por esta reforma.
 Para las tandas automáticas: Godot mediante el monitor del proyecto, suites
 secuenciales y mínimo de 6 GiB disponibles. No terminar procesos ajenos.
 Si se cambia `sim/`, la publicación requiere además la referencia completa
-R2-1 y comparación de informes; el WIP de viviendas ya incluye cambios ahí.
+R2-1 y comparación de informes; los cambios de carga de viviendas lo requirieron
+y se verificaron en esta entrega.
 No borrar archivos ajenos ni rebaselinear ciencia para hacer pasar una vista.
 
 ## 13. Decisiones que esperamos de la diseñadora

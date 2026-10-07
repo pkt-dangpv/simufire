@@ -16,6 +16,7 @@ extends RefCounted
 ## dimension libre de las piezas que la tienen.
 
 const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
+const AssetContract := preload("res://view/3d/furniture/VisualAssetContract.gd")
 
 ## Cuanto puede separarse la escala de un eje respecto de la uniforme.
 ##
@@ -40,6 +41,8 @@ static func resolved_size_m(kind_name: String, target_m: Vector3) -> Vector3:
 	var native: Vector3 = _native_size_m(kind_name)
 	if native == Vector3.ZERO:
 		return Vector3.ZERO
+	if uses_authored_transform(kind_name):
+		return native
 	if FurnitureDimensions.is_tiled(kind_name):
 		# Una fila de modulos ocupa exactamente el frente que se le pide.
 		return target_m
@@ -51,7 +54,7 @@ static func _native_size_m(kind_name: String) -> Vector3:
 	var asset_kind: String = _asset_kind_for(kind_name)
 	if _native_size_cache.has(asset_kind):
 		return Vector3(_native_size_cache[asset_kind])
-	var scene_path: String = "res://assets/fp/furniture/%s.tscn" % asset_kind
+	var scene_path: String = model_path(kind_name)
 	if not ResourceLoader.exists(scene_path):
 		_native_size_cache[asset_kind] = Vector3.ZERO
 		return Vector3.ZERO
@@ -121,13 +124,13 @@ static func try_build(parent: Node3D, kind_name: String, target_m: Vector3, mete
 	if parent == null:
 		return Vector3.ZERO
 	var asset_kind: String = _asset_kind_for(kind_name)
-	var scene_path: String = "res://assets/fp/furniture/%s.tscn" % asset_kind
+	var scene_path: String = model_path(kind_name)
 	if not ResourceLoader.exists(scene_path):
 		return Vector3.ZERO
 	var packed := ResourceLoader.load(scene_path) as PackedScene
 	if packed == null:
 		return Vector3.ZERO
-	if FurnitureDimensions.is_tiled(kind_name):
+	if FurnitureDimensions.is_tiled(kind_name) and not uses_authored_transform(kind_name):
 		return _build_tiled(parent, packed, asset_kind, kind_name, target_m, meters_to_units)
 	var instance := packed.instantiate() as Node3D
 	if instance == null:
@@ -136,6 +139,9 @@ static func try_build(parent: Node3D, kind_name: String, target_m: Vector3, mete
 	# Anadimos a la escena antes de medir para que Godot calcule el AABB real
 	parent.add_child(instance)
 	var achieved: Vector3 = _fit_instance(instance, target_m, meters_to_units, FurnitureDimensions.fits_exactly(kind_name))
+	if achieved == Vector3.ZERO:
+		instance.free()
+		return Vector3.ZERO
 	_prepare_asset_materials(instance)
 	return achieved
 
@@ -167,6 +173,9 @@ static func _build_tiled(
 		if not along_x:
 			module_target = Vector3(deep_m, target_m.y, step_m)
 		var module_size: Vector3 = _fit_instance(instance, module_target, meters_to_units, false)
+		if module_size == Vector3.ZERO:
+			instance.free()
+			return Vector3.ZERO
 		var offset: float = (float(i) + 0.5) * step_m - run_m * 0.5
 		if along_x:
 			instance.position.x += offset * meters_to_units
@@ -184,6 +193,18 @@ static func _build_tiled(
 #  - re-centra el footprint en el origen y apoya la base en el suelo (Y=0)
 static func _fit_instance(instance: Node3D, target_m: Vector3, meters_to_units: float, exact_fit: bool) -> Vector3:
 	var aabb: AABB = _get_combined_aabb(instance)
+	var mode: String = AssetContract.mode_of(instance)
+	if mode == AssetContract.AUTHORED:
+		var errors: Array[String] = AssetContract.validate_authored(instance, aabb)
+		if not errors.is_empty() or not is_finite(meters_to_units) or meters_to_units <= 0.0:
+			push_error("FurnitureAssetLoader: contrato de autor invalido: %s" % str(errors))
+			return Vector3.ZERO
+		# No inferir giro, talla ni pivote. Solo convertir unidades de la vista.
+		instance.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * meters_to_units), Vector3.ZERO)
+		return aabb.size
+	if mode != AssetContract.LEGACY:
+		push_error("FurnitureAssetLoader: modo de transformacion desconocido: %s" % mode)
+		return Vector3.ZERO
 	var fit: Dictionary = _scale_for(aabb.size, target_m, exact_fit)
 	var basis := Basis(Vector3.UP, float(fit["yaw"])) * Basis().scaled(Vector3(fit["scale"]) * meters_to_units)
 	instance.transform.basis = basis
@@ -260,7 +281,30 @@ static func has_model(kind_name: String) -> bool:
 ## que nadie alcanza no da ningun error: simplemente no aparece nunca en la
 ## casa, y asi estuvo el mueble de bano.
 static func model_path(kind_name: String) -> String:
+	# Referencia de arte aislada del inventario de muebles del producto.
+	if kind_name == "authored_meter_reference":
+		return "res://assets/fp/examples/authored_meter_reference.tscn"
 	return "res://assets/fp/furniture/%s.tscn" % _asset_kind_for(kind_name)
+
+
+## Lee la declaracion del wrapper sin instanciar ni modificar su malla.
+static func uses_authored_transform(kind_name: String) -> bool:
+	return declared_transform_mode(kind_name) == AssetContract.AUTHORED
+
+
+static func declared_transform_mode(kind_name: String) -> String:
+	var path: String = model_path(kind_name)
+	if not ResourceLoader.exists(path):
+		return AssetContract.LEGACY
+	var packed := ResourceLoader.load(path) as PackedScene
+	if packed == null:
+		return AssetContract.LEGACY
+	var state: SceneState = packed.get_state()
+	for index in state.get_node_property_count(0):
+		if String(state.get_node_property_name(0, index)) == "metadata/" + AssetContract.KEY:
+			var value: Variant = state.get_node_property_value(0, index)
+			return value if typeof(value) == TYPE_STRING else AssetContract.INVALID
+	return AssetContract.LEGACY
 
 
 static func _asset_kind_for(kind_name: String) -> String:

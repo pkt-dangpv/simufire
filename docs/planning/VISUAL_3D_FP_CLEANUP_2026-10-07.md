@@ -2,14 +2,16 @@
 
 Estado: autorizada el 07-10-2026; V0 verificado en runtime y V1 con prototipo
 optativo. Migración del catálogo, edificio común y extracción FP pendientes.
-No es una corrección de física. La publicación de viviendas queda pendiente.
+No es una corrección de física. Cadena de publicación técnica completada el
+08-10-2026 para viviendas, herramientas y prototipo; no para la reforma entera.
 
 Entrega a la diseñadora:
 [guía del sistema actual y objetivo de reforma](../architecture/GUIA_REFORMA_VISUAL_3D_FP_DISENADORA_2026-10-07.md).
 Incluye alternativas de implementación, polígonos/UV/materiales y decisiones
 abiertas; no autoriza borrar el sistema ni presenta V2 como implementada.
-El usuario autoriza commit/push de esta entrega documental. El prototipo,
-escenas, pruebas y viviendas siguen WIP y fuera de esa publicación.
+La entrega documental inicial se publicó por separado en `dd9390a9`.
+El usuario autorizó después código, escenas, pruebas y viviendas, con commit
+y push condicionados a una cadena completa verde; resultado registrado abajo.
 
 ## Problema comprobado en código
 
@@ -183,7 +185,7 @@ colisión exhaustiva entre poses manuales; no contratos de hojas o piezas
 paramétricas; no persistencia editor-modelo de nuevas fichas visuales separadas.
 No presentar V1 entero como cerrado.
 
-Verificación final de esta pasada:
+Verificación inicial del 07-10-2026 (sustituida por la cadena del 08-10):
 
 - 67 passed / 42 subtests: inspección y banco (3 pruebas Godot), aislamiento
   de viviendas y contratos estáticos de autoría/editor.
@@ -196,5 +198,30 @@ Verificación final de esta pasada:
   `class_name` y uso de Dictionary como Rect2) detectados y corregidos;
   la tanda final se repitió sobre el código corregido.
 
-Cadena de publicación pendiente: producto completo, global y referencia R2-1
-por los cambios de `sim/` preservados del WIP de viviendas. Sin commit/push.
+## Cierre técnico de publicación — 08-10-2026
+
+- Focal final: 70 passed / 42 subtests; inspector y banco, autoría/editor y
+  viviendas. Catálogo de 38 arquetipos sin reescritura de escenas o GLB.
+- Contrato sintético: 41 checks. Control modular inválido: tres checks; antes
+  dejaba piezas y devolvía éxito, ahora rechaza y no dibuja ninguna. Se exige
+  exactamente el mensaje de rechazo esperado; los casos normales no admiten
+  ningún `ERROR:`. No se silenciaron errores genéricos.
+- Diez viviendas: 2.804 comprobaciones sobre FP, 359 piezas visibles, 316
+  de atrezo. Control causal de pieza fuera del recinto detectado.
+- Referencia: 18/18 ejecuciones sanas, 346/346 required PASS, 78 gaps y R2-1
+  verde. Comparación de 185 JSON del corpus contra `dd9390a9`: solo diferencias
+  LF/CRLF; en `reference_checks.json` cambia únicamente `generated_at`.
+- Producto completo: 168/168. Global autoritativa: 4.241 passed, 53 skipped,
+  2 xfailed, 42 subtests, exit 0 en 671,31 s.
+
+La referencia cubre los cambios finales en `sim/`. Después solo se corrigió
+la ruta de rechazo modular de `view/` (tres líneas) y su control negativo;
+focal, producto y global se ejecutaron de nuevo sobre ese estado final.
+Todas las tandas Godot fueron secuenciales, con monitor, mínimo de 6 GiB y
+temporales externos. Código estable por hash durante la cadena global.
+
+V0 está verificado y V1 tiene un prototipo distribuible, no una migración real
+del catálogo. Este cierre solo satisface el gate de publicación de esa entrega.
+V2/V3, aceptación visual humana V4 y cierre integral V5 siguen pendientes.
+Siguiente paso: revisar un asset real con la diseñadora y decidir geometría,
+polígonos/UV y arquitectura compartida, sin borrar el sistema existente.

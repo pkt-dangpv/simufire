@@ -1,6 +1,8 @@
 extends Node3D
 class_name Visualizer3D
 
+const VisualAssetContract := preload("res://view/3d/furniture/VisualAssetContract.gd")
+
 signal room_clicked(room_id: int)
 signal opening_clicked(opening_index: int, screen_pos: Vector2)
 signal object_clicked(room_id: int, object_id: String)
@@ -3322,6 +3324,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		if _fuel_shape_needs_rebuild(node, kind_name, visual_size_m):
 			_rebuild_fuel_object_shape(node, kind_name, visual_size_m)
 		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
+		VisualAssetContract.publish_placement_issues(node, obj)
 
 		var center_x: float = rect.position.x + visual_center_m.x
 		var center_z: float = rect.position.y + visual_center_m.y

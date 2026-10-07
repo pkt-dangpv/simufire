@@ -33,6 +33,10 @@ var stair_has_railings: bool = true
 var stair_turn_degrees: float = 0.0
 var stair_flight_count: int = 1
 
+## Solo presentacion: completa el mobiliario con atrezo, nunca combustible.
+## Los casos historicos no declaran esta clave y conservan su vista anterior.
+var visual_furniture_fill: bool = false
+
 # Estado termico
 var temp_upper_c: float = 20.0
 var temp_upper_raw_c: float = 20.0

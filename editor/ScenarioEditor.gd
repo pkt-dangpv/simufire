@@ -6735,7 +6735,9 @@ func _scan_scenario_files() -> void:
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		while file_name != "":
-			if not dir.current_is_dir() and file_name.ends_with(".json"):
+			# Los preset_ historicos quedan reservados para pruebas. El catalogo
+			# jugable ya se ofrece arriba por su ruta de producto independiente.
+			if not dir.current_is_dir() and file_name.ends_with(".json") and not file_name.begins_with("preset_"):
 				_scenario_paths.append(SCENARIOS_RES_PATH + "/" + file_name)
 				_scenario_option.add_item(file_name.get_basename())
 			file_name = dir.get_next()

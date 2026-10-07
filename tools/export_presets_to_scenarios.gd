@@ -1,8 +1,8 @@
 extends Node
 
-# Exporta todas las plantillas predefinidas (presets en BuildingTemplate.gd)
-# a archivos JSON editables en res://scenarios/. Así aparecen en el desplegable
-# de Escenario del editor y pueden modificarse y guardarse como cualquier otro.
+# Normaliza los documentos jugables de res://scenarios/playable/.
+# Nunca regenera sus planos desde los constructores cientificos ni escribe
+# los preset_ historicos de res://scenarios/, que siguen sirviendo a pruebas.
 #
 # Uso:
 #   godot --headless --path . res://tools/export_presets_to_scenarios.tscn
@@ -10,7 +10,7 @@ extends Node
 const BuildingTemplateScript := preload("res://sim/templates/BuildingTemplate.gd")
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 
-const OUT_DIR := "res://scenarios"
+const OUT_DIR := "res://scenarios/playable"
 const PREFIX := "preset_"
 
 

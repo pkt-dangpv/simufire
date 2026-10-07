@@ -1,5 +1,45 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-08 - Código de viviendas y prototipo visual: cadena completa verde
+
+El usuario autoriza completar la validación del código WIP, corregir fallos,
+commit, integración y push si toda la cadena queda verde. Base local y remota
+`dd9390a9` (entrega documental ya publicada). Trabajar únicamente desde
+`runs/playable_homes`, rama `codex/playable-homes-isolated`; checkout principal
+limpio. No borrar los UID generados ni tocar los stashes preservados.
+
+Tras liberar memoria se completaron las tandas secuencialmente bajo monitor,
+sin rebajar el mínimo de 6 GiB y con temporales externos. Resultado final:
+
+- Focal: 70 passed / 42 subtests; diez planos PASS.
+- Aceptación FP real: 2.804 comprobaciones, diez viviendas, 359 piezas visibles,
+  316 de atrezo. Serialización editor/runtime incluida. El control que mueve
+  una pieza fuera del recinto falla como debe.
+- Inspector: 38 arquetipos sin reescribir assets; contrato sintético 41 checks.
+  Control modular inválido: tres checks y rechazo explícito, sin pieza dibujada.
+- Referencia: 18/18 ejecuciones sanas, 346/346 required PASS, 78 gaps,
+  ALL GUARDRAILS PASS con R2-1. Los 185 JSON restantes del corpus conservan
+  contenido frente a `dd9390a9` al separar LF/CRLF; solo cambia `generated_at`.
+- Producto: 168/168 PASS. Global autoritativa: 4.241 passed, 53 skipped,
+  2 xfailed, 42 subtests, exit 0, 671,31 s.
+
+La primera aceptación confundía talla solicitada con caja realmente dibujada:
+se sustituyó la medición por AABB de los nodos FP, sin relajar tolerancias,
+y se añadió el control negativo. Además se demostró y corrigió en el cargador
+modular que un contrato rechazado se contaba como válido. Esa corrección de
+tres líneas en `view/` fue posterior a la referencia; `sim/` y sus entradas
+no cambiaron después. Focal, producto y global sí cubren el código final.
+Huella final de los 35 archivos de código/datos/pruebas/informe: sin cambios
+durante la cadena global (`cf7a39af…`). Logs locales de referencia:
+`runs/reference_suite_monitored_20261008_001716/`; producto y global en
+temporales externos `simufire-publish-product-*` / `simufire-publish-global-*`.
+
+Publicación autorizada de esta entrega técnica, por lista explícita y push
+normal tras comprobar remoto; excluir `runs/` y UID derivados. La arquitectura
+nueva de polígonos/UV, extracción FP, migración de catálogo y revisión humana
+siguen pendientes. CO/FED OFF/NO-GO; el atrezo no es inventario combustible.
+Este cierre sustituye los estados WIP de las entradas del 07-10 inferiores.
+
 ## Current Program Update - 2026-10-07 - Limpieza 3D/FP: V0 verificado y prototipo V1 optativo
 
 Entrega solicitada por el usuario:

@@ -3,10 +3,10 @@
 Documento de entrega para decidir la reforma completa:
 [sistema actual, objetivos y decisiones para la diseñadora](../../docs/architecture/GUIA_REFORMA_VISUAL_3D_FP_DISENADORA_2026-10-07.md).
 
-Alcance de la publicación: documentación. El inspector, banco y contrato
-optativo descritos debajo siguen en el checkout WIP `runs/playable_homes`,
-rama `codex/playable-homes-isolated`; no están incluidos en `main` con esta
-entrega. Las secciones siguientes distinguen ese prototipo del catálogo actual.
+La entrega de código del 08-10-2026 incluye inspector, banco y contrato optativo
+descritos debajo, además de viviendas jugables separadas. Es un prototipo
+verificado, no la reforma arquitectónica completa ni una migración del catálogo.
+Las secciones siguientes distinguen ese prototipo de los assets legacy.
 
 ## Qué se puede editar aquí
 

@@ -1,8 +1,14 @@
 # Viviendas jugables independientes — 2026-10-07
 
-Estado: implementación y auditoría estática hechas; aceptación Godot,
-referencia R2-1, producto y global pendientes. Código no publicado todavía;
-este informe se publica como documentación del WIP, no como cierre de producto.
+Estado actualizado 08-10-2026: separación implementada y cadena automática
+completa verde. Esta entrega incluye código, viviendas y pruebas; no certifica
+estética ni navegación completa y no cierra la reforma arquitectónica 3D/FP.
+
+Reanudación 08-10-2026: publicación del código autorizada si toda la cadena
+queda verde. Repetición estática: 64 passed / 42 subtests, diez planos PASS
+y estilo GDScript PASS. Aceptación runtime endurecida para rechazar cualquier
+`ERROR:`. La memoria inicial estaba por debajo de 6 GiB; no se lanzó Godot
+hasta liberar memoria. La cadena completada se registra abajo.
 
 ## Alcance y punto de partida
 
@@ -77,23 +83,32 @@ Esa migración depende de [G3](../planning/G3_CO_END_TO_END_CLOSURE_PLAN_2026-09
 ## Verificación
 
 - Auditor offline: diez viviendas PASS tras correcciones.
-- Focal estática inicial: 64 passed, 42 subtests; sin aceptación runtime todavía.
+- Focal estática inicial: 64 passed, 42 subtests; antes de la aceptación runtime.
 - Regresión focal ampliada: 132 passed, 1 deselected, 42 subtests. Incluye
   contratos de perfiles, autorización y persistencia, no la aceptación nueva.
 - Focal repetida desde la base `2e5d764a`: 64 passed, 42 subtests.
 - Pins: casos, JSON históricos y funciones científicas sin cambios.
-- Guardarraíles: 346/346 required, 78 gaps y contratos en verde excepto R2-1,
-  que exige regenerar al haberse modificado los puntos de carga en `sim/`.
-- Pendientes: aceptación runtime real, guardarraíles, referencia completa,
-  producto y pytest global bajo el monitor y la puerta de memoria de 6 GiB.
+- Focal final: 70 passed, 42 subtests (viviendas, autoría/editor e inspector).
+- Aceptación runtime: 2.804 checks, diez viviendas, 359 piezas visibles y
+  316 de atrezo. Recorrido de serialización editor/runtime incluido.
+- Medición de cajas de los nodos FP realmente dibujados, no de la talla
+  solicitada al cargador. La primera medición fallaba por confundir ambas;
+  corregida sin aumentar tolerancias. Control negativo: desplazar una pieza
+  100 m produce rechazo por salir del recinto.
+- Referencia completa: 18/18 ejecuciones sanas, 346/346 required, 78 gaps,
+  ALL GUARDRAILS PASS incluido R2-1. Se compararon 185 JSON del corpus frente
+  a `dd9390a9`: idénticos tras normalizar LF/CRLF; resumen solo `generated_at`.
+- Producto: 168/168 PASS. Global: 4.241 passed, 53 skipped, 2 xfailed,
+  42 subtests, exit 0 (671,31 s). Godot secuencial con mínimo de 6 GiB,
+  temporales externos y sin procesos residuales al terminar.
 
-Checkpoint de pausa: 5,64 GiB libres, sin procesos/cuadros Godot. No se
-rebajó el mínimo de 6 GiB. No hubo commit ni push. Al reanudar, comprobar
-primero memoria y tareas; ejecutar aceptación runtime antes de la referencia,
-corregir sus fallos si los hay y solo después cerrar referencia/producto/global.
-Los recuentos de la referencia deben mantenerse, y los 160 informes de caso
-deben compararse contra los blobs del checkpoint, separando LF/CRLF de cambios
-de contenido. No basta que los tests estáticos estén en verde para publicar.
+La referencia precede a una corrección de tres líneas del cargador modular
+en `view/`: no dibujar ni contar como válido un contrato rechazado. No cambió
+ningún archivo `sim/` ni entrada científica después de la referencia; focal,
+producto y global se repitieron sobre ese código final. Logs de referencia:
+`runs/reference_suite_monitored_20261008_001716/` (locales, no versionados).
+No se borraron assets ni archivos ajenos. Revisión visual humana y recorrido
+completo de estas diez viviendas pendientes; headless no los sustituye.
 
 ## Uso y mantenimiento
 
@@ -105,5 +120,5 @@ Prueba offline: `python scripts/simulation/audit_playable_homes.py`.
 Pruebas de separación: `tests/test_playable_homes.py`.
 Aceptación Godot monitorizada: `tests/test_playable_homes_runtime.py`.
 
-La cadena final debe informar salud, referencias, diferencias de informes,
-producto, global y Git antes de publicar; no basta este resultado estático.
+Las futuras modificaciones jugables deben repetir sus contratos de producto;
+no renovar los pins científicos para acomodar cambios de las viviendas.

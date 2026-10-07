@@ -18,6 +18,7 @@ const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBu
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
+const VisualAssetContract := preload("res://view/3d/furniture/VisualAssetContract.gd")
 const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 ## Entorno base de la camara FP (niebla); editable en el inspector abriendo
 ## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
@@ -5699,6 +5700,7 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		node.set_meta("room_id", room_id)
 		node.set_meta("object_id", obj_id)
 		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
+		VisualAssetContract.publish_placement_issues(node, obj)
 		node.set_meta("size_x_m", visual_size_m.x)
 		node.set_meta("size_y_m", visual_size_m.y)
 
@@ -7751,7 +7753,9 @@ func _opening_info_on_side(
 	var z: float = fixed_axis_m if horizontal else center_axis
 	var floor_level_m: float = _get_room_floor_level(room_id)
 	var center: Vector3 = _to_world(Vector3(x, sill_m + height_m * 0.5, z), floor_level_m)
-	var tangent: Vector3 = Vector3.RIGHT if horizontal else Vector3.FORWARD
+	# El lado vertical empieza en Z menor, igual que el plano y el visor 3D.
+	# FORWARD (-Z) invertia izquierda/derecha de la bisagra solo en FP.
+	var tangent: Vector3 = Vector3.RIGHT if horizontal else Vector3.BACK
 	var normal: Vector3 = _inside_normal_for_side(canon_side)
 	return {
 		"center": center,
