@@ -1,0 +1,777 @@
+{
+ "schema": "g3_object_fire_source_selection_v1",
+ "date": "2026-10-07",
+ "status": "source_selection_offline_no_engine_change",
+ "scope": {
+  "what_it_is": "selection of an object-scale test that an isolated source could replay as measured",
+  "what_it_is_not": [
+   "prediction of the fire of an item from material, temperature, ventilation and oxygen",
+   "validation of the engine",
+   "approval of CO or FED",
+   "a route to the net heat absorbed by the fuel"
+  ],
+  "regime_of_every_candidate": "open air under an exhaust hood, well ventilated; none is a compartment or an under-ventilated fire"
+ },
+ "sources": {
+  "nist_fcd": {
+   "title": "NIST Fire Calorimetry Database (FCD), Design Fires - Residential and Office Items",
+   "doi": "10.18434/mds2-2314",
+   "record_version": "1.0.2",
+   "report": "NIST TN 2303 (March 2025)",
+   "files": [
+    {
+     "path": "docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf",
+     "sha256": "7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03"
+    },
+    {
+     "path": "docs/literature/NIST/FCD_DesignFires_Test001-048_pages_retrieved_2026-09-29.zip",
+     "sha256": "6f674d5cb61bfd398d0a541d427c5eb6fe445cd1f2cacc8eb8fce8c3cceb0851"
+    },
+    {
+     "path": "docs/literature/NIST/FCD_User_Guide_v4a_2020.pdf",
+     "sha256": "89692794156d9a4f32ba0493e791da23d80160035877d2831d31a5317e6cee8f"
+    }
+   ],
+   "redistribution": {
+    "verified": true,
+    "basis": "the data record declares license https://www.nist.gov/open/license",
+    "checked_on": "2026-10-07",
+    "checked_at": "https://data.nist.gov/rmm/records?@id=ark:/88434/mds2-2314"
+   }
+  },
+  "fsri_mapd": {
+   "title": "FSRI Materials and Products Database, furniture calorimeter, Overstuffed Sofa",
+   "url": "https://github.com/ulfsri/fsri_materials_database",
+   "commit": "a432697e4b7d40f642b5cc8f384506439ebb32df",
+   "commit_date": "2026-04-23",
+   "commit_is_head_on": "2026-10-07",
+   "data_path": "01_Data/Overstuffed_Sofa/Furniture_Calorimeter/",
+   "local_folder": "runs/literature_local/fsri_materials_database_a432697e/",
+   "local_files": [
+    {
+     "filename": "Overstuffed_Sofa_R1.csv",
+     "sha256": "75fac34f30eef621a8042d8de3a19777b2ca9caf2e4df3a5dda99636f0d49bc3"
+    },
+    {
+     "filename": "Overstuffed_Sofa_R2.csv",
+     "sha256": "11516db0ef8fd265c4699ee11f7eda724160c1e428b00c1b0f39b8481469060b"
+    },
+    {
+     "filename": "Overstuffed_Sofa_R3.csv",
+     "sha256": "ade7d381a6278d39fb560fce54f28b26520614afbfb4da3b30c38a1dcc6202cd"
+    },
+    {
+     "filename": "Overstuffed_Sofa_material.json",
+     "sha256": "d0d7a75c96097a9d6fe9aca24b623726bf12387e8babe21ad59e4f0d6bdd08f5"
+    },
+    {
+     "filename": "README.md",
+     "sha256": "cd65f288dabea20329cd2b1afa92d8ca1fc29e8e108044f33cd594b969badcc9"
+    },
+    {
+     "filename": "CITATION.cff",
+     "sha256": "937ebf68ab7d8136a7c6bc69ba566dce6e9e8d18c9fec27d46c35d2929dedf9c"
+    },
+    {
+     "filename": "FSRI_MaP_Tech_Guide.tex",
+     "sha256": "9df19964f73ea1a6bcdaa930da954def5d422bf41b6127eb5806219e0cc42726"
+    },
+    {
+     "filename": "FSRI_MaP_User_Guide.tex",
+     "sha256": "e4c3a0e506341d2dc724ac5a965f9fff0a1503031751c721c8145f4fd58f3e4d"
+    },
+    {
+     "filename": "plot_Furniture_Cal_data_html.py",
+     "sha256": "512f4a8616ed58d08927ca8fe6c9fd028aafeb45fe045cf6054237d4299c62e2"
+    }
+   ],
+   "redistribution": {
+    "verified": false,
+    "basis": "the repository declares no license (API field null, no license file); the README asks for citation only",
+    "checked_on": "2026-10-07",
+    "consequence": "series stay local; the repository keeps link, commit, hashes and scalar aggregates"
+   },
+   "not_documented_in_the_reviewed_files": [
+    "ignition source, its power, duration and position",
+    "measurement uncertainty of HRR and load cell",
+    "what time zero is",
+    "whether the load cell is tared to the item",
+    "how HRR was processed",
+    "hood and exhaust flow",
+    "species: none is in the file"
+   ]
+  }
+ },
+ "version_policy": {
+  "declared": "FCD_2026",
+  "rule": "values of TN 2303 (2025) and of the FCD pages (2026) are never combined in one quantity",
+  "cause_of_the_2025_to_2026_change": "not demonstrated (review of 2026-09-29); not explained here",
+  "per_observable": "the block applies to the species totals of the runs it touches; it does not by itself invalidate HRR"
+ },
+ "criteria_declared_before_evaluation": {
+  "reproduction": "peak, time to peak and total heat of the rebuilt table inside the expanded uncertainty printed on the page",
+  "species_totals": "own reconstruction inside the expanded uncertainty printed on the page, the rule of the review of 2026-09-29",
+  "version_consistency": "the printed 2025 CO yield inside its own rounding of the 2026 value, the rule of 2026-09-29",
+  "repeat_runs": "difference of two printed values against the root sum of squares of their expanded uncertainties",
+  "note": "no threshold was chosen in this phase; every criterion is a published uncertainty or a rule of an earlier review"
+ },
+ "candidates": [
+  {
+   "id": "C1",
+   "kind": "single item with a small igniter",
+   "dataset": "nist_fcd",
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "source_run": "Test016",
+   "reserved_runs": [
+    "Test021"
+   ],
+   "source_run_chosen_by": "lowest test number of the pair, fixed before comparing the curves",
+   "inseparable_components": [],
+   "accessories": "none; no ignition pillow",
+   "igniter_documented": true,
+   "composition": {
+    "class": "unknown",
+    "stated": "see the two descriptions of each run; they conflict"
+   },
+   "approved_chemistry_profiles": [],
+   "mass_series": {
+    "state": "figure_only_not_digitised",
+    "where": "TN 2303 Figure C 16 and C 21"
+   },
+   "differences_between_runs": [
+    "exhaust hood: 3 m against 9 m x 12 m",
+    "igniter: 128 W for 75 s against 256 W for 60 s",
+    "hood flow raised during Test021"
+   ]
+  },
+  {
+   "id": "C2",
+   "kind": "explicitly identified fuel set",
+   "dataset": "nist_fcd",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "source_run": "Test030",
+   "reserved_runs": [
+    "Test036",
+    "Test041"
+   ],
+   "source_run_chosen_by": "lowest test number of the three, fixed before comparing the curves",
+   "inseparable_components": [
+    "Sofa B with chaise",
+    "two A pillows, one of them the first item ignited"
+   ],
+   "accessories": "two A pillows",
+   "igniter_documented": true,
+   "composition": {
+    "class": "unknown",
+    "stated": "polyurethane foam seat cushions, polyester batting back cushions"
+   },
+   "approved_chemistry_profiles": [],
+   "mass_series": {
+    "state": "not_measured_in_time",
+    "where": "TN 2303 section 2.2.2"
+   },
+   "differences_between_runs": [
+    "position of the pillows and of the ignition",
+    "hood flow",
+    "water on the curtain in Test041",
+    "TN 2303 Table 6 labels the three runs A, B and C; Table 4, appendix A and the pages say Sofa B"
+   ]
+  },
+  {
+   "id": "C3",
+   "kind": "HRR and mass loss of the same run",
+   "dataset": "fsri_mapd",
+   "owner_id": "fsri_mapd_overstuffed_sofa_as_tested",
+   "source_run": "FSRI_Overstuffed_Sofa_R1",
+   "reserved_runs": [
+    "FSRI_Overstuffed_Sofa_R2",
+    "FSRI_Overstuffed_Sofa_R3"
+   ],
+   "source_run_chosen_by": "first replicate, fixed before comparing the curves",
+   "inseparable_components": [],
+   "accessories": "not documented",
+   "igniter_documented": false,
+   "composition": {
+    "class": "nominal",
+    "stated": "PET fabric over PET batting and flexible polyurethane foam, OSB frame"
+   },
+   "approved_chemistry_profiles": [],
+   "mass_series": {
+    "state": "numeric_local_only",
+    "where": "column 'Load Cell' of each replicate file"
+   },
+   "differences_between_runs": [
+    "not documented"
+   ]
+  }
+ ],
+ "selection": {
+  "candidate": "C1",
+  "reasons": [
+   "one item, no accessory, igniter documented and about 1e-4 of the heat released",
+   "numeric 1 Hz HRR with published expanded uncertainty",
+   "redistribution verified, so the deliverable is reproducible from the repository alone",
+   "its 2025 and 2026 values agree within rounding, so the unexplained version change does not touch it",
+   "a repeat run exists and stays reserved"
+  ],
+  "why_not_C2": "equally usable for HRR, but only as the whole set, and its CO totals changed between versions beyond rounding",
+  "why_not_C3": "the only one with mass and HRR of the same run, but redistribution, igniter and uncertainty are not documented"
+ },
+ "tests": {
+  "Test016": {
+   "run_id": "Test016",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "page": {
+    "url": "https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test016",
+    "archived_member": "test016.html",
+    "report_process_script": "NFRL_Report_8.7.1",
+    "last_updated": "April 7, 2026",
+    "test_date": "12/07/2023 5:44:34 AM EST"
+   },
+   "csv": {
+    "path": "docs/literature/NIST/FCD_Test016_2026-04-07.csv",
+    "sha256": "11fc0edc4ea4bec9f5487e7e23349b23cdc0894c7585a8b26077e9dc0d5ac4e1",
+    "rate_hz": 1,
+    "class": "measured"
+   },
+   "events": {
+    "ignition_s": 0,
+    "fire_out_s": 3768,
+    "all": [
+     {
+      "time_min": 0.0,
+      "description": "Ignition"
+     },
+     {
+      "time_min": 0.75,
+      "description": "reignited"
+     },
+     {
+      "time_min": 1.12,
+      "description": "pilot increased to 120 ml per min"
+     },
+     {
+      "time_min": 1.4,
+      "description": "Chair ignition"
+     },
+     {
+      "time_min": 17.1,
+      "description": "Chair Dripping"
+     },
+     {
+      "time_min": 19.05,
+      "description": "Peak HRR"
+     },
+     {
+      "time_min": 62.68,
+      "description": "water suppression"
+     },
+     {
+      "time_min": 62.8,
+      "description": "Fire Out"
+     }
+    ],
+    "class": "measured",
+    "resolution": "0.01 min as printed",
+    "water_suppression_min": 62.68
+   },
+   "specimen": {
+    "fcd_description": "Single Stackable Chair A (metal frame with particle board seat and back); 1\" propane flame ignition. 9677g. Camera setting: F4.0,1/30,Gain:0. LED 50% power",
+    "fcd_fuel_type": "Polyurethane Foam/Plastic",
+    "tn2303_description": "Stackable Chair A (repeat of Test 21 but under the 3 m x 3 m hood); metal frame, two hard-plastic contoured seat-back layers, a contoured foam cushion and cover fabric",
+    "class": "nominal",
+    "conflict": "TN 2303 describes two hard-plastic seat-back layers; the FCD page describes a particle board seat and back. Not resolved."
+   },
+   "mass": {
+    "initial_kg": 9.68,
+    "initial_uc_kg": 0.02,
+    "final_kg": 6.44,
+    "final_uc_kg": 0.02,
+    "lost_kg": 3.241,
+    "lost_uc_kg": 0.028,
+    "initial_in_description_kg": 9.677,
+    "initial_in_tn2303_table_4_kg": 9.677,
+    "initial_conflict_kg": -0.003,
+    "class": "measured",
+    "method": "gravimetric, before and after the test",
+    "residual_fraction": 0.665,
+    "combustible_mass": {
+     "class": "unknown",
+     "note": "the residue includes what did not burn; the combustible share is not reported"
+    }
+   },
+   "igniter": {
+    "power_W": 128,
+    "power_uc_percent": 1,
+    "duration_s": 75,
+    "duration_uc_percent": 3,
+    "energy_kJ": 9.6,
+    "energy_uc_percent": 3,
+    "pillow_used_to_ignite": false,
+    "fcd_ignition": "propane wand",
+    "class": "measured",
+    "source": "TN 2303 Table 5, row checked on the page image",
+    "notes": "The FCD events record 'reignited' at 0.75 min and 'pilot increased to 120 ml per min' at 1.12 min; TN 2303 prints 128 W for 75 s and says 89 mL/min gives 128 W. Not resolved; either way the igniter is about 1e-4 of the heat released."
+   },
+   "setup": {
+    "hood_m": 3.0,
+    "baseline_exhaust_flow_kg_s": 2.462,
+    "baseline_exhaust_flow_uc_kg_s": 0.074,
+    "regime": "open air under an exhaust hood",
+    "class": "measured"
+   }
+  },
+  "Test021": {
+   "run_id": "Test021",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "page": {
+    "url": "https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test021",
+    "archived_member": "test021.html",
+    "report_process_script": "NFRL_Report_8.7.1",
+    "last_updated": "April 7, 2026",
+    "test_date": "12/11/2023 8:15:11 AM EST"
+   },
+   "csv": {
+    "path": "docs/literature/NIST/FCD_Test021_2026-04-07.csv",
+    "sha256": "c6f106da98e74552cb6a7bdd397480472c18191ab3996a53603009e7a009860c",
+    "rate_hz": 1,
+    "class": "measured"
+   },
+   "events": {
+    "ignition_s": 0,
+    "fire_out_s": 2960,
+    "all": [
+     {
+      "time_min": 0.0,
+      "description": "Ignition"
+     },
+     {
+      "time_min": 21.13,
+      "description": "Increased hood flow to 20 kg/s"
+     },
+     {
+      "time_min": 26.53,
+      "description": "Flame Dripping"
+     },
+     {
+      "time_min": 28.87,
+      "description": "Peak HRR"
+     },
+     {
+      "time_min": 49.13,
+      "description": "water suppression"
+     },
+     {
+      "time_min": 49.33,
+      "description": "Fire Out"
+     }
+    ],
+    "class": "measured",
+    "resolution": "0.01 min as printed",
+    "water_suppression_min": 49.13
+   },
+   "specimen": {
+    "fcd_description": "Single Stackable Chair A (metal frame with particle board seat and back); 1\" propane flame ignition. 9703g. Camera setting: F4.0,1/60,Gain:0. LED 100% power",
+    "fcd_fuel_type": "Polyurethane Foam / Plastic",
+    "tn2303_description": "Stackable Chair A (repeat of Test 16 but under the 9 m x 12 m hood); metal frame, two hard-plastic contoured seat-back layers, a contoured foam cushion and cover fabric",
+    "class": "nominal",
+    "conflict": "TN 2303 describes two hard-plastic seat-back layers; the FCD page describes a particle board seat and back. Not resolved."
+   },
+   "mass": {
+    "initial_kg": 9.7,
+    "initial_uc_kg": 0.02,
+    "final_kg": 6.74,
+    "final_uc_kg": 0.02,
+    "lost_kg": 2.969,
+    "lost_uc_kg": 0.028,
+    "initial_in_description_kg": 9.703,
+    "initial_in_tn2303_table_4_kg": 9.703,
+    "initial_conflict_kg": 0.003,
+    "class": "measured",
+    "method": "gravimetric, before and after the test",
+    "residual_fraction": 0.695,
+    "combustible_mass": {
+     "class": "unknown",
+     "note": "the residue includes what did not burn; the combustible share is not reported"
+    }
+   },
+   "igniter": {
+    "power_W": 256,
+    "power_uc_percent": 1,
+    "duration_s": 60,
+    "duration_uc_percent": 3,
+    "energy_kJ": 14.4,
+    "energy_uc_percent": 4,
+    "pillow_used_to_ignite": false,
+    "fcd_ignition": "propane wand",
+    "class": "measured",
+    "source": "TN 2303 Table 5, row checked on the page image",
+    "notes": "Printed power times printed duration is 15.4 kJ; the printed energy is 14.4 kJ. Not resolved."
+   },
+   "setup": {
+    "hood_m": 9.0,
+    "baseline_exhaust_flow_kg_s": 11.72,
+    "baseline_exhaust_flow_uc_kg_s": 0.35,
+    "regime": "open air under an exhaust hood",
+    "class": "measured",
+    "notes": "The FCD events record 'Increased hood flow to 20 kg/s' at 21.13 min, before the growth."
+   }
+  },
+  "Test030": {
+   "run_id": "Test030",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "page": {
+    "url": "https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test030",
+    "archived_member": "test030.html",
+    "report_process_script": "NFRL_Report_8.7.1",
+    "last_updated": "April 7, 2026",
+    "test_date": "12/13/2023 6:23:44 AM EST"
+   },
+   "csv": {
+    "path": "docs/literature/NIST/FCD_Test030_2026-04-07.csv",
+    "sha256": "8ba0f6bb59cc1c8112367a03a0ea4fdcf63883cba5d15a031af5be499fe7bd5c",
+    "rate_hz": 1,
+    "class": "measured"
+   },
+   "events": {
+    "ignition_s": 0,
+    "fire_out_s": 2211,
+    "all": [
+     {
+      "time_min": 0.0,
+      "description": "Ignition"
+     },
+     {
+      "time_min": 4.78,
+      "description": "Pool Fire Underneath"
+     },
+     {
+      "time_min": 9.17,
+      "description": "Peak HRR"
+     },
+     {
+      "time_min": 34.02,
+      "description": "Raking coals"
+     },
+     {
+      "time_min": 36.85,
+      "description": "Fire Out"
+     }
+    ],
+    "class": "measured",
+    "resolution": "0.01 min as printed",
+    "water_suppression_min": null
+   },
+   "specimen": {
+    "fcd_description": "Sofa B (K-Loveseat + Chase with Polyurethane Foam bottom cushions; polyester batting back cushions;) with 2 A pillows (one at each armrest); 1\" propane flame ignition under right pillow. 96582g. Camera setting: F4.0,1/60,Gain:0. LED 100% power",
+    "fcd_fuel_type": "Polyurethane Foam / polyester batting",
+    "tn2303_description": "Sofa B with chaise (identical to Tests 36 and 41, but with two A Pillows positioned on the armrests)",
+    "class": "nominal"
+   },
+   "mass": {
+    "initial_kg": 96.58,
+    "initial_uc_kg": 0.02,
+    "final_kg": 18.69,
+    "final_uc_kg": 0.02,
+    "lost_kg": 77.888,
+    "lost_uc_kg": 0.028,
+    "initial_in_description_kg": 96.582,
+    "initial_in_tn2303_table_4_kg": 96.582,
+    "initial_conflict_kg": 0.002,
+    "class": "measured",
+    "method": "gravimetric, before and after the test",
+    "residual_fraction": 0.194,
+    "combustible_mass": {
+     "class": "unknown",
+     "note": "the residue includes what did not burn; the combustible share is not reported"
+    }
+   },
+   "igniter": {
+    "power_W": 128,
+    "power_uc_percent": 1,
+    "duration_s": 30,
+    "duration_uc_percent": 7,
+    "energy_kJ": 3.9,
+    "energy_uc_percent": 7,
+    "pillow_used_to_ignite": true,
+    "fcd_ignition": "propane wand",
+    "class": "measured",
+    "source": "TN 2303 Table 5, row checked on the page image"
+   },
+   "setup": {
+    "hood_m": 9.0,
+    "baseline_exhaust_flow_kg_s": 20.9,
+    "baseline_exhaust_flow_uc_kg_s": 0.63,
+    "regime": "open air under an exhaust hood",
+    "class": "measured"
+   }
+  },
+  "Test036": {
+   "run_id": "Test036",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "page": {
+    "url": "https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test036",
+    "archived_member": "test036.html",
+    "report_process_script": "NFRL_Report_8.7.1",
+    "last_updated": "April 7, 2026",
+    "test_date": "12/14/2023 6:18:52 AM EST"
+   },
+   "csv": {
+    "path": "docs/literature/NIST/FCD_Test036_2026-04-07.csv",
+    "sha256": "d0b5990688e68e29366c80a154b617ec5e39884a25c07ec958d5cfb292fb391e",
+    "rate_hz": 1,
+    "class": "measured"
+   },
+   "events": {
+    "ignition_s": 0,
+    "fire_out_s": 2100,
+    "all": [
+     {
+      "time_min": 0.0,
+      "description": "Ignition"
+     },
+     {
+      "time_min": 3.57,
+      "description": "Pool Fire Underneath"
+     },
+     {
+      "time_min": 5.85,
+      "description": "Peak HRR"
+     },
+     {
+      "time_min": 29.68,
+      "description": "Raking Coals"
+     },
+     {
+      "time_min": 34.95,
+      "description": "water suppression"
+     },
+     {
+      "time_min": 35.0,
+      "description": "Fire Out"
+     }
+    ],
+    "class": "measured",
+    "resolution": "0.01 min as printed",
+    "water_suppression_min": 34.95
+   },
+   "specimen": {
+    "fcd_description": "Sofa B (K-Loveseat + Chase with Polyurethane Foam bottom cushions; polyester batting back cushions;) with 2 A pillows in middle of sofa; 1\" propane flame ignition under pillows. 97393g. Camera setting: F4.0,1/60,Gain:0. LED 100% power",
+    "fcd_fuel_type": "Polyurethane Foam / polyester fiber",
+    "tn2303_description": "Sofa B with chaise (identical to Tests 30 and 41, but with two A Pillows positioned in the middle of the sofa)",
+    "class": "nominal"
+   },
+   "mass": {
+    "initial_kg": 97.39,
+    "initial_uc_kg": 0.02,
+    "final_kg": 19.85,
+    "final_uc_kg": 0.02,
+    "lost_kg": 77.541,
+    "lost_uc_kg": 0.028,
+    "initial_in_description_kg": 97.393,
+    "initial_in_tn2303_table_4_kg": 97.393,
+    "initial_conflict_kg": 0.003,
+    "class": "measured",
+    "method": "gravimetric, before and after the test",
+    "residual_fraction": 0.204,
+    "combustible_mass": {
+     "class": "unknown",
+     "note": "the residue includes what did not burn; the combustible share is not reported"
+    }
+   },
+   "igniter": {
+    "power_W": 128,
+    "power_uc_percent": 1,
+    "duration_s": 43,
+    "duration_uc_percent": 5,
+    "energy_kJ": 5.5,
+    "energy_uc_percent": 5,
+    "pillow_used_to_ignite": true,
+    "fcd_ignition": "propane wand",
+    "class": "measured",
+    "source": "TN 2303 Table 5, row checked on the page image"
+   },
+   "setup": {
+    "hood_m": 9.0,
+    "baseline_exhaust_flow_kg_s": 32.01,
+    "baseline_exhaust_flow_uc_kg_s": 0.96,
+    "regime": "open air under an exhaust hood",
+    "class": "measured"
+   }
+  },
+  "Test041": {
+   "run_id": "Test041",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "page": {
+    "url": "https://www.nist.gov/el/fcd/design-fires-residential-and-office-items/test041",
+    "archived_member": "test041.html",
+    "report_process_script": "NFRL_Report_8.7.1",
+    "last_updated": "April 7, 2026",
+    "test_date": "12/15/2023 6:44:03 AM EST"
+   },
+   "csv": {
+    "path": "docs/literature/NIST/FCD_Test041_2026-04-07.csv",
+    "sha256": "50dc56e1ff67c4b04b2d1bae7d70f78607e03fafd5d77d3f06eaefcff4f70865",
+    "rate_hz": 1,
+    "class": "measured"
+   },
+   "events": {
+    "ignition_s": 0,
+    "fire_out_s": 2358,
+    "all": [
+     {
+      "time_min": 0.0,
+      "description": "Ignition"
+     },
+     {
+      "time_min": 8.12,
+      "description": "Pool Fire Underneath"
+     },
+     {
+      "time_min": 10.18,
+      "description": "Increased Hood Flow"
+     },
+     {
+      "time_min": 10.63,
+      "description": "Peak HRR"
+     },
+     {
+      "time_min": 11.57,
+      "description": "Water cooling on the curtain"
+     },
+     {
+      "time_min": 37.38,
+      "description": "Raking Coals"
+     },
+     {
+      "time_min": 39.12,
+      "description": "water suppression"
+     },
+     {
+      "time_min": 39.3,
+      "description": "Fire Out"
+     }
+    ],
+    "class": "measured",
+    "resolution": "0.01 min as printed",
+    "water_suppression_min": 39.12
+   },
+   "specimen": {
+    "fcd_description": "Sofa B (K-Loveseat + Chase with Polyurethane Foam bottom cushions; polyester batting back cushions;) with 2 A pillows (one behind sofa); 1\" propane flame ignition under pillow behind sofa. 97960g. Camera setting: F4.0,1/60,Gain:0. LED 100% power",
+    "fcd_fuel_type": "Polyurethane Foam / polyester fiber",
+    "tn2303_description": "Sofa B with chaise (identical to Tests 30 and 36, but with two A Pillows, one positioned on the left armrest and one behind the middle of the sofa on the floor)",
+    "class": "nominal"
+   },
+   "mass": {
+    "initial_kg": 97.76,
+    "initial_uc_kg": 0.02,
+    "final_kg": 20.63,
+    "final_uc_kg": 0.02,
+    "lost_kg": 77.132,
+    "lost_uc_kg": 0.028,
+    "initial_in_description_kg": 97.96,
+    "initial_in_tn2303_table_4_kg": 97.96,
+    "initial_conflict_kg": 0.2,
+    "class": "measured",
+    "method": "gravimetric, before and after the test",
+    "residual_fraction": 0.211,
+    "combustible_mass": {
+     "class": "unknown",
+     "note": "the residue includes what did not burn; the combustible share is not reported"
+    },
+    "notes": "The page prints an initial mass of 97.76 kg in its input table and 97960 g in its description, as TN 2303 does; the mass lost is the difference of the table values."
+   },
+   "igniter": {
+    "power_W": 128,
+    "power_uc_percent": 1,
+    "duration_s": 33,
+    "duration_uc_percent": 7,
+    "energy_kJ": 4.2,
+    "energy_uc_percent": 7,
+    "pillow_used_to_ignite": true,
+    "fcd_ignition": "propane wand",
+    "class": "measured",
+    "source": "TN 2303 Table 5, row checked on the page image"
+   },
+   "setup": {
+    "hood_m": 9.0,
+    "baseline_exhaust_flow_kg_s": 39.1,
+    "baseline_exhaust_flow_uc_kg_s": 1.2,
+    "regime": "open air under an exhaust hood",
+    "class": "measured",
+    "notes": "The FCD events record 'Increased Hood Flow' at 10.18 min and 'Water cooling on the curtain' at 11.57 min."
+   }
+  }
+ },
+ "unknown_in_every_nist_run": [
+  "numeric mass against time (load cell): Tests 1 to 24 publish it only as figures, Tests 25 to 48 did not measure it",
+  "elemental composition, moisture and the share of each material in the item",
+  "HCN and any other species against time; HCN exists only as a 2025 whole-test value",
+  "soot composition; the published soot yield comes from laser extinction",
+  "whether each 1 Hz sample is instantaneous or an average, and which delay and response corrections were applied",
+  "what the burner channel reads when no burner is declared",
+  "ambient temperature and humidity of each run",
+  "the combustible share of the initial mass"
+ ],
+ "contract_for_the_next_engine_change": {
+  "status": "proposed_not_implemented_not_authorised",
+  "module": "one new isolated pure module, sibling of the prescribed mass release; no existing module is edited",
+  "why_not_the_existing_contracts": [
+   "the per-object hrr_curve of the engine is a sharing weight of the room fire, capped and held at its last value; it replays nothing",
+   "the prescribed mass release needs an initial mass and a kg/s program of a component with CHO chemistry; this run has no numeric mass series and no approved composition"
+  ],
+  "owner": "one owner id: the item as tested, whole",
+  "inputs": {
+   "measured": [
+    "HRR against time, 1 Hz, ignition to fire out, of one run"
+   ],
+   "calculated": [
+    "energy integral of the table",
+    "clipping bias of negative samples"
+   ],
+   "assumed": [
+    "linear interpolation between 1 Hz samples",
+    "negative samples are noise and are set to zero"
+   ],
+   "unknown_and_left_null": [
+    "mass loss rate",
+    "species yields",
+    "composition",
+    "radiative fraction in a compartment"
+   ]
+  },
+  "interpolation": "piecewise linear",
+  "time_origin": "ignition event of the source run",
+  "support": "ignition to fire out",
+  "outside_support": "refused; no extrapolation and no hold of the last value",
+  "igniter": "inside the measured curve and not separable; about 1e-4 of the energy",
+  "checkable_budget": [
+   "energy delivered equals the integral of the table",
+   "accepted plus rejected equals scheduled",
+   "integral inside the published total and its uncertainty"
+  ],
+  "not_checkable": [
+   "mass",
+   "chemical energy of the fuel",
+   "sensible heating",
+   "heat across the fuel boundary"
+  ],
+  "pending_decisions": [
+   "what the source does when the compartment cannot supply the oxygen",
+   "who owns the deficit",
+   "how the room fire and this source coexist",
+   "radiative and convective split"
+  ],
+  "not_approved": [
+   "CO or FED",
+   "product use",
+   "any item other than the one tested",
+   "any regime other than open air"
+  ]
+ }
+}

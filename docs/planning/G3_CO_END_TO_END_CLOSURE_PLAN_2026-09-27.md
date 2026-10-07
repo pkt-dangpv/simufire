@@ -5,7 +5,23 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 07-10, segundo del día:
+Último avance del 07-10, tercero del día:
+[Fuente de incendio por objeto: selección experimental](../validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md).
+Revisión offline de G3-2/G3-4, sin tocar `sim/`. **La investigación de B
+neto queda cerrada en esta vía como NO-GO** y se vuelve a la fuente por
+objeto. Seleccionado NIST Test016, una silla sola, con su repetición
+Test021 reservada. Seis decisiones separadas: reproducción prescrita de
+HRR **GO** para una corrida al aire libre; pérdida de masa **NO-GO**;
+energía y calor efectivo GO parcial como integrales; especies GO parcial
+como totales en el escape; rendimiento temporal y extrapolación
+**NO-GO**. Las repeticiones difieren más que su incertidumbre: una tabla
+prescrita representa una corrida, no un objeto. Solo verificación de
+reproducción, sin validación externa. Contrato de un módulo aislado que
+reproduce únicamente ese HRR, propuesto y no autorizado. Siguiente paso,
+pendiente del usuario: autorizar o no ese módulo, con cadena R2-1. Sin
+efecto en plazos. CO/FED siguen OFF/NO-GO.
+
+Avance previo del 07-10, segundo del día:
 [Ensayo de evaporación sin llama en cono como benchmark](../validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md).
 Revisión offline, sin tocar `sim/`. Cinco decisiones separadas:
 observables GO parcial, irradiación incidente GO parcial, **calor neto

@@ -34,6 +34,21 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion adicional del 07-10, tercera del dia: seleccion
+experimental de la fuente de incendio por objeto,
+[decision](../validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md).
+Sin documentos nuevos en la biblioteca. NIST Fire Calorimetry Database
+(doi:10.18434/mds2-2314): el registro declara la licencia abierta de
+NIST, comprobado el 07-10; sus CSV y fichas ya estaban archivados. FSRI
+Materials and Products Database, commit a432697e, que sigue siendo el
+ultimo: sin licencia declarada. Sus tres repeticiones del sofa
+(Overstuffed_Sofa_R1 a R3) quedan solo en local, con enlace, commit y
+SHA-256 en el
+[registro](../validation/G3_OBJECT_FIRE_SOURCE_INPUTS_2026-10-07.json); no
+se incorporan ni entran en el manifiesto. Ignitor e incertidumbre de ese
+ensayo no localizados en lo revisado. Manifiesto sin cambio: 50 entradas.
+Ninguna activacion fisica.
+
 Actualizacion adicional del 07-10, segunda del dia: gate propio del
 ensayo de evaporacion sin llama en cono,
 [decision](../validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md).

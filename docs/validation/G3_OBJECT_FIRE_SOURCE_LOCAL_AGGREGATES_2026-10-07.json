@@ -1,0 +1,164 @@
+{
+ "schema": "g3_object_fire_source_local_aggregates_v1",
+ "nature": "scalar aggregates of series that are not redistributed; not raw data",
+ "source": {
+  "commit": "a432697e4b7d40f642b5cc8f384506439ebb32df",
+  "files": {
+   "Overstuffed_Sofa_R1.csv": "75fac34f30eef621a8042d8de3a19777b2ca9caf2e4df3a5dda99636f0d49bc3",
+   "Overstuffed_Sofa_R2.csv": "11516db0ef8fd265c4699ee11f7eda724160c1e428b00c1b0f39b8481469060b",
+   "Overstuffed_Sofa_R3.csv": "ade7d381a6278d39fb560fce54f28b26520614afbfb4da3b30c38a1dcc6202cd"
+  }
+ },
+ "runs": {
+  "R1": {
+   "run_id": "FSRI_Overstuffed_Sofa_R1",
+   "support_s": [
+    -119,
+    1483
+   ],
+   "peak_kW": 2800.02,
+   "time_to_peak_s": 302,
+   "energy_MJ": 723.409342,
+   "hrr_minimum_kW": 0.0,
+   "hrr_samples_exactly_zero_after_start": 153,
+   "first_time_above_5_kW_s": 109,
+   "load_before_kg": 48.955217,
+   "load_after_kg": 0.819381,
+   "mass_lost_kg": 48.135836,
+   "load_sd_before_kg": 0.067557,
+   "largest_one_second_step_kg": 2.471167,
+   "effective_heat_MJ_kg": 15.028499,
+   "windows": {
+    "0.1_to_0.5_of_energy": {
+     "start_s": 235,
+     "end_s": 366,
+     "energy_MJ": 289.70671,
+     "mass_kg": 17.630425,
+     "MJ_kg": 16.432202
+    },
+    "0.5_to_0.9_of_energy": {
+     "start_s": 366,
+     "end_s": 797,
+     "energy_MJ": 288.310285,
+     "mass_kg": 19.437076,
+     "MJ_kg": 14.833007
+    }
+   },
+   "hrr_over_heat_against_load_cell": {
+    "largest_gap_kg": -2.631634,
+    "at_s": 459,
+    "largest_gap_over_mass_lost": 0.054671,
+    "what_it_shows": "mass rebuilt as HRR over the whole-test heat departs from the load cell of the same run"
+   }
+  },
+  "R2": {
+   "run_id": "FSRI_Overstuffed_Sofa_R2",
+   "support_s": [
+    -330,
+    1483
+   ],
+   "peak_kW": 2899.02,
+   "time_to_peak_s": 324,
+   "energy_MJ": 759.511854,
+   "hrr_minimum_kW": 0.0,
+   "hrr_samples_exactly_zero_after_start": 82,
+   "first_time_above_5_kW_s": 68,
+   "load_before_kg": 47.97921,
+   "load_after_kg": 0.300228,
+   "mass_lost_kg": 47.678982,
+   "load_sd_before_kg": 0.44291,
+   "largest_one_second_step_kg": 2.658062,
+   "effective_heat_MJ_kg": 15.9297,
+   "windows": {
+    "0.1_to_0.5_of_energy": {
+     "start_s": 232,
+     "end_s": 379,
+     "energy_MJ": 304.52282,
+     "mass_kg": 18.045747,
+     "MJ_kg": 16.875047
+    },
+    "0.5_to_0.9_of_energy": {
+     "start_s": 379,
+     "end_s": 836,
+     "energy_MJ": 302.129058,
+     "mass_kg": 20.080825,
+     "MJ_kg": 15.045649
+    }
+   },
+   "hrr_over_heat_against_load_cell": {
+    "largest_gap_kg": -1.67968,
+    "at_s": 371,
+    "largest_gap_over_mass_lost": 0.035229,
+    "what_it_shows": "mass rebuilt as HRR over the whole-test heat departs from the load cell of the same run"
+   }
+  },
+  "R3": {
+   "run_id": "FSRI_Overstuffed_Sofa_R3",
+   "support_s": [
+    -120,
+    1484
+   ],
+   "peak_kW": 2870.84,
+   "time_to_peak_s": 330,
+   "energy_MJ": 793.047223,
+   "hrr_minimum_kW": 0.0,
+   "hrr_samples_exactly_zero_after_start": 111,
+   "first_time_above_5_kW_s": 97,
+   "load_before_kg": 48.176488,
+   "load_after_kg": 0.331377,
+   "mass_lost_kg": 47.84511,
+   "load_sd_before_kg": 0.103106,
+   "largest_one_second_step_kg": 3.011086,
+   "effective_heat_MJ_kg": 16.575303,
+   "windows": {
+    "0.1_to_0.5_of_energy": {
+     "start_s": 247,
+     "end_s": 403,
+     "energy_MJ": 317.29428,
+     "mass_kg": 19.125585,
+     "MJ_kg": 16.590044
+    },
+    "0.5_to_0.9_of_energy": {
+     "start_s": 403,
+     "end_s": 973,
+     "energy_MJ": 316.962446,
+     "mass_kg": 20.26772,
+     "MJ_kg": 15.638781
+    }
+   },
+   "hrr_over_heat_against_load_cell": {
+    "largest_gap_kg": 1.776601,
+    "at_s": 795,
+    "largest_gap_over_mass_lost": 0.037132,
+    "what_it_shows": "mass rebuilt as HRR over the whole-test heat departs from the load cell of the same run"
+   }
+  }
+ },
+ "across_runs": {
+  "peak_kW": {
+   "min": 2800.02,
+   "max": 2899.02,
+   "relative_spread": 0.035357
+  },
+  "time_to_peak_s": {
+   "min": 302,
+   "max": 330,
+   "relative_spread": 0.092715
+  },
+  "energy_MJ": {
+   "min": 723.409342,
+   "max": 793.047223,
+   "relative_spread": 0.096263
+  },
+  "mass_lost_kg": {
+   "min": 47.678982,
+   "max": 48.135836,
+   "relative_spread": 0.009582
+  },
+  "effective_heat_MJ_kg": {
+   "min": 15.028499,
+   "max": 16.575303,
+   "relative_spread": 0.102925
+  }
+ }
+}

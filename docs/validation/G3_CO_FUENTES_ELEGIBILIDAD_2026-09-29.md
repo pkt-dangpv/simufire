@@ -149,3 +149,9 @@ G3-2 sigue **parcial/NO-GO** para `Y_CO(t)` por objeto. Falta, en concreto:
 No se rellenan esos huecos con `HRR(t)/HOC`, figuras digitalizadas ni
 parámetros supuestos. G3-1 y G3-3 mantienen sus gates abiertos; el FED
 zonal sigue apagado.
+
+> **Continuado el 07-10** en la
+> [selección experimental de la fuente por objeto](G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md):
+> de esta matriz se evalúan E02, E04 y E12 como fuentes prescritas. El
+> NO-GO de `Y_CO(t)` por objeto no cambia; lo que se admite es reproducir
+> el HRR medido de una corrida.

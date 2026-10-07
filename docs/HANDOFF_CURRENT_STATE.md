@@ -1,5 +1,43 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-07 - Fuente de incendio por objeto: ensayo seleccionado, B neto cerrado en esta vía
+
+[Fuente de incendio por objeto: selección experimental](validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md):
+revisión offline de G3-2/G3-4, sin cambios en `sim/` y sin Godot. **La
+búsqueda de B neto queda cerrada en esta vía como NO-GO**; se retoma la
+fuente experimental por objeto. Reproducir una curva medida no es
+predecirla: esta fase solo trata lo primero.
+Tres candidatos del inventario del 29-09. **Seleccionado: NIST Test016,
+silla apilable A sola, campana de 3 m**; su repetición Test021 queda
+reservada y sin usar. Decisiones separadas para el seleccionado:
+reproducción prescrita de HRR **GO** (una corrida, aire libre); pérdida
+de masa **NO-GO** (solo figura; total gravimétrico); energía y calor
+efectivo **GO parcial** (integrales del ensayo); especies **GO parcial**
+(totales de CO, CO₂ y O₂ en el escape); rendimiento temporal por masa
+**NO-GO**; extrapolación **NO-GO**. Sofá B con dos almohadas (Test030):
+HRR GO solo como conjunto. Sofá de FSRI: GO parcial y solo local, sin
+licencia, ignitor ni incertidumbre documentados.
+Hechos: las cinco series de NIST devuelven pico, tiempo y total de su
+ficha. La misma silla repetida difiere más que la incertidumbre (pico
++11 %, calor −16,5 %, 589 s más tarde). El mismo sofá repite el calor al
+1 % y no el pico (3,0 a 5,2 MW). Con datos de FSRI, el calor efectivo cae
+entre un 6 y un 12 % durante el ensayo y la masa reconstruida como
+HRR/HOC se aparta hasta un 5,5 % de la célula de carga. El cambio sin
+explicar entre TN 2303 y la versión de 2026 toca el CO de dos corridas
+del sofá, no el HRR ni la silla. Solo hay verificación de reproducción,
+no validación externa.
+Auditor offline y 81 pruebas; 28 variantes de control detectadas. ALL
+GUARDRAILS PASS con R2-1.
+Contrato del siguiente cambio, propuesto y **no autorizado**: módulo puro
+aislado que reproduce solo el HRR del Test016; `hrr_curve` es un peso de
+reparto y el programa de masa exige masa y química que este ensayo no
+tiene. Siguiente acción, del usuario: autorizar o no ese módulo. CO/FED
+siguen OFF y NO-GO.
+Nota operativa: durante esta fase otra sesión cambió `runs/g3s` a la rama
+`codex/playable-homes` y trabaja ahí. Esta fase se verificó y publicó
+desde un worktree propio, `runs/g3_shareable`, que pasa a ser el checkout
+de `codex/g3-fed-co-zonal-shareable`; en `runs/g3s` no se tocó nada ajeno.
+
 ## Current Program Update - 2026-10-07 - Ensayo de evaporación en cono: benchmark parcial, B neto sigue sin identificar
 
 [Ensayo de evaporación sin llama en cono como benchmark](validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md):
