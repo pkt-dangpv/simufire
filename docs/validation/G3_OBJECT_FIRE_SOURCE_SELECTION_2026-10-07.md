@@ -20,6 +20,13 @@ Dos cosas distintas, que este informe no mezcla:
 Esta fase solo trata la primera. No valida la segunda y no permite
 imponer una curva medida al aire libre a un incendio subventilado.
 
+> **Actualización del 08-10.** El módulo aislado que este informe dejó
+> propuesto está implementado y verificado:
+> [implementación de la fuente aislada de HRR](G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+> Este informe sigue siendo la **selección** del ensayo; aquel es la
+> **reproducción** de su curva. Ninguno de los dos es validación
+> predictiva, y las decisiones de la tabla siguiente no han cambiado.
+
 ## Decisión
 
 **Ensayo seleccionado: NIST Test016, una silla apilable A sola, bajo la
@@ -46,7 +53,9 @@ tabla devuelve la corrida de la que sale, por construcción. La repetición
 reservada servirá para contrastar un modelo predictivo cuando exista; hoy
 solo mide cuánto se parece un objeto a sí mismo.
 
-CO/FED siguen OFF y NO-GO. Ningún cambio del motor queda autorizado.
+CO/FED siguen OFF y NO-GO. Al cerrar esta selección ningún cambio del
+motor quedaba autorizado. El 08-10 el usuario autorizó solo el módulo
+aislado; conectarlo al motor sigue sin autorizar.
 
 ## Los tres candidatos
 
@@ -301,7 +310,12 @@ Describe lo que se quemó, no de qué está hecho el objeto.
 
 ## Contrato para el siguiente cambio del motor
 
-Propuesto, **no implementado y no autorizado**.
+Propuesto el 07-10, entonces sin implementar ni autorizar. **Implementado
+el 08-10 como módulo aislado**, con autorización del usuario limitada a
+eso:
+[informe de implementación](G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+El contrato de abajo es el que se implementó. Nada de producto lo carga
+y no está conectado al motor, al fuego de sala ni al oxígeno.
 
 **Alcance exacto: reproducir el HRR del Test016, aislado.** Nada más.
 
@@ -428,9 +442,13 @@ python -m scripts.simulation.run_g3_object_source_control_mutations
 
 ## Siguiente acción
 
-Del usuario: autorizar o no el módulo aislado descrito arriba, con su
-fixture real del Test016, su campaña de variantes y la cadena R2-1
-completa por tocar `sim/`. Hasta entonces no se implementa.
+El 07-10 era del usuario: autorizar o no el módulo aislado descrito
+arriba. **Lo autorizó el 08-10 y está hecho**, con su fixture real del
+Test016, su campaña de variantes y la cadena R2-1 completa:
+[informe de implementación](G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+
+Lo siguiente vuelve a ser del usuario: las decisiones de acoplamiento
+listadas arriba. El acoplamiento al recinto no está autorizado.
 
 Dato mínimo que desbloquearía más: la serie numérica de la célula de
 carga de los Test016 y Test021, que NIST midió y publicó solo como

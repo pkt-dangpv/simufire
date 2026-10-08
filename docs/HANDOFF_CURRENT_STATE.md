@@ -1,5 +1,63 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-08 - G3: fuente aislada de HRR del objeto ensayado (Test016) implementada
+
+El usuario autoriza el módulo aislado, sus datos, pruebas, controles,
+documentación, cadena de verificación y, si todo queda verde, commit,
+fast-forward en main y push. **No autoriza** conectarlo al motor, al fuego
+de sala, al oxígeno, al transporte, al editor ni al producto, ni aprobar
+otros objetos, CO o FED. Base `3a105ee0`. Trabajo en `runs/g3_shareable`,
+rama `codex/g3-fed-co-zonal-shareable`.
+
+[Informe de implementación](validation/G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+Es la **reproducción** de la curva que eligió la
+[selección del 07-10](validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md);
+ninguna de las dos es validación predictiva.
+
+- Módulo nuevo `sim/fire/PrescribedObjectHrrSource.gd`: sin `class_name`,
+  sin `@export`, sin cargas; nada de producto lo nombra. Ningún módulo
+  existente de `sim/` se ha editado.
+- Es un propietario en memoria (valida la tabla una vez, lleva reloj y
+  contadores), no funciones sin estado: decisión de esta sesión por las
+  3769 muestras, explicada en el informe.
+- Tabla: HRR del Test016 de «Ignition» a «Fire Out», 0 a 3768 s, 1 Hz,
+  sin desplazar ni escalar. 11 lecturas negativas puestas a cero por el
+  importador offline y declaradas.
+- Energía: 115 093,655 kJ (original con signo 115 092,405; +1,250 por el
+  recorte). Error del módulo frente al oráculo racional exacto:
+  −1,5 · 10⁻¹⁰ kJ. Dentro de 115,1 ± 6,4 MJ sin ningún ajuste.
+- Fixture GDScript: 18 148 comprobaciones, 9 grupos. Pruebas del módulo:
+  22 passed.
+- Mutaciones: 73/73 detectadas, 0 inválidas, fuentes intactas por
+  SHA-256. La primera campaña dio 65 detectadas, 7 inválidas y 1
+  superviviente, por un defecto de la fixture y un control mal
+  dimensionado; ambos corregidos sin tocar módulo ni tolerancias, y la
+  campaña repetida entera. Detalle en el informe.
+- Regresiones de G3: 1452 passed, 18 skipped.
+- Referencia completa monitorizada: 18/18 corridas sanas, **346/346
+  required PASS, 78 gaps**, ALL GUARDRAILS PASS con R2-1. De los 382
+  archivos del corpus, 381 idénticos byte a byte a `3a105ee0`; en
+  `reference_checks.json` solo cambia `generated_at`.
+- Producto: 168/168 PASS. Global: 4271 passed, 49 skipped, 2 xfailed,
+  42 subtests, exit 0, 708,53 s.
+- Logs locales: `runs/reference_suite_monitored_20261008_141155/` y
+  `runs/g3_object_hrr_source_mutations_20261008_135708/`.
+
+Masa, composición, especies y fracción radiante quedan **nulas, no cero**.
+Fuera del soporte se rechaza. La energía no aceptada se anota como
+rechazada, sin cola y sin causa física: no es un déficit de oxígeno.
+Test021 sigue reservado y sin usar. Sin datos de FSRI ni propiedades del
+heptano. B neto no se reabre. CO/FED OFF/NO-GO.
+
+Este worktree no tenía caché de importación de Godot; se generó con
+`--import` bajo el monitor. Dejó 79 `.uid` sin versionar, derivados, que
+no forman parte de la entrega.
+
+Siguiente decisión, del usuario: las de acoplamiento (qué pasa cuando el
+recinto no da el oxígeno que la curva pide, cómo se marca la salida del
+régimen de aire libre, convivencia con el fuego de sala, reparto
+radiante). **El acoplamiento al recinto no está autorizado ni empezado.**
+
 ## Current Program Update - 2026-10-08 - Código de viviendas y prototipo visual: cadena completa verde
 
 El usuario autoriza completar la validación del código WIP, corregir fallos,
