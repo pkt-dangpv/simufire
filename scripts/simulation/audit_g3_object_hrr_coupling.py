@@ -192,7 +192,7 @@ def oxygen(record: dict, series: dict, table: dict, test: dict) -> dict:
     alpha, heat_co = declared["expansion_factor"], declared["heat_per_kg_oxygen_from_co_MJ_kg"] * 1000.0
     band = []
     for humidity in declared["humidity_band_volume_fraction"]:
-        consumed, rebuilt, signed = 0.0, 0.0, 0.0
+        consumed, rebuilt, signed, from_co = 0.0, 0.0, 0.0, 0.0
         previous = None
         for second in range(start, end + 1):
             o2, co2, co = columns["o2"][second], columns["co2"][second], columns["co"][second]
@@ -200,19 +200,26 @@ def oxygen(record: dict, series: dict, table: dict, test: dict) -> dict:
                 / (ambient["o2"] * (1.0 - o2 - co2 - co))
             base = flow[second] / (1.0 + depletion * (alpha - 1.0)) \
                 * (32.0 / selection.M_AIR) * (1.0 - humidity) * ambient["o2"]
-            point = (depletion * base,
-                     (heat * depletion - (heat_co - heat) * (1.0 - depletion) / 2.0 * co / o2) * base,
-                     measured[second])
+            carbon_monoxide = (heat_co - heat) * (1.0 - depletion) / 2.0 * co / o2 * base
+            point = (depletion * base, heat * depletion * base - carbon_monoxide, measured[second], carbon_monoxide)
             if previous is not None:
                 consumed += 0.5 * (previous[0] + point[0])
                 rebuilt += 0.5 * (previous[1] + point[1])
                 signed += 0.5 * (previous[2] + point[2])
+                from_co += 0.5 * (previous[3] + point[3])
             previous = point
         band.append({"ambient_humidity_volume_fraction": humidity, "oxygen_consumed_kg": consumed,
-                     "rebuilt_heat_over_published_series": rebuilt / signed})
+                     "rebuilt_heat_over_published_series": rebuilt / signed,
+                     "carbon_monoxide_term_over_rebuilt_heat": from_co / rebuilt})
     return {
-        "basis": "the calorimeter computes the heat from the oxygen it sees disappear; dividing the heat "
-                 "by the same constant returns that oxygen, it does not describe the fuel",
+        "basis": "an equivalent demand prescribed by the bench: energy over the constant the calorimeter "
+                 "assumes for a generic fuel. It is not the oxygen measured in the duct, not an exact "
+                 "inversion of the heat equation and not a stoichiometry of this chair",
+        "what_the_relation_assumes": [
+            "the heat released per kg of oxygen is the generic 13.1 MJ/kg, which was not measured on this chair",
+            "complete combustion: the heat equation subtracts a carbon monoxide term that the ratio ignores",
+            "the expansion factor and the ambient humidity the calorimeter assumed, which the CSV does not carry",
+        ],
         "heat_per_kg_oxygen_MJ_kg": published["tn2303_MJ_kg"],
         "kg_per_MJ": 1000.0 / heat,
         "relative_standard_deviation_tn2077": published["tn2077_standard_deviation_MJ_kg"] / published["tn2077_MJ_kg"],
@@ -322,7 +329,7 @@ def decide(facts: dict) -> dict:
     if worst_filter < 1.0:
         out["applied_power_unfiltered"] = "GO_design_only_outside_the_room_fire_route"
     if oxygen_facts["engine_constant_inside_one_standard_deviation"]:
-        out["oxygen_debit_per_accepted_energy"] = "GO_design_only_as_the_calorimetric_identity"
+        out["oxygen_debit_per_accepted_energy"] = "GO_design_only_as_a_prescribed_equivalent_demand"
     out["oxygen_limited_response"] = "NO-GO_as_a_model_conservation_cap_only"
     out["regime_validity_indicator"] = "GO_design_only_as_a_declared_hypothesis_not_a_validated_limit"
     if radiative["fraction_reproduced"]:

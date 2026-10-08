@@ -181,7 +181,7 @@ def test_the_rise_time_constants_are_the_engine_ones() -> None:
 
 # ---------------------------------------------------------------- oxygen
 
-def test_the_oxygen_demand_is_the_calorimetric_identity() -> None:
+def test_the_oxygen_demand_is_a_prescribed_equivalent_not_a_measurement() -> None:
     oxygen = SAVED["oxygen"]
     assert oxygen["heat_per_kg_oxygen_MJ_kg"] == 13.1
     assert oxygen["kg_per_MJ"] == pytest.approx(1.0 / 13.1, abs=1.0e-9)
@@ -189,6 +189,12 @@ def test_the_oxygen_demand_is_the_calorimetric_identity() -> None:
     assert oxygen["peak_demand_kg_s"] == pytest.approx(621.46 / 13100.0, abs=1.0e-9)
     assert oxygen["relative_standard_deviation_tn2077"] == pytest.approx(0.35 / 13.1, abs=1.0e-9)
     assert oxygen["relative_half_width_tn2303"] == pytest.approx(0.5 / 13.1, abs=1.0e-9)
+    assert "not the oxygen measured" in oxygen["basis"] and "not a stoichiometry" in oxygen["basis"]
+    assert len(oxygen["what_the_relation_assumes"]) == 3
+    assert SAVED["decisions"]["oxygen_debit_per_accepted_energy"].endswith("prescribed_equivalent_demand")
+    # The heat equation carries a carbon monoxide term that energy over a constant leaves out.
+    for item in oxygen["approximate_reconstruction"]:
+        assert 0.001 < item["carbon_monoxide_term_over_rebuilt_heat"] < 0.005
 
 
 def test_the_engine_constant_is_the_same_relation_within_its_uncertainty() -> None:

@@ -34,7 +34,7 @@ los GO son de **diseño**: implementar sigue sin autorizar.
 | --- | --- |
 | Energía entregada por paso igual a la integral de la tabla | **GO de diseño**, como fuente térmica sola en su recinto |
 | Potencia aplicada sin filtro ni topes | **GO de diseño**, fuera de la ruta del fuego de sala |
-| Oxígeno debitado por energía aceptada | **GO de diseño**, como identidad de la calorimetría |
+| Oxígeno debitado por energía aceptada | **GO de diseño**, como demanda equivalente prescrita |
 | Respuesta al oxígeno escaso | **NO-GO** como modelo; solo una cota de conservación |
 | Indicador de validez del régimen | **GO de diseño** como hipótesis declarada, no como límite validado |
 | Reparto convectivo y radiativo | **GO parcial**: 0,52 ± 18 %, del ensayo entero y al aire libre |
@@ -259,33 +259,56 @@ Dos cosas distintas:
 
 ### Qué demanda de oxígeno se justifica
 
-El HRR del ensayo es **calorimetría por consumo de oxígeno**: el
-calorímetro mide el oxígeno que desaparece y lo multiplica por 13,1 MJ/kg.
-Dividir ese calor por la misma constante devuelve el oxígeno consumido. Es
-deshacer la reducción de datos, no describir el combustible.
+> **Corregido el 08-10, antes de implementar.** La primera versión decía
+> que dividir el HRR por 13,1 MJ/kg «devuelve el oxígeno consumido». Es
+> demasiado. Lo que sigue lo sustituye.
+
+El HRR del ensayo es **calorimetría por consumo de oxígeno**, pero la
+relación `HRR / 13,1 MJ/kg` **no es una reconstrucción exacta del oxígeno
+que se midió**. Es una **demanda equivalente prescrita**: el oxígeno que
+correspondería a ese calor con la constante que el calorímetro supone
+para un combustible genérico.
+
+Qué hace falta suponer para usarla, según la ecuación 12 de TN 2077:
+
+| Hipótesis | Qué interviene en la calorimetría real |
+| --- | --- |
+| El calor por kg de O₂ vale 13,1 MJ/kg | Es la media de combustibles genéricos, con desviación típica de 0,35 MJ/kg. **No se midió en esta silla** |
+| Combustión completa | La ecuación resta un término por el CO medido. En esta corrida ronda el 0,25 % del calor, según la reconstrucción aproximada de abajo |
+| Expansión de los productos | Un factor de expansión supuesto (1,10 para hidrocarburos) convierte el caudal del conducto en aire entrante |
+| Humedad del aire | Se estima con la humedad ambiente; el CSV no la trae |
+| Sin corrección por hollín | La ecuación no la aplica |
+
+Por eso **no equivale al total de oxígeno que publica la base de datos**.
+Ese total sale de otra regla, la diferencia de fracción en el conducto
+por el caudal, que no lleva ni el factor de agotamiento ni la expansión:
+8,168 kg, un **7,0 % menos**. Ninguna de las dos cifras es «el oxígeno
+exacto».
 
 | Cantidad | Valor |
 | --- | --- |
-| Constante de la calorimetría | 13,1 MJ por kg de O₂ |
+| Constante que supone la calorimetría | 13,1 MJ por kg de O₂ |
 | Su incertidumbre | desviación típica 0,35 MJ/kg (2,7 %); TN 2303 la cita como ± 0,5 (3,8 %) |
-| Demanda por energía | 0,076 34 kg/MJ |
-| Demanda de la corrida entera | 8,786 kg de O₂ |
-| Demanda en el pico | 0,0474 kg/s |
-| Constante del motor | 0,076 kg/MJ, es decir 13,16 MJ/kg: un 0,44 % menos, dentro de la incertidumbre |
+| Demanda equivalente con esa constante | 0,076 34 kg/MJ; 8,786 kg en la corrida; 0,0474 kg/s en el pico |
+| **Coeficiente del banco** | **0,076 kg/MJ: el que ya usa el sumidero del motor.** Equivale a 13,16 MJ/kg, un 0,44 % menos de oxígeno, dentro de la incertidumbre |
+| Demanda del banco en la corrida | 8,747 kg de O₂ |
 
-**Qué es una aproximación.** El total de oxígeno que publica la base de
-datos sale con otra regla, la diferencia de fracción en el conducto por el
-caudal: 8,168 kg, un **7,0 % menos**. Esa regla omite los términos de
-expansión y de agotamiento de la ecuación del calor. Las dos lecturas
-difieren más que la incertidumbre de la constante, así que no son
-intercambiables. Una reconstrucción propia y aproximada del balance del
-calorímetro, con humedad supuesta, da entre 8,48 y 8,66 kg y devuelve
-entre el 96,3 y el 98,3 % del calor publicado: es coherente con la
-identidad y **no se usa como entrada**.
+**El coeficiente no se ajusta** para acercarlo al total del conducto ni a
+ninguna otra señal. Se toma el del motor para no tocar su sumidero.
 
-La constante vale para combustión completa de combustibles genéricos. No
-se ha medido en esta silla. **No se deriva masa de combustible ni ninguna
-emisión para sostener este cálculo.**
+**Qué comprueba la prueba y qué no.** La prueba exigirá
+`O₂ debitado = energía aceptada × 0,076 kg/MJ`. Eso verifica el contrato
+del banco. **No demuestra** el consumo experimental exacto, ni una
+estequiometría de la silla, ni un cierre químico.
+
+**Comprobación de coherencia, no entrada.** Una reconstrucción propia y
+aproximada del balance del calorímetro, con humedad y expansión
+supuestas, da entre 8,48 y 8,66 kg de oxígeno y devuelve entre el 96,3 y
+el 98,3 % del calor publicado. Es coherente con la relación y **no se
+usa**: no es la ecuación de NIST con sus entradas.
+
+**No se deriva masa de combustible ni ninguna emisión para sostener este
+cálculo.**
 
 ### Qué ocurre cuando el recinto deja de sostener la fuente
 
@@ -296,7 +319,7 @@ inventa ninguno.
 
 | Regla | Qué es | Procedencia |
 | --- | --- | --- |
-| R1. No hay calor sin su oxígeno | La energía aceptada no supera la que el oxígeno disponible permite debitar en el paso | Conservación, con la constante de la calorimetría |
+| R1. No hay calor sin su oxígeno equivalente | La energía aceptada no supera la que el inventario del sumidero permite debitar en el paso, y el débito real se compara después con el comprometido | Contabilidad del banco, con el coeficiente declarado |
 | R2. El oxígeno que ve la fuente no se aparta del inicial más de `δ` | Indicador del régimen | **Hipótesis.** `δ` es una tolerancia numérica del caso, no un límite físico |
 | R3. La capa caliente no envuelve la fuente | Indicador del régimen | **Hipótesis**, con la misma referencia que ya usa el motor |
 | R4. Ni supresión ni fuego de sala en el recinto | Condición de propiedad | Contrato A |
@@ -492,7 +515,7 @@ al final de la corrida y para nada más.
 | Energía programada, aceptada y rechazada | Fuente aislada | kJ | Integral exacta |
 | Decisión de aceptar | Propietario del recinto | — | R1 a R4 |
 | `room.hrr_kw` del paso | Propietario del recinto | kW | Aceptada entre `dt` |
-| Oxígeno debitado | `OxygenExchangeSystem` | kg | Aceptada × 0,076 34 kg/MJ |
+| Oxígeno equivalente debitado | `OxygenExchangeSystem`, inventario de sala | kg | Aceptada × 0,076 kg/MJ |
 | Calor al gas | `ThermalSystem` | kJ | Aceptada × (1 − χ) |
 | Calor radiado | `ThermalSystem`, término nuevo | kJ | Aceptada × χ |
 | Fracción χ | Caso de acoplamiento | — | Declarada, con clase |
@@ -539,7 +562,7 @@ No hay transición de `outside_declared_regime` a `replaying`, ni de
 
 | Decisión | Fuente | Qué afirma o mide | Qué se aplica | Inferencia o hipótesis | Desconocido |
 | --- | --- | --- | --- | --- | --- |
-| Demanda de oxígeno | [NIST TN 2077](https://doi.org/10.6028/NIST.TN.2077), ecs. 2 a 12 | El HRR se calcula del oxígeno consumido, con O₂, CO₂ y CO medidos; 13,1 MJ/kg, desviación 0,35 | La identidad inversa | Que la constante genérica vale para esta silla | La constante propia del objeto |
+| Demanda de oxígeno | [NIST TN 2077](https://doi.org/10.6028/NIST.TN.2077), ecs. 2 a 12 | El HRR se calcula del oxígeno consumido, con O₂, CO₂ y CO medidos, expansión y humedad; 13,1 MJ/kg, desviación 0,35 | La relación entre calor y oxígeno, como demanda equivalente | Que la constante genérica vale para esta silla | La constante propia del objeto |
 | Total de oxígeno publicado | [Guía de la FCD](https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf), sec. 3 | Regla del total: diferencia de fracción por caudal | Que no es la demanda | La causa exacta del 7 % | Las entradas de la calorimetría de la corrida |
 | Fracción radiativa | [NIST TN 2303](https://doi.org/10.6028/NIST.TN.2303), sec. 2.2.1, tablas 3 y 7 | Test016: 0,52 ± 18 %, cinco radiómetros, fuente puntual | Valor del ensayo entero, al aire libre | Usarlo dentro de un recinto | Radiación a superficies; la serie temporal |
 | Fuego prescrito limitado por oxígeno | [NIST TN 1889v1](https://doi.org/10.6028/NIST.TN.1889v1), CFAST 7.0.0, secs. 3.1 y 3.2 | El HRR lo fija el usuario y se recorta a `ṁₑ·Y_O₂·C_LOL·13,1 MJ/kg`; límite 0,15 por defecto, independiente de la temperatura; χ = 0,35 por defecto, rango típico 0,05 a 0,4 | Que el recorte por oxígeno es una cota y el límite un valor por defecto | Ninguna: no se adopta el límite | El límite de esta silla |
@@ -591,12 +614,14 @@ Para una implementación futura. Fijados aquí, antes de que exista.
 | | Criterio |
 | --- | --- |
 | A1 | Apagado: los informes de referencia idénticos byte a byte y los mismos 346 required y 78 gaps |
-| A2 | `room.hrr_kw` de cada paso igual a la media de la tabla en el intervalo, con tolerancia absoluta de 10⁻⁹ kW y relativa de 10⁻¹² |
+| A2 | `room.hrr_kw` de cada paso igual a la integral independiente del intervalo propuesto dividida por la **duración completa del paso**, con la tolerancia del módulo. En el último paso el intervalo es más corto que el paso |
 | A3 | Energía aceptada acumulada igual a 115 093,655 kJ con la tolerancia del módulo, para tres pasos de tiempo distintos |
-| A4 | Pico 621,46 kW en el paso que contiene los 1143 s, sin retraso |
-| A5 | Oxígeno debitado igual a la energía aceptada por la constante declarada, paso a paso |
+| A4a | El pico instantáneo de la fuente es el dato: 621,46 kW a los 1143 s, leído con `hrr_kw()` |
+| A4b | El máximo de la potencia por paso y el paso en que cae coinciden con el oráculo **de ese `dt`**. No se exige 621,46 kW a ningún paso finito |
+| A4c | El paso que contiene los 1143 s es el que dice el oráculo: no hay retraso por filtro ni por un reloj equivocado |
+| A5 | Oxígeno debitado en el inventario de sala igual a la energía aceptada por 0,076 kg/MJ, paso a paso y medido en el sumidero. Verifica el contrato del banco, no un consumo experimental |
 | A6 | Calor al gas más calor radiado igual a la energía aceptada, paso a paso |
-| A7 | Combustible consumido, especies generadas y trazador de CO₂ del recinto: cero toda la corrida |
+| A7 | Combustible consumido y especies generadas en el recinto: cero toda la corrida. El trazador de CO₂ no produce: sigue su rama sin fuego |
 | A8 | Estado final `completed`, energía rechazada cero, régimen nunca invalidado |
 | A9 | Los cuatro valores de χ dan la misma energía aceptada y el mismo oxígeno |
 | A10 | Tras el final del soporte la potencia es cero y la fuente no se reabre |
@@ -618,7 +643,7 @@ el criterio no vale:
 | N8 | La energía rechazada se guarda y se entrega después | A3, A8 |
 | N9 | La energía rechazada pasa al depósito de inquemados | A7 |
 | N10 | Tras salir del régimen, el estado vuelve a válido | Transiciones |
-| N11 | Un recinto cerrado de 60 m³ | A8: debe salir del régimen antes del pico |
+| N11 | Un recinto de 60 m³, estanco y casi estanco | A8: debe salir del régimen. El instante del cálculo de escala es orientativo, no un valor exigido |
 | N12 | Reiniciar reutiliza la instancia anterior | A11 |
 | N13 | La fracción radiativa se guarda en la fuente | Contrato D y el módulo |
 | N14 | Con un modo de oxígeno explícito | No se simula: el orden del paso no es el declarado |
@@ -626,6 +651,77 @@ el criterio no vale:
 
 Las tolerancias numéricas son las del módulo. Ninguna se fijará después
 de ver un resultado.
+
+### Correcciones del 08-10, registradas antes de ejecutar el acoplamiento
+
+Hechas al leer el sumidero del motor y al preparar el oráculo, **antes de
+que exista ningún resultado acoplado**. Ninguna amplía una tolerancia.
+
+**1. Oxígeno.** Reformulado arriba: demanda equivalente prescrita, con el
+coeficiente del motor, 0,076 kg/MJ. A5 verifica un contrato de
+contabilidad.
+
+**2. Pico y paso finito.** A2 fija la potencia de un paso como la
+integral de su intervalo entre la duración del paso. Con un paso finito
+eso es una media, y su máximo **no es el pico instantáneo**. La versión
+anterior de A4 exigía 621,46 kW «en el paso que contiene los 1143 s» y
+contradecía a A2. Demostración con un triángulo de pico 100 kW a los 10 s
+y pendientes de 10 kW/s, leído con pasos que empiezan en cero:
+
+| Paso | Dónde cae el pico | Mayor potencia de paso | Forma cerrada |
+| --- | --- | --- | --- |
+| 4 s | En mitad de un paso | 90 kW | `pico − pendiente·dt/4` |
+| 1 s | En el borde de un paso | 95 kW | `pico − pendiente·dt/2` |
+| 0,5 s | En el borde de un paso | 97,5 kW | `pico − pendiente·dt/2` |
+
+La energía es la misma en los tres: 1000 kJ. Para el Test016, el oráculo
+independiente da:
+
+| Paso | Pasos | Mayor potencia de paso | Paso e intervalo | Frente a 621,46 kW |
+| --- | --- | --- | --- | --- |
+| 1,0 s | 3768 | 621,125 kW | 1142, de 1142 a 1143 s | −0,335 kW |
+| 0,7 s | 5383 | 621,274 kW | 1632, de 1142,4 a 1143,1 s | −0,186 kW |
+| 2,5 s | 1508 | 619,663 kW | 457, de 1142,5 a 1145 s | −1,798 kW |
+
+A4 queda partido en A4a, A4b y A4c.
+
+**3. Otras precisiones del contrato**, que no cambian el alcance:
+
+- **Inventario que usa el sumidero.** Con los interruptores por defecto y
+  un recinto con hueco al exterior, el motor debita el oxígeno de sala:
+  `masa de aire × room.o2`, con masa de aire igual a 1,2 kg/m³ por el
+  volumen, y recorta el débito de un paso al 5 % de ese inventario. Esa
+  es la ruta que el banco declara. En un recinto **estanco** el motor usa
+  otra ruta, sobre el número de la capa inferior y con dos bases de masa
+  distintas: ahí el banco no puede cumplir su contrato y se invalida.
+- **Números de zona.** El motor lleva además un número de oxígeno para la
+  capa superior y otro para la inferior, que no forman con el de sala una
+  partición conservada. Para cualquier recinto con potencia aplica a la
+  capa superior un débito de «desplazamiento» del 9 % de la demanda y
+  mezcla las dos capas. El banco **no lo excluye y no lo usa**: lo mide y
+  lo informa aparte. No entra en A5.
+- **R2, concreto.** Se vigilan el número de sala y el de la capa
+  inferior: el régimen se invalida si alguno baja más de `δ` respecto a
+  su valor en la ignición. `δ = 0,01` en el caso base, declarado aquí.
+- **R3, concreto.** La interfaz de la capa caliente debe quedar a 0,3 m o
+  más del suelo, que es la referencia con la que el motor decide de qué
+  capa respira un fuego. Es una hipótesis del banco.
+- **Comprobación tras el oxígeno y antes del calor.** El motor debita el
+  oxígeno antes de depositar el calor. Si el débito real no es el
+  comprometido, la potencia del paso se anula **antes** de que
+  `ThermalSystem` la lea: no queda calor contabilizado como válido. El
+  oxígeno que el sumidero haya llegado a debitar en ese paso no se puede
+  devolver, porque el motor no restaura, y se informa.
+- **Último paso.** Se propone solo el tramo dentro del soporte y su
+  energía se divide por el paso completo: `potencia × dt` es exactamente
+  esa energía, ni se pierde ni se duplica.
+- **Trazador de CO₂.** «Cero» era impreciso: el trazador tiene un valor
+  ambiente. Lo que se exige es que no produzca.
+- **Recinto de 60 m³.** Dos variantes: estanco, que se invalida por la
+  ruta del sumidero, y casi estanco, con una rendija al exterior, que se
+  invalida al bajar el oxígeno.
+- **Fracción radiativa.** Los cuatro valores son 0,35, 0,52, 0,4264 y
+  0,6136; los dos últimos son el publicado menos y más su incertidumbre.
 
 ## Lo que bloquea el siguiente paso
 
@@ -661,8 +757,8 @@ Un único caso, y nada más:
 - una fuente térmica prescrita del Test016, sola en un recinto sin
   combustible, grande o bien ventilado;
 - interruptor del motor sin `@export`, apagado por defecto, solo fixture;
-- calor por `room.hrr_kw` sin filtro, oxígeno por la identidad de la
-  calorimetría, χ declarada en el caso y corrida con sus cuatro valores;
+- calor por `room.hrr_kw` sin filtro, oxígeno como demanda equivalente
+  prescrita, χ declarada en el caso y corrida con sus cuatro valores;
 - sin masa, sin especies, sin FED, sin otros objetos, sin supresión, sin
   restauración y sin producto;
 - salida del régimen: parar y enclavar, salvo decisión distinta;

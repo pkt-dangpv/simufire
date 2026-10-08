@@ -313,7 +313,12 @@
   }
  ],
  "oxygen": {
-  "basis": "the calorimeter computes the heat from the oxygen it sees disappear; dividing the heat by the same constant returns that oxygen, it does not describe the fuel",
+  "basis": "an equivalent demand prescribed by the bench: energy over the constant the calorimeter assumes for a generic fuel. It is not the oxygen measured in the duct, not an exact inversion of the heat equation and not a stoichiometry of this chair",
+  "what_the_relation_assumes": [
+   "the heat released per kg of oxygen is the generic 13.1 MJ/kg, which was not measured on this chair",
+   "complete combustion: the heat equation subtracts a carbon monoxide term that the ratio ignores",
+   "the expansion factor and the ambient humidity the calorimeter assumed, which the CSV does not carry"
+  ],
   "heat_per_kg_oxygen_MJ_kg": 13.1,
   "kg_per_MJ": 0.076335878,
   "relative_standard_deviation_tn2077": 0.026717557,
@@ -332,12 +337,14 @@
    {
     "ambient_humidity_volume_fraction": 0.0,
     "oxygen_consumed_kg": 8.657683555,
-    "rebuilt_heat_over_published_series": 0.982969473
+    "rebuilt_heat_over_published_series": 0.982969473,
+    "carbon_monoxide_term_over_rebuilt_heat": 0.002504447
    },
    {
     "ambient_humidity_volume_fraction": 0.02,
     "oxygen_consumed_kg": 8.484529883,
-    "rebuilt_heat_over_published_series": 0.963310084
+    "rebuilt_heat_over_published_series": 0.963310084,
+    "carbon_monoxide_term_over_rebuilt_heat": 0.002504447
    }
   ],
   "approximate_reconstruction_is": "calculated with assumed humidity and expansion; a consistency check, not an input"
@@ -550,7 +557,7 @@
  "decisions": {
   "energy_delivered_per_step": "GO_design_only_as_a_thermal_source_alone_in_its_room",
   "applied_power_unfiltered": "GO_design_only_outside_the_room_fire_route",
-  "oxygen_debit_per_accepted_energy": "GO_design_only_as_the_calorimetric_identity",
+  "oxygen_debit_per_accepted_energy": "GO_design_only_as_a_prescribed_equivalent_demand",
   "oxygen_limited_response": "NO-GO_as_a_model_conservation_cap_only",
   "regime_validity_indicator": "GO_design_only_as_a_declared_hypothesis_not_a_validated_limit",
   "convective_radiative_split": "GO_partial_open_air_whole_test_value_with_its_uncertainty",
