@@ -388,6 +388,11 @@ El archivo queda con CRLF en disco y Git lo normaliza a LF al guardarlo.
 
 ## Decisiones de acoplamiento, abiertas
 
+> **Actualización del 08-10.** Las cinco se analizan en el
+> [diseño del acoplamiento](G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md),
+> que recomienda una fuente térmica sola en su recinto y deja en NO-GO la
+> combustión del mueble. Es un diseño: no implementa ni autoriza nada.
+
 Son del usuario y ninguna se ha tomado aquí:
 
 1. Qué hace la fuente cuando el recinto no puede aportar el oxígeno que
@@ -404,7 +409,9 @@ Son del usuario y ninguna se ha tomado aquí:
 ## Siguiente acción
 
 Ninguna dentro de esta fase: la fuente aislada queda cerrada. El
-acoplamiento al recinto **no está autorizado** y no se ha empezado.
+acoplamiento al recinto **no está autorizado** y no se ha empezado; su
+[diseño](G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md) está escrito
+y espera decisión.
 
 Reproducir:
 

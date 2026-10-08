@@ -5,7 +5,37 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 07-10, tercero del día:
+Último avance del 08-10, segundo del día:
+[Diseño del acoplamiento de la fuente prescrita](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
+Fase offline de G3-4, sin tocar `sim/` ni lanzar Godot. Ruta real del
+fuego trazada en el código y fijada por 34 anclas. **Recomendación: una
+fuente térmica prescrita, sola en su recinto y fuera de la ruta del fuego
+de sala**; entrega calor y debita oxígeno, sin combustible ni especies, y
+se invalida al salir del régimen del ensayo. **Representar el objeto que
+arde es NO-GO**: faltan la serie numérica de masa, una composición
+aprobada y rendimientos en recinto. Hechos: el filtro del fuego de sala
+añadiría entre 5,5 y 8,9 MJ a la curva y le quitaría hasta un 6 % del
+pico; la demanda de oxígeno se justifica como identidad de la
+calorimetría (13,1 MJ/kg) y el total que publica la base de datos queda
+un 7 % por debajo; el ensayo da una fracción radiativa de 0,52 ± 18 %,
+del ensayo entero y al aire libre, frente al 0,35 del motor; una
+habitación cerrada sale del régimen antes del pico. Quince decisiones
+separadas: cuatro GO de diseño, un GO parcial y diez NO-GO. Siguiente
+paso, pendiente del
+usuario: autorizar o no ese único caso, con cambios en `sim/` bajo
+interruptor apagado y cadena R2-1. Sin efecto en plazos. CO/FED siguen
+OFF/NO-GO.
+
+Avance previo del 08-10:
+[Fuente aislada de HRR del objeto ensayado](../validation/G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+Módulo aislado `sim/fire/PrescribedObjectHrrSource.gd` que reproduce el
+HRR medido del Test016, sin conectarlo a nada. Tabla 115 093,655 kJ,
+dentro de 115,1 ± 6,4 MJ sin ajuste; fixture 18 148 comprobaciones;
+mutantes 73/73; referencia 346/346 required y 78 gaps; producto 168/168;
+global 4271 passed. Reproducción de una entrada experimental, no
+validación predictiva. CO/FED siguen OFF/NO-GO.
+
+Avance previo del 07-10, tercero del día:
 [Fuente de incendio por objeto: selección experimental](../validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md).
 Revisión offline de G3-2/G3-4, sin tocar `sim/`. **La investigación de B
 neto queda cerrada en esta vía como NO-GO** y se vuelve a la fuente por

@@ -1,0 +1,207 @@
+{
+  "schema": "g3_object_hrr_coupling_design_inputs_v1",
+  "date": "2026-10-08",
+  "status": "design and feasibility only; nothing here is engine physics",
+  "engine_read_at_commit": "60754428",
+  "run": "Test016",
+  "reserved_runs_not_used": ["Test021"],
+  "sources": {
+    "tn2303": {
+      "title": "NIST TN 2303, The Character of Burning Residential and Office Items, March 2025",
+      "url": "https://doi.org/10.6028/NIST.TN.2303",
+      "local": "docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf",
+      "sha256": "7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03",
+      "read": "section 2.2.1 with Table 3 and Equations 1 and 2 (printed page 9), Table 7 (printed page 27); both tables checked on page images"
+    },
+    "tn2077": {
+      "title": "NIST TN 2077, The NIST 20 MW Calorimetry Measurement System for Large-Fire Research, 2019",
+      "url": "https://doi.org/10.6028/NIST.TN.2077",
+      "local": "docs/literature/NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf",
+      "sha256": "0cb9356a86d3882f19b26d8f212239413f649d41ab2ba9e40f710e97f55c21e3",
+      "read": "section on the principle of oxygen consumption calorimetry, Equations 2 to 12"
+    },
+    "fcd_guide": {
+      "title": "User's Guide for Fire Calorimetry Database, revised 23 October 2020",
+      "url": "https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf",
+      "local": "docs/literature/NIST/FCD_User_Guide_v4a_2020.pdf",
+      "sha256": "89692794156d9a4f32ba0493e791da23d80160035877d2831d31a5317e6cee8f",
+      "read": "section 3, description of the calculations"
+    },
+    "cfast_reference": {
+      "title": "NIST TN 1889v1, CFAST Version 7 Volume 1: Technical Reference Guide, October 2015, CFAST 7.0.0, Git revision Gitv7-0-g4eddb8a",
+      "url": "https://doi.org/10.6028/NIST.TN.1889v1",
+      "local": "docs/literature/NIST.TN.1889v1.pdf",
+      "read": "sections 3.1 and 3.2, Equations 3.9 to 3.14 and footnote 1"
+    },
+    "cfast_code": {
+      "title": "firemodels/cfast, release tag CFAST-7.7.7 (tag object 100e1b1f89fac00c2357b4c8faac7d7ebed0ebdd, published 2026-05-28)",
+      "url": "https://github.com/firemodels/cfast/tree/CFAST-7.7.7/Source/CFAST",
+      "local": "not archived; three files read and hashed, a few lines quoted",
+      "files": {
+        "fire.f90": "e954b7f4150094adb021737b3d3eba4cda75ad0b7db5f02ea79a9baf93b5c4d1",
+        "cfast_parameters.f90": "d579e2cd3346af1143e89f2a06d7223b527be242cf0692591935b4c38547922c",
+        "utilities.f90": "7ea9804a34e94ba27b7bfa854c93add8aa59e8889b38ecef53ca5b89ce013029"
+      },
+      "read": "subroutines do_fire and chemistry of fire.f90, function tanhsmooth, three parameters"
+    }
+  },
+  "published": {
+    "heat_per_kg_oxygen": {
+      "tn2303_MJ_kg": 13.1,
+      "tn2303_plus_minus_MJ_kg": 0.5,
+      "tn2077_MJ_kg": 13.1,
+      "tn2077_standard_deviation_MJ_kg": 0.35,
+      "what_it_is": "average of generic combustibles after Huggett, assumed by the calorimeter for an unknown fuel; not a property measured on this chair"
+    },
+    "calorimetry": {
+      "hrr_equation": "TN 2077 Equation 12: oxygen consumption with measured O2, CO2 and CO, ambient humidity correction, expansion factor",
+      "species_measured": ["O2", "CO2", "CO"],
+      "soot_correction": false,
+      "fcd_total_oxygen_rule": "sum of (ambient minus duct volume fraction) times exhaust mass flow times M_O2 over M_air",
+      "fcd_total_oxygen_is_the_calorimetric_oxygen": false
+    },
+    "heat_flux_gauges_tests_1_to_20": {
+      "HF": {"R_cm": 300, "Z_cm": 100},
+      "HF1": {"R_cm": 302, "Z_cm": 100},
+      "HF2": {"R_cm": 300, "Z_cm": 100},
+      "HF3": {"R_cm": 298, "Z_cm": 100},
+      "HF4": {"R_cm": 203, "Z_cm": 100},
+      "kind": "water-cooled, wide-view (180 degrees), thermopile, total heat flux, aimed at the fire axis"
+    },
+    "radiated_energy_test016_kJ": {"HF": 53127, "HF1": 61149, "HF2": 55710, "HF3": 60470, "HF4": 68840},
+    "radiative_fraction_test016": 0.52,
+    "radiated_energy_expanded_uncertainty_fraction": 0.17,
+    "radiative_fraction_expanded_uncertainty_fraction": 0.18,
+    "radiative_fraction_caveat": "to the surroundings in open air, whole test, point source at 4 pi R squared; energy radiated back to the specimen is not included",
+    "total_heat_released_MJ": 115.1,
+    "mass_lost_kg": 3.241
+  },
+  "cfast": {
+    "reference_default_radiative_fraction": 0.35,
+    "reference_typical_radiative_range": [0.05, 0.4],
+    "reference_lower_oxygen_limit_mass_fraction": 0.15,
+    "reference_limit_depends_on_temperature": false,
+    "reference_heat_per_kg_oxygen_MJ_kg": 13.1,
+    "reference_needs_user_heat_of_combustion_and_fuel_formula": true,
+    "code_o2f_J_kg": 13100000.0,
+    "code_default_lower_oxygen_limit": 0.15,
+    "code_default_radiative_fraction": 0.35,
+    "code_lines": {
+      "cfast_parameters.f90:28": "real(eb), parameter :: o2f = 1.31e7_eb",
+      "cfast_parameters.f90:183": "real(eb), parameter :: default_lower_oxygen_limit = 0.15_eb",
+      "cfast_parameters.f90:184": "real(eb), parameter :: default_radiative_fraction = 0.35_eb",
+      "fire.f90:567": "o2_factor = tanhsmooth(source_o2, lower_o2_limit+0.01_eb, lower_o2_limit, 1.0_eb, 0.0_eb)",
+      "fire.f90:569": "hrr_constrained = max(0.0_eb,min(pyrolysis_rate*hoc,o2_available*o2f))",
+      "fire.f90:570": "pyrolysis_rate_constrained = hrr_constrained/hoc"
+    }
+  },
+  "engine": {
+    "step_order": {
+      "file": "sim/core/SimulationEngine.gd",
+      "after": "func step(delta: float) -> void:",
+      "in_order": [
+        "sim_time_s += dt",
+        "_step_pool_fires(dt)",
+        "_step_fire(dt)",
+        "_step_co_oxidation(dt)",
+        "if not pre_hrr_o2_step:",
+        "thermal_system.step(building, dt, {",
+        "_step_suppression(dt)",
+        "_step_gas_exchange(dt)",
+        "_step_passive_fuel(dt)",
+        "fire_spread_system.step(dt, Callable(self, \"ignite_room\"))",
+        "_clamp_rooms(dt)"
+      ]
+    },
+    "anchors": [
+      {"id": "hrr_ideal_is_a_t2_curve", "file": "sim/fire/FireModel.gd", "needle": "var raw_hrr_kw: float = growth_alpha_kw_s2 * t_s * t_s", "count": 1,
+       "role": "the room fire, not the object, sets the ideal power"},
+      {"id": "hrr_ideal_read_at_the_fire_clock", "file": "sim/fire/CombustionSystem.gd", "needle": "var ideal_hrr_kw: float = fire.compute_hrr_kw(room.fire_time_s)", "count": 1,
+       "role": "one ideal curve per room"},
+      {"id": "fire_clock_is_not_wall_time", "file": "sim/fire/CombustionSystem.gd", "needle": "room.fire_time_s += dt * fire_time_gain_factor", "count": 1,
+       "role": "the fire clock slows with the oxygen drive"},
+      {"id": "hrr_is_filtered", "file": "sim/fire/CombustionSystem.gd", "needle": "room.hrr_kw = _smooth_state_value(", "count": 1,
+       "role": "first-order filter between the target and the applied power"},
+      {"id": "hrr_capped_by_ventilation", "file": "sim/fire/CombustionSystem.gd", "needle": "room.hrr_target_kw = minf(room.hrr_target_kw, kawagoe_limit_kw)", "count": 1,
+       "role": "ventilation cap on the target"},
+      {"id": "fuel_debited_by_pyrolysis_demand", "file": "sim/fire/CombustionSystem.gd", "needle": "fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)", "count": 1,
+       "role": "the room fire consumes its own fuel energy"},
+      {"id": "co_from_a_yield_per_MJ", "file": "sim/fire/CombustionSystem.gd", "needle": "var generated_co_kg: float = co_yield * co_basis_MJ", "count": 1,
+       "role": "species come from yields per MJ"},
+      {"id": "generic_carbon_per_MJ", "file": "sim/fire/CombustionSystem.gd", "needle": "var c_per_MJ: float = float(context.get(\"fuel_c_kg_per_MJ\", 0.027))", "count": 1,
+       "role": "carbon cap from a generic constant"},
+      {"id": "object_hrr_is_a_share", "file": "sim/fire/CombustionSystem.gd", "needle": "obj.hrr_kw = actual_solid_burn_kw * burn_MJ / consumed_MJ", "count": 1,
+       "role": "an object receives a share of the room power"},
+      {"id": "object_curve_is_a_weight", "file": "sim/fire/CombustionSystem.gd", "needle": "var obj_ideal_kw: float = _interp_hrr_curve(obj.hrr_curve, t_obj)", "count": 2,
+       "role": "the tabulated curve of an object only weights the split, in the historical route and in the G3 one"},
+      {"id": "room_without_fire_is_zeroed", "file": "sim/fire/CombustionSystem.gd", "needle": "room.combustion_regime = \"EXTINGUISHED\"", "count": 2,
+       "role": "a room with no fire has its power zeroed every step"},
+      {"id": "radiative_fraction_resolved_per_room", "file": "sim/fire/CombustionSystem.gd", "needle": "room.chi_rad_normal = _resolve_room_chi_rad_normal(room, -1.0)", "count": 1,
+       "role": "radiative fraction from fuel objects, else the engine value"},
+      {"id": "oxygen_per_MJ_of_the_fire", "file": "sim/fire/FireModel.gd", "needle": "var o2_consumption_kg_per_MJ: float = 0.076", "count": 1,
+       "role": "oxygen debit per MJ"},
+      {"id": "oxygen_sink_keyed_on_room_power", "file": "sim/core/OxygenExchangeSystem.gd", "needle": "var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076", "count": 1,
+       "role": "the sink follows room power even without a fire object"},
+      {"id": "oxygen_sink_amount", "file": "sim/core/OxygenExchangeSystem.gd", "needle": "var consumed: float = (room.hrr_kw / 1000.0) * cr * dt", "count": 1,
+       "role": "debit is power times a constant"},
+      {"id": "oxygen_sink_cap", "file": "sim/core/OxygenExchangeSystem.gd", "needle": "const FIRE_SINK_BULK_CAP_FRACTION: float = 0.05", "count": 1,
+       "role": "the debit of a step is capped by a fraction of the inventory"},
+      {"id": "oxygen_inventory_convention", "file": "sim/core/OxygenExchangeSystem.gd", "needle": "var o2_mass_kg: float = air_mass_kg * room.o2", "count": 1,
+       "role": "the oxygen number of a room is used as a mass fraction"},
+      {"id": "carbon_dioxide_tracer_keyed_on_room_power", "file": "sim/core/OxygenExchangeSystem.gd", "needle": "var co2_produced: float = (room.hrr_kw / 1000.0) * cr_co2 * dt", "count": 1,
+       "role": "a generic yield produces carbon dioxide from any room power"},
+      {"id": "convective_heat_to_the_upper_layer", "file": "sim/core/ThermalSystem.gd", "needle": "var convective_energy_kj: float = room.hrr_kw * conv_fraction * dt", "count": 1,
+       "role": "only the convective share enters the gas"},
+      {"id": "radiative_share", "file": "sim/core/ThermalSystem.gd", "needle": "var q_rad_fire_kj: float = room.hrr_kw * chi_rad * dt", "count": 1,
+       "role": "radiative share of the room power"},
+      {"id": "radiative_share_shifts_with_oxygen", "file": "sim/core/ThermalSystem.gd", "needle": "clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)", "count": 2,
+       "role": "the split changes below an oxygen number of 0.12"},
+      {"id": "radiation_to_walls_default", "file": "sim/core/ThermalSystem.gd", "needle": "var hrr_rad_wall_fraction: float = 0.0", "count": 1,
+       "role": "by default no radiative energy is deposited anywhere"},
+      {"id": "engine_radiative_default", "file": "sim/core/ThermalSystem.gd", "needle": "var hrr_chi_rad_normal: float = 0.35", "count": 1,
+       "role": "engine radiative fraction"},
+      {"id": "plume_uses_another_convective_fraction", "file": "sim/core/ThermalSystem.gd", "needle": "var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction", "count": 1,
+       "role": "entrainment uses its own convective fraction"},
+      {"id": "plume_convective_fraction", "file": "sim/core/SimulationEngine.gd", "needle": "@export var plume_mccaffrey_qc_fraction: float = 0.70", "count": 1,
+       "role": "0.70, independent of the radiative fraction"},
+      {"id": "filter_rise", "file": "sim/core/SimulationEngine.gd", "needle": "@export var fire_hrr_rise_tau_s: float = 6.0", "count": 1, "role": "rise time constant"},
+      {"id": "filter_fall", "file": "sim/core/SimulationEngine.gd", "needle": "@export var fire_hrr_fall_tau_s: float = 20.0", "count": 1, "role": "fall time constant"},
+      {"id": "flashover_scales_power", "file": "sim/core/SimulationEngine.gd", "needle": "room.hrr_kw *= room.fire.flashover_hrr_multiplier", "count": 1,
+       "role": "flashover multiplies the applied power"},
+      {"id": "suppression_scales_power", "file": "sim/core/SimulationEngine.gd", "needle": "room.hrr_kw *= hrr_factor", "count": 1,
+       "role": "water multiplies the applied power"},
+      {"id": "run_end_needs_a_fire_object", "file": "sim/core/SimulationEngine.gd", "needle": "if room != null and room.fire != null and room.hrr_kw > 0.0:", "count": 1,
+       "role": "a room with power and no fire object does not keep the run alive"},
+      {"id": "reset_releases_above_the_guards", "file": "sim/core/SimulationEngine.gd", "needle": "if building == null or not is_ready_for_validation():\n\t\t_discard_experimental_physics_authorization()\n\t\treturn", "count": 1,
+       "role": "an early reset still releases what the previous run added"},
+      {"id": "engine_has_no_state_restore", "file": "sim/core/SimulationEngine.gd", "needle": "func restore", "count": 0,
+       "role": "the engine can reset, not restore"},
+      {"id": "spread_needs_a_fire_object", "file": "sim/core/FireSpreadSystem.gd", "needle": "if source.fire == null or target.fire != null:", "count": 1,
+       "role": "room-to-room spread starts only from a room fire"},
+      {"id": "one_fire_per_room", "file": "sim/building/RoomModel.gd", "needle": "var fire: FireModel = null", "count": 1,
+       "role": "a room holds a single fire"}
+    ]
+  },
+  "declared_for_the_counterexamples": {
+    "filter_steps_s": [0.05, 0.1, 1.0],
+    "filter_rise_tau_s": [10.8, 6.0],
+    "filter_rise_tau_basis": "fire_hrr_rise_tau_s times 1.8 with no ventilation response, and fire_hrr_rise_tau_s with full response",
+    "filter_fall_tau_s": 20.0,
+    "engine_oxygen_kg_per_MJ": 0.076,
+    "engine_oxygen_number_ambient": 0.209,
+    "air_density_kg_m3": 1.2,
+    "sealed_volumes_m3": [30.0, 60.0, 120.0, 500.0, 2000.0],
+    "oxygen_drop_bands": [0.005, 0.01, 0.02],
+    "oxygen_drop_bands_are": "numerical illustrations declared before computing; none is a validated limit",
+    "humidity_band_volume_fraction": [0.0, 0.02],
+    "expansion_factor": 1.105,
+    "heat_per_kg_oxygen_from_co_MJ_kg": 17.6,
+    "humidity_and_expansion_are": "assumed for an approximate reconstruction; the run's own calorimetry inputs are not in the CSV",
+    "radiative_fraction_cases": {
+      "engine_default": 0.35,
+      "published_whole_test_open_air": 0.52,
+      "published_low": 0.4264,
+      "published_high": 0.6136
+    }
+  }
+}

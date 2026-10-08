@@ -1,0 +1,567 @@
+{
+ "schema": "g3_object_hrr_coupling_design_audit_v1",
+ "scope": "design and feasibility; no engine physics, no fuel mass, no species",
+ "run": "Test016",
+ "reserved_runs_not_used": [
+  "Test021"
+ ],
+ "engine_read_at_commit": "60754428",
+ "source_identity": "5ac5edf45d031a4c51e9f334ec6b86829b697e44ea7f1f25fd0a8b498310f090",
+ "table_energy_kj": 115093.655,
+ "table_peak_kw": 621.46,
+ "engine_route": {
+  "anchors": [
+   {
+    "id": "hrr_ideal_is_a_t2_curve",
+    "file": "sim/fire/FireModel.gd",
+    "role": "the room fire, not the object, sets the ideal power",
+    "holds": true
+   },
+   {
+    "id": "hrr_ideal_read_at_the_fire_clock",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "one ideal curve per room",
+    "holds": true
+   },
+   {
+    "id": "fire_clock_is_not_wall_time",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "the fire clock slows with the oxygen drive",
+    "holds": true
+   },
+   {
+    "id": "hrr_is_filtered",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "first-order filter between the target and the applied power",
+    "holds": true
+   },
+   {
+    "id": "hrr_capped_by_ventilation",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "ventilation cap on the target",
+    "holds": true
+   },
+   {
+    "id": "fuel_debited_by_pyrolysis_demand",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "the room fire consumes its own fuel energy",
+    "holds": true
+   },
+   {
+    "id": "co_from_a_yield_per_MJ",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "species come from yields per MJ",
+    "holds": true
+   },
+   {
+    "id": "generic_carbon_per_MJ",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "carbon cap from a generic constant",
+    "holds": true
+   },
+   {
+    "id": "object_hrr_is_a_share",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "an object receives a share of the room power",
+    "holds": true
+   },
+   {
+    "id": "object_curve_is_a_weight",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "the tabulated curve of an object only weights the split, in the historical route and in the G3 one",
+    "holds": true
+   },
+   {
+    "id": "room_without_fire_is_zeroed",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "a room with no fire has its power zeroed every step",
+    "holds": true
+   },
+   {
+    "id": "radiative_fraction_resolved_per_room",
+    "file": "sim/fire/CombustionSystem.gd",
+    "role": "radiative fraction from fuel objects, else the engine value",
+    "holds": true
+   },
+   {
+    "id": "oxygen_per_MJ_of_the_fire",
+    "file": "sim/fire/FireModel.gd",
+    "role": "oxygen debit per MJ",
+    "holds": true
+   },
+   {
+    "id": "oxygen_sink_keyed_on_room_power",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "role": "the sink follows room power even without a fire object",
+    "holds": true
+   },
+   {
+    "id": "oxygen_sink_amount",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "role": "debit is power times a constant",
+    "holds": true
+   },
+   {
+    "id": "oxygen_sink_cap",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "role": "the debit of a step is capped by a fraction of the inventory",
+    "holds": true
+   },
+   {
+    "id": "oxygen_inventory_convention",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "role": "the oxygen number of a room is used as a mass fraction",
+    "holds": true
+   },
+   {
+    "id": "carbon_dioxide_tracer_keyed_on_room_power",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "role": "a generic yield produces carbon dioxide from any room power",
+    "holds": true
+   },
+   {
+    "id": "convective_heat_to_the_upper_layer",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "only the convective share enters the gas",
+    "holds": true
+   },
+   {
+    "id": "radiative_share",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "radiative share of the room power",
+    "holds": true
+   },
+   {
+    "id": "radiative_share_shifts_with_oxygen",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "the split changes below an oxygen number of 0.12",
+    "holds": true
+   },
+   {
+    "id": "radiation_to_walls_default",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "by default no radiative energy is deposited anywhere",
+    "holds": true
+   },
+   {
+    "id": "engine_radiative_default",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "engine radiative fraction",
+    "holds": true
+   },
+   {
+    "id": "plume_uses_another_convective_fraction",
+    "file": "sim/core/ThermalSystem.gd",
+    "role": "entrainment uses its own convective fraction",
+    "holds": true
+   },
+   {
+    "id": "plume_convective_fraction",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "0.70, independent of the radiative fraction",
+    "holds": true
+   },
+   {
+    "id": "filter_rise",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "rise time constant",
+    "holds": true
+   },
+   {
+    "id": "filter_fall",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "fall time constant",
+    "holds": true
+   },
+   {
+    "id": "flashover_scales_power",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "flashover multiplies the applied power",
+    "holds": true
+   },
+   {
+    "id": "suppression_scales_power",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "water multiplies the applied power",
+    "holds": true
+   },
+   {
+    "id": "run_end_needs_a_fire_object",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "a room with power and no fire object does not keep the run alive",
+    "holds": true
+   },
+   {
+    "id": "reset_releases_above_the_guards",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "an early reset still releases what the previous run added",
+    "holds": true
+   },
+   {
+    "id": "engine_has_no_state_restore",
+    "file": "sim/core/SimulationEngine.gd",
+    "role": "the engine can reset, not restore",
+    "holds": true
+   },
+   {
+    "id": "spread_needs_a_fire_object",
+    "file": "sim/core/FireSpreadSystem.gd",
+    "role": "room-to-room spread starts only from a room fire",
+    "holds": true
+   },
+   {
+    "id": "one_fire_per_room",
+    "file": "sim/building/RoomModel.gd",
+    "role": "a room holds a single fire",
+    "holds": true
+   }
+  ],
+  "step_order_holds": true,
+  "step_order": [
+   "sim_time_s += dt",
+   "_step_pool_fires(dt)",
+   "_step_fire(dt)",
+   "_step_co_oxidation(dt)",
+   "if not pre_hrr_o2_step:",
+   "thermal_system.step(building, dt, {",
+   "_step_suppression(dt)",
+   "_step_gas_exchange(dt)",
+   "_step_passive_fuel(dt)",
+   "fire_spread_system.step(dt, Callable(self, \"ignite_room\"))",
+   "_clamp_rooms(dt)"
+  ],
+  "consumers_of_the_isolated_module": []
+ },
+ "legacy_filter": [
+  {
+   "dt_s": 0.05,
+   "rise_tau_s": 10.8,
+   "fall_tau_s": 20.0,
+   "peak_kw": 582.671267826,
+   "peak_over_table": 0.937584507,
+   "peak_delay_s": 6.35,
+   "energy_in_the_support_kj": 120640.849199937,
+   "energy_minus_table_kj": 5547.194199937,
+   "power_left_at_the_end_kw": 0.771793317,
+   "energy_still_in_the_filter_kj": 15.435866334,
+   "largest_gap_to_the_table_kw": 173.85382405
+  },
+  {
+   "dt_s": 0.1,
+   "rise_tau_s": 10.8,
+   "fall_tau_s": 20.0,
+   "peak_kw": 582.672492981,
+   "peak_over_table": 0.937586479,
+   "peak_delay_s": 6.3,
+   "energy_in_the_support_kj": 120640.988807161,
+   "energy_minus_table_kj": 5547.333807161,
+   "power_left_at_the_end_kw": 0.771422307,
+   "energy_still_in_the_filter_kj": 15.428446137,
+   "largest_gap_to_the_table_kw": 173.63680554
+  },
+  {
+   "dt_s": 1.0,
+   "rise_tau_s": 10.8,
+   "fall_tau_s": 20.0,
+   "peak_kw": 582.833551294,
+   "peak_over_table": 0.93784564,
+   "peak_delay_s": 6.0,
+   "energy_in_the_support_kj": 120656.009155612,
+   "energy_minus_table_kj": 5562.354155612,
+   "power_left_at_the_end_kw": 0.771011714,
+   "energy_still_in_the_filter_kj": 15.420234278,
+   "largest_gap_to_the_table_kw": 169.794680869
+  },
+  {
+   "dt_s": 0.05,
+   "rise_tau_s": 6.0,
+   "fall_tau_s": 20.0,
+   "peak_kw": 605.797013451,
+   "peak_over_table": 0.974796469,
+   "peak_delay_s": 4.3,
+   "energy_in_the_support_kj": 123977.750633836,
+   "energy_minus_table_kj": 8884.095633836,
+   "power_left_at_the_end_kw": 0.809544133,
+   "energy_still_in_the_filter_kj": 16.190882655,
+   "largest_gap_to_the_table_kw": 185.587755743
+  },
+  {
+   "dt_s": 0.1,
+   "rise_tau_s": 6.0,
+   "fall_tau_s": 20.0,
+   "peak_kw": 605.798221721,
+   "peak_over_table": 0.974798413,
+   "peak_delay_s": 4.3,
+   "energy_in_the_support_kj": 123977.986416213,
+   "energy_minus_table_kj": 8884.331416214,
+   "power_left_at_the_end_kw": 0.809195451,
+   "energy_still_in_the_filter_kj": 16.183909027,
+   "largest_gap_to_the_table_kw": 185.356176729
+  },
+  {
+   "dt_s": 1.0,
+   "rise_tau_s": 6.0,
+   "fall_tau_s": 20.0,
+   "peak_kw": 605.961521923,
+   "peak_over_table": 0.975061182,
+   "peak_delay_s": 4.0,
+   "energy_in_the_support_kj": 124006.564965586,
+   "energy_minus_table_kj": 8912.909965586,
+   "power_left_at_the_end_kw": 0.816252217,
+   "energy_still_in_the_filter_kj": 16.325044344,
+   "largest_gap_to_the_table_kw": 181.267378586
+  }
+ ],
+ "oxygen": {
+  "basis": "the calorimeter computes the heat from the oxygen it sees disappear; dividing the heat by the same constant returns that oxygen, it does not describe the fuel",
+  "heat_per_kg_oxygen_MJ_kg": 13.1,
+  "kg_per_MJ": 0.076335878,
+  "relative_standard_deviation_tn2077": 0.026717557,
+  "relative_half_width_tn2303": 0.038167939,
+  "demand_whole_run_kg": 8.785775191,
+  "peak_demand_kg_s": 0.047439695,
+  "engine_constant_kg_per_MJ": 0.076,
+  "engine_constant_as_MJ_kg": 13.157894737,
+  "engine_demand_whole_run_kg": 8.74711778,
+  "engine_over_calorimetric": 0.9956,
+  "engine_constant_inside_one_standard_deviation": true,
+  "fcd_total_oxygen_rule_kg": 8.168419518,
+  "fcd_rule_over_calorimetric": 0.929732362,
+  "fcd_rule_is_not_the_demand": "the database total leaves out the expansion and the depletion terms of the heat equation; it is a duct reading, lower than the oxygen consumed",
+  "approximate_reconstruction": [
+   {
+    "ambient_humidity_volume_fraction": 0.0,
+    "oxygen_consumed_kg": 8.657683555,
+    "rebuilt_heat_over_published_series": 0.982969473
+   },
+   {
+    "ambient_humidity_volume_fraction": 0.02,
+    "oxygen_consumed_kg": 8.484529883,
+    "rebuilt_heat_over_published_series": 0.963310084
+   }
+  ],
+  "approximate_reconstruction_is": "calculated with assumed humidity and expansion; a consistency check, not an input"
+ },
+ "radiation": {
+  "series_gauge": "HF",
+  "series_gauge_radius_m": 3.0,
+  "radiated_energy_from_the_series_kj": 53129.065096757,
+  "radiated_energy_printed_kj": 53127,
+  "series_over_printed": 1.000038871,
+  "mean_of_five_gauges_kj": 59859.2,
+  "lowest_and_highest_gauge_over_heat": [
+   0.461572546,
+   0.598088619
+  ],
+  "fraction_from_the_printed_table": 0.520062554,
+  "fraction_printed": 0.52,
+  "fraction_reproduced": true,
+  "printed_denominator_mass_times_13_1_would_give": 1.409874909,
+  "denominator_that_reproduces_the_table": "total heat released by calorimetry",
+  "expanded_uncertainty_fraction": 0.18,
+  "one_gauge_instantaneous_fraction_above_50_kw": {
+   "samples": 460,
+   "p10": 0.336438909,
+   "median": 0.467394105,
+   "p90": 0.506707339,
+   "at_the_peak": 0.407758971,
+   "what_it_is": "one gauge, point source, calculated here; not a published series of the fraction"
+  },
+  "energy_split_of_the_table": {
+   "engine_default": {
+    "radiative_fraction": 0.35,
+    "to_the_gas_kj": 74810.87575,
+    "radiated_kj": 40282.77925,
+    "radiated_and_deposited_nowhere_by_default_kj": 40282.77925
+   },
+   "published_whole_test_open_air": {
+    "radiative_fraction": 0.52,
+    "to_the_gas_kj": 55244.9544,
+    "radiated_kj": 59848.7006,
+    "radiated_and_deposited_nowhere_by_default_kj": 59848.7006
+   },
+   "published_low": {
+    "radiative_fraction": 0.4264,
+    "to_the_gas_kj": 66017.720508,
+    "radiated_kj": 49075.934492,
+    "radiated_and_deposited_nowhere_by_default_kj": 49075.934492
+   },
+   "published_high": {
+    "radiative_fraction": 0.6136,
+    "to_the_gas_kj": 44472.188292,
+    "radiated_kj": 70621.466708,
+    "radiated_and_deposited_nowhere_by_default_kj": 70621.466708
+   }
+  },
+  "what_the_fraction_is": "to the surroundings in open air, whole test, point source at 4 pi R squared; energy radiated back to the specimen is not included",
+  "what_the_engine_asks_for": "the share of the room power that does not heat the gas; with the default wall fraction of zero that share is deposited nowhere"
+ },
+ "sealed_room_windows": [
+  {
+   "volume_m3": 30.0,
+   "air_kg": 36.0,
+   "oxygen_inventory_engine_convention_kg": 7.524,
+   "whole_run_demand_over_inventory": 1.167700052,
+   "bands": [
+    {
+     "oxygen_number_drop": 0.005,
+     "energy_until_then_kj": 2358.0,
+     "share_of_the_run": 0.020487663,
+     "time_s": 784.281807515,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.01,
+     "energy_until_then_kj": 4716.0,
+     "share_of_the_run": 0.040975326,
+     "time_s": 872.182410302,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.02,
+     "energy_until_then_kj": 9432.0,
+     "share_of_the_run": 0.081950651,
+     "time_s": 993.686600655,
+     "reached_inside_the_run": true
+    }
+   ]
+  },
+  {
+   "volume_m3": 60.0,
+   "air_kg": 72.0,
+   "oxygen_inventory_engine_convention_kg": 15.048,
+   "whole_run_demand_over_inventory": 0.583850026,
+   "bands": [
+    {
+     "oxygen_number_drop": 0.005,
+     "energy_until_then_kj": 4716.0,
+     "share_of_the_run": 0.040975326,
+     "time_s": 872.182410302,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.01,
+     "energy_until_then_kj": 9432.0,
+     "share_of_the_run": 0.081950651,
+     "time_s": 993.686600655,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.02,
+     "energy_until_then_kj": 18864.0,
+     "share_of_the_run": 0.163901303,
+     "time_s": 1094.951896013,
+     "reached_inside_the_run": true
+    }
+   ]
+  },
+  {
+   "volume_m3": 120.0,
+   "air_kg": 144.0,
+   "oxygen_inventory_engine_convention_kg": 30.096,
+   "whole_run_demand_over_inventory": 0.291925013,
+   "bands": [
+    {
+     "oxygen_number_drop": 0.005,
+     "energy_until_then_kj": 9432.0,
+     "share_of_the_run": 0.081950651,
+     "time_s": 993.686600655,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.01,
+     "energy_until_then_kj": 18864.0,
+     "share_of_the_run": 0.163901303,
+     "time_s": 1094.951896013,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.02,
+     "energy_until_then_kj": 37728.0,
+     "share_of_the_run": 0.327802606,
+     "time_s": 1137.209587324,
+     "reached_inside_the_run": true
+    }
+   ]
+  },
+  {
+   "volume_m3": 500.0,
+   "air_kg": 600.0,
+   "oxygen_inventory_engine_convention_kg": 125.4,
+   "whole_run_demand_over_inventory": 0.070062003,
+   "bands": [
+    {
+     "oxygen_number_drop": 0.005,
+     "energy_until_then_kj": 39300.0,
+     "share_of_the_run": 0.341461048,
+     "time_s": 1139.817435159,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.01,
+     "energy_until_then_kj": 78600.0,
+     "share_of_the_run": 0.682922095,
+     "time_s": 1295.432290937,
+     "reached_inside_the_run": true
+    },
+    {
+     "oxygen_number_drop": 0.02,
+     "energy_until_then_kj": 115093.655,
+     "share_of_the_run": 1.0,
+     "time_s": null,
+     "reached_inside_the_run": false
+    }
+   ]
+  },
+  {
+   "volume_m3": 2000.0,
+   "air_kg": 2400.0,
+   "oxygen_inventory_engine_convention_kg": 501.6,
+   "whole_run_demand_over_inventory": 0.017515501,
+   "bands": [
+    {
+     "oxygen_number_drop": 0.005,
+     "energy_until_then_kj": 115093.655,
+     "share_of_the_run": 1.0,
+     "time_s": null,
+     "reached_inside_the_run": false
+    },
+    {
+     "oxygen_number_drop": 0.01,
+     "energy_until_then_kj": 115093.655,
+     "share_of_the_run": 1.0,
+     "time_s": null,
+     "reached_inside_the_run": false
+    },
+    {
+     "oxygen_number_drop": 0.02,
+     "energy_until_then_kj": 115093.655,
+     "share_of_the_run": 1.0,
+     "time_s": null,
+     "reached_inside_the_run": false
+    }
+   ]
+  }
+ ],
+ "refused": {
+  "fuel_mass_from_energy": "fuel mass is not energy over a heat of combustion: this run has no numeric mass series",
+  "species_from_a_generic_yield": "no species from a generic yield: this run has whole-test totals in open air only"
+ },
+ "decisions": {
+  "energy_delivered_per_step": "GO_design_only_as_a_thermal_source_alone_in_its_room",
+  "applied_power_unfiltered": "GO_design_only_outside_the_room_fire_route",
+  "oxygen_debit_per_accepted_energy": "GO_design_only_as_the_calorimetric_identity",
+  "oxygen_limited_response": "NO-GO_as_a_model_conservation_cap_only",
+  "regime_validity_indicator": "GO_design_only_as_a_declared_hypothesis_not_a_validated_limit",
+  "convective_radiative_split": "GO_partial_open_air_whole_test_value_with_its_uncertainty",
+  "radiation_to_surfaces": "NO-GO_not_measured_in_an_enclosure",
+  "fuel_mass": "NO-GO_no_numeric_mass_series",
+  "species_and_smoke": "NO-GO_whole_test_open_air_totals_only",
+  "fed_and_svv": "NO-GO",
+  "other_objects_in_the_same_room": "NO-GO_one_fire_per_room",
+  "flashover_spread_suppression": "NO-GO_excluded_from_the_first_case",
+  "engine_restore": "NO-GO_the_engine_has_no_state_restore",
+  "external_validation_of_temperatures": "NO-GO_the_run_has_no_enclosure",
+  "product_activation": "NO-GO"
+ }
+}

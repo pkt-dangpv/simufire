@@ -1,5 +1,63 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-08 - G3: diseño del acoplamiento de la fuente prescrita (offline, sin implementar)
+
+El usuario autoriza diagnóstico y diseño del acoplamiento experimental de
+la fuente HRR del Test016, bibliografía, pruebas offline y documentación,
+con commit y push si queda coherente. **No autoriza** cambios en la
+física, integrar la fuente ni activarla en producto. Base `60754428`.
+Trabajo en `runs/g3_shareable`. Sin cambios en `sim/`, escenarios,
+perfiles ni producto; sin Godot; referencia sin regenerar.
+
+[Diseño del acoplamiento](validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
+Continúa la [fuente aislada](validation/G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
+
+- **Recomendación: fuente térmica prescrita, sola en su recinto, fuera de
+  la ruta del fuego de sala.** Calor y oxígeno; sin combustible ni
+  especies. No es la combustión del mueble.
+- **Representar el objeto que arde: NO-GO.** Faltan la serie numérica de
+  masa, una composición aprobada y rendimientos en recinto.
+- Ruta real del motor trazada en `60754428`: un fuego por recinto decide
+  el HRR con una curva `α·t²` y doce modificadores; los objetos reciben
+  un reparto; el oxígeno, el calor y un trazador de CO₂ se disparan con
+  `room.hrr_kw > 0`. 34 hechos fijados por anclas: si el motor se mueve,
+  la prueba falla.
+- El filtro del fuego de sala no devuelve la curva: pico al 94–97 %,
+  +5,5 a +8,9 MJ de energía (más que los 6,4 MJ de incertidumbre con la
+  subida rápida).
+- Oxígeno: la demanda es la identidad de la calorimetría, 13,1 MJ/kg
+  (8,79 kg en la corrida). La constante del motor, 0,076 kg/MJ, cae a un
+  0,44 %. El total de oxígeno de la base de datos queda un 7 % por debajo
+  y no es la demanda. **No hay ningún umbral validado de oxígeno** para
+  esta silla; los indicadores de régimen son hipótesis declaradas.
+- Al salir del régimen: parar la entrega, enclavar el estado, sin cola,
+  sin inquemados y sin transición a otro modelo.
+- Radiación: TN 2303 da 0,52 ± 18 % para el Test016, del ensayo entero y
+  al aire libre; comprobado contra la serie del CSV (53 129 frente a
+  53 127 kJ). El motor usa 0,35 y por defecto no deposita la parte
+  radiada en ningún sitio. No se impone ningún valor; sensibilidad futura
+  con cuatro valores declarados.
+- Una habitación cerrada sale del régimen antes del pico (60 m³: 994 s,
+  con el 8 % de la energía). El primer caso exige un recinto grande o
+  abierto.
+- El motor reinicia pero no restaura: `restore()` no se usa.
+- Quince decisiones separadas: cuatro GO de diseño, un GO parcial y diez
+  NO-GO.
+- Auditor offline con entradas y resultado versionados; 33 pruebas.
+  Bibliografía: TN 2077 añadido a la biblioteca; CFAST 7.0.0 (guía) y
+  7.7.7 (código, tres archivos leídos y no archivados).
+- Verificación: auditor `--check` coincide; pruebas afectadas 627 passed,
+  18 skipped (las de siempre), sin lanzar Godot; ALL GUARDRAILS PASS con
+  R2-1 sin tocar expectativas; enlaces y `git diff --check` limpios;
+  `sim/` y producto sin cambios.
+
+Siguiente decisión, del usuario: (1) si merece la pena implementar ese
+único caso, que verifica el acoplamiento y no valida temperaturas porque
+el ensayo no tiene recinto; (2) confirmar que al salir del régimen se
+para; (3) autorizar cambios en `sim/` con interruptor apagado y cadena
+R2-1. **No hay GO para la combustión del mueble.** Test021 sigue
+reservado. B neto no se reabre. CO/FED OFF/NO-GO.
+
 ## Current Program Update - 2026-10-08 - G3: fuente aislada de HRR del objeto ensayado (Test016) implementada
 
 El usuario autoriza el módulo aislado, sus datos, pruebas, controles,

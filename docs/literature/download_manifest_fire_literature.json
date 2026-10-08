@@ -442,5 +442,17 @@
         "bytes": 973671,
         "sha256": "2083866a951a6a0d329aff071f8de73f1a05e1ac75ab3ebab351875c9ded368e",
         "version_verified": "A. Luketa, Unlimited Release, printed April 2010; 60 PDF pages, PDF page = printed page; cover: Approved for public release; further dissemination unlimited. Focal review: summary p.9, section 2.1 pp.10-11, experiments p.15, uncertainty matrix pp.20-21, section 4.1 pp.22-37 with Table 9 p.27, Table 10 p.30 and Figure 16 p.37 checked on page images, and p.40."
+    },
+    {
+        "source": "https://doi.org/10.6028/NIST.TN.2077",
+        "destination": "docs/literature/NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf",
+        "error": null,
+        "resolved_url": "https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2077.pdf",
+        "title": "The NIST 20 MW Calorimetry Measurement System for Large-Fire Research (NIST TN 2077, 2019)",
+        "status": "downloaded",
+        "downloaded_at": "2026-10-08",
+        "bytes": 2918306,
+        "sha256": "0cb9356a86d3882f19b26d8f212239413f649d41ab2ba9e40f710e97f55c21e3",
+        "version_verified": "R. Bryant and M. Bundy, 76 PDF pages, free of charge from the DOI printed on every page. Focal review: principle of oxygen consumption calorimetry, Equations 2 to 12, and the statement of 13.1 MJ/kg with a standard deviation of 0.35 MJ/kg for generic combustibles."
     }
 ]

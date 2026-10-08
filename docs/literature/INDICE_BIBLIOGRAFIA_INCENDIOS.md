@@ -34,6 +34,21 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 
 ## Objetivos de calibracion para Simufire
 
+Actualizacion del 08-10: diseño del acoplamiento de la fuente prescrita
+de HRR,
+[decision](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
+Un documento nuevo en la biblioteca: NIST TN 2077 (Bryant y Bundy, 2019),
+[PDF local](NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf), 76 paginas,
+informe de NIST de acceso libre. Se usa para la ecuacion del HRR por
+consumo de oxigeno (ecs. 2 a 12) y la constante de 13,1 MJ/kg con
+desviacion tipica de 0,35. De TN 2303 se leen ademas la seccion 2.2.1 y
+las tablas 3 y 7 (flujo radiante y fraccion radiativa), comprobadas sobre
+la imagen de la pagina. De CFAST se consultan la guia tecnica ya
+archivada (TN 1889v1, version 7.0.0) y tres archivos del codigo de la
+version 7.7.7 (`fire.f90`, `cfast_parameters.f90`, `utilities.f90`), que
+**no** se archivan: enlace, etiqueta y huellas en
+`docs/validation/G3_OBJECT_HRR_COUPLING_INPUTS_2026-10-08.json`.
+
 Actualizacion adicional del 07-10, tercera del dia: seleccion
 experimental de la fuente de incendio por objeto,
 [decision](../validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md).
@@ -248,7 +263,7 @@ Descarga registrada de TN 1889v2: 2026-09-17, 1 730 244 bytes, SHA-256
 | P1 | NIST | Smoke Movement in Rooms of Fire Involvement and Adjacent Spaces (NBS IR 83-2748) | 1983 | Llenado de humo, recintos adyacentes | https://doi.org/10.6028/NBS.IR.83-2748 | `docs/literature/NIST/NBS_IR_83_2748_Smoke_Movement_in_Rooms_and_Adjacent_Spaces.pdf` | pendiente-descarga |
 | P1 | NIST | Carbon Monoxide Production in Compartment Fires: Full-Scale Enclosure Burns (NISTIR 5499) | 1994 | Produccion de CO, recintos a escala real | https://doi.org/10.6028/NIST.IR.5499 | `docs/literature/NIST/NISTIR_5499_Carbon_Monoxide_Production_Full_Scale.pdf` | pendiente-descarga; el fichero con ese nombre es un libro de resumenes NIST de octubre de 1994, no el informe: no extraer datos |
 | P1 | NIST | The Character of Burning Residential and Office Items (TN 2303) | 2025 | HRR, perdida de masa y rendimientos de CO/HCN de sofas, sillas, mesa auxiliar y alfombra; estos dos ultimos no son calibradores aislados fiables | https://doi.org/10.6028/NIST.TN.2303 | `docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf`, SHA-256 7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03 | tablas 6/8 de los 48 ensayos cotejadas con FCD 2026 en `docs/validation/G3_CO_FUENTES_ELEGIBILIDAD_2026-09-29.md`; masa transitoria solo Tests 1–24 y solo en figuras (ap. C); THR igual, masa cambiada en 31/35/38, causa de cambio de CO no demostrada |
-| P1 | NIST | The NIST 20 MW Calorimetry Measurement System for Large-Fire Research (TN 2077) | 2019 | Metodo de medicion de HRR y CO/CO2 en escape, balance de gases, retardo y alineacion de analizadores | https://doi.org/10.6028/NIST.TN.2077 | sin copia local verificada | base del tratamiento temporal de Test029; la reconstruccion de CO kg/s sigue provisional |
+| P1 | NIST | The NIST 20 MW Calorimetry Measurement System for Large-Fire Research (TN 2077) | 2019 | Metodo de medicion de HRR y CO/CO2 en escape, balance de gases, retardo y alineacion de analizadores | https://doi.org/10.6028/NIST.TN.2077 | `docs/literature/NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf`, SHA-256 0cb9356a86d3882f19b26d8f212239413f649d41ab2ba9e40f710e97f55c21e3 (descargado el 08-10-2026) | base del tratamiento temporal de Test029; la reconstruccion de CO kg/s sigue provisional |
 | P1 | NIST | User's Guide for Fire Calorimetry Database, v4a | 2020 | Formula de CO total por fraccion volumetrica corregida de fondo, caudal de escape y masas molares; periodo ignicion-apagado | https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf | `docs/literature/NIST/FCD_User_Guide_v4a_2020.pdf`, SHA-256 89692794156d9a4f32ba0493e791da23d80160035877d2831d31a5317e6cee8f | revisada 23-10-2020; sigue siendo la guia enlazada el 29-09-2026; su metodo reproduce la FCD 2026 en 42/43 ensayos; no documenta el script 8.7.1 |
 | P1 | NIST | Fire Calorimetry Database: Design Fires - Residential and Office Items | ficha actualizada 2026 | Fichas y CSV temporales por ensayo; versiones actuales de rendimientos de CO | https://www.nist.gov/el/fcd/design-fires-residential-and-office-items | 48 CSV crudos `docs/literature/NIST/FCD_Test001…048_2026-04-07.csv` con SHA-256 en `docs/validation/G3_NIST_TN2303_FCD_CO_PROCESSING_2026-09-29.json`; 48 fichas archivadas sin modificar en `docs/literature/NIST/FCD_DesignFires_Test001-048_pages_retrieved_2026-09-29.zip`, SHA-256 6f674d5cb61bfd398d0a541d427c5eb6fe445cd1f2cacc8eb8fce8c3cceb0851 | procesado `NFRL_Report_8.7.1` (07-04-2026) sin codigo ni notas publicas; el esquema CSV no tiene masa del especimen; 28 mezcla cojines y 18 bajo detección |
 | P1 | NIST | Smoke Component Yields from Room-scale Fire Tests (TN 1453) | 2003 | Rendimientos de CO pre/post-flashover para cojines de sofa y librerias de aglomerado | https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1453.pdf | `docs/literature/NIST/NIST_TN_1453_Smoke_Component_Yields_Room_Scale.pdf`, SHA-256 3c59ee8469e50a4cf6cf8bcaf5eb9da7fe22886e36a3de4888325a31ee724324 | tabla 25 auditada; celulas de carga continuas y CO en sala/pasillo solo en figuras; series crudas remitidas a informe compañero (ref. 33) no localizado; validacion por fase |

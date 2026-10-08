@@ -360,7 +360,9 @@ calorimétrico no es ninguna de las cuatro, y un balance térmico no se
 cierra por construirlo desde la masa.
 
 **Decisiones pendientes antes de acoplarlo al oxígeno y al recinto**, que
-son del usuario:
+son del usuario. El 08-10 se analizaron en el
+[diseño del acoplamiento](G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md),
+con una recomendación para cada una; siguen sin decidir:
 
 1. Qué hace la fuente cuando el recinto no puede aportar el oxígeno que
    su curva pide, y quién es el dueño de ese déficit.
