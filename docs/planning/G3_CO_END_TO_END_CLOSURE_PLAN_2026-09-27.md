@@ -5,7 +5,23 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 09-10:
+Último avance del 09-10, segundo del día:
+[Autoridad del oxígeno](../validation/G3_O2_AUTHORITY_2026-10-09.md).
+Diagnóstico del motor actual, evidencia dinámica con hipótesis escritas
+antes de ejecutar, comparación de alternativas, recomendación y plan,
+**sin tocar `sim/` y sin migrar nada**. Se recomienda un inventario único
+de O₂ por recinto, en kg, como única cantidad conservada, con los tres
+números actuales como derivados y el reparto entre capas como segundo
+estado dentro del total. Las masas de capa como base siguen en NO-GO en
+los dos modos. El número de sala ya cierra hoy a 10⁻¹³ kg en la ruta de
+sala; los números de capa no conservan nada. Siguen vigentes y medidos
+hoy O2-1, O2-3 y O2-4.
+Verificado sin regenerar la referencia, porque `sim/` no cambia:
+guardarraíles PASS y global 4379 passed, 53 skipped, 2 xfailed, 42 subtests passed.
+Sin efecto en plazos mientras no se autorice la migración. CO/FED siguen
+OFF/NO-GO.
+
+Avance previo del 09-10:
 [Los dos límites de oxígeno del banco Test016](../validation/G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
 Diagnóstico con hipótesis escritas antes de ejecutar y corrección aislada
 en el banco. El segundo débito sobre la capa superior no es un segundo

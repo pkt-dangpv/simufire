@@ -110,6 +110,13 @@ ALLOWED_NETWORK_REFERENCES = {
     # apagada; no la enciende ni la resuelve.
     Path("tools/validate_hot_gas_layer_species_carry.gd"),
     Path("tools/validate_hot_gas_layer_species_carry.gd.uid"),
+    # Autoridad del O2 (2026-10-09): la fixture de diagnostico enciende la red en
+    # tres casos declarados como modo de diagnostico, para volver a medir los
+    # bloqueos de E1 con la red; su prueba lee de que caso se trata. Ninguna
+    # resuelve la red ni la aprueba, y la fixture no juzga.
+    Path("tests/fixtures/g3_o2_authority_diagnosis.gd"),
+    Path("tests/fixtures/g3_o2_authority_diagnosis.gd.uid"),
+    Path("tests/test_g3_o2_authority.py"),
     # Y el adaptador de fuga toma de alli la constante global de
     # condicionamiento, para que las tres clases de elemento compartan criterio.
     Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),

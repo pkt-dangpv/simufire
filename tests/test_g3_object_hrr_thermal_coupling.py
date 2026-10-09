@@ -244,8 +244,10 @@ def test_nothing_of_the_product_reaches_the_bench() -> None:
     assert oxygen.count("g3_prescribed_thermal_room_ids") == 3  # declared and read from the hooks, used once
     loaders = sorted(path.name for path in (ROOT / "tests/fixtures").glob("*.gd")
                      if "g3_prescribed_thermal" in path.read_text(encoding="utf-8"))
-    # The acceptance fixture and the diagnosis of the oxygen writes, which judges nothing.
-    assert loaders == ["g3_object_hrr_oxygen_writes_diagnosis.gd", "g3_object_hrr_thermal_coupling.gd"]
+    # The acceptance fixture and two diagnoses that judge nothing: the one of the oxygen
+    # writes, and the one of the oxygen authority, which uses the bench as a known demand.
+    assert loaders == ["g3_o2_authority_diagnosis.gd", "g3_object_hrr_oxygen_writes_diagnosis.gd",
+                       "g3_object_hrr_thermal_coupling.gd"]
 
 
 def test_the_protected_modules_were_not_touched() -> None:

@@ -336,6 +336,12 @@ el [contrato de oxígeno](CONTRATO_O2_2026-09-24.md) dejó abierta para el
 usuario, y [E1](E1_O2_BASE_DE_MASA_2026-09-25.md) ya midió que usar las
 masas de capa como autoridad es NO-GO.
 
+**Actualizado el 2026-10-09.** Esa decisión de autoridad tiene ya su
+informe: [autoridad del oxígeno](G3_O2_AUTHORITY_2026-10-09.md). Recomienda el inventario de
+O₂ por recinto como única cantidad conservada, mantiene el NO-GO a las
+masas de capa y deja un plan por etapas. El NO-GO de esta decisión C no
+cambia: sigue sin migrarse nada.
+
 **Alternativa descartada dentro del banco.** Hacer que el sumidero tome
 la rama del 9 % solo en el recinto del banco sería aislado e idéntico con
 el banco apagado. No se ha hecho: elige entre dos alternativas físicas no
@@ -478,3 +484,6 @@ Ninguno de código en este banco. Lo que sigue bloqueado es lo mismo que
 antes: datos, una serie numérica de masa y un ensayo en recinto, y la
 decisión de autoridad del oxígeno si se quiere retirar la doble
 escritura. CO y FED siguen OFF/NO-GO.
+
+La decisión de autoridad está preparada en [su informe](G3_O2_AUTHORITY_2026-10-09.md); la
+migración que propone no está autorizada ni empezada.

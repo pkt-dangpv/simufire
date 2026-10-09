@@ -1,5 +1,64 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-09 - G3: autoridad del oxígeno (diagnóstico, recomendación y plan; sin migrar)
+
+El usuario autoriza revisar y cerrar el contrato de autoridad del
+oxígeno: diagnóstico del motor actual, comprobaciones dinámicas,
+comparación de alternativas, propuesta y documentación, con fixtures y
+herramientas de diagnóstico **sin cambiar la física**. **No autoriza**
+migrar el inventario, activar otro modo ni modificar la ruta histórica.
+Base `2d71f697`. Trabajo en `runs/g3_shareable`. `sim/` sin tocar.
+
+[Informe](validation/G3_O2_AUTHORITY_2026-10-09.md).
+
+- **Recomendación: inventario único de O₂ por recinto, en kg, como única
+  cantidad conservada.** Los tres números (`room.o2`, `o2_upper`,
+  `o2_lower`) pasan a ser derivados. El reparto entre capas se añade
+  después como un segundo estado **dentro** del total, para que nada de
+  lo que pase entre capas pueda crear ni borrar oxígeno.
+- **Por qué:** el número de sala ya es hoy un libro cerrado en la ruta en
+  la que el sumidero debita la sala (hueco ≤ 9 · 10⁻¹⁴ kg con demanda
+  conocida, 3 · 10⁻¹⁴ kg con fuego real, transporte entre salas a
+  2 · 10⁻¹⁴ kg contando el tránsito). Los números de capa no conservan
+  nada: se relajan sin donante (+0,43 kg), se reescriben al colapsar una
+  capa (+4,62 kg en un paso) y reciben una segunda escritura igual al
+  débito (1,7413 kg y 1,7413 kg).
+- **Masas de capa como base: NO-GO en los dos modos, vigente.** Fuera de
+  la red la masa se reescribe con la temperatura (57,60 → 49,48 kg en un
+  recinto sellado sin fuego). Con la red se conserva, y el oxígeno sobre
+  ella no (0,406 kg sin explicar, el 24 % del débito).
+- **Situación de E1:** vigentes y demostrados hoy la reescritura de la
+  masa baja, la base constante, el oxígeno sin inventario con la red,
+  O2-1, O2-3, O2-4 y la rederivación sin anotar (5,93 kg en
+  `o2_closed`). Corregidos y demostrados P3 y P3b. Sin volver a medir:
+  O2-2, la purga histórica y las tres primitivas que mueven gas sin
+  especies.
+- **Hechos nuevos:** 0,209 es fracción molar y el motor la opera como
+  másica: su inventario es un 9,5 % más corto que el del aire seco. Parte
+  del inventario vive en una cola de entregas en tránsito que el registro
+  no escribe (0,133 kg al final del caso de fuego real). El caso de
+  estrés deja 8,22 kg de oxígeno sin debitar.
+- **Evidencia:** 15 hipótesis, 14 escritas antes de ejecutar y una
+  añadida antes de su caso; 13 como se predijo, una con una afirmación de
+  siete no cumplida (la casa no cierra a 0,01 kg tras reabrir: −0,378 kg,
+  compatible con el tránsito, no medido) y una no ejercitada (el banco no
+  arma con la red). Tres lanzamientos; el primero descartado entero por
+  un defecto de la fixture, dicho en el informe.
+- **GO/NO-GO:** inicialización GO con implementación; base de referencia
+  GO, masa de gas NO-GO; consumo único GO con implementación; transporte
+  GO parcial; mezcla y capas NO-GO hoy; disponibilidad NO-GO en el motor
+  y GO en el banco; ciclo de vida GO; migración GO al plan y NO-GO a
+  activar.
+- **Verificación:** `sim/` sin tocar y referencia intacta; pruebas nuevas
+  31 passed; regresiones de G3 y contratos de oxígeno 1563 passed, 27 skipped, 2 xfailed;
+  guardarraíles con R2-1 PASS, 346 de 346 y 78 huecos; enlaces y
+  `git diff --check` limpios; global 4379 passed, 53 skipped, 2 xfailed, 42 subtests passed.
+- **Siguiente encargo propuesto:** M0 y M1 del plan: inventario de sala y
+  tránsito como estado, un solo punto de escritura y `room.o2` derivado,
+  tras un interruptor sin exportar y apagado, con identidad byte a byte.
+  Sin tocar sumidero, fuego, capas ni referencia. CO/FED siguen
+  OFF/NO-GO.
+
 ## Current Program Update - 2026-10-09 - G3: los dos límites de oxígeno del banco Test016 (diagnóstico y corrección)
 
 El usuario autoriza diagnosticar los dos límites de oxígeno del banco
