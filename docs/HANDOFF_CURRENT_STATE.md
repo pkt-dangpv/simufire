@@ -1,5 +1,76 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-08 - G3: banco diagnóstico de acoplamiento térmico de la fuente prescrita (implementado)
+
+El usuario autoriza implementar y verificar el caso diagnóstico de
+acoplamiento térmico del Test016: interruptor apagado por defecto, parada
+enclavada al salir del régimen, sin cola ni relevo; correcciones
+documentales previas, cambios acotados en `sim/`, pruebas, cadena R2-1 y,
+si todo queda verde, commit, fast-forward y push. **No autoriza** activar
+producto ni representar la combustión real del mueble. Base `d1da9f95`.
+Trabajo en `runs/g3_shareable`.
+
+[Informe del banco](validation/G3_OBJECT_HRR_SOURCE_COUPLING_BENCH_2026-10-08.md).
+Implementa el [diseño](validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
+
+- **Qué es:** una fuente prescrita del Test016 entrega energía a un
+  recinto sin combustible ni fuego de sala y debita un oxígeno
+  equivalente. **No es la combustión del mueble** y no valida ninguna
+  temperatura. CO, CO₂, HCN, humo, FED y SVV: no evaluados.
+- **Gate previo** (commit `de857b97`, antes de cualquier corrida
+  acoplada): el oxígeno es una demanda equivalente prescrita, con el
+  coeficiente del sumidero del motor, 0,076 kg/MJ, y no el oxígeno
+  medido; el pico de un paso finito no es el instantáneo, y A4 se partió
+  en A4a–A4c.
+- **Código:** `sim/fire/PrescribedThermalSourceCoupling.gd` (nuevo),
+  `SimulationEngine.gd` (+115 líneas: interruptor sin `@export`
+  `g3_prescribed_thermal_source_enabled`, cuatro enganches en el paso,
+  retirada por encima de las guardas del reinicio y creación por debajo)
+  y `OxygenExchangeSystem.gd` (+4/−1: el trazador genérico de CO₂ no
+  produce en ese recinto). `PrescribedObjectHrrSource.gd` y
+  `CombustionSystem.gd` sin tocar, fijados por huella.
+- **Dentro del régimen**, recinto de 2000 m³ con hueco de 5 m², pasos de
+  1,0, 0,7 y 2,5 s: energía aceptada 115 093,655 kJ, rechazada 0, oxígeno
+  8,747 kg, estado `completed`. Mayor potencia de paso 621,125, 621,274 y
+  619,663 kW, las del oráculo de cada paso. Peores residuos por paso:
+  2 · 10⁻¹³ kW, 3 · 10⁻¹⁷ kg y 5 · 10⁻¹³ kJ.
+- **Cuatro χ** (0,35, 0,52, 0,4264, 0,6136): misma energía y mismo
+  oxígeno bit a bit; calor al gas de 74,8 a 44,5 MJ. Ninguna es una
+  fracción medida en un recinto; el término radiativo no tiene destino
+  modelado.
+- **Fuera del régimen:** 60 m³ con rendija sale a los 800 s por la capa
+  (2,3 % de la energía) y a los 1005 s juzgado solo por el oxígeno;
+  estanco, en el primer paso. Nada aceptado después, enclavado, sin cola,
+  sin inquemados; recuperar el oxígeno no reactiva.
+- **Medido y no usado:** el motor aplica a su número de la capa superior
+  un segundo débito del mismo tamaño (doble uso histórico). El diseño
+  decía 9 %; corregido.
+- Fixture sobre el motor real: 147 317 comprobaciones en 11 grupos.
+  Controles de configuración inválida aparte de los mutantes.
+- Mutantes de código: 36/36 detectados donde se esperaba, 0 inválidos,
+  0 supervivientes, fuentes restauradas por SHA-256.
+- Regresiones de G3: 1511 passed, 18 skipped. Tres contratos anteriores
+  adaptados de forma estrecha y uno respetado; detalle en el informe.
+- Identidad con el interruptor apagado: 9/9 casos byte a byte contra una
+  línea base hecha antes de tocar `sim/`.
+- Referencia completa: 18/18 corridas sanas, **346/346 required PASS, 78
+  gaps**, ALL GUARDRAILS PASS con R2-1; 381 de 382 informes idénticos y
+  en `reference_checks.json` solo `generated_at`.
+- Producto 168/168. Global 4330 passed, 49 skipped, 2 xfailed, 42
+  subtests, exit 0, 690,38 s. Una global anterior no cuenta: el equipo
+  estuvo suspendido en mitad de la prueba.
+- Logs locales: `runs/g3_object_hrr_thermal_coupling_mutations_20261008_220937/`,
+  `runs/reference_suite_monitored_20261008_225841/` y
+  `runs/g3_balance_identity_off_ledgeroff_20261008_224311/`.
+
+Límites: sin combustión del mueble, sin cierre de la composición del gas,
+sin validación de temperaturas; `δ` y el criterio de capa son hipótesis
+del banco. Test021 sigue reservado. CO/FED OFF/NO-GO.
+
+Siguiente gate, del usuario: datos antes que código. La serie numérica de
+masa del Test016 y un ensayo en recinto con el mismo objeto. No se activa
+producto ni se añaden emisiones.
+
 ## Current Program Update - 2026-10-08 - G3: diseño del acoplamiento de la fuente prescrita (offline, sin implementar)
 
 El usuario autoriza diagnóstico y diseño del acoplamiento experimental de
@@ -25,8 +96,9 @@ Continúa la [fuente aislada](validation/G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_202
 - El filtro del fuego de sala no devuelve la curva: pico al 94–97 %,
   +5,5 a +8,9 MJ de energía (más que los 6,4 MJ de incertidumbre con la
   subida rápida).
-- Oxígeno: la demanda es la identidad de la calorimetría, 13,1 MJ/kg
-  (8,79 kg en la corrida). La constante del motor, 0,076 kg/MJ, cae a un
+- Oxígeno: la demanda sale de la relación de la calorimetría, 13,1 MJ/kg
+  (8,79 kg en la corrida); **corregido después: es una demanda
+  equivalente prescrita, no el oxígeno medido**. La constante del motor, 0,076 kg/MJ, cae a un
   0,44 %. El total de oxígeno de la base de datos queda un 7 % por debajo
   y no es la demanda. **No hay ningún umbral validado de oxígeno** para
   esta silla; los indicadores de régimen son hipótesis declaradas.

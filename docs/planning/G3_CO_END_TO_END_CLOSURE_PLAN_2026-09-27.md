@@ -5,7 +5,27 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 08-10, segundo del día:
+Último avance del 08-10, tercero del día:
+[Banco diagnóstico de acoplamiento térmico](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_BENCH_2026-10-08.md).
+Primer camino real en GDScript entre la fuente prescrita y el motor, tras
+un interruptor sin `@export` apagado por defecto. Una fuente Test016 en
+un recinto sin combustible ni fuego de sala: energía por paso igual a la
+integral de la fuente, oxígeno equivalente a 0,076 kg/MJ y calor al gas
+más término radiativo igual a la energía aceptada, medidos donde el
+motor los escribe. 115 093,655 kJ aceptados con tres pasos de tiempo y
+cuatro fracciones radiativas; fuera del régimen, nada aceptado, enclavado
+y sin cola. Antes de programar se corrigieron la formulación del oxígeno
+(demanda equivalente, no oxígeno medido) y el criterio del pico (un paso
+finito no devuelve el pico instantáneo). **No es la combustión del
+mueble, no valida temperaturas y no evalúa CO, FED ni SVV.**
+Fixture 147 317 comprobaciones; mutantes 36/36; identidad con el
+interruptor apagado 9/9; referencia 346/346 required y 78 gaps;
+producto 168/168; global 4330 passed.
+Siguiente paso, pendiente del usuario: datos, no código (serie numérica
+de masa y un ensayo en recinto). Sin efecto en plazos. CO/FED siguen
+OFF/NO-GO.
+
+Avance previo del 08-10, segundo del día:
 [Diseño del acoplamiento de la fuente prescrita](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
 Fase offline de G3-4, sin tocar `sim/` ni lanzar Godot. Ruta real del
 fuego trazada en el código y fijada por 34 anclas. **Recomendación: una
@@ -15,9 +35,9 @@ se invalida al salir del régimen del ensayo. **Representar el objeto que
 arde es NO-GO**: faltan la serie numérica de masa, una composición
 aprobada y rendimientos en recinto. Hechos: el filtro del fuego de sala
 añadiría entre 5,5 y 8,9 MJ a la curva y le quitaría hasta un 6 % del
-pico; la demanda de oxígeno se justifica como identidad de la
-calorimetría (13,1 MJ/kg) y el total que publica la base de datos queda
-un 7 % por debajo; el ensayo da una fracción radiativa de 0,52 ± 18 %,
+pico; la demanda de oxígeno se toma de la relación de la calorimetría
+(13,1 MJ/kg), como demanda equivalente y no como oxígeno medido, y el
+total que publica la base de datos queda un 7 % por debajo; el ensayo da una fracción radiativa de 0,52 ± 18 %,
 del ensayo entero y al aire libre, frente al 0,35 del motor; una
 habitación cerrada sale del régimen antes del pico. Quince decisiones
 separadas: cuatro GO de diseño, un GO parcial y diez NO-GO. Siguiente

@@ -508,6 +508,12 @@ def test_composition_is_not_loaded_by_engine_editor_scenarios_or_product():
     for name in ["SimulationEngine.gd", "CombustionSystem.gd"]:
         for path in (ROOT / "sim").rglob(name):
             text = path.read_text(encoding="utf-8", errors="replace")
+            # Since the diagnostic thermal bench, the engine reaches ONE prescribed module, by
+            # path and behind a switch that is not exported. It is not this composition, and
+            # CombustionSystem still names none.
+            if path.name == "SimulationEngine.gd":
+                assert text.count("PrescribedThermalSourceCoupling") == 1
+                text = text.replace("PrescribedThermalSourceCoupling", "")
             assert "FuelMassBudgetModel" not in text and "Prescribed" not in text, path.name
 
 

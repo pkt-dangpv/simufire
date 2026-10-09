@@ -388,6 +388,18 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## CombustionSystem. Ver docs/validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md §13.
 var fire_diag_flame_target_window: float = 0.0
 var fire_diag_flame_target_jump_fraction: float = 0.0
+## G3 banco diagnóstico de acoplamiento térmico de la fuente HRR prescrita del
+## objeto ensayado. SIN @export: apagado por defecto y solo una fixture puede
+## fijarlo; no entra en escenarios, editor, catálogo ni autorizaciones.
+## Calor y débito equivalente de O2 en UN recinto sin combustible ni fuego de
+## sala. No es la combustión del mueble: sin masa, sin especies, sin FED.
+## docs/validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md.
+const G3_PRESCRIBED_THERMAL_COUPLING_PATH: String = "res://sim/fire/PrescribedThermalSourceCoupling.gd"
+var g3_prescribed_thermal_source_enabled: bool = false
+var g3_prescribed_thermal_source_case: Dictionary = {}
+## No vacío: el caso no se pudo armar o el banco falló. Con él no se simula.
+var g3_prescribed_thermal_source_failure: String = ""
+var _g3_prescribed_thermal_source = null
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -3631,6 +3643,72 @@ func _read_experimental_switch(switch_name: String) -> bool:
 
 ## El informe de activacion experimental, como lo ve la salida diagnostica.
 ## Vacio cuando el escenario no autoriza nada.
+## G3 banco diagnóstico. Retira la instancia de la corrida anterior, lo que
+## escribió en el recinto y el fallo. Único sitio donde se apaga.
+func _g3_prescribed_thermal_discard() -> void:
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.discard()
+	_g3_prescribed_thermal_source = null
+	g3_prescribed_thermal_source_failure = ""
+
+
+## Crea una instancia NUEVA y la arma con el caso. Solo con el interruptor
+## encendido se carga el módulo: con él apagado no se ejecuta nada de esto.
+func _g3_prescribed_thermal_arm() -> void:
+	if not g3_prescribed_thermal_source_enabled:
+		return
+	var coupling = load(G3_PRESCRIBED_THERMAL_COUPLING_PATH).new()
+	var room: RoomModel = null
+	if typeof(g3_prescribed_thermal_source_case.get("room_id")) == TYPE_INT:
+		room = building.get_room(int(g3_prescribed_thermal_source_case["room_id"]))
+	var armed: Dictionary = coupling.arm(
+		room,
+		_g3_prescribed_thermal_environment(),
+		{
+			"oxygen_floor_MJ": Callable(oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"),
+			"layer_interface_m": Callable(thermal_system, "effective_hot_layer_height_m"),
+			"energy_budget": Callable(thermal_system, "get_energy_budget"),
+			"suppression_active": Callable(self, "_g3_prescribed_thermal_suppression_active"),
+		},
+		g3_prescribed_thermal_source_case
+	)
+	# Se conserva también si no arma, para que el informe diga por qué.
+	_g3_prescribed_thermal_source = coupling
+	if not bool(armed.get("valid", false)):
+		g3_prescribed_thermal_source_failure = "prescribed_thermal_source_rejected"
+		push_error("G3 prescribed thermal source rejected: %s" % str(armed.get("errors")))
+
+
+## Lo que el motor es en este momento, leído de los subsistemas que lo aplican.
+## El banco compara con lo que declara y se niega si algo difiere.
+func _g3_prescribed_thermal_environment() -> Dictionary:
+	return {
+		"oxygen_step_runs_after_the_fire": not _uses_pre_hrr_oxygen_step(),
+		"fire_oxygen_mode": _resolve_fire_o2_mode(),
+		"sink_takes_oxygen_from_the_lower_number": bool(oxygen_exchange_system._uses_lower_o2_for_fire()),
+		"phase2b_canonical_combustion_enabled": bool(oxygen_exchange_system.phase2b_canonical_combustion_enabled),
+		"fire_o2_canonical_enabled": bool(oxygen_exchange_system.fire_o2_canonical_enabled),
+		"fire_o2_mass_tracking_enabled": bool(oxygen_exchange_system.fire_o2_mass_tracking_enabled),
+		"authoritative_transport_enabled": pressure_network_solver_enabled,
+		"canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
+		"energy_budget_enabled": bool(thermal_system.energy_budget_enabled),
+		"two_zone_convective_heat_multiplier": float(thermal_system.two_zone_convective_heat_multiplier),
+		"outside_open_upper_heat_boost": float(thermal_system.outside_open_upper_heat_boost),
+		"auto_finish_on_extinction": auto_finish_on_extinction,
+	}
+
+
+func _g3_prescribed_thermal_suppression_active(room_id: int) -> bool:
+	return _active_suppression_by_room.has(room_id)
+
+
+## Informe del banco, leído de la instancia viva. Sin instancia, inactivo.
+func get_g3_prescribed_thermal_source_report() -> Dictionary:
+	if _g3_prescribed_thermal_source == null:
+		return {"state": "inactive"}
+	return _g3_prescribed_thermal_source.report()
+
+
 func get_experimental_activation_report() -> Dictionary:
 	return _experimental_activation_report.duplicate(true)
 
@@ -3721,6 +3799,9 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	# Lo que NO sube por encima de la guarda es RESOLVER una autorizacion nueva:
 	# encender fisica en un motor que no esta listo seria cambiar un estado
 	# obsoleto por uno peor. Retirar siempre; aplicar solo cuando se puede.
+	# G3 banco diagnóstico: misma regla. Se retira SIEMPRE, también sin edificio
+	# o con el motor no preparado; se crea solo más abajo, cuando se puede.
+	_g3_prescribed_thermal_discard()
 	if building == null or not is_ready_for_validation():
 		_discard_experimental_physics_authorization()
 		return
@@ -3804,6 +3885,11 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 		_reset_room_state(room)
 
 	combustion_system.bootstrap_building(building)
+	# G3 banco diagnóstico: instancia nueva por corrida, con el recinto ya
+	# reiniciado. Un caso que no vale es un fallo explícito y no se ignita.
+	_g3_prescribed_thermal_arm()
+	if not g3_prescribed_thermal_source_failure.is_empty():
+		return
 	if building != null and building.sim_stop_time_s > 0.0:
 		sim_duration_limit_s = building.sim_stop_time_s
 	_reset_log_file()
@@ -3832,6 +3918,10 @@ func step(delta: float) -> void:
 	# F2.2D4B2B: una autorizacion experimental que no resuelve no se simula. Ni
 	# con la fisica apagada: lo que se vio en pantalla no seria lo autorizado.
 	if not experimental_authorization_failure.is_empty():
+		return
+	# G3 banco diagnóstico: un caso que no arma, o un banco que falla, no se
+	# simula. No hay vuelta a la ruta histórica.
+	if not g3_prescribed_thermal_source_failure.is_empty():
 		return
 	if building == null or is_finished:
 		return
@@ -3923,6 +4013,9 @@ func step(delta: float) -> void:
 	if phase3_canonical_zone_shadow_enabled:
 		combustion_system.begin_phase3_shadow_step(building)
 	_step_fire(dt)
+	if _g3_prescribed_thermal_source != null:
+		# Después de la ruta del fuego de sala, que en ese recinto no posee nada.
+		_g3_prescribed_thermal_source.begin_step(dt)
 	if phase3_canonical_zone_shadow_enabled:
 		if phase3_canonical_persistence_shadow_enabled:
 			phase3_zone_mass_system.record_combustion_o2_probe(building)
@@ -3935,10 +4028,16 @@ func step(delta: float) -> void:
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_runtime_record_stage_shared("oxygen_exchange", "oxygen_exchange")
+	if _g3_prescribed_thermal_source != null:
+		# Con el débito real ya hecho y ANTES del calor: si no es el comprometido,
+		# la potencia del paso se retira aquí y ThermalSystem no la llega a leer.
+		_g3_prescribed_thermal_source.settle_oxygen()
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.settle_heat()
 	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_collect_thermal_requests(dt)
 		_phase3_shadow_collect_thermal_species_events()
@@ -3973,6 +4072,11 @@ func step(delta: float) -> void:
 	_phase3_zone_runtime_record_stage_shared("hvac", "hvac")
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.end_step()
+		if _g3_prescribed_thermal_source.state() == "failed":
+			g3_prescribed_thermal_source_failure = "prescribed_thermal_source_failed"
+			push_error("G3 prescribed thermal source failed: %s" % str(_g3_prescribed_thermal_source.failure()))
 	_phase3_zone_runtime_record_stage_shared("other", "other")
 	if two_zone_solver_enabled:
 		# M1: absorber los cambios termicos de sistemas legacy (HVAC/supresion/flujos)
@@ -4024,6 +4128,13 @@ func ignite_room(room_id: int) -> void:
 
 	var room: RoomModel = building.get_room(room_id)
 	if room == null:
+		return
+
+	if _g3_prescribed_thermal_source != null \
+			and int(g3_prescribed_thermal_source_case.get("room_id", -1)) == room_id:
+		# G3 banco diagnóstico: ese recinto no tiene fuego de sala. Aquí solo
+		# arranca el reloj de la fuente.
+		_g3_prescribed_thermal_source.ignite(sim_time_s)
 		return
 
 	if room.fire != null:
@@ -5125,6 +5236,10 @@ func _step_oxygen(dt: float) -> void:
 	# G3 balance (g3_balance_v1): con el libro G3 activo, OxygenExchangeSystem
 	# anota en una sonda de solo lectura; sin el libro no hay sonda.
 	var oxygen_hooks: Dictionary = _build_oxygen_exchange_hooks()
+	if _g3_prescribed_thermal_source != null:
+		oxygen_hooks["g3_prescribed_thermal_room_ids"] = [
+			int(g3_prescribed_thermal_source_case.get("room_id", -1))
+		]
 	if combustion_system.g3_fuel_ledger_enabled:
 		oxygen_hooks["g3_balance_probe"] = {}
 	oxygen_exchange_system.step(building, dt, oxygen_hooks)

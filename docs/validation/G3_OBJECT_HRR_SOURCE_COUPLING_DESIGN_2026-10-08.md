@@ -51,6 +51,15 @@ los GO son de **diseño**: implementar sigue sin autorizar.
 CO/FED siguen OFF y NO-GO. Test021 sigue reservado y sin usar. B neto no
 se reabre; no se usan heptano, Sandia ni el ensayo de cono.
 
+> **Actualización del 08-10, posterior.** El usuario autorizó ese único
+> caso y está implementado y verificado como **banco diagnóstico**:
+> [informe del banco](G3_OBJECT_HRR_SOURCE_COUPLING_BENCH_2026-10-08.md).
+> Los cinco GO de la tabla pasaron de diseño a código; los diez NO-GO no
+> han cambiado. Antes de programar se corrigieron la formulación del
+> oxígeno y el criterio del pico, y la medida obligó después a corregir
+> una frase sobre los números de zona; las tres correcciones están
+> marcadas donde corresponde.
+
 ## Ruta real del motor
 
 Leída en el código de `60754428`, función a función. Los 34 hechos de los
@@ -697,9 +706,14 @@ A4 queda partido en A4a, A4b y A4c.
 - **Números de zona.** El motor lleva además un número de oxígeno para la
   capa superior y otro para la inferior, que no forman con el de sala una
   partición conservada. Para cualquier recinto con potencia aplica a la
-  capa superior un débito de «desplazamiento» del 9 % de la demanda y
-  mezcla las dos capas. El banco **no lo excluye y no lo usa**: lo mide y
-  lo informa aparte. No entra en A5.
+  capa superior un débito propio y mezcla las dos capas. El banco **no lo
+  excluye y no lo usa**: lo mide y lo informa aparte. No entra en A5.
+  **Corregido después de medir:** aquí se escribió que ese débito era un
+  «desplazamiento» del 9 % de la demanda. El 9 % es el de la ruta de
+  recinto estanco. En un recinto con hueco al exterior, con la
+  configuración por defecto, el motor aplica a la capa superior el débito
+  **completo**: el doble uso histórico del oxígeno. El banco midió
+  8,747 kg en la sala y otros 8,747 kg sobre ese segundo número.
 - **R2, concreto.** Se vigilan el número de sala y el de la capa
   inferior: el régimen se invalida si alguno baja más de `δ` respecto a
   su valor en la ignición. `δ = 0,01` en el caso base, declarado aquí.
@@ -719,11 +733,17 @@ A4 queda partido en A4a, A4b y A4c.
   ambiente. Lo que se exige es que no produzca.
 - **Recinto de 60 m³.** Dos variantes: estanco, que se invalida por la
   ruta del sumidero, y casi estanco, con una rendija al exterior, que se
-  invalida al bajar el oxígeno.
+  invalida al bajar el oxígeno. **Medido después:** con las dos reglas
+  activas el recinto casi estanco sale antes por la capa (800 s) que por
+  el oxígeno (1005 s juzgado solo por él). La prueba no impone la causa.
 - **Fracción radiativa.** Los cuatro valores son 0,35, 0,52, 0,4264 y
   0,6136; los dos últimos son el publicado menos y más su incertidumbre.
 
 ## Lo que bloquea el siguiente paso
+
+> **Resuelto el 08-10.** El usuario autorizó el caso, confirmó la parada
+> enclavada sin cola ni relevo, y autorizó los cambios acotados en `sim/`.
+> Lo que sigue se conserva como estaba escrito.
 
 **Decisiones del usuario:**
 
@@ -751,6 +771,9 @@ corrida. Podrían sostener en el futuro una emisión prescrita al aire
 libre. Es un gate aparte, no autorizado, y no cambia el NO-GO de CO/FED.
 
 ## Alcance del siguiente encargo, si se autoriza
+
+**Autorizado y ejecutado:**
+[informe del banco](G3_OBJECT_HRR_SOURCE_COUPLING_BENCH_2026-10-08.md).
 
 Un único caso, y nada más:
 

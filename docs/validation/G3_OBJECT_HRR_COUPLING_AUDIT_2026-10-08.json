@@ -230,7 +230,10 @@
    "fire_spread_system.step(dt, Callable(self, \"ignite_room\"))",
    "_clamp_rooms(dt)"
   ],
-  "consumers_of_the_isolated_module": []
+  "consumers_of_the_isolated_module": [
+   "sim/fire/PrescribedThermalSourceCoupling.gd"
+  ],
+  "unexpected_consumers_of_the_isolated_module": []
  },
  "legacy_filter": [
   {

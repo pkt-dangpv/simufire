@@ -183,3 +183,174 @@ def test_the_corrections_were_written_in_the_design_before_the_bench() -> None:
                    "621,125 kW", "621,274 kW", "619,663 kW", "0,076 kg/MJ"):
         assert needle in text, needle
     assert "| A4 | Pico 621,46 kW en el paso que contiene los 1143 s" not in text
+
+
+# ---------------------------------------------------------------- the bounded engine change
+
+import re  # noqa: E402
+
+ENGINE_PATH = ROOT / "sim/core/SimulationEngine.gd"
+OXYGEN_PATH = ROOT / "sim/core/OxygenExchangeSystem.gd"
+COUPLING_PATH = ROOT / "sim/fire/PrescribedThermalSourceCoupling.gd"
+FIXTURE_PATH = ROOT / "tests/fixtures/g3_object_hrr_thermal_coupling.gd"
+ENGINE = ENGINE_PATH.read_text(encoding="utf-8")
+COUPLING = COUPLING_PATH.read_text(encoding="utf-8")
+COMBUSTION_SHA256 = "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035"
+MARKER = "G3_OBJECT_HRR_THERMAL_COUPLING"
+GROUPS = 11
+CHECKS = 147317  # of the green run on the final code; a different count means the fixture changed
+
+
+def _code(text: str) -> str:
+    """GDScript without its comments."""
+    return "\n".join(line.split("#")[0] for line in text.splitlines())
+
+
+def _body(text: str, signature: str) -> str:
+    start = text.index(signature)
+    following = text.find("\nfunc ", start + 1)
+    return text[start:following if following > 0 else len(text)]
+
+
+def test_the_switch_is_not_exported_and_is_off_by_default() -> None:
+    for line in ("var g3_prescribed_thermal_source_enabled: bool = false",
+                 "var g3_prescribed_thermal_source_case: Dictionary = {}",
+                 'var g3_prescribed_thermal_source_failure: String = ""',
+                 "var _g3_prescribed_thermal_source = null"):
+        assert ("\n" + line + "\n") in ENGINE, line
+    assert "@export var g3_prescribed_thermal" not in ENGINE and "@export var _g3_prescribed_thermal" not in ENGINE
+    # Loaded by path and only when the switch is on: with it off the module is never read.
+    assert ENGINE.count("load(G3_PRESCRIBED_THERMAL_COUPLING_PATH)") == 1
+    assert 'preload("res://sim/fire/PrescribedThermalSourceCoupling.gd")' not in ENGINE
+    arm = _body(ENGINE, "func _g3_prescribed_thermal_arm() -> void:")
+    assert arm.index("if not g3_prescribed_thermal_source_enabled:") < arm.index("load(G3_PRESCRIBED_THERMAL_COUPLING_PATH)")
+    assert "class_name" not in _code(COUPLING) and "@export" not in _code(COUPLING)
+
+
+def test_nothing_of_the_product_reaches_the_bench() -> None:
+    allowed = {"sim/core/SimulationEngine.gd", "sim/core/OxygenExchangeSystem.gd", "sim/fire/PrescribedThermalSourceCoupling.gd"}
+    users = set()
+    for folder in ("sim", "editor", "ui", "view", "scenarios", "scenes", "tools", "addons", "assets"):
+        for path in (ROOT / folder).rglob("*"):
+            if path.is_file() and path.suffix in {".gd", ".tscn", ".tres", ".json", ".cfg"}:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                if "g3_prescribed_thermal" in text or "PrescribedThermalSourceCoupling" in text:
+                    users.add(path.relative_to(ROOT).as_posix())
+    for path in (ROOT / "project.godot", ROOT / "Main.gd", ROOT / "scripts/check_product.py", ROOT / "scripts/run_scenario.py"):
+        if path.is_file() and "g3_prescribed_thermal" in path.read_text(encoding="utf-8", errors="ignore"):
+            users.add(path.name)
+    assert users == allowed
+    oxygen = OXYGEN_PATH.read_text(encoding="utf-8")
+    assert oxygen.count("g3_prescribed_thermal_room_ids") == 3  # declared and read from the hooks, used once
+    loaders = sorted(path.name for path in (ROOT / "tests/fixtures").glob("*.gd")
+                     if "g3_prescribed_thermal" in path.read_text(encoding="utf-8"))
+    assert loaders == ["g3_object_hrr_thermal_coupling.gd"]
+
+
+def test_the_protected_modules_were_not_touched() -> None:
+    import hashlib
+    combustion = (ROOT / "sim/fire/CombustionSystem.gd").read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(combustion).hexdigest() == COMBUSTION_SHA256
+    assert "g3_prescribed_thermal" not in combustion.decode("utf-8")
+
+
+def test_the_coupling_integrates_nothing_and_restores_nothing() -> None:
+    code = _code(COUPLING)
+    assert "_source.propose(" in code and "_source.confirm(" in code
+    # The energy of a step is the integral of the isolated owner; no second law lives here.
+    for word in ("lerp", "bsearch", "prefix", "samples", "hrr_curve", "compute_hrr_kw", "_smooth", "fire_time_s"):
+        assert word not in code, word
+    assert ".restore(" not in code and ".reset(" not in code
+    assert not re.search(r"retained_unburned_MJ\s*[-+*/]?=[^=]", code)
+    assert not re.search(r"\.(fire|fuel_objects|fuel_energy_MJ|max_hrr_kw|co_kg|co2_kg|hcn_kg|smoke_kg)\s*[-+*/]?=[^=]", code)
+    written = sorted(set(re.findall(r"_room\.(\w+)\s*=[^=]", code)))
+    assert written == ["burned_hrr_kw", "chi_rad_normal", "combustion_regime", "hrr_kw"]
+    assert "energy_kj / dt" in code  # over the whole step
+
+
+def test_the_hooks_sit_where_the_design_says() -> None:
+    step = _body(ENGINE, "func step(delta: float) -> void:")
+    order = ["if not g3_prescribed_thermal_source_failure.is_empty():", "_step_fire(dt)",
+             "_g3_prescribed_thermal_source.begin_step(dt)", "if not pre_hrr_o2_step:",
+             "_g3_prescribed_thermal_source.settle_oxygen()", "thermal_system.step(building, dt, {",
+             "_g3_prescribed_thermal_source.settle_heat()", "_step_suppression(dt)",
+             'fire_spread_system.step(dt, Callable(self, "ignite_room"))', "_g3_prescribed_thermal_source.end_step()",
+             "_clamp_rooms(dt)"]
+    positions = [step.index(item) for item in order]
+    assert positions == sorted(positions) and all(step.count(item) == 1 for item in order)
+    reset = _body(ENGINE, "func reset_simulation(")
+    order = ["_g3_prescribed_thermal_discard()", "if building == null or not is_ready_for_validation():",
+             "_reset_room_state(room)", "combustion_system.bootstrap_building(building)",
+             "_g3_prescribed_thermal_arm()", "ignite_room(start_ignition_room_id)"]
+    positions = [reset.index(item) for item in order]
+    assert positions == sorted(positions)
+    ignite = _body(ENGINE, "func ignite_room(room_id: int) -> void:")
+    assert ignite.index("_g3_prescribed_thermal_source.ignite(sim_time_s)") < ignite.index("create_legacy_room_fire(")
+
+
+def test_the_mutation_plan_is_declared_before_running() -> None:
+    from scripts.simulation import run_g3_object_hrr_thermal_coupling_mutations as campaign
+    originals, variants = campaign.prepared()  # raises if an anchor is absent or repeated
+    assert len(campaign.MUTATIONS) == len(variants) == 36
+    assert sorted(originals) == sorted([campaign.COUPLING, campaign.ENGINE, campaign.OXYGEN])
+    groups = {line.split('"')[1][:3] for line in FIXTURE_PATH.read_text(encoding="utf-8").splitlines()
+              if line.strip().startswith('_group("B')}
+    for name, (_relative, old, new, defect, where) in campaign.MUTATIONS.items():
+        assert old != new and len(defect) > 20, name
+        assert where in groups or where in {"B02", "B03", "B04"}, name
+    families = sorted({name[0] for name in campaign.MUTATIONS})
+    assert families == ["A", "H", "L", "O", "P", "R", "S"]
+    code = Path(campaign.__file__).read_text(encoding="utf-8")
+    assert "not restored byte for byte" in code and "sha256_before" in code
+
+
+def test_the_real_engine_runs_the_bench_against_the_oracle() -> None:
+    from scripts import godot_monitored_launch
+    from tests.godot_runtime_launcher import run_godot
+
+    godot = Path(os.environ.get("GODOT_EXE", r"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe"))
+    if not godot.exists():
+        pytest.skip("Godot not found")
+    if os.name == "nt":
+        assert godot_monitored_launch._available_gib() >= 6.0, "Godot requires >=6 GiB"
+    completed = run_godot([godot, "--headless", "--path", ROOT, "--script", FIXTURE_PATH],
+                          timeout_s=900, allowed_exit_codes=(0,))
+    output = completed.stdout + completed.stderr
+    assert "SCRIPT ERROR" not in output and "Parse Error" not in output
+    line = next(line for line in completed.stdout.splitlines() if line.startswith(MARKER + " {"))
+    report = json.loads(line.split(" ", 1)[1])
+    assert report["failures"] == [] and report["failure_count"] == 0 and MARKER + "_PASS" in completed.stdout
+    assert [name[:3] for name in report["groups"]] == ["B%02d" % index for index in range(GROUPS)]
+    assert report["checks"] == CHECKS
+    seen = report["observations"]
+    total, coefficient = ORACLE["total_energy_kj"], ORACLE["oxygen"]["kg_per_MJ"]
+    # Judged again here, outside GDScript.
+    for key, expected in ORACLE["steps"].items():
+        run = seen["whole_run_" + key]
+        assert run["state"] == "completed" and run["steps"] == expected["steps"] and run["rejected_kj"] == 0.0
+        assert _near(run["accepted_kj"], total), key
+        assert abs(run["oxygen_debited_kg"] - total / 1000.0 * coefficient) < 1.0e-10, key
+        assert _near(run["to_the_gas_kj"] + run["radiative_term_kj"], run["accepted_kj"]), key
+        assert _near(run["largest_step_power_kw"], expected["largest_step_power_kw"]), key
+        assert run["largest_step_index"] == expected["largest_step_index"] == expected["step_holding_the_instantaneous_peak"]
+        assert run["largest_step_power_kw"] < ORACLE["instantaneous_peak"]["hrr_kw"]
+        # The declared regime held with margin; these are diagnostics, not validated values.
+        assert 0.209 - run["lowest_room_oxygen"] < 0.01 and run["lowest_layer_interface_m"] > 0.3
+        assert abs(run["carbon_dioxide_tracer_highest"] - run["carbon_dioxide_tracer_start"]) < 1.0e-12
+    rows = seen["radiative_fractions"]
+    assert [row["radiative_fraction"] for row in rows] == [item["value"] for item in ORACLE["radiative_fractions"]]
+    assert [row["class"] for row in rows] == [item["class"] for item in ORACLE["radiative_fractions"]]
+    for row, expected in zip(rows, ORACLE["radiative_fractions"]):
+        assert row["state"] == "completed" and row["accepted_kj"] == rows[0]["accepted_kj"]
+        assert row["oxygen_debited_kg"] == rows[0]["oxygen_debited_kg"]
+        assert _near(row["to_the_gas_kj"], expected["to_the_gas_kj"]) and _near(row["radiative_term_kj"], expected["radiative_term_kj"])
+    crack = seen["small_room_with_a_crack"]
+    assert crack["state"] == "outside_declared_regime" and 0.0 < crack["accepted_share"] < 1.0
+    assert crack["exit"]["cause"] in ("oxygen_below_the_declared_tolerance", "hot_layer_below_the_declared_height")
+    assert crack["exit"]["source_time_s"] < ORACLE["instantaneous_peak"]["time_s"]
+    assert _near(crack["accepted_kj"] + crack["rejected_kj"], total)
+    by_oxygen = seen["small_room_with_a_crack_oxygen_only"]
+    assert by_oxygen["state"] == "outside_declared_regime" and by_oxygen["exit"]["cause"] == "oxygen_below_the_declared_tolerance"
+    sealed = seen["small_sealed_room"]
+    assert sealed["exit"]["step"] == 0 and sealed["exit"]["cause"] == "oxygen_debit_is_not_the_committed_one"
+    assert sealed["exit"]["room_inventory_debit_kg"] == 0.0 and sealed["oxygen_debited_without_heat_kg"] > 0.0

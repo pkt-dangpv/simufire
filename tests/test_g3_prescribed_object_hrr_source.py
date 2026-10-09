@@ -260,10 +260,16 @@ def test_module_is_isolated_and_has_no_product_consumer():
     for path in (ROOT / "project.godot", ROOT / "Main.gd", ROOT / "scripts/check_product.py"):
         if path.is_file() and "PrescribedObjectHrrSource" in path.read_text(encoding="utf-8", errors="ignore"):
             users.append(path.name)
-    assert users == []
+    # Since the diagnostic coupling bench, one module preloads it; the engine reaches that
+    # module by path, behind a switch that is not exported, and never names this one.
+    assert users == ["sim/fire/PrescribedThermalSourceCoupling.gd"]
+    engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
+    assert "PrescribedObjectHrrSource" not in engine
+    assert "var g3_prescribed_thermal_source_enabled: bool = false" in engine
+    assert "@export var g3_prescribed_thermal_source_enabled" not in engine
     loaders = sorted(path.name for path in (ROOT / "tests/fixtures").glob("*.gd")
                      if "PrescribedObjectHrrSource" in path.read_text(encoding="utf-8"))
-    assert loaders == ["g3_object_hrr_source.gd"]
+    assert loaders == ["g3_object_hrr_source.gd", "g3_object_hrr_thermal_coupling.gd"]
 
 
 def test_module_carries_no_mass_chemistry_or_gas_coupling():

@@ -381,6 +381,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 	# G3 balance (g3_balance_v1): sonda de solo lectura que el motor pasa
 	# únicamente con el libro G3 activo; sin ella no se ejecuta nada.
 	var g3_probe = hooks.get("g3_balance_probe", null)
+	# G3 banco diagnóstico de la fuente térmica prescrita: recintos cuya potencia
+	# no viene de una combustión. Sin la clave, lista vacía y nada cambia.
+	var g3_prescribed_thermal_room_ids: Array = hooks.get("g3_prescribed_thermal_room_ids", [])
 
 	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
@@ -865,7 +868,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# Modelo bi-zona inválido: homogeniza con media de sala
 			var room_co2_frac: float = room.co2_kg * 29.0 / maxf(0.001, air_mass_kg * 44.0)
 			room.co2_upper = clampf(room_co2_frac, CO2_AMBIENT, CO2_UPPER_MAX)
-		elif room.hrr_kw > 0.0:
+		elif room.hrr_kw > 0.0 and not g3_prescribed_thermal_room_ids.has(room.id):
 			# CO₂ producido → zona superior (gas caliente)
 			var cr_co2: float = co2_yield_kg_per_MJ
 			var co2_produced: float = (room.hrr_kw / 1000.0) * cr_co2 * dt

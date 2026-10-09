@@ -83,8 +83,10 @@ def engine_route(record: dict) -> dict:
                 continue
             if "PrescribedObjectHrrSource" in path.read_text(encoding="utf-8", errors="replace"):
                 consumers.append(path.relative_to(ROOT).as_posix())
+    allowed = record["engine"]["allowed_consumers_of_the_isolated_module"]
     return {"anchors": anchors, "step_order_holds": True, "step_order": order["in_order"],
-            "consumers_of_the_isolated_module": consumers}
+            "consumers_of_the_isolated_module": consumers,
+            "unexpected_consumers_of_the_isolated_module": sorted(set(consumers) - set(allowed))}
 
 
 # ---------------------------------------------------------------- the audited table
@@ -324,7 +326,7 @@ def decide(facts: dict) -> dict:
     route, oxygen_facts, radiative = facts["engine_route"], facts["oxygen"], facts["radiation"]
     worst_filter = min(item["peak_over_table"] for item in facts["legacy_filter"])
     out = {name: "NO-GO" for name in OBSERVABLES}
-    if not route["consumers_of_the_isolated_module"] and route["step_order_holds"]:
+    if not route["unexpected_consumers_of_the_isolated_module"] and route["step_order_holds"]:
         out["energy_delivered_per_step"] = "GO_design_only_as_a_thermal_source_alone_in_its_room"
     if worst_filter < 1.0:
         out["applied_power_unfiltered"] = "GO_design_only_outside_the_room_fire_route"

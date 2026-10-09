@@ -96,6 +96,8 @@
     }
   },
   "engine": {
+    "allowed_consumers_of_the_isolated_module": ["sim/fire/PrescribedThermalSourceCoupling.gd"],
+    "allowed_consumers_are": "the diagnostic coupling bench implemented after this design; the engine loads it by path behind a switch that is not exported",
     "step_order": {
       "file": "sim/core/SimulationEngine.gd",
       "after": "func step(delta: float) -> void:",

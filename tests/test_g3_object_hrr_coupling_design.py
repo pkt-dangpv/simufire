@@ -99,9 +99,13 @@ def test_a_changed_step_order_stops_the_audit() -> None:
         design.engine_route(record)
 
 
-def test_nothing_in_the_product_consumes_the_isolated_module() -> None:
-    assert SAVED["engine_route"]["consumers_of_the_isolated_module"] == []
+def test_only_the_diagnostic_bench_consumes_the_isolated_module() -> None:
+    route = SAVED["engine_route"]
+    assert route["consumers_of_the_isolated_module"] == ["sim/fire/PrescribedThermalSourceCoupling.gd"]
+    assert route["unexpected_consumers_of_the_isolated_module"] == []
     assert (ROOT / design.MODULE).exists()
+    engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
+    assert "@export var g3_prescribed_thermal" not in engine and "preload(\"res://sim/fire/Prescribed" not in engine
 
 
 def test_the_engine_oxygen_constant_is_read_from_the_engine() -> None:
@@ -319,7 +323,7 @@ def test_there_is_one_decision_per_observable_and_none_is_a_plain_go() -> None:
 
 def test_a_go_does_not_survive_the_loss_of_its_fact() -> None:
     facts = copy.deepcopy(SAVED)
-    facts["engine_route"]["consumers_of_the_isolated_module"] = ["sim/core/SimulationEngine.gd"]
+    facts["engine_route"]["unexpected_consumers_of_the_isolated_module"] = ["sim/core/SimulationEngine.gd"]
     assert design.decide(facts)["energy_delivered_per_step"] == "NO-GO"
     facts = copy.deepcopy(SAVED)
     facts["oxygen"]["engine_constant_inside_one_standard_deviation"] = False
