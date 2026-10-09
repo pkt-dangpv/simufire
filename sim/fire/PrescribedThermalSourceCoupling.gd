@@ -12,6 +12,12 @@ extends RefCounted
 ## module never interpolates the table. The power of a step is that energy over
 ## the WHOLE step, so no filter, cap, split or fire clock stands in between.
 ##
+## Before the power of a step is written the engine sink is asked, with no side
+## effect, which inventory it would debit and with which coefficient. If it is
+## not the room inventory with the declared coefficient, the interval is
+## rejected BEFORE anything is written: a rejected interval leaves no oxygen
+## consumed by the source and no heat.
+##
 ## Inside the declared regime the whole interval is accepted. At the first step
 ## in which a rule fails nothing is accepted, the state latches as
 ## `outside_declared_regime` until a reset, and every later interval is
@@ -24,9 +30,9 @@ extends RefCounted
 
 const SourceScript = preload("res://sim/fire/PrescribedObjectHrrSource.gd")
 
-const VERSION: String = "prescribed_thermal_source_coupling_v1"
+const VERSION: String = "prescribed_thermal_source_coupling_v2"
 const CASE_SCHEMA: String = "g3_prescribed_thermal_source_case_v1"
-const REPORT_SCHEMA: String = "g3_prescribed_thermal_source_report_v1"
+const REPORT_SCHEMA: String = "g3_prescribed_thermal_source_report_v2"
 const SCOPE: String = "diagnostic_coupling_bench_energy_and_equivalent_oxygen_not_the_combustion_of_the_object"
 
 const STATE_INACTIVE: String = "inactive"
@@ -65,8 +71,10 @@ const REQUIRED_ENVIRONMENT: Dictionary = {
 	"auto_finish_on_extinction": false,
 }
 const CALLABLES: Array[String] = [
-	"oxygen_floor_MJ", "layer_interface_m", "energy_budget", "suppression_active",
+	"oxygen_floor_MJ", "oxygen_sink_plan", "layer_interface_m", "energy_budget", "suppression_active",
 ]
+## The only route of the engine sink the bench contracts with: the room inventory.
+const ROOM_INVENTORY_ROUTE: String = "room_inventory"
 const NOT_EVALUATED: Array[String] = [
 	"co", "co2", "hcn", "smoke_and_visibility", "irritants", "fed", "svv",
 	"fuel_mass", "gas_composition", "temperatures_as_validated_values",
@@ -92,6 +100,9 @@ var _last_step: Dictionary = {}
 var _totals: Dictionary = {}
 var _steps: int = 0
 var _owned_room_fields: Dictionary = {}
+var _plan: Dictionary = {}
+var _broken_plan: Dictionary = {}
+var _upper_writes: Dictionary = {}
 
 
 # ---------------------------------------------------------------- life cycle
@@ -185,6 +196,9 @@ func discard() -> void:
 	_source = null
 	_pending = {}
 	_last_step = {}
+	_plan = {}
+	_broken_plan = {}
+	_upper_writes = {}
 	_state = STATE_INACTIVE
 
 
@@ -217,7 +231,7 @@ func begin_step(dt: float) -> void:
 	_last_step = {
 		"index": _steps - 1, "start_s": float(proposal["start_time_s"]), "end_s": float(proposal["end_time_s"]),
 		"step_s": dt, "scheduled_kj": energy_kj, "accepted_kj": 0.0, "rejected_kj": 0.0, "power_kw": 0.0,
-		"oxygen_committed_kg": 0.0, "oxygen_debited_kg": 0.0, "oxygen_zone_displacement_kg": 0.0,
+		"oxygen_committed_kg": 0.0, "oxygen_debited_kg": 0.0, "upper_layer_number_written_kg": 0.0,
 		"to_the_gas_kj": 0.0, "radiative_term_kj": 0.0, "radiative_fraction_applied": null,
 		"state_before": _state,
 	}
@@ -236,8 +250,10 @@ func begin_step(dt: float) -> void:
 
 
 ## After the oxygen sink and BEFORE the heat. The debit that really happened is
-## compared with the committed one; if it differs the power of the step is
-## withdrawn before ThermalSystem reads it, so no heat is counted as valid.
+## compared with the committed one. The route was asked before the power was
+## written, so a difference here means the sink did not do what it said: the
+## power is withdrawn before ThermalSystem reads it and the bench FAILS. It is
+## not a regime exit: what the sink wrote stays written and the run is void.
 func settle_oxygen() -> void:
 	if _pending.is_empty() or _state != STATE_REPLAYING:
 		return
@@ -246,23 +262,28 @@ func settle_oxygen() -> void:
 	var room_inventory_kg: float = float(_room.o2_consumed_bulk_kg_step)
 	var all_kg: float = float(_room.o2_consumed_kg_step_all)
 	_last_step["oxygen_debited_kg"] = room_inventory_kg
-	_last_step["oxygen_zone_displacement_kg"] = all_kg - primary_kg
+	_last_step["upper_layer_number_written_kg"] = all_kg - primary_kg
 	var tolerance: float = OXYGEN_ABS_TOL_KG + OXYGEN_REL_TOL * maxf(absf(committed_kg), absf(room_inventory_kg))
 	if absf(room_inventory_kg - committed_kg) > tolerance or absf(primary_kg - room_inventory_kg) > tolerance:
-		# The sink took something else, or from another inventory. It cannot be
-		# given back: the engine does not restore. It is reported.
-		_totals["oxygen_debited_without_heat_kg"] += all_kg
+		# The sink did not do what it said it would. The power is withdrawn before
+		# the heat, but what the sink wrote cannot be given back: the engine does not
+		# restore. The bench fails and says, number by number and without adding
+		# them, what was written.
 		_withdraw_room_power()
-		_leave_regime({
-			"cause": "oxygen_debit_is_not_the_committed_one",
-			"committed_kg": committed_kg, "room_inventory_debit_kg": room_inventory_kg,
-			"primary_sink_debit_kg": primary_kg, "all_sinks_debit_kg": all_kg,
-		})
-		_settle(_pending["proposal"], 0.0)
-		_pending = {}
+		_broken_plan = {
+			"plan": _plan.duplicate(true), "committed_kg": committed_kg,
+			"room_inventory_debit_kg": room_inventory_kg, "primary_sink_debit_kg": primary_kg,
+			"upper_layer_number_written_kg": all_kg - primary_kg,
+			"these_numbers_overlap": "they are written on overlapping representations; none is added to another",
+		}
+		var reason: String = "the oxygen sink did not debit what it planned: committed %s kg to the room inventory, it took %s kg there and %s kg by its primary route" % [committed_kg, room_inventory_kg, primary_kg]
+		_fail([reason])
 		return
 	_totals["oxygen_debited_kg"] += room_inventory_kg
-	_totals["oxygen_zone_displacement_kg"] += all_kg - primary_kg
+	_totals["upper_layer_number_written_kg"] += all_kg - primary_kg
+	var branch: String = String(_plan.get("upper_layer_number_write", "unknown"))
+	if committed_kg > 0.0:
+		_upper_writes[branch] = int(_upper_writes.get(branch, 0)) + 1
 	_settle(_pending["proposal"], float(_pending["energy_kj"]))
 
 
@@ -330,6 +351,15 @@ func report() -> Dictionary:
 	out["source_fingerprint"] = _fingerprint
 	out["oxygen_kg_per_MJ"] = float(_case["oxygen_kg_per_MJ"])
 	out["oxygen_is"] = "equivalent demand prescribed by the bench, debited from the room inventory of the engine sink; not a validated stoichiometry and not the oxygen measured in the test"
+	out["oxygen_numbers"] = {
+		"oxygen_debited_kg": "the contracted debit: what the engine sink took from the room inventory, room air mass (1.2 kg/m3 times the volume) times the room oxygen number",
+		"upper_layer_number_written_kg": "what the engine sink wrote AGAIN on its upper-layer number, by its historical route, on a geometric share of the same room air; an overlapping representation of the same demand, not a second consumption",
+		"never_add": ["oxygen_debited_kg", "upper_layer_number_written_kg"],
+		"authoritative_inventory": "none in the engine: its room, upper-layer and lower-layer oxygen numbers are not a conserved partition",
+		"lower_layer_number": "auxiliary; drained towards the upper one by the entrainment rule, so the second write reaches the regime rule through it",
+	}
+	out["upper_layer_number_writes_seen"] = _upper_writes.duplicate()
+	out["broken_sink_plan"] = _broken_plan.duplicate(true)
 	out["radiative_fraction"] = _case["radiative_fraction"].duplicate(true)
 	out["regime"] = _case["regime"].duplicate(true)
 	out["ignition_time_s"] = _ignition_time_s
@@ -369,7 +399,19 @@ func _regime_failure(energy_kj: float, dt: float) -> Dictionary:
 	if interface_m < float(_case["regime"]["layer_interface_min_m"]):
 		return {"cause": "hot_layer_below_the_declared_height", "interface_m": interface_m,
 			"minimum_m": float(_case["regime"]["layer_interface_min_m"])}
-	# R1: the sink must be able to debit the whole equivalent demand of the step.
+	# R1: the sink must debit the ROOM inventory, with the declared coefficient, and be
+	# able to take the whole equivalent demand of the step. Asked before any write.
+	var plan: Variant = _hooks["oxygen_sink_plan"].call(_room)
+	if typeof(plan) != TYPE_DICTIONARY or typeof(plan.get("primary_route")) != TYPE_STRING:
+		return {"cause": "the_oxygen_sink_did_not_say_what_it_would_do"}
+	_plan = plan
+	if plan["primary_route"] != ROOM_INVENTORY_ROUTE:
+		return {"cause": "the_oxygen_sink_would_not_debit_the_room_inventory",
+			"route": plan["primary_route"], "room_is_sealed_for_the_sink": plan.get("room_is_sealed_for_the_sink")}
+	var declared: float = float(_case["oxygen_kg_per_MJ"])
+	if absf(_float(plan.get("primary_kg_per_MJ")) - declared) > OXYGEN_REL_TOL * declared:
+		return {"cause": "the_declared_coefficient_is_not_the_one_of_the_sink",
+			"declared_kg_per_MJ": declared, "sink_kg_per_MJ": plan.get("primary_kg_per_MJ")}
 	var floor_MJ: float = float(_hooks["oxygen_floor_MJ"].call(_room, dt, float(_case["oxygen_kg_per_MJ"])))
 	if energy_kj / 1000.0 > floor_MJ:
 		return {"cause": "the_oxygen_sink_cannot_debit_the_step", "scheduled_MJ": energy_kj / 1000.0,
@@ -452,7 +494,7 @@ func _zero_totals() -> Dictionary:
 	return {
 		"scheduled_kj": 0.0, "accepted_kj": 0.0, "rejected_kj": 0.0,
 		"to_the_gas_kj": 0.0, "radiative_term_kj": 0.0,
-		"oxygen_debited_kg": 0.0, "oxygen_zone_displacement_kg": 0.0, "oxygen_debited_without_heat_kg": 0.0,
+		"oxygen_debited_kg": 0.0, "upper_layer_number_written_kg": 0.0,
 		"room_fire_fuel_consumed_MJ": 0.0, "species_generated_kg": 0.0, "unburned_inventory_MJ": 0.0,
 		"steps_with_a_room_fire": 0,
 	}
@@ -519,6 +561,10 @@ static func _exact_keys(value: Dictionary, keys: Array[String]) -> bool:
 		if not value.has(key):
 			return false
 	return true
+
+
+static func _float(value: Variant) -> float:
+	return float(value) if typeof(value) in [TYPE_FLOAT, TYPE_INT] else NAN
 
 
 static func _number(value: Variant) -> bool:

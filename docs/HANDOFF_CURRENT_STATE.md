@@ -1,5 +1,64 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-09 - G3: los dos límites de oxígeno del banco Test016 (diagnóstico y corrección)
+
+El usuario autoriza diagnosticar los dos límites de oxígeno del banco
+diagnóstico del Test016 y, si se demuestra un defecto corregible dentro
+del banco, corregirlo de forma aislada, con pruebas, cadena completa,
+commit, fast-forward y push. **No autoriza** cambiar la física histórica
+con el banco apagado, activar producto ni añadir emisiones. Base
+`1a39332a`. Trabajo en `runs/g3_shareable`.
+
+[Informe](validation/G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
+
+- **Segundo débito: no es un segundo consumo.** El motor escribe sobre su
+  número de la capa superior la misma demanda que ya debitó de la sala
+  (8,747 kg, en 1508 de 1508 pasos), sobre una base que es una parte
+  geométrica del mismo aire. Ocurre porque el motor nunca entrega al
+  sistema de oxígeno el indicador de dos zonas: el defecto O2-4 de E1.
+  No llega al inventario de sala ni a la energía, idénticos bit a bit con
+  la otra rama; sí baja el número inferior, que la regla del régimen
+  vigila, del lado prudente. **No existe inventario autoritativo de
+  oxígeno** y no se ha fabricado uno.
+- **Paso rechazado: defecto demostrado y corregido.** En el recinto
+  estanco el banco escribía la potencia, el sumidero tomaba su ruta de
+  penacho y el banco lo veía después: 40 de 40 pasos distintos de un
+  motor gemelo con el interruptor apagado. La cifra que publicaba,
+  8,46 · 10⁻⁵ kg, era la suma de dos escrituras sobre bases distintas.
+- **Corrección, limitada al banco:** `OxygenExchangeSystem.fire_sink_plan`,
+  de solo lectura y que el paso histórico no llama, dice qué ruta tomaría
+  el sumidero. El banco la pregunta **antes** de escribir la potencia. Si
+  no es el inventario de sala con el coeficiente declarado, rechaza el
+  intervalo sin nada escrito: 0 de 40 pasos distintos del gemelo.
+- **Restricción explícita:** el recinto estanco para el sumidero no está
+  soportado. Ya salía del régimen en el primer paso; ahora sale limpio.
+- **Lo que no se garantiza:** el banco no puede deshacer una escritura
+  del motor. Si el sumidero hiciera otra cosa que lo que dijo, el banco
+  falla y detiene la simulación; no lo presenta como rechazo limpio.
+- **Informe del banco, esquema v2:** `oxygen_debited_kg` y
+  `upper_layer_number_written_kg` aparte, con `never_add`. Retirados
+  `oxygen_zone_displacement_kg` y `oxygen_debited_without_heat_kg`.
+- **Decisiones:** A (interpretar e informar) GO; B (rechazo sin residuo)
+  GO; **C (cambiar el propietario físico del oxígeno) NO-GO**: mueve la
+  referencia con el banco apagado y depende de la decisión de autoridad
+  que el contrato de oxígeno dejó al usuario. Plan en el informe.
+- Campaña causal: 11 hipótesis escritas antes de ejecutar, dos registros
+  (`validation/G3_OBJECT_HRR_OXYGEN_DIAGNOSIS_BEFORE_2026-10-09.json` y
+  `..._AFTER_...`). Antes fallaba solo la del rastro; después se cumple.
+- **Cadena completa en verde:** fixture 179 327 comprobaciones y 0
+  fallos; mutantes 43 de 43 donde se esperaba, 0 inválidos, 0
+  supervivientes, originales intactos por SHA-256; regresiones de G3
+  1530 passed; identidad con el interruptor apagado 9 de 9 contra la
+  base anterior; referencia **346 de 346**, **78 huecos**, corpus sin
+  cambios salvo `generated_at`; guardarraíles con R2-1 PASS;
+  `check_product` 168; global 4346 passed, 51 skipped, 2 xfailed.
+- `PrescribedObjectHrrSource.gd` y `CombustionSystem.gd` sin tocar,
+  fijados por huella. Sin observables nuevos en `sim/`.
+- **Siguiente gate:** ninguno de código en el banco. Siguen pendientes
+  del usuario los datos (masa numérica, ensayo en recinto) y, si quiere
+  retirar la doble escritura, la autoridad del oxígeno. CO/FED siguen
+  OFF/NO-GO. Test021 sigue reservado.
+
 ## Current Program Update - 2026-10-08 - G3: banco diagnóstico de acoplamiento térmico de la fuente prescrita (implementado)
 
 El usuario autoriza implementar y verificar el caso diagnóstico de

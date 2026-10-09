@@ -3666,6 +3666,7 @@ func _g3_prescribed_thermal_arm() -> void:
 		_g3_prescribed_thermal_environment(),
 		{
 			"oxygen_floor_MJ": Callable(oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"),
+			"oxygen_sink_plan": Callable(self, "_g3_prescribed_thermal_oxygen_sink_plan"),
 			"layer_interface_m": Callable(thermal_system, "effective_hot_layer_height_m"),
 			"energy_budget": Callable(thermal_system, "get_energy_budget"),
 			"suppression_active": Callable(self, "_g3_prescribed_thermal_suppression_active"),
@@ -3696,6 +3697,12 @@ func _g3_prescribed_thermal_environment() -> Dictionary:
 		"outside_open_upper_heat_boost": float(thermal_system.outside_open_upper_heat_boost),
 		"auto_finish_on_extinction": auto_finish_on_extinction,
 	}
+
+
+## Qué haría el sumidero de oxígeno en ese recinto, sin escribir nada. El banco lo
+## pregunta ANTES de escribir la potencia del paso.
+func _g3_prescribed_thermal_oxygen_sink_plan(room: RoomModel) -> Dictionary:
+	return oxygen_exchange_system.fire_sink_plan(building, room, _build_oxygen_exchange_hooks())
 
 
 func _g3_prescribed_thermal_suppression_active(room_id: int) -> bool:

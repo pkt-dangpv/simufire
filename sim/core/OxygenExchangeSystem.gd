@@ -1026,6 +1026,74 @@ func fire_sink_heat_acceptance_floor_MJ(room: RoomModel, dt: float, o2_kg_per_MJ
 	return maxf(0.0, heat_MJ)
 
 
+## G3 banco diagnóstico: qué haría el sumidero del fuego en este recinto si tuviera
+## potencia, SIN escribir nada. Repite una a una las condiciones con las que step()
+## elige la ruta; no es otra ley. El banco pregunta antes de escribir la potencia y
+## compara después con lo que step() hizo de verdad: si difieren, el banco falla.
+## Nadie más la llama. No lee ni cambia ningún estado.
+func fire_sink_plan(building: BuildingModel, room: RoomModel, hooks: Dictionary) -> Dictionary:
+	if building == null or room == null:
+		return {"primary_route": "none"}
+	var plan_air_mass_kg: float = _compute_room_air_mass_kg(room, 1.2)
+	var plan_hot_h_upper: float = _call_room_float(
+		hooks.get("effective_hot_layer_height_callable", Callable()),
+		room,
+		LayerInterfaceModel.get_flow_interface_height_m(room, null, building.outside_temp_c)
+	)
+	plan_hot_h_upper = clampf(plan_hot_h_upper, 0.0, room.height_m)
+	var plan_upper_frac: float = maxf(0.01, (room.height_m - plan_hot_h_upper) / maxf(0.01, room.height_m))
+	var plan_lower_frac: float = 1.0 - plan_upper_frac
+	var plan_fire_uses_lower_o2: bool = _uses_lower_o2_for_fire()
+	var plan_sealed: bool = _estimate_room_outside_open_factor(building, room) <= 0.01 \
+			and _estimate_room_interior_open_factor(building, room) <= 0.01
+	var plan_plume_lower_mode: bool = (
+		fire_o2_mode == "legacy" and
+		plan_lower_frac >= FIRE_SINK_MIN_LOWER_FRACTION and
+		plan_hot_h_upper >= 0.3 and
+		not plan_fire_uses_lower_o2 and
+		plan_sealed
+	)
+	var plan_canonical_plume_lower: bool = (
+		fire_o2_canonical_enabled and
+		(room.fire_o2_mode_used == "plume_lower" or room.fire_o2_mode_used == "plume_blend") and
+		plan_lower_frac >= FIRE_SINK_MIN_LOWER_FRACTION and
+		plan_hot_h_upper >= 0.3 and
+		not plan_fire_uses_lower_o2
+	)
+	var plan_effective_plume_lower: bool = plan_plume_lower_mode or plan_canonical_plume_lower
+	var plan_phase2b_upper: bool = phase2b_canonical_combustion_enabled and fire_o2_mode == "upper"
+	var plan_two_layers: bool = plan_lower_frac >= 0.15
+	var primary_route: String = "room_inventory"
+	if plan_fire_uses_lower_o2:
+		primary_route = "lower_layer_number" if plan_two_layers else "none"
+	elif plan_effective_plume_lower:
+		primary_route = "lower_layer_number_by_the_plume" if plan_two_layers else "none"
+	elif plan_phase2b_upper:
+		primary_route = "upper_layer_number" if plan_two_layers else "none"
+	var upper_write: String = "none"
+	var upper_share: float = 0.0
+	if not plan_two_layers:
+		upper_write = "homogenized_with_the_room_number"
+	elif not two_zone_solver_enabled and not plan_effective_plume_lower:
+		upper_write = "full_demand"
+		upper_share = 1.0
+	elif plume_upper_o2_displacement_frac > 0.0:
+		upper_write = "displacement"
+		upper_share = plume_upper_o2_displacement_frac
+	return {
+		"primary_route": primary_route,
+		"primary_kg_per_MJ": float(room.fire.o2_consumption_kg_per_MJ) if room.fire != null else 0.076,
+		"room_air_mass_kg": plan_air_mass_kg,
+		"room_inventory_kg": plan_air_mass_kg * room.o2,
+		"room_inventory_cap_fraction_per_step": FIRE_SINK_BULK_CAP_FRACTION,
+		"upper_layer_number_write": upper_write,
+		"upper_layer_number_share_of_demand": upper_share,
+		"upper_layer_number_base_kg": plan_air_mass_kg * plan_upper_frac,
+		"room_is_sealed_for_the_sink": plan_sealed,
+		"sink_sees_two_zones": two_zone_solver_enabled,
+	}
+
+
 func _uses_lower_o2_for_fire() -> bool:
 	if fire_o2_mode == "lower":
 		return true

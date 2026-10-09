@@ -11,6 +11,12 @@ las correcciones documentales previas, cambios acotados en `sim/`, pruebas
 y la cadena R2-1 completa. **No autoriza** activar nada en producto ni
 representar la combustión real del mueble.
 
+**Corregido el 2026-10-09.** Los dos límites de oxígeno que este informe
+dejó escritos se han diagnosticado y el segundo se ha corregido:
+[diagnóstico y corrección](G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md). Los puntos afectados están
+marcados abajo. Las cifras de la sección de verificación son las de la
+entrega del 08-10; las de la corrección están en ese informe.
+
 Implementa el único caso que dejó abierto el
 [diseño del acoplamiento](G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md),
 sobre la [fuente aislada](G3_OBJECT_HRR_SOURCE_IMPLEMENTATION_2026-10-08.md).
@@ -86,8 +92,8 @@ ley. No usa `restore()`.
 
 | Momento | Qué hace el banco |
 | --- | --- |
-| Después de `_step_fire` | Propone el intervalo, juzga el régimen y, si todo se cumple, escribe `room.hrr_kw = energía / dt` |
-| Después del sumidero de oxígeno y **antes** del calor | Compara el débito real con el comprometido. Si difiere, retira la potencia del paso antes de que `ThermalSystem` la lea |
+| Después de `_step_fire` | Propone el intervalo, juzga el régimen, pregunta al sumidero qué inventario debitaría y, si todo se cumple, escribe `room.hrr_kw = energía / dt` |
+| Después del sumidero de oxígeno y **antes** del calor | Compara el débito real con el comprometido. Si difiere, el sumidero no hizo lo que dijo: retira la potencia antes de que `ThermalSystem` la lea y el banco **falla** |
 | Después de `ThermalSystem` | Lee el calor que realmente depositó y lo que contó como radiado |
 | Al final de la física del paso | Mide lo que hizo la ruta del fuego de sala en ese recinto |
 
@@ -111,7 +117,7 @@ sin combustible, sin objetos y sin fuego de sala. Una fuente Test016.
 
 | Regla | Qué juzga | Valor del caso |
 | --- | --- | --- |
-| R1 | El sumidero puede debitar toda la demanda del paso, y el débito real es el comprometido | Coeficiente 0,076 kg/MJ |
+| R1 | El sumidero debitaría el inventario de sala, con el coeficiente declarado, y puede con toda la demanda del paso | Coeficiente 0,076 kg/MJ |
 | R2 | El oxígeno de sala y el de la capa inferior no bajan más de `δ` desde la ignición | `δ = 0,01` |
 | R3 | La interfaz de la capa caliente queda a esa altura o más | 0,3 m |
 | R4 | Ni fuego de sala, ni combustible, ni supresión en el recinto | — |
@@ -185,12 +191,16 @@ y no se ha inventado un cierre térmico del recinto.
 ### Lo que el banco mide y no usa
 
 - **Segundo número de oxígeno.** En un recinto con hueco al exterior, el
-  motor aplica a su número de la capa superior un débito del mismo tamaño
-  que el de sala: 8,747 kg más en la corrida. Es el doble uso histórico
-  del oxígeno, ya conocido. Los tres números de oxígeno del motor no
-  forman una partición conservada. El banco lo mide, lo informa aparte y
-  no lo usa ni lo corrige. **El diseño decía 9 %; ese valor es el de la
-  ruta de recinto estanco. Queda corregido aquí.**
+  motor escribe sobre su número de la capa superior la misma demanda que
+  ya debitó de la sala: 8,747 kg en la corrida, en kilogramos de la base
+  de ese número. Los tres números de oxígeno del motor no forman una
+  partición conservada. El banco lo mide, lo informa aparte y no lo usa
+  ni lo corrige. **El diseño decía 9 %; ese valor es el de la otra rama
+  del sumidero. Queda corregido aquí.**
+  **Corregido el 2026-10-09:** aquí se llamaba a esto «doble uso
+  histórico del oxígeno» y se hablaba de «8,747 kg más». No es un
+  segundo consumo: es la misma demanda escrita otra vez sobre un número
+  solapado, y las dos cifras no se suman. Ver [el diagnóstico](G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
 - **Diagnósticos, no valores validados.** En el caso base el oxígeno de
   sala baja como mucho 0,0029 (hasta 0,2061), la interfaz baja hasta
   1,02 m y la capa superior llega a 27,9 °C con χ = 0,35 y a 24,7 °C con
@@ -208,8 +218,8 @@ hasta un reinicio. El reloj sigue: cada intervalo se confirma con cero.
 | --- | --- | --- | --- |
 | 60 m³ con una rendija de 0,04 m² | 800 s | Capa caliente por debajo de 0,3 m | 2 650,24 kJ, el 2,3 % |
 | El mismo, juzgado solo por el oxígeno | 1005 s | Oxígeno de sala 0,0101 por debajo del inicial | 9 924,80 kJ, el 8,6 % |
-| 60 m³ estanco | Primer paso | El sumidero debita por otra ruta | 0 |
-| Coeficiente declarado distinto del sumidero | Primer paso | El débito no es el comprometido | 0 |
+| 60 m³ estanco | Primer paso | El sumidero debitaría por otra ruta | 0 |
+| Coeficiente declarado distinto del sumidero | Primer paso | No es el coeficiente del sumidero | 0 |
 | `δ = 10⁻⁹` | A los pocos pasos | Oxígeno | lo aceptado hasta entonces |
 | Criterio de capa por encima del techo | Primer paso | Capa | 0 |
 
@@ -229,11 +239,15 @@ En todos, después de salir:
   recinto, al final de la corrida y a mitad: ningún intervalo vuelve a
   aceptarse.
 
-**Recinto estanco.** El motor debita ahí sobre el número de la capa
-inferior. El banco lo detecta después del sumidero y antes del calor:
-retira la potencia, no deposita nada y deja escrito lo que esa otra ruta
-llegó a debitar (8,5 · 10⁻⁵ kg), que no se puede devolver porque el motor
-no restaura.
+**Recinto estanco. Corregido el 2026-10-09.** El motor debita ahí sobre
+el número de la capa inferior. En la entrega del 08-10 el banco lo
+detectaba después del sumidero: retiraba la potencia y no depositaba
+calor, pero las escrituras del sumidero quedaban hechas. La cifra que
+publicaba, 8,5 · 10⁻⁵ kg, era además la suma de dos escrituras sobre
+números con bases distintas. Ahora el banco pregunta la ruta **antes**
+de escribir la potencia y rechaza el intervalo sin que el sumidero haya
+escrito nada: el recinto queda idéntico al de un motor con el
+interruptor apagado. Ver [el diagnóstico](G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
 
 ## Segundos propietarios y fallo
 

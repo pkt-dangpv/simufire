@@ -137,7 +137,8 @@ func _whole_run(key: String, chi_index: int) -> Dictionary:
 	var sum_oxygen: float = 0.0
 	var sum_gas: float = 0.0
 	var sum_radiative: float = 0.0
-	var sum_displacement: float = 0.0
+	var sum_upper_written: float = 0.0
+	var powered_steps: int = 0
 	var largest_kw: float = -1.0
 	var largest_index: int = -1
 	var lowest_o2: float = room.o2
@@ -156,6 +157,18 @@ func _whole_run(key: String, chi_index: int) -> Dictionary:
 		var energy: float = float(energies[index])
 		var row: Dictionary = coupling.last_step()
 		var tag: String = "step %d" % index
+		# What the sink said when the bench asked, inside the step and before the power,
+		# is what it did afterwards. (Asked from outside the step it could differ: the
+		# engine smooths the openings at the start of every step.)
+		var plan: Dictionary = coupling._plan
+		var upper_written: float = room.o2_consumed_kg_step_all - room.o2_consumed_fire_kg_step
+		_check(plan.get("primary_route") == "room_inventory" and plan.get("primary_kg_per_MJ") == 0.076, tag + ": the sink said it would debit the room inventory")
+		_near_oxygen(upper_written, _float(plan.get("upper_layer_number_share_of_demand")) * energy / 1000.0 * 0.076,
+			tag + ": the upper-layer number got the share of the SAME demand the sink said")
+		_check(row.get("upper_layer_number_written_kg") == upper_written and row.get("oxygen_debited_kg") == room.o2_consumed_bulk_kg_step,
+			tag + ": the bench reports the two numbers apart")
+		if energy > 0.0:
+			powered_steps += 1
 		# A2: power of the step = independent integral / whole step.
 		_near(room.hrr_kw, energy / dt, tag + ": room power is the oracle energy over the whole step")
 		_near(row.get("accepted_kj"), energy, tag + ": accepted energy is the oracle integral")
@@ -184,7 +197,7 @@ func _whole_run(key: String, chi_index: int) -> Dictionary:
 		sum_oxygen += room.o2_consumed_bulk_kg_step
 		sum_gas += _float(heat.get("e_fire_kj"))
 		sum_radiative += _float(heat.get("q_fire_rad_kj"))
-		sum_displacement += room.o2_consumed_kg_step_all - room.o2_consumed_fire_kg_step
+		sum_upper_written += upper_written
 		if room.hrr_kw > largest_kw:
 			largest_kw = room.hrr_kw
 			largest_index = index
@@ -222,7 +235,13 @@ func _whole_run(key: String, chi_index: int) -> Dictionary:
 		and totals.get("unburned_inventory_MJ") == 0.0 and totals.get("steps_with_a_room_fire") == 0, "measured: the room-fire route did nothing")
 	_check(room.fuel_consumed_MJ_total == 0.0 and room.co_kg == 0.0 and room.hcn_kg == 0.0 and room.smoke_kg == 0.0
 		and room.co2_kg == co2_kg_start and room.hrr_kj_total == 0.0, "no fuel debited and no species in the room")
-	_check(totals.get("oxygen_debited_without_heat_kg") == 0.0, "no oxygen was debited without its heat")
+	# The second write: classified, traced, and never added to the contracted debit.
+	_check(not totals.has("oxygen_debited_without_heat_kg") and not totals.has("oxygen_zone_displacement_kg"), "no counter that adds overlapping numbers, none named as a displacement")
+	_near_oxygen(_float(totals.get("upper_layer_number_written_kg")), sum_upper_written, "the bench traces what the sink wrote on its upper-layer number")
+	_near_oxygen(sum_upper_written, sum_oxygen, "measured: the upper-layer number received the same demand again, in full")
+	_check(report.get("upper_layer_number_writes_seen") == {"full_demand": powered_steps}, "every powered step took the historical branch that repeats the whole demand")
+	_check(report.get("oxygen_numbers", {}).get("never_add") == ["oxygen_debited_kg", "upper_layer_number_written_kg"]
+		and report.get("broken_sink_plan", {"x": 1}).is_empty(), "the report says the two numbers are never added, and the sink kept its word")
 	# A10: after the support the power is zero and the source is not opened again.
 	var closed: Dictionary = engine.get_g3_prescribed_thermal_source_report().get("source_state", {}).duplicate()
 	for _i: int in range(40):
@@ -233,7 +252,8 @@ func _whole_run(key: String, chi_index: int) -> Dictionary:
 	_refused(coupling._source.propose(float(_oracle["support_end_s"]) + dt), "the source offers nothing after its support")
 	out.merge({"steps": steps, "state": report.get("state"), "accepted_kj": sum_accepted, "oxygen_debited_kg": sum_oxygen,
 		"to_the_gas_kj": sum_gas, "radiative_term_kj": sum_radiative, "largest_step_power_kw": largest_kw,
-		"largest_step_index": largest_index, "oxygen_zone_displacement_kg": sum_displacement,
+		"largest_step_index": largest_index, "upper_layer_number_written_kg": sum_upper_written,
+		"upper_layer_number_writes_seen": report.get("upper_layer_number_writes_seen"),
 		"lowest_room_oxygen": lowest_o2, "lowest_lower_layer_oxygen": lowest_o2_lower,
 		"lowest_layer_interface_m": lowest_interface, "temperature_upper_end_c": room.temp_upper_c,
 		"carbon_dioxide_tracer_start": tracer_start, "carbon_dioxide_tracer_highest": highest_tracer,
@@ -402,34 +422,102 @@ func _leaving_the_regime() -> void:
 	_observations["small_room_with_a_crack_oxygen_only"] = {"exit": report.get("exit"), "accepted_kj": report.get("totals", {}).get("accepted_kj"),
 		"accepted_share": _float(report.get("totals", {}).get("accepted_kj")) / total, "state": report.get("state")}
 	_free(bench)
-	# (d) 60 m3 with no opening: the engine sink takes another route; the bench cannot keep its contract.
+	# (d) 60 m3 with no opening: the engine sink would take its plume route, on the lower-layer
+	# number, not the room inventory. The bench asks BEFORE writing the power and rejects the
+	# interval with nothing written: the room is, number by number and bit by bit, the room of
+	# a twin engine whose switch is off.
 	bench = _armed(SMALL_SEALED, dt, _case(_chi(0)))
 	engine = bench["engine"]
 	room = bench["room"]
 	coupling = engine._g3_prescribed_thermal_source
+	var twin: Dictionary = _bench(SMALL_SEALED, dt)
+	twin["engine"].reset_simulation(ROOM_ID, true)
+	var twin_room = twin["room"]
+	var asked: Dictionary = engine._g3_prescribed_thermal_oxygen_sink_plan(room)
+	var numbers_before: Array = _oxygen_numbers(room)
+	_check(asked.get("primary_route") == "lower_layer_number_by_the_plume" and asked.get("room_is_sealed_for_the_sink") == true,
+		"sealed room: the sink says, before anything runs, that it would not debit the room inventory")
+	_check(engine._g3_prescribed_thermal_oxygen_sink_plan(room) == asked and _oxygen_numbers(room) == numbers_before
+		and room.o2_consumed_kg_total_all == 0.0, "sealed room: asking the sink writes nothing")
 	engine.step(dt)
+	twin["engine"].step(dt)
 	report = engine.get_g3_prescribed_thermal_source_report()
-	_check(report.get("state") == CouplingScript.STATE_OUTSIDE and report.get("exit", {}).get("cause") == "oxygen_debit_is_not_the_committed_one"
-		and report.get("exit", {}).get("step") == 0, "sealed room: invalid at the first step, by the route of the sink")
+	_check(report.get("state") == CouplingScript.STATE_OUTSIDE
+		and report.get("exit", {}).get("cause") == "the_oxygen_sink_would_not_debit_the_room_inventory"
+		and report.get("exit", {}).get("route") == "lower_layer_number_by_the_plume"
+		and report.get("exit", {}).get("step") == 0, "sealed room: rejected at the first step, by the route the sink would take")
 	_check(room.hrr_kw == 0.0 and _float(engine.thermal_system.get_energy_budget().get(ROOM_ID, {}).get("e_fire_kj")) == 0.0
 		and report.get("totals", {}).get("accepted_kj") == 0.0 and report.get("totals", {}).get("to_the_gas_kj") == 0.0,
-		"sealed room: the power was withdrawn before the heat; nothing counted as valid")
-	_check(room.o2_consumed_bulk_kg_step == 0.0 and _float(report.get("totals", {}).get("oxygen_debited_without_heat_kg")) > 0.0,
-		"sealed room: what the other route debited is reported, not hidden")
+		"sealed room: no power was written and no heat was counted")
+	_near(_float(report.get("totals", {}).get("rejected_kj")), float(energies[0]), "sealed room: the interval is recorded as rejected")
+	_check(room.o2_consumed_kg_step_all == 0.0 and room.o2_consumed_kg_total_all == 0.0 and room.o2_consumed_bulk_kg_total == 0.0
+		and room.o2_consumed_fire_kg_step == 0.0, "sealed room: the rejected interval left no oxygen write of the sink, by any route")
+	_check(_oxygen_numbers(room) == _oxygen_numbers(twin_room), "sealed room: after the rejected step the oxygen numbers are those of the twin with the switch off")
+	_check(room.chi_rad_normal == twin_room.chi_rad_normal and room.combustion_regime == twin_room.combustion_regime,
+		"sealed room: the bench left neither its fraction nor its label in the room")
+	_check(report.get("totals", {}).get("oxygen_debited_kg") == 0.0 and report.get("totals", {}).get("upper_layer_number_written_kg") == 0.0
+		and report.get("broken_sink_plan", {"x": 1}).is_empty(), "sealed room: the report counts no oxygen for the rejected interval")
+	var same_as_the_twin: bool = true
 	for _i: int in range(20):
 		engine.step(dt)
+		twin["engine"].step(dt)
+		same_as_the_twin = same_as_the_twin and _oxygen_numbers(room) == _oxygen_numbers(twin_room) \
+				and room.temp_upper_c == twin_room.temp_upper_c and room.temp_lower_c == twin_room.temp_lower_c
 		_check(room.hrr_kw == 0.0 and room.o2_consumed_kg_step_all == 0.0 and coupling.state() == CouplingScript.STATE_OUTSIDE, "sealed room: latched")
+	_check(same_as_the_twin and room.o2_consumed_kg_total_all == 0.0, "sealed room: twenty steps later the room is still the twin; ventilation and mixing are the engine's own")
 	_observations["small_sealed_room"] = {"exit": report.get("exit"), "state": report.get("state"),
-		"oxygen_debited_without_heat_kg": report.get("totals", {}).get("oxygen_debited_without_heat_kg")}
+		"oxygen_written_by_the_sink_kg": room.o2_consumed_kg_total_all, "same_as_the_twin_with_the_switch_off": same_as_the_twin,
+		"rejected_kj": report.get("totals", {}).get("rejected_kj")}
+	_free(twin)
 	_free(bench)
-	# (e) a declared coefficient that is not the one of the sink: the debit differs, the heat is withdrawn.
+	# (e) a declared coefficient that is not the one of the sink: asked before the power, rejected with nothing written.
 	bench = _armed(LARGE_OPEN, dt, _case(_chi(0), 1.0 / 13.1))
 	engine = bench["engine"]
 	room = bench["room"]
 	engine.step(dt)
 	report = engine.get_g3_prescribed_thermal_source_report()
-	_check(report.get("state") == CouplingScript.STATE_OUTSIDE and report.get("exit", {}).get("cause") == "oxygen_debit_is_not_the_committed_one"
+	_check(report.get("state") == CouplingScript.STATE_OUTSIDE
+		and report.get("exit", {}).get("cause") == "the_declared_coefficient_is_not_the_one_of_the_sink"
 		and room.hrr_kw == 0.0 and report.get("totals", {}).get("accepted_kj") == 0.0, "a coefficient that is not the sink's is not accepted as valid heat")
+	_check(room.o2_consumed_kg_total_all == 0.0 and _float(engine.thermal_system.get_energy_budget().get(ROOM_ID, {}).get("e_fire_kj")) == 0.0,
+		"a coefficient that is not the sink's: rejected before any oxygen write and any heat")
+	_free(bench)
+	# (h) the sink does NOT do what it said (here the answer is forged): the bench cannot undo the
+	# write of the engine, so it does not pretend a clean rejection: it withdraws the power before
+	# the heat, FAILS, stops the engine and lists what was written, number by number.
+	bench = _armed(SMALL_SEALED, dt, _case(_chi(0)))
+	engine = bench["engine"]
+	room = bench["room"]
+	coupling = engine._g3_prescribed_thermal_source
+	coupling._hooks["oxygen_sink_plan"] = Callable(self, "_forged_plan")
+	engine.step(dt)
+	report = engine.get_g3_prescribed_thermal_source_report()
+	var broken: Dictionary = report.get("broken_sink_plan", {})
+	_check(report.get("state") == CouplingScript.STATE_FAILED and engine.g3_prescribed_thermal_source_failure == "prescribed_thermal_source_failed"
+		and not report.get("failure", []).is_empty(), "forged plan: a sink that did not do what it said fails the bench, explicitly")
+	_check(room.hrr_kw == 0.0 and _float(engine.thermal_system.get_energy_budget().get(ROOM_ID, {}).get("e_fire_kj")) == 0.0
+		and _float(engine.thermal_system.get_energy_budget().get(ROOM_ID, {}).get("q_fire_rad_kj")) == 0.0,
+		"forged plan: the power was withdrawn before the heat")
+	_check(report.get("totals", {}).get("accepted_kj") == 0.0 and report.get("totals", {}).get("oxygen_debited_kg") == 0.0
+		and report.get("totals", {}).get("to_the_gas_kj") == 0.0 and report.get("is_a_reproduction_of_the_input") == false,
+		"forged plan: nothing is counted as accepted, neither heat nor contracted oxygen")
+	_check(room.o2_consumed_kg_total_all > 0.0 and broken.get("room_inventory_debit_kg") == 0.0
+		and _float(broken.get("primary_sink_debit_kg")) > 0.0 and _float(broken.get("upper_layer_number_written_kg")) > 0.0
+		and _float(broken.get("committed_kg")) > 0.0, "forged plan: what the sink wrote is listed number by number, not hidden")
+	var summed: bool = false
+	for key: Variant in broken:
+		if typeof(broken[key]) == TYPE_FLOAT and absf(float(broken[key]) - room.o2_consumed_kg_step_all) <= 1.0e-18:
+			summed = true
+	for key: Variant in report.get("totals", {}):
+		if String(key).contains("oxygen") and _float(report["totals"][key]) > 0.0:
+			summed = true
+	_check(not summed and String(broken.get("these_numbers_overlap", "")).contains("none is added to another"),
+		"forged plan: no figure is the sum of overlapping writes")
+	var stopped_at: float = engine.sim_time_s
+	for _i: int in range(5):
+		engine.step(dt)
+	_check(engine.sim_time_s == stopped_at and room.hrr_kw == 0.0, "forged plan: the engine does not go on with a void run")
+	_observations["forged_sink_plan"] = {"state": report.get("state"), "broken_sink_plan": broken}
 	_free(bench)
 	# (f) a tolerance so small that the first debit breaks it: exit by the declared tolerance, early.
 	bench = _armed(LARGE_OPEN, dt, _case(_chi(0), 0.076, 1.0e-9))
@@ -581,6 +669,7 @@ func _refused_cases() -> void:
 	var described: Dictionary = probe_engine._g3_prescribed_thermal_environment()
 	var hooks: Dictionary = {
 		"oxygen_floor_MJ": Callable(probe_engine.oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"),
+		"oxygen_sink_plan": Callable(probe_engine, "_g3_prescribed_thermal_oxygen_sink_plan"),
 		"layer_interface_m": Callable(probe_engine.thermal_system, "effective_hot_layer_height_m"),
 		"energy_budget": Callable(probe_engine.thermal_system, "get_energy_budget"),
 		"suppression_active": Callable(probe_engine, "_g3_prescribed_thermal_suppression_active"),
@@ -820,6 +909,13 @@ func _what_the_report_says() -> void:
 	_check(String(report.get("gas_state", "")).contains("incomplete"), "the gas state is declared incomplete")
 	_check(String(report.get("oxygen_is", "")).contains("not a validated stoichiometry"), "the oxygen debit is an equivalent demand")
 	_check(String(report.get("radiative_term_is", "")).contains("not modelled"), "the radiative term has no modelled destination")
+	var numbers: Dictionary = report.get("oxygen_numbers", {})
+	_check(numbers.get("never_add") == ["oxygen_debited_kg", "upper_layer_number_written_kg"], "the two oxygen figures are declared as never to be added")
+	_check(String(numbers.get("upper_layer_number_written_kg", "")).contains("not a second consumption")
+		and String(numbers.get("upper_layer_number_written_kg", "")).contains("overlapping representation"), "the second write is named for what it is")
+	_check(String(numbers.get("authoritative_inventory", "")).begins_with("none"), "no authoritative oxygen inventory is claimed")
+	_check(report.get("schema") == CouplingScript.REPORT_SCHEMA and not report.get("totals", {}).has("oxygen_debited_without_heat_kg")
+		and not report.get("totals", {}).has("oxygen_zone_displacement_kg"), "the report promises no counter it does not measure")
 	_check(report.get("regime_criteria_are") == CouplingScript.REGIME_STATUS and report.get("regime", {}).get("status") == CouplingScript.REGIME_STATUS, "regime criteria are hypotheses")
 	_check(report.get("radiative_fraction", {}).get("class") == "open_air_whole_test_estimate", "the fraction keeps its class")
 	_check(report.get("scope") == CouplingScript.SCOPE and report.get("is_a_reproduction_of_the_input") == false, "scope, and not a reproduction until completed")
@@ -925,6 +1021,16 @@ func _synthetic(points: Array) -> Dictionary:
 		},
 		"unknown": unknown, "samples": samples,
 	}
+
+
+func _oxygen_numbers(room) -> Array:
+	return [room.o2, room.o2_lower, room.o2_upper]
+
+
+## A sink that says it would debit the room inventory, whatever the room is.
+func _forged_plan(_room) -> Dictionary:
+	return {"primary_route": "room_inventory", "primary_kg_per_MJ": 0.076, "upper_layer_number_write": "full_demand",
+		"upper_layer_number_share_of_demand": 1.0, "room_is_sealed_for_the_sink": false}
 
 
 func _float(value: Variant) -> float:

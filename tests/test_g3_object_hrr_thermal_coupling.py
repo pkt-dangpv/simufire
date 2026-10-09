@@ -198,7 +198,7 @@ COUPLING = COUPLING_PATH.read_text(encoding="utf-8")
 COMBUSTION_SHA256 = "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035"
 MARKER = "G3_OBJECT_HRR_THERMAL_COUPLING"
 GROUPS = 11
-CHECKS = 147317  # of the green run on the final code; a different count means the fixture changed
+CHECKS = 179327  # of the green run on the final code; a different count means the fixture changed
 
 
 def _code(text: str) -> str:
@@ -244,7 +244,8 @@ def test_nothing_of_the_product_reaches_the_bench() -> None:
     assert oxygen.count("g3_prescribed_thermal_room_ids") == 3  # declared and read from the hooks, used once
     loaders = sorted(path.name for path in (ROOT / "tests/fixtures").glob("*.gd")
                      if "g3_prescribed_thermal" in path.read_text(encoding="utf-8"))
-    assert loaders == ["g3_object_hrr_thermal_coupling.gd"]
+    # The acceptance fixture and the diagnosis of the oxygen writes, which judges nothing.
+    assert loaders == ["g3_object_hrr_oxygen_writes_diagnosis.gd", "g3_object_hrr_thermal_coupling.gd"]
 
 
 def test_the_protected_modules_were_not_touched() -> None:
@@ -291,7 +292,7 @@ def test_the_hooks_sit_where_the_design_says() -> None:
 def test_the_mutation_plan_is_declared_before_running() -> None:
     from scripts.simulation import run_g3_object_hrr_thermal_coupling_mutations as campaign
     originals, variants = campaign.prepared()  # raises if an anchor is absent or repeated
-    assert len(campaign.MUTATIONS) == len(variants) == 36
+    assert len(campaign.MUTATIONS) == len(variants) == 43
     assert sorted(originals) == sorted([campaign.COUPLING, campaign.ENGINE, campaign.OXYGEN])
     groups = {line.split('"')[1][:3] for line in FIXTURE_PATH.read_text(encoding="utf-8").splitlines()
               if line.strip().startswith('_group("B')}
@@ -351,6 +352,20 @@ def test_the_real_engine_runs_the_bench_against_the_oracle() -> None:
     assert _near(crack["accepted_kj"] + crack["rejected_kj"], total)
     by_oxygen = seen["small_room_with_a_crack_oxygen_only"]
     assert by_oxygen["state"] == "outside_declared_regime" and by_oxygen["exit"]["cause"] == "oxygen_below_the_declared_tolerance"
+    # The second write: the same demand again, traced apart and never added.
+    for key in ORACLE["steps"]:
+        run = seen["whole_run_" + key]
+        assert abs(run["upper_layer_number_written_kg"] - run["oxygen_debited_kg"]) < 1.0e-10, key
+        assert list(run["upper_layer_number_writes_seen"]) == ["full_demand"], key
+    # A rejected interval leaves nothing of the source: no oxygen write of the sink, no heat.
     sealed = seen["small_sealed_room"]
-    assert sealed["exit"]["step"] == 0 and sealed["exit"]["cause"] == "oxygen_debit_is_not_the_committed_one"
-    assert sealed["exit"]["room_inventory_debit_kg"] == 0.0 and sealed["oxygen_debited_without_heat_kg"] > 0.0
+    assert sealed["state"] == "outside_declared_regime" and sealed["exit"]["step"] == 0
+    assert sealed["exit"]["cause"] == "the_oxygen_sink_would_not_debit_the_room_inventory"
+    assert sealed["exit"]["route"] == "lower_layer_number_by_the_plume"
+    assert sealed["oxygen_written_by_the_sink_kg"] == 0.0 and sealed["same_as_the_twin_with_the_switch_off"] is True
+    assert _near(sealed["rejected_kj"], ORACLE["steps"]["2.5"]["step_energy_kj"][0])
+    # A sink that does not do what it said: a failure, with the writes listed apart.
+    forged = seen["forged_sink_plan"]
+    assert forged["state"] == "failed" and forged["broken_sink_plan"]["room_inventory_debit_kg"] == 0.0
+    assert forged["broken_sink_plan"]["primary_sink_debit_kg"] > 0.0
+    assert forged["broken_sink_plan"]["upper_layer_number_written_kg"] > 0.0

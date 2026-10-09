@@ -223,6 +223,11 @@ se rellena.
 
 ## Contrato A: propiedad y ausencia de doble contabilización
 
+**Acotado el 2026-10-09:** este contrato habla de la energía y del
+combustible. No promete nada sobre el oxígeno: el motor escribe la misma
+demanda sobre dos de sus números, y eso sigue así. Ver
+[el diagnóstico de los dos límites de oxígeno](G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
+
 **Dueño de la energía:** un propietario nuevo, a nivel de recinto, que
 posee la instancia de la fuente. El recinto queda en un modo exclusivo,
 `prescribed_thermal_source`.
@@ -703,6 +708,9 @@ A4 queda partido en A4a, A4b y A4c.
   es la ruta que el banco declara. En un recinto **estanco** el motor usa
   otra ruta, sobre el número de la capa inferior y con dos bases de masa
   distintas: ahí el banco no puede cumplir su contrato y se invalida.
+  **Corregido el 2026-10-09:** se invalida antes de escribir la potencia,
+  preguntando al sumidero qué ruta tomaría. Ver
+  [el diagnóstico de los dos límites de oxígeno](G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
 - **Números de zona.** El motor lleva además un número de oxígeno para la
   capa superior y otro para la inferior, que no forman con el de sala una
   partición conservada. Para cualquier recinto con potencia aplica a la
@@ -714,6 +722,9 @@ A4 queda partido en A4a, A4b y A4c.
   configuración por defecto, el motor aplica a la capa superior el débito
   **completo**: el doble uso histórico del oxígeno. El banco midió
   8,747 kg en la sala y otros 8,747 kg sobre ese segundo número.
+  **Precisado el 2026-10-09:** «doble uso» describe la escritura, no un
+  segundo consumo. Es la misma demanda escrita otra vez sobre un número
+  que representa una parte del mismo aire; las dos cifras no se suman.
 - **R2, concreto.** Se vigilan el número de sala y el de la capa
   inferior: el régimen se invalida si alguno baja más de `δ` respecto a
   su valor en la ignición. `δ = 0,01` en el caso base, declarado aquí.
@@ -726,6 +737,11 @@ A4 queda partido en A4a, A4b y A4c.
   `ThermalSystem` la lea: no queda calor contabilizado como válido. El
   oxígeno que el sumidero haya llegado a debitar en ese paso no se puede
   devolver, porque el motor no restaura, y se informa.
+  **Corregido el 2026-10-09:** así un paso rechazado dejaba oxígeno
+  escrito sin calor aceptado. La ruta y el coeficiente se preguntan ahora
+  antes de escribir la potencia, y un intervalo rechazado no deja
+  ninguna escritura. Si aun así el sumidero hiciera otra cosa, el banco
+  falla y detiene la simulación: no lo presenta como un rechazo limpio.
 - **Último paso.** Se propone solo el tramo dentro del soporte y su
   energía se divide por el paso completo: `potencia × dt` es exactamente
   esa energía, ni se pierde ni se duplica.

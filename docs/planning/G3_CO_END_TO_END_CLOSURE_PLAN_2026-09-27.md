@@ -5,7 +5,24 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 08-10, tercero del día:
+Último avance del 09-10:
+[Los dos límites de oxígeno del banco Test016](../validation/G3_OBJECT_HRR_OXYGEN_LIMITS_2026-10-09.md).
+Diagnóstico con hipótesis escritas antes de ejecutar y corrección aislada
+en el banco. El segundo débito sobre la capa superior no es un segundo
+consumo: es la misma demanda escrita otra vez sobre un número solapado,
+porque el motor no entrega al sistema de oxígeno el indicador de dos
+zonas (O2-4). El paso rechazado en recinto estanco dejaba oxígeno escrito
+sin calor: demostrado frente a un motor gemelo y corregido preguntando al
+sumidero su ruta antes de escribir la potencia. El recinto estanco queda
+como restricción explícita del banco. Cambiar el propietario físico del
+oxígeno es **NO-GO** aquí y depende de la decisión de autoridad del
+usuario. **No se añaden emisiones ni se activa producto.**
+Cadena completa en verde: 43 de 43 mutantes, identidad con el
+interruptor apagado 9 de 9, referencia 346 de 346 con los mismos 78
+huecos, producto 168 y global 4346 passed.
+Sin efecto en plazos. CO/FED siguen OFF/NO-GO.
+
+Avance previo del 08-10, tercero del día:
 [Banco diagnóstico de acoplamiento térmico](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_BENCH_2026-10-08.md).
 Primer camino real en GDScript entre la fuente prescrita y el motor, tras
 un interruptor sin `@export` apagado por defecto. Una fuente Test016 en

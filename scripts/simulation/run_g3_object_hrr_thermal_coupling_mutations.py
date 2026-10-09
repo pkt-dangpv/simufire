@@ -15,6 +15,10 @@ These are CODE mutants. The controls of invalid configuration (a room with fuel,
 second owner, a sealed room, an engine that is not the declared one) live inside the
 fixture and are reported apart.
 
+O06 to O10, R11, S03 and S04 belong to the correction of 2026-10-09: they put back the
+residual of a rejected step, the acceptance after an incompatible route and the double
+count in the report.
+
     python scripts/simulation/run_g3_object_hrr_thermal_coupling_mutations.py
 """
 
@@ -73,11 +77,29 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
     "O01_debit_not_compared_with_the_committed_one": (
         COUPLING, "\tif absf(room_inventory_kg - committed_kg) > tolerance or absf(primary_kg - room_inventory_kg) > tolerance:\n",
         "\tif false:\n",
-        "N7: a debit that is not the committed one leaves its heat counted as valid", "B06"),
+        "N7: a sink that did not do what it said leaves its heat counted as valid", "B06"),
     "O02_heat_not_withdrawn_when_the_debit_differs": (
-        COUPLING, "\t\t_totals[\"oxygen_debited_without_heat_kg\"] += all_kg\n\t\t_withdraw_room_power()\n",
-        "\t\t_totals[\"oxygen_debited_without_heat_kg\"] += all_kg\n",
-        "N7: the step is rejected but its power still reaches ThermalSystem", "B06"),
+        COUPLING, "\t\t_withdraw_room_power()\n\t\t_broken_plan = {\n",
+        "\t\t_broken_plan = {\n",
+        "N7: the bench fails but the power of the step still reaches ThermalSystem", "B06"),
+    "O06_route_of_the_sink_not_asked_before_the_power": (
+        COUPLING, "\tif plan[\"primary_route\"] != ROOM_INVENTORY_ROUTE:\n", "\tif false:\n",
+        "the residual again: the power is written in a room whose sink takes another route, and its write stays", "B06"),
+    "O07_coefficient_of_the_sink_not_asked_before_the_power": (
+        COUPLING, "\tif absf(_float(plan.get(\"primary_kg_per_MJ\")) - declared) > OXYGEN_REL_TOL * declared:\n", "\tif false:\n",
+        "the residual again: a coefficient that is not the sink's is found only after the sink wrote", "B06"),
+    "O08_heat_accepted_after_an_incompatible_route": (
+        COUPLING, "\tif absf(room_inventory_kg - committed_kg) > tolerance or absf(primary_kg - room_inventory_kg) > tolerance:\n",
+        "\tif absf(primary_kg - committed_kg) > tolerance:\n",
+        "any primary route with the right amount is accepted: heat counted as valid on the plume route", "B06"),
+    "O09_plan_of_the_sink_hides_the_plume_route": (
+        OXYGEN, "\tvar plan_effective_plume_lower: bool = plan_plume_lower_mode or plan_canonical_plume_lower\n",
+        "\tvar plan_effective_plume_lower: bool = plan_canonical_plume_lower\n",
+        "the sink says room inventory for a sealed room and then takes its plume route", "B06"),
+    "O10_asking_the_sink_writes_the_room": (
+        OXYGEN, "\tvar plan_two_layers: bool = plan_lower_frac >= 0.15\n",
+        "\tvar plan_two_layers: bool = plan_lower_frac >= 0.15\n\troom.o2_lower -= 1.0e-9\n",
+        "the question to the sink has a side effect on the lower-layer number", "B06"),
     "O03_no_oxygen_committed": (
         COUPLING, "\tvar committed_kg: float = energy_kj / 1000.0 * float(_case[\"oxygen_kg_per_MJ\"])\n",
         "\tvar committed_kg: float = 0.0\n",
@@ -127,9 +149,11 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
         COUPLING, "\tif _state == STATE_OUTSIDE:\n\t\t_settle(proposal, 0.0)\n\t\treturn\n",
         "\tif _state == STATE_OUTSIDE:\n\t\t_write_room_power(energy_kj / dt)\n\t\t_settle(proposal, 0.0)\n\t\treturn\n",
         "outside the regime the room still receives power and loses oxygen", "B06"),
-    "R11_exit_not_latched_when_the_debit_differs": (
-        COUPLING, "\t\t_leave_regime({\n\t\t\t\"cause\": \"oxygen_debit_is_not_the_committed_one\",\n", "\t\t_last_step.merge({\n\t\t\t\"cause\": \"oxygen_debit_is_not_the_committed_one\",\n",
-        "a debit that differs rejects the step but leaves the bench replaying", "B06"),
+    "R11_broken_plan_presented_as_a_clean_regime_exit": (
+        COUPLING, "\t\t_fail([reason])\n\t\treturn\n\t_totals[\"oxygen_debited_kg\"] += room_inventory_kg\n",
+        "\t\t_leave_regime({\"cause\": reason})\n\t\t_settle(_pending[\"proposal\"], 0.0)\n\t\t_pending = {}\n\t\treturn\n"
+        "\t_totals[\"oxygen_debited_kg\"] += room_inventory_kg\n",
+        "a sink write that cannot be undone is reported as an ordinary rejected interval and the run goes on", "B06"),
     # --- heat ---------------------------------------------------------------------------
     "H01_heat_reported_by_thermal_system_not_judged": (
         COUPLING, "\tif not errors.is_empty():\n\t\t_fail(errors)\n\n\n# ---------------------------------------------------------------- what it says",
@@ -190,6 +214,12 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
     "S02_nothing_declared_as_not_evaluated": (
         COUPLING, "\t\t\"not_evaluated\": NOT_EVALUATED.duplicate(),\n", "\t\t\"not_evaluated\": [],\n",
         "CO, FED and the rest are no longer declared as not evaluated", "B10"),
+    "S03_second_write_added_to_the_contracted_debit": (
+        COUPLING, "\t_totals[\"oxygen_debited_kg\"] += room_inventory_kg\n", "\t_totals[\"oxygen_debited_kg\"] += all_kg\n",
+        "double count in the report: the upper-layer write is added to the debit of the room inventory", "B02"),
+    "S04_report_no_longer_says_the_two_numbers_are_never_added": (
+        COUPLING, "\t\t\"never_add\": [\"oxygen_debited_kg\", \"upper_layer_number_written_kg\"],\n", "\t\t\"never_add\": [],\n",
+        "the report stops warning that its two oxygen figures overlap", "B10"),
 }
 
 
