@@ -128,8 +128,12 @@ def test_the_bulk_cap_reduces_the_accepted_combustion_in_the_same_transaction():
     combustión, no un apunte pendiente.
     """
     source = _source(OXYGEN)
-    cap = "consumed = minf(consumed, o2_mass_kg * 0.05)"
-    assert cap in source, "cambió el tope; revísese esta prueba"
+    # 2026-10-10: el 5 % es hoy la constante FIRE_SINK_BULK_CAP_FRACTION. Con el
+    # ancla antigua esta prueba fallaba por no encontrar la línea y no por el
+    # defecto que nombra; el ancla se corrige y el defecto sigue vigente.
+    cap = "consumed = minf(consumed, o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION)"
+    assert "const FIRE_SINK_BULK_CAP_FRACTION: float = 0.05" in source
+    assert source.count(cap) == 1, "cambió el tope; revísese esta prueba"
     window = source[source.index(cap):source.index(cap) + 900]
     assert "hrr" in window.lower(), (
         "el tope del 5 % recorta el descuento de O2 sin revisar el HRR aceptado. "
@@ -149,6 +153,11 @@ def test_every_room_closes_its_oxygen_balance():
     Todos los términos son acumuladores del propio motor. Un residual positivo
     significa que la sala acaba con más oxígeno del que su propia contabilidad
     permite.
+
+    Formulación de O2-A, que se conserva como evidencia. E1 (§4.2) demostró que
+    usa el contador equivocado: `o2_consumed_kg_total_all` suma escrituras sobre
+    números solapados y no es el débito del número de sala. La forma corregida
+    es `test_c1_every_room_closes_on_the_inventory_declared_authoritative`.
     """
     failures = []
     for name, rows in _rooms().items():
@@ -178,6 +187,11 @@ def test_the_oxygen_counted_as_consumed_is_the_oxygen_actually_subtracted():
     `o2_consumed_bulk_kg_total` es lo que la vía bulk descontó de `room.o2`.
     Mientras no exista un inventario autoritativo único, la diferencia entre
     ambos es oxígeno que se quema y no sale de ningún sitio.
+
+    Formulación de O2-A, que se conserva como evidencia. E1 (§4.3) demostró que
+    así mide la segunda escritura sobre la capa alta (O2-4) y no puede ver el
+    recorte del tope (O2-3). La forma corregida es
+    `test_c2_the_accepted_combustion_is_debited_once_from_the_authoritative_inventory`.
     """
     failures = []
     for name, rows in _rooms().items():
@@ -223,6 +237,11 @@ def test_no_layer_supplies_more_oxygen_than_it_holds_during_the_step():
 
     Falla si en algún paso el fuego pide a la capa baja más O2 del que esa capa
     contiene al empezar el paso.
+
+    Formulación de O2-A, que se conserva como evidencia. E1 (§4.6) demostró que
+    hereda O2-4: su demanda es `o2_consumed_kg_total_all` y sobreestima lo
+    pedido. La forma corregida es
+    `test_c4_no_room_is_asked_for_more_oxygen_than_it_could_gather`.
     """
     failures = []
     for name, rows in _rooms().items():
@@ -243,6 +262,115 @@ def test_no_layer_supplies_more_oxygen_than_it_holds_during_the_step():
                 "Faltan %.3f kg. Una concentración alta en una capa delgada no es "
                 "disponibilidad." % (name, demand_kg, supply_kg, initial_kg,
                                      received_kg, demand_kg - supply_kg))
+    assert not failures, "\n".join(failures)
+
+
+# ---------------------------------------------------------------------------
+# 3. C1, C2 y C4 en la forma que corrigen E1 (§4.2, §4.3, §4.6) y el
+#    diagnóstico de autoridad del 2026-10-09
+#
+# El inventario que el registro permite cerrar es el NÚMERO DE SALA sobre su
+# base de referencia: `o2 × air_mass_kg`. Cada término se aplica a ESE
+# inventario. El calor aceptado es la demanda; `o2_consumed_kg_total_all` no
+# entra en ninguna de las tres.
+#
+# Sobre una traza de la ruta histórica siguen FALLANDO donde el defecto existe
+# —recinto estanco (rederivación sin anotar), tope del sumidero (O2-3)—: son
+# contratos, no pruebas de regresión. Las mismas tres afirmaciones, con el
+# inventario de sala como autoridad y en cada paso, las juzga la fixture
+# `g3_o2_room_inventory.gd` (grupos B05, B06 y B11).
+# ---------------------------------------------------------------------------
+
+# kg de O2 por kJ de calor aceptado: la demanda equivalente por energía del motor.
+O2_KG_PER_KJ = 0.076 / 1000.0
+
+
+@_needs_run
+def test_c1_every_room_closes_on_the_inventory_declared_authoritative():
+    """C1 corregida. Conservación por sala, en kg, sobre el número de sala:
+
+        O2(t_final) == O2(0) - débito aplicado a ESE inventario
+                       + transporte_neto + exterior_neto + rederivación anotada
+
+    El débito es `o2_consumed_bulk_kg_total`, el único que casa con el número
+    de sala. Una sala cuyo consumo va por otra ruta rederiva su número desde las
+    capas sin anotarlo: aquí aparece como residual, que es lo que es.
+    """
+    failures = []
+    for name, rows in _rooms().items():
+        first, last = rows[0], rows[-1]
+        air = float(last["air_mass_kg"])
+        initial = float(first["o2"]) * air
+        expected = (
+            initial
+            - float(last["o2_consumed_bulk_kg_total"])
+            + float(last["o2_net_transport_kg_total"])
+            + float(last["o2_exterior_net_kg_total"])
+            + float(last["o2_zone_sync_kg_total"])
+        )
+        residual = float(last["o2"]) * air - expected
+        if abs(residual) > _tol(initial):
+            failures.append(
+                "%s: residual %+.4f kg (tolerancia %.4f kg, inventario inicial %.3f kg)"
+                % (name, residual, _tol(initial), initial))
+    assert not failures, "\n".join(failures)
+
+
+@_needs_run
+def test_c2_the_accepted_combustion_is_debited_once_from_the_authoritative_inventory():
+    """C2 corregida. Un solo consumo, y entero.
+
+    El O2 que exige la combustión ACEPTADA —calor aceptado por la demanda por
+    energía— es el que se debita del inventario autoritativo, y se declara una
+    vez: la ruta primaria del paso es ese inventario. La diferencia con el calor
+    es el recorte del tope (O2-3); la diferencia con la ruta primaria es consumo
+    que salió de otro número (O2-1, recinto estanco).
+    """
+    failures = []
+    for name, rows in _rooms().items():
+        first, last = rows[0], rows[-1]
+        heat_kj = float(last["hrr_kj_total"])
+        if heat_kj <= 0.0:
+            continue
+        tolerance = _tol(float(first["o2"]) * float(last["air_mass_kg"]))
+        demanded = heat_kj * O2_KG_PER_KJ
+        debited = float(last["o2_consumed_bulk_kg_total"])
+        primary = float(last["o2_consumed_fire_kg_total"])
+        if abs(demanded - debited) > tolerance:
+            failures.append(
+                "%s: el calor aceptado pide %.3f kg y del inventario salen %.3f kg (%+.3f kg)"
+                % (name, demanded, debited, demanded - debited))
+        if abs(primary - debited) > tolerance:
+            failures.append(
+                "%s: la ruta primaria declara %.3f kg y del inventario salen %.3f kg (%+.3f kg)"
+                % (name, primary, debited, primary - debited))
+    assert not failures, "\n".join(failures)
+
+
+@_needs_run
+def test_c4_no_room_is_asked_for_more_oxygen_than_it_could_gather():
+    """C4 corregida. Disponibilidad, con el calor aceptado como demanda.
+
+    Lo que el calor aceptado pide a una sala no puede superar lo que esa sala ha
+    podido reunir en toda la corrida: lo que tenía al empezar más lo que de
+    verdad entró. Es la cota más generosa; la forma por paso necesita el
+    inventario por paso, que el registro por segundo no da.
+    """
+    failures = []
+    for name, rows in _rooms().items():
+        first, last = rows[0], rows[-1]
+        demand_kg = float(last["hrr_kj_total"]) * O2_KG_PER_KJ
+        if demand_kg <= 0.0:
+            continue
+        initial_kg = float(first["o2"]) * float(last["air_mass_kg"])
+        received_kg = max(0.0, float(last["o2_net_transport_kg_total"])) \
+            + max(0.0, float(last["o2_exterior_net_kg_total"]))
+        supply_kg = initial_kg + received_kg
+        if demand_kg > supply_kg + _tol(initial_kg):
+            failures.append(
+                "%s: el calor aceptado pide %.3f kg de O2 y la sala solo ha podido reunir "
+                "%.3f kg (inicial %.3f + recibido %.3f). Faltan %.3f kg."
+                % (name, demand_kg, supply_kg, initial_kg, received_kg, demand_kg - supply_kg))
     assert not failures, "\n".join(failures)
 
 

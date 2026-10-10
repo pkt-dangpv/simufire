@@ -46,7 +46,31 @@ var temp_upper_clamp_count: int = 0
 var temp_lower_c: float = 20.0
 
 # Gases / oxigeno
-var o2: float = 0.209
+# G3 autoridad del oxígeno, M1. Con `o2_inventory_authority` apagado (por defecto
+# y siempre en producto) `o2` es la variable de siempre: el setter solo asigna.
+# Con él encendido, `o2` se DERIVA de `o2_inventory_kg` y solo el propietario
+# (sim/core/RoomOxygenInventory.gd) lo escribe, por `commit_o2_inventory`. Una
+# escritura por cualquier otra ruta no se aplica y se cuenta: no hay conversión
+# de una fracción escrita en inventario.
+var o2: float = 0.209:
+	set(value):
+		if o2_inventory_authority and not _o2_inventory_commit_open:
+			o2_unauthorized_write_count += 1
+			o2_unauthorized_write_last = value
+			return
+		o2 = value
+## kg de O2 del recinto. NAN mientras el recinto no está bajo autoridad.
+var o2_inventory_kg: float = NAN:
+	set(value):
+		if o2_inventory_authority and not _o2_inventory_commit_open:
+			o2_unauthorized_write_count += 1
+			o2_unauthorized_write_last = value
+			return
+		o2_inventory_kg = value
+var o2_inventory_authority: bool = false
+var o2_unauthorized_write_count: int = 0
+var o2_unauthorized_write_last: float = NAN
+var _o2_inventory_commit_open: bool = false
 # Fraccion O2 en capa superior (zona caliente). Se inicializa igual a o2 (2026-05-17).
 var o2_upper: float = 0.209
 # Fraccion O2 en capa inferior (zona fría). Variable persistente; NO derivada de o2. Fase 2A (2026-05-20).
@@ -392,7 +416,25 @@ func lower_o2_mass_kg(air_density: float = 1.2) -> float:
 	return lower_volume_m3() * air_density * o2_lower
 
 
+## G3 M1: única entrada por la que cambian el inventario de O2 y su número
+## derivado. Solo la llama el propietario del inventario.
+func commit_o2_inventory(inventory_kg: float, derived_mole_fraction: float) -> void:
+	_o2_inventory_commit_open = true
+	o2_inventory_kg = inventory_kg
+	o2 = derived_mole_fraction
+	_o2_inventory_commit_open = false
+
+
+## G3 M1: el recinto deja de estar bajo autoridad. `o2` conserva su último valor.
+func release_o2_inventory() -> void:
+	o2_inventory_authority = false
+	o2_inventory_kg = NAN
+	o2_unauthorized_write_count = 0
+	o2_unauthorized_write_last = NAN
+
+
 func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
+	release_o2_inventory()
 	temp_upper_c = ambient_temp_c
 	temp_upper_raw_c = ambient_temp_c
 	temp_upper_clamped = false

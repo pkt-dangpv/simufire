@@ -400,6 +400,18 @@ var g3_prescribed_thermal_source_case: Dictionary = {}
 ## No vacío: el caso no se pudo armar o el banco falló. Con él no se simula.
 var g3_prescribed_thermal_source_failure: String = ""
 var _g3_prescribed_thermal_source = null
+## G3 autoridad del oxígeno, etapa M1: inventario de O2 de sala y su tránsito
+## como estado, con `room.o2` derivado. SIN @export: apagado por defecto y solo
+## una fixture puede fijarlo; no entra en escenarios, editor, catálogo ni
+## autorizaciones. Con él apagado no se carga el módulo ni cambia nada.
+## docs/validation/G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md.
+const O2_ROOM_INVENTORY_PATH: String = "res://sim/core/RoomOxygenInventory.gd"
+var o2_room_inventory_enabled: bool = false
+## No vacío: el inventario no se pudo armar, rechazó una ruta o el interruptor
+## cambió sin reiniciar. Con él no se simula.
+var o2_room_inventory_failure: String = ""
+var _o2_room_inventory = null
+var _o2_room_inventory_generation: int = 0
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -3709,6 +3721,73 @@ func _g3_prescribed_thermal_suppression_active(room_id: int) -> bool:
 	return _active_suppression_by_room.has(room_id)
 
 
+## G3 M1. Retira el inventario de la corrida anterior: suelta los recintos, vacía
+## el tránsito, desconecta los subsistemas y borra el fallo. Único sitio donde
+## se apaga; con el interruptor apagado tampoco conserva la instancia.
+func _o2_room_inventory_discard() -> void:
+	if _o2_room_inventory != null:
+		_o2_room_inventory.discard()
+	if oxygen_exchange_system != null:
+		oxygen_exchange_system.room_o2_inventory = null
+	if gas_exchange_system != null:
+		gas_exchange_system.room_o2_inventory = null
+	o2_room_inventory_failure = ""
+	if not o2_room_inventory_enabled:
+		_o2_room_inventory = null
+
+
+## Arma el inventario con los recintos ya reiniciados. Solo con el interruptor
+## encendido se carga el módulo: con él apagado no se ejecuta nada de esto.
+func _o2_room_inventory_arm() -> void:
+	if not o2_room_inventory_enabled:
+		return
+	if _o2_room_inventory == null:
+		_o2_room_inventory = load(O2_ROOM_INVENTORY_PATH).new()
+	_o2_room_inventory_generation += 1
+	var armed: Dictionary = _o2_room_inventory.arm(
+		building, _o2_room_inventory_generation, _o2_room_inventory_environment()
+	)
+	if not bool(armed.get("valid", false)):
+		o2_room_inventory_failure = "o2_room_inventory_rejected"
+		push_error("G3 room oxygen inventory rejected: %s" % str(armed.get("errors")))
+		return
+	oxygen_exchange_system.room_o2_inventory = _o2_room_inventory
+	gas_exchange_system.room_o2_inventory = _o2_room_inventory
+
+
+## Lo que el motor es en este momento, leído de los subsistemas que lo aplican.
+## El inventario compara con lo que M1 cubre y se niega si algo difiere.
+func _o2_room_inventory_environment() -> Dictionary:
+	return {
+		"pressure_network_enabled": pressure_network_solver_enabled,
+		"diagnostic_bench_enabled": g3_prescribed_thermal_source_enabled,
+		"balance_ledger_enabled": bool(combustion_system.g3_fuel_ledger_enabled),
+		"oxygen_step_runs_after_the_fire": not _uses_pre_hrr_oxygen_step(),
+		"fire_oxygen_mode": _resolve_fire_o2_mode(),
+		"sink_takes_oxygen_from_the_lower_number": bool(oxygen_exchange_system._uses_lower_o2_for_fire()),
+		"phase2b_canonical_combustion_enabled": bool(oxygen_exchange_system.phase2b_canonical_combustion_enabled),
+		"fire_o2_canonical_enabled": bool(oxygen_exchange_system.fire_o2_canonical_enabled),
+		"fire_o2_mass_tracking_enabled": bool(oxygen_exchange_system.fire_o2_mass_tracking_enabled),
+	}
+
+
+## Informe del inventario, leído de la instancia viva. Sin instancia, inactivo.
+func get_o2_room_inventory_report() -> Dictionary:
+	if _o2_room_inventory == null:
+		return {"state": "inactive", "failure": o2_room_inventory_failure}
+	var report: Dictionary = _o2_room_inventory.report()
+	report["failure"] = o2_room_inventory_failure
+	return report
+
+
+## Solo para fixtures: declara el oxígeno inicial de un recinto como fracción
+## molar. Pasa por el propietario; después del primer paso se rechaza.
+func o2_room_inventory_declare_initial_mole_fraction(room_id: int, mole_fraction: Variant) -> Dictionary:
+	if _o2_room_inventory == null or building == null:
+		return {"applied": false, "reason": "inventory_inactive"}
+	return _o2_room_inventory.declare_initial_mole_fraction(building.get_room(room_id), mole_fraction)
+
+
 ## Informe del banco, leído de la instancia viva. Sin instancia, inactivo.
 func get_g3_prescribed_thermal_source_report() -> Dictionary:
 	if _g3_prescribed_thermal_source == null:
@@ -3806,6 +3885,9 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	# Lo que NO sube por encima de la guarda es RESOLVER una autorizacion nueva:
 	# encender fisica en un motor que no esta listo seria cambiar un estado
 	# obsoleto por uno peor. Retirar siempre; aplicar solo cuando se puede.
+	# G3 M1: el inventario de O2 y su tránsito se retiran SIEMPRE, por encima de
+	# las dos guardas; se arma solo más abajo, cuando se puede.
+	_o2_room_inventory_discard()
 	# G3 banco diagnóstico: misma regla. Se retira SIEMPRE, también sin edificio
 	# o con el motor no preparado; se crea solo más abajo, cuando se puede.
 	_g3_prescribed_thermal_discard()
@@ -3892,6 +3974,11 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 		_reset_room_state(room)
 
 	combustion_system.bootstrap_building(building)
+	# G3 M1: con los recintos ya reiniciados. Una configuración que M1 no cubre
+	# es un fallo explícito y no se ignita.
+	_o2_room_inventory_arm()
+	if not o2_room_inventory_failure.is_empty():
+		return
 	# G3 banco diagnóstico: instancia nueva por corrida, con el recinto ya
 	# reiniciado. Un caso que no vale es un fallo explícito y no se ignita.
 	_g3_prescribed_thermal_arm()
@@ -3926,6 +4013,16 @@ func step(delta: float) -> void:
 	# con la fisica apagada: lo que se vio en pantalla no seria lo autorizado.
 	if not experimental_authorization_failure.is_empty():
 		return
+	# G3 M1: un inventario que no arma, o que rechazó una ruta, no se simula. Y
+	# el interruptor no cambia a mitad de corrida: ni se enciende sin armar ni se
+	# apaga dejando un número de sala derivado en la ruta histórica.
+	if not o2_room_inventory_failure.is_empty():
+		return
+	if o2_room_inventory_enabled != (
+			_o2_room_inventory != null and _o2_room_inventory.state() != "inactive"):
+		o2_room_inventory_failure = "o2_room_inventory_switch_changed_without_reset"
+		push_error("G3 room oxygen inventory: the switch changed without a reset")
+		return
 	# G3 banco diagnóstico: un caso que no arma, o un banco que falla, no se
 	# simula. No hay vuelta a la ruta histórica.
 	if not g3_prescribed_thermal_source_failure.is_empty():
@@ -3954,6 +4051,8 @@ func step(delta: float) -> void:
 	# Exteriores: suavizado exponencial con tau configurable (evita saltos de presión/O₂/humo).
 	# Interiores: mirror directo (sin suavizado, usan effective_open_fraction para thermal gap).
 	_step_exterior_opening_smooth(dt)
+	if _o2_room_inventory != null:
+		_o2_room_inventory.begin_step(_o2_room_inventory_environment())
 
 	# Pre-computar el estado de flujo de cada abertura interior una sola vez,
 	# con las condiciones de sala al inicio de este paso. Esto garantiza que
@@ -4091,6 +4190,15 @@ func step(delta: float) -> void:
 		thermal_system.reconcile_two_zone_building(building, dt)
 	_phase3_zone_runtime_record_stage_shared("reconcile", "reconcile")
 	_clamp_rooms(dt)
+	if _o2_room_inventory != null:
+		# G3 M1: con todos los escritores del paso ya ejecutados. Una escritura del
+		# número de sala fuera del propietario, o una ruta rechazada, detiene la corrida.
+		_o2_room_inventory.audit_room_numbers()
+		if _o2_room_inventory.state() == "rejected":
+			o2_room_inventory_failure = "o2_room_inventory_failed"
+			push_error("G3 room oxygen inventory failed: %s" % str(
+				_o2_room_inventory.report().get("rejections")
+			))
 	_p1r2_record_tick_boundary("post_physics_mutation")
 	_phase3_zone_runtime_record_stage_shared("projection_clamp", "clamp_rooms")
 	if phase3_canonical_zone_shadow_enabled:
@@ -5414,7 +5522,10 @@ func _clamp_rooms(dt: float) -> void:
 		# OES, ThermalSystem, GasExchangeSystem y HVAC, asi que su reparto por
 		# owner no es recuperable aqui.
 		var _o2d6_pre_final: float = room.o2
-		room.o2 = clampf(room.o2, 0.0, o2_nominal)
+		# G3 M1: bajo autoridad el número de sala es derivado y no se recorta; un
+		# inventario negativo no llega a escribirse.
+		if not room.o2_inventory_authority:
+			room.o2 = clampf(room.o2, 0.0, o2_nominal)
 		_phase3_o2_ledger.record(
 			"engine_final_tick_clamp", "bulk", room,
 			_o2d6_pre_final, _o2d6_pre_final, room.o2,

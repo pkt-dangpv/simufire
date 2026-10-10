@@ -1,5 +1,69 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M0 y M1 (inventario de sala y tránsito tras un interruptor apagado; sin activar)
+
+El usuario autoriza implementar M0 y M1 del plan de autoridad del
+oxígeno: inventario de sala y tránsito, escritura centralizada y
+concentración de sala derivada, tras un interruptor apagado por defecto,
+con pruebas, mutaciones, documentación y la cadena R2-1 completa. **No
+autoriza** M2 a M4, activar producto ni emisiones nuevas. Base
+`7b2e12d9`. Trabajo en `runs/g3_shareable`.
+
+[Informe](validation/G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md).
+
+- **Qué hay:** con `o2_room_inventory_enabled` encendido —sin `@export`,
+  apagado por defecto, solo desde fixtures— cada recinto lleva `M`, kg de
+  O₂, y el tránsito `T` vive en una cola del propietario. `room.o2` se
+  deriva de `M`. Todo cambio de `M` es una operación validada de un único
+  propietario, [`RoomOxygenInventory.gd`](../sim/core/RoomOxygenInventory.gd);
+  el recinto rechaza y cuenta cualquier otra escritura.
+- **Con el interruptor apagado el motor es el de antes:** ver
+  «Verificación» abajo.
+- **Con él encendido los balances cierran** a 9,8 · 10⁻¹⁵ kg en el peor paso
+  de todos los casos, con el criterio en 1 · 10⁻⁹ kg: demanda conocida y
+  fuego real a dos pasos, transporte, infiltración, puerta, tope y
+  reinicio. Tres balances por paso, uno de ellos por forma cerrada sin
+  leer ninguna operación.
+- **0,209 es fracción molar:** `M = x × n_ref × M_O₂`. Un recinto de 48 m³
+  guarda 13,299 kg, no 12,038. Por megajulio, la fracción de sala baja un
+  9,5 % menos que en la ruta histórica. Mueve los números de oxígeno: por
+  eso no se activa.
+- **«Sin tocar el sumidero»:** se redirige su débito, ya en kg, al
+  propietario. Misma demanda, mismo coeficiente y mismo tope del 5 % del
+  inventario; no se cambia el depósito que elige ni el calor aceptado. Lo
+  que el tope recorta queda anotado.
+- **El tránsito tiene signo:** es el neto de dos paquetes opuestos, como
+  lo retrasa la ley histórica, que no se cambia. Se conserva `Σ M + Σ T`.
+- **Rechazado por nombre, sin escribir nada:** red de presión, banco del
+  Test016, libro de balance y modos de oxígeno no históricos, al armar;
+  fuego en recinto estanco y hueco exterior caliente, en el paso en que
+  su ruta actuaría; venteo, PPV, transporte y parcelas del intercambio de
+  gases si mueven oxígeno. HVAC y las mezclas de puerta del térmico los
+  para la guarda del recinto. Un recinto sin hueco exterior no se rechaza
+  por serlo, solo cuando arde.
+- **M0:** la fixture de aceptación falla sobre el motor de `7b2e12d9` por
+  lo que falta: 147 fallos de 250 en los 14 grupos y 0 errores de
+  script. C1, C2 y C4 tienen su forma corregida; las tres de O2-A se
+  conservan con su nota.
+- **Mutaciones:** 22 de 22 muertas donde se declaró, entre ellas las
+  ocho del plan; ninguna superviviente ni inválida.
+- **Sigue histórico:** `o2_upper`, `o2_lower`, los acumuladores y la
+  selección de oxígeno del fuego. El fuego sigue leyendo el número
+  inferior mientras el sumidero debita la sala (O2-1), la segunda
+  escritura sigue (O2-4) y el tope sigue sin bajar el calor (O2-3).
+- **Sin medir:** los casos de casa con el modo encendido y el efecto en
+  potencia, extinción y exposición. Es condición para activar.
+- **Verificación:** identidad con el interruptor apagado 9 de 9 casos
+  byte a byte; referencia completa 346 de 346 y 78 huecos, corpus sin
+  cambio de contenido y `reference_checks.json` solo en `generated_at`;
+  guardarraíles con R2-1 PASS; `check_product` 168 PASS; regresiones de
+  G3 1619 passed, 30 skipped, 2 xfailed;
+  global 4424 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+- **Siguiente encargo propuesto:** M2: una selección por recinto y paso
+  para fuego y sumidero, la ruta de recinto estanco debitando `M`, y la
+  segunda escritura fuera del consumo. Exige tocar `CombustionSystem.gd`.
+  CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-09 - G3: autoridad del oxígeno (diagnóstico, recomendación y plan; sin migrar)
 
 El usuario autoriza revisar y cerrar el contrato de autoridad del

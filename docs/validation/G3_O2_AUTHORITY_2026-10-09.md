@@ -13,6 +13,14 @@ activado ningún modo, no hay línea base nueva y la referencia queda
 intacta. Lo que hay es diagnóstico del motor actual, evidencia dinámica,
 una recomendación y un plan.
 
+> **Estado al 2026-10-10.** Las etapas M0 y M1 del plan están hechas, tras
+> un interruptor apagado y sin activar:
+> [M0 y M1, inventario de sala y tránsito](G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md).
+> Este documento describe el motor de `2d71f697` y se conserva como se
+> publicó; su registro queda ligado a los archivos de su commit. Con el
+> interruptor apagado, las hipótesis que su fixture ejercita vuelven a dar
+> hoy las mismas cifras.
+
 - Registro: [`G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json`](G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json).
 - Fixture de diagnóstico, que no juzga: [`g3_o2_authority_diagnosis.gd`](../../tests/fixtures/g3_o2_authority_diagnosis.gd).
 - Hipótesis, evaluación y casos de casa: [`run_g3_o2_authority_diagnosis.py`](../../scripts/simulation/run_g3_o2_authority_diagnosis.py).
@@ -380,6 +388,14 @@ interruptor sin exportar, apagado.
 | M2 | Una selección por recinto y paso para fuego y sumidero; retirar la segunda escritura; la ruta de recinto estanco debita el inventario | `CombustionSystem`, `OxygenExchangeSystem`, `SimulationEngine` | Igual | H12 con un solo depósito; `o2_closed` cerrando |
 | M3 | Disponibilidad antes de aceptar el calor | `CombustionSystem` | Igual | `o2_stress_cap` sin oxígeno sin debitar |
 | M4 | El reparto conservativo `M_alta` en lugar de los trazadores | `OxygenExchangeSystem`, `ThermalSystem` | Igual | H08 y H09 conservando el total; comparación con CFAST como caso encendido |
+
+> **2026-10-10.** M0 y M1 están hechas. Dos precisiones que salieron al
+> escribir el contrato ejecutable, ambas en
+> [su informe](G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md): el tránsito es
+> una cantidad **con signo**, porque la ley histórica retrasa el neto de
+> dos paquetes opuestos; y el banco del Test016 se rechaza junto con la
+> red de presión, porque deshace sus pasos restaurando números que con el
+> modo encendido son derivados. M2, M3 y M4 siguen sin hacer.
 
 ### Pruebas predeclaradas para M1
 

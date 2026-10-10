@@ -117,6 +117,12 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("tests/fixtures/g3_o2_authority_diagnosis.gd"),
     Path("tests/fixtures/g3_o2_authority_diagnosis.gd.uid"),
     Path("tests/test_g3_o2_authority.py"),
+    # Inventario de O2 de sala, M1 (2026-10-10): la fixture de aceptacion enciende
+    # la red en UN control negativo, para probar que el inventario se niega a armar
+    # con ella. No la resuelve ni la aprueba.
+    Path("tests/fixtures/g3_o2_room_inventory.gd"),
+    Path("tests/fixtures/g3_o2_room_inventory.gd.uid"),
+    Path("tests/test_g3_o2_room_inventory.py"),
     # Y el adaptador de fuga toma de alli la constante global de
     # condicionamiento, para que las tres clases de elemento compartan criterio.
     Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),

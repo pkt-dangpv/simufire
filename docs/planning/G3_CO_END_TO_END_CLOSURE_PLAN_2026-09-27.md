@@ -5,7 +5,23 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 09-10, segundo del día:
+Último avance del 10-10:
+[Autoridad del oxígeno, M0 y M1](../validation/G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md).
+Inventario de O₂ de sala y su tránsito como estado del motor, con un solo
+propietario y `room.o2` derivado, **tras un interruptor sin exportar y
+apagado: no se activa nada**. Con él apagado el motor es el de antes. Con
+él encendido los balances cierran a 9,8 · 10⁻¹⁵ kg en el peor paso; lo que
+la etapa no cubre —recinto estanco con fuego, hueco exterior caliente,
+red de presión, banco del Test016— se rechaza por su nombre.
+22 de 22 mutaciones muertas donde se declaró. Siguen vigentes O2-1,
+O2-3 y O2-4: son M2 y M3.
+Verificado con la cadena completa: identidad con el interruptor apagado
+9 de 9, referencia 346 de 346 con los mismos 78 huecos y corpus sin
+cambio de contenido, producto 168 PASS y global
+4424 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+Sin efecto en plazos mientras no se autorice M2. CO/FED siguen OFF/NO-GO.
+
+Avance del 09-10, segundo del día:
 [Autoridad del oxígeno](../validation/G3_O2_AUTHORITY_2026-10-09.md).
 Diagnóstico del motor actual, evidencia dinámica con hipótesis escritas
 antes de ejecutar, comparación de alternativas, recomendación y plan,

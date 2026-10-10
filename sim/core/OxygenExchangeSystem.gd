@@ -137,6 +137,11 @@ var phase3_canonical_zone_shadow_enabled: bool = false
 # R3: cuando true, el consumo de O2 se enruta hacia o2_lower (zona baja) y room.o2
 # se actualiza como promedio ponderado upper/lower al final del paso.
 var two_zone_solver_enabled: bool = false
+## G3 autoridad del oxígeno, M1: propietario del inventario de O2 de sala y de su
+## tránsito (sim/core/RoomOxygenInventory.gd). Lo fija SimulationEngine solo con
+## su interruptor encendido y el inventario armado. Es null en producto, y con
+## null este archivo ejecuta exactamente la ruta histórica.
+var room_o2_inventory = null
 # Topes de masa del sumidero de O2 del fuego en step() (fracción de la masa de O2
 # de la zona aceptada por paso). Constantes con nombre para que la cota de la
 # opción D de G3 (fire_sink_heat_acceptance_floor_MJ) use exactamente los mismos.
@@ -385,7 +390,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 	# no viene de una combustión. Sin la clave, lista vacía y nada cambia.
 	var g3_prescribed_thermal_room_ids: Array = hooks.get("g3_prescribed_thermal_room_ids", [])
 
-	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
+	if room_o2_inventory != null:
+		_deliver_owned_o2_transit(building, dt)
+	else:
+		_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -481,52 +489,60 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# room.o2 no se depleta por combustión (solo ACH + HVAC lo modifican).
 		# R2-2: en plume_lower_mode el consumo va a o2_lower (ver bloque two-zone).
 		var o2_mass_kg: float = air_mass_kg * room.o2
-		if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
-			var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
-			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
+		if room_o2_inventory != null:
+			# G3 M1: el inventario de sala es la autoridad. La ley del sumidero y la
+			# de la infiltración son las de abajo; cambia quién escribe.
+			_o2_fire_primary = _step_owned_room_inventory(
+				building, room, dt, air_density_kg_m3,
+				fire_uses_lower_o2 or effective_plume_lower or _phase2b_upper_active
+			)
+		else:
+			if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
+				var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+				var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
+				if g3_probe != null:
+					g3_row["sinks"]["bulk"] = {
+						"zone": "bulk",
+						"requested_kg": consumed,
+						"cap_kg": o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION,
+						"mass_before_kg": o2_mass_kg,
+						"mass_base_kg": air_mass_kg,
+					}
+				consumed = minf(consumed, o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION)
+				o2_mass_kg = maxf(0.0, o2_mass_kg - consumed)
+				if g3_probe != null:
+					g3_row["sinks"]["bulk"]["applied_kg"] = consumed
+					g3_row["sinks"]["bulk"]["mass_after_kg"] = o2_mass_kg
+				# SF-O1A: consumo bulk (path sin two-zone ni plume_lower).
+				room.o2_consumed_kg_step_all += consumed
+				room.o2_consumed_kg_total_all += consumed
+				# SF-O1C: bulk-only accumulator (solo este path modifica room.o2 via o2_mass_kg).
+				room.o2_consumed_bulk_kg_step += consumed
+				room.o2_consumed_bulk_kg_total += consumed
+				# SF-O2E1: bulk es el path primario cuando corre.
+				_o2_fire_primary = consumed
+			var ach_o2_delta_kg: float = room.volume_m3() \
+				* (ach_infiltration / 3600.0) \
+				* air_density_kg_m3 \
+				* (building.outside_o2 - room.o2) * dt
+			o2_mass_kg += ach_o2_delta_kg
+			# SF-O1A: ACH exterior neto sobre o2 bulk.
+			room.o2_exterior_net_kg_step += ach_o2_delta_kg
+			room.o2_exterior_net_kg_total += ach_o2_delta_kg
+			# H3.2-S0d6: este clamp acota un valor que ya suma combustion bulk y ACH,
+			# asi que el reparto por owner no es recuperable aqui.
+			var _o2d6_pre_bulk: float = room.o2
+			room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
 			if g3_probe != null:
-				g3_row["sinks"]["bulk"] = {
-					"zone": "bulk",
-					"requested_kg": consumed,
-					"cap_kg": o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION,
-					"mass_before_kg": o2_mass_kg,
-					"mass_base_kg": air_mass_kg,
-				}
-			consumed = minf(consumed, o2_mass_kg * FIRE_SINK_BULK_CAP_FRACTION)
-			o2_mass_kg = maxf(0.0, o2_mass_kg - consumed)
-			if g3_probe != null:
-				g3_row["sinks"]["bulk"]["applied_kg"] = consumed
-				g3_row["sinks"]["bulk"]["mass_after_kg"] = o2_mass_kg
-			# SF-O1A: consumo bulk (path sin two-zone ni plume_lower).
-			room.o2_consumed_kg_step_all += consumed
-			room.o2_consumed_kg_total_all += consumed
-			# SF-O1C: bulk-only accumulator (solo este path modifica room.o2 via o2_mass_kg).
-			room.o2_consumed_bulk_kg_step += consumed
-			room.o2_consumed_bulk_kg_total += consumed
-			# SF-O2E1: bulk es el path primario cuando corre.
-			_o2_fire_primary = consumed
-		var ach_o2_delta_kg: float = room.volume_m3() \
-			* (ach_infiltration / 3600.0) \
-			* air_density_kg_m3 \
-			* (building.outside_o2 - room.o2) * dt
-		o2_mass_kg += ach_o2_delta_kg
-		# SF-O1A: ACH exterior neto sobre o2 bulk.
-		room.o2_exterior_net_kg_step += ach_o2_delta_kg
-		room.o2_exterior_net_kg_total += ach_o2_delta_kg
-		# H3.2-S0d6: este clamp acota un valor que ya suma combustion bulk y ACH,
-		# asi que el reparto por owner no es recuperable aqui.
-		var _o2d6_pre_bulk: float = room.o2
-		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
-		if g3_probe != null:
-			g3_row["bulk_ach_kg"] = ach_o2_delta_kg
-			g3_row["bulk_fraction_before_write"] = _o2d6_pre_bulk
-			g3_row["bulk_fraction_unclamped"] = o2_mass_kg / air_mass_kg
-			g3_row["bulk_fraction_after_write"] = float(room.o2)
-		_record_o2_acceptance(
-			"oes_bulk_combustion_and_ach", "bulk", room,
-			_o2d6_pre_bulk, o2_mass_kg / air_mass_kg, room.o2,
-			Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER, NAN, "room_air_mass"
-		)
+				g3_row["bulk_ach_kg"] = ach_o2_delta_kg
+				g3_row["bulk_fraction_before_write"] = _o2d6_pre_bulk
+				g3_row["bulk_fraction_unclamped"] = o2_mass_kg / air_mass_kg
+				g3_row["bulk_fraction_after_write"] = float(room.o2)
+			_record_o2_acceptance(
+				"oes_bulk_combustion_and_ach", "bulk", room,
+				_o2d6_pre_bulk, o2_mass_kg / air_mass_kg, room.o2,
+				Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER, NAN, "room_air_mass"
+			)
 
 		# 0.15 == FIRE_SINK_MIN_LOWER_FRACTION (literal fijado por test_phase3_f31c).
 		if lower_frac < 0.15:
@@ -789,7 +805,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				}
 			# R2-2: cuando el fuego entrana de o2_lower, room.o2 refleja la mezcla ponderada.
 			# Phase 2B: idem cuando consumo va solo a o2_upper (fire_o2_mode="upper").
-			if effective_plume_lower or _phase2b_upper_active:
+			# G3 M1: con el inventario como autoridad ningún número de capa reescribe la sala.
+			if (effective_plume_lower or _phase2b_upper_active) and room_o2_inventory == null:
 				room.o2 = clampf(room.o2_upper * upper_frac + room.o2_lower * lower_frac, 0.0, o2_nominal)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
@@ -1019,6 +1036,9 @@ func fire_sink_heat_acceptance_floor_MJ(room: RoomModel, dt: float, o2_kg_per_MJ
 		# puede acotar, no se libera R.
 		return 0.0
 	var bulk_mass_kg: float = maxf(0.0, air_mass_kg * room.o2 + due_negative_kg)
+	if room_o2_inventory != null and room_o2_inventory.owns_room(room):
+		# G3 M1: la misma cota, leída del inventario y de su tránsito.
+		bulk_mass_kg = room_o2_inventory.inventory_after_due_debits_kg(room, dt)
 	heat_MJ = minf(heat_MJ, bulk_mass_kg * FIRE_SINK_BULK_CAP_FRACTION / o2_kg_per_MJ)
 	if plume_lower_o2_depletion_fraction > 0.0:
 		var plume_cap_kg: float = FIRE_SINK_PLUME_CAP_FRACTION * FIRE_SINK_MIN_LOWER_FRACTION * air_mass_kg * o2_lower_min
@@ -1195,6 +1215,11 @@ func _step_outside_opening_o2(
 	if air_in_kg <= 0.0:
 		return
 
+	# G3 M1: el hueco exterior con diferencia de temperatura no pertenece a esta
+	# etapa. Se rechaza aquí, donde la ruta escribiría, y no por existir el hueco.
+	if room_o2_inventory != null:
+		room_o2_inventory.refuse_route(indoor, "exterior_opening_with_temperature_difference", air_in_kg)
+		return
 	var _o2_before_ext: float = indoor.o2
 	indoor.o2 = clampf(
 		(indoor.o2 * room_air_mass_kg + building.outside_o2 * air_in_kg) / (room_air_mass_kg + air_in_kg),
@@ -1401,6 +1426,23 @@ func _exchange_room_o2_immediate(
 	if room_a == null or room_b == null or exchange_kg <= 0.0:
 		return
 
+	if room_o2_inventory != null:
+		# G3 M1: los dos paquetes cruzan a la vez por el propietario, en kg de O2
+		# por la conversión declarada. Sin banda muerta: lo que sale de una sala
+		# entra en la otra, sea cual sea su tamaño.
+		var swapped: Dictionary = room_o2_inventory.exchange_between_rooms(
+			room_a, room_b,
+			room_o2_inventory.o2_kg_in_reference_gas(room_a.o2, exchange_kg),
+			room_o2_inventory.o2_kg_in_reference_gas(room_b.o2, exchange_kg),
+			0.0, "interior_background_exchange"
+		)
+		if bool(swapped["applied"]):
+			room_a.o2_net_transport_kg_step += float(swapped["donor_net_kg"])
+			room_a.o2_net_transport_kg_total += float(swapped["donor_net_kg"])
+			room_b.o2_net_transport_kg_step += float(swapped["receiver_net_kg"])
+			room_b.o2_net_transport_kg_total += float(swapped["receiver_net_kg"])
+		return
+
 	var mass_a_kg: float = _compute_room_air_mass_kg(room_a, air_density_kg_m3)
 	var mass_b_kg: float = _compute_room_air_mass_kg(room_b, air_density_kg_m3)
 	var o2_a_out_kg: float = room_a.o2 * exchange_kg
@@ -1438,7 +1480,13 @@ func _exchange_room_o2_active_flow(
 
 	# Keep the fresh compensating inflow to the fire room immediate, but delay
 	# the downstream room's net concentration change until the hot parcel arrives.
-	_apply_room_o2_mass_delta(hot_room, hot_room_delta_o2_kg, air_density_kg_m3)
+	if room_o2_inventory != null:
+		# G3 M1: los dos paquetes pasan por el propietario. La sala caliente cambia
+		# ya; el neto de la fría va al tránsito si hay retardo, como siempre. Las
+		# variables de arriba quedan para los números de capa, en su base histórica.
+		_exchange_owned_o2_active_flow(building, hot_room, cold_room, exchange_kg)
+	else:
+		_apply_room_o2_mass_delta(hot_room, hot_room_delta_o2_kg, air_density_kg_m3)
 	# Two-zone: aire fresco entra por la capa baja del cuarto caliente (flujo
 	# Bernoulli/Kawagoe: frío abajo, caliente arriba). Repone o2_lower para
 	# evitar el colapso por falta de reposición ante intercambio por abertura.
@@ -1520,6 +1568,9 @@ func _exchange_room_o2_active_flow(
 			lerpf(cold_room.o2_upper, hot_room.o2_upper, mix_frac),
 			0.0, o2_nominal)
 	# CO2 kg lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
+	if room_o2_inventory != null:
+		# G3 M1: la sala fría ya quedó servida, o en tránsito, por el propietario.
+		return
 	var delay_s: float = _estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id)
 	if interior_transport_enabled and delay_s > 0.000001:
 		_reserve_room_o2_delta(cold_room.id, cold_room_delta_o2_kg)
@@ -1556,6 +1607,101 @@ func _release_pending_o2_deliveries(building: BuildingModel, dt: float, air_dens
 	_pending_o2_deliveries = remaining
 
 
+## G3 M1: entregas que llegan. El propietario retira cada una del tránsito y
+## acredita la misma cantidad; aquí solo se anota en los acumuladores de auditoría.
+func _deliver_owned_o2_transit(building: BuildingModel, dt: float) -> void:
+	for arrival: Dictionary in room_o2_inventory.advance_transit(dt):
+		var receiver: RoomModel = building.get_room(int(arrival["receiver"]))
+		if receiver == null:
+			continue
+		receiver.o2_net_transport_kg_step += float(arrival["net_kg"])
+		receiver.o2_net_transport_kg_total += float(arrival["net_kg"])
+
+
+## G3 M1: lo que el bloque de sala hace cuando el inventario es la autoridad.
+## La ley del sumidero no cambia —misma demanda, mismo coeficiente, mismo tope
+## del 5 % del inventario por paso— ni la de la infiltración; cambia a quién se
+## le pide cada cantidad. Los acumuladores anotan lo aplicado y no gobiernan nada.
+## Devuelve el débito primario del paso, en kg de O2.
+func _step_owned_room_inventory(
+		building: BuildingModel,
+		room: RoomModel,
+		dt: float,
+		air_density_kg_m3: float,
+		sink_leaves_the_room_inventory: bool
+	) -> float:
+	var primary_kg: float = 0.0
+	# La infiltración saca gas a la concentración que la sala tenía antes del
+	# sumidero, como en la ruta histórica.
+	var leaving_mole_fraction: float = room.o2
+	if room.hrr_kw > 0.0 and sink_leaves_the_room_inventory:
+		# El sumidero de recinto estanco debita un número de capa y rederiva la
+		# sala: pertenece a M2. Se rechaza por la ruta real, no por la geometría.
+		room_o2_inventory.refuse_route(room, "fire_sink_outside_the_room_inventory", room.hrr_kw)
+	elif room.hrr_kw > 0.0:
+		var requested: float = (room.hrr_kw / 1000.0) * _fire_sink_kg_per_MJ(room) * dt
+		var consumed: float = minf(
+			requested, room_o2_inventory.inventory_kg(room) * FIRE_SINK_BULK_CAP_FRACTION
+		)
+		var debit: Dictionary = room_o2_inventory.consume(
+			room, requested, consumed, "fire_sink_room_inventory"
+		)
+		if bool(debit["applied"]):
+			room.o2_consumed_kg_step_all += consumed
+			room.o2_consumed_kg_total_all += consumed
+			room.o2_consumed_bulk_kg_step += consumed
+			room.o2_consumed_bulk_kg_total += consumed
+			primary_kg = consumed
+	var gas_kg: float = room.volume_m3() * (ach_infiltration / 3600.0) * air_density_kg_m3 * dt
+	if gas_kg != 0.0:
+		var outside: Dictionary = room_o2_inventory.exchange_with_outside(
+			room, gas_kg, building.outside_o2, leaving_mole_fraction, "infiltration"
+		)
+		if bool(outside["applied"]):
+			room.o2_exterior_net_kg_step += float(outside["net_kg"])
+			room.o2_exterior_net_kg_total += float(outside["net_kg"])
+	_record_o2_acceptance(
+		"oes_bulk_combustion_and_ach", "bulk", room,
+		leaving_mole_fraction, room.o2, room.o2,
+		Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER, NAN, "room_oxygen_inventory"
+	)
+	return primary_kg
+
+
+## El coeficiente del sumidero: el del fuego del recinto o, sin él, 0,076 kg/MJ.
+func _fire_sink_kg_per_MJ(room: RoomModel) -> float:
+	return float(room.fire.o2_consumption_kg_per_MJ) if room.fire != null else 0.076
+
+
+## G3 M1: el intercambio activo de una puerta interior. Mismo gas movido y mismo
+## retardo que la ruta histórica; el O2 de cada paquete sale de la lectura
+## efectiva de su sala por la conversión declarada.
+func _exchange_owned_o2_active_flow(
+		building: BuildingModel,
+		hot_room: RoomModel,
+		cold_room: RoomModel,
+		exchange_kg: float
+	) -> void:
+	var moved: Dictionary = room_o2_inventory.exchange_between_rooms(
+		hot_room, cold_room,
+		room_o2_inventory.o2_kg_in_reference_gas(
+			room_o2_inventory.effective_mole_fraction(hot_room), exchange_kg
+		),
+		room_o2_inventory.o2_kg_in_reference_gas(
+			room_o2_inventory.effective_mole_fraction(cold_room), exchange_kg
+		),
+		_estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id),
+		"interior_active_flow"
+	)
+	if not bool(moved["applied"]):
+		return
+	hot_room.o2_net_transport_kg_step += float(moved["donor_net_kg"])
+	hot_room.o2_net_transport_kg_total += float(moved["donor_net_kg"])
+	if not bool(moved["delayed"]):
+		cold_room.o2_net_transport_kg_step += float(moved["receiver_net_kg"])
+		cold_room.o2_net_transport_kg_total += float(moved["receiver_net_kg"])
+
+
 func _reserve_room_o2_delta(room_id: int, delta_o2_kg: float) -> void:
 	if absf(delta_o2_kg) <= 0.000001:
 		return
@@ -1587,6 +1733,10 @@ func _apply_room_o2_mass_delta(room: RoomModel, delta_o2_kg: float, air_density_
 func _effective_room_o2_fraction(room: RoomModel, air_density_kg_m3: float) -> float:
 	if room == null:
 		return o2_nominal
+	if room_o2_inventory != null and room_o2_inventory.owns_room(room):
+		# G3 M1: la misma lectura —la sala con lo que ya viaja hacia ella—, tomada
+		# del inventario y de su tránsito. Sin techo.
+		return room_o2_inventory.effective_mole_fraction(room)
 
 	var room_air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
 	var reserved_delta_kg: float = float(_reserved_transport_o2_delta_kg.get(room.id, 0.0))
@@ -1742,6 +1892,10 @@ func _step_outside_opening_o2_bernoulli(
 	if delta_o2_kg <= 0.0:
 		return
 
+	# G3 M1: misma regla que en la variante histórica del hueco exterior.
+	if room_o2_inventory != null:
+		room_o2_inventory.refuse_route(indoor, "exterior_opening_with_temperature_difference", delta_o2_kg)
+		return
 	var o2_before: float = indoor.o2
 	var o2_requested: float = (o2_before * room_air_mass_kg + delta_o2_kg) / room_air_mass_kg
 	indoor.o2 = clampf(o2_requested, 0.0, o2_nominal)

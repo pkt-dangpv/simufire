@@ -246,8 +246,12 @@ def test_nothing_of_the_product_reaches_the_bench() -> None:
                      if "g3_prescribed_thermal" in path.read_text(encoding="utf-8"))
     # The acceptance fixture and two diagnoses that judge nothing: the one of the oxygen
     # writes, and the one of the oxygen authority, which uses the bench as a known demand.
-    assert loaders == ["g3_o2_authority_diagnosis.gd", "g3_object_hrr_oxygen_writes_diagnosis.gd",
-                       "g3_object_hrr_thermal_coupling.gd"]
+    # The fourth does not load the bench: the acceptance of the room oxygen inventory (M1)
+    # raises only its switch, with no case, to prove that the combination is refused.
+    assert loaders == ["g3_o2_authority_diagnosis.gd", "g3_o2_room_inventory.gd",
+                       "g3_object_hrr_oxygen_writes_diagnosis.gd", "g3_object_hrr_thermal_coupling.gd"]
+    inventory = (ROOT / "tests/fixtures/g3_o2_room_inventory.gd").read_text(encoding="utf-8")
+    assert inventory.count("g3_prescribed_thermal") == 1 and "PrescribedThermalSourceCoupling" not in inventory
 
 
 def test_the_protected_modules_were_not_touched() -> None:

@@ -12,6 +12,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 
 import pytest
 
@@ -57,10 +58,21 @@ def test_the_record_carries_the_hypotheses_of_the_runner_unchanged(runner, recor
             assert record["hypotheses"][name][key] == declared[key], (name, key)
 
 
+# The commit that published the record. The engine changed afterwards (stage M1 of the
+# authority, 2026-10-10): the record is evidence of ITS checkpoint, so it is bound to the
+# files of that commit and not to today's. That the historical route still gives these
+# figures on today's tree is measured again by the record of M1 and checked in
+# tests/test_g3_o2_room_inventory.py.
+PUBLISHED_IN = "7b2e12d9"
+
+
 def test_the_record_belongs_to_the_code_it_speaks_of(record):
     for relative, digest in record["sources_sha256"].items():
-        current = hashlib.sha256((ROOT / relative).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-        assert current == digest, f"{relative} changed after the record was written: run the diagnosis again"
+        blob = subprocess.run(["git", "show", f"{PUBLISHED_IN}:{relative}"], cwd=ROOT, capture_output=True)
+        if blob.returncode != 0:
+            pytest.skip("the history of the repository is not available")
+        assert hashlib.sha256(blob.stdout.replace(b"\r\n", b"\n")).hexdigest() == digest, \
+            f"{relative}: the record does not belong to the code of {PUBLISHED_IN}"
 
 
 def test_every_verdict_is_the_conjunction_of_its_claims(record):
