@@ -5,7 +5,26 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 10-10, segundo del día:
+Último avance del 10-10, tercero del día:
+[Autoridad del oxígeno, M2-V](../validation/G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md).
+El venteo por sobrepresión pasa a ser una operación del propietario del
+inventario —una dilución equivalente, con entrada y salida, sin recorte—
+**tras el mismo interruptor apagado: no se activa nada**. Los dos casos de
+casa corren enteros con el modo encendido y cierran a 2,1 · 10⁻¹⁴ kg por
+paso. La causa del hueco histórico de −0,378 kg queda aislada con un
+control: es el crédito inmediato que la ruta histórica recorta al techo.
+Con el modo encendido ese mismo crédito no se tira y el Pasillo es más
+rico que el aire exterior durante 22 s: un defecto de la ley de
+transporte, medido y sin corregir.
+Verificado con la cadena completa: identidad con el interruptor apagado
+9 de 9, referencia 346 de 346 con los mismos 78 huecos y corpus sin
+cambio de contenido, producto 168 PASS y global
+4509 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+Efecto en plazos: M3 puede empezar en el recinto que arde; la exposición,
+M4 y los casos con dos fuegos quedan detrás de una fase nueva que decida
+la ley del crédito y el débito entre recintos. CO/FED siguen OFF/NO-GO.
+
+Avance del 10-10, segundo del día:
 [Autoridad del oxígeno, M2](../validation/G3_O2_SELECTION_M2_2026-10-10.md).
 Una selección de oxígeno por recinto y paso, del propietario del
 inventario, que comparten el fuego y el sumidero, **tras el mismo

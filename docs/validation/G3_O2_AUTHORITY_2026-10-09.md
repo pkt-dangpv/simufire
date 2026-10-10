@@ -27,6 +27,14 @@ una recomendación y un plan.
 > de −0,378 kg de `o2_reopen_300` **no es tránsito** —la cola termina
 > vacía—, y los casos de casa no corren con el modo encendido mientras el
 > venteo por sobrepresión no esté integrado.
+>
+> **M2-V, también el 2026-10-10:**
+> [el venteo por sobrepresión por el propietario](G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md).
+> El venteo está integrado y los dos casos de casa corren enteros. La
+> causa del hueco de −0,378 kg queda demostrada con un control: es un
+> crédito inmediato que la ruta histórica recorta al techo. Con el modo
+> encendido ese crédito enriquece al recinto durante segundos: un defecto
+> de transporte que el plan de este documento no tenía.
 
 - Registro: [`G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json`](G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json).
 - Fixture de diagnóstico, que no juzga: [`g3_o2_authority_diagnosis.gd`](../../tests/fixtures/g3_o2_authority_diagnosis.gd).

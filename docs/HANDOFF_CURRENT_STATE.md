@@ -1,5 +1,66 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M2-V (el venteo por sobrepresión por el propietario; casas completas; causa del hueco histórico aislada; sin activar)
+
+El usuario autoriza implementar y verificar M2-V: integrar el venteo por
+sobrepresión como operación del propietario del oxígeno, ejecutar los
+casos de casa completos y aislar la causa del hueco histórico de −0,378
+kg. **No autoriza** M3, M4, activar producto ni corregir otras leyes
+físicas. Base `461fa9c0`. Trabajo en `runs/g3_shareable`.
+
+[Informe](validation/G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md) ·
+[contrato previo y predicciones](validation/G3_O2_PRESSURE_VENTING_M2V_CONTRACT_2026-10-10.md).
+
+- **Integración técnica, cerrada:** con `o2_room_inventory_enabled`
+  encendido, la dilución del venteo es una operación del propietario con
+  entrada y salida: entra aire exterior a su fracción molar, se mezcla con
+  todo el recinto y sale la misma masa de mezcla. Es la mezcla histórica
+  sin su recorte a 0,209. La ley de caudal no cambia. Se pregunta al
+  propietario antes de que el evento escriba humo, especies o presión; sin
+  vuelta a la ruta histórica.
+- **Es una dilución equivalente** sobre el contenido de referencia del
+  recinto, **no una conservación de la masa de gas**. Un balance que
+  cierra no demuestra que la distribución sea realista.
+- **Conservación contable:** los tres balances cierran a 2,1 · 10⁻¹⁴ kg en
+  el peor paso de las casas, con el criterio de 1 · 10⁻⁹ kg sin cambiar.
+- **Casos de casa, completos:** `o2_closed` y `o2_reopen_300` corren los
+  10800 pasos con el modo encendido, sin rechazos; 3678 y 4406 eventos
+  de venteo. C1 y C2 se cumplen sobre esas trazas. Medido, no validado:
+  energía 80,0 → 87,5 MJ en `o2_closed` y 125,0 → 125,8 MJ
+  en `o2_reopen_300`.
+- **Control causal, demostrado:** el hueco histórico es, kilogramo a
+  kilogramo, lo que `_apply_room_o2_mass_delta` recorta al techo
+  (0,3778 kg, 160 pasos), y **no en las entregas diferidas sino
+  en el crédito inmediato** al Pasillo. Una copia diagnóstica que solo
+  cuenta lo explica hasta 9,5 · 10⁻¹² kg en cada paso; otra con ese
+  recorte quitado deja el hueco en 1,1 · 10⁻¹¹ kg. Las copias se
+  restauran por huella; no son un arreglo del transporte.
+- **Enriquecimiento con el modo encendido, medido y no escondido:** el
+  propietario acredita lo que la ruta histórica tira. El Pasillo llega a
+  0,2202 (0,373 kg de más) durante 22 s tras abrirse la
+  puerta. Su lectura efectiva, con lo que debe en tránsito, no supera el
+  aire en ningún paso. El recinto que arde no se enriquece. **Es un
+  defecto de la ley de transporte histórica y no se ha corregido.**
+- **Antes de M2-V**, sobre `461fa9c0`, la fixture falla 41 de 102 sin
+  errores de script.
+- **Mutaciones:** 16 de 16 del venteo, 15 de 15 de la selección y 21 de 21
+  del inventario, muertas donde se declaró.
+- **Sigue vigente O2-3:** en las dos casas el tope del 5 % no actuó (0 kg
+  recortados), y eso no lo cierra. El calor todavía puede superar lo que
+  respalda el débito. M3.
+- **Sin tocar:** `CombustionSystem.gd`, `OxygenExchangeSystem.gd`,
+  `SimulationEngine.gd`, `PrescribedObjectHrrSource.gd`.
+- **Verificación:** identidad con el interruptor apagado 9 de 9 casos
+  byte a byte; referencia completa 346 de 346 y 78 huecos, corpus sin
+  cambio de contenido y `reference_checks.json` solo en `generated_at`;
+  guardarraíles con R2-1 PASS; `check_product` 168 PASS; fixtures de M1
+  y M2 otra vez en verde; regresiones de G3 1704 passed, 30 skipped, 2 xfailed;
+  global 4509 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+- **Decisión sobre M3, del usuario:** GO acotado al recinto que arde;
+  NO-GO para lo que lea el número de sala de un recinto que no arde como
+  concentración física (exposición, M4, dos fuegos) mientras no se decida
+  la ley del crédito y el débito entre recintos. CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M2 (una selección por recinto y paso; sin activar; casos de casa bloqueados por el venteo)
 
 El usuario autoriza implementar y verificar M2: una selección única de

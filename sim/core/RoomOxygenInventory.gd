@@ -1,8 +1,8 @@
 extends RefCounted
 
-## G3 OXYGEN AUTHORITY, STAGES M1 AND M2. Owner of the oxygen inventory of every
-## room, of the oxygen in transit between rooms, and of the one selection per
-## room and step that the fire and the sink share.
+## G3 OXYGEN AUTHORITY, STAGES M1, M2 AND M2-V. Owner of the oxygen inventory of
+## every room, of the oxygen in transit between rooms, and of the one selection
+## per room and step that the fire and the sink share.
 ##
 ## What is conserved: `M`, kg of O2 in each room, and `T`, kg of O2 dispatched
 ## and not yet delivered. `M` lives in `RoomModel.o2_inventory_kg` and only this
@@ -49,11 +49,18 @@ extends RefCounted
 ## a room and in transit. It is never below zero. Stage M2 records it and does
 ## not act on it: fitting the heat to it is stage M3.
 ##
+## DILUTION (M2-V). Pressure venting lets outside gas in, mixes it with the whole
+## room and writes the mixture. Here that is one operation with an entry and an
+## exit: the gas enters at the outside mole fraction, mixes with the reference
+## content of the room, and the same mass of that mixture leaves, so the room
+## keeps its reference content. It is an equivalent dilution on that content, not
+## a conservation of the mass of gas, and nothing is clipped to a ceiling.
+##
 ## No class_name and no @export: only SimulationEngine loads it, behind a switch
 ## that is not exported, off by default and reachable from fixtures only.
 
-const VERSION: String = "room_oxygen_inventory_v2"
-const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v2"
+const VERSION: String = "room_oxygen_inventory_v3"
+const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v3"
 const SCOPE: String = "room_oxygen_inventory_transit_and_selection_stages_m1_m2_not_a_zonal_inventory"
 
 const M_O2_KG_PER_MOL: float = 0.031998
@@ -99,7 +106,7 @@ const APPROXIMATIONS: Array[String] = [
 ]
 const SUPPORTED_ROUTES: Array[String] = [
 	"fire_sink_room_inventory", "infiltration", "interior_background_exchange",
-	"interior_active_flow", "transit_arrival",
+	"interior_active_flow", "transit_arrival", "pressure_venting",
 ]
 
 var _state: String = STATE_INACTIVE
@@ -376,6 +383,56 @@ func exchange_with_outside(
 	_note({"kind": "outside", "cause": cause, "room": room.id, "gas_kg": float(gas_kg), "in_kg": in_kg,
 		"out_kg": out_kg, "before_kg": before_kg, "after_kg": after_kg})
 	return {"applied": true, "reason": "", "in_kg": in_kg, "out_kg": out_kg, "net_kg": in_kg - out_kg}
+
+
+## Why `gas_kg` of outside gas cannot be mixed into `room`; empty when it can.
+## Reads only: nothing is recorded and nothing is refused here.
+func _dilution_error(room, gas_kg: Variant, outside_mole_fraction: Variant) -> String:
+	if not _owns(room):
+		return "room_not_under_authority"
+	if not _is_amount(gas_kg):
+		return "quantity_not_a_finite_amount"
+	if not _is_fraction(outside_mole_fraction):
+		return "mole_fraction_not_a_fraction"
+	return ""
+
+
+## Whether `dilute_with_outside` would apply now. A law that writes other state
+## with the same event asks this BEFORE writing any of it.
+func outside_dilution_would_apply(room, gas_kg: Variant, outside_mole_fraction: Variant) -> bool:
+	return _open() and _dilution_error(room, gas_kg, outside_mole_fraction) == ""
+
+
+## `gas_kg` of reference gas enter at the outside mole fraction, mix with the
+## whole reference content of the room, and `gas_kg` of that mixture leave: the
+## room keeps its reference content. What leaves is a share of what is there
+## after mixing, so no inventory can go below zero and nothing is clipped.
+func dilute_with_outside(room, gas_kg: Variant, outside_mole_fraction: Variant, cause: String) -> Dictionary:
+	if not _open():
+		return _refused()
+	var error: String = _dilution_error(room, gas_kg, outside_mole_fraction)
+	if error != "":
+		return _reject_operation(error, {"cause": cause, "room": room.id if room != null else -1})
+	var entering_kg: float = float(gas_kg)
+	var before_kg: float = room.o2_inventory_kg
+	var in_kg: float = o2_kg_in_reference_gas(float(outside_mole_fraction), entering_kg)
+	var mixture_mole_fraction: float = (before_kg + in_kg) / o2_kg_in_reference_gas(
+		1.0, reference_gas_kg(room.volume_m3()) + entering_kg
+	)
+	var out_kg: float = o2_kg_in_reference_gas(mixture_mole_fraction, entering_kg)
+	var after_kg: float = before_kg + in_kg - out_kg
+	var totals: Dictionary = _totals[room.id]
+	totals["outside_in_kg"] += in_kg
+	totals["outside_out_kg"] += out_kg
+	totals["dilution_events"] += 1
+	totals["dilution_gas_kg"] += entering_kg
+	totals["dilution_in_kg"] += in_kg
+	totals["dilution_out_kg"] += out_kg
+	_commit(room, after_kg)
+	_note({"kind": "outside", "cause": cause, "law": "dilution", "room": room.id, "gas_kg": entering_kg, "in_kg": in_kg,
+		"out_kg": out_kg, "leaving_mole_fraction": mixture_mole_fraction, "before_kg": before_kg, "after_kg": after_kg})
+	return {"applied": true, "reason": "", "in_kg": in_kg, "out_kg": out_kg, "net_kg": in_kg - out_kg,
+		"leaving_mole_fraction": mixture_mole_fraction}
 
 
 ## Two parcels that cross a doorway. `donor_out_kg` leaves the donor for the
@@ -658,6 +715,8 @@ func _empty_totals() -> Dictionary:
 		"initial_kg": 0.0, "consumption_requested_kg": 0.0, "consumed_kg": 0.0, "consumption_clipped_kg": 0.0,
 		"outside_in_kg": 0.0, "outside_out_kg": 0.0, "interior_in_kg": 0.0, "interior_out_kg": 0.0,
 		"transit_arrived_kg": 0.0,
+		# Of the exchange with the outside above, the part that is a dilution (M2-V).
+		"dilution_events": 0, "dilution_gas_kg": 0.0, "dilution_in_kg": 0.0, "dilution_out_kg": 0.0,
 	}
 
 

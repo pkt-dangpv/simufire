@@ -1576,6 +1576,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			room.phase3_diag_pressure_capped_vented_air_kg_total += smoke_out_kg
 		if smoke_out_kg <= 0.0:
 			continue
+		var air_in_kg: float = smoke_out_kg * 0.40
+		# G3 M2-V: con el inventario de O2 como autoridad, la dilución del venteo es
+		# una operación de su propietario. Se le pregunta ANTES de que este evento
+		# escriba humo, especies, capa o alivio de presión: si no la aceptaría, la
+		# rechaza por su nombre y el evento no escribe nada. No hay ruta histórica.
+		if room_o2_inventory != null and not room_o2_inventory.outside_dilution_would_apply(
+				room, air_in_kg, building.outside_o2):
+			room_o2_inventory.dilute_with_outside(room, air_in_kg, building.outside_o2, "pressure_venting")
+			continue
 
 		var frac_out: float = smoke_out_kg / maxf(0.001, room.smoke_kg)
 		# CO/CO2 son gases disueltos en el aire: la fracción que sale es proporcional
@@ -1643,11 +1652,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		if use_canonical_pressure:
 			room.pressure_pa_therm = room.overpressure_pa
 
-		var air_in_kg: float = smoke_out_kg * 0.40
 		var room_mass_kg: float = maxf(1.0, room.volume_m3()) * rho_ext
 		var _pv_o2_before: float = room.o2
+		var owned_dilution: Dictionary = {}
 		if room_o2_inventory != null:
-			room_o2_inventory.refuse_route(room, "pressure_venting", air_in_kg)
+			# G3 M2-V: la misma dilución, por el propietario: entra aire exterior, se
+			# mezcla con todo el recinto y sale la misma masa de mezcla. Sin recorte.
+			owned_dilution = room_o2_inventory.dilute_with_outside(
+				room, air_in_kg, building.outside_o2, "pressure_venting"
+			)
 		else:
 			room.o2 = clampf(
 				(room.o2 * room_mass_kg + building.outside_o2 * air_in_kg) / (room_mass_kg + air_in_kg),
@@ -1665,6 +1678,9 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		)
 		# SF-O1A: exterior neto por pressure_venting (dilución con aire exterior).
 		var _pv_o2_delta: float = (room.o2 - _pv_o2_before) * room_mass_kg
+		if room_o2_inventory != null:
+			# G3 M2-V: lo que el propietario aplicó, en kg de O2; nada si no aplicó.
+			_pv_o2_delta = float(owned_dilution.get("net_kg", 0.0))
 		room.o2_exterior_net_kg_step += _pv_o2_delta
 		room.o2_exterior_net_kg_total += _pv_o2_delta
 

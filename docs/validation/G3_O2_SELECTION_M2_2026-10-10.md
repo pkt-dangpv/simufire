@@ -13,6 +13,22 @@ ni de M4. Sin emisiones nuevas y sin producto.
 
 Registro: [`G3_O2_SELECTION_M2_2026-10-10.json`](G3_O2_SELECTION_M2_2026-10-10.json).
 
+> **Lo que M2-V sustituye de este documento.** Publicado el mismo día:
+> [M2-V, el venteo por sobrepresión por el propietario](G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md).
+> Este informe describe el motor de `461fa9c0` y se conserva como se
+> publicó; su registro queda ligado a los archivos de ese commit.
+>
+> - **Los casos de casa ya corren enteros** con el modo encendido. El
+>   venteo por sobrepresión deja de rechazarse: es una operación del
+>   propietario. C1 y C2 están hechas sobre esas trazas.
+> - **El hueco histórico tiene causa demostrada**, y no es la que aquí se
+>   daba por coincidente. No son «entregas positivas» diferidas: es el
+>   **crédito inmediato** a la sala caliente de un intercambio, que se
+>   recorta al techo.
+> - **El riesgo que aquí se anunciaba se ha medido:** con el modo encendido
+>   ese crédito no se tira y el Pasillo es más rico que el aire exterior
+>   durante unos segundos.
+
 ## Decisión
 
 - **Con el modo encendido hay una selección por recinto y paso**, del

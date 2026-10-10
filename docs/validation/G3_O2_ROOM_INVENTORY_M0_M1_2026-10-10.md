@@ -31,6 +31,12 @@ Registro: [`G3_O2_ROOM_INVENTORY_M1_2026-10-10.json`](G3_O2_ROOM_INVENTORY_M1_20
 >   comprobado: la que los corta es el venteo por sobrepresión.
 > - **El hueco de −0,378 kg** que aquí sigue «sin medir» está medido: no
 >   es tránsito.
+>
+> **Y lo que sustituye M2-V**, también del mismo día:
+> [el venteo por sobrepresión por el propietario](G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md).
+> El venteo por sobrepresión, que aquí figura entre las rutas rechazadas,
+> es ahora una operación del propietario, y los casos de casa corren
+> enteros con el modo encendido.
 
 ## Decisión
 

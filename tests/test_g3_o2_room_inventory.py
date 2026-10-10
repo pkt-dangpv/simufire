@@ -324,7 +324,9 @@ def test_every_new_branch_is_behind_the_owner_and_null_is_the_historical_route()
     # The rewrite of the room number from the layers and, since stage M2, the two places
     # where a write on a layer number was declared as consumption.
     assert oxygen.count("room_o2_inventory == null") == 3
-    assert _text(GAS).count("if room_o2_inventory != null:") == 4
+    # Four routes of the gas exchange, and since stage M2-V the exterior accumulator of the
+    # pressure venting, which takes what the owner applied.
+    assert _text(GAS).count("if room_o2_inventory != null:") == 5
     engine = _text(ENGINE)
     assert engine.count("if _o2_room_inventory != null:") == 3
     assert "\t\tif not room.o2_inventory_authority:\n\t\t\troom.o2 = clampf(room.o2, 0.0, o2_nominal)\n" in engine
@@ -333,9 +335,10 @@ def test_every_new_branch_is_behind_the_owner_and_null_is_the_historical_route()
 
 def test_the_routes_m1_does_not_own_are_refused_by_name():
     refused = set(re.findall(r'refuse_route\(\w+, "(\w+)"', _text(OXYGEN) + _text(GAS)))
-    # Stage M2 took the sealed sink route out of this set: it is debited now.
+    # Stage M2 took the sealed sink route out of this set: it is debited now. Stage M2-V took
+    # pressure venting out: its dilution is an operation of the owner.
     assert refused == {"exterior_opening_with_temperature_difference",
-                       "pressure_venting", "gas_exchange_room_transport", "gas_exchange_parcel_delivery", "ppv"}
+                       "gas_exchange_room_transport", "gas_exchange_parcel_delivery", "ppv"}
     owner = _text(OWNER)
     environment = owner.split("const REQUIRED_ENVIRONMENT: Dictionary = {", 1)[1].split("}", 1)[0]
     assert set(re.findall(r'"(\w+)":', environment)) == {

@@ -1046,12 +1046,14 @@ func _o2_inventory_trace_state(engine: SimulationEngine, building: BuildingModel
 	var entries: int = 0
 	var due: Dictionary = {}
 	var owed: Dictionary = {}
+	var to_receiver: Dictionary = {}
 	if owned:
 		for entry: Dictionary in report.get("transit", []):
 			var receiver: String = str(int(entry["receiver"]))
 			var net_kg: float = float(entry["net_kg"])
 			transit_kg += net_kg
 			entries += 1
+			to_receiver[receiver] = float(to_receiver.get(receiver, 0.0)) + net_kg
 			owed[receiver] = float(owed.get(receiver, 0.0)) - minf(0.0, net_kg)
 			if maxf(0.0, float(entry["delay_s"]) - step_s) <= 0.000001:
 				due[receiver] = float(due.get(receiver, 0.0)) + net_kg
@@ -1059,6 +1061,8 @@ func _o2_inventory_trace_state(engine: SimulationEngine, building: BuildingModel
 		for entry: Dictionary in engine.oxygen_exchange_system._pending_o2_deliveries:
 			transit_kg += float(entry.get("delta_o2_kg", 0.0))
 			entries += 1
+			var target: String = str(int(entry.get("target", -1)))
+			to_receiver[target] = float(to_receiver.get(target, 0.0)) + float(entry.get("delta_o2_kg", 0.0))
 	var rooms: Dictionary = {}
 	for room in building.get_rooms().values():
 		var row: Dictionary = {
@@ -1073,7 +1077,7 @@ func _o2_inventory_trace_state(engine: SimulationEngine, building: BuildingModel
 			row["inventory_kg"] = room.o2_inventory_kg
 		rooms[str(room.id)] = row
 	return {"owned": owned, "rooms": rooms, "transit_kg": transit_kg, "transit_entries": entries, "due": due, "owed": owed,
-		"report": report}
+		"to_receiver": to_receiver, "report": report}
 
 
 func _append_o2_inventory_trace(
@@ -1099,7 +1103,13 @@ func _append_o2_inventory_trace(
 		"time_s": sim_time_s, "owned": after["owned"],
 		"before": {"inventory_kg": before_inventory, "transit_kg": before["transit_kg"], "due": before["due"], "owed": before["owed"]},
 		"rooms": after["rooms"], "transit_kg": after["transit_kg"], "transit_entries": after["transit_entries"],
+		"transit_to": after["to_receiver"],
 	}
+	# Contadores que solo declara una copia diagnóstica del sistema de oxígeno (el
+	# control causal de M2-V). El sistema distribuido no declara ninguno.
+	var diagnostic_counters: Variant = engine.oxygen_exchange_system.get("g3_o2_diagnostic_counters")
+	if typeof(diagnostic_counters) == TYPE_DICTIONARY:
+		row["diagnostic_counters"] = diagnostic_counters
 	if bool(after["owned"]):
 		row["state"] = report.get("state")
 		row["step"] = report.get("step")

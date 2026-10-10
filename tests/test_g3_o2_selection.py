@@ -23,6 +23,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 
 import pytest
 
@@ -39,6 +40,8 @@ SELECTION_MUTATIONS = ROOT / "scripts" / "simulation" / "run_g3_o2_selection_mut
 INVENTORY_MUTATIONS = ROOT / "scripts" / "simulation" / "run_g3_o2_room_inventory_mutations.py"
 GAP_KG = 1.0e-9
 GROUPS = 10
+# The commit that published the record of stage M2.
+PUBLISHED_IN = "461fa9c0"
 # The combustion system before this stage: the hash stage M1 kept frozen.
 COMBUSTION_BEFORE = "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035"
 STILL_FROZEN = {
@@ -71,9 +74,14 @@ def record() -> dict:
 # ---------------------------------------------------------------- the record
 
 def test_the_record_belongs_to_the_code_it_speaks_of(record):
+    # The record is evidence of the commit that published it. Later stages change some of
+    # these files, and run the acceptance of this one again on their own engine.
     for relative, digest in record["sources_sha256"].items():
-        current = hashlib.sha256((ROOT / relative).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-        assert current == digest, f"{relative} changed after the record was written: run the stage again"
+        blob = subprocess.run(["git", "show", f"{PUBLISHED_IN}:{relative}"], cwd=ROOT, capture_output=True)
+        if blob.returncode != 0:
+            pytest.skip("the history of the repository is not available")
+        assert hashlib.sha256(blob.stdout.replace(b"\r\n", b"\n")).hexdigest() == digest, \
+            f"{relative}: the record does not belong to the code of {PUBLISHED_IN}"
 
 
 def test_the_combustion_system_changed_for_this_stage_and_the_record_says_from_what_to_what(record):
