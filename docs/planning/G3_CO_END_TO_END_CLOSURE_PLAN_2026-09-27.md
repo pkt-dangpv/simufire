@@ -5,7 +5,26 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 10-10:
+Último avance del 10-10, segundo del día:
+[Autoridad del oxígeno, M2](../validation/G3_O2_SELECTION_M2_2026-10-10.md).
+Una selección de oxígeno por recinto y paso, del propietario del
+inventario, que comparten el fuego y el sumidero, **tras el mismo
+interruptor apagado: no se activa nada**. El fuego deja de leer un número
+de capa y el consumo se declara una vez; el recinto estanco que arde se
+debita de su inventario. Balances a 8,2 · 10⁻¹⁵ kg. Medido, no validado: en
+dos salas la energía de 300 s baja de 142,4 a 88,6 MJ. **Los casos de
+casa no corren enteros con el modo encendido**: los rechaza a los 74,4 s
+el venteo por sobrepresión, una ruta sin integrar que no se ha
+desactivado. El hueco histórico de −0,378 kg queda medido: no es
+tránsito, es oxígeno que el transporte histórico pierde.
+Verificado con la cadena completa: identidad con el interruptor apagado
+9 de 9, referencia 346 de 346 con los mismos 78 huecos y corpus sin
+cambio de contenido, producto 168 PASS y global
+4460 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+Efecto en plazos: antes de M3 hay que integrar el venteo, o no hay caso
+de producto donde medirla. CO/FED siguen OFF/NO-GO.
+
+Avance del 10-10, primero del día:
 [Autoridad del oxígeno, M0 y M1](../validation/G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md).
 Inventario de O₂ de sala y su tránsito como estado del motor, con un solo
 propietario y `room.o2` derivado, **tras un interruptor sin exportar y

@@ -248,16 +248,25 @@ def test_nothing_of_the_product_reaches_the_bench() -> None:
     # writes, and the one of the oxygen authority, which uses the bench as a known demand.
     # The fourth does not load the bench: the acceptance of the room oxygen inventory (M1)
     # raises only its switch, with no case, to prove that the combination is refused.
-    assert loaders == ["g3_o2_authority_diagnosis.gd", "g3_o2_room_inventory.gd",
+    # The fifth, the acceptance of the oxygen selection (M2), does the same as the fourth.
+    assert loaders == ["g3_o2_authority_diagnosis.gd", "g3_o2_room_inventory.gd", "g3_o2_selection.gd",
                        "g3_object_hrr_oxygen_writes_diagnosis.gd", "g3_object_hrr_thermal_coupling.gd"]
-    inventory = (ROOT / "tests/fixtures/g3_o2_room_inventory.gd").read_text(encoding="utf-8")
-    assert inventory.count("g3_prescribed_thermal") == 1 and "PrescribedThermalSourceCoupling" not in inventory
+    for name in ("g3_o2_room_inventory.gd", "g3_o2_selection.gd"):
+        inventory = (ROOT / "tests/fixtures" / name).read_text(encoding="utf-8")
+        assert inventory.count("g3_prescribed_thermal") == 1 and "PrescribedThermalSourceCoupling" not in inventory, name
 
 
 def test_the_protected_modules_were_not_touched() -> None:
     import hashlib
     combustion = (ROOT / "sim/fire/CombustionSystem.gd").read_bytes().replace(b"\r\n", b"\n")
-    assert hashlib.sha256(combustion).hexdigest() == COMBUSTION_SHA256
+    # Stage M2 of the oxygen authority (2026-10-10) lifted the freeze for one block: where the
+    # fire chooses its oxygen. The pin does not move: it is compared with that block taken out.
+    first = b"\t# G3 M2: con el inventario de O2 de sala como autoridad"
+    last = b'\t\treturn {"mode": "o2_selection_refused", "o2_ref": 0.0, "o2_min_ref": o2_min_ref}\n'
+    assert combustion.count(first) == 1 and combustion.count(last) == 1
+    start, end = combustion.index(first), combustion.index(last) + len(last)
+    assert start < end and combustion[start:end].count(b"\n") == 16
+    assert hashlib.sha256(combustion[:start] + combustion[end:]).hexdigest() == COMBUSTION_SHA256
     assert "g3_prescribed_thermal" not in combustion.decode("utf-8")
 
 

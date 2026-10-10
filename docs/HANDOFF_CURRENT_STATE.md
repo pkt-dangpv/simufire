@@ -1,5 +1,67 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M2 (una selección por recinto y paso; sin activar; casos de casa bloqueados por el venteo)
+
+El usuario autoriza implementar y verificar M2: una selección única de
+oxígeno por recinto y paso, compartida por el fuego y el sumidero, sobre
+el inventario de sala de M1, modificando `CombustionSystem.gd` dentro de
+ese alcance, retirando la segunda escritura como consumo y soportando la
+ruta estanca. **No autoriza** M3, M4, activar producto ni emisiones
+nuevas. Base `718061f7`. Trabajo en `runs/g3_shareable`.
+
+[Informe](validation/G3_O2_SELECTION_M2_2026-10-10.md).
+
+- **Qué hay:** con `o2_room_inventory_enabled` encendido, el propietario
+  del inventario construye una selección por recinto al abrir cada paso
+  —depósito, concentración como fracción molar derivada de `M`, y lo
+  disponible—. El fuego lee su concentración; el sumidero debita su
+  depósito presentando esa misma selección. O2-1 y O2-4 dejan de existir
+  **en ese modo**.
+- **Orden real:** selección, fuego, llegadas del tránsito, sumidero. Entre
+  los dos consumidores `M` solo cambia por las llegadas; la selección no
+  se recalcula y el débito actúa sobre lo que el depósito contiene
+  entonces. Una selección de otro paso, recinto o corrida se rechaza; con
+  el modo encendido no hay vuelta a la ruta histórica.
+- **El recinto estanco que arde** se debita de su inventario y ninguna
+  capa lo reescribe.
+- **Los números de capa** siguen su ley histórica como auxiliares —los
+  leen el rendimiento de CO y la exposición— y dejan de declararse
+  consumo. No se les ha dado otro nombre ni otra regla de mezcla.
+- **Con él encendido los balances cierran** a 8,2 · 10⁻¹⁵ kg en el peor paso,
+  con el criterio de M1 sin cambiar.
+- **Efecto físico, medido y no validado:** en dos salas, 300 s, la energía
+  baja de 142,4 a 88,6 MJ y el pico de 763 a 636 kW,
+  porque el fuego deja de leer una capa baja que no bajaba.
+- **Los dos casos de casa no corren enteros con el modo encendido.**
+  `o2_closed` y `o2_reopen_300` se rechazan a los 74,4 s por
+  `pressure_venting`: el Salón cerrado se presuriza y el venteo diluye su
+  oxígeno, una ruta sin integrar. **No se ha desactivado** ni simplificado
+  el caso. Quedan sin hacer su balance con el modo encendido y C1 y C2
+  sobre esas trazas.
+- **El hueco histórico de −0,378 kg está medido y no es tránsito:** la
+  cola termina vacía y los acumuladores de transporte de la casa suman
+  −0,3778 kg. Se pierde en 160 pasos tras abrirse la puerta, con la sala
+  contigua en 0,209: coincide con el recorte al techo de entregas
+  positivas. Causa sin aislar con un control. **Corrige lo publicado el
+  09-10**, que lo daba por compatible con el tránsito.
+- **Antes de M2**, sobre `718061f7`, la fixture falla 26 de 79 sin
+  errores de script: el fuego leyó la capa baja en los 286 pasos en que era
+  otro número y el consumo se declaró dos veces.
+- **Mutaciones:** 15 de 15 de la selección y 21 de 21 del inventario,
+  muertas donde se declaró.
+- **`CombustionSystem.gd`** deja de estar congelado solo para este
+  cambio; `PrescribedObjectHrrSource.gd` sigue.
+- **Sigue vigente O2-3:** el tope recorta oxígeno sin bajar el calor. M3.
+- **Verificación:** identidad con el interruptor apagado 9 de 9 casos
+  byte a byte; referencia completa 346 de 346 y 78 huecos, corpus sin
+  cambio de contenido y `reference_checks.json` solo en `generated_at`;
+  guardarraíles con R2-1 PASS; `check_product` 168 PASS; fixture de M1
+  otra vez en verde; regresiones de G3 1655 passed, 30 skipped, 2 xfailed;
+  global 4460 passed, 56 skipped, 2 xfailed, 42 subtests passed.
+- **Siguiente encargo propuesto:** primero integrar el venteo por
+  sobrepresión como operación del propietario —sin él no hay caso de
+  producto donde medir nada— y después M3. CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M0 y M1 (inventario de sala y tránsito tras un interruptor apagado; sin activar)
 
 El usuario autoriza implementar M0 y M1 del plan de autoridad del

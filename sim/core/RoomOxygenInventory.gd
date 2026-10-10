@@ -1,7 +1,8 @@
 extends RefCounted
 
-## G3 OXYGEN AUTHORITY, STAGE M1. Owner of the oxygen inventory of every room and
-## of the oxygen in transit between rooms.
+## G3 OXYGEN AUTHORITY, STAGES M1 AND M2. Owner of the oxygen inventory of every
+## room, of the oxygen in transit between rooms, and of the one selection per
+## room and step that the fire and the sink share.
 ##
 ## What is conserved: `M`, kg of O2 in each room, and `T`, kg of O2 dispatched
 ## and not yet delivered. `M` lives in `RoomModel.o2_inventory_kg` and only this
@@ -31,12 +32,29 @@ extends RefCounted
 ## The layer numbers (`o2_upper`, `o2_lower`) are historical auxiliaries until
 ## stage M4. They are not a partition of `M` and nothing here reads them.
 ##
+## SELECTION (M2). When a step opens, one selection is built for every room from
+## its inventory: which deposit is consumed (the room inventory, the only one
+## there is), its concentration as a mole fraction, and what is available. The
+## fire reads the concentration; the sink debits the deposit and has to present
+## that same selection. A selection is never rebuilt inside a step. Between the
+## two consumers the inventory changes only by the arrivals of the transit, which
+## the oxygen step delivers before the sink: the debit acts on what the deposit
+## holds then, and the selection keeps what it held when the fire read it.
+## A debit with no selection, or with the one of another room, step or run, is
+## refused: with this mode on there is no historical fallback.
+##
+## AVAILABLE is what the room holds less what it still has to hand over: every
+## negative entry in transit to it. A positive entry that has not arrived is not
+## counted, so nothing is spent before it arrives and nothing is counted both in
+## a room and in transit. It is never below zero. Stage M2 records it and does
+## not act on it: fitting the heat to it is stage M3.
+##
 ## No class_name and no @export: only SimulationEngine loads it, behind a switch
 ## that is not exported, off by default and reachable from fixtures only.
 
-const VERSION: String = "room_oxygen_inventory_v1"
-const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v1"
-const SCOPE: String = "room_oxygen_inventory_and_transit_stage_m1_not_a_zonal_inventory"
+const VERSION: String = "room_oxygen_inventory_v2"
+const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v2"
+const SCOPE: String = "room_oxygen_inventory_transit_and_selection_stages_m1_m2_not_a_zonal_inventory"
 
 const M_O2_KG_PER_MOL: float = 0.031998
 const M_DRY_AIR_KG_PER_MOL: float = 0.0289647
@@ -48,6 +66,9 @@ const DELIVERY_DUE_S: float = 0.000001
 const STATE_INACTIVE: String = "inactive"
 const STATE_ARMED: String = "armed"
 const STATE_REJECTED: String = "rejected"
+
+## The only deposit a selection can name until stage M4.
+const DEPOSIT_ROOM_INVENTORY: String = "room_inventory"
 
 const ENTRY_IN_TRANSIT: String = "in_transit"
 const ENTRY_DELIVERED: String = "delivered"
@@ -64,6 +85,9 @@ const REQUIRED_ENVIRONMENT: Dictionary = {
 	"phase2b_canonical_combustion_enabled": false,
 	"fire_o2_canonical_enabled": false,
 	"fire_o2_mass_tracking_enabled": false,
+	"fire_blend_with_the_upper_number": 0.0,
+	"fire_throttle_by_the_upper_number": false,
+	"plume_lower_o2_depletion_fraction": 1.0,
 }
 const APPROXIMATIONS: Array[String] = [
 	"reference content of the room (volume x 1.2 kg/m3), not the mass of its hot gas",
@@ -71,6 +95,7 @@ const APPROXIMATIONS: Array[String] = [
 	"no chemical composition of the products: the moles of the room do not change with combustion",
 	"no physical zonal inventory: the layer numbers are historical auxiliaries",
 	"the transit is the signed net of a counterflow exchange, as the historical law delays it",
+	"the fire reads the concentration of the whole room: no zonal availability until stage M4",
 ]
 const SUPPORTED_ROUTES: Array[String] = [
 	"fire_sink_room_inventory", "infiltration", "interior_background_exchange",
@@ -89,6 +114,8 @@ var _transit_arrived_kg_total: float = 0.0
 var _step_operations: Array[Dictionary] = []
 var _rejections: Array[Dictionary] = []
 var _refused_after_rejection: int = 0
+var _selections: Dictionary = {}
+var _next_selection_id: int = 1
 
 
 # ---------------------------------------------------------------- conversions
@@ -157,6 +184,7 @@ func arm(building, generation: int, environment: Dictionary) -> Dictionary:
 		_totals[room.id]["initial_kg"] = initial_kg
 		_commit(room, initial_kg)
 		_note({"kind": "initialize", "cause": "initial_state", "room": room.id, "after_kg": initial_kg})
+	_select_for_step()
 	return {"valid": true, "errors": errors}
 
 
@@ -175,6 +203,7 @@ func declare_initial_mole_fraction(room, mole_fraction: Variant) -> Dictionary:
 	_totals[room.id]["initial_kg"] = initial_kg
 	_commit(room, initial_kg)
 	_note({"kind": "initialize", "cause": "declared_initial_state", "room": room.id, "after_kg": initial_kg})
+	_select_for_step()
 	return {"applied": true, "reason": "", "inventory_kg": initial_kg}
 
 
@@ -189,6 +218,7 @@ func discard() -> void:
 	_totals.clear()
 	_transit.clear()
 	_step_operations.clear()
+	_selections.clear()
 	_rejections.clear()
 	_refused_after_rejection = 0
 	_transit_dispatched_kg_total = 0.0
@@ -198,28 +228,99 @@ func discard() -> void:
 	_generation = -1
 
 
-## Opens a step. The environment is read again: a switch M1 does not cover that
-## changes in the middle of a run refuses it, as it would at arming.
+## Opens a step. The environment is read again: a switch this mode does not
+## cover that changes in the middle of a run refuses it, as it would at arming.
+## Then the selections of the step are built, once, before any consumer runs.
 func begin_step(environment: Dictionary) -> void:
 	_step_index += 1
 	_step_operations.clear()
+	_selections.clear()
 	if _state != STATE_ARMED:
 		return
 	var errors: Array[String] = _environment_errors(environment)
 	if not errors.is_empty():
 		_reject("environment_changed_after_arming", {"errors": errors})
+		return
+	_select_for_step()
+
+
+# ------------------------------------------------------------------ selection
+
+## One selection for every room, from what its inventory holds now. The only
+## place where a selection is built.
+func _select_for_step() -> void:
+	_selections.clear()
+	for room_id in _rooms.keys():
+		var room = _rooms[room_id]
+		var held_kg: float = room.o2_inventory_kg
+		var owed_kg: float = 0.0
+		for entry: Dictionary in _transit:
+			if int(entry["receiver"]) == room_id:
+				owed_kg -= minf(0.0, float(entry["net_kg"]))
+		_selections[room_id] = {
+			"id": _next_selection_id, "generation": _generation, "step": _step_index, "room": room_id,
+			"deposit": DEPOSIT_ROOM_INVENTORY,
+			"mole_fraction": mole_fraction_from_o2_kg(held_kg, room.volume_m3()),
+			"inventory_kg": held_kg, "obligations_kg": owed_kg, "available_kg": maxf(0.0, held_kg - owed_kg),
+			"served_to": [], "debited": false, "debited_kg": 0.0,
+		}
+		_next_selection_id += 1
+
+
+## The selection of a room for the step that is open, the same one for every
+## consumer. It is handed out, never rebuilt: a room with none is a refusal.
+func selection_for(room, consumer: String) -> Dictionary:
+	if not _open():
+		_refused_after_rejection += 1
+		return {"valid": false, "reason": "inventory_%s" % _state}
+	if not _owns(room):
+		_reject("room_not_under_authority", {"consumer": consumer})
+		return {"valid": false, "reason": "room_not_under_authority"}
+	var current: Variant = _selections.get(room.id)
+	if current == null or int(current["step"]) != _step_index:
+		_reject("no_selection_for_this_step", {"room": room.id, "consumer": consumer})
+		return {"valid": false, "reason": "no_selection_for_this_step"}
+	current["served_to"].append(consumer)
+	var handed: Dictionary = current.duplicate(true)
+	handed["valid"] = true
+	return handed
+
+
+## Why a debit cannot act on the selection it presents; empty when it can.
+func _selection_error(room, selection: Variant) -> String:
+	if typeof(selection) != TYPE_DICTIONARY or selection.get("valid") != true:
+		return "debit_without_a_selection"
+	if _whole(selection.get("generation")) != _generation:
+		return "selection_of_another_run"
+	if _whole(selection.get("room")) != room.id:
+		return "selection_of_another_room"
+	var current: Variant = _selections.get(room.id)
+	if current == null:
+		return "no_selection_for_this_step"
+	if _whole(selection.get("step")) != _step_index or _whole(selection.get("id")) != int(current["id"]):
+		return "selection_of_another_step"
+	if str(selection.get("deposit")) != DEPOSIT_ROOM_INVENTORY or current["deposit"] != DEPOSIT_ROOM_INVENTORY:
+		return "selection_of_another_deposit"
+	if bool(current["debited"]):
+		return "selection_already_debited"
+	return ""
 
 
 # ----------------------------------------------------------------- operations
 
-## The debit of the fire sink. The sink decides how much it asks and how much
-## its cap lets through; the owner applies what was let through and records what
-## was not, so a cap never discards a quantity without a trace.
-func consume(room, requested_kg: Variant, applied_kg: Variant, cause: String) -> Dictionary:
+## The debit of the fire sink, on the deposit of the selection it presents: the
+## one of this room and this step, once. The sink decides how much it asks and
+## how much its cap lets through; the owner applies what was let through and
+## records what was not, so a cap never discards a quantity without a trace.
+func consume(room, selection: Variant, requested_kg: Variant, applied_kg: Variant, cause: String) -> Dictionary:
 	if not _open():
 		return _refused()
 	if not _owns(room):
 		return _reject_operation("room_not_under_authority", {"cause": cause})
+	var selection_error: String = _selection_error(room, selection)
+	if selection_error != "":
+		return _reject_operation(selection_error, {"cause": cause, "room": room.id})
+	var current: Dictionary = _selections[room.id]
 	if not _is_amount(requested_kg) or not _is_amount(applied_kg):
 		return _reject_operation("quantity_not_a_finite_amount", {"cause": cause, "room": room.id})
 	var requested: float = float(requested_kg)
@@ -236,10 +337,15 @@ func consume(room, requested_kg: Variant, applied_kg: Variant, cause: String) ->
 	totals["consumption_requested_kg"] += requested
 	totals["consumed_kg"] += applied
 	totals["consumption_clipped_kg"] += requested - applied
+	current["debited"] = true
+	current["debited_kg"] = applied
 	_commit(room, after_kg)
 	_note({"kind": "consume", "cause": cause, "room": room.id, "requested_kg": requested,
-		"applied_kg": applied, "clipped_kg": requested - applied, "before_kg": before_kg, "after_kg": after_kg})
-	return {"applied": true, "reason": "", "applied_kg": applied, "clipped_kg": requested - applied}
+		"applied_kg": applied, "clipped_kg": requested - applied, "before_kg": before_kg, "after_kg": after_kg,
+		"selection_id": int(current["id"]), "deposit": String(current["deposit"]),
+		"available_at_selection_kg": float(current["available_kg"])})
+	return {"applied": true, "reason": "", "applied_kg": applied, "clipped_kg": requested - applied,
+		"selection_id": int(current["id"])}
 
 
 ## `gas_kg` of reference gas exchanged with the outside: it enters at the
@@ -494,6 +600,7 @@ func report() -> Dictionary:
 		"transit_dispatched_kg_total": _transit_dispatched_kg_total,
 		"transit_arrived_kg_total": _transit_arrived_kg_total,
 		"step_operations": _step_operations.duplicate(true),
+		"selections": _selections.duplicate(true),
 		"rejections": _rejections.duplicate(true), "refused_after_rejection": _refused_after_rejection,
 	}
 
@@ -552,6 +659,11 @@ func _empty_totals() -> Dictionary:
 		"outside_in_kg": 0.0, "outside_out_kg": 0.0, "interior_in_kg": 0.0, "interior_out_kg": 0.0,
 		"transit_arrived_kg": 0.0,
 	}
+
+
+## An identifier read from a selection somebody hands in: a whole number, or -2.
+static func _whole(value: Variant) -> int:
+	return int(value) if typeof(value) == TYPE_INT or (typeof(value) == TYPE_FLOAT and is_finite(float(value))) else -2
 
 
 static func _is_number(value: Variant) -> bool:

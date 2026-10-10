@@ -172,7 +172,7 @@ func _state_and_not_a_counter() -> void:
 		_free(world)
 		return
 	# An operation of the owner moves the state and the number follows.
-	var debit: Dictionary = inv.consume(room, 0.5, 0.5, "fixture")
+	var debit: Dictionary = inv.consume(room, _selection(inv, room), 0.5, 0.5, "fixture")
 	_check(debit.get("applied") == true and _same(_m(room), m0 - 0.5), "an operation of the owner changes the inventory by its amount")
 	_check(absf(room.o2 - _oracle_x(m0 - 0.5, 48.0)) <= X_TOL, "and the room number is the one derived from it")
 	# The audit accumulators govern nothing.
@@ -530,10 +530,8 @@ func _refused_configurations() -> void:
 	world = _world([ROOM_A, ROOM_B], [_door(1.0)], {"dt": 0.5, "fire_o2_mode": "lower"})
 	_not_armed(world, "environment_not_supported:fire_oxygen_mode=lower", "fire oxygen mode lower")
 	_free(world)
-	# 4. A sealed room that burns: the sink leaves the room inventory. Refused where it happens.
-	world = _world([ROOM_A], [], {"dt": 0.25, "fire": true})
-	_refused_while_running(world, 80, "fire_sink_outside_the_room_inventory", "sealed room on fire", true)
-	_free(world)
+	# 4. A sealed room that burns was refused here by stage M1. Stage M2 debits its
+	# inventory: it is a supported route now, judged in g3_o2_selection.gd (group C04).
 	# 5. An exterior door with a fire behind it. Refused where the route would write.
 	world = _world([ROOM_A], [_outside_door()], {"dt": 0.25, "fire": true, "ignite": false})
 	# The engine smooths an exterior opening from zero: the fire starts once the
@@ -588,7 +586,7 @@ func _transit_integrity() -> void:
 		_check(twice.get("applied") == false and twice.get("reason") == "delivery_applied_twice" and _same(_m(receiver), after_once),
 			"the same delivery again is refused and credits nothing")
 		_check(inv.state() == "rejected", "and the run is refused")
-		var later: Dictionary = inv.consume(receiver, 0.01, 0.01, "fixture")
+		var later: Dictionary = inv.consume(receiver, _selection(inv, receiver), 0.01, 0.01, "fixture")
 		_check(later.get("applied") == false and _same(_m(receiver), after_once), "after a rejection no operation is applied")
 	_free(world)
 	# 2. A delivery of another run.
@@ -650,7 +648,7 @@ func _transit_integrity() -> void:
 		var m: float = _m(room)
 		var requested: Variant = m + 1.0 if (typeof(case[1]) == TYPE_FLOAT and case[1] == -1.0) else case[1]
 		var applied: Variant = m + 1.0 if (typeof(case[2]) == TYPE_FLOAT and case[2] == -1.0) else case[2]
-		var result: Dictionary = inv.consume(room, requested, applied, "fixture")
+		var result: Dictionary = inv.consume(room, _selection(inv, room), requested, applied, "fixture")
 		_check(result.get("applied") == false and result.get("reason") == case[3] and _same(_m(room), m), "a debit of %s is refused whole" % case[0])
 		_free(world)
 	# 5. A starting state declared after the first step.
@@ -936,6 +934,12 @@ func _observe(name: String, acc: Dictionary) -> void:
 func _switch(engine, value: bool) -> void:
 	if "o2_room_inventory_enabled" in engine:
 		engine.set("o2_room_inventory_enabled", value)
+
+
+## The selection of the room for the step that is open (stage M2): a debit has to
+## present it. On an owner without selections there is none to present.
+func _selection(inv, room) -> Variant:
+	return inv.selection_for(room, "fixture") if inv.has_method("selection_for") else null
 
 
 func _inv(engine):

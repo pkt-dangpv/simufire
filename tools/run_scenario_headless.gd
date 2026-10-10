@@ -18,6 +18,9 @@ var _co_inventory_next_sample_s: float = 0.0
 var _fuel_source_ledger_file: FileAccess = null
 # G3-3: libro contable v3 escrito por CombustionSystem (solo observación).
 var _g3_fuel_ledger_v3_file: FileAccess = null
+# G3 autoridad del O2: traza pasiva del oxígeno por paso (solo observación).
+var _o2_inventory_trace_file: FileAccess = null
+var _o2_inventory_trace_rows: int = 0
 
 
 func _ready() -> void:
@@ -469,6 +472,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["fire_o2_mode"] = arg.get_slice("=", 1)
 		elif arg == "--co-inventory-trace":
 			parsed["co_inventory_trace"] = true
+		elif arg == "--o2-inventory-trace":
+			parsed["o2_inventory_trace"] = true
 		elif arg == "--fuel-object-state-snapshot":
 			parsed["fuel_object_state_snapshot"] = true
 		elif arg == "--fuel-source-ledger":
@@ -886,8 +891,10 @@ func _run_loop(
 		var fuel_before: Dictionary = {}
 		if _fuel_source_ledger_file != null:
 			fuel_before = _capture_fuel_source_state(building, engine)
+		var o2_before: Dictionary = _o2_inventory_trace_before(engine, building, step_s)
 		engine.step(step_s / maxf(0.001, engine.time_scale))
 		sim_time_s = engine.sim_time_s
+		_append_o2_inventory_trace(engine, building, o2_before, sim_time_s)
 		if _fuel_source_ledger_file != null:
 			_append_fuel_source_ledger(fuel_before, _capture_fuel_source_state(building, engine), sim_time_s)
 		if _g3_fuel_ledger_v3_file != null:
@@ -1006,6 +1013,115 @@ func _close_co_inventory_trace() -> void:
 		_co_inventory_trace_file.flush()
 		_co_inventory_trace_file.close()
 	_co_inventory_trace_file = null
+	# La traza de O2 se abre con el primer paso y se cierra en las mismas salidas.
+	if _o2_inventory_trace_file != null:
+		_o2_inventory_trace_file.flush()
+		_o2_inventory_trace_file.close()
+	_o2_inventory_trace_file = null
+
+
+## G3 autoridad del O2. Traza PASIVA: una fila por paso con lo que el estado
+## muestra antes y después. No fija ningún interruptor del motor ni cambia otra
+## salida; solo existe con `--o2-inventory-trace`.
+##
+## Con el inventario de sala armado lee el inventario de cada recinto, la cola
+## de tránsito del propietario, las selecciones y las operaciones del paso. Sin
+## él, lee los números de sala sobre su base histórica y la cola de entregas
+## pendientes del sistema de oxígeno, que ningún otro registro escribe.
+func _o2_inventory_trace_before(engine: SimulationEngine, building: BuildingModel, step_s: float) -> Dictionary:
+	if not bool(_cli_args.get("o2_inventory_trace", false)):
+		return {}
+	if _o2_inventory_trace_file == null:
+		_o2_inventory_trace_file = FileAccess.open(_out_dir.path_join("o2_inventory_trace.jsonl"), FileAccess.WRITE)
+		if _o2_inventory_trace_file == null:
+			push_error("run_scenario_headless: could not open o2_inventory_trace.jsonl")
+			return {}
+	return _o2_inventory_trace_state(engine, building, step_s)
+
+
+func _o2_inventory_trace_state(engine: SimulationEngine, building: BuildingModel, step_s: float) -> Dictionary:
+	var report: Dictionary = engine.get_o2_room_inventory_report()
+	var owned: bool = String(report.get("state", "inactive")) != "inactive"
+	var transit_kg: float = 0.0
+	var entries: int = 0
+	var due: Dictionary = {}
+	var owed: Dictionary = {}
+	if owned:
+		for entry: Dictionary in report.get("transit", []):
+			var receiver: String = str(int(entry["receiver"]))
+			var net_kg: float = float(entry["net_kg"])
+			transit_kg += net_kg
+			entries += 1
+			owed[receiver] = float(owed.get(receiver, 0.0)) - minf(0.0, net_kg)
+			if maxf(0.0, float(entry["delay_s"]) - step_s) <= 0.000001:
+				due[receiver] = float(due.get(receiver, 0.0)) + net_kg
+	else:
+		for entry: Dictionary in engine.oxygen_exchange_system._pending_o2_deliveries:
+			transit_kg += float(entry.get("delta_o2_kg", 0.0))
+			entries += 1
+	var rooms: Dictionary = {}
+	for room in building.get_rooms().values():
+		var row: Dictionary = {
+			"o2": room.o2, "o2_upper": room.o2_upper, "o2_lower": room.o2_lower, "volume_m3": room.volume_m3(),
+			"power_kw": room.hrr_kw, "heat_kj": room.hrr_kj_total, "fire_clock_s": room.fire_time_s,
+			"fire_reads": String(room.fire_o2_mode_used), "oxygen_the_fire_read": room.fire_o2_ref,
+			"debit_room_kg": room.o2_consumed_bulk_kg_total, "debit_primary_kg": room.o2_consumed_fire_kg_total,
+			"declared_kg": room.o2_consumed_kg_total_all, "exterior_kg": room.o2_exterior_net_kg_total,
+			"transport_kg": room.o2_net_transport_kg_total, "zone_sync_kg": room.o2_zone_sync_kg_total,
+		}
+		if owned:
+			row["inventory_kg"] = room.o2_inventory_kg
+		rooms[str(room.id)] = row
+	return {"owned": owned, "rooms": rooms, "transit_kg": transit_kg, "transit_entries": entries, "due": due, "owed": owed,
+		"report": report}
+
+
+func _append_o2_inventory_trace(
+	engine: SimulationEngine, building: BuildingModel, before: Dictionary, sim_time_s: float
+) -> void:
+	if _o2_inventory_trace_file == null or before.is_empty():
+		return
+	var after: Dictionary = _o2_inventory_trace_state(engine, building, 0.0)
+	var report: Dictionary = after["report"]
+	var before_inventory: Dictionary = {}
+	for room_id: String in (before["rooms"] as Dictionary).keys():
+		before_inventory[room_id] = before["rooms"][room_id].get("inventory_kg")
+	var selections: Dictionary = {}
+	for room_id in (report.get("selections", {}) as Dictionary).keys():
+		var selection: Dictionary = report["selections"][room_id]
+		selections[str(room_id)] = {
+			"id": selection["id"], "step": selection["step"], "deposit": selection["deposit"],
+			"mole_fraction": selection["mole_fraction"], "inventory_kg": selection["inventory_kg"],
+			"available_kg": selection["available_kg"], "served_to": selection["served_to"],
+			"debited": selection["debited"], "debited_kg": selection["debited_kg"],
+		}
+	var row: Dictionary = {
+		"time_s": sim_time_s, "owned": after["owned"],
+		"before": {"inventory_kg": before_inventory, "transit_kg": before["transit_kg"], "due": before["due"], "owed": before["owed"]},
+		"rooms": after["rooms"], "transit_kg": after["transit_kg"], "transit_entries": after["transit_entries"],
+	}
+	if bool(after["owned"]):
+		row["state"] = report.get("state")
+		row["step"] = report.get("step")
+		row["generation"] = report.get("generation")
+		row["operations"] = report.get("step_operations", [])
+		row["selections"] = selections
+		row["failure"] = engine.o2_room_inventory_failure
+		if not (report.get("rejections", []) as Array).is_empty():
+			row["rejections"] = report["rejections"]
+	# Con el libro pasivo por escritor del motor encendido (su propia opción de
+	# línea de comandos), la traza lo muestrea cada 120 pasos: quién escribió.
+	if engine.phase3_o2_attribution_diagnostics_enabled and _o2_inventory_trace_rows % 120 == 119:
+		var writers: Dictionary = {}
+		var totals: Dictionary = engine._phase3_o2_attribution_combined().get("totals", {})
+		for key: String in totals.keys():
+			writers[key] = {"applications": totals[key].get("applications"),
+				"accepted_fraction_total": totals[key].get("accepted_fraction_total")}
+		row["writers"] = writers
+	_o2_inventory_trace_file.store_line(JSON.stringify(row, "", true, true))
+	_o2_inventory_trace_rows += 1
+	if _o2_inventory_trace_rows % 240 == 0:
+		_o2_inventory_trace_file.flush()
 
 
 func _open_fuel_source_ledger() -> bool:

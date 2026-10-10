@@ -490,12 +490,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# R2-2: en plume_lower_mode el consumo va a o2_lower (ver bloque two-zone).
 		var o2_mass_kg: float = air_mass_kg * room.o2
 		if room_o2_inventory != null:
-			# G3 M1: el inventario de sala es la autoridad. La ley del sumidero y la
-			# de la infiltración son las de abajo; cambia quién escribe.
-			_o2_fire_primary = _step_owned_room_inventory(
-				building, room, dt, air_density_kg_m3,
-				fire_uses_lower_o2 or effective_plume_lower or _phase2b_upper_active
-			)
+			# G3 M1 y M2: el inventario de sala es la autoridad, en toda ruta. La ley
+			# del sumidero y la de la infiltración son las de abajo; cambia quién escribe.
+			_o2_fire_primary = _step_owned_room_inventory(building, room, dt, air_density_kg_m3)
 		else:
 			if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
 				var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
@@ -630,8 +627,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				Phase3O2AcceptanceLedger.REASON_COMPLETE, upper_air_mass, "upper_zone_air_mass"
 			)
 			# SF-O1A: consumo zona superior por pluma/fuego (kg ya calculados).
-			room.o2_consumed_kg_step_all += upper_consumed
-			room.o2_consumed_kg_total_all += upper_consumed
+			# G3 M2: con el inventario como autoridad esta escritura sobre el número
+			# de la capa alta no es un consumo y no se declara: el único débito es
+			# el del propietario. El número sigue su ley histórica como auxiliar.
+			if room_o2_inventory == null:
+				room.o2_consumed_kg_step_all += upper_consumed
+				room.o2_consumed_kg_total_all += upper_consumed
 			# SF-O2E1: upper es primario solo cuando bulk fue bloqueado por _phase2b_upper_active.
 			if _phase2b_upper_active:
 				_o2_fire_primary = upper_consumed
@@ -778,10 +779,14 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE, NAN, "cap_lower_zone_apply_room"
 				)
 				# SF-O1A: consumo zona inferior por pluma entrenada (effective_plume_lower).
-				room.o2_consumed_kg_step_all += plume_consumed
-				room.o2_consumed_kg_total_all += plume_consumed
-				# SF-O2E1: plume es primario (bulk fue bloqueado por effective_plume_lower).
-				_o2_fire_primary = plume_consumed
+				# G3 M2: con el inventario como autoridad el recinto estanco ya debitó
+				# su inventario arriba. Esta escritura sobre el número de la capa baja
+				# queda como auxiliar: ni se declara consumo ni es el débito del paso.
+				if room_o2_inventory == null:
+					room.o2_consumed_kg_step_all += plume_consumed
+					room.o2_consumed_kg_total_all += plume_consumed
+					# SF-O2E1: plume es primario (bulk fue bloqueado por effective_plume_lower).
+					_o2_fire_primary = plume_consumed
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
 			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂
@@ -1618,33 +1623,33 @@ func _deliver_owned_o2_transit(building: BuildingModel, dt: float) -> void:
 		receiver.o2_net_transport_kg_total += float(arrival["net_kg"])
 
 
-## G3 M1: lo que el bloque de sala hace cuando el inventario es la autoridad.
+## G3 M1 y M2: lo que el bloque de sala hace cuando el inventario es la autoridad.
 ## La ley del sumidero no cambia —misma demanda, mismo coeficiente, mismo tope
 ## del 5 % del inventario por paso— ni la de la infiltración; cambia a quién se
-## le pide cada cantidad. Los acumuladores anotan lo aplicado y no gobiernan nada.
-## Devuelve el débito primario del paso, en kg de O2.
+## le pide cada cantidad. El débito va al depósito de la selección del recinto
+## para este paso, la misma que consultó el fuego: el sumidero la pide, no la
+## construye, y la presenta al debitar. Vale para toda ruta, también la de
+## recinto estanco: el depósito ya no depende de las puertas.
+## Los acumuladores anotan lo aplicado por el propietario y no gobiernan nada.
+## Devuelve el débito del paso, en kg de O2.
 func _step_owned_room_inventory(
 		building: BuildingModel,
 		room: RoomModel,
 		dt: float,
-		air_density_kg_m3: float,
-		sink_leaves_the_room_inventory: bool
+		air_density_kg_m3: float
 	) -> float:
 	var primary_kg: float = 0.0
 	# La infiltración saca gas a la concentración que la sala tenía antes del
 	# sumidero, como en la ruta histórica.
 	var leaving_mole_fraction: float = room.o2
-	if room.hrr_kw > 0.0 and sink_leaves_the_room_inventory:
-		# El sumidero de recinto estanco debita un número de capa y rederiva la
-		# sala: pertenece a M2. Se rechaza por la ruta real, no por la geometría.
-		room_o2_inventory.refuse_route(room, "fire_sink_outside_the_room_inventory", room.hrr_kw)
-	elif room.hrr_kw > 0.0:
+	if room.hrr_kw > 0.0:
+		var selection: Dictionary = room_o2_inventory.selection_for(room, "sink")
 		var requested: float = (room.hrr_kw / 1000.0) * _fire_sink_kg_per_MJ(room) * dt
 		var consumed: float = minf(
 			requested, room_o2_inventory.inventory_kg(room) * FIRE_SINK_BULK_CAP_FRACTION
 		)
 		var debit: Dictionary = room_o2_inventory.consume(
-			room, requested, consumed, "fire_sink_room_inventory"
+			room, selection, requested, consumed, "fire_sink_room_inventory"
 		)
 		if bool(debit["applied"]):
 			room.o2_consumed_kg_step_all += consumed

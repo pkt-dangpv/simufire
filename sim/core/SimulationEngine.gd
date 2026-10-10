@@ -3768,6 +3768,9 @@ func _o2_room_inventory_environment() -> Dictionary:
 		"phase2b_canonical_combustion_enabled": bool(oxygen_exchange_system.phase2b_canonical_combustion_enabled),
 		"fire_o2_canonical_enabled": bool(oxygen_exchange_system.fire_o2_canonical_enabled),
 		"fire_o2_mass_tracking_enabled": bool(oxygen_exchange_system.fire_o2_mass_tracking_enabled),
+		"fire_blend_with_the_upper_number": fire_o2_upper_hrr_blend,
+		"fire_throttle_by_the_upper_number": fire_o2_upper_throttle_enabled,
+		"plume_lower_o2_depletion_fraction": float(oxygen_exchange_system.plume_lower_o2_depletion_fraction),
 	}
 
 
@@ -4432,6 +4435,10 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		context["g3_o2_sink_floor_callable"] = Callable(
 			oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"
 		)
+	# G3 M2: la clave solo existe con el inventario de O2 de sala armado. Con ella
+	# el fuego consulta la selección de su recinto y no un número de capa.
+	if oxygen_exchange_system.room_o2_inventory != null:
+		context["o2_room_inventory"] = oxygen_exchange_system.room_o2_inventory
 	# G3-4A: la clave solo existe en el contexto con la cuenta encendida.
 	if fire_unburned_energy_account_enabled:
 		context["fire_unburned_energy_account_enabled"] = true

@@ -15,6 +15,10 @@ The first eight are the mutations declared with the plan of the authority
 (docs/validation/G3_O2_AUTHORITY_2026-10-09.md); the rest are controls of the same
 contract: a delivery applied twice, a transfer half applied, a refusal that is not made.
 
+Stage M2 (2026-10-10) removed one mutant, "a sealed room that burns is not refused":
+that room is a supported route since then, and its debit is judged by the mutations of
+``run_g3_o2_selection_mutations.py``, which runs through ``execute`` of this module.
+
     python scripts/simulation/run_g3_o2_room_inventory_mutations.py
 """
 
@@ -86,8 +90,8 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
         "\t\t\t\t\troom.o2_upper * upper_frac + room.o2_lower * lower_frac)\n",
         "the blend of the two layer numbers is written over the inventory", "B10"),
     "K01_clip_discarded_without_a_record": (
-        OXYGEN, "\t\t\troom, requested, consumed, \"fire_sink_room_inventory\"\n",
-        "\t\t\troom, consumed, consumed, \"fire_sink_room_inventory\"\n",
+        OXYGEN, "\t\t\troom, selection, requested, consumed, \"fire_sink_room_inventory\"\n",
+        "\t\t\troom, selection, consumed, consumed, \"fire_sink_room_inventory\"\n",
         "what the cap of the sink clips is no longer handed to the owner", "B11"),
     # --- conversion ---------------------------------------------------------------------
     "M02_parcel_converted_with_the_mass_of_gas": (
@@ -123,9 +127,6 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
         "\t\t\trequested, room.o2 * _compute_room_air_mass_kg(room, air_density_kg_m3) * FIRE_SINK_BULK_CAP_FRACTION\n",
         "the cap is 5 % of a mole fraction times a mass of gas, not of the inventory", "B11"),
     # --- refusals ---------------------------------------------------------------------------
-    "S01_sealed_sink_route_not_refused": (
-        OXYGEN, "\tif room.hrr_kw > 0.0 and sink_leaves_the_room_inventory:\n", "\tif false:\n",
-        "a sealed room that burns is debited by M1 as if its sink took the room inventory", "B13"),
     "X01_exterior_opening_route_not_refused": (
         OXYGEN, "\tif room_o2_inventory != null:\n\t\troom_o2_inventory.refuse_route(indoor, \"exterior_opening_with_temperature_difference\", air_in_kg)\n\t\treturn\n",
         "",
@@ -168,11 +169,12 @@ def _wait_for_memory(limit_s: int = 7200) -> float:
     return time.time() - started
 
 
-def prepared() -> tuple[dict[str, bytes], dict[str, tuple[str, str]]]:
+def prepared(mutations: dict | None = None, files: tuple | None = None) -> tuple[dict[str, bytes], dict[str, tuple[str, str]]]:
     """Original bytes of the files and the mutated text of every mutant; anchors checked."""
-    originals = {relative: (ROOT / relative).read_bytes() for relative in FILES}
+    mutations = MUTATIONS if mutations is None else mutations
+    originals = {relative: (ROOT / relative).read_bytes() for relative in (FILES if files is None else files)}
     variants = {}
-    for name, (relative, old, new, _defect, _where) in MUTATIONS.items():
+    for name, (relative, old, new, _defect, _where) in mutations.items():
         text = originals[relative].decode("utf-8")
         if text.count(old) != 1:
             raise ValueError(f"{name}: mutation anchor found {text.count(old)} times")
@@ -182,18 +184,26 @@ def prepared() -> tuple[dict[str, bytes], dict[str, tuple[str, str]]]:
     return originals, variants
 
 
-def plan() -> dict:
+def plan(mutations: dict | None = None, declared_with_the_plan: tuple | None = None) -> dict:
+    mutations = MUTATIONS if mutations is None else mutations
+    declared_with_the_plan = DECLARED_WITH_THE_PLAN if declared_with_the_plan is None else declared_with_the_plan
     return {name: {"file": item[0], "defect": item[3], "expected_in": item[4],
-                   "declared_with_the_plan": name in DECLARED_WITH_THE_PLAN} for name, item in MUTATIONS.items()}
+                   "declared_with_the_plan": name in declared_with_the_plan} for name, item in mutations.items()}
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    return execute(MUTATIONS, DECLARED_WITH_THE_PLAN, FILES, FIXTURE, PREFIX, "g3_o2_room_inventory_mutations", {}, __doc__)
+
+
+def execute(mutations: dict, declared_with_the_plan: tuple, files: tuple, fixture: str, prefix: str, label: str,
+            extra_environment: dict, description: str) -> int:
+    """Control and mutants of one fixture: mutate, launch, restore by SHA-256, classify."""
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("--plan-only", action="store_true")
     parser.add_argument("--only", action="append", default=[], help="run the control and these mutants")
     args = parser.parse_args()
-    originals, variants = prepared()
-    declared = plan()
+    originals, variants = prepared(mutations, files)
+    declared = plan(mutations, declared_with_the_plan)
     if args.plan_only:
         print(json.dumps({"declared": len(declared), "executed": False, "plan": declared}, indent=1))
         return 0
@@ -207,7 +217,9 @@ def main() -> int:
         raise RuntimeError("Godot unavailable")
     os.environ[godot_monitored_launch.MIN_AVAILABLE_GIB_ENV] = "6"
     before = {relative: _sha(data) for relative, data in originals.items()}
-    evidence = ROOT / "runs" / ("g3_o2_room_inventory_mutations_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    evidence = ROOT / "runs" / (label + "_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    environment = os.environ.copy()
+    environment.update(extra_environment)
     evidence.mkdir(parents=True, exist_ok=False)
     (evidence / "plan.json").write_text(json.dumps(declared, indent=1), encoding="utf-8")
     results = []
@@ -221,8 +233,8 @@ def main() -> int:
                     (ROOT / relative).write_bytes(text.encode("utf-8"))
                 try:
                     run = godot_monitored_launch.run(
-                        [godot, "--headless", "--path", ROOT, "--script", ROOT / FIXTURE],
-                        timeout_s=TIMEOUT_S, environment=os.environ.copy())
+                        [godot, "--headless", "--path", ROOT, "--script", ROOT / fixture],
+                        timeout_s=TIMEOUT_S, environment=environment.copy())
                 finally:
                     if relative is not None:
                         (ROOT / relative).write_bytes(originals[relative])
@@ -244,7 +256,7 @@ def main() -> int:
                 verdict, reason = "invalid", f"monitor: {run.faults or run.preexisting}"
             else:
                 try:
-                    verdict, payload = classify(run.stdout, run.stderr, run.returncode, PREFIX)
+                    verdict, payload = classify(run.stdout, run.stderr, run.returncode, prefix)
                 except (RuntimeError, ValueError) as exc:
                     verdict, reason = "invalid", str(exc)
             failures = payload.get("failures", [])

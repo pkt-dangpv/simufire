@@ -3042,6 +3042,22 @@ func _resolve_room_max_hrr_kw(room: RoomModel, fallback_kw: float) -> float:
 func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dictionary) -> Dictionary:
 	var mode: String = _resolve_fire_o2_mode(context)
 	var o2_min_ref: float = fire.o2_min_for_flame if fire != null else 0.0
+	# G3 M2: con el inventario de O2 de sala como autoridad (clave presente solo
+	# con ese modo armado) el fuego no elige depósito: consulta la selección de
+	# su recinto para este paso, la misma que debitará el sumidero, y lee su
+	# concentración. Ningún número de capa. Una selección que no existe se
+	# rechaza en el propietario y aquí no hay vuelta a la ruta histórica: el
+	# fuego no recibe oxígeno y la corrida ya está detenida.
+	var o2_room_inventory = context.get("o2_room_inventory", null)
+	if o2_room_inventory != null:
+		var selected: Dictionary = o2_room_inventory.selection_for(room, "fire")
+		if bool(selected.get("valid", false)):
+			return {
+				"mode": String(selected["deposit"]),
+				"o2_ref": float(selected["mole_fraction"]),
+				"o2_min_ref": o2_min_ref
+			}
+		return {"mode": "o2_selection_refused", "o2_ref": 0.0, "o2_min_ref": o2_min_ref}
 	var o2_ref: float = room.o2
 	if mode == "upper":
 		o2_ref = room.o2_upper

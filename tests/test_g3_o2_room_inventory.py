@@ -11,6 +11,14 @@ it speaks of and checked against what this stage promised:
 * the code keeps the contract: one owner, no clamp, no layer number, no gas mass.
 
 Nothing here judges fire behaviour, CO, FED or SVV.
+
+Since stage M2 (2026-10-10) the engine is no longer the one this record measured. The
+record is evidence of ITS checkpoint: it is bound to the files of the commit that
+published it and is not rewritten. What it pinned of the code and stage M2 changed on
+purpose -a sealed room that burns is no longer refused, the debit names a selection,
+CombustionSystem is no longer frozen- is pinned here as it is now, and the acceptance
+of stage M1 is run again on today's engine by the record of stage M2
+(tests/test_g3_o2_selection.py).
 """
 
 from __future__ import annotations
@@ -41,9 +49,14 @@ MEASURED_CASES = (
     "rest", "controlled_demand_dt_0.5", "controlled_demand_dt_0.25", "real_fire_dt_0.25", "real_fire_dt_0.125",
     "transport", "exterior_dt_0.5", "exterior_dt_0.25", "open_and_close", "two_layers", "collapse", "cap",
 )
-# Left as they were: the isolated source of the bench and the combustion system.
+# The commit that published the record of stage M1.
+PUBLISHED_IN = "718061f7"
+# Left as it was: the isolated source of the bench. The combustion system was frozen
+# through stage M1 and stage M2 lifted that for its own change, recorded in its record.
 PROTECTED = {
     "sim/fire/PrescribedObjectHrrSource.gd": "f8a39d8312a6ef0117ea37eeec3df7fb7858f212d6c32539ac3d41e850d6c3c4",
+}
+FROZEN_THROUGH_M1 = {
     "sim/fire/CombustionSystem.gd": "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035",
 }
 
@@ -78,14 +91,22 @@ def mutation_runner():
 
 def test_the_record_belongs_to_the_code_it_speaks_of(record):
     for relative, digest in record["sources_sha256"].items():
-        current = hashlib.sha256((ROOT / relative).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-        assert current == digest, f"{relative} changed after the record was written: run the stage again"
+        blob = subprocess.run(["git", "show", f"{PUBLISHED_IN}:{relative}"], cwd=ROOT, capture_output=True)
+        if blob.returncode != 0:
+            pytest.skip("the history of the repository is not available")
+        assert hashlib.sha256(blob.stdout.replace(b"\r\n", b"\n")).hexdigest() == digest, \
+            f"{relative}: the record does not belong to the code of {PUBLISHED_IN}"
 
 
-def test_the_two_protected_files_are_the_ones_of_before(record):
+def test_the_protected_file_is_the_one_of_before_and_the_record_says_what_was_frozen(record):
     for relative, digest in PROTECTED.items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest, relative
         assert record["untouched_sha256"][relative] == digest
+    for relative, digest in FROZEN_THROUGH_M1.items():
+        assert record["untouched_sha256"][relative] == digest
+        blob = subprocess.run(["git", "show", f"{PUBLISHED_IN}:{relative}"], cwd=ROOT, capture_output=True)
+        if blob.returncode == 0:
+            assert hashlib.sha256(blob.stdout).hexdigest() == digest, relative
     assert all(record["untouched_equal_to_before_m1"].values())
 
 
@@ -178,10 +199,13 @@ def test_the_historical_route_gives_the_figures_it_gave(record):
 
 # ---------------------------------------------------------------- the mutations
 
-def test_the_record_carries_the_mutations_of_the_runner_unchanged(record, mutation_runner):
+def test_the_record_carries_the_mutations_it_ran_and_the_runner_keeps_them(record, mutation_runner):
+    """The runner of today has every mutant of the record but one: stage M2 made a sealed
+    room that burns a supported route, so "it is not refused" stopped being a defect."""
     declared = mutation_runner.plan()
     ran = {item["name"]: item for item in record["mutations"]["results"] if item["name"] != "control"}
-    assert set(ran) == set(declared)
+    assert set(ran) - set(declared) == {"S01_sealed_sink_route_not_refused"}
+    assert set(declared) <= set(ran)
     for name, item in declared.items():
         for key in ("file", "defect", "expected_in", "declared_with_the_plan"):
             assert ran[name][key] == item[key], (name, key)
@@ -217,7 +241,13 @@ def test_the_switch_is_off_not_exported_and_named_nowhere_else():
             if path.is_file() and path.suffix in {".gd", ".tscn", ".tres", ".json", ".cfg"}:
                 if "o2_room_inventory" in path.read_text(encoding="utf-8", errors="ignore"):
                     users.add(path.relative_to(ROOT).as_posix())
-    assert users == {"sim/core/SimulationEngine.gd"}
+    # The engine owns the switch. Since stage M2 the combustion system reads the key the
+    # engine hands it with the mode armed, and the headless diagnostic runner reads the
+    # report of the inventory for its passive trace. Neither names the switch.
+    assert users == {"sim/core/SimulationEngine.gd", "sim/fire/CombustionSystem.gd", "tools/run_scenario_headless.gd"}
+    for relative in users - {"sim/core/SimulationEngine.gd"}:
+        assert "o2_room_inventory_enabled" not in _text(ROOT / relative), relative
+    assert "get_o2_room_inventory_report()" in _text(ROOT / "tools/run_scenario_headless.gd")
     for path in (ROOT / "project.godot", ROOT / "Main.gd", ROOT / "scripts/check_product.py", ROOT / "scripts/run_scenario.py"):
         if path.is_file():
             assert "o2_room_inventory" not in path.read_text(encoding="utf-8", errors="ignore"), path.name
@@ -279,8 +309,11 @@ def test_the_law_of_the_sink_is_the_same_and_only_its_owner_changes():
                  "_release_pending_o2_deliveries(building, dt, air_density_kg_m3)",
                  "_apply_room_o2_mass_delta(hot_room, hot_room_delta_o2_kg, air_density_kg_m3)"):
         assert oxygen.count(line) == 1, line
-    # The route of the sink is decided where it was; M1 refuses the one that is not its own.
-    assert 'room_o2_inventory.refuse_route(room, "fire_sink_outside_the_room_inventory", room.hrr_kw)' in owned
+    # Since stage M2 the debit goes to the deposit of the selection whatever the route:
+    # a sealed room is not refused, and the sink asks for the selection and presents it.
+    assert "refuse_route" not in owned
+    assert 'var selection: Dictionary = room_o2_inventory.selection_for(room, "sink")' in owned
+    assert 'room, selection, requested, consumed, "fire_sink_room_inventory"' in owned
     assert "fire_o2_mode_used" not in owned and "o2_lower" not in owned and "o2_upper" not in owned
 
 
@@ -288,7 +321,9 @@ def test_every_new_branch_is_behind_the_owner_and_null_is_the_historical_route()
     oxygen = _text(OXYGEN)
     assert "\nvar room_o2_inventory = null\n" in oxygen and "\nvar room_o2_inventory = null\n" in _text(GAS)
     assert oxygen.count("if room_o2_inventory != null") == 9
-    assert oxygen.count("room_o2_inventory == null") == 1
+    # The rewrite of the room number from the layers and, since stage M2, the two places
+    # where a write on a layer number was declared as consumption.
+    assert oxygen.count("room_o2_inventory == null") == 3
     assert _text(GAS).count("if room_o2_inventory != null:") == 4
     engine = _text(ENGINE)
     assert engine.count("if _o2_room_inventory != null:") == 3
@@ -298,14 +333,17 @@ def test_every_new_branch_is_behind_the_owner_and_null_is_the_historical_route()
 
 def test_the_routes_m1_does_not_own_are_refused_by_name():
     refused = set(re.findall(r'refuse_route\(\w+, "(\w+)"', _text(OXYGEN) + _text(GAS)))
-    assert refused == {"fire_sink_outside_the_room_inventory", "exterior_opening_with_temperature_difference",
+    # Stage M2 took the sealed sink route out of this set: it is debited now.
+    assert refused == {"exterior_opening_with_temperature_difference",
                        "pressure_venting", "gas_exchange_room_transport", "gas_exchange_parcel_delivery", "ppv"}
     owner = _text(OWNER)
     environment = owner.split("const REQUIRED_ENVIRONMENT: Dictionary = {", 1)[1].split("}", 1)[0]
     assert set(re.findall(r'"(\w+)":', environment)) == {
         "pressure_network_enabled", "diagnostic_bench_enabled", "balance_ledger_enabled", "oxygen_step_runs_after_the_fire",
         "fire_oxygen_mode", "sink_takes_oxygen_from_the_lower_number", "phase2b_canonical_combustion_enabled",
-        "fire_o2_canonical_enabled", "fire_o2_mass_tracking_enabled"}
+        "fire_o2_canonical_enabled", "fire_o2_mass_tracking_enabled",
+        # Stage M2: settings of the fire that read a layer number and would be ignored.
+        "fire_blend_with_the_upper_number", "fire_throttle_by_the_upper_number", "plume_lower_o2_depletion_fraction"}
 
 
 def test_the_life_cycle_retires_above_the_guards():

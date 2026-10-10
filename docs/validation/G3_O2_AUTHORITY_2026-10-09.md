@@ -20,6 +20,13 @@ una recomendación y un plan.
 > publicó; su registro queda ligado a los archivos de su commit. Con el
 > interruptor apagado, las hipótesis que su fixture ejercita vuelven a dar
 > hoy las mismas cifras.
+>
+> **M2, también el 2026-10-10:**
+> [una selección por recinto y paso](G3_O2_SELECTION_M2_2026-10-10.md).
+> Dos cosas de este documento quedan **corregidas por medida**: el hueco
+> de −0,378 kg de `o2_reopen_300` **no es tránsito** —la cola termina
+> vacía—, y los casos de casa no corren con el modo encendido mientras el
+> venteo por sobrepresión no esté integrado.
 
 - Registro: [`G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json`](G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json).
 - Fixture de diagnóstico, que no juzga: [`g3_o2_authority_diagnosis.gd`](../../tests/fixtures/g3_o2_authority_diagnosis.gd).
@@ -243,6 +250,13 @@ H12 la misma cuenta cierra a 4,8 · 10⁻¹⁴ kg cuando el tránsito se mide.
 En la casa **no está medido**, porque el registro no lo escribe. Queda
 como compatible, no como demostrado.
 
+> **Corregido el 2026-10-10, al medirlo.** No es tránsito. Con la cola de
+> entregas medida paso a paso, termina vacía y los acumuladores de
+> transporte de la casa suman −0,3778 kg: es oxígeno que la ruta
+> histórica pierde, en los 13 s que siguen a la apertura de la puerta.
+> Ver [M2](G3_O2_SELECTION_M2_2026-10-10.md). La frase de arriba se
+> conserva como se publicó.
+
 ## Alternativas
 
 | | A. Inventario por recinto | B. Inventarios por capa sobre masa de gas | C. Ruta restringida |
@@ -396,6 +410,12 @@ interruptor sin exportar, apagado.
 > dos paquetes opuestos; y el banco del Test016 se rechaza junto con la
 > red de presión, porque deshace sus pasos restaurando números que con el
 > modo encendido son derivados. M2, M3 y M4 siguen sin hacer.
+>
+> **M2 está hecha** ([informe](G3_O2_SELECTION_M2_2026-10-10.md)), con una
+> diferencia frente a la fila de la tabla: su aceptación pedía `o2_closed`
+> cerrando, y ese caso **no corre** con el modo encendido porque lo
+> rechaza el venteo por sobrepresión. Integrarlo es un paso que este plan
+> no tenía y que va antes de M3. M3 y M4 siguen sin hacer.
 
 ### Pruebas predeclaradas para M1
 

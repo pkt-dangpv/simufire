@@ -11,6 +11,27 @@ motor. Nada de M2, M3 ni M4. Sin emisiones nuevas y sin producto.
 
 Registro: [`G3_O2_ROOM_INVENTORY_M1_2026-10-10.json`](G3_O2_ROOM_INVENTORY_M1_2026-10-10.json).
 
+> **Lo que M2 sustituye de este documento.** Publicado el mismo día:
+> [M2, una selección por recinto y paso](G3_O2_SELECTION_M2_2026-10-10.md).
+> Este informe describe el motor de `718061f7` y se conserva como se
+> publicó; su registro queda ligado a los archivos de ese commit.
+>
+> - **El recinto estanco con fuego ya no se rechaza.** Se debita de su
+>   inventario. Desaparece el rechazo `fire_sink_outside_the_room_inventory`
+>   y su control en la fixture.
+> - **El débito presenta una selección.** La operación de consumo del
+>   propietario exige la del recinto, paso y corrida.
+> - **El fuego ya no lee un número de capa** con el modo encendido, y la
+>   segunda escritura deja de declararse consumo: O2-1 y O2-4, que aquí
+>   figuran como vigentes, dejan de existir en ese modo.
+> - **`CombustionSystem.gd` ya no está intacto por huella.**
+> - **El interruptor** también puede levantarlo el runner de escenarios de
+>   diagnóstico por sus `engine_overrides`, cosa que aquí no se decía.
+> - **«Los casos de casa … pasan por rutas que M1 rechaza»** se ha
+>   comprobado: la que los corta es el venteo por sobrepresión.
+> - **El hueco de −0,378 kg** que aquí sigue «sin medir» está medido: no
+>   es tránsito.
+
 ## Decisión
 
 - **Con el interruptor apagado, el motor es el de antes.** Nueve casos

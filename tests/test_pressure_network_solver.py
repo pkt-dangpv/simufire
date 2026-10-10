@@ -123,6 +123,10 @@ ALLOWED_NETWORK_REFERENCES = {
     Path("tests/fixtures/g3_o2_room_inventory.gd"),
     Path("tests/fixtures/g3_o2_room_inventory.gd.uid"),
     Path("tests/test_g3_o2_room_inventory.py"),
+    # Seleccion de O2, M2 (2026-10-10): lo mismo, en su propia fixture de aceptacion.
+    Path("tests/fixtures/g3_o2_selection.gd"),
+    Path("tests/fixtures/g3_o2_selection.gd.uid"),
+    Path("tests/test_g3_o2_selection.py"),
     # Y el adaptador de fuga toma de alli la constante global de
     # condicionamiento, para que las tres clases de elemento compartan criterio.
     Path("sim/core/ClosedDoorLeakageNetworkAdapter.gd"),
