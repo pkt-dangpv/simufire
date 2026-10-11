@@ -1,0 +1,2335 @@
+{
+ "schema": "g3_o2_pressure_venting_m2v_record_v1",
+ "head": "461fa9c0",
+ "scope": "stage M2-V of the oxygen authority: the dilution of pressure venting as one operation of the owner of the room oxygen inventory, with an entry and an exit, behind the same switch, off by default; conservation, ownership, the whole house cases and the cause of the historical gap; an equivalent dilution on the reference content of the room, not a conservation of the mass of gas; no heat fitted to the oxygen (M3), no zonal split (M4), no CO, FED or SVV",
+ "sources_sha256": {
+  "sim/core/GasExchangeSystem.gd": "56064f94596645244a622187affa8dfba0ec74c0ade11ee96612b70a5020f1d5",
+  "sim/core/RoomOxygenInventory.gd": "bd68fd453e46b62e4512d70b24ce8c2a28b35fd790bfa1f9f5d315c8d4fd074b",
+  "sim/core/OxygenExchangeSystem.gd": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+  "sim/core/SimulationEngine.gd": "b652ef76024c695d7c92ace8d228989aad672a874154af8a737be8352bcf18ef",
+  "sim/fire/CombustionSystem.gd": "621535487530b23fb14be11159c998c52978cdf8dc5d4ae909e4a447aa920ea6",
+  "sim/building/RoomModel.gd": "4ca91d688d3ca764a3a560d23bf8d7f092a92291a2d1e0a3884c097b574189d1",
+  "tools/run_scenario_headless.gd": "18ca04626209914b91248cb9f33fc7928f7208cc8fa122cdf266e92fa00239d5",
+  "tests/fixtures/g3_o2_venting.gd": "12392361b103578b91674e3351a860f032828cc586d3112e2609735948cd1b32",
+  "tests/fixtures/g3_o2_selection.gd": "1f4cad14d0d5e359a84af9ce61dd3d0da895b12a8f2350c65e160613dcb681c1",
+  "tests/fixtures/g3_o2_room_inventory.gd": "4687b328a1b33be534c7e8ed1c3a24ff245e0a2c97dffbaf67290a78721a2cde"
+ },
+ "untouched_sha256": {
+  "sim/fire/PrescribedObjectHrrSource.gd": "f8a39d8312a6ef0117ea37eeec3df7fb7858f212d6c32539ac3d41e850d6c3c4",
+  "sim/fire/PrescribedThermalSourceCoupling.gd": "5946dec65a78d1b29fb882e7a853e0ca807f30f0ce872687a3ca84e71a98629d",
+  "sim/fire/CombustionSystem.gd": "621535487530b23fb14be11159c998c52978cdf8dc5d4ae909e4a447aa920ea6",
+  "sim/core/OxygenExchangeSystem.gd": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+  "sim/core/SimulationEngine.gd": "b652ef76024c695d7c92ace8d228989aad672a874154af8a737be8352bcf18ef",
+  "sim/building/RoomModel.gd": "4ca91d688d3ca764a3a560d23bf8d7f092a92291a2d1e0a3884c097b574189d1"
+ },
+ "untouched_equal_to_before_m2v": {
+  "sim/fire/PrescribedObjectHrrSource.gd": true,
+  "sim/fire/PrescribedThermalSourceCoupling.gd": true,
+  "sim/fire/CombustionSystem.gd": true,
+  "sim/core/OxygenExchangeSystem.gd": true,
+  "sim/core/SimulationEngine.gd": true,
+  "sim/building/RoomModel.gd": true
+ },
+ "budget_gap_accepted_kg": 1e-09,
+ "before_m2v": {
+  "fixture": "tests/fixtures/g3_o2_venting.gd",
+  "returncode": 1,
+  "pass_marker": false,
+  "script_errors": 0,
+  "checks": 102,
+  "failure_count": 41,
+  "failures_by_group": {
+   "V02": 4,
+   "V03": 2,
+   "V04": 10,
+   "V05": 4,
+   "V06": 4,
+   "V07": 2,
+   "V08": 12,
+   "V09": 2,
+   "V10": 1
+  },
+  "groups": [
+   "V01 with no venting there is no venting operation",
+   "V02 the venting of a room that pressurises is an operation of the owner, and the run goes on",
+   "V03 the quantities are the ones of the contract, by an oracle that calls nothing of the owner",
+   "V06 applied once: the totals and the accumulators say what the operations did",
+   "V07 nobody writes the room number, and the selection of the step is not touched",
+   "V04 sign and size: equal to the outside, depleted, and enriched with nothing clipped",
+   "V05 two time steps, many events and a neighbour: the inventories and their transit close",
+   "V08 a quantity that is not valid is refused whole: no partial debit, and the event writes nothing",
+   "V09 a reset, a revocation and an engine with no owner",
+   "V10 the effect against the historical route is measured (not a criterion)"
+  ],
+  "first_failures": [
+   "V02 the venting acted: it retired smoke (0.0 kg)",
+   "V02 the run is valid to its end (282 of 720 steps)",
+   "V02 venting events recorded as operations (0)",
+   "V02 the owner names the route among the ones it supports",
+   "V03 the inventory ends at start plus exterior minus debit",
+   "V03 the venting gave oxygen back to a room the fire had depleted (0.0 kg)",
+   "V06 the owner counts the same events (<null>)",
+   "V06 and the same entry, exit and gas",
+   "V06 the exchange with the outside of the owner is infiltration plus venting, once",
+   "V06 and ends at that sum (0.00062267193683 against 0.00061301751419)",
+   "V07 the room number is the one derived from the inventory in every step (282 of 720)",
+   "V07 the selection of every step keeps what the room held when the step opened (282 of 720)",
+   "V04 equal to the outside: three events, each with an entry and an exit above zero (0)",
+   "V04 equal to the outside: the run is valid",
+   "V04 depleted: three events, each with an entry and an exit above zero (0)",
+   "V04 depleted: every event is the mixture of the historical law, with no clip (worst 0.00063133862855 kg)",
+   "V04 depleted: the run is valid",
+   "V04 depleted: the room gains oxygen and stays below the outside (net 0.0 kg)",
+   "V04 enriched: three events, each with an entry and an exit above zero (0)",
+   "V04 enriched: every event is the mixture of the historical law, with no clip (worst 0.00022471374915 kg)",
+   "V05 dt 0.25: the run is valid to its end (299 of 600)",
+   "V05 dt 0.25: many events, one operation each (0)",
+   "V05 dt 0.125: the run is valid to its end (598 of 1200)",
+   "V05 dt 0.125: many events, one operation each (0)",
+   "V08 a quantity that is not a number: the owner has the operation of the dilution",
+   "V08 a negative quantity: the owner has the operation of the dilution",
+   "V08 an infinite quantity: the owner has the operation of the dilution",
+   "V08 a text: the owner has the operation of the dilution",
+   "V08 no quantity: the owner has the operation of the dilution",
+   "V08 an outside fraction above one: the owner has the operation of the dilution"
+  ],
+  "engine": "tracked engine files of 461fa9c0, byte for byte",
+  "engine_sha256": {
+   "sim/core/GasExchangeSystem.gd": "fb73be007c8ecde3a0f3b0ea4fb0660c008da977d6c9743392b8192a011cf476",
+   "sim/core/RoomOxygenInventory.gd": "b84bc5fd804340f335b4652b9b0e0e93b82399f88350a4562f652a9e584bfa2c"
+  },
+  "restored_byte_for_byte": true,
+  "the_defect_measured": {
+   "steps_asked": 720,
+   "steps_before_the_run_was_refused": 282,
+   "venting_operations": 0
+  }
+ },
+ "acceptance": {
+  "fixture": "tests/fixtures/g3_o2_venting.gd",
+  "returncode": 0,
+  "pass_marker": true,
+  "script_errors": 0,
+  "checks": 126,
+  "failure_count": 0,
+  "failures_by_group": {},
+  "groups": [
+   "V01 with no venting there is no venting operation",
+   "V02 the venting of a room that pressurises is an operation of the owner, and the run goes on",
+   "V03 the quantities are the ones of the contract, by an oracle that calls nothing of the owner",
+   "V06 applied once: the totals and the accumulators say what the operations did",
+   "V07 nobody writes the room number, and the selection of the step is not touched",
+   "V04 sign and size: equal to the outside, depleted, and enriched with nothing clipped",
+   "V05 two time steps, many events and a neighbour: the inventories and their transit close",
+   "V08 a quantity that is not valid is refused whole: no partial debit, and the event writes nothing",
+   "V09 a reset, a revocation and an engine with no owner",
+   "V10 the effect against the historical route is measured (not a criterion)"
+  ],
+  "first_failures": [],
+  "observations": {
+   "effect room_that_vents": {
+    "off": {
+     "clipped_by_the_cap_kg": 0.0,
+     "debit_of_the_room_kg": 0.0,
+     "exterior_accumulator_kg": 0.13129144084149427,
+     "failure": "",
+     "heat_MJ": 67.11011123252014,
+     "lowest_room_number": 0.1272195121344044,
+     "peak_kw": 603.0443232802273,
+     "power_at_the_end_kw": 0.0,
+     "rejections": [],
+     "room_number_at_the_end": 0.12761904774695462,
+     "smoke_vented_kg": 1.1801113764822784,
+     "steps": 1200,
+     "time_s": 300.0,
+     "venting_events": null,
+     "venting_gas_kg": null,
+     "venting_in_kg": null,
+     "venting_out_kg": null
+    },
+    "on": {
+     "clipped_by_the_cap_kg": 0.0,
+     "debit_of_the_room_kg": 5.537545687045465,
+     "exterior_accumulator_kg": 0.1500131577904378,
+     "failure": "",
+     "heat_MJ": 72.86244325059818,
+     "lowest_room_number": 0.12422345858448833,
+     "peak_kw": 618.1500717607255,
+     "power_at_the_end_kw": 5.0593732957954884,
+     "rejections": [],
+     "room_number_at_the_end": 0.12433310705501889,
+     "smoke_vented_kg": 1.263924223366777,
+     "steps": 1200,
+     "time_s": 300.0,
+     "venting_events": 865,
+     "venting_gas_kg": 0.4964051587991919,
+     "venting_in_kg": 0.11461365747591448,
+     "venting_out_kg": 0.0802436076165953
+    }
+   },
+   "room_that_vents": {
+    "building_gap_kg": 2.8553548414578245e-15,
+    "clipped_kg": 0.0,
+    "consumed_kg": 4.186029146589412,
+    "delayed": 0,
+    "events": 385,
+    "events_per_room_and_step_at_most_one": true,
+    "every_event_has_an_entry_and_an_exit": true,
+    "gas_is_the_law": true,
+    "heat_MJ": 55.079330876176435,
+    "highest_pressure_pa": 2.336843053558918,
+    "highest_x": 0.20899999997992966,
+    "inventory_read": true,
+    "largest_event_gas_kg": 0.0006098261059475753,
+    "largest_transit_kg": 0.0,
+    "leaving_is_the_mixture": true,
+    "lowest_inventory_kg": 9.149166296769243,
+    "number_is_derived": 720,
+    "oracle_gap_kg": 2.8553548414578245e-15,
+    "outside_kg": 0.03608572704896223,
+    "peak_kw": 618.1500717607255,
+    "room_gap_kg": 2.8553548414578245e-15,
+    "selection_ids_consecutive": true,
+    "selection_keeps_the_opening": 720,
+    "selection_served_to_fire_and_sink_only": true,
+    "smoke_retired_kg": 0.44507552439388337,
+    "steps": 720,
+    "steps_before_a_refusal": 720,
+    "steps_with_smoke_retired": 385,
+    "venting_gas_kg": 0.17803020975755313,
+    "venting_in_kg": 0.041104918270544424,
+    "venting_net_kg": 0.005792531623574757,
+    "venting_out_kg": 0.03531238664696966,
+    "worst_accumulator_kg": 4.526544070126981e-18,
+    "worst_gas_kg": 1.089623183347932e-17,
+    "worst_operation_kg": 1.7763568394002505e-15
+   },
+   "sign depleted": {
+    "events": 3,
+    "mole_fraction_at_the_end": 0.15001096074007902,
+    "net_kg": 0.0006974549515896451,
+    "worst_kg": 3.1974423109204505e-15
+   },
+   "sign enriched": {
+    "events": 3,
+    "mole_fraction_at_the_end": 0.22999609871963295,
+    "net_kg": -0.0002482466776844509,
+    "worst_kg": 4.796163466380676e-15
+   },
+   "sign equal to the outside": {
+    "events": 3,
+    "mole_fraction_at_the_end": 0.209,
+    "net_kg": -6.505213034913027e-19,
+    "worst_kg": 1.5987211554602253e-15
+   },
+   "two_rooms dt 0.125": {
+    "building_gap_kg": 1.1319938042486655e-14,
+    "clipped_kg": 0.0,
+    "consumed_kg": 3.0228807294053888,
+    "delayed": 923,
+    "events": 488,
+    "events_per_room_and_step_at_most_one": true,
+    "every_event_has_an_entry_and_an_exit": true,
+    "gas_is_the_law": true,
+    "heat_MJ": 39.774746439544636,
+    "highest_pressure_pa": 2.625635801201273,
+    "highest_x": 0.20899999999999994,
+    "inventory_read": true,
+    "largest_event_gas_kg": 0.00024087020384417482,
+    "largest_transit_kg": 0.11687023845044933,
+    "leaving_is_the_mixture": true,
+    "lowest_inventory_kg": 10.320683289906352,
+    "number_is_derived": 1200,
+    "oracle_gap_kg": 1.131950436161766e-14,
+    "outside_kg": 0.01764733369758981,
+    "peak_kw": 633.5300619313098,
+    "room_gap_kg": 4.8693687970668975e-15,
+    "selection_ids_consecutive": true,
+    "selection_keeps_the_opening": 1200,
+    "selection_served_to_fire_and_sink_only": true,
+    "smoke_retired_kg": 0.2827067901159896,
+    "steps": 1200,
+    "steps_before_a_refusal": 1200,
+    "steps_with_smoke_retired": 488,
+    "venting_gas_kg": 0.1130827160463959,
+    "venting_in_kg": 0.026109365411793966,
+    "venting_net_kg": 0.0027597164612123315,
+    "venting_out_kg": 0.02334964895058163,
+    "worst_accumulator_kg": 2.100641709190665e-18,
+    "worst_gas_kg": 1.1058862159352145e-17,
+    "worst_operation_kg": 1.7763568394002505e-15
+   },
+   "two_rooms dt 0.25": {
+    "building_gap_kg": 8.995408584677733e-15,
+    "clipped_kg": 0.0,
+    "consumed_kg": 3.039236304700903,
+    "delayed": 463,
+    "events": 242,
+    "events_per_room_and_step_at_most_one": true,
+    "every_event_has_an_entry_and_an_exit": true,
+    "gas_is_the_law": true,
+    "heat_MJ": 39.98995137764343,
+    "highest_pressure_pa": 2.6277400938582827,
+    "highest_x": 0.20899999999999794,
+    "inventory_read": true,
+    "largest_event_gas_kg": 0.0004854605826701922,
+    "largest_transit_kg": 0.21947741742450738,
+    "leaving_is_the_mixture": true,
+    "lowest_inventory_kg": 10.229032922555277,
+    "number_is_derived": 600,
+    "oracle_gap_kg": 8.995408584677733e-15,
+    "outside_kg": 0.016988220112797364,
+    "peak_kw": 637.805728304006,
+    "room_gap_kg": 4.515485207967629e-15,
+    "selection_ids_consecutive": true,
+    "selection_keeps_the_opening": 600,
+    "selection_served_to_fire_and_sink_only": true,
+    "smoke_retired_kg": 0.2800482093173568,
+    "steps": 600,
+    "steps_before_a_refusal": 600,
+    "steps_with_smoke_retired": 242,
+    "venting_gas_kg": 0.1120192837269427,
+    "venting_in_kg": 0.02586383237199747,
+    "venting_net_kg": 0.002605027224447987,
+    "venting_out_kg": 0.023258805147549504,
+    "worst_accumulator_kg": 1.5449880957918438e-18,
+    "worst_gas_kg": 1.0191500421363742e-17,
+    "worst_operation_kg": 1.7763568394002505e-15
+   }
+  }
+ },
+ "stage_m1_again": {
+  "fixture": "tests/fixtures/g3_o2_room_inventory.gd",
+  "returncode": 0,
+  "pass_marker": true,
+  "script_errors": 0,
+  "checks": 281,
+  "failure_count": 0,
+  "failures_by_group": {},
+  "groups": [
+   "B01 off by default, not exported, and the historical route with it off",
+   "B02 conversions against an independent oracle: 0.209 is a mole fraction",
+   "B03 the inventory is state: the room number follows it and never the other way",
+   "B04 a sealed room at rest with the product infiltration: nothing changes",
+   "B05 a known demand, two steps: the debit is the demand and the inventory closes (H04, H10)",
+   "B06 a real room fire, two steps: debit, transport and transit close in every step (H04, H10)",
+   "B07 transport between two rooms, no fire: what leaves one enters the other (H05)",
+   "B08 one room with an exterior door, no fire, two steps: the infiltration law and nothing else (H06)",
+   "B09 a door closed, opened and closed again (H07)",
+   "B10 the layer numbers move and the inventory does not (H08, H09)",
+   "B11 a demand above the cap of the sink: what is clipped is recorded, never discarded",
+   "B12 life cycle on the same engine: reset, revoke, no building, not ready (H11)",
+   "B13 what M1 does not cover is refused by name and writes nothing",
+   "B14 a delivery happens once, belongs to its run, and a refused transfer leaves nothing half done"
+  ],
+  "first_failures": []
+ },
+ "stage_m2_again": {
+  "fixture": "tests/fixtures/g3_o2_selection.gd",
+  "returncode": 0,
+  "pass_marker": true,
+  "script_errors": 0,
+  "checks": 102,
+  "failure_count": 0,
+  "failures_by_group": {},
+  "groups": [
+   "C01 one selection per room and step, the same one for the fire and for the sink",
+   "C02 the fire reads the concentration of the selection, derived from the inventory",
+   "C03 one debit, declared once",
+   "C05 the inventory and its transit still close in every step",
+   "C04 a sealed room that burns is debited from its inventory, and no layer rewrites it",
+   "C06 a debit acts only on the selection of its room, its step and its run, once",
+   "C07 with the mode on there is no historical fallback",
+   "C08 what stage M2 does not cover is still refused by name",
+   "C09 a reset or a revocation leaves no selection behind",
+   "C10 the effect against the historical route is measured (not a criterion)"
+  ],
+  "first_failures": []
+ },
+ "historical_route": {
+  "what": "the diagnosis of 2026-10-09 measured again on this tree with the switch off",
+  "published_record": "docs/validation/G3_O2_AUTHORITY_DIAGNOSIS_2026-10-09.json",
+  "published_record_rewritten": false,
+  "hypotheses_compared": [
+   "H01_rest",
+   "H02_heating_changes_the_gas_base_not_the_numbers",
+   "H03_network_keeps_the_gas_base",
+   "H04_controlled_demand_closes_on_the_room_number",
+   "H05_interior_transport_conserves_the_room_numbers",
+   "H06_exterior_exchange_is_the_declared_one",
+   "H07_closed_door_stops_the_transport",
+   "H08_layer_mixing_is_a_relaxation_not_an_exchange",
+   "H09_collapse_rewrites_both_layers",
+   "H10_two_step_sizes",
+   "H11_reset_and_reuse",
+   "H12_fire_and_sink_use_different_deposits",
+   "H15_network_mode_with_a_real_fire"
+  ],
+  "identical_figure_by_figure": true,
+  "differing": {}
+ },
+ "venting_mutations": {
+  "evidence": "runs/g3_o2_venting_mutations_20261010_190555",
+  "control": "pass",
+  "control_checks": 124,
+  "declared": 16,
+  "executed": 16,
+  "killed": 16,
+  "killed_where_expected": 16,
+  "survivors": [],
+  "invalid": [],
+  "killed_elsewhere": [],
+  "originals_intact": true,
+  "launches_refused_by_the_memory_gate_and_repeated": 0,
+  "results": [
+   {
+    "name": "control",
+    "verdict": "pass",
+    "reason": "",
+    "file": null,
+    "defect": null,
+    "expected_in": null,
+    "declared_with_the_plan": null,
+    "seen_where_expected": null,
+    "checks": 124,
+    "failed_checks": 0,
+    "groups_with_failures": [],
+    "mutant_sha256": null
+   },
+   {
+    "name": "W01_venting_left_out_of_the_inventory",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "the venting retires smoke and gases and its dilution never reaches the inventory",
+    "expected_in": "V02",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 13,
+    "groups_with_failures": [
+     "V02",
+     "V03",
+     "V04",
+     "V05",
+     "V09"
+    ],
+    "mutant_sha256": "cdd483053b0f95fc5b892b090d4f1d591841d44c00d7eba2c9062ffa7de84e49"
+   },
+   {
+    "name": "W02_wrong_sign",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the entry is taken from the room and the exit is given to it",
+    "expected_in": "V03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 20,
+    "groups_with_failures": [
+     "V03",
+     "V04",
+     "V05",
+     "V09"
+    ],
+    "mutant_sha256": "692a8c0b28ccc20c586674d03d4a967625bac22bfc68b3cdb5a5b6f037492983"
+   },
+   {
+    "name": "W03_entry_counted_twice",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the oxygen that enters is credited twice",
+    "expected_in": "V03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 21,
+    "groups_with_failures": [
+     "V03",
+     "V04",
+     "V05",
+     "V09"
+    ],
+    "mutant_sha256": "4f446b84ca2b7fda8dad667f08dd24e0a73be9203fc87cadc250357c51016ba9"
+   },
+   {
+    "name": "W04_exit_counted_twice",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the oxygen that leaves is debited twice",
+    "expected_in": "V03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 21,
+    "groups_with_failures": [
+     "V03",
+     "V04",
+     "V05",
+     "V09"
+    ],
+    "mutant_sha256": "5b6be17cdfae5d362597235414086dcea9e0febfc01148d6bfda3bf6ccaf59a8"
+   },
+   {
+    "name": "W05_mole_fraction_taken_for_a_mass_fraction",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the outside mole fraction is multiplied by the mass of gas directly",
+    "expected_in": "V03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 12,
+    "groups_with_failures": [
+     "V03",
+     "V04",
+     "V05",
+     "V09"
+    ],
+    "mutant_sha256": "80611cc9ec9590023e87e39e6bbcaf7deecb891b8d5c224d2c2c0f625c189602"
+   },
+   {
+    "name": "W06_clipped_to_the_ceiling_in_silence",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "what the dilution leaves is cut to 0.209, as the historical write does, with no record",
+    "expected_in": "V04",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "V04"
+    ],
+    "mutant_sha256": "0c86d1a103f947e46d60744f215e8f0e454174a6d9b0b6055c8dc6824505f38c"
+   },
+   {
+    "name": "W07_applied_twice",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "one venting event dilutes the room twice",
+    "expected_in": "V06",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 8,
+    "groups_with_failures": [
+     "V02",
+     "V04",
+     "V05",
+     "V06"
+    ],
+    "mutant_sha256": "f8414970fe619302f8654685c232c8eb2b6886682740bc9cb3710cc53fbbbee3"
+   },
+   {
+    "name": "W08_transit_left_out_of_the_budget",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a delayed exchange changes the donor and queues nothing for the receiver, while the room vents",
+    "expected_in": "V05",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 6,
+    "groups_with_failures": [
+     "V05"
+    ],
+    "mutant_sha256": "cf3be39dae5fc209178ee8eb9971a7e5dd656361cc824167352574871531304a"
+   },
+   {
+    "name": "W09_room_number_written_directly",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "with the mode on the venting also writes the room number, as the historical route does",
+    "expected_in": "V07",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 17,
+    "groups_with_failures": [
+     "V02",
+     "V03",
+     "V05",
+     "V06",
+     "V07",
+     "V09"
+    ],
+    "mutant_sha256": "586ba2ab6243e8db43b5fedb0aa64df6e7f3644c2b1c0ca7e14d107f8c01651e"
+   },
+   {
+    "name": "W10_old_refusal_kept",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "the venting is still a route the owner refuses",
+    "expected_in": "V02",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 24,
+    "groups_with_failures": [
+     "V02",
+     "V03",
+     "V04",
+     "V05",
+     "V06",
+     "V07",
+     "V09"
+    ],
+    "mutant_sha256": "452edf20b5000539927df994e05d7cc656d3bfcd4d3bd0c0c1ae1d77981a3ffd"
+   },
+   {
+    "name": "W11_owner_asked_after_writing",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "the owner is not asked before the event writes smoke, gases and pressure: a refused event leaves them written",
+    "expected_in": "V08",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "V08"
+    ],
+    "mutant_sha256": "b1598a745b6d2ef8a1ee10ab5c17ad79538d68d0f4c66d00f58995078f065bf4"
+   },
+   {
+    "name": "W12_accumulator_taken_from_the_number",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "the exterior accumulator of the room is the change of its number by its mass, not what the owner applied",
+    "expected_in": "V06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "V06"
+    ],
+    "mutant_sha256": "5c0284312d533aaa3ba3704ca47763f1dd055d0280451d687f9acd854f1bfc58"
+   },
+   {
+    "name": "W13_gas_leaves_at_the_fraction_of_before",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the gas leaves at the fraction the room had before mixing: the entering mass used directly, which is not the historical law",
+    "expected_in": "V03",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 5,
+    "groups_with_failures": [
+     "V03",
+     "V04",
+     "V05"
+    ],
+    "mutant_sha256": "f5fccdb01e9a960fb3589bfb74720e6b9a5175f5e3aaec3d944d65c4aab57d42"
+   },
+   {
+    "name": "W14_selection_built_again_after_the_venting",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/GasExchangeSystem.gd",
+    "defect": "the selections of the step are built again when a room vents",
+    "expected_in": "V07",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "V07"
+    ],
+    "mutant_sha256": "1a6730fd32de5e7d982009ff93dc65eb42bb8fa8eccd2503b37889f3b6560552"
+   },
+   {
+    "name": "W15_owner_says_it_would_apply_anything",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the owner answers that any dilution would apply, so nothing is stopped before the event writes",
+    "expected_in": "V08",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 10,
+    "groups_with_failures": [
+     "V08"
+    ],
+    "mutant_sha256": "f469ce063a7b43fe7d2d66c6ea5e59451e0f7e40f24445722e2ac7fa7aa734ca"
+   },
+   {
+    "name": "W16_entry_and_exit_recorded_as_a_net",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the event records its net as an entry and no exit",
+    "expected_in": "V02",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 124,
+    "failed_checks": 11,
+    "groups_with_failures": [
+     "V02",
+     "V03",
+     "V04",
+     "V05",
+     "V06"
+    ],
+    "mutant_sha256": "4f3358975235b0cd308daf4045039f28d1cb67642b6ffdffedbd00e0c9d77bee"
+   }
+  ]
+ },
+ "selection_mutations": {
+  "evidence": "runs/g3_o2_selection_mutations_20261010_191315",
+  "control": "pass",
+  "control_checks": 98,
+  "declared": 15,
+  "executed": 15,
+  "killed": 15,
+  "killed_where_expected": 15,
+  "survivors": [],
+  "invalid": [],
+  "killed_elsewhere": [],
+  "originals_intact": true,
+  "launches_refused_by_the_memory_gate_and_repeated": 0,
+  "results": [
+   {
+    "name": "control",
+    "verdict": "pass",
+    "reason": "",
+    "file": null,
+    "defect": null,
+    "expected_in": null,
+    "declared_with_the_plan": null,
+    "seen_where_expected": null,
+    "checks": 98,
+    "failed_checks": 0,
+    "groups_with_failures": [],
+    "mutant_sha256": null
+   },
+   {
+    "name": "S01_sink_rebuilds_the_selection",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the sink builds the selections again in the middle of the step: the one it debits is not the one the fire read",
+    "expected_in": "C01",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 4,
+    "groups_with_failures": [
+     "C01",
+     "C04"
+    ],
+    "mutant_sha256": "a407a9b9413847a9a5a4a495fdc18acb3d0045dfb6f40dc2cb5c13c2e1102e93"
+   },
+   {
+    "name": "S02_fire_is_handed_the_lower_number",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/fire/CombustionSystem.gd",
+    "defect": "the fire consults the selection and is handed the lower-layer number",
+    "expected_in": "C02",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 4,
+    "groups_with_failures": [
+     "C02",
+     "C04"
+    ],
+    "mutant_sha256": "a1aa3f4ec3582f5f7c36c7c7b46061b5451af18e0fb2d6b9e117da9d6bc50e8b"
+   },
+   {
+    "name": "S03_another_deposit_is_debited",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the sink takes its debit from the lower-layer number and the inventory of the selection is not debited",
+    "expected_in": "C03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 12,
+    "groups_with_failures": [
+     "C01",
+     "C02",
+     "C03",
+     "C04",
+     "C05",
+     "C09"
+    ],
+    "mutant_sha256": "2e34d240597908e8c356601aa1e68e8a45b352efe57bd0a954f67fb67ab3a220"
+   },
+   {
+    "name": "S04_second_declaration_of_consumption",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the write on the upper-layer number is declared as consumption again",
+    "expected_in": "C03",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "C03",
+     "C04"
+    ],
+    "mutant_sha256": "68fe9fb84bf0fa2b16d83c079aa4a714503c791103442bff0317abb6fd6c0bec"
+   },
+   {
+    "name": "S05_inventory_rewritten_from_the_layers_in_a_sealed_room",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "in a sealed room the blend of the layer numbers is written over the inventory, as the historical route does with the room number",
+    "expected_in": "C04",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 9,
+    "groups_with_failures": [
+     "C04"
+    ],
+    "mutant_sha256": "1a08ea6df8093651448849a1dd8e2bca803feb2200e3d5e01d54d432124fd196"
+   },
+   {
+    "name": "S06_selection_of_the_previous_step_kept",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a step opens with the selections of the step before",
+    "expected_in": "C01",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 19,
+    "groups_with_failures": [
+     "C01",
+     "C02",
+     "C03",
+     "C04",
+     "C05",
+     "C06",
+     "C07",
+     "C08"
+    ],
+    "mutant_sha256": "af8d84032cdcaa5e5a092cec6baeac3e1ee09e6c38fbff874aa1d902ff317d35"
+   },
+   {
+    "name": "S07_selection_ignores_the_transit",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "what a room still owes in transit is left out of what its selection says is available",
+    "expected_in": "C01",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 1,
+    "groups_with_failures": [
+     "C01"
+    ],
+    "mutant_sha256": "1f6bc64ee340b1a11484d184edb603c3e85a0633d9b764f140df81bcf03db9b4"
+   },
+   {
+    "name": "S08_historical_route_when_the_selection_is_refused",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/fire/CombustionSystem.gd",
+    "defect": "with the mode on, a fire whose selection is refused goes back to reading a layer number",
+    "expected_in": "C07",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "C07"
+    ],
+    "mutant_sha256": "f996c79289ac7c95099ea3b9a0b0c3094f48ba2646f0b44cf144b53df249af49"
+   },
+   {
+    "name": "S09_engine_does_not_hand_the_owner_to_the_fire",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/SimulationEngine.gd",
+    "defect": "with the mode on the fire is never told there is a selection and reads as the historical route does",
+    "expected_in": "C02",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 14,
+    "groups_with_failures": [
+     "C01",
+     "C02",
+     "C04",
+     "C07"
+    ],
+    "mutant_sha256": "8a9b3c5786483fd09179bd6c2b4a6e584299d7be9c0a0d36d19a10cc11e72f42"
+   },
+   {
+    "name": "S10_selection_of_another_step_accepted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a debit acts on the selection of an earlier step",
+    "expected_in": "C06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 4,
+    "groups_with_failures": [
+     "C06"
+    ],
+    "mutant_sha256": "e7d1f6274186df0e7f149f29da4fd4a7272bff8a9878f288bd5834b654255f76"
+   },
+   {
+    "name": "S11_selection_of_another_run_accepted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a selection of the run before a reset is not told from one of another step",
+    "expected_in": "C06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 1,
+    "groups_with_failures": [
+     "C06"
+    ],
+    "mutant_sha256": "9166e86bc3de086c95e7fe966a9d7e98bea21d6aef3a6cc56956d5bdd8209feb"
+   },
+   {
+    "name": "S12_selection_of_another_room_accepted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the selection of another room is not told from one of another step",
+    "expected_in": "C06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 1,
+    "groups_with_failures": [
+     "C06"
+    ],
+    "mutant_sha256": "6e3dcfcbe951fbf492481110faba726ae820302b70dcf960f561dc9e36e81965"
+   },
+   {
+    "name": "S13_selection_debited_twice",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the same selection can be debited twice in a step",
+    "expected_in": "C06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "C06"
+    ],
+    "mutant_sha256": "6e4c2b78428b06755e7744cd7e6b9866380536e6ef3434f3636b134ec218419b"
+   },
+   {
+    "name": "S14_another_deposit_accepted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a selection that names another deposit debits the room inventory",
+    "expected_in": "C06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "C06"
+    ],
+    "mutant_sha256": "f236298d3010fa4fcaa1109e5d619d4a489190f6f5634f48f1ccd6b07763e3fd"
+   },
+   {
+    "name": "S15_fire_blend_with_the_upper_number_armed",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the mode arms with a fire setting that reads the upper-layer number and would be ignored",
+    "expected_in": "C08",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 98,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "C08"
+    ],
+    "mutant_sha256": "634f91af6f027a5461e1ae0f3d975f011c830cfe497c2b5b28b10b115ee36446"
+   }
+  ]
+ },
+ "inventory_mutations": {
+  "evidence": "runs/g3_o2_room_inventory_mutations_20261010_191651",
+  "control": "pass",
+  "control_checks": 281,
+  "declared": 21,
+  "executed": 21,
+  "killed": 21,
+  "killed_where_expected": 21,
+  "survivors": [],
+  "invalid": [],
+  "killed_elsewhere": [],
+  "originals_intact": true,
+  "launches_refused_by_the_memory_gate_and_repeated": 0,
+  "results": [
+   {
+    "name": "control",
+    "verdict": "pass",
+    "reason": "",
+    "file": null,
+    "defect": null,
+    "expected_in": null,
+    "declared_with_the_plan": null,
+    "seen_where_expected": null,
+    "checks": 281,
+    "failed_checks": 0,
+    "groups_with_failures": [],
+    "mutant_sha256": null
+   },
+   {
+    "name": "D01_debit_applied_twice",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the debit of the sink leaves the inventory twice",
+    "expected_in": "B05",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 26,
+    "groups_with_failures": [
+     "B03",
+     "B05",
+     "B06",
+     "B11",
+     "B12",
+     "B13"
+    ],
+    "mutant_sha256": "4148ac49b77b1eaa1a5960c55668b89ed514aa2c78c8f6ebb26c93477fcee87a"
+   },
+   {
+    "name": "T01_transit_omitted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a delayed exchange changes the donor and queues nothing for the receiver",
+    "expected_in": "B06",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 278,
+    "failed_checks": 15,
+    "groups_with_failures": [
+     "B06",
+     "B12",
+     "B14"
+    ],
+    "mutant_sha256": "cf3be39dae5fc209178ee8eb9971a7e5dd656361cc824167352574871531304a"
+   },
+   {
+    "name": "W01_room_number_written_outside_the_owner",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/SimulationEngine.gd",
+    "defect": "the final clamp of the engine writes the room number of a room under authority",
+    "expected_in": "B04",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 278,
+    "failed_checks": 57,
+    "groups_with_failures": [
+     "B03",
+     "B04",
+     "B06",
+     "B07",
+     "B08",
+     "B09",
+     "B10",
+     "B12",
+     "B13",
+     "B14"
+    ],
+    "mutant_sha256": "cab7a91bb6b08e5400ce2a40999b5bfd1f1683ddcefcc70e6a5dc1cbf2e70b65"
+   },
+   {
+    "name": "C01_credit_without_debit",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the receiver is credited with oxygen the donor never loses",
+    "expected_in": "B07",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 44,
+    "groups_with_failures": [
+     "B03",
+     "B05",
+     "B06",
+     "B07",
+     "B09",
+     "B11",
+     "B12",
+     "B14"
+    ],
+    "mutant_sha256": "781030c743ad30d721edaaffd081cddf0a610b85f8cb281dd0173b762d0a33c5"
+   },
+   {
+    "name": "R01_transit_inherited_after_a_reset",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a reset keeps the deliveries of the previous run",
+    "expected_in": "B12",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 8,
+    "groups_with_failures": [
+     "B12"
+    ],
+    "mutant_sha256": "30d4573a927d45cc2e1133b92b58cbf858a640e35e2097174731abea8689b0b9"
+   },
+   {
+    "name": "M01_inventory_initialised_with_the_mass_of_gas",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the mole fraction is multiplied by the mass of gas to get the inventory",
+    "expected_in": "B02",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 26,
+    "groups_with_failures": [
+     "B02",
+     "B03",
+     "B04",
+     "B07",
+     "B08",
+     "B10",
+     "B12"
+    ],
+    "mutant_sha256": "791fe1c47be16744b2535de7908727ce334c0e475f8e0490f474c689770ea0a9"
+   },
+   {
+    "name": "L01_layer_numbers_rewrite_the_inventory",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the blend of the two layer numbers is written over the inventory",
+    "expected_in": "B10",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 49,
+    "groups_with_failures": [
+     "B03",
+     "B05",
+     "B06",
+     "B07",
+     "B08",
+     "B09",
+     "B10",
+     "B11",
+     "B12"
+    ],
+    "mutant_sha256": "bb7a4ed414aacc5b7c23466368a14f209f65fb559eb4b206e6dcb2236f5b3e8f"
+   },
+   {
+    "name": "K01_clip_discarded_without_a_record",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "what the cap of the sink clips is no longer handed to the owner",
+    "expected_in": "B11",
+    "declared_with_the_plan": true,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "B11"
+    ],
+    "mutant_sha256": "7c4d8119f1cb7ee1bb6525522b203dee256c42945917c315c264bad10c95a340"
+   },
+   {
+    "name": "M02_parcel_converted_with_the_mass_of_gas",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the oxygen of a parcel of gas is its mole fraction times its mass",
+    "expected_in": "B02",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 14,
+    "groups_with_failures": [
+     "B02",
+     "B06",
+     "B08",
+     "B12"
+    ],
+    "mutant_sha256": "693c7d505754a92fc63de9895c2d0825699df5c9c4cd3aedcb352b9af186d66e"
+   },
+   {
+    "name": "W02_guard_of_the_room_number_removed",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/building/RoomModel.gd",
+    "defect": "any writer can set the room number of a room under authority",
+    "expected_in": "B03",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "B03"
+    ],
+    "mutant_sha256": "50fe24c6c2740a9439396506884b3b3862d090ca44d7e52473be5405370b234d"
+   },
+   {
+    "name": "E01_delivery_kept_in_the_queue",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a delivered entry stays in the queue and comes due again",
+    "expected_in": "B06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 14,
+    "groups_with_failures": [
+     "B06"
+    ],
+    "mutant_sha256": "9b8e6f57310e578e143b14587d08b2b17ad4631ba907fc4856d52594aae67a0d"
+   },
+   {
+    "name": "E02_second_delivery_not_refused",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the same delivery can be applied twice",
+    "expected_in": "B14",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "B14"
+    ],
+    "mutant_sha256": "fa2b8d06446a7dd1043374007fe8745c5ef4e988483901ea2d6cb03ddf010e6b"
+   },
+   {
+    "name": "G01_delivery_of_another_run_accepted",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a delivery of another run is credited",
+    "expected_in": "B14",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 1,
+    "groups_with_failures": [
+     "B14"
+    ],
+    "mutant_sha256": "71e907d8c8747beb0d17a8294fef3a86693237f52da62f32e44d4dcffa0d2e95"
+   },
+   {
+    "name": "P01_transfer_applied_with_a_receiver_that_cannot_pay",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "a transfer the receiver cannot pay is applied: a negative inventory is written",
+    "expected_in": "B14",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "B14"
+    ],
+    "mutant_sha256": "cc0731109a6ad77e3422d5a9e4faed61d4b930af014894d9c9a99357e9065926"
+   },
+   {
+    "name": "O01_infiltration_reads_the_room_after_the_sink",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the infiltration law changes: gas leaves at the number the sink has just lowered",
+    "expected_in": "B06",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 3,
+    "groups_with_failures": [
+     "B06",
+     "B12"
+    ],
+    "mutant_sha256": "36f876580ccfdab46cfb0d06116d9c03959b41ff3de878c5ca87a3921438e72a"
+   },
+   {
+    "name": "B01_cap_of_the_sink_on_the_historical_base",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the cap is 5 % of a mole fraction times a mass of gas, not of the inventory",
+    "expected_in": "B11",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "B11"
+    ],
+    "mutant_sha256": "9598eccaf0ada3b143efc5a337f00f5ba6bb1983e0a804ae5d308e1fc3291910"
+   },
+   {
+    "name": "X01_exterior_opening_route_not_refused",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/OxygenExchangeSystem.gd",
+    "defect": "the hot exterior opening is no longer refused by its name",
+    "expected_in": "B13",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "B13"
+    ],
+    "mutant_sha256": "2730e9a494281cdf76feb92e68de066e609b37499ce3a192bfb9f6d7dda77802"
+   },
+   {
+    "name": "N01_pressure_network_not_refused",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/RoomOxygenInventory.gd",
+    "defect": "the inventory arms with the pressure network on",
+    "expected_in": "B13",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 6,
+    "groups_with_failures": [
+     "B13"
+    ],
+    "mutant_sha256": "98c8d03a3c492bc72746ff3206a76145dd5c0c347e7f10b91b3f39a6c06bdd11"
+   },
+   {
+    "name": "F01_refused_inventory_still_simulated",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/SimulationEngine.gd",
+    "defect": "a run the inventory refused keeps advancing",
+    "expected_in": "B13",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 5,
+    "groups_with_failures": [
+     "B03",
+     "B13"
+    ],
+    "mutant_sha256": "4f0dfa0d172d92021ef4f78efaa0c588d9c2dad73e03d101e3ef23329e9d0812"
+   },
+   {
+    "name": "Z01_switch_change_not_refused",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/SimulationEngine.gd",
+    "defect": "the switch changes in the middle of a run and the run goes on",
+    "expected_in": "B13",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 2,
+    "groups_with_failures": [
+     "B13"
+    ],
+    "mutant_sha256": "89dca202d9cab41e6d89ef3a9b4687988c83638a4c147196390e7826c4ce0537"
+   },
+   {
+    "name": "D02_retired_below_the_guards",
+    "verdict": "killed",
+    "reason": "",
+    "file": "sim/core/SimulationEngine.gd",
+    "defect": "a reset without a building or not ready returns before retiring the inventory and its transit",
+    "expected_in": "B12",
+    "declared_with_the_plan": false,
+    "seen_where_expected": true,
+    "checks": 281,
+    "failed_checks": 5,
+    "groups_with_failures": [
+     "B12"
+    ],
+    "mutant_sha256": "fbb6437ab32b061813b9838637d25c854bf2ca97e7625cf1e0ddc1917259c984"
+   }
+  ]
+ },
+ "house": {
+  "schema": "g3_o2_venting_house_v1",
+  "gap_accepted_kg": 1e-09,
+  "cases": {
+   "o2_closed": {
+    "off": {
+     "folder": "runs/g3_o2_venting_house_off_20261010_194227/o2_closed",
+     "kind": "off",
+     "mode": "off",
+     "switch_in_the_scenario": false,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "transit_at_the_end_kg": 0.0,
+      "largest_transit_kg": 0.0,
+      "largest_number_of_entries": 0,
+      "transport_accumulators_of_the_house_kg": -4.3084676451532467e-11,
+      "transport_plus_transit_kg": -4.3084676451532467e-11,
+      "largest_transport_plus_transit_kg": 4.3084676451532467e-11,
+      "steps_in_which_the_gap_grows": 0,
+      "gap_grows_from_s": null,
+      "gap_grows_until_s": null,
+      "highest_room_number": 0.209
+     },
+     "fire": {
+      "peak_kw": 559.1634907126398,
+      "time_of_the_peak_s": 139.7499999999984,
+      "heat_MJ": 79.96316019462046,
+      "fire_clock_s": 207.52007825027079,
+      "seconds_with_power": 396.16666666666663,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       396.2499999999797
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.10652053708759729,
+      "fire_reads_at_the_end": "plume_lower",
+      "lowest_room_number": 0.11000162206860457,
+      "room_number_at_the_end": 0.11669242489154087,
+      "lower_number_at_the_end": 0.1164363720775476,
+      "upper_number_at_the_end": 0.1162641615184257,
+      "debit_of_the_room_kg": 0.0,
+      "declared_as_consumed_kg": 6.6241481905223845,
+      "demand_of_the_heat_kg": 6.077200174791154
+     },
+     "last_time_s": 900.0000000001298,
+     "contracts": {
+      "c1": false,
+      "c2": false,
+      "c1_worst_residual_kg": -5.931607219999998,
+      "c2_heat_minus_debit_kg": 6.0772001752,
+      "c2_primary_minus_debit_kg": 6.07720017,
+      "inventory_from": "room number x air mass"
+     },
+     "identical_to_the_identity_run": {
+      "sim_log.csv": true,
+      "sim_log.txt": true,
+      "fuel_source_ledger.jsonl": true,
+      "co_inventory_trace.jsonl": true,
+      "fuel_object_state_snapshot.json": true,
+      "events.json": true
+     },
+     "launch_error": ""
+    },
+    "on": {
+     "folder": "runs/g3_o2_venting_house_on_20261010_194703/o2_closed",
+     "kind": "on",
+     "mode": "on",
+     "switch_in_the_scenario": true,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "room_gap_kg": 3.328934350399493e-15,
+      "building_gap_kg": 1.5622052262909136e-14,
+      "oracle_gap_kg": 1.5939940339881886e-14,
+      "largest_transit_kg": 0.0,
+      "largest_number_of_entries": 0,
+      "consumed_kg": 6.647118268742539,
+      "clipped_kg": 0.0,
+      "steps_with_a_clip": 0,
+      "outside_kg": 0.6949284019141635,
+      "infiltration_net_kg": 0.6319670728968821,
+      "delayed_exchanges": 0,
+      "debits": 5030,
+      "debits_on_the_selection_the_fire_read": 5030,
+      "rooms_where_the_fire_read_its_selection": 64800,
+      "rooms_consulted": 64800,
+      "more_than_one_debit_in_a_step": 0,
+      "debits_above_what_was_available": 0,
+      "selections_missing": 0,
+      "lowest_inventory_kg": 4.654688400708448,
+      "refused": null,
+      "transit_at_the_end_kg": 0.0,
+      "transport_accumulators_of_the_house_kg": 0.0,
+      "transport_plus_transit_kg": 0.0,
+      "closes_in_every_step": true,
+      "by_room": {
+       "0": {
+        "volume_m3": 48.0,
+        "start_kg": 13.299109716309852,
+        "end_kg": 7.346919849479762,
+        "mole_fraction_at_the_end": 0.11545932632303542,
+        "debit_kg": 6.647118268742539,
+        "exterior_kg": 0.6949284019141624,
+        "transport_kg": 0.0,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -1.7132961716015416e-12
+       },
+       "1": {
+        "volume_m3": 25.2,
+        "start_kg": 6.982032601062671,
+        "end_kg": 6.982032601062671,
+        "mole_fraction_at_the_end": 0.20899999999999996,
+        "debit_kg": 0.0,
+        "exterior_kg": 1.463672932855431e-16,
+        "transport_kg": 5.854691731421724e-16,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -8.881784197001252e-16
+       },
+       "2": {
+        "volume_m3": 25.2,
+        "start_kg": 6.982032601062671,
+        "end_kg": 6.982032601062671,
+        "mole_fraction_at_the_end": 0.20899999999999996,
+        "debit_kg": 0.0,
+        "exterior_kg": 1.463672932855431e-16,
+        "transport_kg": 0.0,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 0.0
+       },
+       "3": {
+        "volume_m3": 16.8,
+        "start_kg": 4.654688400708448,
+        "end_kg": 4.654688400708448,
+        "mole_fraction_at_the_end": 0.20899999999999996,
+        "debit_kg": 0.0,
+        "exterior_kg": 1.463672932855431e-16,
+        "transport_kg": 0.0,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 0.0
+       },
+       "4": {
+        "volume_m3": 36.0,
+        "start_kg": 9.97433228723239,
+        "end_kg": 9.97433228723239,
+        "mole_fraction_at_the_end": 0.209,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.0,
+        "transport_kg": -5.854691731421724e-16,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 0.0
+       },
+       "5": {
+        "volume_m3": 16.8,
+        "start_kg": 4.654688400708448,
+        "end_kg": 4.654688400708448,
+        "mole_fraction_at_the_end": 0.20899999999999996,
+        "debit_kg": 0.0,
+        "exterior_kg": 1.463672932855431e-16,
+        "transport_kg": 0.0,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 0.0
+       }
+      },
+      "house": {
+       "start_kg": 46.54688400708448,
+       "end_kg": 40.59469414025439,
+       "consumed_kg": 6.647118268742539,
+       "outside_net_kg": 0.6949284019141635,
+       "transit_at_the_end_kg": 0.0,
+       "residual_with_transit_kg": -1.7124079931818414e-12
+      }
+     },
+     "venting": {
+      "events": 3678,
+      "gas_kg": 0.7436228674540123,
+      "in_kg": 0.1716930920456226,
+      "out_kg": 0.10873176302834049,
+      "net_kg": 0.06296132901728206,
+      "worst_operation_kg": 1.7763568394002505e-15,
+      "more_than_one_event_of_a_room_in_a_step": 0,
+      "first_at_s": 74.4166666666668,
+      "last_at_s": 388.2499999999815,
+      "by_room": {
+       "0": {
+        "events": 3678,
+        "in_kg": 0.1716930920456226,
+        "out_kg": 0.10873176302834049,
+        "gas_kg": 0.7436228674540123
+       }
+      },
+      "largest_event_gas_kg": 0.00026321402468461536,
+      "events_with_a_negative_net": 0,
+      "net_is_in_minus_out": true
+     },
+     "richer_than_the_outside": {
+      "rooms": {},
+      "credits_to_a_room_at_or_above_the_outside": {},
+      "any_room_richer_than_the_outside": false,
+      "explained_by_the_transit_alone": false
+     },
+     "whole": true,
+     "fire": {
+      "peak_kw": 569.1190680378078,
+      "time_of_the_peak_s": 140.4999999999985,
+      "heat_MJ": 87.46208248345503,
+      "fire_clock_s": 217.86494811735056,
+      "seconds_with_power": 419.16666666666663,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       419.2499999999745
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.10858640852447296,
+      "fire_reads_at_the_end": "room_inventory",
+      "lowest_room_number": 0.10858640852447296,
+      "room_number_at_the_end": 0.11545932632303542,
+      "lower_number_at_the_end": 0.11519985300546227,
+      "upper_number_at_the_end": 0.11502533828067212,
+      "debit_of_the_room_kg": 6.647118268742539,
+      "declared_as_consumed_kg": 6.647118268742539,
+      "demand_of_the_heat_kg": 6.647118268742583
+     },
+     "last_time_s": 900.0000000001298,
+     "heat_the_debit_does_not_back": {
+      "demand_of_the_heat_kg": 6.647118268742583,
+      "debit_kg": 6.647118268742539,
+      "not_debited_kg": 4.3520742565306136e-14,
+      "clipped_by_the_cap_kg": 0.0,
+      "steps_with_a_clip": 0,
+      "heat_with_no_debit_MJ": 5.726413495435018e-13,
+      "what": "0.076 kg per MJ of the heat of the Salon against what its inventory was debited; the difference is what the 5 % cap clipped. Stage M3: the heat is not fitted to it here"
+     },
+     "contracts": {
+      "c1": true,
+      "c2": true,
+      "c1_worst_residual_kg": 3.1699096680881667e-09,
+      "c2_heat_minus_debit_kg": 0.0,
+      "c2_primary_minus_debit_kg": 0.0,
+      "inventory_from": "the oxygen trace, kg of O2"
+     },
+     "launch_error": ""
+    },
+    "gap_passive": {
+     "folder": "runs/g3_o2_venting_house_gap_passive_20261010_195317/o2_closed",
+     "kind": "gap_passive",
+     "mode": "off",
+     "switch_in_the_scenario": false,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "transit_at_the_end_kg": 0.0,
+      "largest_transit_kg": 0.0,
+      "largest_number_of_entries": 0,
+      "transport_accumulators_of_the_house_kg": -4.3084676451532467e-11,
+      "transport_plus_transit_kg": -4.3084676451532467e-11,
+      "largest_transport_plus_transit_kg": 4.3084676451532467e-11,
+      "steps_in_which_the_gap_grows": 0,
+      "gap_grows_from_s": null,
+      "gap_grows_until_s": null,
+      "highest_room_number": 0.209,
+      "diagnostic_copy": {
+       "variant": "passive",
+       "calls": 86400,
+       "asked_to_apply_kg": 24.490620000025807,
+       "applied_kg": 24.490619999938417,
+       "discarded_at_the_ceiling_kg": 1.4816468364708957e-11,
+       "discarded_at_the_ceiling_calls": 21600,
+       "discarded_at_the_floor_kg": 0.0,
+       "dropped_below_the_threshold_kg": 0.0,
+       "dropped_below_the_threshold_calls": 0,
+       "rounding_of_the_writes_that_were_not_clipped_kg": 2.826820808682351e-11,
+       "left_above_the_ceiling_by_these_writes_kg": 0.0,
+       "by_category": {
+        "discarded_at_the_ceiling": {
+         "kg": 1.4816468364708957e-11,
+         "by_site": {
+          "background_exchange": 1.4816468364708957e-11
+         },
+         "by_room": {
+          "3": 3.470661258386798e-12,
+          "5": 1.1345807106322159e-11
+         }
+        },
+        "left_above_the_ceiling": {
+         "kg": 0.0,
+         "by_site": {
+          "background_exchange": 0.0
+         },
+         "by_room": {
+          "3": 0.0,
+          "5": 0.0
+         }
+        }
+       },
+       "steps_with_a_discard_at_the_ceiling": 0,
+       "discards_at_the_ceiling_from_s": null,
+       "discards_at_the_ceiling_until_s": null,
+       "gap_at_the_end_kg": -4.3084676451532467e-11,
+       "gap_plus_what_the_writes_discarded_at_the_end_kg": -2.826820808682351e-11,
+       "largest_gap_plus_what_the_writes_discarded_kg": 2.826820808682351e-11,
+       "largest_gap_kg": 4.3084676451532467e-11,
+       "steps_in_which_a_room_number_ends_above_the_outside": 0,
+       "highest_room_number_at_the_end_of_a_step": 0.209
+      }
+     },
+     "fire": {
+      "peak_kw": 559.1634907126398,
+      "time_of_the_peak_s": 139.7499999999984,
+      "heat_MJ": 79.96316019462046,
+      "fire_clock_s": 207.52007825027079,
+      "seconds_with_power": 396.16666666666663,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       396.2499999999797
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.10652053708759729,
+      "fire_reads_at_the_end": "plume_lower",
+      "lowest_room_number": 0.11000162206860457,
+      "room_number_at_the_end": 0.11669242489154087,
+      "lower_number_at_the_end": 0.1164363720775476,
+      "upper_number_at_the_end": 0.1162641615184257,
+      "debit_of_the_room_kg": 0.0,
+      "declared_as_consumed_kg": 6.6241481905223845,
+      "demand_of_the_heat_kg": 6.077200174791154
+     },
+     "last_time_s": 900.0000000001298,
+     "contracts": {
+      "c1": false,
+      "c2": false,
+      "c1_worst_residual_kg": -5.931607219999998,
+      "c2_heat_minus_debit_kg": 6.0772001752,
+      "c2_primary_minus_debit_kg": 6.07720017,
+      "inventory_from": "room number x air mass"
+     },
+     "identical_to_the_identity_run": {
+      "sim_log.csv": true,
+      "sim_log.txt": true,
+      "fuel_source_ledger.jsonl": true,
+      "co_inventory_trace.jsonl": true,
+      "fuel_object_state_snapshot.json": true,
+      "events.json": true
+     },
+     "diagnostic_copy_of_the_oxygen_system": {
+      "file": "sim/core/OxygenExchangeSystem.gd",
+      "kind": "gap_passive",
+      "original_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "copy_sha256": "7052b41907c9defd626449ef869690208cf4baa240bce0aa9793a9368d8dce5c",
+      "diff_sha256": "0e8637c9b1b3f87fe9bd66c8621d611f298b3a19b84db89065dfc25efcff9646",
+      "diff_lines": 81,
+      "restored_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "restored": true
+     },
+     "launch_error": ""
+    }
+   },
+   "o2_reopen_300": {
+    "off": {
+     "folder": "runs/g3_o2_venting_house_off_20261010_194417/o2_reopen_300",
+     "kind": "off",
+     "mode": "off",
+     "switch_in_the_scenario": false,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "transit_at_the_end_kg": 0.0,
+      "largest_transit_kg": 1.6877343629737562,
+      "largest_number_of_entries": 1146,
+      "transport_accumulators_of_the_house_kg": -0.37782341301601785,
+      "transport_plus_transit_kg": -0.37782341301601785,
+      "largest_transport_plus_transit_kg": 0.3778234130160213,
+      "steps_in_which_the_gap_grows": 160,
+      "gap_grows_from_s": 307.0833333333333,
+      "gap_grows_until_s": 320.49999999999693,
+      "highest_room_number": 0.209
+     },
+     "fire": {
+      "peak_kw": 559.1634907126398,
+      "time_of_the_peak_s": 139.7499999999984,
+      "heat_MJ": 125.01801918286668,
+      "fire_clock_s": 460.5879267512173,
+      "seconds_with_power": 859.9166666666666,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       860.0000000001116
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.1072911987760504,
+      "fire_reads_at_the_end": "plume_lower",
+      "lowest_room_number": 0.11446279760324976,
+      "room_number_at_the_end": 0.15176502786819404,
+      "lower_number_at_the_end": 0.15157954854773875,
+      "upper_number_at_the_end": 0.14971929394539266,
+      "debit_of_the_room_kg": 3.530899550610885,
+      "declared_as_consumed_kg": 13.43930410686725,
+      "demand_of_the_heat_kg": 9.501369457897868
+     },
+     "last_time_s": 900.0000000001298,
+     "contracts": {
+      "c1": false,
+      "c2": false,
+      "c1_worst_residual_kg": -5.582060129999999,
+      "c2_heat_minus_debit_kg": 5.970469909199999,
+      "c2_primary_minus_debit_kg": 5.970469909999999,
+      "inventory_from": "room number x air mass"
+     },
+     "identical_to_the_identity_run": {
+      "sim_log.csv": true,
+      "sim_log.txt": true,
+      "fuel_source_ledger.jsonl": true,
+      "co_inventory_trace.jsonl": true,
+      "fuel_object_state_snapshot.json": true,
+      "events.json": true
+     },
+     "launch_error": ""
+    },
+    "on": {
+     "folder": "runs/g3_o2_venting_house_on_20261010_194859/o2_reopen_300",
+     "kind": "on",
+     "mode": "on",
+     "switch_in_the_scenario": true,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "room_gap_kg": 4.950033438699819e-15,
+      "building_gap_kg": 2.104474363870401e-14,
+      "oracle_gap_kg": 2.0969771058476638e-14,
+      "largest_transit_kg": 2.2530152167316344,
+      "largest_number_of_entries": 1146,
+      "consumed_kg": 9.563225602418747,
+      "clipped_kg": 0.0,
+      "steps_with_a_clip": 0,
+      "outside_kg": 0.8534219855915319,
+      "infiltration_net_kg": 0.7964467817882928,
+      "delayed_exchanges": 19564,
+      "debits": 10702,
+      "debits_on_the_selection_the_fire_read": 10702,
+      "rooms_where_the_fire_read_its_selection": 64800,
+      "rooms_consulted": 64800,
+      "more_than_one_debit_in_a_step": 0,
+      "debits_above_what_was_available": 0,
+      "selections_missing": 0,
+      "lowest_inventory_kg": 3.866290030480972,
+      "refused": null,
+      "transit_at_the_end_kg": 0.0,
+      "transport_accumulators_of_the_house_kg": -4.030109579389318e-14,
+      "transport_plus_transit_kg": -4.030109579389318e-14,
+      "closes_in_every_step": true,
+      "by_room": {
+       "0": {
+        "volume_m3": 48.0,
+        "start_kg": 13.299109716309852,
+        "end_kg": 10.027914734912864,
+        "mole_fraction_at_the_end": 0.15759206625887787,
+        "debit_kg": 9.563225602418747,
+        "exterior_kg": 0.48070574945341293,
+        "transport_kg": 5.811324871563837,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 4.510170015237236e-12
+       },
+       "1": {
+        "volume_m3": 25.2,
+        "start_kg": 6.982032601062671,
+        "end_kg": 5.504504158687216,
+        "mole_fraction_at_the_end": 0.16477169828604493,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.10775063402304551,
+        "transport_kg": -1.5852790763954803,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -3.020694805400126e-12
+       },
+       "2": {
+        "volume_m3": 25.2,
+        "start_kg": 6.982032601062671,
+        "end_kg": 5.9248313793628045,
+        "mole_fraction_at_the_end": 0.17735376344395143,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.0708422276526685,
+        "transport_kg": -1.128043449349364,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -3.170796958329447e-12
+       },
+       "3": {
+        "volume_m3": 16.8,
+        "start_kg": 4.654688400708448,
+        "end_kg": 3.866290030480972,
+        "mole_fraction_at_the_end": 0.17360015253599712,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.052881302654708445,
+        "transport_kg": -0.8412796728821648,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -1.9539925233402755e-14
+       },
+       "4": {
+        "volume_m3": 36.0,
+        "start_kg": 9.97433228723239,
+        "end_kg": 8.61985083431303,
+        "mole_fraction_at_the_end": 0.18061848878621078,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.090459865921399,
+        "transport_kg": -1.444941318843431,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": 2.673417043297377e-12
+       },
+       "5": {
+        "volume_m3": 16.8,
+        "start_kg": 4.654688400708448,
+        "end_kg": 3.8936892525012827,
+        "mole_fraction_at_the_end": 0.1748304040392714,
+        "debit_kg": 0.0,
+        "exterior_kg": 0.050782205886300176,
+        "transport_kg": -0.8117813540934372,
+        "in_transit_to_it_at_the_end_kg": 0.0,
+        "residual_kg": -2.7977620220553945e-14
+       }
+      },
+      "house": {
+       "start_kg": 46.54688400708448,
+       "end_kg": 37.83708039025817,
+       "consumed_kg": 9.563225602418747,
+       "outside_net_kg": 0.8534219855915319,
+       "transit_at_the_end_kg": 0.0,
+       "residual_with_transit_kg": 9.094947017729282e-13
+      }
+     },
+     "venting": {
+      "events": 4406,
+      "gas_kg": 0.7911036936952434,
+      "in_kg": 0.18265581283734417,
+      "out_kg": 0.12568060903410647,
+      "net_kg": 0.05697520380323734,
+      "worst_operation_kg": 1.7763568394002505e-15,
+      "more_than_one_event_of_a_room_in_a_step": 0,
+      "first_at_s": 74.4166666666668,
+      "last_at_s": 476.33333333329483,
+      "by_room": {
+       "0": {
+        "events": 4406,
+        "in_kg": 0.18265581283734417,
+        "out_kg": 0.12568060903410647,
+        "gas_kg": 0.7911036936952434
+       }
+      },
+      "largest_event_gas_kg": 0.0002607695385523019,
+      "events_with_a_negative_net": 0,
+      "net_is_in_minus_out": true
+     },
+     "richer_than_the_outside": {
+      "rooms": {
+       "1": {
+        "steps": 265,
+        "first_at_s": 307.4166666666666,
+        "last_at_s": 329.41666666666157,
+        "largest_excess_of_the_fraction": 0.011160209226779821,
+        "largest_excess_kg": 0.37282748639261776,
+        "at_s": 320.49999999999693,
+        "steps_in_which_the_effective_reading_is_richer_too": 0,
+        "largest_excess_of_the_effective_fraction": 0.0,
+        "excess_kg_seconds": 3.9496386143484568,
+        "seconds": 21.999999999994998
+       },
+       "5": {
+        "steps": 203,
+        "first_at_s": 309.49999999999943,
+        "last_at_s": 326.33333333332894,
+        "largest_excess_of_the_fraction": 0.00018925661182317421,
+        "largest_excess_kg": 0.004214978735936015,
+        "at_s": 322.4999999999965,
+        "steps_in_which_the_effective_reading_is_richer_too": 0,
+        "largest_excess_of_the_effective_fraction": 0.0,
+        "excess_kg_seconds": 0.035619816862968126,
+        "seconds": 16.833333333329506
+       },
+       "2": {
+        "steps": 176,
+        "first_at_s": 309.58333333333275,
+        "last_at_s": 324.16666666666276,
+        "largest_excess_of_the_fraction": 0.00011858676659051715,
+        "largest_excess_kg": 0.003961610863107978,
+        "at_s": 320.7499999999969,
+        "steps_in_which_the_effective_reading_is_richer_too": 0,
+        "largest_excess_of_the_effective_fraction": 0.0,
+        "excess_kg_seconds": 0.028622042762867696,
+        "seconds": 14.583333333330017
+       },
+       "3": {
+        "steps": 122,
+        "first_at_s": 309.58333333333275,
+        "last_at_s": 319.6666666666638,
+        "largest_excess_of_the_fraction": 8.708615582339596e-05,
+        "largest_excess_kg": 0.0019395163606379384,
+        "at_s": 316.9166666666644,
+        "steps_in_which_the_effective_reading_is_richer_too": 0,
+        "largest_excess_of_the_effective_fraction": 0.0,
+        "excess_kg_seconds": 0.0103533962995269,
+        "seconds": 10.08333333333104
+       },
+       "4": {
+        "steps": 221,
+        "first_at_s": 309.66666666666606,
+        "last_at_s": 327.9999999999952,
+        "largest_excess_of_the_fraction": 0.00011056960313071684,
+        "largest_excess_kg": 0.005276832356425842,
+        "at_s": 324.08333333332945,
+        "steps_in_which_the_effective_reading_is_richer_too": 0,
+        "largest_excess_of_the_effective_fraction": 0.0,
+        "excess_kg_seconds": 0.05066541534477441,
+        "seconds": 18.333333333329165
+       }
+      },
+      "credits_to_a_room_at_or_above_the_outside": {
+       "credit to the donor of an exchange, at once": {
+        "count": 1772,
+        "kg": 1.1388048019059738,
+        "by_room": {
+         "1": 1.1168749715151018,
+         "5": 0.005670831335204468,
+         "2": 0.005708063012954239,
+         "3": 0.003686619842457978,
+         "4": 0.00686431620025467
+        }
+       }
+      },
+      "any_room_richer_than_the_outside": true,
+      "explained_by_the_transit_alone": true
+     },
+     "whole": true,
+     "fire": {
+      "peak_kw": 569.1190680378078,
+      "time_of_the_peak_s": 140.4999999999985,
+      "heat_MJ": 125.83191582130019,
+      "fire_clock_s": 475.11299720059895,
+      "seconds_with_power": 891.8333333333333,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       891.9166666667928
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.11099652120258431,
+      "fire_reads_at_the_end": "room_inventory",
+      "lowest_room_number": 0.11099652120258431,
+      "room_number_at_the_end": 0.15759206625887787,
+      "lower_number_at_the_end": 0.15752887717294645,
+      "upper_number_at_the_end": 0.15348079274940707,
+      "debit_of_the_room_kg": 9.563225602418747,
+      "declared_as_consumed_kg": 9.563225602418747,
+      "demand_of_the_heat_kg": 9.563225602418814
+     },
+     "last_time_s": 900.0000000001298,
+     "heat_the_debit_does_not_back": {
+      "demand_of_the_heat_kg": 9.563225602418814,
+      "debit_kg": 9.563225602418747,
+      "not_debited_kg": 6.750155989720952e-14,
+      "clipped_by_the_cap_kg": 0.0,
+      "steps_with_a_clip": 0,
+      "heat_with_no_debit_MJ": 8.881784197001252e-13,
+      "what": "0.076 kg per MJ of the heat of the Salon against what its inventory was debited; the difference is what the 5 % cap clipped. Stage M3: the heat is not fitted to it here"
+     },
+     "contracts": {
+      "c1": true,
+      "c2": true,
+      "c1_worst_residual_kg": -8.207165169693553e-09,
+      "c2_heat_minus_debit_kg": 8.000000661922968e-10,
+      "c2_primary_minus_debit_kg": 0.0,
+      "inventory_from": "the oxygen trace, kg of O2"
+     },
+     "launch_error": ""
+    },
+    "gap_passive": {
+     "folder": "runs/g3_o2_venting_house_gap_passive_20261010_195510/o2_reopen_300",
+     "kind": "gap_passive",
+     "mode": "off",
+     "switch_in_the_scenario": false,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "transit_at_the_end_kg": 0.0,
+      "largest_transit_kg": 1.6877343629737562,
+      "largest_number_of_entries": 1146,
+      "transport_accumulators_of_the_house_kg": -0.37782341301601785,
+      "transport_plus_transit_kg": -0.37782341301601785,
+      "largest_transport_plus_transit_kg": 0.3778234130160213,
+      "steps_in_which_the_gap_grows": 160,
+      "gap_grows_from_s": 307.0833333333333,
+      "gap_grows_until_s": 320.49999999999693,
+      "highest_room_number": 0.209,
+      "diagnostic_copy": {
+       "variant": "passive",
+       "calls": 136858,
+       "asked_to_apply_kg": 39.69591410890532,
+       "applied_kg": 39.31809069588834,
+       "discarded_at_the_ceiling_kg": 0.3778234130065134,
+       "discarded_at_the_ceiling_calls": 7788,
+       "discarded_at_the_floor_kg": 0.0,
+       "dropped_below_the_threshold_kg": 0.0,
+       "dropped_below_the_threshold_calls": 0,
+       "rounding_of_the_writes_that_were_not_clipped_kg": 9.49272276360035e-12,
+       "left_above_the_ceiling_by_these_writes_kg": 0.0,
+       "by_category": {
+        "discarded_at_the_ceiling": {
+         "kg": 0.3778234130065134,
+         "by_site": {
+          "background_exchange": 4.938822788236319e-12,
+          "credit_to_the_hot_room_at_once": 0.37782341300157457
+         },
+         "by_room": {
+          "3": 1.1568870861289327e-12,
+          "5": 3.781935702107386e-12,
+          "1": 0.37782341300157457
+         }
+        },
+        "left_above_the_ceiling": {
+         "kg": 0.0,
+         "by_site": {
+          "background_exchange": 0.0,
+          "credit_to_the_hot_room_at_once": 0.0
+         },
+         "by_room": {
+          "3": 0.0,
+          "5": 0.0,
+          "1": 0.0
+         }
+        }
+       },
+       "steps_with_a_discard_at_the_ceiling": 160,
+       "discards_at_the_ceiling_from_s": 307.0833333333333,
+       "discards_at_the_ceiling_until_s": 320.49999999999693,
+       "gap_at_the_end_kg": -0.37782341301601785,
+       "gap_plus_what_the_writes_discarded_at_the_end_kg": -9.504452780362271e-12,
+       "largest_gap_plus_what_the_writes_discarded_kg": 9.50789447173861e-12,
+       "largest_gap_kg": 0.3778234130160213,
+       "steps_in_which_a_room_number_ends_above_the_outside": 0,
+       "highest_room_number_at_the_end_of_a_step": 0.209
+      }
+     },
+     "fire": {
+      "peak_kw": 559.1634907126398,
+      "time_of_the_peak_s": 139.7499999999984,
+      "heat_MJ": 125.01801918286668,
+      "fire_clock_s": 460.5879267512173,
+      "seconds_with_power": 859.9166666666666,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       860.0000000001116
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.1072911987760504,
+      "fire_reads_at_the_end": "plume_lower",
+      "lowest_room_number": 0.11446279760324976,
+      "room_number_at_the_end": 0.15176502786819404,
+      "lower_number_at_the_end": 0.15157954854773875,
+      "upper_number_at_the_end": 0.14971929394539266,
+      "debit_of_the_room_kg": 3.530899550610885,
+      "declared_as_consumed_kg": 13.43930410686725,
+      "demand_of_the_heat_kg": 9.501369457897868
+     },
+     "last_time_s": 900.0000000001298,
+     "contracts": {
+      "c1": false,
+      "c2": false,
+      "c1_worst_residual_kg": -5.582060129999999,
+      "c2_heat_minus_debit_kg": 5.970469909199999,
+      "c2_primary_minus_debit_kg": 5.970469909999999,
+      "inventory_from": "room number x air mass"
+     },
+     "identical_to_the_identity_run": {
+      "sim_log.csv": true,
+      "sim_log.txt": true,
+      "fuel_source_ledger.jsonl": true,
+      "co_inventory_trace.jsonl": true,
+      "fuel_object_state_snapshot.json": true,
+      "events.json": true
+     },
+     "diagnostic_copy_of_the_oxygen_system": {
+      "file": "sim/core/OxygenExchangeSystem.gd",
+      "kind": "gap_passive",
+      "original_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "copy_sha256": "7052b41907c9defd626449ef869690208cf4baa240bce0aa9793a9368d8dce5c",
+      "diff_sha256": "0e8637c9b1b3f87fe9bd66c8621d611f298b3a19b84db89065dfc25efcff9646",
+      "diff_lines": 81,
+      "restored_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "restored": true
+     },
+     "launch_error": ""
+    },
+    "gap_control": {
+     "folder": "runs/g3_o2_venting_house_gap_control_20261010_195759/o2_reopen_300",
+     "kind": "gap_control",
+     "mode": "off",
+     "switch_in_the_scenario": false,
+     "trace_rows": 10800,
+     "budget": {
+      "steps": 10800,
+      "transit_at_the_end_kg": 0.0,
+      "largest_transit_kg": 1.6874981317874946,
+      "largest_number_of_entries": 1146,
+      "transport_accumulators_of_the_house_kg": -1.0540124328883849e-11,
+      "transport_plus_transit_kg": -1.0540124328883849e-11,
+      "largest_transport_plus_transit_kg": 1.0543454997957724e-11,
+      "steps_in_which_the_gap_grows": 0,
+      "gap_grows_from_s": null,
+      "gap_grows_until_s": null,
+      "highest_room_number": 0.209,
+      "diagnostic_copy": {
+       "variant": "ceiling_taken_out",
+       "calls": 136858,
+       "asked_to_apply_kg": 39.69597205251498,
+       "applied_kg": 39.695972052502825,
+       "discarded_at_the_ceiling_kg": 8.781761125578602e-13,
+       "discarded_at_the_ceiling_calls": 8216,
+       "discarded_at_the_floor_kg": 0.0,
+       "dropped_below_the_threshold_kg": 0.0,
+       "dropped_below_the_threshold_calls": 0,
+       "rounding_of_the_writes_that_were_not_clipped_kg": 9.701182754914237e-12,
+       "left_above_the_ceiling_by_these_writes_kg": 0.6700595819332487,
+       "by_category": {
+        "discarded_at_the_ceiling": {
+         "kg": 8.781761125578602e-13,
+         "by_site": {
+          "background_exchange": 8.845208636712454e-13,
+          "credit_to_the_hot_room_at_once": -6.344751113385172e-15
+         },
+         "by_room": {
+          "1": -3.183813889612308e-14,
+          "3": -8.575171822622352e-13,
+          "5": 1.7675314337162185e-12
+         }
+        },
+        "left_above_the_ceiling": {
+         "kg": 0.6700595819332467,
+         "by_site": {
+          "background_exchange": 0.29244182703439686,
+          "credit_to_the_hot_room_at_once": 0.37761775489884986
+         },
+         "by_room": {
+          "1": 0.6700595819292179,
+          "3": 2.0143886558800694e-12,
+          "5": 2.0143886558800694e-12
+         }
+        }
+       },
+       "steps_with_a_discard_at_the_ceiling": 0,
+       "discards_at_the_ceiling_from_s": null,
+       "discards_at_the_ceiling_until_s": null,
+       "gap_at_the_end_kg": -1.0540124328883849e-11,
+       "gap_plus_what_the_writes_discarded_at_the_end_kg": -9.661948216325988e-12,
+       "largest_gap_plus_what_the_writes_discarded_kg": 9.665278885399864e-12,
+       "largest_gap_kg": 1.0543454997957724e-11,
+       "steps_in_which_a_room_number_ends_above_the_outside": 0,
+       "highest_room_number_at_the_end_of_a_step": 0.209
+      }
+     },
+     "writers": {
+      "what": "writers of the room number seen by the passive ledger of the engine, historical route; sampled every 120 steps",
+      "not_in_the_ledger": "the interior exchange of the oxygen system and its queue, which stage M1 put behind the owner",
+      "room_number": {
+       "engine_final_tick_clamp": {
+        "applications": 64800,
+        "change_of_the_number_summed": 0.0,
+        "first_seen_changing_it_by_s": null,
+        "status": "writes nothing"
+       },
+       "ges_pressure_vent": {
+        "applications": 4491,
+        "change_of_the_number_summed": 0.0009557886554717315,
+        "first_seen_changing_it_by_s": 79.99999999999982,
+        "status": "NOT integrated: refused with the mode on"
+       },
+       "ges_room_loop_transport": {
+        "applications": 64800,
+        "change_of_the_number_summed": -0.007107379717777237,
+        "first_seen_changing_it_by_s": 10.000000000000002,
+        "status": "NOT integrated: refused with the mode on"
+       },
+       "oes_bulk_combustion_and_ach": {
+        "applications": 64800,
+        "change_of_the_number_summed": -0.04123066320288739,
+        "first_seen_changing_it_by_s": 10.000000000000002,
+        "status": "the sink and the infiltration, through the owner"
+       }
+      },
+      "needed_and_not_integrated": [
+       "ges_pressure_vent",
+       "ges_room_loop_transport"
+      ]
+     },
+     "fire": {
+      "peak_kw": 559.1634907126398,
+      "time_of_the_peak_s": 139.7499999999984,
+      "heat_MJ": 125.018050547313,
+      "fire_clock_s": 460.5928501273367,
+      "seconds_with_power": 859.9166666666666,
+      "power_at_the_end_kw": 0.0,
+      "times_it_went_out": 1,
+      "went_out_at_s": [
+       860.0000000001116
+      ],
+      "times_it_came_back": 0,
+      "came_back_at_s": [],
+      "lowest_oxygen_the_fire_read": 0.1072911987760504,
+      "fire_reads_at_the_end": "plume_lower",
+      "lowest_room_number": 0.11446279760324976,
+      "room_number_at_the_end": 0.1517661146021882,
+      "lower_number_at_the_end": 0.1515806358056276,
+      "upper_number_at_the_end": 0.1497204097727007,
+      "debit_of_the_room_kg": 3.530901934308803,
+      "declared_as_consumed_kg": 13.439301953731443,
+      "demand_of_the_heat_kg": 9.501371841595788
+     },
+     "last_time_s": 900.0000000001298,
+     "contracts": {
+      "c1": false,
+      "c2": false,
+      "c1_worst_residual_kg": -5.58212273,
+      "c2_heat_minus_debit_kg": 5.970469907999998,
+      "c2_primary_minus_debit_kg": 5.9704699099999985,
+      "inventory_from": "room number x air mass"
+     },
+     "diagnostic_copy_of_the_oxygen_system": {
+      "file": "sim/core/OxygenExchangeSystem.gd",
+      "kind": "gap_control",
+      "original_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "copy_sha256": "2da5d7bb07d449fe94aecbd1cbe1bb5308fb876582de39e4e5e5f67a74aebb48",
+      "diff_sha256": "b09d207db3be386b6273286844bf1ef1cef2fc9da912b5fe26eb74bcccabcbc7",
+      "diff_lines": 86,
+      "restored_sha256": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+      "restored": true
+     },
+     "launch_error": ""
+    }
+   }
+  }
+ }
+}

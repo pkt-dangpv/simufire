@@ -55,6 +55,9 @@ def test_smoke_settling_is_not_enabled_by_co_alone() -> None:
 def test_shared_launcher_isolates_writable_appdata(monkeypatch: pytest.MonkeyPatch) -> None:
     from tests import godot_runtime_launcher
 
+    # This contract tests the isolated DEFAULT. The explicit external override
+    # is judged independently in test_godot_runtime_appdata.py.
+    monkeypatch.delenv("SIMUFIRE_GODOT_TEST_APPDATA", raising=False)
     observed: dict[str, Path] = {}
 
     def fake_run(command, timeout_s, environment=None):

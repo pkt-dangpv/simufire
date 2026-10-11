@@ -28,6 +28,10 @@ static func rebuild(
 		_add_heat_glow(parent, Vector2(achieved.x, achieved.z), meters_to_units)
 		_stamp_real_size(parent, achieved)
 		return achieved
+	if FurnitureAssetLoader.declared_transform_mode(kind_name) != "legacy_fit":
+		# Un contrato de arte rechazado no se sustituye por otro mueble a escondidas.
+		push_error("FurnitureShapeBuilder: no se construyo el asset de autor %s" % kind_name)
+		return Vector3.ZERO
 
 	# Sin modelo: las formas de respaldo se construyen sobre la misma caja.
 	size_m = Vector2(target.x, target.z)
@@ -375,4 +379,3 @@ static func _add_heat_glow(parent: Node3D, size_m: Vector2, meters_to_units: flo
 	glow.position = Vector3(0.0, 0.025, 0.0) * meters_to_units
 	glow.scale = Vector3(maxf(0.1, size_m.x), 0.018, maxf(0.1, size_m.y)) * meters_to_units
 	parent.add_child(glow)
-

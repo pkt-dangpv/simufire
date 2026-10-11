@@ -42,6 +42,11 @@ var outside_open_species_pressure_ref_pa: float = 4.0
 var outside_open_species_upper_bias: float = 0.80
 var background_species_exchange_kg_s_m2: float = 0.035
 var background_o2_exchange_multiplier: float = 0.0
+## G3 autoridad del oxígeno, M1: propietario del inventario de O2 de sala. Lo fija
+## SimulationEngine solo con su interruptor encendido; null en producto. Ninguna
+## ruta de este archivo pertenece a M1: con el propietario presente, la que
+## tenga oxígeno que mover se rechaza por su nombre y no escribe.
+var room_o2_inventory = null
 var background_species_path_multiplier_max: float = 3.00
 var background_species_max_fraction_closed: float = 0.010
 var background_species_max_fraction_open: float = 0.040
@@ -1571,6 +1576,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			room.phase3_diag_pressure_capped_vented_air_kg_total += smoke_out_kg
 		if smoke_out_kg <= 0.0:
 			continue
+		var air_in_kg: float = smoke_out_kg * 0.40
+		# G3 M2-V: con el inventario de O2 como autoridad, la dilución del venteo es
+		# una operación de su propietario. Se le pregunta ANTES de que este evento
+		# escriba humo, especies, capa o alivio de presión: si no la aceptaría, la
+		# rechaza por su nombre y el evento no escribe nada. No hay ruta histórica.
+		if room_o2_inventory != null and not room_o2_inventory.outside_dilution_would_apply(
+				room, air_in_kg, building.outside_o2):
+			room_o2_inventory.dilute_with_outside(room, air_in_kg, building.outside_o2, "pressure_venting")
+			continue
 
 		var frac_out: float = smoke_out_kg / maxf(0.001, room.smoke_kg)
 		# CO/CO2 son gases disueltos en el aire: la fracción que sale es proporcional
@@ -1638,14 +1652,21 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		if use_canonical_pressure:
 			room.pressure_pa_therm = room.overpressure_pa
 
-		var air_in_kg: float = smoke_out_kg * 0.40
 		var room_mass_kg: float = maxf(1.0, room.volume_m3()) * rho_ext
 		var _pv_o2_before: float = room.o2
-		room.o2 = clampf(
-			(room.o2 * room_mass_kg + building.outside_o2 * air_in_kg) / (room_mass_kg + air_in_kg),
-			0.0,
-			o2_nominal
-		)
+		var owned_dilution: Dictionary = {}
+		if room_o2_inventory != null:
+			# G3 M2-V: la misma dilución, por el propietario: entra aire exterior, se
+			# mezcla con todo el recinto y sale la misma masa de mezcla. Sin recorte.
+			owned_dilution = room_o2_inventory.dilute_with_outside(
+				room, air_in_kg, building.outside_o2, "pressure_venting"
+			)
+		else:
+			room.o2 = clampf(
+				(room.o2 * room_mass_kg + building.outside_o2 * air_in_kg) / (room_mass_kg + air_in_kg),
+				0.0,
+				o2_nominal
+			)
 		# H3.2-S0d6: owner unico (exterior) y base de masa unica, pero el destino
 		# es el bulk, que no tiene identidad zonal.
 		phase3_o2_ledger.record(
@@ -1657,6 +1678,9 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		)
 		# SF-O1A: exterior neto por pressure_venting (dilución con aire exterior).
 		var _pv_o2_delta: float = (room.o2 - _pv_o2_before) * room_mass_kg
+		if room_o2_inventory != null:
+			# G3 M2-V: lo que el propietario aplicó, en kg de O2; nada si no aplicó.
+			_pv_o2_delta = float(owned_dilution.get("net_kg", 0.0))
 		room.o2_exterior_net_kg_step += _pv_o2_delta
 		room.o2_exterior_net_kg_total += _pv_o2_delta
 
@@ -2384,7 +2408,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			room.o2, room_o2_mass_kg / room_air_mass_kg, room_air_mass_kg, _ges_o2_delta
 		)
 		var _o2d6_pre_room_loop: float = room.o2
-		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
+		if room_o2_inventory != null:
+			room_o2_inventory.refuse_route(room, "gas_exchange_room_transport", _ges_o2_delta)
+		else:
+			room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
 		# H3.2-S0d6: este es el clamp que S0d3 conto 1798 veces. Acota un delta ya
 		# sumado sobre los ocho paths de transporte, asi que el reparto por owner
 		# no es recuperable aqui.
@@ -2920,11 +2947,14 @@ func _release_pending_interior_deliveries(
 		if o2_delivery_kg != 0.0:
 			var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * 1.2
 			var _o2d6_pre_parcel: float = target.o2
-			target.o2 = clampf(
-				(target.o2 * target_air_mass_kg + o2_delivery_kg) / target_air_mass_kg,
-				0.0,
-				o2_nominal
-			)
+			if room_o2_inventory != null:
+				room_o2_inventory.refuse_route(target, "gas_exchange_parcel_delivery", o2_delivery_kg)
+			else:
+				target.o2 = clampf(
+					(target.o2 * target_air_mass_kg + o2_delivery_kg) / target_air_mass_kg,
+					0.0,
+					o2_nominal
+				)
 			# H3.2-S0d6: la entrega de parcel llega en kg y se convierte a fraccion
 			# con una densidad fija de 1.2, no con la densidad real de la sala, y
 			# el destino es el bulk sin identidad zonal.
@@ -4258,11 +4288,14 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 
 		# Diluir O2 hacia el nominal
 		var _ppv_o2_before: float = inlet_room.o2
-		inlet_room.o2 = clampf(
-			lerpf(inlet_room.o2, building.outside_o2, mix_frac),
-			0.0,
-			o2_nominal
-		)
+		if room_o2_inventory != null:
+			room_o2_inventory.refuse_route(inlet_room, "ppv", mix_frac)
+		else:
+			inlet_room.o2 = clampf(
+				lerpf(inlet_room.o2, building.outside_o2, mix_frac),
+				0.0,
+				o2_nominal
+			)
 		# H3.2-S0d6: PPV mezcla con un `lerpf` sobre la fraccion, no con un
 		# balance de masa, asi que no hay kg conservado que atribuir.
 		phase3_o2_ledger.record(

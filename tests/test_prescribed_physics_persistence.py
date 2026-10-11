@@ -75,7 +75,7 @@ def test_schema_declares_one_version_and_one_owner():
     owners = [
         path
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and f'String = "{SCHEMA_KEY}"' in path.read_text(encoding="utf-8")
     ]
     assert owners == [SCHEMA_PATH]
@@ -132,7 +132,7 @@ def test_consumer_list_stays_closed():
     consumers = sorted(
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and "PrescribedOpeningPhysicsSchema.gd" in path.read_text(encoding="utf-8")
     )
     # El propio modulo no se nombra a si mismo: la lista son sus consumidores.
@@ -210,8 +210,9 @@ def test_flag_inventory_is_unchanged():
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(
         encoding="utf-8"
     )
-    # D4A no añade ningun interruptor: solo persiste datos.
-    assert "EXPECTED_DECLARATION_COUNT = 81" in audit
+    # D4A added none; the later G3 FED candidate raised the inventory to 82 and
+    # the G3 explicit-object fuel ownership switch to 83.
+    assert "EXPECTED_DECLARATION_COUNT = 84" in audit
 
 
 # ------------------------------------------------------------

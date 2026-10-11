@@ -1,0 +1,2708 @@
+{
+ "schema": "g3_object_hrr_oxygen_diagnosis_v1",
+ "label": "after",
+ "head": "1a39332a",
+ "expected": {
+  "A1_upper_write_is_the_full_demand_because_the_sink_never_learns_of_two_zones": true,
+  "A2_upper_and_room_numbers_overlap_and_are_not_a_partition": true,
+  "A3_upper_write_does_not_reach_the_room_inventory_or_the_energy": true,
+  "A4_upper_write_reaches_the_regime_indicator_through_the_lower_number": true,
+  "A5_the_all_sinks_counter_is_a_sum_of_overlapping_writes": true,
+  "A6_requested_applied_and_state_change_are_three_numbers": true,
+  "B1_no_source_and_zero_energy_are_the_same_engine": true,
+  "B2_in_a_sealed_room_the_sink_takes_another_route_after_the_power_was_written": false,
+  "B3_a_rejected_step_leaves_no_trace_of_the_source": true,
+  "B4_the_trace_scales_with_the_energy_of_the_rejected_interval": false,
+  "B5_after_leaving_the_regime_by_a_rule_nothing_is_debited": true
+ },
+ "as_expected": true,
+ "scope": "what the engine writes to its oxygen numbers around the bench; diagnosis, not acceptance",
+ "sources_sha256": {
+  "sim/fire/PrescribedThermalSourceCoupling.gd": "5946dec65a78d1b29fb882e7a853e0ca807f30f0ce872687a3ca84e71a98629d",
+  "sim/core/SimulationEngine.gd": "65b3ebe14a7aa0334b07f3348fd7cccd097a77e214de42473105fa254cc5e69c",
+  "sim/core/OxygenExchangeSystem.gd": "71bafb2dd4d7116c41ee5d1f85452386a516a50e6cf4a27eb6411198f396e3bd",
+  "tests/fixtures/g3_object_hrr_oxygen_writes_diagnosis.gd": "c0eab45189450600c142b49e0d7df32313a23afcdfeca91ec1fa026458e77873"
+ },
+ "hypotheses": {
+  "A1_upper_write_is_the_full_demand_because_the_sink_never_learns_of_two_zones": {
+   "discriminates": "which branch of the upper-layer sink runs in the open bench room, and why",
+   "confirms": "every powered step takes the branch full_thornton, the probe says the sink does not see two zones, and with that flag set in the oxygen system alone every step takes displacement",
+   "refutes": "another branch, or the same branch with the flag set",
+   "holds": true,
+   "branches": {
+    "full_thornton": 1508
+   },
+   "branches_with_the_flag_set": {
+    "displacement": 1508
+   },
+   "sink_saw_two_zones": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "second_over_first_with_the_flag_set": 0.09000000000000001
+  },
+  "A2_upper_and_room_numbers_overlap_and_are_not_a_partition": {
+   "discriminates": "whether the second write debits an independent inventory",
+   "confirms": "its mass base is the room air mass times a geometric fraction, the same room air the first debit already used, and the room number is not kept equal to the weighted layers",
+   "refutes": "disjoint bases whose weighted numbers always return the room number",
+   "holds": true,
+   "upper_base_is_room_air_times_a_geometric_fraction": [
+    [
+     24.0,
+     24.0
+    ],
+    [
+     24.0,
+     24.0
+    ],
+    [
+     24.0,
+     24.0
+    ],
+    [
+     1157.2687241125968,
+     1157.2687241125968
+    ],
+    [
+     1158.779774125957,
+     1158.779774125957
+    ],
+    [
+     1160.2264536103203,
+     1160.2264536103203
+    ],
+    [
+     1912.2775787675898,
+     1912.2775787675898
+    ]
+   ],
+   "room_base_is_the_whole_room_air": [
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ],
+    [
+     2400.0,
+     2400.0
+    ]
+   ],
+   "largest_room_number_minus_weighted_layers": -0.0018508299569288678
+  },
+  "A3_upper_write_does_not_reach_the_room_inventory_or_the_energy": {
+   "discriminates": "whether the second write feeds back into the contracted debit or the accepted energy",
+   "confirms": "with the other branch the room oxygen number and the applied power are identical bit by bit over the whole run, and so are the accepted energy and the contracted debit",
+   "refutes": "any difference in the room number, the power or the accepted energy",
+   "holds": true,
+   "room_number_series_identical": true,
+   "power_series_identical": true,
+   "accepted_kj": [
+    115093.655,
+    115093.655
+   ],
+   "contracted_debit_kg": [
+    8.747117780000005,
+    8.747117780000005
+   ]
+  },
+  "A4_upper_write_reaches_the_regime_indicator_through_the_lower_number": {
+   "discriminates": "whether the second write can change when the bench leaves its regime",
+   "confirms": "the lowest upper and lower numbers differ between the two branches",
+   "refutes": "the same lower number with both branches",
+   "holds": true,
+   "lowest_upper_number": [
+    0.20688521589649156,
+    0.20880797271886295
+   ],
+   "lowest_lower_number": [
+    0.20797568457951765,
+    0.20890632795053093
+   ],
+   "lowest_room_number": [
+    0.20608355476621354,
+    0.20608355476621354
+   ],
+   "lower_number_drained_towards_the_upper": [
+    0.001296443659842797,
+    0.00011644036331980382
+   ]
+  },
+  "A5_the_all_sinks_counter_is_a_sum_of_overlapping_writes": {
+   "discriminates": "what the kilograms published as a second debit measure",
+   "confirms": "all-sinks minus primary equals what the upper sink applied; in the open room it equals the contracted debit itself, so the sum is twice one consumption",
+   "refutes": "a counter that matches an independent state change",
+   "holds": true,
+   "by_case": {
+    "open_dt_2.5": {
+     "all_sinks_minus_primary_kg": 8.747117780000005,
+     "upper_number_applied_kg": 8.747117780000005,
+     "contracted_debit_kg": 8.747117780000005,
+     "all_sinks_over_contracted": 2.0
+    },
+    "open_dt_1.0": {
+     "all_sinks_minus_primary_kg": 8.747117780000027,
+     "upper_number_applied_kg": 8.747117780000027,
+     "contracted_debit_kg": 8.747117780000027,
+     "all_sinks_over_contracted": 2.0
+    },
+    "open_dt_2.5_other_upper_branch": {
+     "all_sinks_minus_primary_kg": 0.787240600199997,
+     "upper_number_applied_kg": 0.7872406002000005,
+     "contracted_debit_kg": 8.747117780000005,
+     "all_sinks_over_contracted": 1.0899999999999996
+    }
+   },
+   "one_consumption_kg": 8.74711778
+  },
+  "A6_requested_applied_and_state_change_are_three_numbers": {
+   "discriminates": "whether what a sink asks, what it applies and what its number shows can differ",
+   "confirms": "they are reported apart and their differences, if any, are explained by a cap or a clamp",
+   "refutes": "an unexplained difference",
+   "holds": true,
+   "requested_applied_shown_capped_steps": {
+    "open_dt_2.5": {
+     "room_inventory": [
+      8.747117780000005,
+      8.747117780000005,
+      8.747117780000906,
+      0
+     ],
+     "upper_number": [
+      8.747117780000005,
+      8.747117780000005,
+      8.747117780000018,
+      0
+     ]
+    },
+    "open_dt_1.0": {
+     "room_inventory": [
+      8.747117780000027,
+      8.747117780000027,
+      8.747117780000337,
+      0
+     ],
+     "upper_number": [
+      8.747117780000027,
+      8.747117780000027,
+      8.747117780000247,
+      0
+     ]
+    },
+    "open_dt_2.5_other_upper_branch": {
+     "room_inventory": [
+      8.747117780000005,
+      8.747117780000005,
+      8.747117780000906,
+      0
+     ],
+     "upper_number": [
+      0.7872406002000005,
+      0.7872406002000005,
+      0.7872406002001182,
+      0
+     ]
+    }
+   },
+   "what_it_means": "kg of the upper number are kg on the upper base; they are listed beside the room inventory, never added to it"
+  },
+  "B1_no_source_and_zero_energy_are_the_same_engine": {
+   "discriminates": "whether the source has any oxygen channel other than the room power",
+   "confirms": "six numbers per step identical bit by bit over 120 steps",
+   "refutes": "any difference",
+   "holds": true,
+   "differing_numbers": 0,
+   "first_difference": {}
+  },
+  "B2_in_a_sealed_room_the_sink_takes_another_route_after_the_power_was_written": {
+   "discriminates": "which route ran at the rejected step and on which numbers",
+   "confirms": "plume_lower route, nothing applied to the room inventory, a write on the lower number and one on the upper number, and the room number recomposed from the layers",
+   "refutes": "the room-inventory route, or no write at all",
+   "holds": false,
+   "step_0": {
+    "sealed_dt_2.5": {
+     "plume_lower_route": false,
+     "sinks": [],
+     "room_inventory_debit_kg": 0.0,
+     "lower_number_write_kg": null,
+     "upper_number_write_kg": null,
+     "upper_branch": null,
+     "bench_state_after": "outside_declared_regime",
+     "power_after_kw": 0.0
+    },
+    "sealed_dt_1.0": {
+     "plume_lower_route": false,
+     "sinks": [],
+     "room_inventory_debit_kg": 0.0,
+     "lower_number_write_kg": null,
+     "upper_number_write_kg": null,
+     "upper_branch": null,
+     "bench_state_after": "outside_declared_regime",
+     "power_after_kw": 0.0
+    }
+   }
+  },
+  "B3_a_rejected_step_leaves_no_trace_of_the_source": {
+   "discriminates": "whether a rejected interval changes the room beside its twin without source",
+   "confirms": "every oxygen number identical to the twin at every step, no heat, nothing accepted",
+   "refutes": "any step whose numbers differ from the twin",
+   "holds": true,
+   "steps_that_differ_from_the_twin": {
+    "sealed_dt_2.5": 0,
+    "sealed_dt_1.0": 0
+   },
+   "of_steps": 40,
+   "gap_at_step_0": {
+    "sealed_dt_2.5": {
+     "o2": 0.0,
+     "o2_lower": 0.0,
+     "o2_upper": 0.0
+    },
+    "sealed_dt_1.0": {
+     "o2": 0.0,
+     "o2_lower": 0.0,
+     "o2_upper": 0.0
+    }
+   },
+   "gap_at_the_last_step": {
+    "sealed_dt_2.5": {
+     "o2": 0.0,
+     "o2_lower": 0.0,
+     "o2_upper": 0.0
+    },
+    "sealed_dt_1.0": {
+     "o2": 0.0,
+     "o2_lower": 0.0,
+     "o2_upper": 0.0
+    }
+   },
+   "bench_reports_debited_without_heat_kg": [
+    null,
+    null
+   ]
+  },
+  "B4_the_trace_scales_with_the_energy_of_the_rejected_interval": {
+   "discriminates": "whether what is left behind is the debit of the first interval",
+   "confirms": "the plume debit of step 0 equals the energy of that interval times the coefficient, for two steps",
+   "refutes": "a trace unrelated to that energy",
+   "holds": false,
+   "by_step": {
+    "sealed_dt_2.5": {
+     "lower_number_write_kg": 0.0,
+     "first_interval_energy_times_coefficient_kg": 7.7615e-05
+    },
+    "sealed_dt_1.0": {
+     "lower_number_write_kg": 0.0,
+     "first_interval_energy_times_coefficient_kg": 3.078e-05
+    }
+   }
+  },
+  "B5_after_leaving_the_regime_by_a_rule_nothing_is_debited": {
+   "discriminates": "whether an exit decided before the power is written leaves a debit",
+   "confirms": "from the exit step on every sink counter is zero, also after the oxygen is restored",
+   "refutes": "any debit after the exit",
+   "holds": true,
+   "exit": {
+    "cause": "hot_layer_below_the_declared_height",
+    "interface_m": 0.2964580326538102,
+    "minimum_m": 0.3,
+    "source_time_s": 800.0,
+    "step": 320
+   },
+   "debited_from_the_exit_on_kg": 0.0,
+   "debited_after_the_recovery_kg": 0.0,
+   "state_after_recovery": "outside_declared_regime"
+  }
+ },
+ "cases": {
+  "crack_and_recovery": {
+   "accepted_kj": 2650.2399999999993,
+   "accepted_kj_after_recovery": 2650.2399999999993,
+   "after_the_oxygen_was_restored": {
+    "accumulator_all_sinks_kg": 0.0,
+    "accumulator_primary_kg": 0.0,
+    "accumulator_room_inventory_kg": 0.0,
+    "ach_on_the_room_number_kg": 0.0,
+    "exterior_net_kg": 0.0,
+    "largest_room_number_minus_weighted_layers": -2.7755575615628914e-17,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0,
+    "lowest_o2": 0.209,
+    "lowest_o2_lower": 0.209,
+    "lowest_o2_upper": 0.209,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 0.0,
+    "room_inventory_mass_change_at_the_write_kg": 0.0,
+    "room_inventory_requested_kg": 0.0,
+    "room_inventory_steps_capped": 0,
+    "steps": 60,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 0,
+    "upper_number_applied_kg": 0.0,
+    "upper_number_branches": {},
+    "upper_number_requested_kg": 0.0,
+    "upper_number_state_change_on_its_base_kg": 0.0,
+    "upper_number_steps_capped": 0
+   },
+   "dt_s": 2.5,
+   "exit": {
+    "cause": "hot_layer_below_the_declared_height",
+    "interface_m": 0.2964580326538102,
+    "minimum_m": 0.3,
+    "source_time_s": 800.0,
+    "step": 320
+   },
+   "exit_step": {
+    "air_mass_kg": 72.0,
+    "before": {
+     "o2": 0.20628680277607161,
+     "o2_lower": 0.20628965695516657,
+     "o2_upper": 0.20628641242409
+    },
+    "bench_state": "outside_declared_regime",
+    "bi_zone_invalid": true,
+    "bulk_ach_kg": 6.782993059820942e-05,
+    "bulk_fraction_after_write": 0.20628774485844104,
+    "bulk_fraction_before_write": 0.20628680277607161,
+    "bulk_fraction_unclamped": 0.20628774485844104,
+    "consumed_all_step_kg": 0.0,
+    "consumed_room_inventory_step_kg": 0.0,
+    "entrainment": {},
+    "exterior_net_kg": 9.63706787270674e-05,
+    "fire_primary_kg": 0.0,
+    "lower_ach": {},
+    "lower_frac": 0.11858321306152408,
+    "numbers_after_the_room_loop": {
+     "o2": 0.20628774485844104,
+     "o2_lower": 0.20628774485844104,
+     "o2_upper": 0.20628774485844104
+    },
+    "o2": 0.2062881412577206,
+    "o2_lower": 0.20629108402523816,
+    "o2_upper": 0.20628774485844104,
+    "plume_lower_mode": false,
+    "power_kw": 0.0,
+    "room_number_minus_weighted_layers": 4.301518030658258e-10,
+    "sink_sees_two_zones": false,
+    "sinks": {},
+    "step": 320,
+    "temp_lower_c": 27.64827452193167,
+    "temp_upper_c": 27.93282518180871,
+    "upper_air_mass_kg": 63.462008659570266,
+    "upper_frac": 0.8814167869384759
+   },
+   "from_the_exit_step_on": {
+    "accumulator_all_sinks_kg": 0.0,
+    "accumulator_primary_kg": 0.0,
+    "accumulator_room_inventory_kg": 0.0,
+    "ach_on_the_room_number_kg": 0.004080988402699692,
+    "exterior_net_kg": 0.005123535191754158,
+    "largest_room_number_minus_weighted_layers": 4.301518030658258e-10,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0,
+    "lowest_o2": 0.2062881412577206,
+    "lowest_o2_lower": 0.20629108402523816,
+    "lowest_o2_upper": 0.20628774485844104,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 0.0,
+    "room_inventory_mass_change_at_the_write_kg": 0.0,
+    "room_inventory_requested_kg": 0.0,
+    "room_inventory_steps_capped": 0,
+    "steps": 61,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 0,
+    "upper_number_applied_kg": 0.0,
+    "upper_number_branches": {},
+    "upper_number_requested_kg": 0.0,
+    "upper_number_state_change_on_its_base_kg": 0.0,
+    "upper_number_steps_capped": 0
+   },
+   "inside_the_regime": {
+    "accumulator_all_sinks_kg": 0.33969530000000003,
+    "accumulator_primary_kg": 0.20141824000000003,
+    "accumulator_room_inventory_kg": 0.20141824000000003,
+    "ach_on_the_room_number_kg": 0.0049271736618906785,
+    "exterior_net_kg": 0.006068039877149674,
+    "largest_room_number_minus_weighted_layers": -0.0009131894716328526,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0004815087115027452,
+    "lowest_o2": 0.20628680277607161,
+    "lowest_o2_lower": 0.20628965695516657,
+    "lowest_o2_upper": 0.20628641242409,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 0.20141824000000003,
+    "room_inventory_mass_change_at_the_write_kg": 0.2014182400000024,
+    "room_inventory_requested_kg": 0.20141824000000003,
+    "room_inventory_steps_capped": 0,
+    "steps": 320,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 320,
+    "upper_number_applied_kg": 0.13827706,
+    "upper_number_branches": {
+     "full_thornton": 296
+    },
+    "upper_number_requested_kg": 0.13827706,
+    "upper_number_state_change_on_its_base_kg": 0.1382770599999963,
+    "upper_number_steps_capped": 0
+   },
+   "numbers_before_the_recovery": {
+    "o2": 0.20635796298706827,
+    "o2_lower": 0.20635796298706827,
+    "o2_upper": 0.20635796298706827
+   },
+   "state_after_recovery": "outside_declared_regime"
+  },
+  "no_source_against_zero_energy": {
+   "differing": 0,
+   "dt_s": 2.5,
+   "final_o2": 0.209,
+   "final_o2_lower": 0.209,
+   "final_o2_upper": 0.209,
+   "first_difference": {},
+   "numbers_compared_per_step": 6,
+   "steps": 120,
+   "zero_energy_accepted_kj": 0.0,
+   "zero_energy_state": "replaying"
+  },
+  "open_dt_1.0": {
+   "accepted_kj": 115093.65499999985,
+   "bench_oxygen_debited_kg": 8.747117780000027,
+   "bench_second_number_kg": 8.747117780000027,
+   "dt_s": 1.0,
+   "exit": {},
+   "final": {
+    "o2": 0.20647686282291,
+    "o2_lower": 0.20808871111005015,
+    "o2_upper": 0.20807498632869703
+   },
+   "power_sha256": "7f2acd1287a46c14544c6818dd24f269012655bbc41ad95e8e02943bd67a7cb9",
+   "room_o2_sha256": "b0ba7336027022626dd1c703efc44773622ac7e7e34f7bb9b4ac0b250adf8f2c",
+   "state": "completed",
+   "steps": 3768,
+   "totals": {
+    "accumulator_all_sinks_kg": 17.494235560000053,
+    "accumulator_primary_kg": 8.747117780000027,
+    "accumulator_room_inventory_kg": 8.747117780000027,
+    "ach_on_the_room_number_kg": 2.4336604089500105,
+    "exterior_net_kg": 2.519215269227158,
+    "largest_room_number_minus_weighted_layers": -0.0018328354164753036,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0013134302142341404,
+    "lowest_o2": 0.2060880355726868,
+    "lowest_o2_lower": 0.20796275733399383,
+    "lowest_o2_upper": 0.2068605073907294,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 8.747117780000027,
+    "room_inventory_mass_change_at_the_write_kg": 8.747117780000337,
+    "room_inventory_requested_kg": 8.747117780000027,
+    "room_inventory_steps_capped": 0,
+    "steps": 3768,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 3766,
+    "upper_number_applied_kg": 8.747117780000027,
+    "upper_number_branches": {
+     "full_thornton": 3766
+    },
+    "upper_number_requested_kg": 8.747117780000027,
+    "upper_number_state_change_on_its_base_kg": 8.747117780000247,
+    "upper_number_steps_capped": 0
+   },
+   "upper_branch_forced_to_the_other": false,
+   "window": [
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.20899998717499998,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.20899998717499998,
+     "consumed_all_step_kg": 6.156e-05,
+     "consumed_room_inventory_step_kg": 3.078e-05,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -2.539349999997054e-09,
+      "lower_floor_fraction": 0.20899998717499998,
+      "lower_fraction_after": 0.20899999746064998,
+      "upper_delta_fraction": 1.2825000000049602e-08,
+      "upper_fraction_after": 0.208998730325
+     },
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 3.078e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.526875011175237e-13,
+      "floor_fraction": 0.20899998717499998,
+      "fraction_after": 0.20899999746100267
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899998717499998,
+      "o2_lower": 0.20899999746100267,
+      "o2_upper": 0.208998730325
+     },
+     "o2": 0.20899998717499998,
+     "o2_lower": 0.20899999746100267,
+     "o2_upper": 0.208998730325,
+     "plume_lower_mode": false,
+     "power_kw": 0.405,
+     "room_number_minus_weighted_layers": 2.3853573560828067e-09,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 3.078e-05,
+       "cap_kg": 25.08,
+       "mass_after_kg": 501.59996922,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59999999999997,
+       "requested_kg": 3.078e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 3.078e-05,
+       "branch": "full_thornton",
+       "cap_kg": 1.0032,
+       "fraction_after": 0.2089987175,
+       "fraction_before": 0.209,
+       "mass_base_kg": 24.0,
+       "requested_kg": 3.078e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 0,
+     "temp_lower_c": 20.000004025085904,
+     "temp_upper_c": 20.36581351768179,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20899998717499998,
+      "o2_lower": 0.20899999746100267,
+      "o2_upper": 0.208998730325
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 4.275000002144461e-09,
+     "bulk_fraction_after_write": 0.20899997419344793,
+     "bulk_fraction_before_write": 0.20899998717499998,
+     "bulk_fraction_unclamped": 0.20899997419344793,
+     "consumed_all_step_kg": 6.232e-05,
+     "consumed_room_inventory_step_kg": 3.116e-05,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -5.0796292853094724e-09,
+      "lower_floor_fraction": 0.20899997419344793,
+      "lower_fraction_after": 0.2089999923813734,
+      "upper_delta_fraction": 2.5654693360244173e-08,
+      "upper_fraction_after": 0.20899745764636002
+     },
+     "exterior_net_kg": 4.275000002144461e-09,
+     "fire_primary_kg": 3.116e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 1.0581425820431633e-12,
+      "floor_fraction": 0.20899997419344793,
+      "fraction_after": 0.20899999238243155
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899997419344793,
+      "o2_lower": 0.20899999238243155,
+      "o2_upper": 0.20899745764636002
+     },
+     "o2": 0.20899997419344793,
+     "o2_lower": 0.20899999238243155,
+     "o2_upper": 0.20899745764636002,
+     "plume_lower_mode": false,
+     "power_kw": 0.41000000000000003,
+     "room_number_minus_weighted_layers": 7.158377085536571e-09,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 3.116e-05,
+       "cap_kg": 25.079998461000002,
+       "mass_after_kg": 501.59993806,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59996922,
+       "requested_kg": 3.116e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 3.116e-05,
+       "branch": "full_thornton",
+       "cap_kg": 1.0031939055599999,
+       "fraction_after": 0.20899743199166665,
+       "fraction_before": 0.208998730325,
+       "mass_base_kg": 24.0,
+       "requested_kg": 3.116e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 1,
+     "temp_lower_c": 20.000011881967048,
+     "temp_upper_c": 20.357838215337665,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20899997419344793,
+      "o2_lower": 0.20899999238243155,
+      "o2_upper": 0.20899745764636002
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 8.602184020656267e-09,
+     "bulk_fraction_after_write": 0.20899996042203214,
+     "bulk_fraction_before_write": 0.20899997419344793,
+     "bulk_fraction_unclamped": 0.20899996042203214,
+     "consumed_all_step_kg": 6.612e-05,
+     "consumed_room_inventory_step_kg": 3.306e-05,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -7.74622742161224e-09,
+      "lower_floor_fraction": 0.20899996042203214,
+      "lower_fraction_after": 0.20899998463620414,
+      "upper_delta_fraction": 3.9122360715182495e-08,
+      "upper_fraction_after": 0.20899611926872075
+     },
+     "exterior_net_kg": 8.602184020656267e-09,
+     "fire_primary_kg": 3.306e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 2.133860534257891e-12,
+      "floor_fraction": 0.20899996042203214,
+      "fraction_after": 0.208999984638338
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899996042203214,
+      "o2_lower": 0.208999984638338,
+      "o2_upper": 0.20899611926872075
+     },
+     "o2": 0.20899996042203214,
+     "o2_lower": 0.208999984638338,
+     "o2_upper": 0.20899611926872075,
+     "plume_lower_mode": false,
+     "power_kw": 0.435,
+     "room_number_minus_weighted_layers": 1.4437390338795097e-08,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 3.306e-05,
+       "cap_kg": 25.079996903213754,
+       "mass_after_kg": 501.599905004275,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.599938064275,
+       "requested_kg": 3.306e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 3.306e-05,
+       "branch": "full_thornton",
+       "cap_kg": 1.0031877967025282,
+       "fraction_after": 0.20899608014636004,
+       "fraction_before": 0.20899745764636002,
+       "mass_base_kg": 24.0,
+       "requested_kg": 3.306e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 2,
+     "temp_lower_c": 20.000023586188004,
+     "temp_upper_c": 20.354278723922853,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20773270284052506,
+      "o2_lower": 0.20872873655168384,
+      "o2_upper": 0.2072806302833665
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0004224323864916446,
+     "bulk_fraction_after_write": 0.2077132098956861,
+     "bulk_fraction_before_write": 0.20773270284052506,
+     "bulk_fraction_unclamped": 0.2077132098956861,
+     "consumed_all_step_kg": 0.09441100000000001,
+     "consumed_room_inventory_step_kg": 0.047205500000000004,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -2.947931606266052e-06,
+      "lower_floor_fraction": 0.2077132098956861,
+      "lower_fraction_after": 0.20872578862007757,
+      "upper_delta_fraction": 1.4888543465990111e-05,
+      "upper_fraction_after": 0.2072547707485508
+     },
+     "exterior_net_kg": 0.0005983616184075391,
+     "fire_primary_kg": 0.047205500000000004,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.808491387811435e-08,
+      "floor_fraction": 0.2077132098956861,
+      "fraction_after": 0.20872582670499146
+     },
+     "lower_frac": 0.5173034125101985,
+     "numbers_after_the_room_loop": {
+      "o2": 0.2077132098956861,
+      "o2_lower": 0.20872582670499146,
+      "o2_upper": 0.2072547707485508
+     },
+     "o2": 0.20771328319953272,
+     "o2_lower": 0.2087258568958717,
+     "o2_upper": 0.2072547707485508,
+     "plume_lower_mode": false,
+     "power_kw": 621.125,
+     "room_number_minus_weighted_layers": -0.00030248543312366705,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.047205500000000004,
+       "cap_kg": 24.927924340863008,
+       "mass_after_kg": 498.5112813172601,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.55848681726013,
+       "requested_kg": 0.047205500000000004,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.047205500000000004,
+       "branch": "full_thornton",
+       "cap_kg": 48.02575338744779,
+       "fraction_after": 0.20723988220508482,
+       "fraction_before": 0.2072806302833665,
+       "mass_base_kg": 1158.4718099755237,
+       "requested_kg": 0.047205500000000004,
+       "zone": "upper"
+      }
+     },
+     "step": 1142,
+     "temp_lower_c": 24.283322376640143,
+     "temp_upper_c": 27.452249808899452,
+     "upper_air_mass_kg": 1158.4718099755237,
+     "upper_frac": 0.4826965874898015
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20771328319953272,
+      "o2_lower": 0.2087258568958717,
+      "o2_upper": 0.2072547707485508
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.00042890560015575635,
+     "bulk_fraction_after_write": 0.20769381211019944,
+     "bulk_fraction_before_write": 0.20771328319953272,
+     "bulk_fraction_unclamped": 0.20769381211019944,
+     "consumed_all_step_kg": 0.09431903999999999,
+     "consumed_room_inventory_step_kg": 0.047159519999999996,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -2.993310752061995e-06,
+      "lower_floor_fraction": 0.20769381211019944,
+      "lower_fraction_after": 0.20872286358511963,
+      "upper_delta_fraction": 1.5117731071020158e-05,
+      "upper_fraction_after": 0.2072292015198407
+     },
+     "exterior_net_kg": 0.0006089751610846201,
+     "fire_primary_kg": 0.047159519999999996,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.8491168733383815e-08,
+      "floor_fraction": 0.20769381211019944,
+      "fraction_after": 0.20872290207628835
+     },
+     "lower_frac": 0.517049194491295,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20769381211019944,
+      "o2_lower": 0.20872290207628835,
+      "o2_upper": 0.2072292015198407
+     },
+     "o2": 0.20769388713918316,
+     "o2_lower": 0.2087229328586202,
+     "o2_upper": 0.2072292015198407,
+     "plume_lower_mode": false,
+     "power_kw": 620.52,
+     "room_number_minus_weighted_layers": -0.00030764696615989684,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.047159519999999996,
+       "cap_kg": 24.925593983943926,
+       "mass_after_kg": 498.46472015887855,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.51187967887853,
+       "requested_kg": 0.047159519999999996,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.047159519999999996,
+       "branch": "full_thornton",
+       "cap_kg": 48.04505206969661,
+       "fraction_after": 0.20721408378876968,
+       "fraction_before": 0.2072547707485508,
+       "mass_base_kg": 1159.0819332208919,
+       "requested_kg": 0.047159519999999996,
+       "zone": "upper"
+      }
+     },
+     "step": 1143,
+     "temp_lower_c": 24.364394480466416,
+     "temp_upper_c": 27.558055907514316,
+     "upper_air_mass_kg": 1159.0819332208919,
+     "upper_frac": 0.48295080550870495
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20769388713918316,
+      "o2_lower": 0.2087229328586202,
+      "o2_upper": 0.2072292015198407
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.00043537095360561085,
+     "bulk_fraction_after_write": 0.2076744988604138,
+     "bulk_fraction_before_write": 0.20769388713918316,
+     "bulk_fraction_unclamped": 0.2076744988604138,
+     "consumed_all_step_kg": 0.09393448,
+     "consumed_room_inventory_step_kg": 0.04696724,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -3.0377783838215766e-06,
+      "lower_floor_fraction": 0.2076744988604138,
+      "lower_fraction_after": 0.2087198950802364,
+      "upper_delta_fraction": 1.5342315069805935e-05,
+      "upper_fraction_after": 0.20720404366670941
+     },
+     "exterior_net_kg": 0.0006195833626656914,
+     "fire_primary_kg": 0.04696724,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.890346107827803e-08,
+      "floor_fraction": 0.2076744988604138,
+      "fraction_after": 0.20871993398369748
+     },
+     "lower_frac": 0.5167999491717027,
+     "numbers_after_the_room_loop": {
+      "o2": 0.2076744988604138,
+      "o2_lower": 0.20871993398369748,
+      "o2_upper": 0.20720404366670941
+     },
+     "o2": 0.20767457561558425,
+     "o2_lower": 0.20871996536290519,
+     "o2_upper": 0.20720404366670941,
+     "plume_lower_mode": false,
+     "power_kw": 617.99,
+     "room_number_minus_weighted_layers": -0.00031289630666742063,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.04696724,
+       "cap_kg": 24.92326645670198,
+       "mass_after_kg": 498.41836189403955,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.46532913403956,
+       "requested_kg": 0.04696724,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.04696724,
+       "branch": "full_thornton",
+       "cap_kg": 48.06391713959736,
+       "fraction_after": 0.2071887013516396,
+       "fraction_before": 0.2072292015198407,
+       "mass_base_kg": 1159.6801219879135,
+       "requested_kg": 0.04696724,
+       "zone": "upper"
+      }
+     },
+     "step": 1144,
+     "temp_lower_c": 24.445600473978033,
+     "temp_upper_c": 27.659878147904397,
+     "upper_air_mass_kg": 1159.6801219879135,
+     "upper_frac": 0.4832000508282973
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20647652437351743,
+      "o2_lower": 0.20808861177546098,
+      "o2_upper": 0.2080748638050615
+     },
+     "bench_state": "completed",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0008411585421608525,
+     "bulk_fraction_after_write": 0.20647686282291,
+     "bulk_fraction_before_write": 0.20647652437351743,
+     "bulk_fraction_unclamped": 0.20647686282291,
+     "consumed_all_step_kg": 5.776e-05,
+     "consumed_room_inventory_step_kg": 2.888e-05,
+     "entrainment": {
+      "entr_frac": 0.01,
+      "lower_delta_fraction": -2.7250893527897e-08,
+      "lower_floor_fraction": 0.20647686282291,
+      "lower_fraction_after": 0.20808858452456744,
+      "upper_delta_fraction": 1.3763077539336033e-07,
+      "upper_fraction_after": 0.20807498632869703
+     },
+     "exterior_net_kg": 0.0008411585421608525,
+     "fire_primary_kg": 2.888e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 1.2658548269896573e-07,
+      "floor_fraction": 0.20647686282291,
+      "fraction_after": 0.20808871111005015
+     },
+     "lower_frac": 0.20346713709459174,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20647686282291,
+      "o2_lower": 0.20808871111005015,
+      "o2_upper": 0.20807498632869703
+     },
+     "o2": 0.20647686282291,
+     "o2_lower": 0.20808871111005015,
+     "o2_upper": 0.20807498632869703,
+     "plume_lower_mode": false,
+     "power_kw": 0.38,
+     "room_number_minus_weighted_layers": -0.0016009160477561957,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 2.888e-05,
+       "cap_kg": 24.777182924822093,
+       "mass_after_kg": 495.5436296164418,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 495.5436584964418,
+       "requested_kg": 2.888e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 2.888e-05,
+       "branch": "full_thornton",
+       "cap_kg": 79.5544641433433,
+       "fraction_after": 0.20807484869792164,
+       "fraction_before": 0.2080748638050615,
+       "mass_base_kg": 1911.67887097298,
+       "requested_kg": 2.888e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 3767,
+     "temp_lower_c": 20.05729476702888,
+     "temp_upper_c": 20.059831745020496,
+     "upper_air_mass_kg": 1911.67887097298,
+     "upper_frac": 0.7965328629054083
+    }
+   ]
+  },
+  "open_dt_2.5": {
+   "accepted_kj": 115093.655,
+   "bench_oxygen_debited_kg": 8.747117780000005,
+   "bench_second_number_kg": 8.747117780000005,
+   "dt_s": 2.5,
+   "exit": {},
+   "final": {
+    "o2": 0.20647404883988446,
+    "o2_lower": 0.20810090615820384,
+    "o2_upper": 0.208087422589092
+   },
+   "power_sha256": "d6a746296de2d0edd625b3a50198582e6fcb3e80bfda5afae5b24f65634e685d",
+   "room_o2_sha256": "47decedef9d5184f7438744869f8e06108cff3d4f3869d7272176897396dfe10",
+   "state": "completed",
+   "steps": 1508,
+   "totals": {
+    "accumulator_all_sinks_kg": 17.49423556000001,
+    "accumulator_primary_kg": 8.747117780000005,
+    "accumulator_room_inventory_kg": 8.747117780000005,
+    "ach_on_the_room_number_kg": 2.437542875164912,
+    "exterior_net_kg": 2.520261554940474,
+    "largest_room_number_minus_weighted_layers": -0.0018508299569288678,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.001296443659842797,
+    "lowest_o2": 0.20608355476621354,
+    "lowest_o2_lower": 0.20797568457951765,
+    "lowest_o2_upper": 0.20688521589649156,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 8.747117780000005,
+    "room_inventory_mass_change_at_the_write_kg": 8.747117780000906,
+    "room_inventory_requested_kg": 8.747117780000005,
+    "room_inventory_steps_capped": 0,
+    "steps": 1508,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 1508,
+    "upper_number_applied_kg": 8.747117780000005,
+    "upper_number_branches": {
+     "full_thornton": 1508
+    },
+    "upper_number_requested_kg": 8.747117780000005,
+    "upper_number_state_change_on_its_base_kg": 8.747117780000018,
+    "upper_number_steps_capped": 0
+   },
+   "upper_branch_forced_to_the_other": false,
+   "window": [
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.20899996766041665,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.20899996766041665,
+     "consumed_all_step_kg": 0.00015522999999999996,
+     "consumed_room_inventory_step_kg": 7.761499999999998e-05,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -1.5765546875073925e-08,
+      "lower_floor_fraction": 0.20899996766041665,
+      "lower_fraction_after": 0.20899998423445312,
+      "upper_delta_fraction": 8.084895833371242e-08,
+      "upper_fraction_after": 0.20899684689062498
+     },
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 7.761499999999998e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 5.474148218054253e-12,
+      "floor_fraction": 0.20899996766041665,
+      "fraction_after": 0.20899998423992727
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899996766041665,
+      "o2_lower": 0.20899998423992727,
+      "o2_upper": 0.20899684689062498
+     },
+     "o2": 0.20899996766041665,
+     "o2_lower": 0.20899998423992727,
+     "o2_upper": 0.20899684689062498,
+     "plume_lower_mode": false,
+     "power_kw": 0.4085,
+     "room_number_minus_weighted_layers": 1.4793982400229666e-08,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 7.761499999999998e-05,
+       "cap_kg": 25.08,
+       "mass_after_kg": 501.59992238499996,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59999999999997,
+       "requested_kg": 7.761499999999998e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 7.761499999999998e-05,
+       "branch": "full_thornton",
+       "cap_kg": 1.0032,
+       "fraction_after": 0.20899676604166664,
+       "fraction_before": 0.209,
+       "mass_base_kg": 24.0,
+       "requested_kg": 7.761499999999998e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 0,
+     "temp_lower_c": 20.00002505864425,
+     "temp_upper_c": 20.337390342452675,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20899996766041665,
+      "o2_lower": 0.20899998423992727,
+      "o2_upper": 0.20899684689062498
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 2.6949652787155998e-08,
+     "bulk_fraction_after_write": 0.208999921161229,
+     "bulk_fraction_before_write": 0.20899996766041665,
+     "bulk_fraction_unclamped": 0.208999921161229,
+     "consumed_all_step_kg": 0.00022325,
+     "consumed_room_inventory_step_kg": 0.000111625,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -3.7968405973559665e-08,
+      "lower_floor_fraction": 0.208999921161229,
+      "lower_fraction_after": 0.2089999462715213,
+      "upper_delta_fraction": 1.9470977422331172e-07,
+      "upper_fraction_after": 0.20899239055873256
+     },
+     "exterior_net_kg": 2.6949652787155998e-08,
+     "fire_primary_kg": 0.000111625,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 1.8655721768712833e-11,
+      "floor_fraction": 0.208999921161229,
+      "fraction_after": 0.208999946290177
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.208999921161229,
+      "o2_lower": 0.208999946290177,
+      "o2_upper": 0.20899239055873256
+     },
+     "o2": 0.208999921161229,
+     "o2_lower": 0.208999946290177,
+     "o2_upper": 0.20899239055873256,
+     "plume_lower_mode": false,
+     "power_kw": 0.5875,
+     "room_number_minus_weighted_layers": 5.042836645485771e-08,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.000111625,
+       "cap_kg": 25.079996119249998,
+       "mass_after_kg": 501.59981075999997,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59992238499996,
+       "requested_kg": 0.000111625,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.000111625,
+       "branch": "full_thornton",
+       "cap_kg": 1.003184865075,
+       "fraction_after": 0.20899219584895834,
+       "fraction_before": 0.20899684689062498,
+       "mass_base_kg": 24.0,
+       "requested_kg": 0.000111625,
+       "zone": "upper"
+      }
+     },
+     "step": 1,
+     "temp_lower_c": 20.000082385075324,
+     "temp_upper_c": 20.3659059183853,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.208999921161229,
+      "o2_lower": 0.208999946290177,
+      "o2_upper": 0.20899239055873256
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 6.569897581983526e-08,
+     "bulk_fraction_after_write": 0.20899985464902027,
+     "bulk_fraction_before_write": 0.208999921161229,
+     "bulk_fraction_unclamped": 0.20899985464902027,
+     "consumed_all_step_kg": 0.0003193899999999999,
+     "consumed_room_inventory_step_kg": 0.00015969499999999995,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.927223766661773e-08,
+      "lower_floor_fraction": 0.20899985464902027,
+      "lower_fraction_after": 0.20899987701793935,
+      "upper_delta_fraction": 3.5524224444444257e-07,
+      "upper_fraction_after": 0.2089860918426437
+     },
+     "exterior_net_kg": 6.569897581983526e-08,
+     "fire_primary_kg": 0.00015969499999999995,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 4.2702104391081596e-11,
+      "floor_fraction": 0.20899985464902027,
+      "fraction_after": 0.20899987706064144
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899985464902027,
+      "o2_lower": 0.20899987706064144,
+      "o2_upper": 0.2089860918426437
+     },
+     "o2": 0.20899985464902027,
+     "o2_lower": 0.20899987706064144,
+     "o2_upper": 0.2089860918426437,
+     "plume_lower_mode": false,
+     "power_kw": 0.8404999999999999,
+     "room_number_minus_weighted_layers": 1.1544055880663429e-07,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.00015969499999999995,
+       "cap_kg": 25.07999053934748,
+       "mass_after_kg": 501.5996510919496,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.5998107869496,
+       "requested_kg": 0.00015969499999999995,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.00015969499999999995,
+       "branch": "full_thornton",
+       "cap_kg": 1.0031634746819165,
+       "fraction_after": 0.20898573660039924,
+       "fraction_before": 0.20899239055873256,
+       "mass_base_kg": 24.0,
+       "requested_kg": 0.00015969499999999995,
+       "zone": "upper"
+      }
+     },
+     "step": 2,
+     "temp_lower_c": 20.000182596226622,
+     "temp_upper_c": 20.40362098150422,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.2077712080491915,
+      "o2_lower": 0.20873508773792876,
+      "o2_upper": 0.2073498720057974
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0010239932923404118,
+     "bulk_fraction_after_write": 0.20772267935264666,
+     "bulk_fraction_before_write": 0.2077712080491915,
+     "bulk_fraction_unclamped": 0.20772267935264666,
+     "consumed_all_step_kg": 0.23498572999999998,
+     "consumed_room_inventory_step_kg": 0.11749286499999999,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -7.2478659463127995e-06,
+      "lower_floor_fraction": 0.20772267935264666,
+      "lower_fraction_after": 0.20872783987198246,
+      "upper_delta_fraction": 3.7168543314424626e-05,
+      "upper_fraction_after": 0.2072855145486662
+     },
+     "exterior_net_kg": 0.0014486250325105678,
+     "fire_primary_kg": 0.11749286499999999,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.450004445053282e-08,
+      "floor_fraction": 0.20772267935264666,
+      "fraction_after": 0.2087279343720269
+     },
+     "lower_frac": 0.517804698286418,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20772267935264666,
+      "o2_lower": 0.2087279343720269,
+      "o2_upper": 0.2072855145486662
+     },
+     "o2": 0.2077228562825384,
+     "o2_lower": 0.20872800714212392,
+     "o2_upper": 0.2072855145486662,
+     "plume_lower_mode": false,
+     "power_kw": 618.3835,
+     "room_number_minus_weighted_layers": -0.00030958770826355897,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.11749286499999999,
+       "cap_kg": 24.93254496590298,
+       "mass_after_kg": 498.5334064530596,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.6508993180596,
+       "requested_kg": 0.11749286499999999,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.11749286499999999,
+       "branch": "full_thornton",
+       "cap_kg": 47.99190436421189,
+       "fraction_after": 0.20724834600535177,
+       "fraction_before": 0.2073498720057974,
+       "mass_base_kg": 1157.2687241125968,
+       "requested_kg": 0.11749286499999999,
+       "zone": "upper"
+      }
+     },
+     "step": 456,
+     "temp_lower_c": 24.343716802960195,
+     "temp_upper_c": 27.050093682935007,
+     "upper_air_mass_kg": 1157.2687241125968,
+     "upper_frac": 0.48219530171358205
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.2077228562825384,
+      "o2_lower": 0.20872800714212392,
+      "o2_upper": 0.2072855145486662
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0010642864312179986,
+     "bulk_fraction_after_write": 0.20767424312063476,
+     "bulk_fraction_before_write": 0.2077228562825384,
+     "bulk_fraction_unclamped": 0.20767424312063476,
+     "consumed_all_step_kg": 0.23547175,
+     "consumed_room_inventory_step_kg": 0.117735875,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -7.52746758988579e-06,
+      "lower_floor_fraction": 0.20767424312063476,
+      "lower_fraction_after": 0.20872047967453403,
+      "upper_delta_fraction": 3.8602397896850275e-05,
+      "upper_fraction_after": 0.20722251362414676
+     },
+     "exterior_net_kg": 0.0015142619562588896,
+     "fire_primary_kg": 0.117735875,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.705566856457121e-08,
+      "floor_fraction": 0.20767424312063476,
+      "fraction_after": 0.20872057673020258
+     },
+     "lower_frac": 0.5171750941141846,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20767424312063476,
+      "o2_lower": 0.20872057673020258,
+      "o2_upper": 0.20722251362414676
+     },
+     "o2": 0.20767443061043686,
+     "o2_lower": 0.20872065312809793,
+     "o2_upper": 0.20722251362414676,
+     "plume_lower_mode": false,
+     "power_kw": 619.6625,
+     "room_number_minus_weighted_layers": -0.000322883452662015,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.117735875,
+       "cap_kg": 24.92674275390461,
+       "mass_after_kg": 498.41711920309217,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.53485507809216,
+       "requested_kg": 0.117735875,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.117735875,
+       "branch": "full_thornton",
+       "cap_kg": 48.03965234565724,
+       "fraction_after": 0.2071839112262499,
+       "fraction_before": 0.2072855145486662,
+       "mass_base_kg": 1158.779774125957,
+       "requested_kg": 0.117735875,
+       "zone": "upper"
+      }
+     },
+     "step": 457,
+     "temp_lower_c": 24.547656322505073,
+     "temp_upper_c": 27.30093876322349,
+     "upper_air_mass_kg": 1158.779774125957,
+     "upper_frac": 0.48282490588581534
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20767443061043686,
+      "o2_lower": 0.20872065312809793,
+      "o2_upper": 0.20722251362414676
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0011046411579692752,
+     "bulk_fraction_after_write": 0.20762645817550268,
+     "bulk_fraction_before_write": 0.20767443061043686,
+     "bulk_fraction_unclamped": 0.20762645817550268,
+     "consumed_all_step_kg": 0.23247696999999998,
+     "consumed_room_inventory_step_kg": 0.11623848499999999,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -7.791836989406305e-06,
+      "lower_floor_fraction": 0.20762645817550268,
+      "lower_fraction_after": 0.20871286129110853,
+      "upper_delta_fraction": 3.9958138407211743e-05,
+      "upper_fraction_after": 0.20716228573021667
+     },
+     "exterior_net_kg": 0.0015799054637463208,
+     "fire_primary_kg": 0.11623848499999999,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.970094058731446e-08,
+      "floor_fraction": 0.20762645817550268,
+      "fraction_after": 0.2087129609920491
+     },
+     "lower_frac": 0.5165723109956999,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20762645817550268,
+      "o2_lower": 0.2087129609920491,
+      "o2_upper": 0.20716228573021667
+     },
+     "o2": 0.20762665620229676,
+     "o2_lower": 0.20871304109218874,
+     "o2_upper": 0.20716228573021667,
+     "plume_lower_mode": false,
+     "power_kw": 611.7814999999999,
+     "room_number_minus_weighted_layers": -0.00033670680904279715,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.11623848499999999,
+       "cap_kg": 24.920931673252426,
+       "mass_after_kg": 498.30239498004846,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.41863346504846,
+       "requested_kg": 0.11623848499999999,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.11623848499999999,
+       "branch": "full_thornton",
+       "cap_kg": 48.08500841807202,
+       "fraction_after": 0.20712232759180946,
+       "fraction_before": 0.20722251362414676,
+       "mass_base_kg": 1160.2264536103203,
+       "requested_kg": 0.11623848499999999,
+       "zone": "upper"
+      }
+     },
+     "step": 458,
+     "temp_lower_c": 24.750423501985708,
+     "temp_upper_c": 27.527605218473944,
+     "upper_air_mass_kg": 1160.2264536103203,
+     "upper_frac": 0.4834276890043001
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20647317788359404,
+      "o2_lower": 0.2081006600517199,
+      "o2_upper": 0.2080870912149681
+     },
+     "bench_state": "completed",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.00210568509700496,
+     "bulk_fraction_after_write": 0.20647404883988446,
+     "bulk_fraction_before_write": 0.20647317788359404,
+     "bulk_fraction_unclamped": 0.20647404883988446,
+     "consumed_all_step_kg": 3.078e-05,
+     "consumed_room_inventory_step_kg": 1.539e-05,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.618731313953742e-08,
+      "lower_floor_fraction": 0.20647404883988446,
+      "lower_fraction_after": 0.20810059386440677,
+      "upper_delta_fraction": 3.3942211866422324e-07,
+      "upper_fraction_after": 0.208087422589092
+     },
+     "exterior_net_kg": 0.00210568509700496,
+     "fire_primary_kg": 1.539e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.1229379708098006e-07,
+      "floor_fraction": 0.20647404883988446,
+      "fraction_after": 0.20810090615820384
+     },
+     "lower_frac": 0.20321767551350423,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20647404883988446,
+      "o2_lower": 0.20810090615820384,
+      "o2_upper": 0.208087422589092
+     },
+     "o2": 0.20647404883988446,
+     "o2_lower": 0.20810090615820384,
+     "o2_upper": 0.208087422589092,
+     "plume_lower_mode": false,
+     "power_kw": 0.081,
+     "room_number_minus_weighted_layers": -0.0016161138487800764,
+     "sink_sees_two_zones": false,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 1.539e-05,
+       "cap_kg": 24.776781346031285,
+       "mass_after_kg": 495.5356115306257,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 495.5356269206257,
+       "requested_kg": 1.539e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 1.539e-05,
+       "branch": "full_thornton",
+       "cap_kg": 79.58405579226996,
+       "fraction_after": 0.20808708316697333,
+       "fraction_before": 0.2080870912149681,
+       "mass_base_kg": 1912.2775787675898,
+       "requested_kg": 1.539e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 1507,
+     "temp_lower_c": 20.05654761024388,
+     "temp_upper_c": 20.058555334683618,
+     "upper_air_mass_kg": 1912.2775787675898,
+     "upper_frac": 0.7967823244864958
+    }
+   ]
+  },
+  "open_dt_2.5_other_upper_branch": {
+   "accepted_kj": 115093.655,
+   "bench_oxygen_debited_kg": 8.747117780000005,
+   "bench_second_number_kg": 0.7872406002000005,
+   "dt_s": 2.5,
+   "exit": {},
+   "final": {
+    "o2": 0.20647404883988446,
+    "o2_lower": 0.20891786726258335,
+    "o2_upper": 0.20891663948908984
+   },
+   "power_sha256": "d6a746296de2d0edd625b3a50198582e6fcb3e80bfda5afae5b24f65634e685d",
+   "room_o2_sha256": "47decedef9d5184f7438744869f8e06108cff3d4f3869d7272176897396dfe10",
+   "state": "completed",
+   "steps": 1508,
+   "totals": {
+    "accumulator_all_sinks_kg": 9.534358380200002,
+    "accumulator_primary_kg": 8.747117780000005,
+    "accumulator_room_inventory_kg": 8.747117780000005,
+    "ach_on_the_room_number_kg": 2.437542875164912,
+    "exterior_net_kg": 2.520261554940474,
+    "largest_room_number_minus_weighted_layers": -0.002818639653187488,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.00011644036331980382,
+    "lowest_o2": 0.20608355476621354,
+    "lowest_o2_lower": 0.20890632795053093,
+    "lowest_o2_upper": 0.20880797271886295,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 8.747117780000005,
+    "room_inventory_mass_change_at_the_write_kg": 8.747117780000906,
+    "room_inventory_requested_kg": 8.747117780000005,
+    "room_inventory_steps_capped": 0,
+    "steps": 1508,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 1508,
+    "upper_number_applied_kg": 0.7872406002000005,
+    "upper_number_branches": {
+     "displacement": 1508
+    },
+    "upper_number_requested_kg": 0.7872406002000005,
+    "upper_number_state_change_on_its_base_kg": 0.7872406002001182,
+    "upper_number_steps_capped": 0
+   },
+   "upper_branch_forced_to_the_other": true,
+   "window": [
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.20899996766041665,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.20899996766041665,
+     "consumed_all_step_kg": 8.460034999999998e-05,
+     "consumed_room_inventory_step_kg": 7.761499999999998e-05,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -1.4188992186747743e-09,
+      "lower_floor_fraction": 0.20899996766041665,
+      "lower_fraction_after": 0.20899999858110077,
+      "upper_delta_fraction": 7.276406249756562e-09,
+      "upper_fraction_after": 0.20899971622015626
+     },
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 7.761499999999998e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 4.926733403958709e-13,
+      "floor_fraction": 0.20899996766041665,
+      "fraction_after": 0.20899999858159343
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899996766041665,
+      "o2_lower": 0.20899999858159343,
+      "o2_upper": 0.20899971622015626
+     },
+     "o2": 0.20899996766041665,
+     "o2_lower": 0.20899999858159343,
+     "o2_upper": 0.20899971622015626,
+     "plume_lower_mode": false,
+     "power_kw": 0.4085,
+     "room_number_minus_weighted_layers": -2.8097562415618782e-08,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 7.761499999999998e-05,
+       "cap_kg": 25.08,
+       "mass_after_kg": 501.59992238499996,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59999999999997,
+       "requested_kg": 7.761499999999998e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 6.985349999999998e-06,
+       "branch": "displacement",
+       "cap_kg": 1.0032,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20899970894375,
+       "fraction_before": 0.209,
+       "mass_base_kg": 24.0,
+       "requested_kg": 6.985349999999998e-06,
+       "zone": "upper"
+      }
+     },
+     "step": 0,
+     "temp_lower_c": 20.00002505864425,
+     "temp_upper_c": 20.337390342452675,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20899996766041665,
+      "o2_lower": 0.20899999858159343,
+      "o2_upper": 0.20899971622015626
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 2.6949652787155998e-08,
+     "bulk_fraction_after_write": 0.208999921161229,
+     "bulk_fraction_before_write": 0.20899996766041665,
+     "bulk_fraction_unclamped": 0.208999921161229,
+     "consumed_all_step_kg": 0.00012167125,
+     "consumed_room_inventory_step_kg": 0.000111625,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -3.4171565374552245e-09,
+      "lower_floor_fraction": 0.208999921161229,
+      "lower_fraction_after": 0.2089999951644369,
+      "upper_delta_fraction": 1.7523879679293143e-08,
+      "upper_fraction_after": 0.20899931515028594
+     },
+     "exterior_net_kg": 2.6949652787155998e-08,
+     "fire_primary_kg": 0.000111625,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 1.6790149614007464e-12,
+      "floor_fraction": 0.208999921161229,
+      "fraction_after": 0.20899999516611592
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.208999921161229,
+      "o2_lower": 0.20899999516611592,
+      "o2_upper": 0.20899931515028594
+     },
+     "o2": 0.208999921161229,
+     "o2_lower": 0.20899999516611592,
+     "o2_upper": 0.20899931515028594,
+     "plume_lower_mode": false,
+     "power_kw": 0.5875,
+     "room_number_minus_weighted_layers": -6.720472861543314e-08,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.000111625,
+       "cap_kg": 25.079996119249998,
+       "mass_after_kg": 501.59981075999997,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.59992238499996,
+       "requested_kg": 0.000111625,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 1.004625e-05,
+       "branch": "displacement",
+       "cap_kg": 1.0031986378567501,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20899929762640626,
+       "fraction_before": 0.20899971622015626,
+       "mass_base_kg": 24.0,
+       "requested_kg": 1.004625e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 1,
+     "temp_lower_c": 20.000082385075324,
+     "temp_upper_c": 20.3659059183853,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.208999921161229,
+      "o2_lower": 0.20899999516611592,
+      "o2_upper": 0.20899931515028594
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 6.569897581983526e-08,
+     "bulk_fraction_after_write": 0.20899985464902027,
+     "bulk_fraction_before_write": 0.208999921161229,
+     "bulk_fraction_unclamped": 0.20899985464902027,
+     "consumed_all_step_kg": 0.00017406754999999994,
+     "consumed_room_inventory_step_kg": 0.00015969499999999995,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.234501389729142e-09,
+      "lower_floor_fraction": 0.20899985464902027,
+      "lower_fraction_after": 0.20899998893161453,
+      "upper_delta_fraction": 3.1971801998931236e-08,
+      "upper_fraction_after": 0.20899874826583797
+     },
+     "exterior_net_kg": 6.569897581983526e-08,
+     "fire_primary_kg": 0.00015969499999999995,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 3.843189395197344e-12,
+      "floor_fraction": 0.20899985464902027,
+      "fraction_after": 0.2089999889354577
+     },
+     "lower_frac": 0.99,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20899985464902027,
+      "o2_lower": 0.2089999889354577,
+      "o2_upper": 0.20899874826583797
+     },
+     "o2": 0.20899985464902027,
+     "o2_lower": 0.2089999889354577,
+     "o2_upper": 0.20899874826583797,
+     "plume_lower_mode": false,
+     "power_kw": 0.8404999999999999,
+     "room_number_minus_weighted_layers": -1.21879741243891e-07,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.00015969499999999995,
+       "cap_kg": 25.07999053934748,
+       "mass_after_kg": 501.5996510919496,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 501.5998107869496,
+       "requested_kg": 0.00015969499999999995,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 1.4372549999999995e-05,
+       "branch": "displacement",
+       "cap_kg": 1.0031967127213726,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20899871629403596,
+       "fraction_before": 0.20899931515028594,
+       "mass_base_kg": 24.0,
+       "requested_kg": 1.4372549999999995e-05,
+       "zone": "upper"
+      }
+     },
+     "step": 2,
+     "temp_lower_c": 20.000182596226622,
+     "temp_upper_c": 20.40362098150422,
+     "upper_air_mass_kg": 24.0,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.2077712080491915,
+      "o2_lower": 0.2089744685960246,
+      "o2_upper": 0.20884977420667666
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0010239932923404118,
+     "bulk_fraction_after_write": 0.20772267935264666,
+     "bulk_fraction_before_write": 0.2077712080491915,
+     "bulk_fraction_unclamped": 0.20772267935264666,
+     "consumed_all_step_kg": 0.12806722285,
+     "consumed_room_inventory_step_kg": 0.11749286499999999,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.524296807666753e-07,
+      "lower_floor_fraction": 0.20772267935264666,
+      "lower_fraction_after": 0.20897381616634383,
+      "upper_delta_fraction": 3.3457932347005784e-06,
+      "upper_fraction_after": 0.20884398265987125
+     },
+     "exterior_net_kg": 0.0014486250325105678,
+     "fire_primary_kg": 0.11749286499999999,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.091608908387869e-09,
+      "floor_fraction": 0.20772267935264666,
+      "fraction_after": 0.20897382525795274
+     },
+     "lower_frac": 0.517804698286418,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20772267935264666,
+      "o2_lower": 0.20897382525795274,
+      "o2_upper": 0.20884398265987125
+     },
+     "o2": 0.2077228562825384,
+     "o2_lower": 0.20897383225897867,
+     "o2_upper": 0.20884398265987125,
+     "plume_lower_mode": false,
+     "power_kw": 618.3835,
+     "room_number_minus_weighted_layers": -0.0011883631098212888,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.11749286499999999,
+       "cap_kg": 24.93254496590298,
+       "mass_after_kg": 498.5334064530596,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.6508993180596,
+       "requested_kg": 0.11749286499999999,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.010574357849999999,
+       "branch": "displacement",
+       "cap_kg": 48.33906234547293,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20884063686663656,
+       "fraction_before": 0.20884977420667666,
+       "mass_base_kg": 1157.2687241125968,
+       "requested_kg": 0.010574357849999999,
+       "zone": "upper"
+      }
+     },
+     "step": 456,
+     "temp_lower_c": 24.343716802960195,
+     "temp_upper_c": 27.050093682935007,
+     "upper_air_mass_kg": 1157.2687241125968,
+     "upper_frac": 0.48219530171358205
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.2077228562825384,
+      "o2_lower": 0.20897383225897867,
+      "o2_upper": 0.20884398265987125
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0010642864312179986,
+     "bulk_fraction_after_write": 0.20767424312063476,
+     "bulk_fraction_before_write": 0.2077228562825384,
+     "bulk_fraction_unclamped": 0.20767424312063476,
+     "consumed_all_step_kg": 0.12833210375,
+     "consumed_room_inventory_step_kg": 0.117735875,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.775952533587261e-07,
+      "lower_floor_fraction": 0.20767424312063476,
+      "lower_fraction_after": 0.20897315466372532,
+      "upper_delta_fraction": 3.4748474531214046e-06,
+      "upper_fraction_after": 0.20883831320830692
+     },
+     "exterior_net_kg": 0.0015142619562588896,
+     "fire_primary_kg": 0.117735875,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.321297317594562e-09,
+      "floor_fraction": 0.20767424312063476,
+      "fraction_after": 0.20897316398502264
+     },
+     "lower_frac": 0.5171750941141846,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20767424312063476,
+      "o2_lower": 0.20897316398502264,
+      "o2_upper": 0.20883831320830692
+     },
+     "o2": 0.20767443061043686,
+     "o2_lower": 0.20897317132233234,
+     "o2_upper": 0.20883831320830692,
+     "plume_lower_mode": false,
+     "power_kw": 619.6625,
+     "room_number_minus_weighted_layers": -0.0012336278556832059,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.117735875,
+       "cap_kg": 24.92674275390461,
+       "mass_after_kg": 498.41711920309217,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.53485507809216,
+       "requested_kg": 0.117735875,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.01059622875,
+       "branch": "displacement",
+       "cap_kg": 48.400836610834176,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20883483836085381,
+       "fraction_before": 0.20884398265987125,
+       "mass_base_kg": 1158.779774125957,
+       "requested_kg": 0.01059622875,
+       "zone": "upper"
+      }
+     },
+     "step": 457,
+     "temp_lower_c": 24.547656322505073,
+     "temp_upper_c": 27.30093876322349,
+     "upper_air_mass_kg": 1158.779774125957,
+     "upper_frac": 0.48282490588581534
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20767443061043686,
+      "o2_lower": 0.20897317132233234,
+      "o2_upper": 0.20883831320830692
+     },
+     "bench_state": "replaying",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0011046411579692752,
+     "bulk_fraction_after_write": 0.20762645817550268,
+     "bulk_fraction_before_write": 0.20767443061043686,
+     "bulk_fraction_unclamped": 0.20762645817550268,
+     "consumed_all_step_kg": 0.12669994864999998,
+     "consumed_room_inventory_step_kg": 0.11623848499999999,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -7.01389927561802e-07,
+      "lower_floor_fraction": 0.20762645817550268,
+      "lower_fraction_after": 0.2089724699324048,
+      "upper_delta_fraction": 3.596871423394016e-06,
+      "upper_fraction_after": 0.20883289333681998
+     },
+     "exterior_net_kg": 0.0015799054637463208,
+     "fire_primary_kg": 0.11623848499999999,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 9.559051248335084e-09,
+      "floor_fraction": 0.20762645817550268,
+      "fraction_after": 0.20897247949145603
+     },
+     "lower_frac": 0.5165723109956999,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20762645817550268,
+      "o2_lower": 0.20897247949145603,
+      "o2_upper": 0.20883289333681998
+     },
+     "o2": 0.20762665620229676,
+     "o2_lower": 0.20897248717123654,
+     "o2_upper": 0.20883289333681998,
+     "plume_lower_mode": false,
+     "power_kw": 611.7814999999999,
+     "room_number_minus_weighted_layers": -0.0012783474441685483,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 0.11623848499999999,
+       "cap_kg": 24.920931673252426,
+       "mass_after_kg": 498.30239498004846,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 498.41863346504846,
+       "requested_kg": 0.11623848499999999,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 0.010461463649999999,
+       "branch": "displacement",
+       "cap_kg": 48.45994710232705,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20882929646539658,
+       "fraction_before": 0.20883831320830692,
+       "mass_base_kg": 1160.2264536103203,
+       "requested_kg": 0.010461463649999999,
+       "zone": "upper"
+      }
+     },
+     "step": 458,
+     "temp_lower_c": 24.750423501985708,
+     "temp_upper_c": 27.527605218473944,
+     "upper_air_mass_kg": 1160.2264536103203,
+     "upper_frac": 0.4834276890043001
+    },
+    {
+     "air_mass_kg": 2400.0,
+     "before": {
+      "o2": 0.20647317788359404,
+      "o2_lower": 0.20891784476072428,
+      "o2_upper": 0.2089166093090085
+     },
+     "bench_state": "completed",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.00210568509700496,
+     "bulk_fraction_after_write": 0.20647404883988446,
+     "bulk_fraction_before_write": 0.20647317788359404,
+     "bulk_fraction_unclamped": 0.20647404883988446,
+     "consumed_all_step_kg": 1.67751e-05,
+     "consumed_room_inventory_step_kg": 1.539e-05,
+     "entrainment": {
+      "entr_frac": 0.025,
+      "lower_delta_fraction": -6.026358172206427e-09,
+      "lower_floor_fraction": 0.20647404883988446,
+      "lower_fraction_after": 0.20891783873436612,
+      "upper_delta_fraction": 3.09044008828252e-08,
+      "upper_fraction_after": 0.20891663948908984
+     },
+     "exterior_net_kg": 0.00210568509700496,
+     "fire_primary_kg": 1.539e-05,
+     "lower_ach": {
+      "ceil_fraction": 0.209,
+      "delta_fraction": 2.8528217233983775e-08,
+      "floor_fraction": 0.20647404883988446,
+      "fraction_after": 0.20891786726258335
+     },
+     "lower_frac": 0.20321767551350423,
+     "numbers_after_the_room_loop": {
+      "o2": 0.20647404883988446,
+      "o2_lower": 0.20891786726258335,
+      "o2_upper": 0.20891663948908984
+     },
+     "o2": 0.20647404883988446,
+     "o2_lower": 0.20891786726258335,
+     "o2_upper": 0.20891663948908984,
+     "plume_lower_mode": false,
+     "power_kw": 0.081,
+     "room_number_minus_weighted_layers": -0.002442840154480791,
+     "sink_sees_two_zones": true,
+     "sinks": {
+      "bulk": {
+       "applied_kg": 1.539e-05,
+       "cap_kg": 24.776781346031285,
+       "mass_after_kg": 495.5356115306257,
+       "mass_base_kg": 2400.0,
+       "mass_before_kg": 495.5356269206257,
+       "requested_kg": 1.539e-05,
+       "zone": "bulk"
+      },
+      "upper": {
+       "applied_kg": 1.3850999999999999e-06,
+       "branch": "displacement",
+       "cap_kg": 79.90130956275306,
+       "displacement_frac": 0.09,
+       "fraction_after": 0.20891660858468897,
+       "fraction_before": 0.2089166093090085,
+       "mass_base_kg": 1912.2775787675898,
+       "requested_kg": 1.3850999999999999e-06,
+       "zone": "upper"
+      }
+     },
+     "step": 1507,
+     "temp_lower_c": 20.05654761024388,
+     "temp_upper_c": 20.058555334683618,
+     "upper_air_mass_kg": 1912.2775787675898,
+     "upper_frac": 0.7967823244864958
+    }
+   ]
+  },
+  "sealed_dt_1.0": {
+   "accepted_kj": 0.0,
+   "bench_reports_debited_without_heat_kg": null,
+   "dt_s": 1.0,
+   "exit": {
+    "cause": "the_oxygen_sink_would_not_debit_the_room_inventory",
+    "room_is_sealed_for_the_sink": true,
+    "route": "lower_layer_number_by_the_plume",
+    "source_time_s": 0.0,
+    "step": 0
+   },
+   "last_step_that_differs": -1,
+   "rows": [
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 0,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 1,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 2,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 3,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 39,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    }
+   ],
+   "state": "outside_declared_regime",
+   "steps": 40,
+   "steps_whose_oxygen_numbers_differ_from_the_twin": 0,
+   "to_the_gas_kj": 0.0,
+   "totals": {
+    "accumulator_all_sinks_kg": 0.0,
+    "accumulator_primary_kg": 0.0,
+    "accumulator_room_inventory_kg": 0.0,
+    "ach_on_the_room_number_kg": 0.0,
+    "exterior_net_kg": 0.0,
+    "largest_room_number_minus_weighted_layers": 0.0,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0,
+    "lowest_o2": 0.209,
+    "lowest_o2_lower": 0.209,
+    "lowest_o2_upper": 0.209,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 0.0,
+    "room_inventory_mass_change_at_the_write_kg": 0.0,
+    "room_inventory_requested_kg": 0.0,
+    "room_inventory_steps_capped": 0,
+    "steps": 40,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 0,
+    "upper_number_applied_kg": 0.0,
+    "upper_number_branches": {},
+    "upper_number_requested_kg": 0.0,
+    "upper_number_state_change_on_its_base_kg": 0.0,
+    "upper_number_steps_capped": 0
+   }
+  },
+  "sealed_dt_2.5": {
+   "accepted_kj": 0.0,
+   "bench_reports_debited_without_heat_kg": null,
+   "dt_s": 2.5,
+   "exit": {
+    "cause": "the_oxygen_sink_would_not_debit_the_room_inventory",
+    "room_is_sealed_for_the_sink": true,
+    "route": "lower_layer_number_by_the_plume",
+    "source_time_s": 0.0,
+    "step": 0
+   },
+   "last_step_that_differs": -1,
+   "rows": [
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 0,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 1,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 2,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 3,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    },
+    {
+     "air_mass_kg": 72.0,
+     "before": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "bench_state": "outside_declared_regime",
+     "bi_zone_invalid": false,
+     "bulk_ach_kg": 0.0,
+     "bulk_fraction_after_write": 0.209,
+     "bulk_fraction_before_write": 0.209,
+     "bulk_fraction_unclamped": 0.209,
+     "consumed_all_step_kg": 0.0,
+     "consumed_room_inventory_step_kg": 0.0,
+     "entrainment": {},
+     "exterior_net_kg": 0.0,
+     "fire_primary_kg": 0.0,
+     "lower_ach": {},
+     "lower_frac": 0.99,
+     "minus_the_twin_without_source": {
+      "o2": 0.0,
+      "o2_lower": 0.0,
+      "o2_upper": 0.0
+     },
+     "numbers_after_the_room_loop": {
+      "o2": 0.209,
+      "o2_lower": 0.209,
+      "o2_upper": 0.209
+     },
+     "o2": 0.209,
+     "o2_lower": 0.209,
+     "o2_upper": 0.209,
+     "plume_lower_mode": false,
+     "power_kw": 0.0,
+     "room_number_gap_as_kg_on_the_room_base": 0.0,
+     "room_number_minus_weighted_layers": 0.0,
+     "sink_sees_two_zones": false,
+     "sinks": {},
+     "step": 39,
+     "temp_lower_c": 20.0,
+     "temp_upper_c": 20.0,
+     "twin_o2": 0.209,
+     "twin_o2_lower": 0.209,
+     "twin_o2_upper": 0.209,
+     "upper_air_mass_kg": 0.72,
+     "upper_frac": 0.01
+    }
+   ],
+   "state": "outside_declared_regime",
+   "steps": 40,
+   "steps_whose_oxygen_numbers_differ_from_the_twin": 0,
+   "to_the_gas_kj": 0.0,
+   "totals": {
+    "accumulator_all_sinks_kg": 0.0,
+    "accumulator_primary_kg": 0.0,
+    "accumulator_room_inventory_kg": 0.0,
+    "ach_on_the_room_number_kg": 0.0,
+    "exterior_net_kg": 0.0,
+    "largest_room_number_minus_weighted_layers": 0.0,
+    "lower_number_drained_towards_the_upper_fraction_sum": 0.0,
+    "lowest_o2": 0.209,
+    "lowest_o2_lower": 0.209,
+    "lowest_o2_upper": 0.209,
+    "plume_lower_applied_kg": 0.0,
+    "plume_lower_requested_kg": 0.0,
+    "plume_lower_state_change_on_the_room_base_kg": 0.0,
+    "room_inventory_applied_kg": 0.0,
+    "room_inventory_mass_change_at_the_write_kg": 0.0,
+    "room_inventory_requested_kg": 0.0,
+    "room_inventory_steps_capped": 0,
+    "steps": 40,
+    "steps_with_plume_lower_route": 0,
+    "steps_with_power": 0,
+    "upper_number_applied_kg": 0.0,
+    "upper_number_branches": {},
+    "upper_number_requested_kg": 0.0,
+    "upper_number_state_change_on_its_base_kg": 0.0,
+    "upper_number_steps_capped": 0
+   }
+  }
+ }
+}

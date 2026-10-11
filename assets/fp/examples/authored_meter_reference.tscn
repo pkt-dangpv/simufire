@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="BoxMesh" id="Mesh"]
+size = Vector3(1.2, 1, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="Material"]
+albedo_color = Color(0.18, 0.55, 0.8, 1)
+
+[node name="AuthoredMeterReference" type="Node3D"]
+metadata/simufire_transform_mode = "authored_meters_v1"
+metadata/simufire_front_axis = "-z"
+
+[node name="MeterReference" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.5, 0)
+mesh = SubResource("Mesh")
+material_override = SubResource("Material")

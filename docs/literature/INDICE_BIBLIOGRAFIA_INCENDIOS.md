@@ -21,8 +21,166 @@ Construir una biblioteca tecnica abierta y trazable para calibrar `Simufire` con
 - `Reviews_and_Models`: guias, revisiones y documentos de soporte para parametrizacion.
 - `Doors`: deformacion termica, integridad y fuga de gases en conjuntos de puerta.
 - `Glass`: fractura termica, desprendimiento y acristalamientos simples o multiples.
+- `Sandia`: informes de difusion ilimitada de Sandia National Laboratories.
+- `data/NIST_FSE_2008`: CSV experimental original ISOHept9, aviso NIST y
+  [procedencia versionada](data/NIST_FSE_2008/PROVENANCE.json). Serie de masa
+  independiente de calorimetria; **no** salida FDS ni perfil activado.
+  [Revision D1 del 03-10](../validation/G3_D1_ISOHEPT9_BENCHMARK_GATE_2026-10-03.md):
+  [Replay cerrado tecnicamente](../validation/G3_D1_ISOHEPT9_REPLAY_2026-10-04.md),
+  no prediccion de evaporacion. Base energetica de referencia revisada en el
+  [gate con fases](../validation/G3_D1_HEPTANE_PHASE_BASIS_2026-10-04.md);
+  atribucion al ensayo, energia sensible, integracion y cola pendientes.
+  Estos artefactos de datos se inventarian aparte de los 39 PDF curados.
 
 ## Objetivos de calibracion para Simufire
+
+Actualizacion del 08-10: diseño del acoplamiento de la fuente prescrita
+de HRR,
+[decision](../validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md).
+Un documento nuevo en la biblioteca: NIST TN 2077 (Bryant y Bundy, 2019),
+[PDF local](NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf), 76 paginas,
+informe de NIST de acceso libre. Se usa para la ecuacion del HRR por
+consumo de oxigeno (ecs. 2 a 12) y la constante de 13,1 MJ/kg con
+desviacion tipica de 0,35. De TN 2303 se leen ademas la seccion 2.2.1 y
+las tablas 3 y 7 (flujo radiante y fraccion radiativa), comprobadas sobre
+la imagen de la pagina. De CFAST se consultan la guia tecnica ya
+archivada (TN 1889v1, version 7.0.0) y tres archivos del codigo de la
+version 7.7.7 (`fire.f90`, `cfast_parameters.f90`, `utilities.f90`), que
+**no** se archivan: enlace, etiqueta y huellas en
+`docs/validation/G3_OBJECT_HRR_COUPLING_INPUTS_2026-10-08.json`.
+
+Actualizacion adicional del 07-10, tercera del dia: seleccion
+experimental de la fuente de incendio por objeto,
+[decision](../validation/G3_OBJECT_FIRE_SOURCE_SELECTION_2026-10-07.md).
+Sin documentos nuevos en la biblioteca. NIST Fire Calorimetry Database
+(doi:10.18434/mds2-2314): el registro declara la licencia abierta de
+NIST, comprobado el 07-10; sus CSV y fichas ya estaban archivados. FSRI
+Materials and Products Database, commit a432697e, que sigue siendo el
+ultimo: sin licencia declarada. Sus tres repeticiones del sofa
+(Overstuffed_Sofa_R1 a R3) quedan solo en local, con enlace, commit y
+SHA-256 en el
+[registro](../validation/G3_OBJECT_FIRE_SOURCE_INPUTS_2026-10-07.json); no
+se incorporan ni entran en el manifiesto. Ignitor e incertidumbre de ese
+ensayo no localizados en lo revisado. Manifiesto sin cambio: 50 entradas.
+Ninguna activacion fisica.
+
+Actualizacion adicional del 07-10, segunda del dia: gate propio del
+ensayo de evaporacion sin llama en cono,
+[decision](../validation/G3_D1_CONE_EVAPORATION_BENCHMARK_2026-10-07.md).
+Beji, Helson, Rogaume y Luche, Fire Saf. J. 121 (2021) 103317,
+[version aceptada en el repositorio de Gante](https://biblio.ugent.be/publication/8702056),
+SHA-256 1c82a821...945ff. Sigue siendo solo localizador: con copyright y
+sin licencia de redistribucion, no se incorpora ni entra en el manifiesto.
+Version publicada no obtenida. Datos digitales y material suplementario no
+localizados (Crossref, Gante, HAL, DataCite, Zenodo, OpenAlex y MaCFP). La
+serie digitalizada de sus figuras tampoco se publica. Manifiesto sin
+cambio: 50 entradas. Ninguna activacion fisica.
+
+Actualizacion adicional del 07-10: revision del gate de B neto,
+[decision corregida](../validation/G3_D1_NET_THERMAL_BUDGET_REVIEW_2026-10-07.md).
+Luketa, Sandia SAND2010-2511 (2010), analisis del propio laboratorio de
+los ensayos de piscina de 2 m: rangos de reflexion, transmision, perdida
+por el fondo y lectura de las galgas, y balance del heptano sin cerrar
+([fuente oficial](https://www.osti.gov/biblio/984087),
+[PDF local](Sandia/SNL_SAND2010-2511_Assessment_Simulation_Hydrocarbon_Pool_Fire_Tests_2010.pdf));
+difusion ilimitada segun su portada. Solo localizador: Beji, Helson,
+Rogaume y Luche, Fire Saf. J. (2021), evaporacion de heptano sin llama en
+cono de atmosfera controlada,
+[version de autor](https://biblio.ugent.be/publication/8702056), con
+copyright. Localizado y no obtenido por acceso cerrado: Suo-Anttila y
+otros, Proc. Combust. Inst. 32 (2009),
+[doi](https://doi.org/10.1016/j.proci.2008.06.044), espectros en la cupula
+de vapor. No localizados: datos brutos de SNL011, 012 y 029 ni los ensayos
+de 1 ft sobre colocacion de la galga. B neto: GO parcial retirado, NO-GO
+no identificado. Manifiesto: 49 -> 50 entradas. Ninguna activacion fisica.
+
+Actualizacion adicional del 06-10: gate del presupuesto termico neto del
+combustible,
+[decision y contrato](../validation/G3_D1_NET_THERMAL_BUDGET_GATE_2026-10-06.md).
+Blanchat y Suo-Anttila, Sandia SAND2010-6377 (2011), piscinas de 2 m con
+flujo de calor a la superficie y perdida de masa de la misma corrida
+([fuente oficial](https://www.osti.gov/biblio/1018470),
+[PDF local](Sandia/SNL_SAND2010-6377_Hydrocarbon_Characterization_Results_2011.pdf));
+difusion ilimitada segun su portada. Solo localizador, sin archivar por
+derechos no aclarados: Hamins y otros, Combust. Sci. Technol. 97 (1994),
+[reimpresion servida por el NIST](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=909794),
+balance de calor de una piscina de heptano de 0,30 m; y Kim, Lee y Hamins,
+Fire Saf. J. 107 (2019),
+[manuscrito de autor](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928848).
+Resultado negativo: SAND2007-2391 es el plan de ensayos, sin resultados.
+B neto: GO parcial como tasa estacionaria acotada, NO-GO como valor
+puntual, transitorio y prediccion. Manifiesto: 48 -> 49 entradas. Ninguna
+activacion fisica.
+
+Actualizacion adicional del 06-10: gate del Cp del heptano liquido,
+[decision y requisitos](../validation/G3_D1_HEPTANE_LIQUID_ELIGIBILITY_2026-10-06.md).
+Densidad (p, rho, T) del n-heptano liquido, 233 a 393 K y 0,1 a 30 MPa, del
+archivo ThermoML del NIST (doi:10.18434/mds2-2422, NIST Open License):
+[datos sin modificar y procedencia](data/NIST_THERMOML_HEPTANE_2008/PROVENANCE.json);
+es la captura del NIST de un articulo de 2008 que no se inspecciono.
+Scott, U.S. Bureau of Mines Bulletin 666 (1974), gas ideal de los alcanos
+de 0 a 1500 K, valores correlacionados
+([fuente oficial](https://digital.library.unt.edu/ark:/67531/metadc12811/),
+[PDF local](Reviews_and_Models/USBM_Bulletin_666_Alkane_Ideal_Gas_Properties_1974.pdf)).
+Solo localizador, sin archivar por derechos reservados: Zabransky y
+Ruzicka, J. Phys. Chem. Ref. Data 23, 55 (1994),
+[copia servida por el NIST](https://srd.nist.gov/JPCRD/jpcrd469.pdf),
+reevaluacion del Csat del heptano en ITS-90; se citan veinte valores como
+contraste. Resultado negativo: NBS Circular 461 solo da densidad a 20 y
+25 C. No obtenidos: los dos articulos de JACS de 1937 y 1947.
+Liquido: GO parcial por conversion justificada de Csat a Cp; gas: GO
+parcial condicionado sin cambio de rango. Manifiesto: 47 -> 48 entradas;
+los datos de densidad se inventarian aparte. Ninguna activacion fisica.
+
+Actualizacion adicional del 05-10: cuatro fuentes primarias del NBS/NIST
+para el gate de propiedades termicas reales del heptano,
+[decision y contrato](../validation/G3_D1_HEPTANE_REAL_PROFILE_ELIGIBILITY_2026-10-05.md):
+Douglas 1969, conversion de propiedades calorimetricas a la IPTS-68
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/73A/jresv73An5p451_A1b.pdf),
+[PDF local](NIST/NBS_IPTS68_Conversion_Douglas_1969.pdf));
+NIST TN 1265, diferencias entre ITS-90 e IPTS-68
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1265.pdf),
+[PDF local](NIST/NIST_TN_1265_ITS90_Guidelines_1990.pdf));
+Osborne y Ginnings, NBS RP1841 (1947), relacion entre Csat y Cp
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/39/jresv39n5p453_A1b.pdf),
+[PDF local](NIST/NBS_Hydrocarbon_Heat_Capacity_Osborne_Ginnings_1947.pdf));
+Brooks, Howard y Crafton, NBS RP1271 (1940), densidad del liquido a 20 y 25 C
+([fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/24/jresv24n1p33_A1b.pdf),
+[PDF local](NIST/NBS_Aliphatic_Hydrocarbon_Properties_Brooks_1940.pdf)).
+Originales del servidor de publicaciones del NIST, revision focal de las
+paginas citadas, no integral. Gas ideal: GO parcial; liquido: NO-GO como Cp
+isobarico. Manifiesto: 43 -> 47 entradas. No se redistribuyen compilaciones
+SRD ni ecuaciones de estado con licencia. Ninguna activacion fisica.
+
+Actualizacion adicional del 04-10: Douglas et al., NBS RP2526 (1954),
+[fuente oficial](https://nvlpubs.nist.gov/nistpubs/jres/53/jresv53n3p139_A1b.pdf),
+[PDF local](NIST/NBS_Heptane_Calorimetric_Properties_1954.pdf),
+[contrato sensible y revision focal](../validation/G3_D1_SENSIBLE_CONTRACT_2026-10-04.md).
+Propiedades calorimetricas del heptano: gas ideal y liquido sobre
+saturacion, no rutas intercambiables. Escala de temperatura historica,
+perfil material automatico no aprobado. Manifiesto: 42 -> 43 entradas.
+No se redistribuye la compilacion SRD WebBook localizada ni el otro
+articulo candidato sin revisar. Ninguna activacion fisica.
+
+Actualizacion bibliografica adicional del 04-10: NIST TN 2162r1,
+octubre de 2024, 123 paginas,
+[PDF local](NIST/NIST_TN_2162r1_Medium_Scale_Pool_Fires.pdf),
+[fuente oficial](https://doi.org/10.6028/NIST.TN.2162r1).
+[Snapshot MaCFP, licencia e inventario](data/NIST_POOL_FIRES_2024/PROVENANCE.json)
+y [revision termica focal](../validation/G3_D1_POOL_THERMAL_EVIDENCE_2026-10-04.md).
+Perfil hacia sensor medido, no B neto del liquido; discrepancias de altura
+y temperatura preservadas. CSV constante: contorno, no señal transitoria
+ni salida FDS. Ninguna activacion. Manifiesto: 41 -> 42 entradas;
+datos MaCFP inventariados aparte, licencia MIT conservada.
+
+Actualizacion bibliografica del 04-10: NIST TN 2126-upd1, febrero 2026,
+[PDF local](NIST/NIST_TN_2126_upd1_Thermochemical_Properties.pdf),
+[fuente oficial](https://doi.org/10.6028/NIST.TN.2126-upd1).
+Calores netos/brutos, fases y entalpias de referencia de sustancias puras;
+no rendimientos de CO de muebles ni certificado del lote de ISOHept9.
+Manifiesto de descargas: 40 -> 41 entradas; el recuento original de 39
+documentos del apartado de 2026-09-16 es historico, no una nueva auditoria
+de disponibilidad de todas las entradas. SHA y version revisada registrados.
 
 - Tiempo a flashover y transicion a incendio limitado por ventilacion.
 - Transporte de humo y gases desde recinto origen a pasillos y recintos remotos.
@@ -103,8 +261,24 @@ Descarga registrada de TN 1889v2: 2026-09-17, 1 730 244 bytes, SHA-256
 | P1 | NIST | Modeling Smoke Movement Through Compartmented Structures (NISTIR 4872) | 1992 | Modelo multicompartment, humo, gases toxicos | https://doi.org/10.6028/NIST.IR.4872 | `docs/literature/NIST/NISTIR_4872_Modeling_Smoke_Movement_Through_Compartmented_Structures.pdf` | pendiente-descarga |
 | P1 | NIST | Improvement in Predicting Smoke Movement in Compartmented Structures | 1993 | Mejoras CFAST, transporte de humo | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=912721 | `docs/literature/NIST/Improvement_in_Predicting_Smoke_Movement_1993.pdf` | pendiente-descarga |
 | P1 | NIST | Smoke Movement in Rooms of Fire Involvement and Adjacent Spaces (NBS IR 83-2748) | 1983 | Llenado de humo, recintos adyacentes | https://doi.org/10.6028/NBS.IR.83-2748 | `docs/literature/NIST/NBS_IR_83_2748_Smoke_Movement_in_Rooms_and_Adjacent_Spaces.pdf` | pendiente-descarga |
-| P1 | NIST | Carbon Monoxide Production in Compartment Fires: Full-Scale Enclosure Burns (NISTIR 5499) | 1994 | Produccion de CO, recintos a escala real | https://doi.org/10.6028/NIST.IR.5499 | `docs/literature/NIST/NISTIR_5499_Carbon_Monoxide_Production_Full_Scale.pdf` | pendiente-descarga |
-| P1 | NIST | Experimental Study of the Effects of Fuel Type, Fuel Distribution, and Vent Size on Full-Scale Under-Ventilated Compartment Fires in an ISO 9705 Room (TN 1603) | 2008 | Fuego subventilado, especies, temperatura | https://www.nist.gov/el/fire-research-division-73300/nist-technical-note-1603 | `docs/literature/NIST/NIST_TN_1603_Underventilated_Compartment_Fires.pdf` | pendiente-descarga |
+| P1 | NIST | Carbon Monoxide Production in Compartment Fires: Full-Scale Enclosure Burns (NISTIR 5499) | 1994 | Produccion de CO, recintos a escala real | https://doi.org/10.6028/NIST.IR.5499 | `docs/literature/NIST/NISTIR_5499_Carbon_Monoxide_Production_Full_Scale.pdf` | pendiente-descarga; el fichero con ese nombre es un libro de resumenes NIST de octubre de 1994, no el informe: no extraer datos |
+| P1 | NIST | The Character of Burning Residential and Office Items (TN 2303) | 2025 | HRR, perdida de masa y rendimientos de CO/HCN de sofas, sillas, mesa auxiliar y alfombra; estos dos ultimos no son calibradores aislados fiables | https://doi.org/10.6028/NIST.TN.2303 | `docs/literature/NIST/NIST_TN_2303_Character_Burning_Items.pdf`, SHA-256 7844cfe9070e7385f7cfef28dde1b3740b83315ecd35be12377834d447a32c03 | tablas 6/8 de los 48 ensayos cotejadas con FCD 2026 en `docs/validation/G3_CO_FUENTES_ELEGIBILIDAD_2026-09-29.md`; masa transitoria solo Tests 1–24 y solo en figuras (ap. C); THR igual, masa cambiada en 31/35/38, causa de cambio de CO no demostrada |
+| P1 | NIST | The NIST 20 MW Calorimetry Measurement System for Large-Fire Research (TN 2077) | 2019 | Metodo de medicion de HRR y CO/CO2 en escape, balance de gases, retardo y alineacion de analizadores | https://doi.org/10.6028/NIST.TN.2077 | `docs/literature/NIST/NIST_TN_2077_20MW_Calorimetry_2019.pdf`, SHA-256 0cb9356a86d3882f19b26d8f212239413f649d41ab2ba9e40f710e97f55c21e3 (descargado el 08-10-2026) | base del tratamiento temporal de Test029; la reconstruccion de CO kg/s sigue provisional |
+| P1 | NIST | User's Guide for Fire Calorimetry Database, v4a | 2020 | Formula de CO total por fraccion volumetrica corregida de fondo, caudal de escape y masas molares; periodo ignicion-apagado | https://www.nist.gov/system/files/documents/2020/11/19/FCD_User_Guide_v4a.pdf | `docs/literature/NIST/FCD_User_Guide_v4a_2020.pdf`, SHA-256 89692794156d9a4f32ba0493e791da23d80160035877d2831d31a5317e6cee8f | revisada 23-10-2020; sigue siendo la guia enlazada el 29-09-2026; su metodo reproduce la FCD 2026 en 42/43 ensayos; no documenta el script 8.7.1 |
+| P1 | NIST | Fire Calorimetry Database: Design Fires - Residential and Office Items | ficha actualizada 2026 | Fichas y CSV temporales por ensayo; versiones actuales de rendimientos de CO | https://www.nist.gov/el/fcd/design-fires-residential-and-office-items | 48 CSV crudos `docs/literature/NIST/FCD_Test001…048_2026-04-07.csv` con SHA-256 en `docs/validation/G3_NIST_TN2303_FCD_CO_PROCESSING_2026-09-29.json`; 48 fichas archivadas sin modificar en `docs/literature/NIST/FCD_DesignFires_Test001-048_pages_retrieved_2026-09-29.zip`, SHA-256 6f674d5cb61bfd398d0a541d427c5eb6fe445cd1f2cacc8eb8fce8c3cceb0851 | procesado `NFRL_Report_8.7.1` (07-04-2026) sin codigo ni notas publicas; el esquema CSV no tiene masa del especimen; 28 mezcla cojines y 18 bajo detección |
+| P1 | NIST | Smoke Component Yields from Room-scale Fire Tests (TN 1453) | 2003 | Rendimientos de CO pre/post-flashover para cojines de sofa y librerias de aglomerado | https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1453.pdf | `docs/literature/NIST/NIST_TN_1453_Smoke_Component_Yields_Room_Scale.pdf`, SHA-256 3c59ee8469e50a4cf6cf8bcaf5eb9da7fe22886e36a3de4888325a31ee724324 | tabla 25 auditada; celulas de carga continuas y CO en sala/pasillo solo en figuras; series crudas remitidas a informe compañero (ref. 33) no localizado; validacion por fase |
+| P1 | NIST | Smoke Component Yields from Bench-scale Fire Tests: 2. ISO 19700 Controlled Equivalence Ratio Tube Furnace (TN 1761) | 2013 | Rendimientos CO/CO2/HCN/HCl con φ controlada para el material del sofa, libreria y cable de TN 1453 | https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1761.pdf | `docs/literature/NIST/NIST_TN_1761_Smoke_Yields_ISO19700_Tube_Furnace.pdf`, SHA-256 d12457f5fa2187837d1dec4702c59e428b1008c1b6db9be609eb9965f646f15a | masa total y MLR supuesta estacionaria; sin MLR(t); validacion de dependencia con φ a escala de banco |
+| P1 | FSRI / ULRI | Materials and Products Database (repositorio de datos) | 2023, commit a432697e de 2026-04-23 | Cono (masa y CO cada 0,25 s, canales brutos) y calorimetro de muebles (celula de carga y HRR, sin CO) | https://github.com/ulfsri/fsri_materials_database | Solo referencia externa; los cinco archivos originales no se redistribuyen. Nombres y SHA-256 en `docs/validation/G3_CO_SOURCE_ELIGIBILITY_MATRIX_2026-09-29.json` | licencia de redistribucion no confirmada; cono = candidato solo de familia material en llama ventilada; muebles sin CO |
+| P1 | NIST / Proceedings of the Combustion Institute | Towards fire safe and flame-retardant-free upholstered furniture | 2024 | HRR, masa perdida y CO temporal/global en tres salones amueblados | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=957121 | sin copia local verificada | tablas 1 y 3 y figuras 4/6/7 auditadas; CSV de escape publicados en la FCD (https://www.nist.gov/el/fcd/room-flashover-experiments-demonstrate-effectiveness-barrier-fabrics), sin masa del especimen, no importados; reservado para validacion externa de sala |
+| P1 | NIST / W. M. Pitts | Global Equivalence Ratio Concept and the Formation Mechanisms of Carbon Monoxide in Enclosure Fires | 1995 | Limites del GER y mecanismos de generacion de CO en recintos | https://www.nist.gov/publications/global-equivalence-ratio-concept-and-formation-mechanisms-carbon-monoxide-enclosure | sin copia local verificada | marco mecanistico; no convertir directamente en ley calibrada |
+| P1 | NIST | Performance of Home Smoke Alarms, NIST TN 1455-1, revision 2008 | 2008 | CO a altura respiratoria y limites instrumentales en ensayos residenciales | https://nvlpubs.nist.gov/nistpubs/Legacy/TN/nbstechnicalnote1455-1r2008.pdf | sin copia local verificada | fuente localizada; fixture pendiente |
+| P1 | NIST | Home Smoke Alarm Project, Report of Test FR 4016 | 2005 | Series temporales de CO, CO2, O2, humo y temperatura en 27 ensayos residenciales | https://www.nist.gov/el/nist-report-test-fr-4016 | sin copia local verificada | fuente localizada; canales pendientes de auditoria |
+| P1 | NIST | Improving Smoke Alarm Performance, TN 1837 | 2014 | Muestreo superior y a 1,5 m en pasillo residencial; no usar como tabla temporal sin verificar datos | https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.1837.pdf | sin copia local verificada | fuente localizada |
+| P1 | NIST | Experimental Study of the Effects of Fuel Type, Fuel Distribution, and Vent Size on Full-Scale Under-Ventilated Compartment Fires in an ISO 9705 Room (TN 1603) | 2008 | Fuego subventilado, especies, temperatura | https://www.nist.gov/el/fire-research-division-73300/nist-technical-note-1603 | `docs/literature/NIST/NIST_TN_1603_Underventilated_Compartment_Fires.pdf`, SHA-256 7ba8219496f8b52035fd97ed603182782e907034a94593bb51e7382c0cf453f5 (duplicado byte a byte con nombre largo `Experimental Study of the Effects...pdf.pdf`) | contenido verificado 2026-09-29; combustibles puros en bandejas con celulas de carga, CO en capa superior y escape solo en figuras; validacion de regimen subventilado, no mobiliario |
+| P1 | IAFSS / Peatross y Beyler | Ventilation Effects on Compartment Fire Characterization | 1997 | 24 ensayos de recinto con diesel, cunas de madera y placas de poliuretano; O₂ local y perdida de masa muestran tasa sensible a ventilacion | https://publications.iafss.org/publications/fss/5/403/view/fss_5-403.pdf | enlace primario abierto; sin copia local | D1: contraejemplo a pirólisis constante universal; no ofrece particion de masa ni ley para sofa |
+| P1 | IAFSS / Aljumaiah et al. | Air Starved Wood Crib Compartment Fire Heat Release and Toxic Gas Yields | 2011 | Cuna de pino: residuo solido a 3–5 ACH; CO e hidrocarburos sin quemar en regimen rico a 11–37 ACH; HRR por O₂ y masa | https://publications.iafss.org/publications/fss/10/1263/view/fss_10-1263.pdf | enlace primario abierto; sin copia local | D1: ambas rutas existen en la familia experimental, pero no es mobiliario ni da fraccion transferible; 5 ACH = 15 % en resumen y 17 % en cuerpo |
+| P1 | IAFSS / Yamada et al. | An Experimental Study of Ejected Flames and Combustion Efficiency | 2003 | Madera, PMMA y espuma flexible en recinto 1:7; masa, calorimetria y llamas exteriores | https://publications.iafss.org/publications/fss/7/903/view/fss_7-903.pdf | enlace primario abierto; sin copia local | D1: separa liberacion del combustible de lugar de combustion; no extrapolar escala |
+| P2 | IAFSS / Pau et al. | Sensitivity of Heat of Reaction for Polyurethane Foams | 2014 | Termogravimetria y calorimetria bajo nitrogeno: descomposicion de espuma sin O₂ con calor impuesto | https://publications.iafss.org/publications/fss/11/179/view/fss_11-179.pdf | enlace primario abierto; sin copia local | D1: mecanismo posible, no tasa de un sofa en recinto |
 | P1 | NIST | Experimental Study of the Three Dimensional Internal Structure of Underventilated Compartment Fires in an ISO 9705 Room (TN 1736) | 2012 | Mapas 3D de temperatura y especies | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=908944 | `docs/literature/NIST/NIST_TN_1736_Three_Dimensional_Internal_Structure.pdf` | pendiente-descarga |
 | P1 | NIST | Propane Gas Fire Experiments in Residential Scale Structures (TN 1953) | 2017 | Vivienda a escala real, ventilacion, PPV | https://doi.org/10.6028/NIST.TN.1953 | `docs/literature/NIST/NIST_TN_1953_Propane_Gas_Fire_Experiments_in_Residential_Scale_Structures.pdf` | pendiente-descarga |
 | P1 | NIST | Report on Residential Fireground Field Experiments (TN 1661) | 2010 | Experimentos de campo residenciales | https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=904607 | `docs/literature/NIST/NIST_TN_1661_Residential_Fireground_Field_Experiments.pdf` | pendiente-descarga |

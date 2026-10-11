@@ -1,0 +1,836 @@
+{
+ "schema": "g3_object_fire_source_audit_v1",
+ "record_sha256": "fc81a0b47c159044c3f58c5c0d0aef6608712f4df2b35f0157726d443be7f975",
+ "scope": "offline review of published tests; reproduction of a prescribed source, not engine validation",
+ "selected": {
+  "candidate": "C1",
+  "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+  "source_run": "Test016",
+  "table_fingerprint": "736c8f1051321f281f57606695d214ea08c3a364483357016cf19f6a1df84842",
+  "decisions": {
+   "prescribed_hrr": "GO_one_run_open_air",
+   "prescribed_mass_loss": "NO_GO_figure_only_total_is_gravimetric",
+   "energy_and_effective_heat": "GO_partial_whole_test_integrals_only",
+   "species_emission": "GO_partial_exhaust_totals_of_CO_CO2_O2",
+   "temporal_species_yield": "NO_GO_no_run_has_numeric_mass_and_species_in_time",
+   "extrapolation": "NO_GO_repeat_runs_differ_beyond_uncertainty",
+   "external_validation": "reserved_run_available_not_used"
+  }
+ },
+ "candidates": {
+  "C1": {
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "source_run": "Test016",
+   "reserved_runs": [
+    "Test021"
+   ],
+   "contrast_with_reserved_runs": {
+    "Test021": {
+     "runs": [
+      "Test016",
+      "Test021"
+     ],
+     "peak_kW": {
+      "first": 621.0,
+      "second": 690.0,
+      "difference": 69.0,
+      "relative": 0.111111111,
+      "combined_uc": 48.166378315,
+      "beyond_combined_uc": true
+     },
+     "thr_MJ": {
+      "first": 115.1,
+      "second": 96.1,
+      "difference": -19.0,
+      "relative": -0.165073849,
+      "combined_uc": 9.484724561,
+      "beyond_combined_uc": true
+     },
+     "time_to_peak_s": {
+      "first": 1143.0,
+      "second": 1732.0,
+      "difference": 589.0
+     },
+     "effective_heat_MJ_kg": {
+      "first": 35.5,
+      "second": 32.4,
+      "difference": -3.1,
+      "relative": -0.087323944,
+      "combined_uc": 3.12409987,
+      "beyond_combined_uc": false
+     },
+     "mass_lost_kg": {
+      "first": 3.241,
+      "second": 2.969,
+      "difference": -0.272,
+      "relative": -0.083924715,
+      "combined_uc": 0.03959798,
+      "beyond_combined_uc": true
+     },
+     "co_yield_kg_kg": {
+      "first": 0.0339,
+      "second": 0.0299,
+      "difference": -0.004,
+      "relative": -0.1179941,
+      "combined_uc": 0.001702939,
+      "beyond_combined_uc": true
+     },
+     "time_to_half_energy_s": {
+      "first": 1183.0,
+      "second": 1762.0
+     },
+     "same_curve_within_uncertainty": false,
+     "what_it_is": "repeatability of the item as published; nothing was aligned, scaled or fitted"
+    }
+   },
+   "facts": {
+    "hrr_numeric_same_run": true,
+    "redistribution_verified": true,
+    "igniter_documented": true,
+    "uncertainty_published": true,
+    "hrr_reproduces_published_totals": true,
+    "inseparable_components": false,
+    "mass_series_numeric_same_run": false,
+    "mass_series_in_figure": true,
+    "mass_total_published": true,
+    "species_series_numeric_same_run": true,
+    "species_totals_reproduced": true,
+    "species_version_consistent": true,
+    "repeats_differ_beyond_uncertainty": true,
+    "reserved_run_available": true
+   },
+   "decisions": {
+    "prescribed_hrr": "GO_one_run_open_air",
+    "prescribed_mass_loss": "NO_GO_figure_only_total_is_gravimetric",
+    "energy_and_effective_heat": "GO_partial_whole_test_integrals_only",
+    "species_emission": "GO_partial_exhaust_totals_of_CO_CO2_O2",
+    "temporal_species_yield": "NO_GO_no_run_has_numeric_mass_and_species_in_time",
+    "extrapolation": "NO_GO_repeat_runs_differ_beyond_uncertainty",
+    "external_validation": "reserved_run_available_not_used"
+   }
+  },
+  "C2": {
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "source_run": "Test030",
+   "reserved_runs": [
+    "Test036",
+    "Test041"
+   ],
+   "contrast_with_reserved_runs": {
+    "Test036": {
+     "runs": [
+      "Test030",
+      "Test036"
+     ],
+     "peak_kW": {
+      "first": 2994.0,
+      "second": 5153.0,
+      "difference": 2159.0,
+      "relative": 0.721108884,
+      "combined_uc": 305.131119357,
+      "beyond_combined_uc": true
+     },
+     "thr_MJ": {
+      "first": 1426.0,
+      "second": 1412.0,
+      "difference": -14.0,
+      "relative": -0.009817672,
+      "combined_uc": 111.731821788,
+      "beyond_combined_uc": false
+     },
+     "time_to_peak_s": {
+      "first": 550.0,
+      "second": 351.0,
+      "difference": -199.0
+     },
+     "effective_heat_MJ_kg": {
+      "first": 18.3,
+      "second": 18.2,
+      "difference": -0.1,
+      "relative": -0.005464481,
+      "combined_uc": 1.414213562,
+      "beyond_combined_uc": false
+     },
+     "mass_lost_kg": {
+      "first": 77.888,
+      "second": 77.541,
+      "difference": -0.347,
+      "relative": -0.004455115,
+      "combined_uc": 0.03959798,
+      "beyond_combined_uc": true
+     },
+     "co_yield_kg_kg": {
+      "first": 0.0306,
+      "second": 0.0306,
+      "difference": 0.0,
+      "relative": 0.0,
+      "combined_uc": 0.001555635,
+      "beyond_combined_uc": false
+     },
+     "time_to_half_energy_s": {
+      "first": 653.0,
+      "second": 480.0
+     },
+     "same_curve_within_uncertainty": false,
+     "what_it_is": "repeatability of the item as published; nothing was aligned, scaled or fitted"
+    },
+    "Test041": {
+     "runs": [
+      "Test030",
+      "Test041"
+     ],
+     "peak_kW": {
+      "first": 2994.0,
+      "second": 4036.0,
+      "difference": 1042.0,
+      "relative": 0.348029392,
+      "combined_uc": 257.406293629,
+      "beyond_combined_uc": true
+     },
+     "thr_MJ": {
+      "first": 1426.0,
+      "second": 1413.0,
+      "difference": -13.0,
+      "relative": -0.00911641,
+      "combined_uc": 111.731821788,
+      "beyond_combined_uc": false
+     },
+     "time_to_peak_s": {
+      "first": 550.0,
+      "second": 638.0,
+      "difference": 88.0
+     },
+     "effective_heat_MJ_kg": {
+      "first": 18.3,
+      "second": 18.3,
+      "difference": 0.0,
+      "relative": 0.0,
+      "combined_uc": 1.414213562,
+      "beyond_combined_uc": false
+     },
+     "mass_lost_kg": {
+      "first": 77.888,
+      "second": 77.132,
+      "difference": -0.756,
+      "relative": -0.009706245,
+      "combined_uc": 0.03959798,
+      "beyond_combined_uc": true
+     },
+     "co_yield_kg_kg": {
+      "first": 0.0306,
+      "second": 0.0316,
+      "difference": 0.001,
+      "relative": 0.032679739,
+      "combined_uc": 0.001555635,
+      "beyond_combined_uc": false
+     },
+     "time_to_half_energy_s": {
+      "first": 653.0,
+      "second": 732.0
+     },
+     "same_curve_within_uncertainty": false,
+     "what_it_is": "repeatability of the item as published; nothing was aligned, scaled or fitted"
+    }
+   },
+   "facts": {
+    "hrr_numeric_same_run": true,
+    "redistribution_verified": true,
+    "igniter_documented": true,
+    "uncertainty_published": true,
+    "hrr_reproduces_published_totals": true,
+    "inseparable_components": true,
+    "mass_series_numeric_same_run": false,
+    "mass_series_in_figure": false,
+    "mass_total_published": true,
+    "species_series_numeric_same_run": true,
+    "species_totals_reproduced": true,
+    "species_version_consistent": false,
+    "repeats_differ_beyond_uncertainty": true,
+    "reserved_run_available": true
+   },
+   "decisions": {
+    "prescribed_hrr": "GO_one_run_open_air_as_the_whole_set",
+    "prescribed_mass_loss": "NO_GO_not_measured_in_time_total_is_gravimetric",
+    "energy_and_effective_heat": "GO_partial_whole_test_integrals_only",
+    "species_emission": "GO_partial_exhaust_totals_declared_version_only_change_unexplained",
+    "temporal_species_yield": "NO_GO_no_run_has_numeric_mass_and_species_in_time",
+    "extrapolation": "NO_GO_repeat_runs_differ_beyond_uncertainty",
+    "external_validation": "reserved_run_available_not_used"
+   }
+  },
+  "C3": {
+   "owner_id": "fsri_mapd_overstuffed_sofa_as_tested",
+   "source_run": "FSRI_Overstuffed_Sofa_R1",
+   "reserved_runs": [
+    "FSRI_Overstuffed_Sofa_R2",
+    "FSRI_Overstuffed_Sofa_R3"
+   ],
+   "local_aggregates_across_runs": {
+    "peak_kW": {
+     "min": 2800.02,
+     "max": 2899.02,
+     "relative_spread": 0.035357
+    },
+    "time_to_peak_s": {
+     "min": 302,
+     "max": 330,
+     "relative_spread": 0.092715
+    },
+    "energy_MJ": {
+     "min": 723.409342,
+     "max": 793.047223,
+     "relative_spread": 0.096263
+    },
+    "mass_lost_kg": {
+     "min": 47.678982,
+     "max": 48.135836,
+     "relative_spread": 0.009582
+    },
+    "effective_heat_MJ_kg": {
+     "min": 15.028499,
+     "max": 16.575303,
+     "relative_spread": 0.102925
+    }
+   },
+   "facts": {
+    "hrr_numeric_same_run": true,
+    "redistribution_verified": false,
+    "igniter_documented": false,
+    "uncertainty_published": false,
+    "hrr_reproduces_published_totals": null,
+    "inseparable_components": false,
+    "mass_series_numeric_same_run": true,
+    "mass_series_in_figure": false,
+    "mass_total_published": false,
+    "species_series_numeric_same_run": false,
+    "species_totals_reproduced": null,
+    "species_version_consistent": null,
+    "repeats_differ_beyond_uncertainty": false,
+    "reserved_run_available": true
+   },
+   "decisions": {
+    "prescribed_hrr": "GO_partial_local_only_igniter_and_uncertainty_not_documented",
+    "prescribed_mass_loss": "GO_partial_local_only_load_cell_uncertainty_not_documented",
+    "energy_and_effective_heat": "GO_partial_local_only_energy_against_mass_in_time",
+    "species_emission": "NO_GO_no_species_measured",
+    "temporal_species_yield": "NO_GO_no_run_has_numeric_mass_and_species_in_time",
+    "extrapolation": "NO_GO_one_regime_one_item",
+    "external_validation": "reserved_run_available_not_used"
+   }
+  }
+ },
+ "runs": {
+  "Test016": {
+   "run_id": "Test016",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "support_s": [
+    -282,
+    4005
+   ],
+   "absent_samples": {},
+   "table_fingerprint": "736c8f1051321f281f57606695d214ea08c3a364483357016cf19f6a1df84842",
+   "reproduction": {
+    "peak_kW": 621.46,
+    "peak_printed_kW": 621.0,
+    "peak_uc_kW": 32.0,
+    "peak_inside_uc": true,
+    "time_to_peak_s": 1143.0,
+    "time_to_peak_printed_s": 1143.0,
+    "time_to_peak_inside_uc": true,
+    "energy_MJ": 115.093655,
+    "thr_printed_MJ": 115.1,
+    "thr_uc_MJ": 6.4,
+    "energy_inside_uc": true,
+    "signed_sum_MJ": 115.09281,
+    "clip_bias_MJ": 0.00125,
+    "clip_bias_over_uc": 0.000195312,
+    "negative_samples": 11,
+    "samples": 3769,
+    "what_it_is": "verification that the table returns the run it was built from, not validation"
+   },
+   "energy_timeline_s": {
+    "0.01": 641.0,
+    "0.1": 1040.0,
+    "0.5": 1183.0,
+    "0.9": 1861.0,
+    "0.99": 3081.0
+   },
+   "energy_after_fire_out_MJ": 0.01585,
+   "pre_ignition_hrr_kW": {
+    "mean": 0.121099291,
+    "sd": 0.304921564
+   },
+   "burner_channel_before_ignition_kW": 0.71141844,
+   "effective_heat": {
+    "MJ_kg": 35.511511879,
+    "uc_MJ_kg": 1.998389332,
+    "printed_MJ_kg": 35.5,
+    "printed_uc_MJ_kg": 2.0,
+    "inside_uc": true,
+    "basis": "ignition to fire out, one number per run"
+   },
+   "mass_lost_kg": 3.241,
+   "mass_lost_uc_kg": 0.028,
+   "species": {
+    "co": {
+     "net_kg": 0.110822719,
+     "ambient_fraction": -8e-09,
+     "yield_kg_kg": 0.034193989,
+     "printed_kg_kg": 0.0339,
+     "uc_kg_kg": 0.0013,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "co2": {
+     "net_kg": 8.274453355,
+     "ambient_fraction": 0.000444378,
+     "yield_kg_kg": 2.553055648,
+     "printed_kg_kg": 2.588,
+     "uc_kg_kg": 0.096,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "o2": {
+     "net_kg": 8.168419518,
+     "ambient_fraction": 0.209355167,
+     "yield_kg_kg": 2.520339253,
+     "printed_kg_kg": 2.559,
+     "uc_kg_kg": 0.085,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    }
+   },
+   "carbon_in_co_and_co2_per_kg_lost": 0.711430575,
+   "igniter_over_thr": 8.3411e-05,
+   "igniter_power_over_pre_ignition_noise": 0.419780084
+  },
+  "Test021": {
+   "run_id": "Test021",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_stackable_chair_a_as_tested",
+   "support_s": [
+    -287,
+    3083
+   ],
+   "absent_samples": {
+    "Heat Release Rate (kW)": [
+     3083
+    ],
+    "Oxygen (Vol Fr)": [
+     3083
+    ]
+   },
+   "table_fingerprint": "f0fdf38a506241522d293bfec1cd0909e1a4fa469429cf16193cab27f09efd3a",
+   "reproduction": {
+    "peak_kW": 689.8,
+    "peak_printed_kW": 690.0,
+    "peak_uc_kW": 36.0,
+    "peak_inside_uc": true,
+    "time_to_peak_s": 1732.0,
+    "time_to_peak_printed_s": 1732.2,
+    "time_to_peak_inside_uc": true,
+    "energy_MJ": 96.851945,
+    "thr_printed_MJ": 96.1,
+    "thr_uc_MJ": 7.0,
+    "energy_inside_uc": true,
+    "signed_sum_MJ": 96.06426,
+    "clip_bias_MJ": 0.79122,
+    "clip_bias_over_uc": 0.113031429,
+    "negative_samples": 651,
+    "samples": 2961,
+    "what_it_is": "verification that the table returns the run it was built from, not validation"
+   },
+   "energy_timeline_s": {
+    "0.01": 1352.0,
+    "0.1": 1663.0,
+    "0.5": 1762.0,
+    "0.9": 2184.0,
+    "0.99": 2819.0
+   },
+   "energy_after_fire_out_MJ": 0.1218,
+   "pre_ignition_hrr_kW": {
+    "mean": -0.23087108,
+    "sd": 1.162563973
+   },
+   "burner_channel_before_ignition_kW": 0.11738676,
+   "effective_heat": {
+    "MJ_kg": 32.355762883,
+    "uc_MJ_kg": 2.377360281,
+    "printed_MJ_kg": 32.4,
+    "printed_uc_MJ_kg": 2.4,
+    "inside_uc": true,
+    "basis": "ignition to fire out, one number per run"
+   },
+   "mass_lost_kg": 2.969,
+   "mass_lost_uc_kg": 0.028,
+   "species": {
+    "co": {
+     "net_kg": 0.092047889,
+     "ambient_fraction": -1.85e-07,
+     "yield_kg_kg": 0.031002994,
+     "printed_kg_kg": 0.0299,
+     "uc_kg_kg": 0.0011,
+     "inside_uc": false,
+     "basis": "whole test, exhaust duct"
+    },
+    "co2": {
+     "net_kg": 7.045613237,
+     "ambient_fraction": 0.00042052,
+     "yield_kg_kg": 2.373059359,
+     "printed_kg_kg": 2.362,
+     "uc_kg_kg": 0.088,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "o2": {
+     "net_kg": 6.966170307,
+     "ambient_fraction": 0.209408167,
+     "yield_kg_kg": 2.346301889,
+     "printed_kg_kg": 2.355,
+     "uc_kg_kg": 0.079,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    }
+   },
+   "carbon_in_co_and_co2_per_kg_lost": 0.660938509,
+   "igniter_over_thr": 0.0001499,
+   "igniter_power_over_pre_ignition_noise": 0.220202936
+  },
+  "Test030": {
+   "run_id": "Test030",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "support_s": [
+    -375,
+    2842
+   ],
+   "absent_samples": {
+    "Heat Release Rate (kW)": [
+     2842
+    ],
+    "Oxygen (Vol Fr)": [
+     2842
+    ]
+   },
+   "table_fingerprint": "2c8f4b74593cf0be0adaccbaa210443345517c79b34442b5fdadc3e6779fdd7a",
+   "reproduction": {
+    "peak_kW": 2994.3,
+    "peak_printed_kW": 2994.0,
+    "peak_uc_kW": 153.0,
+    "peak_inside_uc": true,
+    "time_to_peak_s": 550.0,
+    "time_to_peak_printed_s": 550.2,
+    "time_to_peak_inside_uc": true,
+    "energy_MJ": 1425.68318,
+    "thr_printed_MJ": 1426.0,
+    "thr_uc_MJ": 78.0,
+    "energy_inside_uc": true,
+    "signed_sum_MJ": 1425.59979,
+    "clip_bias_MJ": 0.11324,
+    "clip_bias_over_uc": 0.001451795,
+    "negative_samples": 64,
+    "samples": 2212,
+    "what_it_is": "verification that the table returns the run it was built from, not validation"
+   },
+   "energy_timeline_s": {
+    "0.01": 259.0,
+    "0.1": 396.0,
+    "0.5": 653.0,
+    "0.9": 1377.0,
+    "0.99": 2055.0
+   },
+   "energy_after_fire_out_MJ": 12.15453,
+   "pre_ignition_hrr_kW": {
+    "mean": -0.382346667,
+    "sd": 1.576762874
+   },
+   "burner_channel_before_ignition_kW": 0.047253333,
+   "effective_heat": {
+    "MJ_kg": 18.303201905,
+    "uc_MJ_kg": 1.001459578,
+    "printed_MJ_kg": 18.3,
+    "printed_uc_MJ_kg": 1.0,
+    "inside_uc": true,
+    "basis": "ignition to fire out, one number per run"
+   },
+   "mass_lost_kg": 77.888,
+   "mass_lost_uc_kg": 0.028,
+   "species": {
+    "co": {
+     "net_kg": 2.384969962,
+     "ambient_fraction": 2.05e-07,
+     "yield_kg_kg": 0.030620506,
+     "printed_kg_kg": 0.0306,
+     "uc_kg_kg": 0.0011,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "co2": {
+     "net_kg": 133.373722596,
+     "ambient_fraction": 0.000414057,
+     "yield_kg_kg": 1.71237832,
+     "printed_kg_kg": 1.712,
+     "uc_kg_kg": 0.062,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "o2": {
+     "net_kg": 109.134917158,
+     "ambient_fraction": 0.209288,
+     "yield_kg_kg": 1.401177552,
+     "printed_kg_kg": 1.402,
+     "uc_kg_kg": 0.045,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    }
+   },
+   "carbon_in_co_and_co2_per_kg_lost": 0.480464565,
+   "igniter_over_thr": 2.736e-06,
+   "igniter_power_over_pre_ignition_noise": 0.081178979
+  },
+  "Test036": {
+   "run_id": "Test036",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "support_s": [
+    -348,
+    2479
+   ],
+   "absent_samples": {
+    "Heat Release Rate (kW)": [
+     2479
+    ],
+    "Oxygen (Vol Fr)": [
+     2479
+    ]
+   },
+   "table_fingerprint": "e043f71a7ca3c5a87d600a0cc51b0503fb5d4438ed0c66e3929518bc66a8374b",
+   "reproduction": {
+    "peak_kW": 5152.6,
+    "peak_printed_kW": 5153.0,
+    "peak_uc_kW": 264.0,
+    "peak_inside_uc": true,
+    "time_to_peak_s": 351.0,
+    "time_to_peak_printed_s": 351.0,
+    "time_to_peak_inside_uc": true,
+    "energy_MJ": 1411.99505,
+    "thr_printed_MJ": 1412.0,
+    "thr_uc_MJ": 80.0,
+    "energy_inside_uc": true,
+    "signed_sum_MJ": 1411.83292,
+    "clip_bias_MJ": 0.18776,
+    "clip_bias_over_uc": 0.002347,
+    "negative_samples": 58,
+    "samples": 2101,
+    "what_it_is": "verification that the table returns the run it was built from, not validation"
+   },
+   "energy_timeline_s": {
+    "0.01": 176.0,
+    "0.1": 300.0,
+    "0.5": 480.0,
+    "0.9": 1298.0,
+    "0.99": 1902.0
+   },
+   "energy_after_fire_out_MJ": 2.60749,
+   "pre_ignition_hrr_kW": {
+    "mean": -0.053908046,
+    "sd": 2.099344647
+   },
+   "burner_channel_before_ignition_kW": 0.168994253,
+   "effective_heat": {
+    "MJ_kg": 18.207566578,
+    "uc_MJ_kg": 1.031733204,
+    "printed_MJ_kg": 18.2,
+    "printed_uc_MJ_kg": 1.0,
+    "inside_uc": true,
+    "basis": "ignition to fire out, one number per run"
+   },
+   "mass_lost_kg": 77.541,
+   "mass_lost_uc_kg": 0.028,
+   "species": {
+    "co": {
+     "net_kg": 2.366527812,
+     "ambient_fraction": 3.2e-07,
+     "yield_kg_kg": 0.030519697,
+     "printed_kg_kg": 0.0306,
+     "uc_kg_kg": 0.0011,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "co2": {
+     "net_kg": 131.517838189,
+     "ambient_fraction": 0.00041521,
+     "yield_kg_kg": 1.696107068,
+     "printed_kg_kg": 1.697,
+     "uc_kg_kg": 0.061,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "o2": {
+     "net_kg": 108.809355391,
+     "ambient_fraction": 0.2092485,
+     "yield_kg_kg": 1.403249318,
+     "printed_kg_kg": 1.405,
+     "uc_kg_kg": 0.045,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    }
+   },
+   "carbon_in_co_and_co2_per_kg_lost": 0.475980665,
+   "igniter_over_thr": 3.896e-06,
+   "igniter_power_over_pre_ignition_noise": 0.060971408
+  },
+  "Test041": {
+   "run_id": "Test041",
+   "version": "FCD_2026",
+   "owner_id": "nist_tn2303_sofa_b_chaise_with_two_a_pillows_as_tested",
+   "support_s": [
+    -341,
+    2534
+   ],
+   "absent_samples": {
+    "Heat Release Rate (kW)": [
+     2534
+    ],
+    "Oxygen (Vol Fr)": [
+     2534
+    ]
+   },
+   "table_fingerprint": "a9da9db1d1ac1db8aa8589ec5e9f7c11328de5faa8f79789e11e4b2020d65bf6",
+   "reproduction": {
+    "peak_kW": 4035.8,
+    "peak_printed_kW": 4036.0,
+    "peak_uc_kW": 207.0,
+    "peak_inside_uc": true,
+    "time_to_peak_s": 638.0,
+    "time_to_peak_printed_s": 637.8,
+    "time_to_peak_inside_uc": true,
+    "energy_MJ": 1413.319895,
+    "thr_printed_MJ": 1413.0,
+    "thr_uc_MJ": 80.0,
+    "energy_inside_uc": true,
+    "signed_sum_MJ": 1413.17925,
+    "clip_bias_MJ": 0.18969,
+    "clip_bias_over_uc": 0.002371125,
+    "negative_samples": 67,
+    "samples": 2359,
+    "what_it_is": "verification that the table returns the run it was built from, not validation"
+   },
+   "energy_timeline_s": {
+    "0.01": 373.0,
+    "0.1": 553.0,
+    "0.5": 732.0,
+    "0.9": 1556.0,
+    "0.99": 2220.0
+   },
+   "energy_after_fire_out_MJ": 1.50454,
+   "pre_ignition_hrr_kW": {
+    "mean": -0.34829912,
+    "sd": 2.612232118
+   },
+   "burner_channel_before_ignition_kW": 0.095923754,
+   "effective_heat": {
+    "MJ_kg": 18.321568869,
+    "uc_MJ_kg": 1.037204336,
+    "printed_MJ_kg": 18.3,
+    "printed_uc_MJ_kg": 1.0,
+    "inside_uc": true,
+    "basis": "ignition to fire out, one number per run"
+   },
+   "mass_lost_kg": 77.132,
+   "mass_lost_uc_kg": 0.028,
+   "species": {
+    "co": {
+     "net_kg": 2.443596174,
+     "ambient_fraction": 9e-08,
+     "yield_kg_kg": 0.031680705,
+     "printed_kg_kg": 0.0316,
+     "uc_kg_kg": 0.0011,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "co2": {
+     "net_kg": 131.071479101,
+     "ambient_fraction": 0.00042024,
+     "yield_kg_kg": 1.699313892,
+     "printed_kg_kg": 1.699,
+     "uc_kg_kg": 0.061,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    },
+    "o2": {
+     "net_kg": 107.253758841,
+     "ambient_fraction": 0.209407667,
+     "yield_kg_kg": 1.390522207,
+     "printed_kg_kg": 1.387,
+     "uc_kg_kg": 0.044,
+     "inside_uc": true,
+     "basis": "whole test, exhaust duct"
+    }
+   },
+   "carbon_in_co_and_co2_per_kg_lost": 0.477353709,
+   "igniter_over_thr": 2.972e-06,
+   "igniter_power_over_pre_ignition_noise": 0.04900024
+  }
+ },
+ "version_consistency": {
+  "Test016": {
+   "mass_unchanged": true,
+   "thr_2025_MJ": 115.0,
+   "thr_2026_MJ": 115.1,
+   "co_yield_2025_printed": "0.034",
+   "co_yield_2026": 0.0339,
+   "co_yield_inside_rounding": true,
+   "declared_version": "FCD_2026",
+   "cause_of_change": "not demonstrated; versions are never mixed"
+  },
+  "Test021": {
+   "mass_unchanged": true,
+   "thr_2025_MJ": 96.0,
+   "thr_2026_MJ": 96.1,
+   "co_yield_2025_printed": "0.030",
+   "co_yield_2026": 0.0299,
+   "co_yield_inside_rounding": true,
+   "declared_version": "FCD_2026",
+   "cause_of_change": "not demonstrated; versions are never mixed"
+  },
+  "Test030": {
+   "mass_unchanged": true,
+   "thr_2025_MJ": 1426.0,
+   "thr_2026_MJ": 1426.0,
+   "co_yield_2025_printed": "0.033",
+   "co_yield_2026": 0.0306,
+   "co_yield_inside_rounding": false,
+   "declared_version": "FCD_2026",
+   "cause_of_change": "not demonstrated; versions are never mixed"
+  },
+  "Test036": {
+   "mass_unchanged": true,
+   "thr_2025_MJ": 1412.0,
+   "thr_2026_MJ": 1412.0,
+   "co_yield_2025_printed": "0.032",
+   "co_yield_2026": 0.0306,
+   "co_yield_inside_rounding": false,
+   "declared_version": "FCD_2026",
+   "cause_of_change": "not demonstrated; versions are never mixed"
+  },
+  "Test041": {
+   "mass_unchanged": true,
+   "thr_2025_MJ": 1413.0,
+   "thr_2026_MJ": 1413.0,
+   "co_yield_2025_printed": "0.032",
+   "co_yield_2026": 0.0316,
+   "co_yield_inside_rounding": true,
+   "declared_version": "FCD_2026",
+   "cause_of_change": "not demonstrated; versions are never mixed"
+  }
+ },
+ "local_aggregates_published": true,
+ "standing": {
+  "b_net": "NO_GO_closed_on_this_route",
+  "co_fed": "OFF_NO_GO",
+  "engine_change": "not_authorised_in_this_phase",
+  "predictive_source": "NO_GO"
+ }
+}

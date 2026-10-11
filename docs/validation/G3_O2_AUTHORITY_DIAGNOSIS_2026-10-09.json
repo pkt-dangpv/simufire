@@ -1,0 +1,1805 @@
+{
+ "schema": "g3_o2_authority_diagnosis_v1",
+ "head": "2d71f697",
+ "scope": "what each oxygen number of the engine does; diagnosis, not acceptance; no engine file changed",
+ "kilograms": "three kinds, never added: `ref` (a number x volume x 1.2 kg/m3), `layers_ref` (layer numbers on geometric shares of that base) and `layers_gas` (layer numbers on the layer gas masses)",
+ "sources_sha256": {
+  "sim/core/OxygenExchangeSystem.gd": "71bafb2dd4d7116c41ee5d1f85452386a516a50e6cf4a27eb6411198f396e3bd",
+  "sim/core/SimulationEngine.gd": "65b3ebe14a7aa0334b07f3348fd7cccd097a77e214de42473105fa254cc5e69c",
+  "sim/core/ZoneFireSolver.gd": "5b4cc7dcc77e13e0decf1f33c4342555fbb9ea29361ab1d2f9976aa0a699b998",
+  "sim/core/ThermalSystem.gd": "3041283bcd13b9e8eab39099ad6e6f7948eab5f090bb2d0ee3dfed38a84afe4a",
+  "sim/core/GasExchangeSystem.gd": "c64fcd923f6e91c5038cb83daf39f5657d230d8e745ffdbf0f4b0d8d3f22f04a",
+  "sim/core/PressureNetworkTransportSystem.gd": "84147837445343178d78d3d8082bbb3df5342ae461628e6668c5a99a7eea57e7",
+  "sim/fire/CombustionSystem.gd": "241398b06ac898dbe131ab53ccb023353382c01144298a365ec4ea4b43aff035",
+  "sim/building/RoomModel.gd": "2c7c975127b04ca87561281ecc4c4ec8ab95dbb40854486749ecced635530cec",
+  "tests/fixtures/g3_o2_authority_diagnosis.gd": "052969626bdcac526f29d71624126cac97351f156e2b00bf946fbce710929e4d"
+ },
+ "fixture_notes": [
+  "a bench did not arm: [\"engine authoritative_transport_enabled must be false, found true\"]"
+ ],
+ "launches": {
+  "count": 3,
+  "first": "discarded whole: the fixture loaded its rooms before the building entered the tree, the building then loaded the product preset over them, and what ran was the product house",
+  "second": "the bench of the controlled-demand cases was armed but its clock never started, because the fixture did not raise the ignition event of the engine: H04, H10 and H11 were not exercised; the cases without a bench gave the figures of the third launch",
+  "third": "this record",
+  "what_changed_between_launches": "the fixture (load order, the ignition event, the ledger of writers and the sub-steps alone). No hypothesis was changed. H15 was added after the first launch and before its case ran. The evaluation of one claim of H05 was corrected after the second: it summed two rooms whose lags cancel."
+ },
+ "as_predicted": {
+  "H01_rest": true,
+  "H02_heating_changes_the_gas_base_not_the_numbers": true,
+  "H03_network_keeps_the_gas_base": true,
+  "H04_controlled_demand_closes_on_the_room_number": true,
+  "H05_interior_transport_conserves_the_room_numbers": true,
+  "H06_exterior_exchange_is_the_declared_one": true,
+  "H07_closed_door_stops_the_transport": true,
+  "H08_layer_mixing_is_a_relaxation_not_an_exchange": true,
+  "H09_collapse_rewrites_both_layers": true,
+  "H10_two_step_sizes": true,
+  "H11_reset_and_reuse": true,
+  "H12_fire_and_sink_use_different_deposits": true,
+  "H13_house_cases_already_run": false,
+  "H14_network_mode_has_no_oxygen_inventory_either": false,
+  "H15_network_mode_with_a_real_fire": true
+ },
+ "all_as_predicted": false,
+ "not_as_predicted": [
+  "H13_house_cases_already_run",
+  "H14_network_mode_has_no_oxygen_inventory_either"
+ ],
+ "basis_of_the_fraction": {
+  "mole_fraction_of_the_engine_at_start": 0.209,
+  "molar_mass_o2_g_mol": 31.998,
+  "molar_mass_dry_air_g_mol": 28.9647,
+  "mass_fraction_that_corresponds": 0.2308873214637127,
+  "ratio_mass_over_mole_fraction": 1.1047240261421662,
+  "kg_o2_per_m3_the_engine_holds": 0.25079999999999997,
+  "kg_o2_per_m3_of_dry_air_at_1.2_kg_m3": 0.27706478575645527,
+  "inventory_short_by_fraction": 0.09479654978436158,
+  "assumption": "dry air of molar mass 28.9647 g/mol; the engine carries no humidity and no composition of its gas, so the molar mass of a burnt mixture is unknown to it"
+ },
+ "hypotheses": {
+  "H01_rest": {
+   "statement": "A sealed room with no fire keeps its three oxygen numbers bit for bit, its gas mass and every oxygen accumulator at zero.",
+   "predicted": true,
+   "decides": "whether the engine has a writer that acts with nothing to do",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "three_numbers_bit_for_bit": true,
+    "gas_mass_kept": true,
+    "nothing_booked_at_the_boundary": true,
+    "accumulators_exactly_zero": true
+   },
+   "evidence": {
+    "distinct_values": {
+     "o2": [
+      0.209
+     ],
+     "o2_upper": [
+      0.209
+     ],
+     "o2_lower": [
+      0.209
+     ]
+    },
+    "gas_kg": [
+     57.599999999999994,
+     57.599999999999994
+    ],
+    "gas_span_kg": 0.0,
+    "largest_accumulator_kg": 0.0,
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 240
+   }
+  },
+  "H02_heating_changes_the_gas_base_not_the_numbers": {
+   "statement": "Product route, a sealed hot room with no fire: the three oxygen numbers do not change, the gas mass of the room falls and is booked at the boundary, and so the layer numbers on the layer gas masses lose 0.209 kg per kg of gas with no oxygen writer having acted.",
+   "predicted": true,
+   "decides": "E1, product route: the layer gas masses are rewritten, so they cannot be the base of an inventory",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "three_numbers_unchanged": true,
+    "gas_mass_falls": true,
+    "booked_at_the_boundary_as_a_loss": true,
+    "layer_numbers_on_gas_lose_0.209_per_kg_of_gas": true,
+    "accumulators_exactly_zero": true
+   },
+   "evidence": {
+    "gas_kg": [
+     57.6,
+     49.475564823304765,
+     53.22755067998167
+    ],
+    "gas_change_kg": -4.372449320018333,
+    "boundary_gas_kg": [
+     -8.124435176695236,
+     -4.372449320018333
+    ],
+    "layer_numbers_on_gas_change_kg": -0.9138419078838318,
+    "expected_from_gas_alone_kg": -0.9138419078838316,
+    "largest_change_on_gas_kg": -1.6980069519293046,
+    "largest_accumulator_kg": 0.0,
+    "temp_upper_c": [
+     214.7965214041391,
+     47.668195875899315
+    ],
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 120
+   }
+  },
+  "H03_network_keeps_the_gas_base": {
+   "statement": "Diagnostic mode with the pressure network, the same hot room: gas mass, the three numbers and the layer numbers on the layer gas masses all stay.",
+   "predicted": true,
+   "decides": "E1, network mode: the gas mass is state there",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "gas_mass_kept": true,
+    "nothing_booked_at_the_boundary": true,
+    "three_numbers_kept": true,
+    "layer_numbers_on_gas_kept": true
+   },
+   "evidence": {
+    "gas_kg": [
+     57.6,
+     57.6,
+     57.6
+    ],
+    "gas_span_kg": 0.0,
+    "largest_boundary_gas_kg": 0.0,
+    "largest_number_drift": 0.0,
+    "layer_numbers_on_gas_span_kg": 0.0,
+    "largest_overpressure_pa": 14291.812400670917,
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 120,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 120
+   }
+  },
+  "H04_controlled_demand_closes_on_the_room_number": {
+   "statement": "Two rooms closed to the outside, a known power in one: the room numbers on their constant base, plus what is in transit, fall by exactly the debit of the room inventory, at every step; that debit is 0.076 kg/MJ of the accepted heat; the second write on the upper number is at least half as large again and reaches neither; and the two layer numbers do not add up to the room number.",
+   "predicted": true,
+   "decides": "whether the room number is today a closed ledger on the route the bench uses",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "bench_delivered": true,
+    "room_numbers_close_on_the_debit_at_every_step": true,
+    "debit_is_0.076_kg_per_MJ_of_accepted_heat": true,
+    "second_write_at_least_half_the_debit": true,
+    "layer_numbers_do_not_add_up_to_the_room_number": true
+   },
+   "evidence": {
+    "bench_state": "completed",
+    "bench_failure": [],
+    "accepted_MJ": 2.4,
+    "debit_room_inventory_kg": 0.18240000000000042,
+    "debit_expected_kg": 0.18239999999999998,
+    "largest_closure_gap_kg": 8.881784197001252e-14,
+    "second_write_kg": 0.18239999999999837,
+    "layers_minus_room_kg": -0.04702853679398267,
+    "room_numbers_on_base_change_kg": -0.16005221103653255,
+    "final_room_number": 0.20692723612379504,
+    "final_upper_number": 0.19622313590037363,
+    "final_lower_number": 0.2080593669330996,
+    "final_room_number_other_room": 0.2081175995710258,
+    "largest_in_transit_kg": 0.022347788963379425,
+    "gas_kg": [
+     103.67999999999999,
+     101.0370561371916,
+     101.0370561371916
+    ],
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 480,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 480,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": -0.003166666666665152,
+      "applications": 480,
+      "requested_fraction_total": -0.003166666666665152,
+      "times_clamped": 0
+     },
+     "oes_combustion_upper_sink|upper": {
+      "accepted_fraction_total": -0.023976512442212078,
+      "applications": 240,
+      "requested_fraction_total": -0.023976512442212078,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 480,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 480,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 240
+   }
+  },
+  "H05_interior_transport_conserves_the_room_numbers": {
+   "statement": "Two rooms closed to the outside, no fire, one poorer: the sum of the room numbers on their base (plus transit) is conserved at every step, their difference never grows, the transport accumulators cancel, and the layer numbers follow with a lag instead of being transported.",
+   "predicted": true,
+   "decides": "whether interior transport is conservative, and of which number",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "sum_conserved_at_every_step": true,
+    "difference_never_grows": true,
+    "transport_accumulators_cancel": true,
+    "each_room_changes_by_its_accumulator": true,
+    "layer_numbers_lag_the_room_numbers": true
+   },
+   "evidence": {
+    "largest_closure_gap_kg": 1.7763568394002505e-14,
+    "difference": [
+     0.059,
+     0.04941812364434198
+    ],
+    "transport_accumulators_plus_transit_kg": 1.9512169657787126e-14,
+    "room_change_minus_its_accumulator_kg": 2.5666968550552838e-14,
+    "largest_layers_minus_room_kg_in_one_room": 0.021072510608586725,
+    "numbers_of_the_poorer_room_after_one_step": [
+     0.150012099609375,
+     0.15,
+     0.15
+    ],
+    "room_changes_kg": [
+     -0.24529603470483607,
+     0.24529603470485206
+    ],
+    "gas_kg": [
+     103.67999999999999,
+     103.67999999999999
+    ],
+    "largest_in_transit_kg": 0.0,
+    "one_sub_step_alone": {
+     "_clamp_rooms": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      },
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 1,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_gas_exchange": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      },
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 1,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_hvac": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      },
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 1,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_oxygen": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": -9.6796875000138e-06,
+       "room_number_change_kg": -0.0005575499999999067,
+       "transport_accumulator_kg": -0.0005575499999993072,
+       "upper_number_change": 0.0
+      },
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 1,
+       "room_number_change": 1.2099609375010312e-05,
+       "room_number_change_kg": 0.0005575499999999067,
+       "transport_accumulator_kg": 0.0005575500000002088,
+       "upper_number_change": 0.0
+      }
+     ],
+     "thermal": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      },
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 1,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ]
+    },
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 480
+   }
+  },
+  "H06_exterior_exchange_is_the_declared_one": {
+   "statement": "One room open to the outside, no fire, no temperature difference: the room number changes only by the infiltration law, x += (ACH/3600) dt (0.209 - x), and the change is the exterior accumulator.",
+   "predicted": true,
+   "decides": "whether an exterior exchange with a known balance closes",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "room_changes_by_the_exterior_accumulator": true,
+    "follows_the_infiltration_law": true
+   },
+   "evidence": {
+    "room_change_kg": 0.05617254558214313,
+    "exterior_accumulator_kg": 0.056172545582130334,
+    "room_change_minus_exterior_accumulator_kg": 1.3725132141928498e-14,
+    "largest_gap_to_the_infiltration_law": 1.942890293094024e-16,
+    "final_room_number": 0.15097521780524553,
+    "law_final": 0.1509752178052454,
+    "final_layer_numbers": [
+     0.15071657029589455,
+     0.1508179976272274
+    ],
+    "one_sub_step_alone": {
+     "_clamp_rooms": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_gas_exchange": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_hvac": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_oxygen": [
+      {
+       "exterior_accumulator_kg": 0.00023599999999999994,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 1.0243055556524716e-07,
+       "room": 0,
+       "room_number_change": 4.097222222221308e-06,
+       "room_number_change_kg": 0.00023599999999923682,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 6.14583333391483e-08
+      }
+     ],
+     "thermal": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ]
+    },
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0009752178052455374,
+      "applications": 240,
+      "requested_fraction_total": 0.0009752178052455374,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 240
+   }
+  },
+  "H07_closed_door_stops_the_transport": {
+   "statement": "The transport case with the door closed, open and closed: with the door closed neither room number changes at all, from the first closed step; the sum is conserved throughout.",
+   "predicted": true,
+   "decides": "opening and closing",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "nothing_changes_while_closed_at_first": true,
+    "something_changes_while_open": true,
+    "nothing_changes_once_closed_again": true,
+    "sum_conserved_throughout": true
+   },
+   "evidence": {
+    "rows_that_changed_a_room_number": {
+     "closed": 0,
+     "open": 160,
+     "closed_again": 0
+    },
+    "sum_span_kg": 1.4210854715202004e-14,
+    "room_numbers_start": [
+     0.209,
+     0.15
+    ],
+    "room_numbers_end": [
+     0.20823680860089186,
+     0.15095398924888495
+    ],
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 400,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 400,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 400,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 400,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 400,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    }
+   }
+  },
+  "H08_layer_mixing_is_a_relaxation_not_an_exchange": {
+   "statement": "One sealed room, no fire, two layers with different numbers: the room number does not move, the upper number rises and the lower falls towards it, and the layer numbers on their shares change by more than a gram with every accumulator at zero.",
+   "predicted": true,
+   "decides": "whether mixing between layers conserves anything",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "room_number_does_not_move": true,
+    "upper_number_rises_towards_it": true,
+    "lower_number_falls_towards_it": true,
+    "layers_on_shares_change_by_more_than_a_gram": true,
+    "accumulators_exactly_zero": true
+   },
+   "evidence": {
+    "room_number": [
+     0.18,
+     0.18
+    ],
+    "upper_number": [
+     0.12,
+     0.17840468455505107
+    ],
+    "lower_number": [
+     0.2,
+     0.18004593436989474
+    ],
+    "layers_on_shares_kg": [
+     9.92124892038757,
+     10.3500439879058
+    ],
+    "room_number_on_base_kg": 10.367999999999999,
+    "layers_on_shares_change_kg": 0.42879506751823016,
+    "upper_share": [
+     0.34676965816997773,
+     0.21792580735716616
+    ],
+    "largest_accumulator_kg": 0.0,
+    "one_sub_step_alone": {
+     "_clamp_rooms": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": -8.186935016203314,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_gas_exchange": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": -8.186935016203314,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_hvac": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ],
+     "_step_oxygen": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": 0.0,
+       "lower_number_change": -0.0005000000000000004,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.000899999999999998
+      }
+     ],
+     "thermal": [
+      {
+       "exterior_accumulator_kg": 0.0,
+       "gas_change_kg": -8.124435179615666,
+       "lower_number_change": 0.0,
+       "room": 0,
+       "room_number_change": 0.0,
+       "room_number_change_kg": 0.0,
+       "transport_accumulator_kg": 0.0,
+       "upper_number_change": 0.0
+      }
+     ]
+    },
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 240,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    },
+    "steps": 240
+   }
+  },
+  "H09_collapse_rewrites_both_layers": {
+   "statement": "One sealed room, no fire, an upper layer that takes more than 85 % of the height: in one step both layer numbers become the room number exactly, a jump of more than 1 kg on their shares with every accumulator at zero.",
+   "predicted": true,
+   "decides": "what a collapsed layer does to the layer numbers",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "both_layers_become_the_room_number_in_one_step": true,
+    "jump_of_more_than_1_kg_on_their_shares": true,
+    "accumulators_exactly_zero": true
+   },
+   "evidence": {
+    "step_where_both_layers_equal_the_room": 1,
+    "jump_on_shares_kg": 4.62265868124337,
+    "lowest_lower_share": 0.09393470663191095,
+    "lower_share_by_step": [
+     0.09393470663191095,
+     0.10330003341114835,
+     0.11245901710626949,
+     0.12139909692358786,
+     0.13010943359932448,
+     0.13858095208006016
+    ],
+    "numbers_start": [
+     0.209,
+     0.12,
+     0.2
+    ],
+    "numbers_after_first_step": [
+     0.209,
+     0.121335,
+     0.20022500000000001
+    ],
+    "numbers_end": [
+     0.209,
+     0.209,
+     0.209
+    ],
+    "largest_accumulator_kg": 0.0,
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 20,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 20,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 20,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 20,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 20,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    }
+   }
+  },
+  "H10_two_step_sizes": {
+   "statement": "With half the step the closures of H04 and H06 hold as well and the debit of the room inventory is the same; the final room number is not the same.",
+   "predicted": true,
+   "decides": "which properties depend on the step",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "controlled_demand_closes_with_half_the_step": true,
+    "exterior_exchange_holds_with_half_the_step": true,
+    "same_debit_of_the_room_inventory": true,
+    "final_room_number_differs": true
+   },
+   "evidence": {
+    "closure_gap_kg": [
+     8.881784197001252e-14,
+     9.237055564881302e-14
+    ],
+    "exterior_half_step": {
+     "room_change_kg": 0.05617157843512999,
+     "exterior_accumulator_kg": 0.0561715784351246,
+     "room_change_minus_exterior_accumulator_kg": 1.9095836023552692e-14,
+     "largest_gap_to_the_infiltration_law": 3.3306690738754696e-16,
+     "final_room_number": 0.15097520101449877,
+     "law_final": 0.1509752010144986,
+     "final_layer_numbers": [
+      0.1507146839622171,
+      0.1508159797610909
+     ],
+     "one_sub_step_alone": null,
+     "writers": {
+      "engine_final_tick_clamp|bulk": {
+       "accepted_fraction_total": 0.0,
+       "applications": 480,
+       "requested_fraction_total": 0.0,
+       "times_clamped": 0
+      },
+      "ges_room_loop_transport|bulk": {
+       "accepted_fraction_total": 0.0,
+       "applications": 480,
+       "requested_fraction_total": 0.0,
+       "times_clamped": 0
+      },
+      "oes_bulk_combustion_and_ach|bulk": {
+       "accepted_fraction_total": 0.0009752010144987722,
+       "applications": 480,
+       "requested_fraction_total": 0.0009752010144987722,
+       "times_clamped": 0
+      },
+      "oes_final_zone_clamp|lower": {
+       "accepted_fraction_total": 0.0,
+       "applications": 480,
+       "requested_fraction_total": 0.0,
+       "times_clamped": 0
+      },
+      "oes_final_zone_clamp|upper": {
+       "accepted_fraction_total": 0.0,
+       "applications": 480,
+       "requested_fraction_total": 0.0,
+       "times_clamped": 0
+      }
+     },
+     "steps": 480
+    },
+    "exterior_half_step_claims": {
+     "room_changes_by_the_exterior_accumulator": true,
+     "follows_the_infiltration_law": true
+    },
+    "debit_room_inventory_kg": [
+     0.18240000000000042,
+     0.1823999999999994
+    ],
+    "final_room_number": [
+     0.20692723612379504,
+     0.20692166296747555
+    ],
+    "final_upper_number": [
+     0.19622313590037363,
+     0.19643517366025853
+    ],
+    "final_room_number_exterior": [
+     0.15097521780524553,
+     0.15097520101449877
+    ],
+    "second_write_kg": [
+     0.18239999999999837,
+     0.1823999999999959
+    ]
+   }
+  },
+  "H11_reset_and_reuse": {
+   "statement": "After reset_simulation on the same engine nothing is in transit or reserved, the numbers are 0.209, the accumulators are zero, and the same run gives the same numbers bit for bit.",
+   "predicted": true,
+   "decides": "life cycle",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "nothing_in_transit_or_reserved": true,
+    "numbers_and_accumulators_clean": true,
+    "same_run_bit_for_bit": true
+   },
+   "evidence": {
+    "in_transit_entries_before_reset": 52,
+    "reserved_entries_before_reset": 1,
+    "in_transit_entries_after_reset": 0,
+    "reserved_entries_after_reset": 0,
+    "first_digest": "12a7d15b2ceb1618bd38a10c276cc7368c7afb44443eb47d1e50533d8ce7bdac",
+    "second_digest": "12a7d15b2ceb1618bd38a10c276cc7368c7afb44443eb47d1e50533d8ce7bdac",
+    "largest_in_transit_first_run_kg": 0.018642424307570404,
+    "bench_state_second_run": "replaying",
+    "debit_room_inventory_kg": [
+     0.12159999999999963,
+     0.12159999999999963
+    ],
+    "something_was_in_transit_at_some_step": true,
+    "something_was_in_transit_at_the_reset": true
+   }
+  },
+  "H12_fire_and_sink_use_different_deposits": {
+   "statement": "A real room fire with the door to a second room open: the sink debits the room inventory in every burning step while the fire reads a layer number that differs from the room number by more than 0.001; the second write is at least half the debit and drives the upper number below half of the room number; the room numbers still close on debit plus exterior.",
+   "predicted": true,
+   "decides": "O2-1 and O2-4 on the current engine",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "sink_debits_the_room_inventory": true,
+    "fire_reads_a_layer_number_apart_from_the_room_number": true,
+    "second_write_at_least_half_the_debit": true,
+    "upper_number_driven_below_half_the_room_number": true,
+    "room_numbers_close_on_debit_plus_exterior": true
+   },
+   "evidence": {
+    "burning_steps": 480,
+    "steps_with_fire_reading_a_layer_apart_from_the_room": 294,
+    "largest_fire_reads_minus_room_number": 0.02215942210969693,
+    "fire_deposits_seen": [
+     "plume_lower"
+    ],
+    "debit_room_inventory_kg": 1.7413280450451902,
+    "debit_primary_kg": 1.7413280450451902,
+    "second_write_kg": 1.7413280450451862,
+    "heat_accepted_MJ": 22.912211119015662,
+    "debit_per_MJ": 0.076,
+    "lowest_upper_number": 0.06741040716056552,
+    "lowest_room_number": 0.18376694560621853,
+    "lowest_lower_number": 0.20588737173430713,
+    "largest_transport_accumulators_plus_transit_kg": 4.8093473647981e-14,
+    "transport_accumulators_at_the_end_kg": 0.133107179101631,
+    "in_transit_at_the_end_kg": -0.1331071791016655,
+    "largest_closure_gap_kg": 3.197442310920451e-14,
+    "closure_gap_at_the_end_kg": 3.197442310920451e-14,
+    "exterior_kg": 0.005934532937407857,
+    "largest_in_transit_kg": 0.1331071791016655,
+    "gas_kg": [
+     103.67999999999999,
+     90.36809467226526,
+     90.36809467226526
+    ],
+    "boundary_gas_kg": [
+     28.49730880085466,
+     -20.447318127782253
+    ],
+    "layer_numbers_on_gas_change_kg": -3.505456555026047,
+    "peak_power_kw": 633.8468033506055,
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": -0.03012667456790047,
+      "applications": 960,
+      "requested_fraction_total": -0.03012667456790047,
+      "times_clamped": 0
+     },
+     "oes_combustion_upper_sink|upper": {
+      "accepted_fraction_total": -0.1826536127198331,
+      "applications": 480,
+      "requested_fraction_total": -0.1826536127198331,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    }
+   }
+  },
+  "H13_house_cases_already_run": {
+   "statement": "House cases of the switch-off identity run. Door closed (o2_closed): the room inventory is not debited and the room number changes by more than 1 kg that no accumulator explains. Door reopened at 300 s (o2_reopen_300): from then on the room inventory is debited, the second write is at least half of it, the fire reads the lower number while the sink debits the room, and the house closes within 0.01 kg. Stress (o2_stress_cap): the heat accepted asks for more than 1 kg of oxygen above what was debited.",
+   "predicted": true,
+   "decides": "U13, O2-1, O2-4 and O2-3 on product geometry",
+   "holds": false,
+   "exercised": true,
+   "claims": {
+    "door_closed_room_inventory_not_debited": true,
+    "door_closed_room_number_changes_unexplained": true,
+    "reopened_room_inventory_debited": true,
+    "reopened_second_write_at_least_half": true,
+    "reopened_fire_reads_lower_while_sink_debits_room": true,
+    "reopened_house_closes_within_0.01_kg": false,
+    "stress_heat_asks_more_than_was_debited": true
+   },
+   "evidence": {
+    "source_run": "g3_balance_identity_off_ledgeroff_20261009_145803",
+    "o2_closed": {
+     "base_kg": 57.6,
+     "debit_room_inventory_kg": 0.0,
+     "debit_primary_kg": 6.07720017,
+     "debits_declared_kg": 6.62414819,
+     "room_number_change_kg": -5.317055999999999,
+     "explained_by_accumulators_kg": 0.61455122,
+     "unexplained_kg": -5.931607219999999,
+     "zone_sync_kg": 0.0,
+     "heat_accepted_MJ": 79.9631602,
+     "final_numbers": [
+      0.11669,
+      0.11626,
+      0.11644
+     ]
+    },
+    "o2_reopen_300": {
+     "after_300_s": {
+      "debit_room_inventory_kg": 3.53089955,
+      "debit_primary_kg": 3.530899549999999,
+      "second_write_kg": 3.400592360000001,
+      "seconds_with_fire_reading_the_lower_number_and_sink_debiting_the_room": 333,
+      "largest_lower_minus_room_number": 0.02334,
+      "house_room_numbers_change_kg": -3.2114879999999992,
+      "house_exterior_kg": 0.6972084399999999,
+      "house_closure_gap_kg": -0.37779688999999905,
+      "largest_room_change_minus_its_own_accumulators_kg": 0.00044752999999886356,
+      "house_transport_accumulators_kg": -0.3778234100000002,
+      "note": "every room closes on its own accumulators; the house gap is the transport accumulators not cancelling, which is what oxygen in transit between rooms looks like; the log does not record what is in transit, so here it is consistent with it, not measured"
+     },
+     "lowest_upper_number": 0.00066,
+     "rooms": 6
+    },
+    "o2_stress_cap": {
+     "heat_accepted_MJ": 331.456986,
+     "oxygen_asked_by_that_heat_kg": 25.190730935999998,
+     "debit_primary_kg": 16.97491705,
+     "debit_room_inventory_kg": 16.97491705,
+     "never_debited_kg": 8.215813886,
+     "lowest_room_number": 0.05009
+    }
+   }
+  },
+  "H14_network_mode_has_no_oxygen_inventory_either": {
+   "statement": "Diagnostic mode with the pressure network, the controlled demand: gas mass is conserved, the room number is rewritten from the layers at every step, and the layer numbers on the layer gas masses do not fall by the debit of the room inventory (more than 1 % apart).",
+   "predicted": true,
+   "decides": "E1, network mode: conserved gas mass is not an oxygen inventory",
+   "holds": null,
+   "exercised": false,
+   "claims": {
+    "exercised_with_the_bench": false
+   },
+   "evidence": {
+    "bench_state": "failed",
+    "bench_failure": [
+     "engine authoritative_transport_enabled must be false, found true"
+    ],
+    "debit_room_inventory_kg": 0.0,
+    "why": "the diagnostic bench does not arm with the pressure network; the same question is asked of a real fire in H15"
+   }
+  },
+  "H15_network_mode_with_a_real_fire": {
+   "statement": "Diagnostic mode with the pressure network, the real fire of H12: the gas mass of the two rooms is conserved, the room number is rewritten from the layer numbers at every step, and the layer numbers on the layer gas masses do not fall by the primary debit less the exterior exchange (more than 1 % of the debit apart).",
+   "predicted": true,
+   "decides": "E1, network mode, with the question H14 could not ask",
+   "holds": true,
+   "exercised": true,
+   "claims": {
+    "gas_mass_conserved": true,
+    "room_number_rewritten_from_the_layers": true,
+    "layer_numbers_on_gas_do_not_follow_the_debit": true
+   },
+   "evidence": {
+    "gas_kg": [
+     103.67999999999999,
+     103.67999999999995,
+     103.68000000000009,
+     103.68000000000006
+    ],
+    "gas_span_kg": 1.4210854715202004e-13,
+    "room_number_minus_layers_on_gas": 5.551115123125783e-17,
+    "debit_primary_kg": 1.6631082857417439,
+    "debit_room_inventory_kg": 1.6631082857417439,
+    "second_write_kg": 1.6631082857417439,
+    "exterior_kg": 0.0060594239514186665,
+    "layer_numbers_on_gas_change_kg": -1.2507924771617702,
+    "unexplained_kg": 0.40625638462855496,
+    "unexplained_over_debit": 0.24427536565808475,
+    "room_numbers_on_base_change_kg": -1.2883638320824424,
+    "heat_accepted_MJ": 21.88300375975979,
+    "lowest_upper_number": 0.13332018607898494,
+    "lowest_room_number": 0.19338617545762202,
+    "writers": {
+     "engine_final_tick_clamp|bulk": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "ges_room_loop_transport|bulk": {
+      "accepted_fraction_total": 1.6653345369377348e-16,
+      "applications": 960,
+      "requested_fraction_total": 1.6653345369377348e-16,
+      "times_clamped": 0
+     },
+     "oes_bulk_combustion_and_ach|bulk": {
+      "accepted_fraction_total": -0.02876182283415732,
+      "applications": 960,
+      "requested_fraction_total": -0.02876182283415732,
+      "times_clamped": 0
+     },
+     "oes_combustion_upper_sink|upper": {
+      "accepted_fraction_total": -0.0955278066474777,
+      "applications": 480,
+      "requested_fraction_total": -0.0955278066474777,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|lower": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     },
+     "oes_final_zone_clamp|upper": {
+      "accepted_fraction_total": 0.0,
+      "applications": 960,
+      "requested_fraction_total": 0.0,
+      "times_clamped": 0
+     }
+    }
+   }
+  }
+ },
+ "setups": {
+  "collapse": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one sealed room, no fire, no infiltration (declared isolation); starting state: 26 kg of upper gas with 300 kJ/kg, 5 kg of lower gas; numbers: room 0.209, upper 0.12, lower 0.20"
+  },
+  "controlled_demand_dt_0.25": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "diagnostic bench armed in room 0 with a synthetic table (its regime limits widened: the regime is not what is measured here)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.25,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, door open, no infiltration (declared isolation); bench: 20 kW for 120 s in room 0"
+  },
+  "controlled_demand_dt_0.5": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "diagnostic bench armed in room 0 with a synthetic table (its regime limits widened: the regime is not what is measured here)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, door open, no infiltration (declared isolation); bench: 20 kW for 120 s in room 0"
+  },
+  "controlled_demand_network_on": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "pressure_network_solver_enabled = true (diagnostic mode, not the product route)",
+    "diagnostic bench armed in room 0 with a synthetic table (its regime limits widened: the regime is not what is measured here)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": true,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, door open, no infiltration (declared isolation); bench: 20 kW for 120 s in room 0"
+  },
+  "exterior_dt_0.25": {
+   "declared_changes": [
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.25,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": -1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one room, exterior door open, no fire, product infiltration; the room starts at 0.15 in its three numbers"
+  },
+  "exterior_dt_0.5": {
+   "declared_changes": [
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": -1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one room, exterior door open, no fire, product infiltration; the room starts at 0.15 in its three numbers"
+  },
+  "heated": {
+   "declared_changes": [
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one sealed room, no fire; starting state: 12 kg of upper gas with 200 kJ/kg, 45.6 kg of lower gas"
+  },
+  "heated_network_on": {
+   "declared_changes": [
+    "pressure_network_solver_enabled = true (diagnostic mode, not the product route)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": true,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one sealed room, no fire; starting state: 12 kg of upper gas with 200 kJ/kg, 45.6 kg of lower gas"
+  },
+  "open_and_close": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 0.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "as `transport`, with the door closed for 40 steps, open for 80 and closed for 80"
+  },
+  "real_fire": {
+   "declared_changes": [
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.25,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 1100.0,
+     "fuel_objects": 2,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, door open, product infiltration; room 0 burns a 1100 MJ, 700 kW upholstered object ignited at the start"
+  },
+  "real_fire_network_on": {
+   "declared_changes": [
+    "pressure_network_solver_enabled = true (diagnostic mode, not the product route)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.25,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": true,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 1100.0,
+     "fuel_objects": 2,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, door open, product infiltration; room 0 burns a 1100 MJ, 700 kW upholstered object ignited at the start"
+  },
+  "reset_and_reuse": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "diagnostic bench armed in room 0 with a synthetic table (its regime limits widened: the regime is not what is measured here)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "as `controlled_demand_dt_0.5`: 160 steps, `reset_simulation` on the same engine, 160 steps again"
+  },
+  "rest": {
+   "declared_changes": [
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.5,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one sealed room, no fire, product defaults"
+  },
+  "transport": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [
+    {
+     "a": 0,
+     "b": 1,
+     "height_m": 2.0,
+     "open_fraction": 1.0,
+     "width_m": 0.9
+    }
+   ],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    },
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 1,
+     "volume_m3": 38.4
+    }
+   ],
+   "what": "two rooms closed to the outside, no fire, door open, no infiltration (declared isolation); room 1 starts at 0.15 in its three numbers"
+  },
+  "two_layers": {
+   "declared_changes": [
+    "ach_infiltration = 0.0 (isolation)",
+    "phase3_o2_attribution_diagnostics_enabled = true (passive ledger of the engine)"
+   ],
+   "dt_s": 0.5,
+   "engine": {
+    "ach_infiltration": 0.0,
+    "fire_o2_mode": "legacy",
+    "interior_transport_enabled": true,
+    "mass_tracking_of_the_upper_number": false,
+    "outside_o2": 0.209,
+    "oxygen_system_sees_two_zones": false,
+    "pressure_network_solver_enabled": false,
+    "two_zone_solver_enabled": true
+   },
+   "openings": [],
+   "rooms": [
+    {
+     "fuel_energy_MJ": 0.0,
+     "fuel_objects": 0,
+     "height_m": 2.4,
+     "id": 0,
+     "volume_m3": 48.0
+    }
+   ],
+   "what": "one sealed room, no fire, no infiltration (declared isolation); starting numbers: room 0.18, upper 0.12, lower 0.20; hot upper layer as in `heated`"
+  }
+ }
+}

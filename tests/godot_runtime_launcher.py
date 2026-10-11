@@ -33,6 +33,11 @@ def _health_errors(
         )
     if health.get("process_quiescent") is not True:
         errors.append("Godot process state did not become quiescent")
+    if health.get("foreign_godot_processes", []) != []:
+        errors.append(
+            "foreign Godot processes during the run (not terminated): "
+            f"{health.get('foreign_godot_processes')}"
+        )
 
     wrapper_exit = health.get("wrapper_exit_code")
     if allowed_exit_codes is not None and wrapper_exit not in allowed_exit_codes:
@@ -74,7 +79,11 @@ def run_godot(
     if preexisting:
         raise AssertionError(f"pre-existing Godot processes: {preexisting}")
 
-    appdata_path = mutation_audit.ROOT / "runs/godot_test_appdata"
+    # Keep the isolated default, but permit the authoritative suite to place
+    # runtime data outside the checkout without using the user's real APPDATA.
+    appdata_path = Path(os.environ.get(
+        "SIMUFIRE_GODOT_TEST_APPDATA", str(mutation_audit.ROOT / "runs/godot_test_appdata")
+    ))
     appdata_path.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment["APPDATA"] = str(appdata_path)

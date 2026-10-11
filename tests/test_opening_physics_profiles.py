@@ -81,7 +81,8 @@ def test_catalog_has_one_owner_and_is_versioned():
     owners = [
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts and "const PROFILES: Array = [" in path.read_text(encoding="utf-8")
+        if "runs" not in path.relative_to(ROOT).parts
+        and "const PROFILES: Array = [" in path.read_text(encoding="utf-8")
     ]
     assert owners == ["sim/building/OpeningPhysicsProfileCatalog.gd"], owners
     assert 'static func versioned_id(profile_id: String, version: int)' in CATALOG
@@ -211,8 +212,9 @@ def test_physics_off_switches_are_untouched():
         assert re.findall(rf"^@export var {flag}: bool = (\w+)$", ENGINE, re.M) == ["false"]
         assert flag not in _code_only(CATALOG)
     audit = (ROOT / "scripts/simulation/audit_default_off_flags.py").read_text(encoding="utf-8")
-    # D4B1 no anade ningun interruptor.
-    assert "EXPECTED_DECLARATION_COUNT = 81" in audit
+    # D4B1 added no switch; the later G3 FED candidate and G3 fuel ownership
+    # switch raised the inventory.
+    assert "EXPECTED_DECLARATION_COUNT = 84" in audit
 
 
 # ------------------------------------------------------------
@@ -238,7 +240,7 @@ def test_no_editor_or_view_file_consumes_the_catalogue():
     consumers = sorted(
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*.gd")
-        if "runs" not in path.parts
+        if "runs" not in path.relative_to(ROOT).parts
         and "OpeningPhysicsProfileCatalog" in path.read_text(encoding="utf-8")
     )
     # Cerrada a proposito. F2.2D4B2A anade DOS consumidores deliberados: la

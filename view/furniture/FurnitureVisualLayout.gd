@@ -47,6 +47,17 @@ static func normalize_room(building: BuildingModel, room_id: int, rect: Rect2, r
 		if String(spec.get("visual_archetype", "")) == "":
 			spec["visual_archetype"] = FurnitureVisualClassifier.visual_archetype(spec)
 		specs.append(spec)
+	# Un preset jugable puede pedir una vivienda completa aun cuando solo haya
+	# un objeto de fuego. El relleno sigue en la vista: nunca entra en fuel_objects.
+	if furnish_empty and building != null:
+		var room: RoomModel = building.get_room(room_id)
+		if room != null and room.visual_furniture_fill:
+			var represented: Dictionary = {}
+			for spec in specs:
+				represented[String(spec.get("visual_archetype", ""))] = true
+			for prop in _props_for_room(building, room_id, rect):
+				if not represented.has(String(prop.get("visual_archetype", ""))):
+					specs.append(prop)
 	if specs.is_empty():
 		if not furnish_empty or building == null:
 			return []

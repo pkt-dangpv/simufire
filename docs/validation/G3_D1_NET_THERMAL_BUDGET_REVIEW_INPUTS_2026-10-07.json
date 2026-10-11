@@ -1,0 +1,196 @@
+{
+  "schema": "g3_net_thermal_budget_revision_v1",
+  "reviewed_at": "2026-10-07",
+  "revises": {
+    "record": "docs/validation/G3_D1_NET_THERMAL_BUDGET_INPUTS_2026-10-06.json",
+    "record_sha256": "b224c4bddfc1311fedd9e6e8f0562f6ab0f925cc08e2949053ff4044ffa9d32c",
+    "withdrawn_verdict": "GO_partial_bounded_stationary_rate_NO_GO_point_value",
+    "reason": "the band came from the gauge reading and a reflection range only; the other frontier terms had no bound, and agreement with a demand built from the mass does not bound them"
+  },
+  "sources": {
+    "sandia_2011": {
+      "path": "docs/literature/Sandia/SNL_SAND2010-6377_Hydrocarbon_Characterization_Results_2011.pdf",
+      "sha256_raw": "9722f1226c743ec892b37be4476b11b89c37c5871c19ce23a3b65f54c62860bd",
+      "archived": true
+    },
+    "luketa_2010": {
+      "citation": "Luketa, A., Assessment of Simulation Predictions of Hydrocarbon Pool Fire Tests, SAND2010-2511, Sandia National Laboratories, April 2010",
+      "url": "https://www.osti.gov/servlets/purl/984087",
+      "path": "docs/literature/Sandia/SNL_SAND2010-2511_Assessment_Simulation_Hydrocarbon_Pool_Fire_Tests_2010.pdf",
+      "sha256_raw": "2083866a951a6a0d329aff071f8de73f1a05e1ac75ab3ebab351875c9ded368e",
+      "archived": true,
+      "rights": "cover: Approved for public release; further dissemination unlimited",
+      "role": "analysis of the same tests by the same laboratory, with discussion with the experimentalist"
+    },
+    "spectra_2009": {
+      "citation": "Suo-Anttila, J. M., Blanchat, T. K., Ricks, A. J. and Brown, A. L., Characterization of thermal radiation spectra in 2 m pool fires, Proceedings of the Combustion Institute 32, 2567-2574 (2009)",
+      "doi": "10.1016/j.proci.2008.06.044",
+      "archived": false,
+      "obtained": false,
+      "status": "closed access; not obtained; no purchase made"
+    },
+    "beji_2021": {
+      "citation": "Beji, T., Helson, O., Rogaume, T. and Luche, J., Experimental and numerical study on the evaporation rates of liquid fuels using a controlled atmosphere cone calorimeter, Fire Safety Journal, article 103317 (2021)",
+      "doi": "10.1016/j.firesaf.2021.103317",
+      "url": "https://biblio.ugent.be/publication/8702056",
+      "sha256_raw_as_retrieved": "1c82a8219bdd36ddd074ef8cd7c6e627d67ff337dd1c56e6b52b2922bad945ff",
+      "archived": false,
+      "rights": "author version in an institutional repository, marked in copyright; linked only"
+    }
+  },
+  "search": {
+    "raw_data": {
+      "looked_in": ["OSTI records and datasets", "MaCFP macfp-db Liquid_Pool_Fires"],
+      "found": false,
+      "note": "not finding a file does not show the data do not exist: the report says all channels were archived after each test"
+    },
+    "spectra_article": {"found": true, "obtained": false},
+    "small_scale_tests_cited_by_luketa": {
+      "what": "1 ft tests on gauge placement and a gauge 50 mm below the surface",
+      "found": false,
+      "note": "described in the assessment report without a reference"
+    },
+    "request_not_sent": "raw 1 Hz channels of SNL011, SNL012 and SNL029 (pool gauges, fuel rake, pan bottom thermocouple, drum scale); the tabulated spectra by height; the 1 ft gauge placement tests. No author was contacted"
+  },
+  "corrections_to_2026_10_06": [
+    {"item": "liquid inventory", "was": "19 mm above the baffle, 40.8 kg", "is": "fuel depth of roughly 45 to 55 mm",
+     "locator": "luketa_2010 p.15; sandia_2011 Figure 7 p.18", "effect": "the storage scale was understated by a factor of 2.4 to 2.9"},
+    {"item": "vapour superheat", "was": "47 kW, half of the gauge power, presented as a first-order unmeasured term",
+     "is": "withdrawn as evidence: it took a thermocouple reading in an irradiated vapour as the vapour temperature and one energy route as the only one",
+     "locator": "sandia_2011 Figure 56 p.73", "effect": "no magnitude is claimed for the absorption below the gauge"},
+    {"item": "reflection range", "was": "0 to 0.10", "is": "0.02 to 0.10, measured on a quiescent surface; boiling is not covered",
+     "locator": "luketa_2010 p.20", "effect": "the upper end is not a bound"},
+    {"item": "gauge height", "was": "0.026 m", "is": "0.026 m in the results report; 0.0127 m in its Figure 4 and in the assessment report; not reconciled",
+     "locator": "sandia_2011 p.29 and Figure 4 p.16; luketa_2010 p.21", "effect": "the accepted height is null"},
+    {"item": "strict criterion", "was": "3.6 percent from 3 percent of the gauge and 1.9 percent of the mass",
+     "is": "withdrawn: the 1.9 percent belongs to a JP8 test averaged over 6 min and the 3 percent is the manufacturer figure, not an in-fire uncertainty",
+     "locator": "sandia_2011 pp.29 and 37", "effect": "no combined uncertainty exists; it is null"},
+    {"item": "loose criterion", "was": "20 percent used to call B a bounded rate",
+     "is": "kept only as a contrast threshold between two estimates; it bounds no unknown term",
+     "locator": "luketa_2010 pp.20-21", "effect": "it cannot support identifiability"}
+  ],
+  "objects": {
+    "gauge_plane_reading": "integrated total heat flux read by the gauges at their plane and at their body temperature; measured",
+    "conditional_band": "the reading times one minus a reflection range; calculated, conditional on every other frontier term being zero",
+    "net_B": "net heat that crosses the boundary of the liquid; not identified",
+    "demand": "mass rate times the enthalpy of the approved profiles; diagnostic, built from the mass"
+  },
+  "frontier_terms": {
+    "surface_reflection": {
+      "side": "frontier", "sign": "reduces", "class": "laboratory_range",
+      "range_fraction_of_reading": [0.02, 0.10],
+      "evidence": "measured at room temperature on a quiescent sample; the laboratory explores 0.02 to 0.1 and warns that boiling may raise it; the 60 degree data show negative values",
+      "locator": "luketa_2010 p.20", "upper_end_is_a_bound": false
+    },
+    "gauge_plane_to_surface": {
+      "side": "frontier", "sign": "undetermined", "class": "unknown",
+      "range_fraction_of_reading": null,
+      "evidence": "absorption by cold soot, CO2, H2O and fuel vapour in the dome; at 1 ft a gauge 1.27 cm above the surface read 20 percent more than at the surface, which the laboratory does not transfer to 2 m; for heptane it suspects the readings are low",
+      "locator": "luketa_2010 pp.21, 30 and 40", "laboratory_exploration_fraction": 0.30,
+      "laboratory_exploration_kind": "assumed range for an uncertainty study, declared an open question; not an uncertainty of B"
+    },
+    "gauge_to_surface_convection": {
+      "side": "frontier", "sign": "undetermined", "class": "unknown",
+      "range_fraction_of_reading": null,
+      "evidence": "convection is expected under 10 percent of the total at 2 m, from the literature; not measured here",
+      "locator": "luketa_2010 pp.20-21"
+    },
+    "surface_emission": {
+      "side": "frontier", "sign": "reduces", "class": "bounded",
+      "bound_kw_m2": [0.0, 1.0743],
+      "evidence": "unit emissivity at 371 K, the upper estimate of the laboratory (printed 1.1 kW/m2); the gauge runs near that temperature, so part may already be in the reading",
+      "locator": "luketa_2010 Table 9 p.27", "derivation": "Stefan-Boltzmann at 371 K with unit emissivity"
+    },
+    "pan_bottom_and_ground_loss": {
+      "side": "frontier", "sign": "reduces", "class": "laboratory_assumption",
+      "range_kw_m2": [0.2, 2.0],
+      "evidence": "bottom not insulated, its thermocouple rose about 3 C; 0.2 kW/m2 estimated with an assumed coefficient of 10 W/m2K and 20 C; 1 to 2 kW/m2 called likely from small tests; 2 kW/m2 assumed",
+      "locator": "luketa_2010 p.27", "is_a_measured_bound": false
+    },
+    "rim_conduction": {
+      "side": "frontier", "sign": "increases", "class": "laboratory_assumption",
+      "range_kw_m2": null,
+      "evidence": "assumed negligible for a thin side wall and a large pan; not measured",
+      "locator": "luketa_2010 p.11"
+    },
+    "transmission_through_the_liquid": {
+      "side": "internal_redistribution", "sign": "none_by_itself", "class": "laboratory_range",
+      "range_fraction": [0.10, 0.30],
+      "evidence": "heptane is semitransparent; a gauge 50 mm below the surface read about 1 kW/m2 in small tests. What is transmitted is absorbed by the glass or the pan and returns to the liquid except for the bottom loss and the storage of those solids",
+      "locator": "luketa_2010 Table 10 p.30 and p.31"
+    }
+  },
+  "demand_terms": {
+    "liquid_storage_growth": {
+      "side": "demand", "sign": "adds_to_demand", "class": "estimated_from_figure",
+      "fuel_depth_m": [0.045, 0.055],
+      "bottom_thermocouple_rate_k_per_min": [0.2, 0.5],
+      "evidence": "one thermocouple 7 mm above the pan bottom, read on a published curve; its total rise is about 10 C with glass and 20 C without",
+      "locator": "luketa_2010 Figure 16 p.37 and p.31; depth p.15",
+      "limits": "a figure reading of one thermocouple near the edge; glass and steel storage not included; not a bound"
+    },
+    "feed_temperature": {
+      "side": "demand", "class": "assumed_equal_to_pre_ignition_liquid",
+      "evidence": "measured before ignition only; the supply drum is outside the chamber and unused fuel returns to it",
+      "locator": "sandia_2011 Table 1 p.22 and pp.16-17"
+    },
+    "surface_temperature": {
+      "side": "demand", "class": "measured",
+      "locator": "sandia_2011 Table 12 p.76"
+    },
+    "mass_rate": {
+      "side": "demand", "class": "measured",
+      "uncertainty_fraction": null,
+      "uncertainty_note": "1.9 percent is stated for JP8 over 6 min; none is stated for the heptane windows of 2 to 5.5 min",
+      "locator": "sandia_2011 p.29"
+    }
+  },
+  "laboratory_balance_for_heptane": {
+    "heat_flux_kw_m2": 30.0, "measured_mass_flux_kg_m2_s": 0.061,
+    "calculated_mass_flux_fuego_kg_m2_s": 0.046, "calculated_mass_flux_eq17_kg_m2_s": 0.035,
+    "difference_percent": [-25, -43],
+    "statement": "the predictions fall within 25 percent of the data for every fuel except heptane; further testing is required to determine whether the gauge readings are low",
+    "locator": "luketa_2010 Table 10 p.30, checked on the page image"
+  },
+  "uncertainty_kinds": {
+    "experimental": ["gauge manufacturer 3 percent", "liquid thermocouples 3 C"],
+    "between_runs": ["three runs; pan average 29.6 to 31.7 kW/m2; mass 181.3 to 201.0 g/s"],
+    "model_error": ["ideal gas enthalpy without real gas departure, 1.6 percent of the demand"],
+    "assumption_interval": ["reflection 0.02 to 0.10", "pan bottom loss 0.2 to 2 kW/m2", "gauge exploration of 30 percent", "storage rate read on a figure"],
+    "sensitivity": ["feed temperature -0.50 percent per kelvin", "surface temperature +0.42 percent per kelvin"],
+    "acceptance_criterion": ["20 percent contrast threshold"],
+    "combinable": "nothing here is combined into a total: the assumption intervals have no distribution and the gauge terms are not independent of each other",
+    "total_uncertainty_of_B": null
+  },
+  "alternatives": {
+    "beji_2021_cacc": {
+      "kind": "controlled evaporation without flame, transient",
+      "fuel": "n-heptane 99 percent, 250 ml batch",
+      "setup": "insulated steel pan 98 mm square and 40 mm deep in a controlled atmosphere cone calorimeter, oxygen below 2 to 5 percent, nominal irradiation 25 and 50 kW/m2 calibrated at the centre of the initial surface",
+      "channels": "mass every second, four liquid thermocouples, two gas thermocouples; eight heptane tests",
+      "limits": "the average flux on the surface is 5 to 30 percent below nominal as the level drops; the peak rate is 39 to 46 percent below nominal flux over latent heat and the authors suspect vapour accumulation; data shown in figures",
+      "assessment": "the best located candidate for the heating question, because the input is imposed and the liquid state is recorded; it does not yet identify the net heat at the surface",
+      "locator": "beji_2021 sections 2.1 to 2.5 and Table 3"
+    },
+    "nist_030m": {
+      "kind": "open pool fire, stationary",
+      "assessment": "examined on 2026-10-06: cooling water loss and reflection measured, surface temperature not measured, no closure with real properties"
+    },
+    "sandia_one_foot_tests": {
+      "kind": "small pool tests on gauge placement and in-depth flux",
+      "assessment": "cited without a reference; not located"
+    }
+  },
+  "rule": {
+    "net_B_is_identified_only_if": "every frontier term is measured or bounded and the step from the gauge plane to the surface is among them",
+    "a_contrast_threshold": "never substitutes for a bound",
+    "an_unknown_term": "is null, never zero"
+  },
+  "review": {
+    "predictive_thermal_input_approval": false,
+    "predictive_emission_approval": false,
+    "engine_integration": false,
+    "production_activation": false,
+    "co_fed_approval": false
+  }
+}

@@ -160,6 +160,12 @@ static func _layout_pass(room_size_m: Vector2, doors: Array, specs: Array, cabec
 	for piece in plan:
 		if not bool(piece.get("locked", false)):
 			continue
+		if bool(piece.get("authored_asset", false)):
+			var authored_spec: Dictionary = piece["spec"]
+			for band in blockers:
+				if Rect2(band).intersects(Rect2(_slab_of(piece)["rect"])):
+					authored_spec["visual_placement_issues"].append("door_clearance_conflict")
+					break
 		occupied.append(_slab_of(piece))
 
 	# Se coloca por GRUPOS, no pieza a pieza.
@@ -316,6 +322,7 @@ static func _side_origin(rect: Rect2, side: String) -> float:
 
 static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) -> Dictionary:
 	var archetype: String = String(spec.get("visual_archetype", spec.get("kind", "")))
+	var authored_asset: bool = FurnitureAssetLoader.uses_authored_transform(archetype)
 	var slot: Vector2 = ScenarioValues.to_vector2(spec.get("size_m", Vector2(0.5, 0.5)))
 	slot.x = maxf(0.05, slot.x)
 	slot.y = maxf(0.05, slot.y)
@@ -333,11 +340,23 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 	var real: Vector2 = size if achieved == Vector3.ZERO else Vector2(achieved.x, achieved.z)
 	var requested_center: Vector2 = ScenarioValues.to_vector2(spec.get("position_m", Vector2.ZERO)) + slot * 0.5
 	# Una ficha sin posicion no dice nada: se parte del centro de la sala.
-	if requested_center.length_squared() <= 0.000001:
+	if requested_center.length_squared() <= 0.000001 and not authored_asset:
 		requested_center = room.size * 0.5
 	var rotation_deg: float = 0.0 if slot.x >= slot.y else 90.0
 	var locked: bool = bool(spec.get("visual_pose_locked", false))
-	if locked:
+	if authored_asset:
+		# La huella combustible no cambia talla, centro ni giro del modelo de arte.
+		# Este diccionario es de vista: nunca se escribe al FuelObjectModel.
+		size = Vector2(achieved.x, achieved.z)
+		real = size
+		rotation_deg = float(spec.get("rotation_deg", 0.0))
+		locked = true
+		spec = spec.duplicate(true)
+		spec["size_m"] = size
+		spec["position_m"] = requested_center - size * 0.5
+		spec["rotation_deg"] = rotation_deg
+		spec["visual_pose_locked"] = true
+	elif locked:
 		# Pose curada: se respeta tal cual, tamano incluido. Lo unico que se
 		# calcula es cuanto ocupa de verdad, para que las demas la esquiven.
 		size = slot
@@ -347,9 +366,14 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 		real = slot if locked_real == Vector3.ZERO else Vector2(locked_real.x, locked_real.z)
 		if slot.x < slot.y:
 			real = Vector2(real.y, real.x)
-	var long_along: bool = cabecero and FurnitureRoomGrammar.long_axis_is_along(archetype)
+	var long_along: bool = not authored_asset and cabecero and FurnitureRoomGrammar.long_axis_is_along(archetype)
 	var footprint: Vector2 = _world_size(
 		Vector2(real.y, real.x) if long_along else real, rotation_deg)
+	if authored_asset:
+		var issues: Array[String] = []
+		if not room.encloses(Rect2(requested_center - footprint * 0.5, footprint)):
+			issues.append("outside_room")
+		spec["visual_placement_issues"] = issues
 	return {
 		"spec": spec,
 		"archetype": archetype,
@@ -361,11 +385,12 @@ static func _plan_piece(spec: Dictionary, room: Rect2, cabecero: bool = true) ->
 		"base_size": Vector2(maxf(slot.x, slot.y), minf(slot.x, slot.y)),
 		"visual_only": bool(spec.get("visual_only", false)),
 		"locked": locked,
+		"authored_asset": authored_asset,
 		"wall": FurnitureDimensions.is_wall_hugging(archetype),
 		"floor": FurnitureDimensions.is_floor_level(archetype),
 		"long_along": long_along,
 		"mount": FurnitureDimensions.mount_height_m(archetype),
-		"high": FurnitureDimensions.height_m(archetype),
+		"high": achieved.y if authored_asset else FurnitureDimensions.height_m(archetype),
 		"cabecero": cabecero,
 	}
 
@@ -1061,4 +1086,3 @@ static func _resolved_spec(piece: Dictionary) -> Dictionary:
 	spec["position_m"] = Vector2(piece["center"]) - size * 0.5
 	spec["visual_pose_locked"] = true
 	return spec
-

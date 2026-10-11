@@ -31,6 +31,24 @@
 | **Red de presión OFF** — ruta de producto, los 5 escenarios G0 | **NO-GO** | `ZoneFireSolver.project_room_state()` **reescribe** `lower_gas_kg` con `volumen restante × densidad a presión de referencia` en cada proyección (`ZoneFireSolver.gd:360-369`). **Medido en este HEAD** (§3.5): Salón sellado con fuego, mínimo −25,7 % de masa y +22,60 kg anotados en la frontera sin propietario; con la puerta abierta, +332,6 kg y −169,6 kg |
 | **Red de presión ON** — experimental | **NO-GO** | **Medido en este HEAD:** la masa de gas del edificio se conserva exactamente (201,600000 kg, frontera 0). Pero con la puerta abierta hay **dos propietarios** del transporte interior —`ThermalSystem` lleva 64,59 kg al Pasillo y la red devuelve 64,05— y el O₂ en kg **no** se conserva: −0,113 kg sin propietario en el recinto sellado y **−5,10 kg** (78 % del consumo) con la puerta abierta |
 
+> **Nota de vigencia (2026-10-09).** Este documento es evidencia de su
+> punto, `8a8e205b`, y se conserva sin cambios. Sus bloqueos se han vuelto
+> a mirar contra el motor de `2d71f697` en [autoridad del oxígeno](G3_O2_AUTHORITY_2026-10-09.md):
+>
+> - **Vigentes y demostrados hoy:** la reescritura de la masa baja fuera de
+>   la red; la base constante del sistema de oxígeno; el oxígeno sin
+>   inventario con la red, aunque la masa de gas se conserve; O2-1, O2-3,
+>   O2-4 y la rederivación de `room.o2` sin anotar.
+> - **Corregidos y demostrados:** P3 y P3b, solo con la red.
+> - **Sin volver a medir:** O2-2, la purga histórica de envolvente y las
+>   tres primitivas que mueven gas sin especies fuera de la red.
+>
+> El NO-GO a las masas de capa como autoridad **sigue en pie**. Lo que
+> cambia es la lectura de la alternativa A: aquí quedó «descartada como
+> solución» por no dar disponibilidad por capa; ese informe la recomienda
+> como cantidad conservada, con el reparto entre capas como estado
+> subordinado a ella.
+
 > **P3b (25-09, §8).** La siembra radiativa movía gas sin sus especies ni su
 > O₂; ya es un único paquete. El 0,25 % de especies sin ruta de la red es la
 > renovación ACH, medida paso a paso y con control. R2-1 vigila ahora también

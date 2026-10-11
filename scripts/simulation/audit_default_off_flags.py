@@ -182,6 +182,12 @@ RUNTIME_ACTIVATIONS: dict[str, tuple[str, str]] = {
         MISSING_ACTIVATION_FIXTURE,
         MISSING_ACTIVATION_TOKEN,
     ),
+    # G3-4A: cuenta energetica (MJ) del pirolizado sin inventario. Pasiva: la
+    # fixture demuestra que con ella ON la trayectoria fisica no cambia.
+    "fire_unburned_energy_account_enabled": (
+        "tests/fixtures/g3_unburned_energy_account.gd",
+        "G3_UNBURNED_ENERGY_ACCOUNT_PASS",
+    ),
 }
 
 OUT_OF_RUNTIME_SCOPE = {
@@ -192,12 +198,16 @@ OUT_OF_RUNTIME_SCOPE = {
     # f6fed3a7: live O2 physics for exterior openings (editor scenarios only).
     "exterior_opening_bernoulli_o2_enabled",
     "fed_co2_source_mass",
+    "fed_co_zonal_enabled",
     "fire_fds_extinction_enabled",
     "fire_o2_canonical_enabled",
     "fire_o2_independent",
     "fire_o2_lower_for_flame",
     "fire_o2_mass_tracking_enabled",
     "fire_o2_stoich_consumption_enabled",
+    # G3: propiedad de energia/potencia por objeto activo. Fisica viva de
+    # combustion, fuera del alcance P1R4; la enciende el escenario.
+    "fire_explicit_object_fuel_ownership_enabled",
     "fire_o2_upper_for_flame",
     "fire_o2_upper_throttle_enabled",
     "fire_post_bd_hrr_cut_enabled",
@@ -241,7 +251,7 @@ OUT_OF_RUNTIME_SCOPE = {
 
 # Every new `@export var <name>: bool = false` in SimulationEngine must be
 # classified above and counted here; an unclassified switch fails closed.
-EXPECTED_DECLARATION_COUNT = 81
+EXPECTED_DECLARATION_COUNT = 84
 
 FORBIDDEN_RUNTIME_MARKERS = ("SCRIPT ERROR:", "ERROR:", "FATAL:", "CRASH")
 

@@ -1,0 +1,206 @@
+{
+  "schema": "g3_net_thermal_budget_review_v1",
+  "reviewed_at": "2026-10-06",
+  "definition": {
+    "symbol": "B",
+    "meaning": "net heat that crosses the boundary of the liquid fuel control volume from its surroundings, per unit time when written as a rate",
+    "includes": ["absorbed_radiation", "convection_to_the_liquid_surface", "conduction_through_the_container_wall"],
+    "subtracts": ["surface_reradiation", "losses_to_container_cooling_and_ground"],
+    "excludes": ["heat_release_rate", "chemical_heat_of_oxidation", "flux_to_a_sensor", "latent_heat_inferred_from_mass_loss",
+                 "enthalpy_carried_by_feed_or_vapour"],
+    "control_volume": "liquid phase only, open system at constant pressure; feed enters as liquid, vapour leaves at the surface temperature",
+    "energy_form": "enthalpy_for_an_open_isobaric_system",
+    "ledger_mapping": {
+      "release_cost_per_kg": "latent_at_reference + h_gas(T_surface) - h_liquid(T_feed)",
+      "prescribed_heating": "growth of liquid sensible storage only",
+      "double_counting_guard": "heating the feed up to the surface temperature is inside the release cost and is not heating"
+    }
+  },
+  "sources": {
+    "sandia_2011": {
+      "citation": "Blanchat, T. K. and Suo-Anttila, J., Hydrocarbon Characterization Experiments in Fully Turbulent Fires - Results and Data Analysis, SAND2010-6377, Sandia National Laboratories, March 2011",
+      "url": "https://www.osti.gov/servlets/purl/1018470",
+      "path": "docs/literature/Sandia/SNL_SAND2010-6377_Hydrocarbon_Characterization_Results_2011.pdf",
+      "sha256_raw": "9722f1226c743ec892b37be4476b11b89c37c5871c19ce23a3b65f54c62860bd",
+      "archived": true,
+      "rights": "cover: Approved for public release; further dissemination unlimited",
+      "pdf_page_equals_printed_page": true
+    },
+    "hamins_1994": {
+      "citation": "Hamins, A., Fischer, S. J., Kashiwagi, T., Klassen, M. E. and Gore, J. P., Heat Feedback to the Fuel Surface in Pool Fires, Combustion Science and Technology 97, 37-62 (1994); NIST reprint",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=909794",
+      "sha256_raw_as_retrieved": "a5bef61aaeeef15df4aaf655ffaaae81ce34ced4726e12b4dc1e0c4b85b2eae5",
+      "archived": false,
+      "rights": "NIST cover says not subject to copyright; the scanned journal page carries a publisher notice. Not archived; a few numbers transcribed with locators",
+      "image_only_scan": true
+    },
+    "kim_2019": {
+      "citation": "Kim, S. C., Lee, K. Y. and Hamins, A., Energy Balance in Medium-Scale Methanol, Ethanol, and Acetone Pool Fires, Fire Safety Journal 107, 44-53 (2019); NIST author manuscript",
+      "url": "https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=928848",
+      "sha256_raw_as_retrieved": "3d3df98e9276b2d376d20fac93fbce8776e6f39dc74ac622ddf53afe5a035e14",
+      "archived": false,
+      "rights": "journal article; linked only"
+    },
+    "tn2162r1": {
+      "citation": "NIST TN 2162r1, October 2024",
+      "provenance": "docs/literature/data/NIST_POOL_FIRES_2024/PROVENANCE.json",
+      "archived": true
+    }
+  },
+  "criteria": {
+    "fixed_from": "uncertainties the sources themselves state; written before the auditor was run, after a hand estimate of the order of magnitude",
+    "strict_closure": "abs(independent - demand) / demand <= root sum of squares of the stated gauge and mass uncertainties",
+    "loose_closure_fraction": 0.20,
+    "loose_closure_origin": "lower end of the 20 to 40 percent the Sandia report cites for heat flux gauges in fire applications",
+    "point_identifiability": "strict closure in every run and every balance term measured or demonstrably null",
+    "interval_identifiability": "loose closure in every run with every unmeasured term named",
+    "transient": "requires synchronised time series of the independent input and of the liquid state; a steady mean never approves it"
+  },
+  "candidates": {
+    "sandia_2m": {
+      "source": "sandia_2011",
+      "kind": "open_pool_fire_quasi_steady_constant_level",
+      "fuel": "n-heptane, listed as 100%Heptane; purity not stated",
+      "pan_diameter_m": 2.0,
+      "pan_locator": "Table 3 p.24; section 2.1 pp.15-16",
+      "liquid_depth_above_baffle_m": 0.019,
+      "ambient_pressure_note": "Albuquerque, about 24.6 in. Hg; below the 100 kPa of the liquid profile",
+      "gauge": {
+        "type": "Schmidt-Boelter water-cooled thermopile, total heat flux",
+        "count": 12,
+        "bad_gauge": 2,
+        "face_above_liquid_m": 0.026,
+        "body_temperature": "oil bath a few degrees above the measured boiling temperature; gauge about 10 degrees hotter than the bath",
+        "locator": "section 4.1.2 pp.29-31; Table 4 p.30"
+      },
+      "rings": {
+        "equal_area_m2": 0.524,
+        "gauges_by_ring": [[7, 11], [9, 10], [2, 12], [1, 5], [3, 6], [4, 8]],
+        "locator": "Table 4 p.30; Table 8 header p.36"
+      },
+      "surface_temperature_c": 84,
+      "surface_temperature_locator": "Table 12 p.76, measured boiling temperature; Figure 56 p.73",
+      "liquid_thermocouple_uncertainty_c": 3,
+      "uncertainty": {
+        "gauge_manufacturer_fraction": 0.03,
+        "gauge_fire_application_fraction_range": [0.20, 0.40],
+        "gauge_combined_for_fuel_surface": null,
+        "gauge_locator": "p.37-38: the uncertainty includes gauge, fuel/gauge temperature and reflectivity differences and the area integration; no combined figure is given",
+        "mass_rate_fraction_example": 0.019,
+        "mass_rate_example_scope": "stated for a JP8 test averaged over 6 min; not stated for the heptane windows of 2 to 5.5 min",
+        "mass_rate_locator": "section 4.1.1 p.29"
+      },
+      "reflectance": {
+        "at_1_micron_20_deg": 0.1,
+        "at_1_micron_60_deg": 0.04,
+        "longer_wavelengths": "nominally zero",
+        "uncertainty_units": 0.05,
+        "hemispherical_total": null,
+        "bounding_fraction_of_incident": [0.0, 0.10],
+        "locator": "section 4.1.5 pp.46-47"
+      },
+      "tests": {
+        "SNL011": {"date": "2007-08-26", "glass_beads": true, "patm_in_hg": 24.60, "t_atm_c": 29, "t_fuel_t0_c": 33,
+                   "valid_window_min": [10.0, 15.5], "pan_average_printed_kw_m2": 29.7, "burn_rate_g_s": 193.5,
+                   "regression_g_m2_s": 61.6,
+                   "gauge_kw_m2": [29.2, null, 27.0, 26.0, 28.9, 26.8, 32.1, 23.9, 31.3, 33.5, 31.9, 33.3],
+                   "ring_average_printed_kw_m2": [32.0, 32.4, 33.3, 29.0, 26.9, 24.9]},
+        "SNL012": {"date": "2007-08-28", "glass_beads": true, "patm_in_hg": 24.65, "t_atm_c": 28, "t_fuel_t0_c": 32,
+                   "valid_window_min": [8.0, 12.0], "pan_average_printed_kw_m2": 31.6, "burn_rate_g_s": 201.0,
+                   "regression_g_m2_s": 64.0,
+                   "gauge_kw_m2": [31.1, null, 31.0, 27.9, 30.6, 26.9, 33.9, 25.9, 34.5, 36.3, 34.5, 33.6],
+                   "ring_average_printed_kw_m2": [34.2, 35.4, 33.6, 30.9, 28.9, 26.9]},
+        "SNL029": {"date": "2007-09-06", "glass_beads": false, "patm_in_hg": 24.59, "t_atm_c": 23, "t_fuel_t0_c": 26,
+                   "valid_window_min": [15.0, 17.0], "pan_average_printed_kw_m2": 29.6, "burn_rate_g_s": 181.3,
+                   "regression_g_m2_s": 57.7,
+                   "gauge_kw_m2": [27.0, null, 27.4, 22.9, 28.9, 27.1, 31.3, 22.7, 34.1, 33.8, 33.7, 33.2],
+                   "ring_average_printed_kw_m2": [32.5, 33.9, 33.2, 28.0, 27.3, 22.8]},
+        "SNL030": {"date": "2007-09-06", "glass_beads": false, "patm_in_hg": null, "t_atm_c": null, "t_fuel_t0_c": null,
+                   "valid_window_min": null, "pan_average_printed_kw_m2": 29.3, "burn_rate_g_s": null,
+                   "regression_g_m2_s": null,
+                   "gauge_kw_m2": [29.1, null, 26.1, 24.4, 28.0, 26.2, 30.9, 23.9, 32.6, 32.5, 32.6, 32.9],
+                   "ring_average_printed_kw_m2": [31.8, 32.5, 32.9, 28.6, 26.1, 24.1]}
+      },
+      "tests_locator": "Table 1 p.22, Table 2 p.23, Table 5 p.33, Table 8 p.36; heptane rows checked on page images, not only on extracted text",
+      "source_discrepancies": [
+        "Table 12 prints 193.3 g/s as the mean with beads; the two tests of Table 1 average 197.25 g/s, with the printed standard deviation",
+        "SNL030 has heat flux rows but no row in Tables 1 and 2: its burn rate is not printed and it stays out of the balance",
+        "Table 3 lists a handbook heat of gasification of 541 kJ/kg for heptane; it is not used here"
+      ],
+      "term_status": {
+        "gauge_heat_flux": "measured, same run as the mass rate, time average over the valid window",
+        "area_integral": "computed from a designed equal-area ring layout; no extrapolation",
+        "mass_rate": "measured on the supply drum; equals the pool loss only as an average over fill cycles",
+        "surface_temperature": "measured as a plateau of the liquid rake; one value for the fuel, not per test",
+        "feed_temperature": "measured before ignition only; the steady feed temperature is not tabulated for heptane",
+        "surface_reflection": "measured in the laboratory at room temperature, per wavelength and two angles; the hemispherical total is not tabulated",
+        "vapour_dome_absorption_below_the_gauge": "unknown: spectra were measured but no integrated transmittance for the 26 mm below the gauge face is tabulated",
+        "container_and_ground_losses": "unknown: not measured",
+        "liquid_storage_growth": "unknown: no time series of the liquid temperature is tabulated for heptane",
+        "gauge_to_surface_convective_difference": "unknown: named by the report, not quantified",
+        "surface_reradiation": "modelled bound: the gauge runs near the surface temperature, so most of it is already in the reading",
+        "feed_enthalpy": "calculated with the approved liquid profile from the temperature before ignition",
+        "chemical_heat": "demonstrably outside the control volume"
+      }
+    },
+    "nist_030m": {
+      "source": "hamins_1994",
+      "kind": "open_pool_fire_quasi_steady_constant_level",
+      "fuel": "n-heptane",
+      "pool_diameter_m": 0.301,
+      "lip_height_m": 0.005,
+      "cooling_water_k": 289,
+      "mass_rate_g_s": 2.6,
+      "ideal_heat_release_kw": 116,
+      "feedback_fraction_printed": 0.010,
+      "mass_rate_locator": "Table I p.38",
+      "minor_terms_over_q_fuel": {"reradiation": 0.04, "burner_loss": 0.03, "storage_growth": 0.04},
+      "minor_terms_locator": "Table IV p.61",
+      "wall_conduction_kw_m2": 0.3,
+      "wall_conduction_locator": "p.60",
+      "reflection_fraction_of_incident_radiation": [0.05, 0.08],
+      "reflection_locator": "p.53",
+      "radiative_share_of_net": 0.80,
+      "radiative_share_locator": "Figure 19 p.61 and p.60",
+      "uncertainty": {"gauge_signal_fraction": 0.10, "load_cell_fraction": 0.05,
+                      "locator": "section 2.3 p.46; section 2 p.42"},
+      "surface_temperature_k": null,
+      "surface_temperature_candidates_k": [338.15, 371.102911],
+      "surface_temperature_note": "the paper assumes the boiling point; TN 2162r1 prints 65 C in Table 12 and na in Table 13. Neither is accepted: both are propagated. The upper value is the end of the approved liquid support",
+      "feed_temperature_candidates_k": [289.0, 296.0],
+      "feed_temperature_note": "not reported for heptane; cooling water at 289 K below, a laboratory at 296 K in the reflection measurement",
+      "gauge_profile": "TN 2162r1 Table F38, already transcribed and hashed in the provenance record of 2026-10-04",
+      "channels_note": "the gauge profile comes from the simple burner and the mass rate from the ring burners: same configuration, different runs, steady means only",
+      "term_status": {
+        "gauge_heat_flux": "measured with a gauge cooled with room-temperature water at the plane of the lip",
+        "mass_rate": "measured in ring burners in other runs of the same configuration",
+        "burner_loss": "measured by water calorimetry, published only as a ratio to a mass-derived quantity",
+        "storage_growth": "calculated from liquid thermocouples, published only as a ratio; the series shown is for methanol",
+        "reradiation": "modelled with unit emissivity at the assumed boiling point",
+        "wall_conduction": "estimated from a thermocouple bar",
+        "surface_reflection": "measured at room temperature",
+        "surface_temperature": "assumed, not measured",
+        "feed_temperature": "not reported",
+        "gauge_to_surface_convective_difference": "unknown"
+      }
+    },
+    "nist_alcohols_030m": {
+      "source": "kim_2019",
+      "kind": "open_pool_fire_quasi_steady_constant_level",
+      "fuels": ["methanol", "ethanol", "acetone"],
+      "why_examined": "the only archived family with tabulated liquid temperature series (TN 2162r1 Appendix G)",
+      "rejected_for": "no approved property profile for these fuels; its fuel-side balance also leaves burner losses, reradiation, reflection and storage in one unmeasured remainder",
+      "fuel_side_statement": "the gauge integral exceeds the heat needed to vaporise the measured mass by 22 to 40 percent for methanol and ethanol",
+      "locator": "equations 13-14 and the discussion of Figures 7 and 9 of the manuscript"
+    }
+  },
+  "review": {
+    "selected": "sandia_2m",
+    "reserved_second_condition": "nist_030m",
+    "predictive_thermal_input_approval": false,
+    "predictive_emission_approval": false,
+    "engine_integration": false,
+    "production_activation": false,
+    "co_fed_approval": false
+  }
+}

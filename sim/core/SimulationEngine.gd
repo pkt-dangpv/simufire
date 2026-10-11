@@ -364,6 +364,54 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## de o2_upper por paso. Activa o2_consumed_kg_step / o2_consumed_kg_total en CSV.
 ## Activar per-caso o globalmente solo cuando se quiera auditar/cerrar balance O2.
 @export var fire_o2_stoich_consumption_enabled: bool = false
+## G3: propiedad de energía y potencia por objeto activo (default-off). Solo actúa
+## en salas sin carga ni potencia de sala declaradas y con objetos explícitos
+## (explicit_objects): topes de energía y HRR = objetos activos, cada MJ se
+## debita de un objeto y el calor sólido liberado no supera la pirólisis del
+## paso. Las salas con carga de sala positiva siguen la ruta legacy. No cambia
+## rendimientos de especies. Ver docs/validation/G3_FUEL_LEDGER_OWNERSHIP_2026-09-29.md.
+@export var fire_explicit_object_fuel_ownership_enabled: bool = false
+## G3-4A — cuenta energética (MJ) del pirolizado sin inventario (OFF por defecto).
+## Solo actúa en salas explicit_objects, es decir, con el interruptor anterior.
+## Cada objeto anota la parte de su débito que el motor ni quema ni guarda, y la
+## sala lo que sale del depósito sin arder (tope, decaimiento, supresión,
+## agotamiento). ES CONTABILIDAD, NO FÍSICA: no es gas, no tiene masa ni zona,
+## no se transporta ni arde, y ninguna condición del motor la lee. Con ella
+## encendida calor, O2, especies, depósito y débito no cambian.
+## Ver docs/validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md §16.
+@export var fire_unburned_energy_account_enabled: bool = false
+## G3 DIAGNÓSTICO, no es física de producto. Sin @export a propósito: no aparece
+## en el editor y solo se fija desde engine_overrides de un escenario de
+## diagnóstico. Con ancho > 0, el objetivo de llama es continuo (fracción 0) o
+## conserva esa fracción de su salto en el umbral can_flame, dentro de la ventana
+## (0,08; 0,08 + ancho) de flame_drive. Con ancho 0 no llega nada a
+## CombustionSystem. Ver docs/validation/G3_ENERGY_DELAY_DESIGN_2026-09-29.md §13.
+var fire_diag_flame_target_window: float = 0.0
+var fire_diag_flame_target_jump_fraction: float = 0.0
+## G3 banco diagnóstico de acoplamiento térmico de la fuente HRR prescrita del
+## objeto ensayado. SIN @export: apagado por defecto y solo una fixture puede
+## fijarlo; no entra en escenarios, editor, catálogo ni autorizaciones.
+## Calor y débito equivalente de O2 en UN recinto sin combustible ni fuego de
+## sala. No es la combustión del mueble: sin masa, sin especies, sin FED.
+## docs/validation/G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md.
+const G3_PRESCRIBED_THERMAL_COUPLING_PATH: String = "res://sim/fire/PrescribedThermalSourceCoupling.gd"
+var g3_prescribed_thermal_source_enabled: bool = false
+var g3_prescribed_thermal_source_case: Dictionary = {}
+## No vacío: el caso no se pudo armar o el banco falló. Con él no se simula.
+var g3_prescribed_thermal_source_failure: String = ""
+var _g3_prescribed_thermal_source = null
+## G3 autoridad del oxígeno, etapa M1: inventario de O2 de sala y su tránsito
+## como estado, con `room.o2` derivado. SIN @export: apagado por defecto y solo
+## una fixture puede fijarlo; no entra en escenarios, editor, catálogo ni
+## autorizaciones. Con él apagado no se carga el módulo ni cambia nada.
+## docs/validation/G3_O2_ROOM_INVENTORY_M0_M1_2026-10-10.md.
+const O2_ROOM_INVENTORY_PATH: String = "res://sim/core/RoomOxygenInventory.gd"
+var o2_room_inventory_enabled: bool = false
+## No vacío: el inventario no se pudo armar, rechazó una ruta o el interruptor
+## cambió sin reiniciar. Con él no se simula.
+var o2_room_inventory_failure: String = ""
+var _o2_room_inventory = null
+var _o2_room_inventory_generation: int = 0
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -748,6 +796,9 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## calcular v_co2 en lugar del tracer OES (room.co2_upper × 1e6). Default false
 ## = no-op exacto. Activar per-caso en engine_overrides: {"fed_co2_source_mass": true}.
 @export var fed_co2_source_mass: bool = false
+## G3 experimental: sample lower-zone CO from its species inventory for FED.
+## Default OFF preserves the historical room-mean CO dose below the interface.
+@export var fed_co_zonal_enabled: bool = false
 
 # ============================================================
 # FED — CALOR (ISO 13571 §5.5)
@@ -1428,6 +1479,7 @@ func _sync_auxiliary_services() -> void:
 		"fed_hypoxia_b": fed_hypoxia_b,
 		"fed_upper_layer_threshold_m": fed_upper_layer_threshold_m,
 		"fed_co2_source_mass": fed_co2_source_mass,
+		"fed_co_zonal_enabled": fed_co_zonal_enabled,
 		"fed_heat_enabled": fed_heat_enabled,
 		"fed_heat_conv_a": fed_heat_conv_a,
 		"fed_heat_conv_n": fed_heat_conv_n,
@@ -3603,6 +3655,149 @@ func _read_experimental_switch(switch_name: String) -> bool:
 
 ## El informe de activacion experimental, como lo ve la salida diagnostica.
 ## Vacio cuando el escenario no autoriza nada.
+## G3 banco diagnóstico. Retira la instancia de la corrida anterior, lo que
+## escribió en el recinto y el fallo. Único sitio donde se apaga.
+func _g3_prescribed_thermal_discard() -> void:
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.discard()
+	_g3_prescribed_thermal_source = null
+	g3_prescribed_thermal_source_failure = ""
+
+
+## Crea una instancia NUEVA y la arma con el caso. Solo con el interruptor
+## encendido se carga el módulo: con él apagado no se ejecuta nada de esto.
+func _g3_prescribed_thermal_arm() -> void:
+	if not g3_prescribed_thermal_source_enabled:
+		return
+	var coupling = load(G3_PRESCRIBED_THERMAL_COUPLING_PATH).new()
+	var room: RoomModel = null
+	if typeof(g3_prescribed_thermal_source_case.get("room_id")) == TYPE_INT:
+		room = building.get_room(int(g3_prescribed_thermal_source_case["room_id"]))
+	var armed: Dictionary = coupling.arm(
+		room,
+		_g3_prescribed_thermal_environment(),
+		{
+			"oxygen_floor_MJ": Callable(oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"),
+			"oxygen_sink_plan": Callable(self, "_g3_prescribed_thermal_oxygen_sink_plan"),
+			"layer_interface_m": Callable(thermal_system, "effective_hot_layer_height_m"),
+			"energy_budget": Callable(thermal_system, "get_energy_budget"),
+			"suppression_active": Callable(self, "_g3_prescribed_thermal_suppression_active"),
+		},
+		g3_prescribed_thermal_source_case
+	)
+	# Se conserva también si no arma, para que el informe diga por qué.
+	_g3_prescribed_thermal_source = coupling
+	if not bool(armed.get("valid", false)):
+		g3_prescribed_thermal_source_failure = "prescribed_thermal_source_rejected"
+		push_error("G3 prescribed thermal source rejected: %s" % str(armed.get("errors")))
+
+
+## Lo que el motor es en este momento, leído de los subsistemas que lo aplican.
+## El banco compara con lo que declara y se niega si algo difiere.
+func _g3_prescribed_thermal_environment() -> Dictionary:
+	return {
+		"oxygen_step_runs_after_the_fire": not _uses_pre_hrr_oxygen_step(),
+		"fire_oxygen_mode": _resolve_fire_o2_mode(),
+		"sink_takes_oxygen_from_the_lower_number": bool(oxygen_exchange_system._uses_lower_o2_for_fire()),
+		"phase2b_canonical_combustion_enabled": bool(oxygen_exchange_system.phase2b_canonical_combustion_enabled),
+		"fire_o2_canonical_enabled": bool(oxygen_exchange_system.fire_o2_canonical_enabled),
+		"fire_o2_mass_tracking_enabled": bool(oxygen_exchange_system.fire_o2_mass_tracking_enabled),
+		"authoritative_transport_enabled": pressure_network_solver_enabled,
+		"canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
+		"energy_budget_enabled": bool(thermal_system.energy_budget_enabled),
+		"two_zone_convective_heat_multiplier": float(thermal_system.two_zone_convective_heat_multiplier),
+		"outside_open_upper_heat_boost": float(thermal_system.outside_open_upper_heat_boost),
+		"auto_finish_on_extinction": auto_finish_on_extinction,
+	}
+
+
+## Qué haría el sumidero de oxígeno en ese recinto, sin escribir nada. El banco lo
+## pregunta ANTES de escribir la potencia del paso.
+func _g3_prescribed_thermal_oxygen_sink_plan(room: RoomModel) -> Dictionary:
+	return oxygen_exchange_system.fire_sink_plan(building, room, _build_oxygen_exchange_hooks())
+
+
+func _g3_prescribed_thermal_suppression_active(room_id: int) -> bool:
+	return _active_suppression_by_room.has(room_id)
+
+
+## G3 M1. Retira el inventario de la corrida anterior: suelta los recintos, vacía
+## el tránsito, desconecta los subsistemas y borra el fallo. Único sitio donde
+## se apaga; con el interruptor apagado tampoco conserva la instancia.
+func _o2_room_inventory_discard() -> void:
+	if _o2_room_inventory != null:
+		_o2_room_inventory.discard()
+	if oxygen_exchange_system != null:
+		oxygen_exchange_system.room_o2_inventory = null
+	if gas_exchange_system != null:
+		gas_exchange_system.room_o2_inventory = null
+	o2_room_inventory_failure = ""
+	if not o2_room_inventory_enabled:
+		_o2_room_inventory = null
+
+
+## Arma el inventario con los recintos ya reiniciados. Solo con el interruptor
+## encendido se carga el módulo: con él apagado no se ejecuta nada de esto.
+func _o2_room_inventory_arm() -> void:
+	if not o2_room_inventory_enabled:
+		return
+	if _o2_room_inventory == null:
+		_o2_room_inventory = load(O2_ROOM_INVENTORY_PATH).new()
+	_o2_room_inventory_generation += 1
+	var armed: Dictionary = _o2_room_inventory.arm(
+		building, _o2_room_inventory_generation, _o2_room_inventory_environment()
+	)
+	if not bool(armed.get("valid", false)):
+		o2_room_inventory_failure = "o2_room_inventory_rejected"
+		push_error("G3 room oxygen inventory rejected: %s" % str(armed.get("errors")))
+		return
+	oxygen_exchange_system.room_o2_inventory = _o2_room_inventory
+	gas_exchange_system.room_o2_inventory = _o2_room_inventory
+
+
+## Lo que el motor es en este momento, leído de los subsistemas que lo aplican.
+## El inventario compara con lo que M1 cubre y se niega si algo difiere.
+func _o2_room_inventory_environment() -> Dictionary:
+	return {
+		"pressure_network_enabled": pressure_network_solver_enabled,
+		"diagnostic_bench_enabled": g3_prescribed_thermal_source_enabled,
+		"balance_ledger_enabled": bool(combustion_system.g3_fuel_ledger_enabled),
+		"oxygen_step_runs_after_the_fire": not _uses_pre_hrr_oxygen_step(),
+		"fire_oxygen_mode": _resolve_fire_o2_mode(),
+		"sink_takes_oxygen_from_the_lower_number": bool(oxygen_exchange_system._uses_lower_o2_for_fire()),
+		"phase2b_canonical_combustion_enabled": bool(oxygen_exchange_system.phase2b_canonical_combustion_enabled),
+		"fire_o2_canonical_enabled": bool(oxygen_exchange_system.fire_o2_canonical_enabled),
+		"fire_o2_mass_tracking_enabled": bool(oxygen_exchange_system.fire_o2_mass_tracking_enabled),
+		"fire_blend_with_the_upper_number": fire_o2_upper_hrr_blend,
+		"fire_throttle_by_the_upper_number": fire_o2_upper_throttle_enabled,
+		"plume_lower_o2_depletion_fraction": float(oxygen_exchange_system.plume_lower_o2_depletion_fraction),
+	}
+
+
+## Informe del inventario, leído de la instancia viva. Sin instancia, inactivo.
+func get_o2_room_inventory_report() -> Dictionary:
+	if _o2_room_inventory == null:
+		return {"state": "inactive", "failure": o2_room_inventory_failure}
+	var report: Dictionary = _o2_room_inventory.report()
+	report["failure"] = o2_room_inventory_failure
+	return report
+
+
+## Solo para fixtures: declara el oxígeno inicial de un recinto como fracción
+## molar. Pasa por el propietario; después del primer paso se rechaza.
+func o2_room_inventory_declare_initial_mole_fraction(room_id: int, mole_fraction: Variant) -> Dictionary:
+	if _o2_room_inventory == null or building == null:
+		return {"applied": false, "reason": "inventory_inactive"}
+	return _o2_room_inventory.declare_initial_mole_fraction(building.get_room(room_id), mole_fraction)
+
+
+## Informe del banco, leído de la instancia viva. Sin instancia, inactivo.
+func get_g3_prescribed_thermal_source_report() -> Dictionary:
+	if _g3_prescribed_thermal_source == null:
+		return {"state": "inactive"}
+	return _g3_prescribed_thermal_source.report()
+
+
 func get_experimental_activation_report() -> Dictionary:
 	return _experimental_activation_report.duplicate(true)
 
@@ -3693,6 +3888,12 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	# Lo que NO sube por encima de la guarda es RESOLVER una autorizacion nueva:
 	# encender fisica en un motor que no esta listo seria cambiar un estado
 	# obsoleto por uno peor. Retirar siempre; aplicar solo cuando se puede.
+	# G3 M1: el inventario de O2 y su tránsito se retiran SIEMPRE, por encima de
+	# las dos guardas; se arma solo más abajo, cuando se puede.
+	_o2_room_inventory_discard()
+	# G3 banco diagnóstico: misma regla. Se retira SIEMPRE, también sin edificio
+	# o con el motor no preparado; se crea solo más abajo, cuando se puede.
+	_g3_prescribed_thermal_discard()
 	if building == null or not is_ready_for_validation():
 		_discard_experimental_physics_authorization()
 		return
@@ -3776,6 +3977,16 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 		_reset_room_state(room)
 
 	combustion_system.bootstrap_building(building)
+	# G3 M1: con los recintos ya reiniciados. Una configuración que M1 no cubre
+	# es un fallo explícito y no se ignita.
+	_o2_room_inventory_arm()
+	if not o2_room_inventory_failure.is_empty():
+		return
+	# G3 banco diagnóstico: instancia nueva por corrida, con el recinto ya
+	# reiniciado. Un caso que no vale es un fallo explícito y no se ignita.
+	_g3_prescribed_thermal_arm()
+	if not g3_prescribed_thermal_source_failure.is_empty():
+		return
 	if building != null and building.sim_stop_time_s > 0.0:
 		sim_duration_limit_s = building.sim_stop_time_s
 	_reset_log_file()
@@ -3805,6 +4016,20 @@ func step(delta: float) -> void:
 	# con la fisica apagada: lo que se vio en pantalla no seria lo autorizado.
 	if not experimental_authorization_failure.is_empty():
 		return
+	# G3 M1: un inventario que no arma, o que rechazó una ruta, no se simula. Y
+	# el interruptor no cambia a mitad de corrida: ni se enciende sin armar ni se
+	# apaga dejando un número de sala derivado en la ruta histórica.
+	if not o2_room_inventory_failure.is_empty():
+		return
+	if o2_room_inventory_enabled != (
+			_o2_room_inventory != null and _o2_room_inventory.state() != "inactive"):
+		o2_room_inventory_failure = "o2_room_inventory_switch_changed_without_reset"
+		push_error("G3 room oxygen inventory: the switch changed without a reset")
+		return
+	# G3 banco diagnóstico: un caso que no arma, o un banco que falla, no se
+	# simula. No hay vuelta a la ruta histórica.
+	if not g3_prescribed_thermal_source_failure.is_empty():
+		return
 	if building == null or is_finished:
 		return
 
@@ -3829,6 +4054,8 @@ func step(delta: float) -> void:
 	# Exteriores: suavizado exponencial con tau configurable (evita saltos de presión/O₂/humo).
 	# Interiores: mirror directo (sin suavizado, usan effective_open_fraction para thermal gap).
 	_step_exterior_opening_smooth(dt)
+	if _o2_room_inventory != null:
+		_o2_room_inventory.begin_step(_o2_room_inventory_environment())
 
 	# Pre-computar el estado de flujo de cada abertura interior una sola vez,
 	# con las condiciones de sala al inicio de este paso. Esto garantiza que
@@ -3895,6 +4122,9 @@ func step(delta: float) -> void:
 	if phase3_canonical_zone_shadow_enabled:
 		combustion_system.begin_phase3_shadow_step(building)
 	_step_fire(dt)
+	if _g3_prescribed_thermal_source != null:
+		# Después de la ruta del fuego de sala, que en ese recinto no posee nada.
+		_g3_prescribed_thermal_source.begin_step(dt)
 	if phase3_canonical_zone_shadow_enabled:
 		if phase3_canonical_persistence_shadow_enabled:
 			phase3_zone_mass_system.record_combustion_o2_probe(building)
@@ -3907,10 +4137,16 @@ func step(delta: float) -> void:
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_runtime_record_stage_shared("oxygen_exchange", "oxygen_exchange")
+	if _g3_prescribed_thermal_source != null:
+		# Con el débito real ya hecho y ANTES del calor: si no es el comprometido,
+		# la potencia del paso se retira aquí y ThermalSystem no la llega a leer.
+		_g3_prescribed_thermal_source.settle_oxygen()
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.settle_heat()
 	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_collect_thermal_requests(dt)
 		_phase3_shadow_collect_thermal_species_events()
@@ -3945,6 +4181,11 @@ func step(delta: float) -> void:
 	_phase3_zone_runtime_record_stage_shared("hvac", "hvac")
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
+	if _g3_prescribed_thermal_source != null:
+		_g3_prescribed_thermal_source.end_step()
+		if _g3_prescribed_thermal_source.state() == "failed":
+			g3_prescribed_thermal_source_failure = "prescribed_thermal_source_failed"
+			push_error("G3 prescribed thermal source failed: %s" % str(_g3_prescribed_thermal_source.failure()))
 	_phase3_zone_runtime_record_stage_shared("other", "other")
 	if two_zone_solver_enabled:
 		# M1: absorber los cambios termicos de sistemas legacy (HVAC/supresion/flujos)
@@ -3952,6 +4193,15 @@ func step(delta: float) -> void:
 		thermal_system.reconcile_two_zone_building(building, dt)
 	_phase3_zone_runtime_record_stage_shared("reconcile", "reconcile")
 	_clamp_rooms(dt)
+	if _o2_room_inventory != null:
+		# G3 M1: con todos los escritores del paso ya ejecutados. Una escritura del
+		# número de sala fuera del propietario, o una ruta rechazada, detiene la corrida.
+		_o2_room_inventory.audit_room_numbers()
+		if _o2_room_inventory.state() == "rejected":
+			o2_room_inventory_failure = "o2_room_inventory_failed"
+			push_error("G3 room oxygen inventory failed: %s" % str(
+				_o2_room_inventory.report().get("rejections")
+			))
 	_p1r2_record_tick_boundary("post_physics_mutation")
 	_phase3_zone_runtime_record_stage_shared("projection_clamp", "clamp_rooms")
 	if phase3_canonical_zone_shadow_enabled:
@@ -3998,6 +4248,13 @@ func ignite_room(room_id: int) -> void:
 	if room == null:
 		return
 
+	if _g3_prescribed_thermal_source != null \
+			and int(g3_prescribed_thermal_source_case.get("room_id", -1)) == room_id:
+		# G3 banco diagnóstico: ese recinto no tiene fuego de sala. Aquí solo
+		# arranca el reloj de la fuente.
+		_g3_prescribed_thermal_source.ignite(sim_time_s)
+		return
+
 	if room.fire != null:
 		return
 
@@ -4039,7 +4296,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 	if kawagoe_factor > 0.0:
 		kawagoe_limit_kw = kawagoe_coeff * kawagoe_factor
 
-	return {
+	var context: Dictionary = {
 		"ambient_c": thermal_system.ambient_temp_c(),
 		"thermal_feedback_coeff": thermal_feedback_coeff,
 		"thermal_feedback_max": thermal_feedback_max,
@@ -4157,6 +4414,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_post_bd_hrr_cut_enabled": fire_post_bd_hrr_cut_enabled,
 		# SF-D2: consumo estequiométrico O2 (default-off).
 		"fire_o2_stoich_consumption_enabled": fire_o2_stoich_consumption_enabled,
+		# G3: propiedad de energía/potencia por objeto activo (default-off).
+		"fire_explicit_object_fuel_ownership_enabled": fire_explicit_object_fuel_ownership_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
@@ -4170,6 +4429,24 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"phase3_canonical_fuel_object_sync_shadow_enabled": \
 				_phase3_canonical_fuel_object_sync_active(),
 	}
+	# G3 Gate B opción D (prototipo): cota de masa del sumidero de O2 del fuego que
+	# CombustionSystem consulta antes de liberar el saldo R. Solo con el interruptor G3.
+	if fire_explicit_object_fuel_ownership_enabled:
+		context["g3_o2_sink_floor_callable"] = Callable(
+			oxygen_exchange_system, "fire_sink_heat_acceptance_floor_MJ"
+		)
+	# G3 M2: la clave solo existe con el inventario de O2 de sala armado. Con ella
+	# el fuego consulta la selección de su recinto y no un número de capa.
+	if oxygen_exchange_system.room_o2_inventory != null:
+		context["o2_room_inventory"] = oxygen_exchange_system.room_o2_inventory
+	# G3-4A: la clave solo existe en el contexto con la cuenta encendida.
+	if fire_unburned_energy_account_enabled:
+		context["fire_unburned_energy_account_enabled"] = true
+	# G3 DIAGNÓSTICO: las claves solo existen en el contexto con ancho > 0.
+	if fire_diag_flame_target_window > 0.0:
+		context["fire_diag_flame_target_window"] = fire_diag_flame_target_window
+		context["fire_diag_flame_target_jump_fraction"] = fire_diag_flame_target_jump_fraction
+	return context
 
 # ============================================================
 # SUAVIZADO DE APERTURAS EXTERIORES
@@ -4470,10 +4747,32 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 
 	var hrr_factor: float = exp(-water_l * maxf(0.0, suppression_hrr_decay_per_l))
 	hrr_factor = clampf(hrr_factor, 0.03, 1.0)
+	# G3 balance (g3_balance_v1): solo lectura, con el libro G3 activo.
+	var g3_bal_suppression: Dictionary = {}
+	if combustion_system.g3_fuel_ledger_enabled:
+		g3_bal_suppression = {
+			"moment": "SimulationEngine._apply_suppression_to_room",
+			"water_l": water_l,
+			"hrr_factor": hrr_factor,
+			"hrr_before_kw": float(room.hrr_kw),
+			"pool_before_MJ": float(room.retained_unburned_MJ),
+		}
 	room.hrr_kw *= hrr_factor
 	room.hrr_target_kw *= hrr_factor
 	room.burned_hrr_kw = room.hrr_kw
+	var g3_account_pool_before_MJ: float = room.retained_unburned_MJ
 	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
+	# G3-4A: lo que la supresión quita al depósito va a su cuenta de sala.
+	if combustion_system.g3_unburned_account_room(
+		room, fire_explicit_object_fuel_ownership_enabled, fire_unburned_energy_account_enabled
+	):
+		room.g3_pool_account_suppression_MJ += maxf(
+			0.0, g3_account_pool_before_MJ - room.retained_unburned_MJ
+		)
+	if combustion_system.g3_fuel_ledger_enabled:
+		g3_bal_suppression["hrr_after_kw"] = float(room.hrr_kw)
+		g3_bal_suppression["pool_after_MJ"] = float(room.retained_unburned_MJ)
+		combustion_system.g3_balance_note_external(room.id, "bal_suppression", g3_bal_suppression)
 	if room.fire != null:
 		room.fire_time_s *= sqrt(hrr_factor)
 		room.fire_dormant_time_s = 0.0
@@ -5056,7 +5355,18 @@ func _step_oxygen(dt: float) -> void:
 		oxygen_exchange_system.phase3_o2_ledger.get_step()
 	)
 	_phase3_o2_ledger.set_step(oxygen_exchange_system.phase3_o2_ledger.get_step())
-	oxygen_exchange_system.step(building, dt, _build_oxygen_exchange_hooks())
+	# G3 balance (g3_balance_v1): con el libro G3 activo, OxygenExchangeSystem
+	# anota en una sonda de solo lectura; sin el libro no hay sonda.
+	var oxygen_hooks: Dictionary = _build_oxygen_exchange_hooks()
+	if _g3_prescribed_thermal_source != null:
+		oxygen_hooks["g3_prescribed_thermal_room_ids"] = [
+			int(g3_prescribed_thermal_source_case.get("room_id", -1))
+		]
+	if combustion_system.g3_fuel_ledger_enabled:
+		oxygen_hooks["g3_balance_probe"] = {}
+	oxygen_exchange_system.step(building, dt, oxygen_hooks)
+	if combustion_system.g3_fuel_ledger_enabled:
+		combustion_system.g3_balance_note_o2_probe(oxygen_hooks["g3_balance_probe"])
 
 
 func _resolve_fire_o2_mode() -> String:
@@ -5219,7 +5529,10 @@ func _clamp_rooms(dt: float) -> void:
 		# OES, ThermalSystem, GasExchangeSystem y HVAC, asi que su reparto por
 		# owner no es recuperable aqui.
 		var _o2d6_pre_final: float = room.o2
-		room.o2 = clampf(room.o2, 0.0, o2_nominal)
+		# G3 M1: bajo autoridad el número de sala es derivado y no se recorta; un
+		# inventario negativo no llega a escribirse.
+		if not room.o2_inventory_authority:
+			room.o2 = clampf(room.o2, 0.0, o2_nominal)
 		_phase3_o2_ledger.record(
 			"engine_final_tick_clamp", "bulk", room,
 			_o2d6_pre_final, _o2d6_pre_final, room.o2,

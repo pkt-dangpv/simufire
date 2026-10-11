@@ -161,8 +161,21 @@ const PRESET_AUTHORING: Dictionary = {
 ## autor. Lo usan el generador de `scenarios/`, el desplegable del editor y el
 ## arranque directo desde el menu. Los casos de validacion NO pasan por aqui.
 func create_product_preset(preset_name: String) -> Dictionary:
-	var data: Dictionary = create_by_name(preset_name)
-	_apply_preset_authoring(_resolved_preset_name(preset_name), data)
+	# Los planos jugables son documentos propios. Nunca se regeneran desde
+	# los constructores historicos que usa CaseRunner para la ciencia.
+	var resolved_name: String = _resolved_preset_name(preset_name)
+	var path: String = "res://scenarios/playable/preset_%s.json" % resolved_name
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_error("BuildingTemplate: no se pudo leer el preset jugable %s" % path)
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_error("BuildingTemplate: preset jugable invalido %s" % path)
+		return {}
+	var data: Dictionary = Dictionary(parsed).duplicate(true)
+	_apply_preset_authoring(resolved_name, data)
 	return data
 
 
