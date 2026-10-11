@@ -1,5 +1,62 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-11 - G3: autoridad del oxígeno, contrato de M3 (diagnóstico y diseño; M3 NO implementado)
+
+El usuario autoriza cerrar el diagnóstico y el contrato de M3: limitar la
+combustión aceptada al oxígeno que el propietario puede debitar, con
+calor, combustible y productos coherentes. Autoriza lectura del motor,
+instrumentación fuera de `sim/`, controles monitorizados, pruebas del
+contrato y documentación. **No autoriza** implementar M3, corregir el
+transporte, M4 ni activar producto. Base `cefae4ec`. `sim/` no cambia.
+
+[Contrato](validation/G3_O2_M3_CONTRACT_2026-10-11.md) ·
+[registro del diagnóstico](validation/G3_O2_M3_CONTRACT_DIAGNOSIS_2026-10-11.json) ·
+[oráculo offline](../scripts/simulation/g3_m3_contract_model.py).
+
+- **Ruta real, reconstruida y fijada con pruebas:** la potencia se decide
+  en `CombustionSystem.step_room_fire` (filtro de 6 a 20 s sobre el
+  objetivo); el combustible se debita por la pirólisis propuesta; el humo
+  sigue a los objetivos; el flashover multiplica la potencia por 2,2
+  después; el sumidero debita tras las llegadas, con el tope del 5 %; el
+  térmico deposita la potencia de ese momento. Calor, combustible y
+  productos **no** salen de una misma cantidad.
+- **Medido, y no era lo esperado:** con el modo encendido el calor quedó
+  respaldado entero en los 16 controles, en las dos casas y en
+  `o2_stress_cap`, que corre entero. El tope no actuó en ninguno: el fuego
+  lee el oxígeno que debita y se frena solo; lo más que pide un paso es el
+  4,26 % de lo disponible. El déficit de O2-3 sigue medido solo con el
+  interruptor apagado y bajo una demanda impuesta (control de tope de M1).
+- **Lo que sí rompe la ruta real:** una deuda de tránsito que el fuego no
+  ve. El recinto arde con oxígeno que debe, y al vencer la deuda el
+  propietario detiene la corrida (`arrival_leaves_a_negative_inventory`).
+- **Otros hechos medidos:** la cola del filtro libera calor sin
+  combustible (45,7 MJ de calor de 40,0 MJ de combustible); el fuego
+  «prescrito» no es independiente del oxígeno y debita 157,6 MJ de
+  combustible sin calor; el fuego ya depende del paso de tiempo sin el
+  tope. Ningún control alcanzó el flashover: su salto no está medido.
+- **Arquitectura recomendada:** decidir tras el filtro y antes de la
+  primera escritura extensiva; `disponible = máx(0, M − obligaciones)` de
+  la selección de M2, evaluado al abrir el paso; el propietario **reserva**
+  al aceptar y el sumidero **debita lo reservado** donde hoy debita; una
+  fracción común para todo lo extensivo del paso; la memoria del filtro
+  guarda lo aceptado. Donde nada limita, M3 debe dar las trazas de M2-V
+  byte a byte.
+- **Tope del 5 %: retirarlo en el modo nuevo.** Regla histórica sin
+  fuente (abril de 2026), dependiente del paso de tiempo.
+- **Contrato falsable:** 13 invariantes con tolerancia, un oráculo offline
+  cuya referencia no rompe ninguno y 11 defectos declarados que rompen
+  cada uno el suyo. No valida el motor.
+- **GO acotado** para implementar: un fuego en un recinto sin
+  obligaciones. En esos casos M3 no cambiaría ninguna traza medida: es una
+  garantía, no una potencia distinta. **NO-GO, con decisión nueva:**
+  flashover, fuego prescrito, propiedad explícita del combustible,
+  oxidación de CO, dos fuegos o fuego en recinto de paso, y la cuenta de
+  energía del combustible.
+- **Verificación:** `sim/` idéntico a `cefae4ec`; pruebas del contrato
+  32 passed; guardarraíles con R2-1 PASS (346 de 346, 78 huecos), sin
+  regenerar la referencia; global 4543 passed, 58 skipped, 2 xfailed, 42 subtests passed.
+- **O2-3 sigue abierto.** CO/FED siguen OFF/NO-GO.
+
 ## Current Program Update - 2026-10-10 - G3: autoridad del oxígeno, M2-V (el venteo por sobrepresión por el propietario; casas completas; causa del hueco histórico aislada; sin activar)
 
 El usuario autoriza implementar y verificar M2-V: integrar el venteo por

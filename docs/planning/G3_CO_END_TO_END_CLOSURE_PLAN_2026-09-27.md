@@ -5,7 +5,26 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 10-10, tercero del día:
+Último avance del 11-10:
+[Autoridad del oxígeno, contrato de M3](../validation/G3_O2_M3_CONTRACT_2026-10-11.md).
+Diagnóstico y diseño; **M3 no está implementado y `sim/` no cambia**. La
+ruta real del fuego queda reconstruida y fijada con pruebas. Medido con
+el modo encendido: el calor quedó respaldado entero en 16 controles, las
+dos casas y `o2_stress_cap`; el tope del 5 % no actuó en ninguno. Lo que
+sí rompe la ruta real es una deuda de tránsito que el fuego no ve.
+Contrato: decidir tras el filtro, reservar lo disponible de la selección
+de M2, debitar lo reservado, una fracción común para el paso, y retirar
+el tope en el modo nuevo. 13 invariantes y 11 defectos declarados en un
+oráculo offline.
+Verificado: `sim/` idéntico a `cefae4ec`, guardarraíles con R2-1 PASS sin
+regenerar la referencia y global
+4543 passed, 58 skipped, 2 xfailed, 42 subtests passed.
+Efecto en plazos: M3 es implementable con alcance acotado y con poco
+riesgo, pero en los casos soportados no cambia ninguna traza medida; la
+fase que decida la ley del crédito y el débito entre recintos pesa más
+para lo que viene después. CO/FED siguen OFF/NO-GO.
+
+Avance del 10-10, tercero del día:
 [Autoridad del oxígeno, M2-V](../validation/G3_O2_PRESSURE_VENTING_M2V_2026-10-10.md).
 El venteo por sobrepresión pasa a ser una operación del propietario del
 inventario —una dilución equivalente, con entrada y salida, sin recorte—

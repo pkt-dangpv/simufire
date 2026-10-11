@@ -1,0 +1,1864 @@
+{
+ "schema": "g3_o2_m3_contract_diagnosis_v1",
+ "head": "cefae4ec",
+ "scope": "diagnosis for the contract of stage M3 of the oxygen authority: what the engine does today, with the room oxygen inventory on, when the heat it accepts is and is not backed by the oxygen its owner can debit. Nothing is implemented, nothing under sim/ is changed and no trace is corrected",
+ "engine": {
+  "commit": "cefae4ec",
+  "files_equal_to_that_commit": {
+   "sim/fire/CombustionSystem.gd": true,
+   "sim/core/OxygenExchangeSystem.gd": true,
+   "sim/core/RoomOxygenInventory.gd": true,
+   "sim/core/SimulationEngine.gd": true,
+   "sim/core/GasExchangeSystem.gd": true,
+   "sim/core/ThermalSystem.gd": true,
+   "sim/building/RoomModel.gd": true,
+   "sim/fire/FireModel.gd": true
+  },
+  "sha256": {
+   "sim/fire/CombustionSystem.gd": "621535487530b23fb14be11159c998c52978cdf8dc5d4ae909e4a447aa920ea6",
+   "sim/core/OxygenExchangeSystem.gd": "fd3382cc39123fd42a909582d73281d1b7bab045f8db7eac8ebdc1fad7120aed",
+   "sim/core/RoomOxygenInventory.gd": "bd68fd453e46b62e4512d70b24ce8c2a28b35fd790bfa1f9f5d315c8d4fd074b",
+   "sim/core/SimulationEngine.gd": "b652ef76024c695d7c92ace8d228989aad672a874154af8a737be8352bcf18ef",
+   "sim/core/GasExchangeSystem.gd": "56064f94596645244a622187affa8dfba0ec74c0ade11ee96612b70a5020f1d5",
+   "sim/core/ThermalSystem.gd": "3041283bcd13b9e8eab39099ad6e6f7948eab5f090bb2d0ee3dfed38a84afe4a",
+   "sim/building/RoomModel.gd": "4ca91d688d3ca764a3a560d23bf8d7f092a92291a2d1e0a3884c097b574189d1",
+   "sim/fire/FireModel.gd": "762e1080c11eacdcb739e8d2eb875922ab8c8c6725a2d3167be9e418ffd4597f"
+  }
+ },
+ "fixture": {
+  "path": "tests/fixtures/g3_o2_m3_diagnosis.gd",
+  "sha256": "98e8e6e3ce231e3f3294ec6a5d397b5bb305a9b3fd3da2c162f857334a339b35",
+  "judges": false,
+  "returncode": 0,
+  "script_errors": 0
+ },
+ "constants": {
+  "oxygen_kg_per_MJ": 0.076,
+  "cap_fraction_per_step": 0.05,
+  "flame_limit_mole_fraction": 0.122,
+  "what_0.076_is": "the coefficient the engine uses today, taken as its contract; not a calorimetric measurement"
+ },
+ "controls": {
+  "drop that keeps the flame": {
+   "what": "the fits case; at 150 s an operation of the owner moves 20 % of the oxygen of the room that burns to its neighbour",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {
+    "answer": {
+     "applied": true,
+     "delayed": false,
+     "delivery_id": -1,
+     "donor_net_kg": -2.1470646469348598,
+     "reason": "",
+     "receiver_net_kg": 2.1470646469348598
+    },
+    "at_s": 150.0,
+    "kg": 2.1470646469348598,
+    "operation": "exchange_between_rooms, no delay: the room that burns gives"
+   },
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 72.00261420301139,
+    "the_combustion_system_accounted_MJ": 72.00261420301138,
+    "backed_by_the_debit_MJ": 72.00261420301139,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": 1.4210854715202004e-14
+   },
+   "oxygen": {
+    "requested_kg": 5.472198679428866,
+    "applied_kg": 5.472198679428866,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 8.369634153694378,
+    "inventory_at_the_end_kg": 9.148514112343408,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.1315316269612291,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0013693419067872233,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.1437602855204275,
+   "filter": {
+    "steps_with_power_above_the_target": 458,
+    "heat_above_the_target_MJ": 10.35309424774982,
+    "power_above_its_target_kw": {
+     "steps": 458,
+     "lowest": 0.06141006935922633,
+     "median": 58.84765405704444,
+     "highest": 247.2148335204592
+    },
+    "target_above_its_power_kw": {
+     "steps": 742,
+     "lowest": 0.002870283287430445,
+     "median": 29.428583569722473,
+     "highest": 88.69020055857095
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 69.4281624698296,
+    "fuel_minus_heat_MJ": -2.574451733181789,
+    "co_kg": 0.6092819346024397,
+    "co2_kg": 4.789104669315604,
+    "smoke_kg": 2.291940828641287,
+    "heat_above_the_fuel_of_its_step_MJ": 10.114151896161289,
+    "fuel_above_the_heat_of_its_step_MJ": 7.53970016297937,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.5111384166168548,
+      "median": 1.0818576571302079,
+      "highest": 2.7959811841958007
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.40001841443321584,
+      "median": 8.835058155877046,
+      "highest": 12.561848479087738
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 17.342551511068134,
+      "median": 32.12283032184149,
+      "highest": 64.66301075372913
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.03921480746944776,
+      "median": 0.05940000000000001,
+      "highest": 0.1394078975346118
+     }
+    }
+   }
+  },
+  "drop to below the flame limit": {
+   "what": "the fits case; at 150 s an operation of the owner moves 60 % of the oxygen of the room that burns to its neighbour",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {
+    "answer": {
+     "applied": true,
+     "delayed": false,
+     "delivery_id": -1,
+     "donor_net_kg": -6.441193940804579,
+     "reason": "",
+     "receiver_net_kg": 6.441193940804579
+    },
+    "at_s": 150.0,
+    "kg": 6.441193940804579,
+    "operation": "exchange_between_rooms, no delay: the room that burns gives"
+   },
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 73.56613009040686,
+    "the_combustion_system_accounted_MJ": 73.56613009040683,
+    "backed_by_the_debit_MJ": 73.56613009040686,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": 2.842170943040401e-14
+   },
+   "oxygen": {
+    "requested_kg": 5.591025886870921,
+    "applied_kg": 5.591025886870921,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 4.30719192633786,
+    "inventory_at_the_end_kg": 9.174980254352423,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.06768897556357592,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0010998217253166014,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.14420794364842465,
+   "filter": {
+    "steps_with_power_above_the_target": 423,
+    "heat_above_the_target_MJ": 1.567070603399456,
+    "power_above_its_target_kw": {
+     "steps": 423,
+     "lowest": 0.06141006935922633,
+     "median": 14.567883672574453,
+     "highest": 39.62567258253796
+    },
+    "target_above_its_power_kw": {
+     "steps": 722,
+     "lowest": 0.002870283287430445,
+     "median": 51.06093341359432,
+     "highest": 183.8404859424499
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 81.83080868608974,
+    "fuel_minus_heat_MJ": 8.26467859568288,
+    "co_kg": 0.7298244372577054,
+    "co2_kg": 5.5100489032618585,
+    "smoke_kg": 2.576740526341572,
+    "heat_above_the_fuel_of_its_step_MJ": 1.5670706033993484,
+    "fuel_above_the_heat_of_its_step_MJ": 9.831749199082262,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1082,
+      "lowest": 0.8905163871897017,
+      "median": 1.1294045026098045,
+      "highest": 22.845211858286298
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1082,
+      "lowest": 0.40001841443321584,
+      "median": 12.499999999999435,
+      "highest": 12.500000000012054
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1082,
+      "lowest": 17.342551511068134,
+      "median": 47.622456753198946,
+      "highest": 958.1472216795543
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1082,
+      "lowest": 0.059605830343309206,
+      "median": 0.07860443593034133,
+      "highest": 1.1185451805408022
+     }
+    }
+   }
+  },
+  "end of fuel": {
+   "what": "the fits case with 40 MJ of fuel",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 45.72610941550224,
+    "the_combustion_system_accounted_MJ": 45.72610941550227,
+    "backed_by_the_debit_MJ": 45.72610941550224,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -2.842170943040401e-14
+   },
+   "oxygen": {
+    "requested_kg": 3.4751843155781703,
+    "applied_kg": 3.4751843155781703,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 10.713566918862288,
+    "inventory_at_the_end_kg": 11.033846999276912,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.16836732185885886,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0010254363015071218,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.17339831798935376,
+   "filter": {
+    "steps_with_power_above_the_target": 678,
+    "heat_above_the_target_MJ": 12.376568131812562,
+    "power_above_its_target_kw": {
+     "steps": 678,
+     "lowest": 0.2512278391256381,
+     "median": 16.23249524202729,
+     "highest": 325.08013875690864
+    },
+    "target_above_its_power_kw": {
+     "steps": 522,
+     "lowest": 0.002870283287430445,
+     "median": 55.18600004192871,
+     "highest": 88.69020055857095
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 39.9999867422199,
+    "fuel_minus_heat_MJ": -5.72612267328234,
+    "co_kg": 0.230765286483621,
+    "co2_kg": 2.735488184451068,
+    "smoke_kg": 0.9866072971960619,
+    "heat_above_the_fuel_of_its_step_MJ": 12.376568131812501,
+    "fuel_above_the_heat_of_its_step_MJ": 6.650445458530134,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 915,
+      "lowest": 0.010083522321596958,
+      "median": 1.0622655188120973,
+      "highest": 2.7959811841958007
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 915,
+      "lowest": 0.13035793542914184,
+      "median": 0.41748492535962206,
+      "highest": 12.500000000000052
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 915,
+      "lowest": 17.342551511068134,
+      "median": 23.159311783796813,
+      "highest": 33.55501771989509
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 915,
+      "lowest": 0.0007902327227750072,
+      "median": 0.08123079542092619,
+      "highest": 0.1394078975346118
+     }
+    }
+   }
+  },
+  "fits": {
+   "what": "two rooms closed to the outside, door open, a 700 kW sofa; the demand always fits",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 88.5800018516965,
+    "the_combustion_system_accounted_MJ": 88.58000185169664,
+    "backed_by_the_debit_MJ": 88.5800018516965,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -1.4210854715202004e-13
+   },
+   "oxygen": {
+    "requested_kg": 6.732080140728933,
+    "applied_kg": 6.732080140728933,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 8.69007267672837,
+    "inventory_at_the_end_kg": 8.69523245182963,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.13656742655554113,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0011002615211341835,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.13664623311579616,
+   "filter": {
+    "steps_with_power_above_the_target": 650,
+    "heat_above_the_target_MJ": 10.395624227419868,
+    "power_above_its_target_kw": {
+     "steps": 650,
+     "lowest": 0.06141006935922633,
+     "median": 66.52542235347002,
+     "highest": 110.36463647352434
+    },
+    "target_above_its_power_kw": {
+     "steps": 550,
+     "lowest": 0.002870283287430445,
+     "median": 51.55220613323379,
+     "highest": 88.69020055857095
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 84.97846603100935,
+    "fuel_minus_heat_MJ": -3.601535820687147,
+    "co_kg": 0.8378407548594522,
+    "co2_kg": 6.203252925236076,
+    "smoke_kg": 2.679241195645858,
+    "heat_above_the_fuel_of_its_step_MJ": 10.392210814963658,
+    "fuel_above_the_heat_of_its_step_MJ": 6.790674994276486,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.6675540611424652,
+      "median": 0.8997566996886972,
+      "highest": 2.7959811841958007
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.40001841443321584,
+      "median": 10.563674061161278,
+      "highest": 12.500000000001853
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 17.342551511068134,
+      "median": 28.6708762497179,
+      "highest": 54.79831852565396
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.049917562904383206,
+      "median": 0.07115283089951935,
+      "highest": 0.1394078975346118
+     }
+    }
+   }
+  },
+  "obligation": {
+   "what": "the fits case; at 150 s an operation of the owner makes the room that burns owe all it holds but 0.25 kg, due 30 s later",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {
+    "answer": {
+     "applied": true,
+     "delayed": true,
+     "delivery_id": 464,
+     "donor_net_kg": 10.485323234674299,
+     "reason": "",
+     "receiver_net_kg": -10.485323234674299
+    },
+    "at_s": 150.0,
+    "delay_s": 30.0,
+    "kg": 10.485323234674299,
+    "operation": "exchange_between_rooms, delayed: the neighbour is credited at once and the room that burns owes"
+   },
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 68.89952312911474,
+    "the_combustion_system_accounted_MJ": 68.89952312911487,
+    "backed_by_the_debit_MJ": 68.89952312911474,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -1.2789769243681803e-13
+   },
+   "oxygen": {
+    "requested_kg": 5.23636375781272,
+    "applied_kg": 5.23636375781272,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 1.247018643011398,
+    "inventory_at_the_end_kg": 9.25857794195025,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.019597319064880922,
+    "largest_obligation_kg": 10.485323234674299,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0472337898563851,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.1454990748454355,
+   "filter": {
+    "steps_with_power_above_the_target": 170,
+    "heat_above_the_target_MJ": 1.5363472479898768,
+    "power_above_its_target_kw": {
+     "steps": 170,
+     "lowest": 0.06141006935922633,
+     "median": 37.85920668472954,
+     "highest": 53.76689203428157
+    },
+    "target_above_its_power_kw": {
+     "steps": 925,
+     "lowest": 0.002870283287430445,
+     "median": 23.24160514991776,
+     "highest": 93.72342745497471
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 1.3369749871832923,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 76.12342501666538,
+    "fuel_minus_heat_MJ": 7.223901887550639,
+    "co_kg": 0.6567800692236297,
+    "co2_kg": 5.241484019181197,
+    "smoke_kg": 2.071874341226822,
+    "heat_above_the_fuel_of_its_step_MJ": 1.5363472479898774,
+    "fuel_above_the_heat_of_its_step_MJ": 8.760249135540425,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1031,
+      "lowest": 0.9100533958222132,
+      "median": 1.1539214324254912,
+      "highest": 15.51109262958791
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1031,
+      "lowest": 0.40001841443321584,
+      "median": 11.79590928666471,
+      "highest": 12.541036553908667
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1031,
+      "lowest": 17.342551511068134,
+      "median": 25.788158905501778,
+      "highest": 836.506691538139
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1031,
+      "lowest": 0.05939999999999999,
+      "median": 0.08033303562131693,
+      "highest": 0.6691487830370985
+     }
+    }
+   }
+  },
+  "obligation with the door closed": {
+   "what": "two rooms with no door between them, the sofa in one; at 100 s an operation of the owner makes it owe all it holds but 0.02 kg, due 1 s later",
+   "steps": 404,
+   "time_s": 101.0,
+   "failure": "o2_room_inventory_failed",
+   "rejections": [
+    {
+     "id": 1,
+     "inventory_kg": 12.40534502382482,
+     "net_kg": -12.40636995027753,
+     "reason": "arrival_leaves_a_negative_inventory",
+     "receiver": 0,
+     "step": 404
+    }
+   ],
+   "injected": {
+    "answer": {
+     "applied": true,
+     "delayed": true,
+     "delivery_id": 1,
+     "donor_net_kg": 12.40636995027753,
+     "reason": "",
+     "receiver_net_kg": -12.40636995027753
+    },
+    "at_s": 100.0,
+    "delay_s": 1.0,
+    "kg": 12.40636995027753,
+    "operation": "exchange_between_rooms, delayed: the neighbour is credited at once and the room that burns owes"
+   },
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 11.798268163162458,
+    "the_combustion_system_accounted_MJ": 11.891805281247466,
+    "backed_by_the_debit_MJ": 11.798268163162458,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -0.09353711808500798
+   },
+   "oxygen": {
+    "requested_kg": 0.8966683804003468,
+    "applied_kg": 0.8966683804003468,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 12.40534502382482,
+    "inventory_at_the_end_kg": 12.40534502382482,
+    "highest_mole_fraction_of_the_room": 0.20899999997992966,
+    "lowest_mole_fraction_of_the_room": 0.1949541860535005,
+    "largest_obligation_kg": 12.40636995027753,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 1.1754233498031739,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.1950648696048353,
+   "filter": {
+    "steps_with_power_above_the_target": 0,
+    "heat_above_the_target_MJ": 0.0,
+    "power_above_its_target_kw": {
+     "steps": 0
+    },
+    "target_above_its_power_kw": {
+     "steps": 404,
+     "lowest": 0.002870283287430445,
+     "median": 40.079764453639186,
+     "highest": 78.67221028194774
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0.0010557153994187841,
+    "steps_debited_above_it": 1,
+    "first_at_s": 100.75,
+    "debited_while_the_room_owed_kg": 0.021116564466542295,
+    "a_rule_without_cap_would_refuse_kg": 0.0010557153994187841,
+    "would_refuse_MJ": 0.01389099209761558,
+    "would_first_refuse_at_s": 100.75,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0010557153994187841,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0010557153994187841,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 1
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 15.886020656121906,
+    "fuel_minus_heat_MJ": 4.0877524929594475,
+    "co_kg": 0.005105617055832137,
+    "co2_kg": 0.9911750288239651,
+    "smoke_kg": 0.21591421803773933,
+    "heat_above_the_fuel_of_its_step_MJ": 0.0,
+    "fuel_above_the_heat_of_its_step_MJ": 4.087752492959451,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 341,
+      "lowest": 1.2111153290479322,
+      "median": 1.4242804976967096,
+      "highest": 2.7959806237489957
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 341,
+      "lowest": 0.40001843185824476,
+      "median": 0.4064499469170224,
+      "highest": 0.4674895977521808
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 341,
+      "lowest": 17.26130548988672,
+      "median": 18.262195596180693,
+      "highest": 33.55501406299175
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 341,
+      "lowest": 0.08236097451027105,
+      "median": 0.08302417781063012,
+      "highest": 0.13940786985153825
+     }
+    }
+   }
+  },
+  "pending arrival": {
+   "what": "the fits case; at 150 s an operation of the owner sends 1 kg to the room that burns, to arrive 5 s later",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {
+    "answer": {
+     "applied": true,
+     "delayed": true,
+     "delivery_id": 464,
+     "donor_net_kg": -1.0,
+     "reason": "",
+     "receiver_net_kg": 1.0
+    },
+    "at_s": 150.0,
+    "delay_s": 5.0,
+    "kg": 1.0,
+    "operation": "exchange_between_rooms, delayed: the neighbour gives to the room that burns"
+   },
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 95.5925309092623,
+    "the_combustion_system_accounted_MJ": 95.59253090926236,
+    "backed_by_the_debit_MJ": 95.5925309092623,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -7.105427357601002e-14
+   },
+   "oxygen": {
+    "requested_kg": 7.265032349103934,
+    "applied_kg": 7.265032349103934,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 8.539045208841268,
+    "inventory_at_the_end_kg": 8.539045208841268,
+    "highest_mole_fraction_of_the_room": 0.20899999997993132,
+    "lowest_mole_fraction_of_the_room": 0.13419397889913945,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 1.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0011019622618665087,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.13419867654318057,
+   "filter": {
+    "steps_with_power_above_the_target": 650,
+    "heat_above_the_target_MJ": 10.312325894430325,
+    "power_above_its_target_kw": {
+     "steps": 650,
+     "lowest": 0.06141006935922633,
+     "median": 60.15926236900525,
+     "highest": 105.81646722445649
+    },
+    "target_above_its_power_kw": {
+     "steps": 550,
+     "lowest": 0.002870283287430445,
+     "median": 51.55220613323379,
+     "highest": 88.69020055857095
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 92.07088000910844,
+    "fuel_minus_heat_MJ": -3.5216509001538583,
+    "co_kg": 0.9215018874584953,
+    "co2_kg": 6.782283890888875,
+    "smoke_kg": 2.8175804029917093,
+    "heat_above_the_fuel_of_its_step_MJ": 10.312325894430431,
+    "fuel_above_the_heat_of_its_step_MJ": 6.790674994276486,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.6548512032121616,
+      "median": 0.9226028369441164,
+      "highest": 2.7959811841958007
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.40001841443321584,
+      "median": 10.269480015110815,
+      "highest": 12.50000000000008
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 17.342551511068134,
+      "median": 27.226720799507486,
+      "highest": 51.32721728107961
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1138,
+      "lowest": 0.04846954264290646,
+      "median": 0.07299377957666314,
+      "highest": 0.1394078975346118
+     }
+    }
+   }
+  },
+  "prescribed": {
+   "what": "one sealed room and a fire with fire_o2_independent, 700 kW; 600 s",
+   "steps": 2400,
+   "time_s": 600.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 88.2743338115758,
+    "the_combustion_system_accounted_MJ": 88.2743338115759,
+    "backed_by_the_debit_MJ": 88.2743338115758,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -9.947598300641403e-14
+   },
+   "oxygen": {
+    "requested_kg": 6.70884936967976,
+    "applied_kg": 6.70884936967976,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 6.740667194268591,
+    "inventory_at_the_end_kg": 6.995657135878456,
+    "highest_mole_fraction_of_the_room": 0.20899999997992966,
+    "lowest_mole_fraction_of_the_room": 0.10593186112859888,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0015856583659836375,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.10749342608715536,
+   "filter": {
+    "steps_with_power_above_the_target": 654,
+    "heat_above_the_target_MJ": 15.297250168087494,
+    "power_above_its_target_kw": {
+     "steps": 654,
+     "lowest": 0.042090705960617925,
+     "median": 74.41924971689286,
+     "highest": 229.59929904689886
+    },
+    "target_above_its_power_kw": {
+     "steps": 820,
+     "lowest": 0.002870283287430445,
+     "median": 28.633032121406668,
+     "highest": 130.8383967775601
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 245.84004582114522,
+    "fuel_minus_heat_MJ": 157.56571200956944,
+    "co_kg": 0.1687969345995497,
+    "co2_kg": 8.005307368528548,
+    "smoke_kg": 1.3841759298671883,
+    "heat_above_the_fuel_of_its_step_MJ": 0.034577885119060014,
+    "fuel_above_the_heat_of_its_step_MJ": 157.6002898946884,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 1245,
+      "lowest": 0.9918217413907459,
+      "median": 1.5998957090648758,
+      "highest": 174.18800859283166
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 1245,
+      "lowest": 0.40000004905018016,
+      "median": 1.8880158510313625,
+      "highest": 30.625321273690247
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 1245,
+      "lowest": 12.007005206672876,
+      "median": 16.354612588211886,
+      "highest": 253.44775647873146
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 1245,
+      "lowest": 0.08309999999999998,
+      "median": 0.0831,
+      "highest": 1.053075428169451
+     }
+    }
+   }
+  },
+  "small room dt 0.25": {
+   "what": "the same object in one sealed room of 9.6 m3; 300 s",
+   "steps": 1200,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 14.677694990950988,
+    "the_combustion_system_accounted_MJ": 14.677694990950961,
+    "backed_by_the_debit_MJ": 14.677694990950988,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": 2.6645352591003757e-14
+   },
+   "oxygen": {
+    "requested_kg": 1.115504819312275,
+    "applied_kg": 1.115504819312275,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 1.5519773587323342,
+    "inventory_at_the_end_kg": 1.5816062382592633,
+    "highest_mole_fraction_of_the_room": 0.20899999959859333,
+    "lowest_mole_fraction_of_the_room": 0.12194924130043948,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.005635273674625207,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12200186433716956,
+   "filter": {
+    "steps_with_power_above_the_target": 26,
+    "heat_above_the_target_MJ": 0.9507902780757982,
+    "power_above_its_target_kw": {
+     "steps": 26,
+     "lowest": 8.393685686715571,
+     "median": 152.83338886741228,
+     "highest": 261.030049810454
+    },
+    "target_above_its_power_kw": {
+     "steps": 334,
+     "lowest": 0.01148113314972178,
+     "median": 95.20525040119597,
+     "highest": 169.09557231256204
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 23.8667198548988,
+    "fuel_minus_heat_MJ": 9.189024863947813,
+    "co_kg": 0.025931562016081544,
+    "co2_kg": 1.244920167074928,
+    "smoke_kg": 0.48087955706401053,
+    "heat_above_the_fuel_of_its_step_MJ": 0.9507902780758013,
+    "fuel_above_the_heat_of_its_step_MJ": 10.139815142023618,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 278,
+      "lowest": 0.43311530686151833,
+      "median": 1.6803196205512378,
+      "highest": 22.03753563247551
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 278,
+      "lowest": 0.4000339095921052,
+      "median": 0.44311097583540426,
+      "highest": 12.50000000000112
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 278,
+      "lowest": 22.348128718191145,
+      "median": 26.37352681619948,
+      "highest": 1263.513693293637
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 278,
+      "lowest": 0.03411442973576002,
+      "median": 0.08396108570497687,
+      "highest": 1.0859185000360612
+     }
+    }
+   }
+  },
+  "small room dt 0.5": {
+   "what": "the same object in one sealed room of 9.6 m3; 300 s",
+   "steps": 600,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 14.797744012947186,
+    "the_combustion_system_accounted_MJ": 14.797744012947186,
+    "backed_by_the_debit_MJ": 14.797744012947186,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": 0.0
+   },
+   "oxygen": {
+    "requested_kg": 1.1246285449839861,
+    "applied_kg": 1.1246285449839861,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 1.5379743177162406,
+    "inventory_at_the_end_kg": 1.5727931253284175,
+    "highest_mole_fraction_of_the_room": 0.20899999365097413,
+    "lowest_mole_fraction_of_the_room": 0.12084892871005067,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.011179253242778273,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.1221985925738799,
+   "filter": {
+    "steps_with_power_above_the_target": 14,
+    "heat_above_the_target_MJ": 1.0261162295000659,
+    "power_above_its_target_kw": {
+     "steps": 14,
+     "lowest": 6.759315527639387,
+     "median": 154.0268234478579,
+     "highest": 262.5965265733992
+    },
+    "target_above_its_power_kw": {
+     "steps": 132,
+     "lowest": 0.04487367434949458,
+     "median": 85.6792785108905,
+     "highest": 150.6423410633406
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 19.554081737590927,
+    "fuel_minus_heat_MJ": 4.756337724643741,
+    "co_kg": 0.025303806577553593,
+    "co2_kg": 1.1593134005935986,
+    "smoke_kg": 0.3872285744039225,
+    "heat_above_the_fuel_of_its_step_MJ": 1.0261162295000619,
+    "fuel_above_the_heat_of_its_step_MJ": 5.782453954143804,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 132,
+      "lowest": 0.4216305492138238,
+      "median": 1.6259210944287137,
+      "highest": 4.649597598660358
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 132,
+      "lowest": 0.40001178623399697,
+      "median": 0.4283321136340877,
+      "highest": 5.963107039148166
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 132,
+      "lowest": 22.19992036039188,
+      "median": 25.975975095739024,
+      "highest": 55.79862357094502
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 132,
+      "lowest": 0.033195267442533094,
+      "median": 0.08277563002277669,
+      "highest": 0.2318292297168549
+     }
+    }
+   }
+  },
+  "small room dt 1.0": {
+   "what": "the same object in one sealed room of 9.6 m3; 300 s",
+   "steps": 300,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 14.93426372754847,
+    "the_combustion_system_accounted_MJ": 14.934263727548473,
+    "backed_by_the_debit_MJ": 14.93426372754847,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -1.7763568394002505e-15
+   },
+   "oxygen": {
+    "requested_kg": 1.1350040432936837,
+    "applied_kg": 1.1350040432936837,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 1.5276260326471753,
+    "inventory_at_the_end_kg": 1.562767221323088,
+    "highest_mole_fraction_of_the_room": 0.20899990071347493,
+    "lowest_mole_fraction_of_the_room": 0.12003579473884123,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.021998894820971598,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12269919852938872,
+   "filter": {
+    "steps_with_power_above_the_target": 7,
+    "heat_above_the_target_MJ": 1.0414784517258886,
+    "power_above_its_target_kw": {
+     "steps": 7,
+     "lowest": 27.065448079836585,
+     "median": 156.15711694769794,
+     "highest": 252.31785074222816
+    },
+    "target_above_its_power_kw": {
+     "steps": 66,
+     "lowest": 0.17137418294676496,
+     "median": 82.62425145268057,
+     "highest": 144.98553209779487
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 19.08212353518398,
+    "fuel_minus_heat_MJ": 4.147859807635511,
+    "co_kg": 0.025739619857239562,
+    "co2_kg": 1.1653536034290273,
+    "smoke_kg": 0.38934606564197227,
+    "heat_above_the_fuel_of_its_step_MJ": 1.0414784517258864,
+    "fuel_above_the_heat_of_its_step_MJ": 5.189338259361398,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 68,
+      "lowest": 0.4367928119864388,
+      "median": 1.614695247937976,
+      "highest": 4.947178592762498
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 68,
+      "lowest": 0.40000475139152847,
+      "median": 0.4266980780651365,
+      "highest": 6.126051122170053
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 68,
+      "lowest": 21.907779908606134,
+      "median": 25.857005056153582,
+      "highest": 59.367623974234306
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 68,
+      "lowest": 0.03438136986190536,
+      "median": 0.08279377008905198,
+      "highest": 0.24666645050742295
+     }
+    }
+   }
+  },
+  "small room dt 2.0": {
+   "what": "the same object in one sealed room of 9.6 m3; 300 s",
+   "steps": 150,
+   "time_s": 300.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 14.761678194507713,
+    "the_combustion_system_accounted_MJ": 14.761678194507715,
+    "backed_by_the_debit_MJ": 14.761678194507713,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -1.7763568394002505e-15
+   },
+   "oxygen": {
+    "requested_kg": 1.121887542782586,
+    "applied_kg": 1.121887542782586,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 1.5406411988466373,
+    "inventory_at_the_end_kg": 1.5755314239924765,
+    "highest_mole_fraction_of_the_room": 0.20899848165898607,
+    "lowest_mole_fraction_of_the_room": 0.12105848339759842,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.0,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.042628320780830564,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12640407986105143,
+   "filter": {
+    "steps_with_power_above_the_target": 3,
+    "heat_above_the_target_MJ": 0.8174071577477069,
+    "power_above_its_target_kw": {
+     "steps": 3,
+     "lowest": 61.8421283918064,
+     "median": 140.8092001073366,
+     "highest": 206.05225037471047
+    },
+    "target_above_its_power_kw": {
+     "steps": 33,
+     "lowest": 0.6248746932057716,
+     "median": 80.1587606002058,
+     "highest": 134.51040955761414
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 19.517051461580273,
+    "fuel_minus_heat_MJ": 4.75537326707256,
+    "co_kg": 0.02471082623807013,
+    "co2_kg": 1.1645491306352544,
+    "smoke_kg": 0.38031765679437646,
+    "heat_above_the_fuel_of_its_step_MJ": 0.8174071577477062,
+    "fuel_above_the_heat_of_its_step_MJ": 5.572780424820264,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 35,
+      "lowest": 0.5415853415217774,
+      "median": 1.592486426294614,
+      "highest": 4.898074156422281
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 35,
+      "lowest": 0.40000084590184987,
+      "median": 0.4234910452993351,
+      "highest": 6.442049486526312
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 35,
+      "lowest": 21.34906638781877,
+      "median": 25.70485164350193,
+      "highest": 58.77715090384056
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 35,
+      "lowest": 0.04337170103216574,
+      "median": 0.08282949852253986,
+      "highest": 0.24421799962646212
+     }
+    }
+   }
+  },
+  "stress dt 0.25": {
+   "what": "the object of o2_stress_cap (3 MW, 300 MJ, alpha 0.188, no secondary gain) in two rooms; 600 s",
+   "steps": 2400,
+   "time_s": 600.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 120.77309288727795,
+    "the_combustion_system_accounted_MJ": 120.77309288727798,
+    "backed_by_the_debit_MJ": 120.77309288727795,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -2.842170943040401e-14
+   },
+   "oxygen": {
+    "requested_kg": 9.178755059433124,
+    "applied_kg": 9.178755059433124,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 7.761957958351251,
+    "inventory_at_the_end_kg": 8.28433164568934,
+    "highest_mole_fraction_of_the_room": 0.20899999991972526,
+    "lowest_mole_fraction_of_the_room": 0.12198179035292163,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.05552207509251446,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.0028508381416275934,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12210231285662175,
+   "filter": {
+    "steps_with_power_above_the_target": 237,
+    "heat_above_the_target_MJ": 18.81354161527754,
+    "power_above_its_target_kw": {
+     "steps": 237,
+     "lowest": 1.4669943938176857,
+     "median": 336.03296841876374,
+     "highest": 493.45192595942694
+    },
+    "target_above_its_power_kw": {
+     "steps": 453,
+     "lowest": 0.01148113314972178,
+     "median": 142.8638751153107,
+     "highest": 240.8350924416518
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 129.4830051902241,
+    "fuel_minus_heat_MJ": 8.709912302946151,
+    "co_kg": 1.1616503121557957,
+    "co2_kg": 8.157245311037729,
+    "smoke_kg": 3.839700078731245,
+    "heat_above_the_fuel_of_its_step_MJ": 18.351309948043095,
+    "fuel_above_the_heat_of_its_step_MJ": 27.061222250989303,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 653,
+      "lowest": 0.4358201470480468,
+      "median": 1.1755995938717858,
+      "highest": 4.042430201809019
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 653,
+      "lowest": 0.40000677745068486,
+      "median": 8.308406349131003,
+      "highest": 12.500000000000156
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 653,
+      "lowest": 0.0,
+      "median": 28.176487393969783,
+      "highest": 50.528176149293216
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 653,
+      "lowest": 0.0321727902635156,
+      "median": 0.08102328871545965,
+      "highest": 0.20155571657137836
+     }
+    }
+   }
+  },
+  "stress dt 0.5": {
+   "what": "the object of o2_stress_cap (3 MW, 300 MJ, alpha 0.188, no secondary gain) in two rooms; 600 s",
+   "steps": 1200,
+   "time_s": 600.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 122.09509628443307,
+    "the_combustion_system_accounted_MJ": 122.09509628443294,
+    "backed_by_the_debit_MJ": 122.09509628443307,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": 1.2789769243681803e-13
+   },
+   "oxygen": {
+    "requested_kg": 9.279227317616913,
+    "applied_kg": 9.279227317616913,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 7.759490305384022,
+    "inventory_at_the_end_kg": 8.281478306564537,
+    "highest_mole_fraction_of_the_room": 0.20899999873040317,
+    "lowest_mole_fraction_of_the_room": 0.1219430103532711,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.07069251470883282,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.005712737956858498,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12212467716316115,
+   "filter": {
+    "steps_with_power_above_the_target": 130,
+    "heat_above_the_target_MJ": 20.786296638204323,
+    "power_above_its_target_kw": {
+     "steps": 130,
+     "lowest": 3.600745760802056,
+     "median": 339.7989497219349,
+     "highest": 451.9431038794577
+    },
+    "target_above_its_power_kw": {
+     "steps": 226,
+     "lowest": 0.04487367434949458,
+     "median": 139.93195477247713,
+     "highest": 236.49236066348476
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 128.34869951747336,
+    "fuel_minus_heat_MJ": 6.253603233040295,
+    "co_kg": 1.164050170904815,
+    "co2_kg": 8.155764729879202,
+    "smoke_kg": 3.8484576096775247,
+    "heat_above_the_fuel_of_its_step_MJ": 19.630690383371498,
+    "fuel_above_the_heat_of_its_step_MJ": 25.88429361641188,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 342,
+      "lowest": 0.4824797623400233,
+      "median": 1.1630541177104194,
+      "highest": 4.649550756074947
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 342,
+      "lowest": 0.4000023559649367,
+      "median": 8.072614636549384,
+      "highest": 12.500000000000078
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 342,
+      "lowest": 0.0,
+      "median": 27.94601380543054,
+      "highest": 55.795299182494794
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 342,
+      "lowest": 0.03567240267814302,
+      "median": 0.08084752216067988,
+      "highest": 0.23182665935700283
+     }
+    }
+   }
+  },
+  "stress dt 1.0": {
+   "what": "the object of o2_stress_cap (3 MW, 300 MJ, alpha 0.188, no secondary gain) in two rooms; 600 s",
+   "steps": 600,
+   "time_s": 600.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 121.10308456754983,
+    "the_combustion_system_accounted_MJ": 121.10308456754984,
+    "backed_by_the_debit_MJ": 121.10308456754983,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -1.4210854715202004e-14
+   },
+   "oxygen": {
+    "requested_kg": 9.203834427133787,
+    "applied_kg": 9.203834427133787,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 7.748920077770453,
+    "inventory_at_the_end_kg": 8.259214473418199,
+    "highest_mole_fraction_of_the_room": 0.20899998014921065,
+    "lowest_mole_fraction_of_the_room": 0.12177689565699737,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.04958050987106541,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.01148823450494004,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12220049062420466,
+   "filter": {
+    "steps_with_power_above_the_target": 61,
+    "heat_above_the_target_MJ": 19.6592964683278,
+    "power_above_its_target_kw": {
+     "steps": 61,
+     "lowest": 1.9009024442320879,
+     "median": 336.1901864397291,
+     "highest": 461.64563382946574
+    },
+    "target_above_its_power_kw": {
+     "steps": 113,
+     "lowest": 0.17137418294676496,
+     "median": 142.11905873292827,
+     "highest": 253.26650267954176
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 126.406455890134,
+    "fuel_minus_heat_MJ": 5.303371322584169,
+    "co_kg": 1.1617641571990238,
+    "co2_kg": 8.14033440096582,
+    "smoke_kg": 3.806765101452166,
+    "heat_above_the_fuel_of_its_step_MJ": 18.8657008271251,
+    "fuel_above_the_heat_of_its_step_MJ": 24.16907214970928,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 169,
+      "lowest": 0.4619855704898129,
+      "median": 1.1749347602792877,
+      "highest": 4.947166217568574
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 169,
+      "lowest": 0.4000009497600191,
+      "median": 8.099976563697194,
+      "highest": 12.500000000000021
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 169,
+      "lowest": 0.0,
+      "median": 27.845153153809505,
+      "highest": 59.36629062329411
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 169,
+      "lowest": 0.0340989650186086,
+      "median": 0.08116758206198224,
+      "highest": 0.2466657327689929
+     }
+    }
+   }
+  },
+  "stress dt 2.0": {
+   "what": "the object of o2_stress_cap (3 MW, 300 MJ, alpha 0.188, no secondary gain) in two rooms; 600 s",
+   "steps": 300,
+   "time_s": 600.0,
+   "failure": "",
+   "rejections": [],
+   "injected": {},
+   "flashover": false,
+   "heat": {
+    "the_sink_was_asked_to_back_MJ": 114.49909396842229,
+    "the_combustion_system_accounted_MJ": 114.49909396842234,
+    "backed_by_the_debit_MJ": 114.49909396842229,
+    "not_backed_MJ": 0.0,
+    "asked_minus_accounted_MJ": -5.684341886080802e-14
+   },
+   "oxygen": {
+    "requested_kg": 8.701931141600094,
+    "applied_kg": 8.701931141600094,
+    "clipped_by_the_cap_kg": 0.0,
+    "first_clip_at_s": null,
+    "steps_with_a_clip": 0,
+    "lowest_inventory_kg": 7.699431791440365,
+    "inventory_at_the_end_kg": 8.48130276372773,
+    "highest_mole_fraction_of_the_room": 0.20899969653107944,
+    "lowest_mole_fraction_of_the_room": 0.12099917052624641,
+    "largest_obligation_kg": 0.0,
+    "largest_pending_arrival_kg": 0.11938956145351338,
+    "more_than_one_debit_in_a_step": 0
+   },
+   "largest_share_of_the_available_asked_in_a_step": 0.02316011782530717,
+   "mole_fraction_the_fire_read_in_its_last_step_with_a_debit": 0.12226662081284138,
+   "filter": {
+    "steps_with_power_above_the_target": 20,
+    "heat_above_the_target_MJ": 12.081876243943006,
+    "power_above_its_target_kw": {
+     "steps": 20,
+     "lowest": 7.670619312742929,
+     "median": 344.23457773493357,
+     "highest": 506.239699238541
+    },
+    "target_above_its_power_kw": {
+     "steps": 57,
+     "lowest": 0.6248746932057716,
+     "median": 140.08561280027402,
+     "highest": 214.1108018874869
+    }
+   },
+   "availability_at_the_opening_of_the_step": {
+    "what": "available = what the room holds when the step opens less every negative entry in transit to it; read from the selection of stage M2. Nothing of this acted on the run",
+    "debited_above_it_kg": 0,
+    "steps_debited_above_it": 0,
+    "first_at_s": null,
+    "debited_while_the_room_owed_kg": 0.0,
+    "a_rule_without_cap_would_refuse_kg": 0.0,
+    "would_refuse_MJ": 0.0,
+    "would_first_refuse_at_s": null,
+    "counting_the_arrivals_of_the_step_it_would_refuse_kg": 0.0,
+    "what_leaving_those_arrivals_out_costs_kg": 0.0,
+    "a_rule_with_the_5_percent_cap_would_refuse_kg": 0.0,
+    "steps_in_which_the_fire_reads_enough_oxygen_for_a_flame_and_the_rule_would_refuse": 0
+   },
+   "fuel_and_products": {
+    "fuel_debited_MJ": 133.2342039803684,
+    "fuel_minus_heat_MJ": 18.735110011946105,
+    "co_kg": 1.054813956011336,
+    "co2_kg": 8.22394427074782,
+    "smoke_kg": 3.4401859463412183,
+    "heat_above_the_fuel_of_its_step_MJ": 12.081876243942974,
+    "fuel_above_the_heat_of_its_step_MJ": 30.816986255889084,
+    "per_step": {
+     "fuel_MJ_per_MJ_of_heat": {
+      "steps": 76,
+      "lowest": 0.3832881407035651,
+      "median": 1.2142208728832808,
+      "highest": 4.89807558179949
+     },
+     "co_g_per_MJ_of_heat": {
+      "steps": 76,
+      "lowest": 0.40000016906905944,
+      "median": 6.449727657011206,
+      "highest": 12.500000000000018
+     },
+     "smoke_g_per_MJ_of_heat": {
+      "steps": 76,
+      "lowest": 18.57469304149557,
+      "median": 25.861843072223955,
+      "highest": 58.77695915269499
+     },
+     "co2_kg_per_MJ_of_heat": {
+      "steps": 76,
+      "lowest": 0.02851716584901988,
+      "median": 0.08203250423108513,
+      "highest": 0.24421805294306498
+     }
+    }
+   }
+  }
+ },
+ "two_rooms_against_the_time_step": {
+  "0.25": {
+   "steps": 2400,
+   "heat_MJ": 120.77309288727795,
+   "backed_MJ": 120.77309288727795,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 129.4830051902241,
+   "lowest_inventory_kg": 7.761957958351251
+  },
+  "0.5": {
+   "steps": 1200,
+   "heat_MJ": 122.09509628443307,
+   "backed_MJ": 122.09509628443307,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 128.34869951747336,
+   "lowest_inventory_kg": 7.759490305384022
+  },
+  "1.0": {
+   "steps": 600,
+   "heat_MJ": 121.10308456754983,
+   "backed_MJ": 121.10308456754983,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 126.406455890134,
+   "lowest_inventory_kg": 7.748920077770453
+  },
+  "2.0": {
+   "steps": 300,
+   "heat_MJ": 114.49909396842229,
+   "backed_MJ": 114.49909396842229,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 133.2342039803684,
+   "lowest_inventory_kg": 7.699431791440365
+  }
+ },
+ "small_room_against_the_time_step": {
+  "0.25": {
+   "steps": 1200,
+   "heat_MJ": 14.677694990950988,
+   "backed_MJ": 14.677694990950988,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 23.8667198548988,
+   "lowest_inventory_kg": 1.5519773587323342
+  },
+  "0.5": {
+   "steps": 600,
+   "heat_MJ": 14.797744012947186,
+   "backed_MJ": 14.797744012947186,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 19.554081737590927,
+   "lowest_inventory_kg": 1.5379743177162406
+  },
+  "1.0": {
+   "steps": 300,
+   "heat_MJ": 14.93426372754847,
+   "backed_MJ": 14.93426372754847,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 19.08212353518398,
+   "lowest_inventory_kg": 1.5276260326471753
+  },
+  "2.0": {
+   "steps": 150,
+   "heat_MJ": 14.761678194507713,
+   "backed_MJ": 14.761678194507713,
+   "not_backed_MJ": 0.0,
+   "clipped_kg": 0.0,
+   "steps_with_a_clip": 0,
+   "first_clip_at_s": null,
+   "fuel_MJ": 19.517051461580273,
+   "lowest_inventory_kg": 1.5406411988466373
+  }
+ },
+ "house": {
+  "o2_closed": {
+   "folder": "runs/g3_o2_venting_house_on_20261010_194703/o2_closed",
+   "trace_rows": 10800,
+   "steps": 10800,
+   "refused": null,
+   "last_time_s": 900.0000000001298,
+   "whole": true,
+   "room_that_burns": {
+    "requested_kg": 6.647118268742539,
+    "applied_kg": 6.647118268742539,
+    "clipped_by_the_cap_kg": 0.0,
+    "heat_not_backed_MJ": 0.0,
+    "steps_in_which_it_is_richer_than_the_outside": 0,
+    "steps_in_which_it_owes_in_transit": 0,
+    "largest_obligation_kg": 0.0,
+    "steps_with_a_positive_arrival_due": 0,
+    "largest_arrival_due_kg": 0.0,
+    "debited_while_it_owed_kg": 0.0,
+    "lowest_available_when_it_debits_kg": 6.9095816299856905,
+    "largest_share_of_the_available_asked_in_a_step": 0.00033588104177634785,
+    "debited_above_the_available_kg": 0,
+    "steps_debited_above_the_available": 0,
+    "a_rule_without_cap_would_refuse_kg": 0.0
+   },
+   "evidence": "run of stage M2-V, read again: the engine files are those of this tree"
+  },
+  "o2_reopen_300": {
+   "folder": "runs/g3_o2_venting_house_on_20261010_194859/o2_reopen_300",
+   "trace_rows": 10800,
+   "steps": 10800,
+   "refused": null,
+   "last_time_s": 900.0000000001298,
+   "whole": true,
+   "room_that_burns": {
+    "requested_kg": 9.563225602418747,
+    "applied_kg": 9.563225602418747,
+    "clipped_by_the_cap_kg": 0.0,
+    "heat_not_backed_MJ": 0.0,
+    "steps_in_which_it_is_richer_than_the_outside": 0,
+    "steps_in_which_it_owes_in_transit": 0,
+    "largest_obligation_kg": 0.0,
+    "steps_with_a_positive_arrival_due": 0,
+    "largest_arrival_due_kg": 0.0,
+    "debited_while_it_owed_kg": 0.0,
+    "lowest_available_when_it_debits_kg": 7.062942170343931,
+    "largest_share_of_the_available_asked_in_a_step": 0.00033588104177634785,
+    "debited_above_the_available_kg": 0,
+    "steps_debited_above_the_available": 0,
+    "a_rule_without_cap_would_refuse_kg": 0.0
+   },
+   "evidence": "run of stage M2-V, read again: the engine files are those of this tree"
+  }
+ },
+ "stress": {
+  "folder": "runs/g3_o2_m3_stress_on_20261011_092309/o2_stress_cap",
+  "trace_rows": 300,
+  "steps": 300,
+  "refused": null,
+  "last_time_s": 600.0,
+  "whole": true,
+  "room_that_burns": {
+   "requested_kg": 13.670929180437652,
+   "applied_kg": 13.670929180437652,
+   "clipped_by_the_cap_kg": 0.0,
+   "heat_not_backed_MJ": 0.0,
+   "steps_in_which_it_is_richer_than_the_outside": 0,
+   "steps_in_which_it_owes_in_transit": 0,
+   "largest_obligation_kg": 0.0,
+   "steps_with_a_positive_arrival_due": 0,
+   "largest_arrival_due_kg": 0.0,
+   "debited_while_it_owed_kg": 0.0,
+   "lowest_available_when_it_debits_kg": 7.781328631720673,
+   "largest_share_of_the_available_asked_in_a_step": 0.022187072785585807,
+   "debited_above_the_available_kg": 0,
+   "steps_debited_above_the_available": 0,
+   "a_rule_without_cap_would_refuse_kg": 0.0
+  },
+  "run": true,
+  "launch_error": "",
+  "switch_in_the_scenario": true,
+  "step_s": 2.0,
+  "fire": {
+   "peak_kw": 1351.9548504340712,
+   "time_of_the_peak_s": 112.0,
+   "heat_MJ": 179.88064711102174,
+   "fire_clock_s": 138.19521479006548,
+   "seconds_with_power": 596.0,
+   "power_at_the_end_kw": 90.30396541145299,
+   "times_it_went_out": 1,
+   "went_out_at_s": [
+    148.0
+   ],
+   "times_it_came_back": 1,
+   "came_back_at_s": [
+    152.0
+   ],
+   "lowest_oxygen_the_fire_read": 0.1216202762071628,
+   "fire_reads_at_the_end": "room_inventory",
+   "lowest_room_number": 0.1216202762071628,
+   "room_number_at_the_end": 0.13258514613612074,
+   "lower_number_at_the_end": 0.18937378272012795,
+   "upper_number_at_the_end": 0.09450187449373616,
+   "debit_of_the_room_kg": 13.670929180437652,
+   "declared_as_consumed_kg": 13.670929180437652,
+   "demand_of_the_heat_kg": 13.670929180437652
+  }
+ }
+}
