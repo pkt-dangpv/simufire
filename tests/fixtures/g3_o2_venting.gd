@@ -211,7 +211,10 @@ func _two_steps_and_a_neighbour() -> void:
 		var label: String = "dt %s" % str(dt)
 		_check(_valid(world) and run["steps_before_a_refusal"] == run["steps"], label + ": the run is valid to its end (%d of %d)" % [run["steps_before_a_refusal"], run["steps"]])
 		_check(run["events"] > 50 and run["events"] == run["steps_with_smoke_retired"], label + ": many events, one operation each (%d)" % run["events"])
-		_check(run["largest_transit_kg"] > 1.0e-4 and run["delayed"] > 0, label + ": oxygen was in transit while the room vented (%s kg)" % str(run["largest_transit_kg"]))
+		if _report(world["engine"]).get("live_transport_policy", "") == "symmetric_reference_gas_immediate_o2_only":
+			_check(run["largest_transit_kg"] == 0.0 and run["delayed"] == 0, label + ": M2-T venting and live exchange create no obligations")
+		else:
+			_check(run["largest_transit_kg"] > 1.0e-4 and run["delayed"] > 0, label + ": historical oxygen was in transit while the room vented (%s kg)" % str(run["largest_transit_kg"]))
 		_check(run["worst_operation_kg"] <= OPERATION_TOL_KG and run["gas_is_the_law"], label + ": every event is the closed form (worst %s kg)" % str(run["worst_operation_kg"]))
 		_closes(run, label)
 		run["heat_MJ"] = world["rooms"][0].hrr_kj_total / 1000.0

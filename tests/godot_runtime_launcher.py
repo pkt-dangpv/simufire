@@ -79,7 +79,11 @@ def run_godot(
     if preexisting:
         raise AssertionError(f"pre-existing Godot processes: {preexisting}")
 
-    appdata_path = mutation_audit.ROOT / "runs/godot_test_appdata"
+    # Keep the isolated default, but permit the authoritative suite to place
+    # runtime data outside the checkout without using the user's real APPDATA.
+    appdata_path = Path(os.environ.get(
+        "SIMUFIRE_GODOT_TEST_APPDATA", str(mutation_audit.ROOT / "runs/godot_test_appdata")
+    ))
     appdata_path.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
     environment["APPDATA"] = str(appdata_path)

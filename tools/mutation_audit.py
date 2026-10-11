@@ -108,7 +108,8 @@ def _godot_processes() -> list[dict[str, Any]]:
         return []
     completed = subprocess.run(
         ["tasklist", "/FO", "CSV", "/NH", "/FI", "IMAGENAME eq Godot*"],
-        capture_output=True, text=True, check=False,
+        # Native tasklist uses the Windows OEM page, not Python's UTF-8 mode.
+        capture_output=True, text=True, encoding="oem", check=False,
     )
     records: list[dict[str, Any]] = []
     for row in csv.reader(completed.stdout.splitlines()):
@@ -526,6 +527,7 @@ def _start_without_windows_error_ui(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding="utf-8",
                 env=environment,
                 creationflags=creationflags,
             ),
@@ -545,6 +547,7 @@ def _start_without_windows_error_ui(
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             env=environment,
             creationflags=creationflags | _CREATE_SUSPENDED,
         )

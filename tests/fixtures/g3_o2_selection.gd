@@ -112,7 +112,10 @@ func _one_selection_and_one_debit() -> void:
 	_check(room.o2_upper < room.o2 - 0.01, "while the upper-layer number did fall on its own (%.4f against %.4f): an auxiliary, not a debit" % [room.o2_upper, room.o2])
 	_group("C05 the inventory and its transit still close in every step")
 	_closes(run, "real fire")
-	_check(run["largest_transit_kg"] > 1.0e-4 and run["delayed"] > 0, "oxygen was in transit")
+	if _report(world["engine"]).get("live_transport_policy", "") == "symmetric_reference_gas_immediate_o2_only":
+		_check(run["largest_transit_kg"] == 0.0 and run["delayed"] == 0, "M2-T live exchange has no future obligations")
+	else:
+		_check(run["largest_transit_kg"] > 1.0e-4 and run["delayed"] > 0, "historical oxygen was in transit")
 	_check(run["debit_within_available"], "no debit exceeded what was available to its selection")
 	_check(run["clipped_kg"] == 0.0, "nothing clipped by the cap of the sink")
 	run["heat_MJ"] = heat_mj

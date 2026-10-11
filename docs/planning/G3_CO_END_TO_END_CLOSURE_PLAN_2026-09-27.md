@@ -5,7 +5,39 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 11-10:
+Último avance del 11-10: [M2-T opción D autorizada](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
+Implementada en dos `.gd`: intercambio O₂ inmediato, simétrico, sin crear
+obligaciones; caudal, fuego, sumidero, EOS, M2-V y otras especies intactos.
+3 650 checks Godot PASS por monitor seguro, 199 pruebas offline PASS.
+Retomado con 7,697 GiB: 12/12 mutantes válidos muertos, base anterior
+con 712 fallos de comprobación sin errores de script; M1/M2/M2-V
+281/102/126 PASS e identidad OFF 9/9 byte a byte. Casas completas sin
+deuda ni enriquecimiento, repetidas con temporales externos.
+Referencia nueva: 18/18 casos, 346/346 y 78 gaps; corpus 493/494 hashes
+normalizados LF idénticos, solo generated_at (sin manifiesto bruto previo).
+R2-1/guardarraíles PASS y producto 168/168 PASS. Dos incidencias de
+decodificación del arnés, no nativas, documentadas en el informe; monitor
+acotado a tres decodificadores con pin AST. Primera global: tres fallos
+de contratos estáticos / 4 626 passed. Corregidos y 78 focalizadas PASS;
+repetición global completa: 4 635 passed, 60 skipped, 2 xfailed,
+42 subtests passed, exit 0 y monitor limpio. Cierre técnico completo;
+publicación autorizada, sin producto activo. Estilo/enlaces/diff PASS;
+79 `.gd.uid` y cuatro stashes ajenos intactos, fuera del commit con `runs/`.
+M3 debe revisarse con la ley nueva antes de implementarse: la deuda
+histórica inyectada no es transporte vivo. M3/M4 y CO/FED siguen abiertos.
+
+Avance histórico del 11-10, sustituido por la autorización de arriba:
+[M2-T, gate de alcance inicial](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
+No se implementa transporte ni se inicia Godot: 5,596 GiB libres, bajo el
+mínimo de 6. Las alternativas directas con retardo y referencia fija no
+cumplen el contrato entero; se necesita elegir entre modificar el retardo
+solo del O₂ experimental o ampliar el diseño del portador/reservas. No hay
+autorización para ninguna de esas ampliaciones. 112 pruebas offline y del
+monitor, 67 offline/M3 (35 compartidas) y guardarraíles PASS; las trazas de
+casa se reanalizan, no se repiten. Fixture dinámica, global y producto
+pendientes. Sin commit/push; M3/M4 y CO/FED siguen pendientes.
+
+Avance anterior del 11-10:
 [Autoridad del oxígeno, contrato de M3](../validation/G3_O2_M3_CONTRACT_2026-10-11.md).
 Diagnóstico y diseño; **M3 no está implementado y `sim/` no cambia**. La
 ruta real del fuego queda reconstruida y fijada con pruebas. Medido con

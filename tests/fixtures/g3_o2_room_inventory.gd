@@ -278,7 +278,10 @@ func _real_fire() -> void:
 		_check(absf(acc["consumed_kg"] - O_OXYGEN_KG_PER_MJ * heat_mj) <= GAP_KG, label + ": the debit is 0.076 kg per MJ of the heat the room reports")
 		_check(acc["clipped_kg"] == 0.0, label + ": nothing clipped")
 		_check(absf(room.o2_consumed_bulk_kg_total - acc["consumed_kg"]) <= GAP_KG, label + ": the accumulator records the debit applied")
-		_check(acc["largest_transit_kg"] > 1.0e-4 and acc["delayed"] > 0, label + ": oxygen was in transit")
+		if _report(world["engine"]).get("live_transport_policy", "") == "symmetric_reference_gas_immediate_o2_only":
+			_check(acc["largest_transit_kg"] == 0.0 and acc["delayed"] == 0, label + ": M2-T live fire dispatches no oxygen obligations")
+		else:
+			_check(acc["largest_transit_kg"] > 1.0e-4 and acc["delayed"] > 0, label + ": historical oxygen was in transit")
 		_check(absf(start + acc["outside_kg"] - acc["consumed_kg"] - _total(world)) <= GAP_KG,
 			label + ": inventories plus transit end at start plus exterior minus debit")
 		_check(acc["highest_x"] <= AIR + X_TOL, label + ": no room ends richer than the outside air")
@@ -447,6 +450,7 @@ func _reset_and_reuse() -> void:
 	var building = world["building"]
 	var inv = _inv(engine)
 	var first: Dictionary = _measure(world, 160)
+	_inject_legacy_transit_for_lifecycle(world)
 	var report: Dictionary = _report(engine)
 	var generation: int = int(report.get("generation", -1))
 	var last_id: int = _largest_id(report)
@@ -462,6 +466,7 @@ func _reset_and_reuse() -> void:
 		_near_rel(_m(room), _oracle_kg(AIR, room.volume_m3()), "reset: room %d starts again with the air inventory" % room.id)
 	var second: Dictionary = _measure(world, 160)
 	_check(_digest(first) == _digest(second) and _digest(first) != "", "reset: the same run gives the same inventories, numbers and transit")
+	_inject_legacy_transit_for_lifecycle(world)
 	_check(_largest_id(_report(engine)) > last_id, "reset: delivery ids are not reused")
 	_closes(second, "second run")
 	# 2. Revoked on the same engine.
@@ -480,6 +485,7 @@ func _reset_and_reuse() -> void:
 	_switch(engine, true)
 	engine.reset_simulation(0, true)
 	_measure(world, 160)
+	_inject_legacy_transit_for_lifecycle(world)
 	inv = _inv(engine)
 	_check(inv != null and (_report(engine).get("transit", []) as Array).size() > 0, "third run: entries in transit")
 	var clock: float = engine.sim_time_s
@@ -495,6 +501,7 @@ func _reset_and_reuse() -> void:
 	engine.building = building
 	engine.reset_simulation(0, true)
 	_measure(world, 160)
+	_inject_legacy_transit_for_lifecycle(world)
 	_check((_report(engine).get("transit", []) as Array).size() > 0, "fourth run: entries in transit")
 	var hvac = engine.hvac_system
 	engine.hvac_system = null
@@ -572,6 +579,7 @@ func _transit_integrity() -> void:
 	# 1. A delivery applied twice.
 	var world: Dictionary = _world([ROOM_A, ROOM_B], [_door(1.0)], {"dt": 0.25, "fire": true})
 	_measure(world, 160)
+	_inject_legacy_transit_for_lifecycle(world)
 	var inv = _inv(world["engine"])
 	if inv == null or (inv.get("_transit") as Array).is_empty():
 		_check(false, "a run with entries in transit exists")
@@ -684,6 +692,15 @@ func _not_armed(world: Dictionary, reason: String, label: String) -> void:
 ## A run that is valid until a route M1 does not own acts: refused by its name in
 ## that step. The refused route moved nothing: the inventory changed in that step by
 ## the operations the owner applied before it and by nothing else.
+## M2-T no longer dispatches live transit. Queue lifecycle/integrity is still
+## tested with an explicit historical diagnostic injection, never a fake claim
+## that a live doorway created the entry. Do not step the fire after injecting.
+func _inject_legacy_transit_for_lifecycle(world: Dictionary) -> void:
+	if _report(world["engine"]).get("live_transport_policy", "") == "symmetric_reference_gas_immediate_o2_only":
+		var owner = _inv(world["engine"])
+		owner.exchange_between_rooms(world["rooms"][0], world["rooms"][1], 0.01, 0.0, 10.0, "explicit_fixture_legacy_transit_lifecycle")
+
+
 func _refused_while_running(world: Dictionary, limit: int, route: String, label: String, sink_is_refused: bool) -> void:
 	var engine = world["engine"]
 	var steps: int = 0

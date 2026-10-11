@@ -1432,14 +1432,10 @@ func _exchange_room_o2_immediate(
 		return
 
 	if room_o2_inventory != null:
-		# G3 M1: los dos paquetes cruzan a la vez por el propietario, en kg de O2
-		# por la conversión declarada. Sin banda muerta: lo que sale de una sala
-		# entra en la otra, sea cual sea su tamaño.
-		var swapped: Dictionary = room_o2_inventory.exchange_between_rooms(
-			room_a, room_b,
-			room_o2_inventory.o2_kg_in_reference_gas(room_a.o2, exchange_kg),
-			room_o2_inventory.o2_kg_in_reference_gas(room_b.o2, exchange_kg),
-			0.0, "interior_background_exchange"
+		# G3 M2-T: mismo gas en ambos sentidos; inventarios actuales, no llegadas
+		# futuras. El propietario valida y confirma los dos extremos a la vez.
+		var swapped: Dictionary = room_o2_inventory.exchange_reference_gas_between_rooms(
+			room_a, room_b, exchange_kg, "interior_background_exchange"
 		)
 		if bool(swapped["applied"]):
 			room_a.o2_net_transport_kg_step += float(swapped["donor_net_kg"])
@@ -1486,9 +1482,8 @@ func _exchange_room_o2_active_flow(
 	# Keep the fresh compensating inflow to the fire room immediate, but delay
 	# the downstream room's net concentration change until the hot parcel arrives.
 	if room_o2_inventory != null:
-		# G3 M1: los dos paquetes pasan por el propietario. La sala caliente cambia
-		# ya; el neto de la fría va al tránsito si hay retardo, como siempre. Las
-		# variables de arriba quedan para los números de capa, en su base histórica.
+		# G3 M2-T: el O2 de ambos recintos cambia inmediatamente y sin deuda.
+		# Las variables de arriba son auxiliares de capa en su base histórica.
 		_exchange_owned_o2_active_flow(building, hot_room, cold_room, exchange_kg)
 	else:
 		_apply_room_o2_mass_delta(hot_room, hot_room_delta_o2_kg, air_density_kg_m3)
@@ -1678,33 +1673,23 @@ func _fire_sink_kg_per_MJ(room: RoomModel) -> float:
 	return float(room.fire.o2_consumption_kg_per_MJ) if room.fire != null else 0.076
 
 
-## G3 M1: el intercambio activo de una puerta interior. Mismo gas movido y mismo
-## retardo que la ruta histórica; el O2 de cada paquete sale de la lectura
-## efectiva de su sala por la conversión declarada.
+## G3 M2-T: mismo gas de referencia que la ruta histórica, pero O2 inmediato en
+## los dos extremos. No modifica el retardo de humo ni de otras especies.
 func _exchange_owned_o2_active_flow(
 		building: BuildingModel,
 		hot_room: RoomModel,
 		cold_room: RoomModel,
 		exchange_kg: float
 	) -> void:
-	var moved: Dictionary = room_o2_inventory.exchange_between_rooms(
-		hot_room, cold_room,
-		room_o2_inventory.o2_kg_in_reference_gas(
-			room_o2_inventory.effective_mole_fraction(hot_room), exchange_kg
-		),
-		room_o2_inventory.o2_kg_in_reference_gas(
-			room_o2_inventory.effective_mole_fraction(cold_room), exchange_kg
-		),
-		_estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id),
-		"interior_active_flow"
+	var moved: Dictionary = room_o2_inventory.exchange_reference_gas_between_rooms(
+		hot_room, cold_room, exchange_kg, "interior_active_flow"
 	)
 	if not bool(moved["applied"]):
 		return
 	hot_room.o2_net_transport_kg_step += float(moved["donor_net_kg"])
 	hot_room.o2_net_transport_kg_total += float(moved["donor_net_kg"])
-	if not bool(moved["delayed"]):
-		cold_room.o2_net_transport_kg_step += float(moved["receiver_net_kg"])
-		cold_room.o2_net_transport_kg_total += float(moved["receiver_net_kg"])
+	cold_room.o2_net_transport_kg_step += float(moved["receiver_net_kg"])
+	cold_room.o2_net_transport_kg_total += float(moved["receiver_net_kg"])
 
 
 func _reserve_room_o2_delta(room_id: int, delta_o2_kg: float) -> void:

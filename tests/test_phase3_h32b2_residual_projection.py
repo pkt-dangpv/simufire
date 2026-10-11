@@ -21,6 +21,8 @@ properties that make that claim checkable rather than asserted:
 """
 
 from pathlib import Path
+import hashlib
+import json
 import re
 import subprocess
 
@@ -287,7 +289,15 @@ def test_returns_a_fresh_dictionary_and_mutates_no_argument():
 ## primitive's output reach room state.
 SHADOW_CONSUMER = "sim/core/Phase3ResidualProjectionShadow.gd"
 
-ALLOWED_REFERENCES = {
+M2T_SOURCE_RECORDS = {
+    "docs/validation/G3_O2_TRANSPORT_M2T_ACCEPTANCE_2026-10-11.json",
+    "docs/validation/G3_O2_TRANSPORT_M2T_CLOSURE_2026-10-11.json",
+    "docs/validation/G3_O2_TRANSPORT_M2T_OFFLINE_2026-10-11.json",
+    "docs/validation/G3_O2_TRANSPORT_M2T_REGRESSIONS_2026-10-11.json",
+}
+
+
+ALLOWED_REFERENCES = M2T_SOURCE_RECORDS | {
     "sim/core/Phase3ResidualProjection.gd",
     SHADOW_CONSUMER,
     "tests/fixtures/phase3_h32b2_residual_projection.gd",
@@ -366,7 +376,7 @@ def test_the_only_consumer_is_the_read_only_shadow():
 
 @pytest.mark.parametrize("tracked", [True, False], ids=["tracked", "untracked"])
 @pytest.mark.parametrize("reference", [
-    "shadow_doc", "primitive_doc", "primitive_source", "mixed_source", "engine_source",
+    "shadow_doc", "primitive_doc", "primitive_record", "primitive_source", "mixed_source", "engine_source",
 ])
 def test_consumer_guard_distinguishes_shadow_from_primitive(tmp_path, monkeypatch,
                                                           tracked, reference):
@@ -383,7 +393,10 @@ def test_consumer_guard_distinguishes_shadow_from_primitive(tmp_path, monkeypatc
         path.write_text(content, encoding="utf-8")
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-    if reference.endswith("doc"):
+    if reference == "primitive_record":
+        added = "docs/validation/probe_record.json"
+        content = '{"sources": {"sim/core/Phase3ResidualProjection.gd": "unapproved"}}\n'
+    elif reference.endswith("doc"):
         added = "docs/validation/probe_design.md"
         content = ("Phase3ResidualProjectionShadow.gd:75\n" if reference == "shadow_doc"
                    else "Phase3ResidualProjection.gd:75\n")
@@ -419,6 +432,19 @@ def test_only_the_shadow_and_tests_load_the_primitive():
                             SHADOW_CONSUMER}, path
     # Only the shadow preloads it under sim/.
     assert SHADOW_CONSUMER in loaders
+
+
+@pytest.mark.parametrize("record", sorted(M2T_SOURCE_RECORDS))
+def test_m2t_record_exception_is_a_hash_inventory_not_a_new_primitive_consumer(record):
+    # Exactly four named provenance records, NOT a blanket exemption for JSON
+    # or docs. Arbitrary tracked/untracked records still fail the guard above.
+    data = json.loads((ROOT / record).read_text(encoding="utf-8"))
+    path = "sim/core/Phase3ResidualProjection.gd"
+    entry = data["sources"][path]
+    assert entry["same_as_base"] is True
+    current = hashlib.sha256((ROOT / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    assert entry["normalized_sha256"] == current
+    assert {key for key in entry} == {"normalized_sha256", "same_as_base"}
 
 
 def test_no_flag_is_introduced():

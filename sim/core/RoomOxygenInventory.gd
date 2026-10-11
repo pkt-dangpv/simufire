@@ -22,7 +22,15 @@ extends RefCounted
 ## latches the owner as `rejected`: from then on nothing is applied and the
 ## engine stops stepping. There is no clamp and no final reconciliation.
 ##
-## `T` is signed. The historical exchange through a doorway credits the hot room
+## M2-T: live doorway exchanges are symmetric and immediate for O2 only. They
+## mix the same reference-gas quantity in both directions, read current M (not
+## future arrivals), and validate BOTH rooms before committing either one.
+## Smoke and other species retain their own historical transport delays. This
+## is a reference-content approximation, not a coupled gas transport model.
+##
+## DIAGNOSTIC LEGACY API ONLY: `exchange_between_rooms` retains signed `T` for
+## the fixtures that reproduce the former contract. No simulation subsystem
+## calls it. The historical exchange through a doorway credits the hot room
 ## at once with the net of two opposite parcels and delays the same net for the
 ## cold room; that law is not changed here. An entry keeps both parcels: the one
 ## that travels to the receiver and the one already advanced to the donor. Its
@@ -59,8 +67,8 @@ extends RefCounted
 ## No class_name and no @export: only SimulationEngine loads it, behind a switch
 ## that is not exported, off by default and reachable from fixtures only.
 
-const VERSION: String = "room_oxygen_inventory_v3"
-const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v3"
+const VERSION: String = "room_oxygen_inventory_v4"
+const REPORT_SCHEMA: String = "g3_room_oxygen_inventory_report_v4"
 const SCOPE: String = "room_oxygen_inventory_transit_and_selection_stages_m1_m2_not_a_zonal_inventory"
 
 const M_O2_KG_PER_MOL: float = 0.031998
@@ -101,7 +109,8 @@ const APPROXIMATIONS: Array[String] = [
 	"reference mixture of dry air, 28.9647 g/mol, for every conversion",
 	"no chemical composition of the products: the moles of the room do not change with combustion",
 	"no physical zonal inventory: the layer numbers are historical auxiliaries",
-	"the transit is the signed net of a counterflow exchange, as the historical law delays it",
+	"live O2 exchange is immediate symmetric reference-content mixing; other species keep their delays",
+	"signed transit is retained only for explicitly injected historical diagnostic operations",
 	"the fire reads the concentration of the whole room: no zonal availability until stage M4",
 ]
 const SUPPORTED_ROUTES: Array[String] = [
@@ -435,6 +444,53 @@ func dilute_with_outside(room, gas_kg: Variant, outside_mole_fraction: Variant, 
 		"leaving_mole_fraction": mixture_mole_fraction}
 
 
+## M2-T live exchange. BOTH outgoing parcels use the pre-operation inventories.
+## With q <= min(Ca,Cb), both new fractions are convex mixtures of the old ones.
+## No nominal ceiling, delayed credit, reserved oxygen or layer number is read.
+func exchange_reference_gas_between_rooms(
+		donor, receiver, gas_kg: Variant, cause: String
+	) -> Dictionary:
+	if not _open():
+		return _refused()
+	if not _owns(donor) or not _owns(receiver) or donor == receiver:
+		return _reject_operation("room_not_under_authority", {"cause": cause})
+	if not _is_amount(gas_kg):
+		return _reject_operation("quantity_not_a_finite_amount", {"cause": cause})
+	if not _transit.is_empty():
+		return _reject_operation("live_exchange_with_diagnostic_legacy_transit", {"cause": cause})
+	var exchanged_gas_kg: float = float(gas_kg)
+	var donor_reference_kg: float = reference_gas_kg(donor.volume_m3())
+	var receiver_reference_kg: float = reference_gas_kg(receiver.volume_m3())
+	if exchanged_gas_kg > minf(donor_reference_kg, receiver_reference_kg):
+		return _reject_operation("exchange_exceeds_reference_content", {"cause": cause})
+	var donor_before_kg: float = donor.o2_inventory_kg
+	var receiver_before_kg: float = receiver.o2_inventory_kg
+	var to_receiver_kg: float = donor_before_kg * (exchanged_gas_kg / donor_reference_kg)
+	var to_donor_kg: float = receiver_before_kg * (exchanged_gas_kg / receiver_reference_kg)
+	var donor_net_kg: float = to_donor_kg - to_receiver_kg
+	var donor_after_kg: float = donor_before_kg + donor_net_kg
+	var receiver_after_kg: float = receiver_before_kg - donor_net_kg
+	if not is_finite(donor_after_kg) or not is_finite(receiver_after_kg) \
+			or donor_after_kg < 0.0 or receiver_after_kg < 0.0:
+		return _reject_operation("exchange_leaves_an_invalid_inventory", {"cause": cause})
+	_totals[donor.id]["interior_in_kg"] += to_donor_kg
+	_totals[donor.id]["interior_out_kg"] += to_receiver_kg
+	_totals[receiver.id]["interior_in_kg"] += to_receiver_kg
+	_totals[receiver.id]["interior_out_kg"] += to_donor_kg
+	_commit(donor, donor_after_kg)
+	_commit(receiver, receiver_after_kg)
+	_note({"kind": "interior", "cause": cause, "law": "symmetric_reference_gas_immediate",
+		"donor": donor.id, "receiver": receiver.id, "gas_kg": exchanged_gas_kg,
+		"to_receiver_kg": to_receiver_kg, "to_donor_kg": to_donor_kg,
+		"donor_before_kg": donor_before_kg, "donor_after_kg": donor_after_kg,
+		"receiver_before_kg": receiver_before_kg, "receiver_after_kg": receiver_after_kg,
+		"delayed": false})
+	return {"applied": true, "reason": "", "delayed": false, "delivery_id": -1,
+		"donor_net_kg": donor_net_kg, "receiver_net_kg": -donor_net_kg}
+
+
+## DIAGNOSTIC LEGACY API; never called by the simulation transport. Retained to
+## reproduce published M1/M3 counterexamples, NOT a supported live doorway law.
 ## Two parcels that cross a doorway. `donor_out_kg` leaves the donor for the
 ## receiver and `receiver_out_kg` leaves the receiver for the donor.
 ##
@@ -647,6 +703,8 @@ func report() -> Dictionary:
 		rooms[room_id] = entry
 	return {
 		"schema": REPORT_SCHEMA, "version": VERSION, "scope": SCOPE, "state": _state,
+		"live_transport_policy": "symmetric_reference_gas_immediate_o2_only",
+		"legacy_signed_transit_scope": "explicit_diagnostic_injection_only",
 		"generation": _generation, "step": _step_index,
 		"units": {"inventory": "kg of O2", "transit": "kg of O2, signed net", "room_number": "mole fraction of the reference mixture"},
 		"constants": {"m_o2_kg_per_mol": M_O2_KG_PER_MOL, "m_dry_air_kg_per_mol": M_DRY_AIR_KG_PER_MOL,

@@ -250,6 +250,18 @@ def _room0_ledger_metrics(path: Path) -> dict:
     }
 
 
+def runtime_paths(run_root: Path) -> tuple[Path, Path]:
+    """Optional external runtime storage; the historical isolated default stays."""
+    external = os.environ.get("SIMUFIRE_GODOT_RUNTIME_ROOT")
+    runtime_root = run_root
+    if external:
+        parent = Path(external).resolve()
+        if parent.is_relative_to(ROOT.resolve()):
+            raise ValueError("explicit runtime storage must be outside the checkout")
+        runtime_root = parent / run_root.name
+    return runtime_root / "appdata", runtime_root / "temp"
+
+
 def run(
     *,
     case_scenarios: dict[str, dict] | None = None,
@@ -272,10 +284,9 @@ def run(
     if root.exists():
         raise RuntimeError(f"output already exists: {root}")
     root.mkdir(parents=True)
-    appdata = root / "appdata"
-    temp = root / "temp"
-    appdata.mkdir()
-    temp.mkdir()
+    appdata, temp = runtime_paths(root)
+    appdata.mkdir(parents=True)
+    temp.mkdir(parents=True)
     environment = os.environ.copy()
     environment.update({"APPDATA": str(appdata), "TEMP": str(temp), "TMP": str(temp)})
     report = {"schema": report_schema, "root": str(root), "cases": []}

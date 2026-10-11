@@ -20,6 +20,11 @@ What the record has to show:
 
 A budget that closes does not show that the distribution of the gas is realistic, and
 nothing here says it does.
+
+M2-T changes the live interior O2 law, not M2-V dilution. The published
+M2-V record remains bound to its own checkpoint, cefae4ec, rather than
+claiming that its old enrichment measurements describe today's engine.
+Current dilution/source isolation is checked by test_g3_m2t_transport_engine.py.
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ import importlib.util
 import json
 from pathlib import Path
 import re
+import subprocess
 
 import pytest
 
@@ -97,8 +103,9 @@ def record() -> dict:
 
 def test_the_record_belongs_to_the_code_it_speaks_of(record):
     for relative, digest in record["sources_sha256"].items():
-        current = hashlib.sha256((ROOT / relative).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-        assert current == digest, f"{relative} changed after the record was written: run the stage again"
+        published = subprocess.run(["git", "show", f"cefae4ec:{relative}"], cwd=ROOT, capture_output=True, check=True)
+        current = hashlib.sha256(published.stdout.replace(b"\r\n", b"\n")).hexdigest()
+        assert current == digest, f"{relative}: record does not belong to its published M2-V checkpoint"
 
 
 def test_what_the_stage_does_not_touch_is_as_it_was(record):
@@ -322,7 +329,9 @@ def test_taking_that_ceiling_out_closes_the_gap_and_is_not_published_as_a_fix(re
     for kind in ("gap_passive", "gap_control"):
         described = record["house"]["cases"]["o2_reopen_300"][kind]["diagnostic_copy_of_the_oxygen_system"]
         assert described["restored"] is True and described["original_sha256"] == described["restored_sha256"] != described["copy_sha256"]
-        assert described["original_sha256"] == hashlib.sha256(OXYGEN.read_bytes()).hexdigest()
+        published = subprocess.run(["git", "show", "cefae4ec:sim/core/OxygenExchangeSystem.gd"],
+                                   cwd=ROOT, capture_output=True, check=True).stdout
+        assert described["original_sha256"] == hashlib.sha256(published).hexdigest()
     assert "g3_o2_diagnostic_counters" not in _text(OXYGEN) and "_g3_count" not in _text(OXYGEN)
 
 

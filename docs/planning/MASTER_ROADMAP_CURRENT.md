@@ -1,9 +1,31 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-09-28 (G3: baseline de puerta, ventana y dos plantas)
+Ultima actualizacion parcial: 2026-10-11 (G3: M2-T cerrado tecnicamente, sin activar)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Actualizacion operativa del 11-10: [M2-T](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md)
+opcion D autorizada: O2 experimental inmediato y conservativo, implementado
+en dos `.gd`, sin modificar caudal ni retardos de otras especies. 3 650 checks
+Godot por monitor seguro y 199 pruebas offline PASS. Retomado con 7,697 GiB:
+12/12 mutantes muertos, base anterior con 712 fallos válidos de comprobación,
+M1/M2/M2-V 281/102/126 PASS e identidad OFF 9/9 byte a byte.
+Casas sin deuda ni enriquecimiento, repetidas con temporales externos.
+Referencia regenerada 18/18, 346/346 y 78 gaps; corpus 493/494 hashes LF
+identicos, solo generated_at, sin manifiesto bruto previo. R2-1 y
+guardarrailes PASS; producto 168/168. Dos fallos de decodificacion del
+arnes, no nativos, documentados; ajuste limitado a tres decodificadores.
+Primera global: tres fallos de contratos estaticos / 4 626 passed;
+corregidos con 78 focalizadas PASS. Global repetida: 4 635 passed,
+60 skipped, 2 xfailed, 42 subtests, exit 0 y monitor limpio. Cierre tecnico
+completo y publicacion autorizada, sin activar producto. Estilo/enlaces/diff
+PASS; 79 `.gd.uid` y cuatro stashes intactos, fuera del commit con `runs/`.
+Revisar M3 con el transporte nuevo antes
+de implementarlo; no usar deuda sintetica como defecto vivo.
+M3/M4 y CO/FED siguen pendientes y el producto no se activa. Los avances
+detallados posteriores al baseline historico de abajo estan en el
+[subplan G3](G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md).
 
 Avance G3 sin promocion de fisica: el gate de propiedad confirma que la
 carga positiva de estancia gobierna el incendio aunque difiera de los

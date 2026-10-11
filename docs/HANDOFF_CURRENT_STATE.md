@@ -1,5 +1,75 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-11 - G3: M2-T cerrado técnicamente, sin activar
+
+El usuario autoriza el O₂ inmediato y conservativo experimental, no M3/M4
+ni activar producto. [Estado y retomada](validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
+Cambios reales en `RoomOxygenInventory.gd` y `OxygenExchangeSystem.gd`:
+operación pareada sobre gas de referencia, inventarios previos, validación
+antes de escribir; rutas activa y de fondo sin crédito anticipado ni deuda.
+Mismo interruptor OFF; sin modificar caudal, fuego, sumidero, EOS, M2-V ni
+retardos de otras especies. API histórica de deuda solo para fixtures
+diagnósticas, ningún llamador de simulación; no prometer transporte de
+gas/especies acoplado ni que M3 esté resuelto.
+
+Godot por el monitor seguro: **3 650 comprobaciones, 0 fallos**, exit 0,
+sin timeout, cuadros, procesos residuales ni terminaciones de limpieza.
+Offline: **199 passed**. Dos tests históricos ahora vinculan las huellas
+M2-V a `cefae4ec`; pruebas nuevas fijan el aislamiento de sus leyes actuales.
+Doce mutantes: **12/12 muertos donde se declaró**, SHA-256 restaurado.
+Fixture sobre base: 712 comprobaciones fallan sin errores de script;
+actual: 3 650 PASS. M1/M2/M2-V: 281/102/126 PASS, contratos de tránsito
+actualizados sin relajar conservación. Identidad OFF: **9/9 byte a byte**.
+Dos casas completas repetidas con todos los temporales externos: sin
+deuda ni enriquecimiento, 10 800 pasos / 900 s por casa, residuos por paso
+9,6121e-15 y 1,0363e-14 kg. Oráculo/aislamiento/arnés: 67 passed offline.
+
+Memoria al retomar: 7,697 GiB; ejecución segura secuencial, mínimo 6 GiB.
+Referencia regenerada: 18/18 casos, 346/346 y 78 gaps; guardarraíles
+ALL PASS, R2-1 incluido. Corpus 493/494 hashes LF idénticos, solo
+generated_at; no hay manifiesto bruto previo (OFF 9/9 sí es byte a byte).
+Producto 168/168 PASS. Dos fallos de captura Python (cp1252/OEM), no
+fallos nativos, están documentados; referencia aceptada mediante los
+monitores internos estrictos, no una segunda regeneración. Monitor solo
+cambia tres decodificadores, con pin AST de su aislamiento.
+Primera global: 3 fallos estáticos / 4 626 passed, 60 skipped, 2 xfailed,
+42 subtests. Dos contratos de tests corregidos, 78 focalizadas PASS;
+repetición global completa: **4 635 passed, 60 skipped, 2 xfailed,
+42 subtests passed**, exit 0, 902,02 s. Monitor limpio, stderr vacío,
+sin timeouts, cuadros, procesos residuales, limpieza ni procesos ajenos.
+Estilo, enlaces y diff --check PASS. Cierre técnico completo sobre base
+`920affb7`; publicación autorizada por commit, fast-forward y push normal.
+79 `.gd.uid` ajenos y cuatro stashes intactos, excluidos junto a `runs/`.
+Después: revisar M3 con el transporte nuevo; no implementar M3/M4
+automáticamente. CO/FED continúan OFF/NO-GO y producto sin activar.
+
+## Historical Program Update - 2026-10-11 - G3: M2-T, decisión inicial sustituida por la autorización anterior
+
+El usuario autoriza ejecutar M2-T, pero exige parar antes de cambiar el
+retardo o la autoridad de masa gaseosa/EOS. **No se ha corregido el
+motor ni iniciado Godot**. Base `920affb7`; `sim/` sigue intacto.
+[Diagnóstico y retomada](validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
+
+Las sustituciones directas estudiadas no cumplen todo el contrato con
+denominador fijo y retardo: paquetes positivos completos alteran el
+equilibrio; exceso neto diferido puede enriquecer tras otra operación;
+un débito emparejado futuro requiere proteger reservas frente al consumo.
+No se afirma que todo transporte retardado sea imposible. **Hace falta
+elegir alcance**: evaluar quitar el retardo solo del O₂ experimental o
+diseñar también el gas portador/reservas. Ninguna opción está autorizada
+todavía. M3/M4 y CO/FED siguen pendientes, sin activar producto.
+
+112 pruebas del oráculo/monitor y 67 del oráculo/M3, con 35 compartidas;
+guardarraíles ALL PASS con R2-1. Reanálisis, no corridas nuevas, de las
+dos casas publicadas: 10 800 pasos por casa; 1 011 fuentes cotejadas con
+la base. El Pasillo alcanza 0,2201602092 aunque cierra la cuenta global.
+La fixture y el lanzador dinámicos están preparados pero sin ejecutar.
+
+Memoria al parar: 5,596 GiB (<6). No hay commit/push ni publicación del
+gate. Producto, global y reproducciones dinámicas siguen pendientes.
+Retomar desde el informe, liberar memoria y resolver la autorización
+antes de cambiar la física. Conservar los `.gd.uid` ajenos y stashes.
+
 ## Current Program Update - 2026-10-11 - G3: autoridad del oxígeno, contrato de M3 (diagnóstico y diseño; M3 NO implementado)
 
 El usuario autoriza cerrar el diagnóstico y el contrato de M3: limitar la
