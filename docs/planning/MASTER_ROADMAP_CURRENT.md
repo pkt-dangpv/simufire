@@ -1,9 +1,16 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-12 (G3: M4-A1 puro cerrado, sin activar producto)
+Ultima actualizacion parcial: 2026-10-12 (G3: M4-B diagnóstico, adaptador físico NO-GO)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance M4-B: [diagnóstico del adaptador](../validation/G3_O2_M4_ADAPTER_DIAGNOSIS_2026-10-12.md).
+35 escrituras directas en cinco módulos, instantánea de 64 .gd y testigos
+offline. El neto de sala no determina capas; donante estratificado cambia
+la ley M2-T y penacho/remap exige evitar doble paquete. NO-GO a M4-C/D;
+siguiente propuesto M4-B1, contrato offline de eventos, no wiring físico.
+No cambios en sim/, Godot ni activación; CO/FED sigue OFF/NO-GO.
 
 Avance posterior del 12-10: [M4-A1 puro](../validation/G3_O2_M4_PURE_PARTITION_2026-10-12.md).
 Nuevo .gd aislado, 160 304 checks, 18 contrastes Python y 14/14 mutantes

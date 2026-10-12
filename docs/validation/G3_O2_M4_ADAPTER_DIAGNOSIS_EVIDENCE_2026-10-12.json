@@ -1,0 +1,441 @@
+{
+  "schema": "g3_m4_adapter_diagnosis_v1",
+  "base_commit": "b51af2c025760a7ac7ebbd847f6a28576a47f0ab",
+  "date": "2026-10-12",
+  "decision": "NO_GO_RUNTIME_ADAPTER_GO_OFFLINE_EVENT_CONTRACT",
+  "engine_integrated": false,
+  "physical_validation": false,
+  "godot_executed": false,
+  "inventory": {
+    "schema": "g3_m4_direct_layer_writers_v1",
+    "scope": "lexical_direct_assignments_only",
+    "runtime_executed": false,
+    "physical_validation": false,
+    "gd_file_count": 64,
+    "gd_inventory_lf_sha256": "a03f8b50343d7598882a9da949b4b9fa8b563c96eeaab16fdf3aeea73110e771",
+    "source_hashes_lf": {
+      "sim/building/ExperimentalRunAuthorization.gd": "2f484afc95e63e08e55a0ab9d6389de317aa6feccf937688e938404859eaca37",
+      "sim/building/FloorNaming.gd": "23344445bb01e455105695f0f69a8fbbdd605003ceee5e0259d0598d57f5f589",
+      "sim/building/OpeningModel.gd": "c078e15e26f3d5a382dcbf763e6b4da9473d90dfa73c8dfb013236aed8edeae1",
+      "sim/building/OpeningPhysicsProfileCatalog.gd": "444024151cc627ed330cc593cee6c33c13a128b0d675ad347984cc91ed3e913a",
+      "sim/building/OpeningProfileSelection.gd": "db5277851e2001a34587f4b15474b71e1889db964819efa9f0d045ca793ecc53",
+      "sim/building/PrescribedOpeningPhysicsSchema.gd": "74abd30670905441a4593eb9950753b79fa98ae4644def0f8a5e7972014645ef",
+      "sim/building/RoomModel.gd": "4ca91d688d3ca764a3a560d23bf8d7f092a92291a2d1e0a3884c097b574189d1",
+      "sim/BuildingModel.gd": "5fece77a2a5010dd62643506ecc91689492d288d9308f2bed5868dde890f49a3",
+      "sim/core/ClosedDoorDeformationModel.gd": "d915924ba0ef761dcfbef7b2bf1b260a24b8aefc9310862063294cdfcf58b4f0",
+      "sim/core/ClosedDoorDeformationNetworkAdapter.gd": "f9ed4e6b01304db40a3cf0bbf2adc45b964af97b6c35018b1e440c01260450d7",
+      "sim/core/ClosedDoorLeakageModel.gd": "2a112ffba545c469cdbae7165abd57dd69dbb7627fad5e870dcbde3d1cd84076",
+      "sim/core/ClosedDoorLeakageNetworkAdapter.gd": "e5b21378977fbb494cd40f4209c3a1eae8782f6172e73e8b8ec97ded38cff15b",
+      "sim/core/CompartmentPressureEquations.gd": "a7d3e2a5cfeb8f92e520090fa0eae375fcf70914426145c09f09ec064378fc5e",
+      "sim/core/ExteriorEnvelopeLeakageAdapter.gd": "cb19a808a2f4de5d2230232d1be096ed8d7863104c6221c7b73d9ffc30abc97d",
+      "sim/core/ExteriorPressureProfile.gd": "73bffb8527da12db08493ea97eecf81d51e04400e3b86b649f8b5387e677f49e",
+      "sim/core/ExteriorWindPressureModel.gd": "758f2dc2aa2ec3eee81b6a43f35de040eeaa1f2987ecdd2650921baca1f2bdb7",
+      "sim/core/FireSpreadSystem.gd": "34a6eb012c4c530ed87bd01366ca7297df2d5b28a7aa5ed856bd143ddc1f176c",
+      "sim/core/GasExchangeSystem.gd": "56064f94596645244a622187affa8dfba0ec74c0ade11ee96612b70a5020f1d5",
+      "sim/core/GlassFailureSystem.gd": "c10168c24c73d47d83ff61d664a2c810ffc82099ac40b0be646a8e57be5cd7af",
+      "sim/core/GlazingFalloutNetworkAdapter.gd": "167cbffc454a371b701809a740a7b14a45ccfbc25bcaa153ded62606f06ddc8c",
+      "sim/core/GlazingIntegrityModel.gd": "851cddaca5704c99c66bca44241e3d9411dadc1fb26ee3d2b5b65965a46f8388",
+      "sim/core/GlazingOpeningGeometryModel.gd": "333769a6c8b2ae3e9722e9fb9fc240a3a55929f99fd52c9296fb5a32a059bd1f",
+      "sim/core/HVACSystem.gd": "73f904ca32bd013d113f2090b76ab474f051b1aed8c38cde8531a7bb65f6721c",
+      "sim/core/LayerInterfaceModel.gd": "c7210942a8376d29852fd19e5899b807f2da804cdc43c4c97d1c47db9b7a832b",
+      "sim/core/OxygenExchangeSystem.gd": "63105c22785ecc90ae8810b1e5672d70bbb04f13db3b4472840f61f429900292",
+      "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836",
+      "sim/core/Phase3CoupledPressureSolver.gd": "5c2025d6b612fa8f851fc15a0569918b338f22bd2e105ff1dc495b2318c59588",
+      "sim/core/Phase3O2AcceptanceLedger.gd": "592ea57177dbb7652fc9b0c692b93b42709e025a2ccbc06db5cd9717607e056c",
+      "sim/core/Phase3PhysicalOwnerLedger.gd": "16eb71beed7dc085c68ae07cc8a1d58d5ad73170c7dfa7b06cf7a2e7fefe7510",
+      "sim/core/Phase3ProjectionCausalLedger.gd": "ea1810ed7bf7141e359f75c6ccbe573d58ee4b5ff50ed65288bbc6ddb77a33b6",
+      "sim/core/Phase3ProjectionTraceRecord.gd": "9df1d4d8e767c8b02760caff65bb8765702f4f780dd137224a90e0659817709a",
+      "sim/core/Phase3ResidualProjection.gd": "accacc304871f1c245f6072f8e4d12ffd329702c837a92ecaf784a3f611c7ca4",
+      "sim/core/Phase3ResidualProjectionShadow.gd": "42110050564468d2ee5cdfd72ec066cda7e49d020d2a2a154cf344de811ec1cf",
+      "sim/core/Phase3SurfaceEnergySolver.gd": "44489ee083ce0c282b74f36b35c81090c21d9c4644a509af30af80da6b17206a",
+      "sim/core/Phase3ZoneMassSystem.gd": "569e4bb08b9a55d86a01dff92b95982c4aa660571f6ef2f550b147d7a61665b7",
+      "sim/core/Phase3ZoneTransitionLedger.gd": "76fae6d00b790dbae0786537bc417e3b4fcf76ce81266650bcd2f6ae27fd1750",
+      "sim/core/PressureNetworkTransportSystem.gd": "84147837445343178d78d3d8082bbb3df5342ae461628e6668c5a99a7eea57e7",
+      "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+      "sim/core/SimulationEngine.gd": "a2d9cc139224ecaf15e7d5dc81813c804580c664e59b271ad7b1122b841fe76d",
+      "sim/core/SimulationLogWriter.gd": "13f300eedc08622a172f30fab646b1afab2c1533fd9f01cb05d3e4e8100eb151",
+      "sim/core/SimulationStateBuilder.gd": "41fdf8bf6882d0b43c157b3919015f34dc1b435f7af14338fbe734eecf98ac11",
+      "sim/core/ThermalSystem.gd": "3041283bcd13b9e8eab39099ad6e6f7948eab5f090bb2d0ee3dfed38a84afe4a",
+      "sim/core/VerticalShaftFlowModel.gd": "15cc712e819b0947de1353962be7ff31f2f20bfc668435eb57ba497306ba940c",
+      "sim/core/ZoneFireSolver.gd": "5b4cc7dcc77e13e0decf1f33c4342555fbb9ea29361ab1d2f9976aa0a699b998",
+      "sim/fire/CombustionRegimeClassifier.gd": "5ba78631027c2d5eb23e0d427f7f9dcc7e5f24926d47a0e4647e1e3869a64c7b",
+      "sim/fire/CombustionSystem.gd": "1d513a4647b29e7d3318a49dcc08f936109d57872b8e4e89e1c660cf0e26765d",
+      "sim/fire/FireModel.gd": "762e1080c11eacdcb739e8d2eb875922ab8c8c6725a2d3167be9e418ffd4597f",
+      "sim/fire/FuelMassBudgetModel.gd": "79a3e8e6995bb1f7635b1827e581e64e8d4c379b0323694a333ad5c10119d2a4",
+      "sim/fire/FuelObjectModel.gd": "cde32395f7eeddb68bab5817bd9b4606a68eb08f66387fbdf91217409ea4a326",
+      "sim/fire/HeptaneRealCpProfiles.gd": "bceb3663924cb1cafbf73ced420b785e83406414515e16a8e78fc6e10e180aa2",
+      "sim/fire/PrescribedFuelReleaseModel.gd": "db58278f2fff141d31148301095d41234f3732a66fa4140f74abfbaff483897d",
+      "sim/fire/PrescribedObjectHrrSource.gd": "f8a39d8312a6ef0117ea37eeec3df7fb7858f212d6c32539ac3d41e850d6c3c4",
+      "sim/fire/PrescribedPhaseBudgetController.gd": "41e6e36768eb386f5b9c6f9e9cb5b1e002227526cfef5d013926f8a595e4e6c6",
+      "sim/fire/PrescribedRealSensiblePhaseController.gd": "c2437cf71e05dcd642ca63105950081f981ff2aafd470fc94350f957f193b863",
+      "sim/fire/PrescribedSensiblePhaseController.gd": "0987d14c90568e18d81e76e847c5d9f807eeb0d05a57d999db2bc8dcde4b1770",
+      "sim/fire/PrescribedThermalSourceCoupling.gd": "5946dec65a78d1b29fb882e7a853e0ca807f30f0ce872687a3ca84e71a98629d",
+      "sim/fire/SensibleEnthalpyModel.gd": "272de43f4a2b9fb1801c3924b08489c4b9d4d8c89026e576e3b4a8e62e796750",
+      "sim/fire/TargetModel.gd": "dba18a700ca7927ce56904ba47afa06488405a11f06d51aee3515ca7330e4daa",
+      "sim/FireModel.gd": "788b61993fdcc3211207fb4999283359de9c65f362a87ac7df287d34b97deea8",
+      "sim/models/RoomModel.gd": "e16bd85ae259a9a800a7c47fec60d93e2f5d5101d255f653d6c2aaf908d3026b",
+      "sim/ScenarioValues.gd": "63db30c5849242abfd5a4ec1962a3102345d601cc6d0255013c8319f0b6562a5",
+      "sim/smoke/SmokeModel.gd": "55aff962bbf59c1ab45957de88b81cefb32cf4d5e543969ce49e1685a446baff",
+      "sim/templates/BuildingTemplate.gd": "cd60f698ada8ce41450147e4d448f5c82f6f152c338066f0ba4b77e25b2a24e2",
+      "sim/validation/CaseRunner.gd": "3a78dcc68970f90fc3e0a64c507691b1a4e19a5e817976c0e3c356e3c0c8c874"
+    },
+    "declarations": [
+      {
+        "path": "sim/building/RoomModel.gd",
+        "line": 75,
+        "function": "<top-level>",
+        "field": "o2_upper",
+        "declaration": true,
+        "source": "var o2_upper: float = 0.209"
+      },
+      {
+        "path": "sim/building/RoomModel.gd",
+        "line": 77,
+        "function": "<top-level>",
+        "field": "o2_lower",
+        "declaration": true,
+        "source": "var o2_lower: float = 0.209"
+      }
+    ],
+    "write_count": 35,
+    "writes": [
+      {
+        "path": "sim/building/RoomModel.gd",
+        "line": 445,
+        "function": "reset_dynamic_state",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "o2_upper = ambient_o2"
+      },
+      {
+        "path": "sim/building/RoomModel.gd",
+        "line": 446,
+        "function": "reset_dynamic_state",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "o2_lower = ambient_o2"
+      },
+      {
+        "path": "sim/core/HVACSystem.gd",
+        "line": 213,
+        "function": "_extract_return_air",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = clampf("
+      },
+      {
+        "path": "sim/core/HVACSystem.gd",
+        "line": 306,
+        "function": "_supply_air",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = clampf(lerpf(room.o2_upper, supply_o2, air_fraction), 0.0, building.outside_o2)"
+      },
+      {
+        "path": "sim/core/HVACSystem.gd",
+        "line": 308,
+        "function": "_supply_air",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)"
+      },
+      {
+        "path": "sim/core/HVACSystem.gd",
+        "line": 314,
+        "function": "_supply_air",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 446,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = clampf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 551,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = room.o2"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 556,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = maxf(room.o2, room.o2_lower)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 558,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = room.o2"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 614,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = upper_o2_after"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 652,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 687,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = maxf(lower_floor, room.o2_lower - lower_entr)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 721,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = lower_o2_after"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 770,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = plume_o2_after"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 807,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = clampf(room.o2_lower + ach_lower_dt, _o2_lower_floor, _o2_lower_ach_ceil)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 822,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 828,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 832,
+        "function": "step",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 844,
+        "function": "step",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)"
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1268,
+        "function": "_step_outside_opening_o2",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "indoor.o2_lower = clampf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1285,
+        "function": "_step_outside_opening_o2",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "indoor.o2_lower = clampf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1526,
+        "function": "_exchange_room_o2_active_flow",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "hot_room.o2_lower = maxf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1531,
+        "function": "_exchange_room_o2_active_flow",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "hot_room.o2_lower = clampf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1571,
+        "function": "_exchange_room_o2_active_flow",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "cold_room.o2_upper = clampf("
+      },
+      {
+        "path": "sim/core/OxygenExchangeSystem.gd",
+        "line": 1925,
+        "function": "_step_outside_opening_o2_bernoulli",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "indoor.o2_lower = clampf(lower_requested, 0.0, o2_nominal)"
+      },
+      {
+        "path": "sim/core/PressureNetworkTransportSystem.gd",
+        "line": 881,
+        "function": "commit_transaction",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = _fraction(float(final_state[\"o2_mass_upper_kg\"]), float(final_state[\"upper_gas_kg\"]))"
+      },
+      {
+        "path": "sim/core/PressureNetworkTransportSystem.gd",
+        "line": 882,
+        "function": "commit_transaction",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "room.o2_lower = _fraction(float(final_state[\"o2_mass_lower_kg\"]), float(final_state[\"lower_gas_kg\"]))"
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 1901,
+        "function": "_seed_upper_layer_as_one_packet",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "room.o2_upper = (room.o2_upper * upper_before_kg + room.o2_lower * moved_kg) / upper_after_kg"
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3429,
+        "function": "_apply_doorway_thermal_counterflow",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "hot_room.o2_lower = clampf(hot_room.o2_lower + o2_delta_kg * 0.5 / hot_lower_mass, 0.0, 0.209)"
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3437,
+        "function": "_apply_doorway_thermal_counterflow",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "hot_room.o2_upper = clampf(hot_room.o2_upper + o2_delta_kg * 0.5 / hot_upper_mass, 0.0, 0.209)"
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3452,
+        "function": "_apply_doorway_thermal_counterflow",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "cold_room.o2_lower = clampf(cold_room.o2_lower - o2_delta_kg / cold_lower_mass, 0.0, 0.209)"
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3539,
+        "function": "_apply_canonical_doorway_exchange",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "cold_room.o2_upper = clampf("
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3638,
+        "function": "_apply_canonical_doorway_exchange",
+        "field": "o2_upper",
+        "declaration": false,
+        "source": "hot_room.o2_upper = clampf("
+      },
+      {
+        "path": "sim/core/ThermalSystem.gd",
+        "line": 3655,
+        "function": "_apply_canonical_doorway_exchange",
+        "field": "o2_lower",
+        "declaration": false,
+        "source": "hot_room.o2_lower = clampf("
+      }
+    ]
+  },
+  "limits": [
+    "Lexical direct assignments, not AST alias/dynamic-write proof or reachability execution.",
+    "Manual review of route guards and event producers; no new scenario measurements.",
+    "Algebraic witnesses use imposed inputs, not experimental fire data."
+  ],
+  "groups": [
+    {
+      "system": "RoomModel",
+      "writes": 2,
+      "eligibility": "lifecycle reset; not canonical zonal initialization"
+    },
+    {
+      "system": "HVACSystem",
+      "writes": 4,
+      "eligibility": "conditional HVAC; not integrated with room inventory, not covered by required environment"
+    },
+    {
+      "system": "OxygenExchangeSystem",
+      "writes": 20,
+      "eligibility": "14 step sites (some explicitly rejected modes), 3 exterior sites on refused routes, 3 conditional interior auxiliary sites"
+    },
+    {
+      "system": "PressureNetworkTransportSystem",
+      "writes": 2,
+      "eligibility": "pressure network explicitly rejected by M3"
+    },
+    {
+      "system": "ThermalSystem",
+      "writes": 7,
+      "eligibility": "1 network seeding route excluded, 3 counterflow and 3 canonical doorway conditional auxiliary sites"
+    }
+  ],
+  "verification": {
+    "new_tests": 18,
+    "focal_passed": 111,
+    "focal_wall_pytest_s": 2.2,
+    "godot_launched": false,
+    "guardrails": "ALL PASS including R2-1; existing 346/346 and 78 gaps, not a regenerated reference",
+    "modified_document_links_errors": 0,
+    "gdscript_style": "PASS",
+    "python_ast": "PASS",
+    "git_diff_check": "PASS",
+    "sim_tracked_diff": false,
+    "uid_count": 79,
+    "uid_inventory_sha256": "DC901EFB4F3DC4E6B6AB6AAF754470C2ADBFA4543CACD21E2E4B2BB3ECD6E996",
+    "uid_digest_convention": "sha256 of sorted LF-joined relative-path:uppercase-SHA256 pairs",
+    "uid_matches_prior_phase": true,
+    "stashes": [
+      "0e0fd97a20f55a04925b3228ea33cc659f79befe",
+      "6cbc1f07e254e6cf96f37313b1a014a82e5564ff",
+      "9e12ab9e24a2b1901b8c124a94549f0efe784ab6",
+      "8ce667fc97ce4c3470eed915f72f245d02df9611"
+    ],
+    "full_global_rerun": false,
+    "reference_rerun": false,
+    "product_rerun": false
+  }
+}

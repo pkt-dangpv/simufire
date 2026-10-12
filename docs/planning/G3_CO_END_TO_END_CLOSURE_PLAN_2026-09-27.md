@@ -5,6 +5,15 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-B del 12-10: [diagnóstico del adaptador](../validation/G3_O2_M4_ADAPTER_DIAGNOSIS_2026-10-12.md).
+Inspección de 64 .gd, 35 escrituras directas, no rutas todas activas.
+M2-T/M2-V son operaciones de sala: no determinan donantes de capa ni
+autorizan copiar la ruta térmica. Testigos de reparto indeterminado,
+cambio de ley al muestrear capa y doble paquete que conserva el total.
+NO-GO a integración M4-C/D; siguiente M4-B1, contrato offline de eventos
+con unidades, identidad, bases y rechazo atómico. No Godot ni cambios
+en sim/, sin promoción de CO/FED o producto.
+
 Avance posterior del 12-10: [M4-A1 puro](../validation/G3_O2_M4_PURE_PARTITION_2026-10-12.md),
 autorizado «hazlo». Núcleo GDScript aislado implementado, no integrado;
 160 304 checks, 18 contrastes Python y 14/14 mutantes válidos, focal 226 PASS.

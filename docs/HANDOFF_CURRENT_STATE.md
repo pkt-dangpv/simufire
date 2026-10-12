@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - M4-B: diagnóstico del adaptador
+
+[Informe y siguiente gate](validation/G3_O2_M4_ADAPTER_DIAGNOSIS_2026-10-12.md).
+Base publicada b51af2c0. Inspección de 64 .gd: 35 escrituras directas zonales
+en cinco módulos, más dos declaraciones; no son 35 rutas activas.
+M2-T muestrea promedios de sala: elegir capa donante cambia la ley con
+estratificación. M2-V/ACH no declaran reparto. Penacho más remap puede
+duplicar un paquete sin romper conservación; shadow O2 no es kg molar canónico.
+Diagnóstico estático cerrado, NO-GO a wiring físico/selección zonal.
+Siguiente propuesto M4-B1: contrato offline de eventos/bases/donantes y
+rechazo atómico, no implementación de M4-C. HVAC requiere exclusión/contrato
+explícito, no basta el audit final de sala. M3 y M4-A1 quedan sin cambios;
+CO/FED OFF/NO-GO. No Godot ni modificación de sim/ en esta entrega.
+18 nuevas / 111 focales PASS, guardarraíles y R2-1 PASS sobre referencia
+vigente, sin regenerarla; estilo/enlaces/diff limpios. 79 UID y cuatro
+stashes preservados, cero Godot. Publicación autorizada de siete archivos
+de diagnóstico, sin UID/runs/ ni ramas privadas; ningún cambio de física.
+
 ## Current Program Update - 2026-10-12 - M4-A1 puro: cierre final verde
 
 Autorización «hazlo» al núcleo puro, no wiring ni producto.
