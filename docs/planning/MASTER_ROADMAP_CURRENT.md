@@ -1,9 +1,20 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-12 (G3: M4-B2 captura real, adaptador físico NO-GO)
+Ultima actualizacion parcial: 2026-10-12 (G3: M4-B3 compatibilidad física, wiring NO-GO)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance M4-B3: [compatibilidad física](../validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).
+Diseño: referencia fija no equivale a gas caliente; calor/interfaz no son
+transporte de O2. Testigos analíticos, revisión TN 1889v1/CFAST-7.7.7;
+sin ensayo externo ni cambio de sim/. Recomendado contrato experimental
+gas/O2 zonal con paquetes físicos, no remap geométrico del penacho.
+Siguiente M4-P1, especificación/prototipo puro antes de decidir autoridad
+gaseosa de producto y selección M4-C/D. Conectar red también exige contrato
+de semántica O2; no autorizado por este diseño. CO/FED y producto OFF/NO-GO.
+14 testigos nuevos / 255 focales offline PASS, enlaces/AST y R2-1 verdes;
+sin referencia/producto/global nuevos ni campaña de mutación GD.
 
 Avance M4-B2: [captura pasiva del motor real](../validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).
 Cuatro pares sintéticos, 3 844 checks y estados idénticos con/sin observador;

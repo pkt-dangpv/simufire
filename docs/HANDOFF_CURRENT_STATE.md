@@ -1,5 +1,20 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - M4-B3: compatibilidad física
+
+[Diseño y siguiente gate](validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).
+Base 23db7bf9. Referencia fija y masa caliente no son intercambiables;
+solo calor cambia interfaz sin mover O2. Reparto geométrico inventaría un
+paquete aun cerrando el total. TN 1889v1 local y CFAST-7.7.7 revisados;
+sin ejecución CFAST ni ensayo nuevo. Ruta recomendada: gas/O2 pareados por
+zona, Y másica y proxy molar etiquetado, sin doble remap del penacho.
+M2-T/M2-V se conservan como aproximaciones anteriores, no se reinterpretan.
+Red candidata exige corregir semántica O2, no basta conservar masa gaseosa.
+NO-GO wiring M4-C/D; GO de diseño a especificación/prototipo puro M4-P1.
+No sim/, Godot ni activación; CO/FED siguen OFF/NO-GO.
+14 testigos nuevos / 255 focales offline PASS; enlaces/AST limpios,
+guardarraíles ALL PASS con R2-1; referencia/producto/global no repetidos.
+
 ## Current Program Update - 2026-10-12 - M4-B2: captura pasiva en el motor real
 
 [Informe y retomada](validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).

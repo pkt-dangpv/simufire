@@ -5,6 +5,16 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-B3: [contrato de compatibilidad física](../validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).
+Referencia fija, gas físico y composición molar separados. Calor puede
+cambiar interfaz sin paquete O2; repartir por volumen no valida transporte.
+Ruta recomendada: gas/O2 por zona con Y másica y conversión molar declarada,
+M2-T/M2-V anteriores intactos. CFAST/NIST revisados como estructura, no como
+calibración. Siguiente especificación/prototipo puro M4-P1; todavía no
+autoridad viva M4-C/D ni red/combustión conjunta. CO/FED OFF/NO-GO.
+14 testigos nuevos / 255 focales offline PASS; enlaces/AST y R2-1 verdes,
+sin regeneración ni campaña Godot nueva.
+
 Avance M4-B2: [captura pasiva real](../validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).
 Fixture GD con observadores y controles vanilla emparejados, sin cambios de sim/.
 3 844 checks, identidad de estados y conversión M2-T/M2-V en verde, monitor
