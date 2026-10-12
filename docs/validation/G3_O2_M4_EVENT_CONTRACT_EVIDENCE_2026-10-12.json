@@ -1,0 +1,84 @@
+{
+  "schema": "g3_m4b1_offline_event_contract_v1",
+  "date": "2026-10-12",
+  "base_commit": "163b24f46fa79f5b0ed42b3a2c98bc74f7aeba56",
+  "contract_closed_offline": true,
+  "live_adapter_implemented": false,
+  "physical_validation": false,
+  "product_activation": false,
+  "co_fed": "OFF/NO-GO",
+  "godot_executed": false,
+  "sources_lf_sha256": {
+    "scripts/simulation/g3_m4_event_contract.py": "f4c141d0000ea5b094cb5877970543f72567a55dda317a00266a97c72e2a1469",
+    "tests/test_g3_m4_event_contract.py": "e7e34fc89c2828d72876a6a371ddc9d3bc67e8ece77fb839e7adc2bcc5db7017",
+    "scripts/simulation/g3_m4_partition_contract.py": "935bc208b86689d3302e3b7f93904420fded1932ab9d1b0a41c159d72b418d3d",
+    "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836"
+  },
+  "gd_inventory_lf_sha256": "a03f8b50343d7598882a9da949b4b9fa8b563c96eeaab16fdf3aeea73110e771",
+  "verification": {
+    "new_tests_passed": 115,
+    "focal_tests_passed": 226,
+    "focal_pytest_s": 3.09,
+    "mutation_campaign": "actual Python contract mutated only in memory; no GD or on-disk mutation",
+    "mutations_declared": 12,
+    "mutations_killed_by_declared_assertion": 12,
+    "control_in_unmodified_clone_required": true,
+    "source_bytes_unchanged_per_mutation": true,
+    "syntax_or_import_kills": 0,
+    "mutation_names": [
+      "identity",
+      "context",
+      "conversion",
+      "room_average",
+      "gross_donor",
+      "opening",
+      "duplicate_part",
+      "stale",
+      "representation",
+      "mutable_book",
+      "audit",
+      "mix_omitted"
+    ],
+    "synthetic_sequence_events": 500,
+    "synthetic_sequence_total_gap_tolerance_kg": 1e-9,
+    "guardrails": "ALL PASS including R2-1 on the existing 346/346 reference with 78 gaps",
+    "reference_regenerated": false,
+    "product_rerun": false,
+    "global_rerun": false,
+    "modified_document_link_errors": 0,
+    "python_ast": "PASS",
+    "new_python_lines_over_120": 0,
+    "gdscript_style": "PASS",
+    "git_diff_check": "PASS"
+  },
+  "preservation": {
+    "uid_count": 79,
+    "uid_inventory_sha256": "DC901EFB4F3DC4E6B6AB6AAF754470C2ADBFA4543CACD21E2E4B2BB3ECD6E996",
+    "uid_digest_convention": "sha256 of sorted LF-joined relative-path:uppercase-SHA256 pairs",
+    "stashes": [
+      "0e0fd97a20f55a04925b3228ea33cc659f79befe",
+      "6cbc1f07e254e6cf96f37313b1a014a82e5564ff",
+      "9e12ab9e24a2b1901b8c124a94549f0efe784ab6",
+      "8ce667fc97ce4c3470eed915f72f245d02df9611"
+    ]
+  },
+  "limits": [
+    "Trusted upstream physical event identities are imposed; renamed duplicates cannot be discovered from accounting.",
+    "Context is a caller-imposed phase; no runtime scheduling or lifecycle owner is implemented.",
+    "No mapping of physical gas to reference content or of geometry to physical gas is approved.",
+    "M2-T/M2-V compatibility policy and actual zonal fire selection are not chosen.",
+    "No CFAST run or new NIST/FSRI data; no rate or experimental calibration."
+  ],
+  "invalid_attempts": [
+    {
+      "result": "4 failed / 106 passed",
+      "cause": "Mutation helper default endpoints belonged to original module, not clone; campaign not accepted.",
+      "repair": "Construct endpoints from current module and pass same witness in unmodified clone first."
+    },
+    {
+      "result": "1 failed / 111 passed",
+      "cause": "Added independent audit made representation mutation anchor non-unique; not a mutant kill.",
+      "repair": "Anchor includes application-specific rejection block."
+    }
+  ]
+}

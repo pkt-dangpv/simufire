@@ -5,6 +5,14 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-B1: [contrato offline de eventos](../validation/G3_O2_M4_EVENT_CONTRACT_2026-10-12.md).
+Implementado fuera de sim/: fuentes/destinos explícitos, base de referencia,
+identidad por evento y candidatos atómicos. 115 pruebas nuevas dentro de
+226 focales PASS, 12/12 mutantes Python en memoria; R2-1 PASS sin Godot.
+No activación ni política M2-T/M2-V elegida. Gas físico y cobertura de interfaz
+siguen sin mapa aprobado. Siguiente M4-B2, captura pasiva/eligibilidad de
+rutas reales antes de autoridad zonal. CO/FED y producto OFF/NO-GO.
+
 Avance M4-B del 12-10: [diagnóstico del adaptador](../validation/G3_O2_M4_ADAPTER_DIAGNOSIS_2026-10-12.md).
 Inspección de 64 .gd, 35 escrituras directas, no rutas todas activas.
 M2-T/M2-V son operaciones de sala: no determinan donantes de capa ni

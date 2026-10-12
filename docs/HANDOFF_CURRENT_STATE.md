@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - M4-B1: contrato de eventos offline
+
+[Contrato y retomada](validation/G3_O2_M4_EVENT_CONTRACT_2026-10-12.md).
+Base 163b24f4. Contrato Python puro, sin consumidores de simulación:
+snapshot/revisión, eventos/aberturas registrados, donantes de capa y unidades
+de referencia explícitas, propuesta atómica, identidad y auditor independiente.
+115 pruebas nuevas dentro de 226 focales PASS; 12/12 mutantes Python en memoria,
+con control en clon sin modificar, sin mutación de disco/GD. Intentos inválidos
+del arnés documentados. Guardarraíles y R2-1 PASS sobre referencia vigente.
+Revisión staged añadió el pin de bases/interfaz de parcelas al auditor;
+dos pruebas nuevas y focal/falsación completas repetidas sobre los bytes finales.
+No Godot, cambios de sim/, tasas, selección/reserva del fuego ni política
+M2-T/M2-V elegida. Bases/interfaz impuestos no son geometría física validada;
+identidades renombradas por un productor no son detectables por contabilidad.
+79 UID y cuatro stashes preservados. CO/FED OFF/NO-GO.
+Siguiente M4-B2: captura pasiva de rutas reales/eligibilidad antes de M4-C,
+sin aplicar paquetes ni cambiar leyes. Publicación de este contrato autorizada.
+
 ## Current Program Update - 2026-10-12 - M4-B: diagnóstico del adaptador
 
 [Informe y siguiente gate](validation/G3_O2_M4_ADAPTER_DIAGNOSIS_2026-10-12.md).
