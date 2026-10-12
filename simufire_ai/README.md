@@ -571,3 +571,19 @@ pendientes y sin ejecutar el balance de agua, ni predecir punto o autonomía de
 espuma. Todavía no hay modelo de dosificación, simulación CAFS ni selección táctica
 automática de producto/sistema. Los requisitos concretos dependen del fabricante
 y aplicación: no se aplica un porcentaje o contrapresión universal.
+
+
+La auditoría de espuma distingue datos pendientes comunes de geometría de toma
+condicionada a la alimentación del equipo. En `inline_inductor` se solicitan
+altura de aspiración, longitud y diámetro del tubo. En inyección directa,
+`balanced_pressure`, alrededor de bomba, CAFS o tipo desconocido, esos datos no
+se declaran inaplicables: si faltan se conservan en `conditional_fields`, hasta
+documentar el circuito de alimentación. Si se aportan, se validan y muestran.
+La presión de entrada, las pérdidas y el rango de caudal siguen siendo datos de
+auditoría. No se calculan dosificación ni prestaciones de espuma.
+
+Esta distinción documental se apoya en el manual
+[AWG Z2/Z4/Z8](https://awg-fittings.com/images/content/downloads/betriebsanleitungen/NEU_10_2024/M1061B10_AWG%20Betriebsanleitung_Zumischer%20Z2-Z4-Z8_03-0824_de-en_online.pdf)
+y la descripción de aspiración externa en sistemas de inyección
+[Rosenbauer](https://www.rosenbauer.com/Sharepoint/Built-InSystems/Documents%20Built-In%20Pumps/docs/PC2XX_Pumps_Brochure_TruckMountedFirePumps_EN.pdf).
+No se transfieren umbrales o prestaciones entre modelos de fabricante.

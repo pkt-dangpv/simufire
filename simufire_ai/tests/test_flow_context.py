@@ -143,6 +143,44 @@ class FlowContextTests(unittest.TestCase):
             self.assertIn('https://example.test/manual/v1.2',text)
             if agent=='CAFS':self.assertIn('foam_system.air_flow_l_min',result['installation_context']['missing_fields'])
 
+    def test_inline_inductor_retains_required_pickup_geometry(self):
+        result=evaluate_flow_profile(self.profile,self.foam_context())
+        context=result['installation_context']
+        self.assertEqual(context['conditional_fields'],[])
+        for f in ('concentrate_pickup_lift_m','pickup_hose_length_m','pickup_hose_inside_diameter_mm'):
+            self.assertIn('foam_system.'+f,context['missing_fields'])
+        self.assertIn('En el proporcionador en línea declarado',render_hydraulic_answer(result))
+
+    def test_other_systems_leave_pickup_applicability_open_and_never_predict_foam(self):
+        for system in ('direct_injection','balanced_pressure','around_the_pump','CAFS','other',None):
+            declared=self.foam_context('CAFS' if system=='CAFS' else 'foam_solution')
+            if system is None:declared['foam_system'].pop('system_type')
+            else:declared['foam_system']['system_type']=system
+            with patch('tactics.flow_context.analyze_profile',side_effect=AssertionError('Water analysis for foam')):
+                result=evaluate_flow_profile(self.profile,declared)
+            c=result['installation_context']
+            self.assertEqual(len(c['conditional_fields']),3)
+            self.assertFalse(set(c['conditional_fields']) & set(c['missing_fields']))
+            for field in ('inlet_pressure_bar','pressure_loss_curve'):
+                self.assertIn('foam_system.'+field,c['missing_fields'])
+            if system is None:self.assertIn('foam_system.system_type',c['missing_fields'])
+            if system=='CAFS':self.assertIn('foam_system.air_flow_l_min',c['missing_fields'])
+            self.assertIsNone(result['operating_point'])
+            self.assertEqual(result['target_status'],'unsupported_foam_hydraulics')
+            self.assertIn('un sistema de inyección también puede tener aspiración',render_hydraulic_answer(result))
+
+    def test_supplied_pickup_data_survives_injection_classification(self):
+        declared=self.foam_context();foam=declared['foam_system']
+        foam.update(system_type='direct_injection',concentrate_pickup_lift_m=1.2,
+                    pickup_hose_length_m=2,pickup_hose_inside_diameter_mm=38)
+        result=evaluate_flow_profile(self.profile,declared)
+        self.assertEqual(result['installation_context']['conditional_fields'],[])
+        self.assertEqual(result['installation_context']['declarations']['foam_system'],foam)
+        text=render_hydraulic_answer(result)
+        self.assertIn('altura de aspiración del espumógeno (m): 1.2',text)
+        self.assertIn('diámetro de tubo de aspiración (mm): 38',text)
+        self.assertIn('No se calcula caudal',text)
+
     def test_incoherent_foam_rates_and_invalid_numbers_are_rejected(self):
         mutations=[lambda c:c['foam_system'].update(concentrate_flow_l_min=15),
             lambda c:c['foam_system'].update(concentration_percent_of_solution=6),

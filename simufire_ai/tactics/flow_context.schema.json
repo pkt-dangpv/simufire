@@ -185,6 +185,7 @@
             "inline_inductor",
             "around_the_pump",
             "direct_injection",
+            "balanced_pressure",
             "CAFS",
             "other"
           ]

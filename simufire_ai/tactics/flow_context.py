@@ -13,6 +13,19 @@ from tactics.hydraulics import analyze_profile, balance, digest, pressure, read_
 
 SCHEMA=Path(__file__).with_name('flow_context.schema.json')
 FOAM_FIELDS=tuple(read_profile(SCHEMA)['properties']['foam_system']['properties'])
+PICKUP_FIELDS=('concentrate_pickup_lift_m','pickup_hose_length_m','pickup_hose_inside_diameter_mm')
+AIR_FIELDS=('air_flow_l_min','air_pressure_bar','air_to_solution_ratio')
+
+
+def foam_requirements(foam,agent):
+    # This classifies documentation gaps, not physical capabilities. Injection
+    # systems can also draw concentrate by suction; do not declare N/A by type.
+    pickup_required=foam.get('system_type')=='inline_inductor'
+    required=[f for f in FOAM_FIELDS if (f not in AIR_FIELDS or agent=='CAFS')
+              and (f not in PICKUP_FIELDS or pickup_required)]
+    conditional=[] if pickup_required else list(PICKUP_FIELDS)
+    return required,conditional
+
 LABELS={'pump_stage':'etapa seleccionada de bomba','pump_curve_stage':'etapa a la que corresponde la curva',
  'pump_speed_rpm':'RPM seleccionadas','pump_curve_speed_rpm':'RPM de la curva','pump_outlet_id':'salida de bomba',
  'declared_pump_outlet_pressure_bar':'presión de salida declarada','target_nozzle_pressure_bar':'presión objetivo en la lanza',
@@ -138,8 +151,12 @@ def make_context(profile,result,declared=None):
         base['target_pressure_matches_curve']=math.isclose(b['nozzle_pressure_bar'],data['target_nozzle_pressure_bar'],rel_tol=1e-9,abs_tol=1e-9)
     if base['agent']!='water':
         foam=data.get('foam_system',{})
-        mandatory=[f for f in FOAM_FIELDS if f not in ('air_flow_l_min','air_pressure_bar','air_to_solution_ratio') or base['agent']=='CAFS']
+        mandatory,conditional=foam_requirements(foam,base['agent'])
         base['missing_fields']+=['foam_system.'+f for f in mandatory if f not in foam]
+        base['conditional_fields']=['foam_system.'+f for f in conditional if f not in foam]
+        base['foam_requirement_scope']={
+            'pickup_geometry':'required_for_inline_inductor' if not conditional else 'depends_on_concentrate_feed',
+            'manufacturer_configuration_verified':False}
         if base['target_flow_medium'] is None:base['missing_fields'].append('target_flow_medium')
         base['assessment']='foam_model_not_implemented'
         base['resistant_curve']=None
@@ -215,9 +232,26 @@ def render_installation_context(context,number_format='en'):
     if context['missing_fields']:lines.append('Datos pendientes: '+', '.join(missing_label(f) for f in context['missing_fields'])+'.')
     if context['agent']!='water':
         lines.insert(0,'Los datos de curva del perfil base corresponden al modelo de agua; no representan prestaciones calculadas de espuma o CAFS.')
+        if 'foam_requirement_scope' in context:
+            if context['foam_requirement_scope']['pickup_geometry']=='required_for_inline_inductor':
+                lines.append('En el proporcionador en línea declarado, comprobar altura de aspiración, '
+                             'longitud y diámetro del tubo de toma, junto con la presión de entrada, '
+                             'contrapresión y pérdidas indicadas por el fabricante.')
+            else:
+                conditional=context.get('conditional_fields',[])
+                if conditional:
+                    lines.append('Datos cuya aplicabilidad debe determinarse según la alimentación '
+                                 'del espumógeno: '+', '.join(missing_label(f) for f in conditional)+'.')
+                lines.append('El tipo de dosificador por sí solo no describe su alimentación de '
+                             'espumógeno: un sistema de inyección también puede tener aspiración. '
+                             'Comprobar el circuito y los requisitos del fabricante; no se da por '
+                             'descartada la geometría de toma. Para inyección directa o presión '
+                             'equilibrada, documentar la presión en el punto de inyección, las '
+                             'pérdidas del mezclador y el rango de caudal de agua admitido. '
+                             'Esta clasificación no verifica la dosificación ni la compatibilidad.')
         for field,value in data.get('foam_system',{}).items():
             shown=curve(value) if field=='pressure_loss_curve' else (' / '.join(fmt(v) for v in value) if isinstance(value,list) else (fmt(value) if isinstance(value,(int,float)) else str(value)))
-            if field=='system_type':shown={'inline_inductor':'proporcionador en línea','around_the_pump':'dosificación alrededor de la bomba','direct_injection':'inyección directa','CAFS':'CAFS','other':'otro'}.get(value,str(value))
+            if field=='system_type':shown={'inline_inductor':'proporcionador en línea','around_the_pump':'dosificación alrededor de la bomba','direct_injection':'inyección directa','balanced_pressure':'dosificación a presión equilibrada','CAFS':'CAFS','other':'otro'}.get(value,str(value))
             lines.append(LABELS[field]+': '+shown+'.')
         lines.append('No se calcula caudal, presión de equilibrio ni autonomía de espuma/CAFS con el modelo de agua. Faltan un modelo específico y validación de dosificación, pérdidas y compatibilidad. No se selecciona automáticamente un sistema o concentración.')
     return '\n\n'.join(lines)
