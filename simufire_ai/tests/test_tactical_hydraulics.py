@@ -179,5 +179,58 @@ class HydraulicTests(unittest.TestCase):
             self.assertNotEqual(subprocess.run(cmd,capture_output=True).returncode,0)
             self.assertFalse(missing.exists())
 
+    def test_diameter_length_and_flow_precede_pressure_and_loss(self):
+        self.profile['hose']['inside_diameter_mm']=45
+        self.profile['hose']['curve_inside_diameter_mm']=45
+        self.profile['installation']['hose_length_m']=100
+        result=analyze_profile(self.profile);text=render_result(result)
+        self.assertLess(text.index('diámetro interior declarado 45 mm'),text.index('9.000 bar'))
+        self.assertLess(text.index('longitud 100 m'),text.index('9.000 bar'))
+        self.assertLess(text.index('400 L/min'),text.index('9.000 bar'))
+        self.assertIn('manguera 4.000',text)
+        self.assertIn('caudal 387.097 L/min; pérdida de manguera 3.871 bar',text)
+        self.assertEqual(result['hose_context']['source_id'],self.profile['hose']['source_id'])
+        self.assertAlmostEqual(result['operating_point']['hose_loss_bar'],(12/.031)*.002*100/20)
+
+    def test_legacy_diameter_is_unknown_and_never_inferred(self):
+        result=analyze_profile(self.profile)
+        self.assertIsNone(result['hose_context']['inside_diameter_mm'])
+        self.assertEqual(result['hose_context']['diameter_status'],'not_provided')
+        self.assertIn('diámetro interior no aportado, longitud 60 m',render_result(result))
+        self.assertIn('No se transfiere a otro diámetro',render_result(result))
+        legacy=copy.deepcopy(result);del legacy['hose_context']
+        self.assertIn('diámetro interior y longitud no incluidos',render_result(legacy))
+
+    def test_diameter_is_provenance_not_an_invented_loss_scaling_law(self):
+        original=analyze_profile(self.profile)
+        self.profile['hose']['inside_diameter_mm']=70
+        self.profile['hose']['curve_inside_diameter_mm']=70
+        declared=analyze_profile(self.profile)
+        self.assertNotEqual(original['input_sha256'],declared['input_sha256'])
+        for key in ('target_balance','operating_point','water_at_predicted_operating_point'):
+            self.assertEqual(original[key],declared[key])
+        self.assertTrue(declared['hose_context']['other_diameters_require_their_own_curves'])
+        self.profile['hose']['curve']=[{'flow_l_min':100,'pressure_bar':.1},{'flow_l_min':500,'pressure_bar':.5}]
+        lower_loss=analyze_profile(self.profile)
+        self.assertLess(lower_loss['target_balance']['hose_loss_bar'],declared['target_balance']['hose_loss_bar'])
+        self.assertGreater(lower_loss['operating_point']['flow_l_min'],declared['operating_point']['flow_l_min'])
+
+    def test_invalid_diameter_rejected(self):
+        self.profile['hose']['curve_inside_diameter_mm']=45
+        for diameter in (0,-1,None,True,'45',float('nan'),float('inf'),10**400):
+            self.profile['hose']['inside_diameter_mm']=diameter
+            with self.subTest(diameter=diameter),self.assertRaises(ValueError):analyze_profile(self.profile)
+
+    def test_changing_hose_diameter_requires_matching_curve_conditions(self):
+        self.profile['hose'].update(inside_diameter_mm=45,curve_inside_diameter_mm=45)
+        analyze_profile(self.profile)
+        self.profile['hose']['inside_diameter_mm']=70
+        with self.assertRaisesRegex(ValueError,'no corresponde'):analyze_profile(self.profile)
+        del self.profile['hose']['curve_inside_diameter_mm']
+        with self.assertRaises(ValueError):analyze_profile(self.profile)
+        self.profile['hose'].update(curve_inside_diameter_mm=70)
+        del self.profile['hose']['inside_diameter_mm']
+        with self.assertRaises(ValueError):analyze_profile(self.profile)
+
 
 if __name__=='__main__':unittest.main(verbosity=2)
