@@ -1,0 +1,202 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registry_id",
+    "checked_on",
+    "sources",
+    "standards"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "registry_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checked_on": {
+      "type": "string",
+      "format": "date"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "publisher",
+          "url",
+          "locator",
+          "checked_on",
+          "inspection"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publisher": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checked_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "inspection": {
+            "const": "public_metadata_or_scope_only"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "standards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "standard_id",
+          "designation",
+          "family",
+          "edition",
+          "topics",
+          "source_ids",
+          "public_scope_summary",
+          "legacy_designations",
+          "scope_facts",
+          "normative_clauses_reviewed",
+          "automatic_tactical_rule",
+          "equipment_compliance_assessed",
+          "legal_applicability",
+          "review_status",
+          "limitations"
+        ],
+        "properties": {
+          "standard_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "designation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "family": {
+            "enum": [
+              "EN",
+              "NFPA"
+            ]
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "public_scope_summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "legacy_designations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "scope_facts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "value",
+                "unit",
+                "source_id",
+                "scope"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "unit": {
+                  "enum": [
+                    "bar",
+                    "L/min"
+                  ]
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "minItems": 0
+          },
+          "normative_clauses_reviewed": {
+            "const": []
+          },
+          "automatic_tactical_rule": {
+            "const": false
+          },
+          "equipment_compliance_assessed": {
+            "const": false
+          },
+          "legal_applicability": {
+            "const": "not_assessed"
+          },
+          "review_status": {
+            "const": "public_summary_only"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -471,3 +471,39 @@ H01–H07 siguen siendo casos sintéticos pendientes de revisión experta.
 `test_equipment_catalog.py` y `test_online_sources.py` se ejecutan en la suite
 determinista con dobles de transporte, sin internet ni Ollama. Las recuperaciones
 reales se comprueban por separado y no son un requisito de la suite offline.
+
+## Formato numérico y referencias EN / NFPA
+
+Las respuestas hidráulicas conservan por defecto la notación inglesa elegida:
+`9.000 bar` equivale a 9 bar. `--number-format es` muestra `9,000 bar`.
+`--number-format auto --language es-ES` usa coma; `--language en-US` con auto usa
+punto. Una preferencia explícita prevalece sobre el idioma. No se agrupan miles.
+La selección corresponde solo a la presentación numérica; el texto actual permanece
+en español y los números de JSON conservan el formato estándar con punto.
+
+```powershell
+python simufire_ai/hydraulics.py --profile simufire_ai/tests/data/hydraulic_profile_synthetic.json --output work/hidraulica_es.json --number-format auto --language es-ES
+python simufire_ai/equipment_catalog.py --query "NFPA 1964" --category standards
+python simufire_ai/equipment_catalog.py --query "15182 2" --category standards
+```
+
+El registro `tactics/catalog/standards_references.json` incorpora siete referencias:
+UNE-EN 15182 partes 1 y 2, UNE-EN 1028 partes 1 y 2, NFPA 1960 (2024), NFPA 1900
+(2024) y NFPA 1930 (2025). Guarda ediciones, fuentes oficiales, resúmenes públicos
+del ámbito y relaciones con las denominaciones anteriores. EN/NFPA se consultan
+separadas de las curvas del fabricante y de las referencias científicas NIST.
+
+El ámbito público de EN 15182-2:2019 describe lanzas mixtas PN16 de hasta 1000 L/min
+a presión de referencia de 6 bar. Se distinguen presión de referencia, clase nominal,
+presión de ensayo y presión disponible de la instalación. `nozzle_reference_pressure`
+recupera el valor documentado del modelo elegido; una región o norma no introduce
+6 bar por defecto si falta el dato ni modifica la curva del perfil sintético.
+No se fija tampoco una presión universal para equipos NFPA ni se cambia a psi
+automáticamente por idioma o familia normativa.
+
+Las fichas resumen metadatos y ámbitos accesibles públicamente. No acreditan lectura
+íntegra, revisión de cláusulas, cumplimiento de equipos ni aplicabilidad legal al
+servicio; tampoco generan caudales tácticos o reglas de seguridad nuevas. Las
+cláusulas normativas y sus erratas deben contrastarse antes de implementar requisitos.
+Los siete ejemplos H01–H07 conservan sus cálculos y texto en el formato inglés;
+H01 fue aceptado por el experto el 12 de octubre de 2026, H02–H07 siguen pendientes.
