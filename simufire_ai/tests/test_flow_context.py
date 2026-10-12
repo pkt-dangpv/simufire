@@ -45,7 +45,32 @@ class FlowContextTests(unittest.TestCase):
         self.assertEqual(c['assessment'],'incomplete_installation_metadata')
         for field in ('pump_stage','target_nozzle_pressure_bar','hose_type','connected_elements','hose.inside_diameter_mm'):
             self.assertIn(field,c['missing_fields'])
-        self.assertIn('no aportado',render_hydraulic_answer(result))
+        before=copy.deepcopy(result)
+        text=render_hydraulic_answer(result)
+        self.assertIn('no aportado',text)
+        self.assertLess(text.index('Datos pendientes:'),text.index('Aunque faltan datos'))
+        self.assertLess(text.index('Aunque faltan datos'),text.index('444.444 L/min'))
+        self.assertIn('no acredita la seguridad estructural',text)
+        self.assertIn('8.556 bar',text)
+        self.assertIn('3.600 min',text)
+        self.assertEqual(result,before)
+        self.assertIn('444,444 L/min',render_hydraulic_answer(result,number_format='es'))
+
+    def test_curve_explanation_does_not_claim_missing_or_unsupported_results(self):
+        complete=evaluate_flow_profile(self.profile,self.context)
+        self.assertNotIn('Aunque faltan datos',render_hydraulic_answer(complete))
+        legacy=analyze_profile(self.profile)
+        from tactics.hydraulics import render_result
+        self.assertEqual(render_hydraulic_answer(legacy),render_result(legacy))
+        for point in self.profile['pump']['curve']:point['pressure_bar']+=100
+        outside=evaluate_flow_profile(self.profile)
+        self.assertIsNone(outside['operating_point'])
+        self.assertNotIn('Aunque faltan datos',render_hydraulic_answer(outside))
+        for agent in ('foam_solution','CAFS'):
+            declared=self.foam_context(agent)
+            declared['profile_sha256']=digest(self.profile)
+            foam=evaluate_flow_profile(self.profile,declared)
+            self.assertNotIn('Aunque faltan datos',render_hydraulic_answer(foam))
 
     def test_context_is_bound_to_profile_and_source(self):
         for change in (lambda c:c.update(profile_sha256='0'*64),lambda c:c.update(source_id='missing'),

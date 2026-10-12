@@ -21,6 +21,15 @@ def render_hydraulic_answer(result,*,language='es',number_format='en'):
     if context is not None:
         from tactics.flow_context import render_installation_context
         prefix=render_installation_context(context,number_format=style)
+        if (context['agent']=='water' and context['missing_fields']
+                and result.get('operating_point') is not None
+                and result.get('operating_point_status')=='operating_point_in_curve_domain'):
+            prefix+=('\n\nAunque faltan datos de identificación, condiciones de uso y trazabilidad '
+                     'de componentes (como diámetro, etapa o límites individuales), las curvas '
+                     'aportadas de bomba y resistencia total permiten calcular matemáticamente '
+                     'el punto de funcionamiento dentro de su rango común. El cálculo corresponde '
+                     'a esas curvas y sus supuestos; no acredita la seguridad estructural ni '
+                     'el cumplimiento reglamentario de los componentes no identificados.')
         text=render_result(result) if context['agent']=='water' else ''
     else:prefix='';text=render_result(result)
     if style=='en': return prefix+('\n\n' if prefix and text else '')+text
