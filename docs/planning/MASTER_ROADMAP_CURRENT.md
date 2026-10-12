@@ -1,9 +1,17 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-12 (G3: M4-B1 offline, adaptador físico NO-GO)
+Ultima actualizacion parcial: 2026-10-12 (G3: M4-B2 captura real, adaptador físico NO-GO)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance M4-B2: [captura pasiva del motor real](../validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).
+Cuatro pares sintéticos, 3 844 checks y estados idénticos con/sin observador;
+penacho, puertas y M2-V medidos, sin modificar sim/ ni tasas.
+15 nuevas / 241 focales PASS, monitor final sano, referencia/R2-1 intactos.
+NO-GO a adaptador físico: no hay donante O2 zonal ni conversión de gas aprobada,
+ni petición interior pre-cap. Siguiente contrato de compatibilidad física
+con M2-T/M2-V antes de M4-C/D. CO/FED y producto siguen OFF/NO-GO.
 
 Avance M4-B1: [contrato de eventos offline](../validation/G3_O2_M4_EVENT_CONTRACT_2026-10-12.md).
 Donantes, unidades, participantes e identidad; propuesta inmutable y auditor

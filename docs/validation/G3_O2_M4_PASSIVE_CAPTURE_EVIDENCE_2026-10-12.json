@@ -1,0 +1,245 @@
+{
+  "schema": "g3_m4b2_passive_capture_v1",
+  "date": "2026-10-12",
+  "base_commit": "98ee47757954ccc8cf9a2e916fc8e816e2a52c2f",
+  "scope": "real engine paired synthetic controls; fixture-only observers, not an experimental fire measurement",
+  "capture_closed_for_declared_cases": true,
+  "live_adapter_go": false,
+  "physical_validation": false,
+  "product_activation": false,
+  "co_fed": "OFF/NO-GO",
+  "memory_check_before_first_attempt_gib": 6.891,
+  "min_available_gib_each_monitored_launch": 6,
+  "accepted_record": {
+    "state": "passed",
+    "sources_lf_sha256": {
+      "tests/fixtures/g3_o2_m4_route_capture.gd": "acdff5f57d14f1760fb5a5fdce2c35fb0d73e445849f5986debe3d3e54edda4c",
+      "tests/fixtures/g3_o2_m3_diagnosis.gd": "98e8e6e3ce231e3f3294ec6a5d397b5bb305a9b3fd3da2c162f857334a339b35",
+      "scripts/simulation/run_g3_o2_m4_route_capture.py": "9300a693976276af5e444ea7bdc9734cce1a90a36b35b3ad9e92714e9424df31"
+    },
+    "engine_inventory_lf_sha256": "a03f8b50343d7598882a9da949b4b9fa8b563c96eeaab16fdf3aeea73110e771",
+    "physical_validation": false,
+    "live_adapter_implemented": false,
+    "product_activation": false,
+    "health": {
+      "contract": "windows-window-process-exit-v2",
+      "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+      "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+      "console_wrapper_bypassed": true,
+      "windows_error_ui_suppressed": true,
+      "started_at_utc": "2026-10-12T19:29:36.192693+00:00",
+      "ended_at_utc": "2026-10-12T19:30:03.945665+00:00",
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "process_ownership": "job-object",
+      "owned_process_total": 49,
+      "owned_descendant_wait_s": 0.948,
+      "observed_godot_processes": [
+        {
+          "image_name": "Godot_v4.7.1-stable_win64.exe",
+          "pid": 24344,
+          "exit_code": 0
+        }
+      ],
+      "foreign_godot_processes": [],
+      "process_handle_capture_races": [],
+      "process_handle_capture_failures": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "post_exit_observation_s": 2.179
+    },
+    "fixture": {
+      "cases": {
+        "closed_window": {
+          "duration_s": 300,
+          "events": 16168,
+          "owner_state": "armed",
+          "ticks": 1200
+        },
+        "one_door": {
+          "duration_s": 60,
+          "events": 3595,
+          "owner_state": "armed",
+          "ticks": 240
+        },
+        "sealed": {
+          "duration_s": 60,
+          "events": 2880,
+          "owner_state": "armed",
+          "ticks": 240
+        },
+        "two_doors": {
+          "duration_s": 60,
+          "events": 4271,
+          "owner_state": "armed",
+          "ticks": 240
+        }
+      },
+      "checks": 3844,
+      "failure_count": 0,
+      "failures": [],
+      "product_activation": false
+    },
+    "cases": {
+      "sealed": {
+        "events": 2880,
+        "ticks": 240,
+        "routes": {
+          "oxygen_room_sink_and_ach": 480,
+          "oxygen_stage_container": 240,
+          "zone_preview": 240,
+          "zone_apply": 240,
+          "thermal_sync": 1440,
+          "pressure_venting": 240
+        },
+        "opening_indices": [],
+        "physical_plume_gas_kg": 22.876196357992473,
+        "interior_reference_gas_kg": 0,
+        "dilution_reference_gas_kg": 0,
+        "consumed_o2_kg": 0.16187846224325794,
+        "interface_change_calls": 240,
+        "max_reference_conversion_gap_kg": 0,
+        "max_tick_o2_gap_kg": 5.212410364441311e-15,
+        "precap_interior_request_observed": false,
+        "zonal_o2_donor_observed": false,
+        "live_adapter_eligible": false,
+        "rows_sha256_raw": "91a20aca3a6edc3238dfe7754ed343cd443ff10ddeb089b37ca49bc245f05cb7"
+      },
+      "one_door": {
+        "events": 3595,
+        "ticks": 240,
+        "routes": {
+          "oxygen_room_sink_and_ach": 480,
+          "interior_background": 240,
+          "oxygen_stage_container": 240,
+          "zone_preview": 240,
+          "zone_apply": 240,
+          "thermal_sync": 1812,
+          "pressure_venting": 240,
+          "interior_active": 103
+        },
+        "opening_indices": [
+          0
+        ],
+        "physical_plume_gas_kg": 29.568079807544652,
+        "interior_reference_gas_kg": 14.552630106013217,
+        "dilution_reference_gas_kg": 0,
+        "consumed_o2_kg": 0.1628874291653112,
+        "interface_change_calls": 619,
+        "max_reference_conversion_gap_kg": 1.3877787807814457e-17,
+        "max_tick_o2_gap_kg": 4.970475731848854e-15,
+        "precap_interior_request_observed": false,
+        "zonal_o2_donor_observed": false,
+        "live_adapter_eligible": false,
+        "rows_sha256_raw": "877bc0e80b9dc692aa052c66583f54e3c5c456e141a82230f4c889c714acd8d8"
+      },
+      "two_doors": {
+        "events": 4271,
+        "ticks": 240,
+        "routes": {
+          "oxygen_room_sink_and_ach": 480,
+          "interior_background": 480,
+          "oxygen_stage_container": 240,
+          "zone_preview": 240,
+          "zone_apply": 240,
+          "thermal_sync": 2149,
+          "pressure_venting": 240,
+          "interior_active": 202
+        },
+        "opening_indices": [
+          0,
+          1
+        ],
+        "physical_plume_gas_kg": 29.7364882947496,
+        "interior_reference_gas_kg": 27.798289642107058,
+        "dilution_reference_gas_kg": 0,
+        "consumed_o2_kg": 0.16294853122386233,
+        "interface_change_calls": 848,
+        "max_reference_conversion_gap_kg": 1.3877787807814457e-17,
+        "max_tick_o2_gap_kg": 5.134781488891349e-15,
+        "precap_interior_request_observed": false,
+        "zonal_o2_donor_observed": false,
+        "live_adapter_eligible": false,
+        "rows_sha256_raw": "2f3230e2cd25ff41dedc2a70d78ec9c1620c9d2213ecbe6b15175119ed862091"
+      },
+      "closed_window": {
+        "events": 16168,
+        "ticks": 1200,
+        "routes": {
+          "oxygen_room_sink_and_ach": 2400,
+          "oxygen_stage_container": 1200,
+          "zone_preview": 1501,
+          "zone_apply": 1501,
+          "thermal_sync": 8366,
+          "pressure_venting": 1200
+        },
+        "opening_indices": [],
+        "physical_plume_gas_kg": 59.26749014229507,
+        "interior_reference_gas_kg": 0,
+        "dilution_reference_gas_kg": 0.49640513852205653,
+        "consumed_o2_kg": 5.537545687042644,
+        "interface_change_calls": 2065,
+        "max_reference_conversion_gap_kg": 5.421010862427522e-20,
+        "max_tick_o2_gap_kg": 5.8451507523038515e-15,
+        "precap_interior_request_observed": false,
+        "zonal_o2_donor_observed": false,
+        "live_adapter_eligible": false,
+        "rows_sha256_raw": "32782d95d8a9aeb71a29397e239b5a86e7cc0a2d34ef7e43f90442d1c9110ebc"
+      }
+    }
+  },
+  "accepted_result_path": "C:/Users/dangp/AppData/Local/Temp/simufire_m4b2_capture_final_20261012/result.json",
+  "offline_checks": {
+    "new_tests": 15,
+    "focal_passed": 241,
+    "pytest_s": 3.4,
+    "test_lf_sha256": "83df8aa79069a2db071b974854819501aa95cb74fc3bb8db2fe0da25b575324f",
+    "new_native_mutations": 0,
+    "previous_m4b1_python_mutation_tests_repeated": 12,
+    "reference_regenerated": false,
+    "product_rerun": false,
+    "global_rerun": false
+  },
+  "preservation": {
+    "uid_count": 79,
+    "uid_inventory_sha256": "DC901EFB4F3DC4E6B6AB6AAF754470C2ADBFA4543CACD21E2E4B2BB3ECD6E996",
+    "stashes": [
+      "0e0fd97a20f55a04925b3228ea33cc659f79befe",
+      "6cbc1f07e254e6cf96f37313b1a014a82e5564ff",
+      "9e12ab9e24a2b1901b8c124a94549f0efe784ab6",
+      "8ce667fc97ce4c3470eed915f72f245d02df9611"
+    ]
+  },
+  "limits": [
+    "Requests before interior caps are not exposed by the observed callbacks.",
+    "M2-T parcels sample room reference fractions, not physical zonal donors.",
+    "Physical/reference gas mapping and interface coverage are not approved.",
+    "M2-V remains room dilution and does not expose per-opening contribution.",
+    "Observation ids are scoped to case/call, not canonical physical packet ids; preview/container/summary are not extra packets.",
+    "No HVAC/PPV/pressure-network/hot exterior-opening eligibility measured."
+  ],
+  "attempt_history": [
+    {
+      "folder": "simufire_m4b2_capture_20261012",
+      "result": "parse error: zero-argument OpeningModel constructor; no popup/residue; not accepted"
+    },
+    {
+      "folder": "simufire_m4b2_capture_fixed_20261012",
+      "result": "1924 fixture checks, final runner failed: closed window 60 s never exercised M2-V"
+    },
+    {
+      "folder": "simufire_m4b2_capture_300s_20261012",
+      "result": "300 s ran M2-V, but primitive nonfinite values serialized as null; not final identity proof"
+    },
+    {
+      "folder": "simufire_m4b2_capture_bound_20261012",
+      "result": "M2-V independent audit and opening comparison added; same serialization warning, superseded by final capture"
+    },
+    {
+      "result": "1 failed / 14 passed in new offline sample",
+      "cause": "Decimal witness literals were mistyped; corrected to the actual independent Decimal outputs, engine/analyzer unchanged."
+    }
+  ]
+}

@@ -5,6 +5,14 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-B2: [captura pasiva real](../validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).
+Fixture GD con observadores y controles vanilla emparejados, sin cambios de sim/.
+3 844 checks, identidad de estados y conversión M2-T/M2-V en verde, monitor
+sano; 15 nuevas / 241 focales PASS. No es ensayo de material ni calibración.
+El gas físico del penacho y la mezcla O2 de sala de las puertas no aportan
+un depósito zonal compatible. M4-C/D y CO/FED siguen NO-GO; siguiente
+contrato físico/de compatibilidad antes de cualquier autoridad viva.
+
 Avance M4-B1: [contrato offline de eventos](../validation/G3_O2_M4_EVENT_CONTRACT_2026-10-12.md).
 Implementado fuera de sim/: fuentes/destinos explícitos, base de referencia,
 identidad por evento y candidatos atómicos. 115 pruebas nuevas dentro de

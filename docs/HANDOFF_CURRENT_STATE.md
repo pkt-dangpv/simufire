@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - M4-B2: captura pasiva en el motor real
+
+[Informe y retomada](validation/G3_O2_M4_PASSIVE_CAPTURE_2026-10-12.md).
+Base 98ee4775; observadores GD solo en fixture, sin cambios de sim/ ni leyes.
+Cuatro controles con/sin observador, M3 ON: 60 s sellado/una puerta/dos puertas
+y 300 s ventana cerrada. 3 844 checks, cero diferencias en estados comparados,
+todos armed; identidad distingue NaN/inf y compara también aberturas.
+Balance O2 max 5,85e-15 kg; conversiones M2-T/M2-V contrastadas por separado.
+Puertas: q de referencia 14,552630 / 27,798290 kg por sentido; M2-V 0,496405 kg
+equivalentes, no masa física evacuada. Penacho/siembra llevan gas físico,
+sin paquete O2 zonal compatible. Peticiones pre-cap de puertas siguen ausentes.
+Captura final monitorizada limpia, stderr vacío, cero Godot residual.
+15 nuevas / 241 focales PASS; informes intactos y R2-1 verde.
+Intentos de parseo, horizonte insuficiente y NaN->null registrados como no finales.
+CO/FED OFF/NO-GO; adaptador físico y M4-C/D siguen NO-GO.
+Siguiente: contrato de compatibilidad gas físico/referencia/O2 y M2-T/M2-V,
+antes de autoridad viva. Ocho archivos propios, UID/stashes preservados.
+
 ## Current Program Update - 2026-10-12 - M4-B1: contrato de eventos offline
 
 [Contrato y retomada](validation/G3_O2_M4_EVENT_CONTRACT_2026-10-12.md).
