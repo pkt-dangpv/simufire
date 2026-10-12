@@ -181,6 +181,42 @@ class FlowContextTests(unittest.TestCase):
         self.assertIn('diámetro de tubo de aspiración (mm): 38',text)
         self.assertIn('No se calcula caudal',text)
 
+    def test_documented_flooded_injection_marks_external_geometry_not_applicable(self):
+        for system in ('direct_injection','balanced_pressure'):
+            declared=self.foam_context()
+            declared['foam_system'].update(system_type=system,
+                concentrate_feed_configuration='flooded_volumetric_pump_from_tank',concentrate_feed_source_id='DEMO')
+            with patch('tactics.flow_context.analyze_profile',side_effect=AssertionError('Water analysis for foam')):
+                result=evaluate_flow_profile(self.profile,declared)
+            c=result['installation_context'];self.assertEqual(len(c['not_applicable_fields']),3)
+            self.assertFalse(set(c['not_applicable_fields']) & (set(c['conditional_fields'])|set(c['missing_fields'])))
+            self.assertFalse(c['foam_requirement_scope']['manufacturer_configuration_verified'])
+            text=render_hydraulic_answer(result)
+            self.assertIn('No aplicables (geometría del tubo de aspiración externo)',text)
+            self.assertIn('referencia DEMO',text)
+            self.assertNotIn('Datos cuya aplicabilidad',text)
+            self.assertIsNone(result['operating_point']);self.assertIsNone(result['water_at_predicted_operating_point'])
+
+    def test_explicit_external_suction_makes_injection_pickup_geometry_required(self):
+        declared=self.foam_context();declared['foam_system'].update(system_type='direct_injection',
+            concentrate_feed_configuration='external_suction',concentrate_feed_source_id='DEMO')
+        c=evaluate_flow_profile(self.profile,declared)['installation_context']
+        self.assertEqual(c['conditional_fields'],[])
+        for f in ('concentrate_pickup_lift_m','pickup_hose_length_m','pickup_hose_inside_diameter_mm'):
+            self.assertIn('foam_system.'+f,c['missing_fields'])
+        self.assertNotIn('not_applicable_fields',c)
+
+    def test_not_applicable_requires_traceable_and_consistent_feed_declaration(self):
+        declared=self.foam_context();declared['foam_system'].update(system_type='direct_injection',
+            concentrate_feed_configuration='flooded_volumetric_pump_from_tank',concentrate_feed_source_id='DEMO')
+        mutations=[lambda f:f.pop('concentrate_feed_source_id'),lambda f:f.pop('concentrate_feed_configuration'),
+                   lambda f:f.update(concentrate_feed_source_id='unknown'),lambda f:f.update(system_type='inline_inductor'),
+                   lambda f:f.update(concentrate_pickup_lift_m=0),lambda f:f.update(pickup_hose_length_m=2),
+                   lambda f:f.update(pickup_hose_inside_diameter_mm=38)]
+        for mutate in mutations:
+            c=copy.deepcopy(declared);mutate(c['foam_system'])
+            with self.assertRaises(ValueError):evaluate_flow_profile(self.profile,c)
+
     def test_incoherent_foam_rates_and_invalid_numbers_are_rejected(self):
         mutations=[lambda c:c['foam_system'].update(concentrate_flow_l_min=15),
             lambda c:c['foam_system'].update(concentration_percent_of_solution=6),

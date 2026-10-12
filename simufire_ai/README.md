@@ -587,3 +587,15 @@ Esta distinción documental se apoya en el manual
 y la descripción de aspiración externa en sistemas de inyección
 [Rosenbauer](https://www.rosenbauer.com/Sharepoint/Built-InSystems/Documents%20Built-In%20Pumps/docs/PC2XX_Pumps_Brochure_TruckMountedFirePumps_EN.pdf).
 No se transfieren umbrales o prestaciones entre modelos de fabricante.
+
+
+Para una configuración declarada de inyección directa o presión equilibrada,
+`foam_system.concentrate_feed_configuration=flooded_volumetric_pump_from_tank`
+marca los tres campos de geometría del tubo de aspiración externo como
+**No aplicables** (`not_applicable_fields`). Requiere
+`concentrate_feed_source_id`, asociado a una fuente del contexto. No certifica
+esa declaración ni elimina la documentación del circuito interno de alimentación.
+No se acepta mezclar la declaración de No aplicables con valores de esos campos.
+`external_suction` con su fuente los convierte en datos requeridos. Si no se
+declara la alimentación, se mantiene la clasificación condicional anterior;
+no se deduce No aplicable por el nombre del tipo de dosificador.

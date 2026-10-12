@@ -355,9 +355,27 @@
         "air_to_solution_ratio": {
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "concentrate_feed_configuration": {
+          "enum": [
+            "external_suction",
+            "flooded_volumetric_pump_from_tank"
+          ]
+        },
+        "concentrate_feed_source_id": {
+          "type": "string",
+          "minLength": 1
         }
       },
-      "required": []
+      "required": [],
+      "dependentRequired": {
+        "concentrate_feed_configuration": [
+          "concentrate_feed_source_id"
+        ],
+        "concentrate_feed_source_id": [
+          "concentrate_feed_configuration"
+        ]
+      }
     }
   },
   "required": [

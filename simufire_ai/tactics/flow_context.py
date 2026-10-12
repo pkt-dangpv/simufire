@@ -20,11 +20,15 @@ AIR_FIELDS=('air_flow_l_min','air_pressure_bar','air_to_solution_ratio')
 def foam_requirements(foam,agent):
     # This classifies documentation gaps, not physical capabilities. Injection
     # systems can also draw concentrate by suction; do not declare N/A by type.
-    pickup_required=foam.get('system_type')=='inline_inductor'
-    required=[f for f in FOAM_FIELDS if (f not in AIR_FIELDS or agent=='CAFS')
+    feed=foam.get('concentrate_feed_configuration')
+    pickup_required=foam.get('system_type')=='inline_inductor' or feed=='external_suction'
+    not_applicable=feed=='flooded_volumetric_pump_from_tank'
+    optional=('concentrate_feed_configuration','concentrate_feed_source_id')
+    required=[f for f in FOAM_FIELDS if f not in optional
+              and (f not in AIR_FIELDS or agent=='CAFS')
               and (f not in PICKUP_FIELDS or pickup_required)]
-    conditional=[] if pickup_required else list(PICKUP_FIELDS)
-    return required,conditional
+    conditional=[] if pickup_required or not_applicable else list(PICKUP_FIELDS)
+    return required,conditional,list(PICKUP_FIELDS) if not_applicable else []
 
 LABELS={'pump_stage':'etapa seleccionada de bomba','pump_curve_stage':'etapa a la que corresponde la curva',
  'pump_speed_rpm':'RPM seleccionadas','pump_curve_speed_rpm':'RPM de la curva','pump_outlet_id':'salida de bomba',
@@ -32,6 +36,8 @@ LABELS={'pump_stage':'etapa seleccionada de bomba','pump_curve_stage':'etapa a l
  'hose_type':'tipo de manguera','connected_elements':'elementos conectados y sus curvas','hose.inside_diameter_mm':'diámetro interior de la manguera',
  'target_flow_medium':'medio al que corresponde el caudal objetivo',
  'system_model':'modelo del sistema de espuma','system_type':'tipo de dosificador',
+ 'concentrate_feed_configuration':'alimentación de espumógeno declarada',
+ 'concentrate_feed_source_id':'referencia de la alimentación declarada',
  'concentrate_model':'modelo de espumógeno','concentrate_type':'tipo de espumógeno','fuel':'combustible',
  'water_quality':'calidad del agua','concentration_percent_of_solution':'dosificación (% del volumen de solución)',
  'solution_flow_l_min':'caudal de solución (L/min)','water_flow_l_min':'caudal de agua (L/min)','concentrate_flow_l_min':'caudal de espumógeno (L/min)',
@@ -89,6 +95,13 @@ def validate_context(profile,context):
             if not math.isclose(sum(pressure(e['curve'],flow) for e in elements),pressure(aggregate,flow),abs_tol=1e-9,rel_tol=1e-12):
                 raise ValueError('Pérdidas de elementos no coinciden con la curva agregada de accesorios')
     foam=context.get('foam_system',{})
+    if 'concentrate_feed_source_id' in foam and foam['concentrate_feed_source_id'] not in sources:
+        raise ValueError('Alimentación de espumógeno sin fuente del contexto')
+    if foam.get('concentrate_feed_configuration')=='flooded_volumetric_pump_from_tank':
+        if foam.get('system_type') not in ('direct_injection','balanced_pressure'):
+            raise ValueError('Alimentación inundada requiere declarar el sistema de inyección')
+        if any(f in foam for f in PICKUP_FIELDS):
+            raise ValueError('Geometría de aspiración externa incompatible con su declaración de No aplicables')
     if context['agent']=='water' and context.get('target_flow_medium','water')!='water':raise ValueError('El modelo de agua exige caudal objetivo de agua')
     if context['agent']=='CAFS' and foam.get('system_type','CAFS')!='CAFS':raise ValueError('Agente CAFS incompatible con tipo de sistema')
     if context['agent']=='foam_solution' and foam.get('system_type')=='CAFS':raise ValueError('Seleccionar CAFS para un sistema de aire comprimido')
@@ -151,12 +164,17 @@ def make_context(profile,result,declared=None):
         base['target_pressure_matches_curve']=math.isclose(b['nozzle_pressure_bar'],data['target_nozzle_pressure_bar'],rel_tol=1e-9,abs_tol=1e-9)
     if base['agent']!='water':
         foam=data.get('foam_system',{})
-        mandatory,conditional=foam_requirements(foam,base['agent'])
+        mandatory,conditional,not_applicable=foam_requirements(foam,base['agent'])
         base['missing_fields']+=['foam_system.'+f for f in mandatory if f not in foam]
         base['conditional_fields']=['foam_system.'+f for f in conditional if f not in foam]
+        if not_applicable:
+            base['not_applicable_fields']=['foam_system.'+f for f in not_applicable]
+        pickup_scope=('not_applicable_to_declared_flooded_feed' if not_applicable
+                      else 'required_for_inline_inductor' if foam.get('system_type')=='inline_inductor'
+                      else 'required_for_declared_external_suction' if foam.get('concentrate_feed_configuration')=='external_suction'
+                      else 'depends_on_concentrate_feed')
         base['foam_requirement_scope']={
-            'pickup_geometry':'required_for_inline_inductor' if not conditional else 'depends_on_concentrate_feed',
-            'manufacturer_configuration_verified':False}
+            'pickup_geometry':pickup_scope,'manufacturer_configuration_verified':False}
         if base['target_flow_medium'] is None:base['missing_fields'].append('target_flow_medium')
         base['assessment']='foam_model_not_implemented'
         base['resistant_curve']=None
@@ -233,7 +251,19 @@ def render_installation_context(context,number_format='en'):
     if context['agent']!='water':
         lines.insert(0,'Los datos de curva del perfil base corresponden al modelo de agua; no representan prestaciones calculadas de espuma o CAFS.')
         if 'foam_requirement_scope' in context:
-            if context['foam_requirement_scope']['pickup_geometry']=='required_for_inline_inductor':
+            pickup_scope=context['foam_requirement_scope']['pickup_geometry']
+            if pickup_scope=='not_applicable_to_declared_flooded_feed':
+                lines.append('No aplicables (geometría del tubo de aspiración externo): '+
+                             ', '.join(missing_label(f) for f in context['not_applicable_fields'])+
+                             '. Motivo: bomba volumétrica de inyección declarada como inundada '
+                             'desde depósito; referencia '+data['foam_system']['concentrate_feed_source_id']+
+                             '. Esta declaración no valida las pérdidas, dimensiones ni presión '
+                             'de alimentación del circuito interno, que requieren su documentación.')
+            elif pickup_scope=='required_for_declared_external_suction':
+                lines.append('En la toma externa por aspiración declarada, documentar altura, '
+                             'longitud y diámetro del tubo conforme al fabricante; referencia '+
+                             data['foam_system']['concentrate_feed_source_id']+'.')
+            elif pickup_scope=='required_for_inline_inductor':
                 lines.append('En el proporcionador en línea declarado, comprobar altura de aspiración, '
                              'longitud y diámetro del tubo de toma, junto con la presión de entrada, '
                              'contrapresión y pérdidas indicadas por el fabricante.')
@@ -251,6 +281,9 @@ def render_installation_context(context,number_format='en'):
                              'Esta clasificación no verifica la dosificación ni la compatibilidad.')
         for field,value in data.get('foam_system',{}).items():
             shown=curve(value) if field=='pressure_loss_curve' else (' / '.join(fmt(v) for v in value) if isinstance(value,list) else (fmt(value) if isinstance(value,(int,float)) else str(value)))
+            if field=='concentrate_feed_configuration':
+                shown={'external_suction':'toma externa por aspiración',
+                       'flooded_volumetric_pump_from_tank':'bomba volumétrica inundada desde depósito'}[value]
             if field=='system_type':shown={'inline_inductor':'proporcionador en línea','around_the_pump':'dosificación alrededor de la bomba','direct_injection':'inyección directa','balanced_pressure':'dosificación a presión equilibrada','CAFS':'CAFS','other':'otro'}.get(value,str(value))
             lines.append(LABELS[field]+': '+shown+'.')
         lines.append('No se calcula caudal, presión de equilibrio ni autonomía de espuma/CAFS con el modelo de agua. Faltan un modelo específico y validación de dosificación, pérdidas y compatibilidad. No se selecciona automáticamente un sistema o concentración.')
