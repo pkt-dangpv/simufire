@@ -1,9 +1,23 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-11 (G3: M2-T cerrado tecnicamente, sin activar)
+Ultima actualizacion parcial: 2026-10-12 (G3: M3 cerrado tecnicamente, sin activar producto)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Actualizacion operativa del 12-10: [M3 cerrado tecnicamente](../validation/G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
+Aceptacion post-filtro, reserva y debito exacto, fraccion comun y flashover
+diferido implementados en cuatro `.gd`. 477 checks de integracion, 126 del
+propietario; falsacion valida 14/14 en cada campana. OFF 9/9 y ON sin limitacion
+4/4 identicos byte a byte a M2-T; regresion de transporte 3 650 checks PASS.
+Casas intactas completas, 10 800 ticks cada una, sin deuda, enriquecimiento
+ni recorte tardio; fraccion limitada juzgada en controles sinteticos.
+Referencia 346/346 y 78 gaps, 493/494 archivos brutos iguales (solo timestamp).
+Producto 168/168; guardarrailes R2-1/ALL PASS. Global repetida 4 735 passed,
+68 skipped, 2 xfailed, 42 subtests, monitor limpio. Nueve fallos estaticos de
+la primera global corregidos sin mover motor ni informes; historial conservado.
+Publicacion autorizada tras revisar el diff. No confundir cierre contable con realismo:
+producto, CO/FED y M4 siguen OFF/NO-GO. La nota M2-T de abajo es historica.
 
 Actualizacion operativa del 11-10: [M2-T](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md)
 opcion D autorizada: O2 experimental inmediato y conservativo, implementado

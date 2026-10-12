@@ -52,8 +52,9 @@ _ASKED_FIRST = ("\t\tif room_o2_inventory != null and not room_o2_inventory.outs
                 "\t\t\t\troom, air_in_kg, building.outside_o2):\n"
                 "\t\t\troom_o2_inventory.dilute_with_outside(room, air_in_kg, building.outside_o2, \"pressure_venting\")\n"
                 "\t\t\tcontinue\n")
-_LEFT = ("\tvar out_kg: float = o2_kg_in_reference_gas(mixture_mole_fraction, entering_kg)\n"
-         "\tvar after_kg: float = before_kg + in_kg - out_kg\n")
+# M3 extracted the unchanged dilution arithmetic into one canonical helper.
+# These mutations still change that law, not a duplicated or unused formula.
+_LEFT = '\t\t"mixture_mole_fraction": mixture_mole_fraction, "after_kg": before_kg + in_kg - out_kg}\n'
 
 # name: (file, old, new, defect, group of the fixture that must see it)
 MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
@@ -70,11 +71,12 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
         INVENTORY, _LEFT, _LEFT.replace("before_kg + in_kg - out_kg", "before_kg + in_kg - out_kg - out_kg"),
         "the oxygen that leaves is debited twice", "V03"),
     "W05_mole_fraction_taken_for_a_mass_fraction": (
-        INVENTORY, "\tvar in_kg: float = o2_kg_in_reference_gas(float(outside_mole_fraction), entering_kg)\n",
-        "\tvar in_kg: float = float(outside_mole_fraction) * entering_kg\n",
+        INVENTORY, "\tvar in_kg: float = o2_kg_in_reference_gas(outside_mole_fraction, entering_kg)\n",
+        "\tvar in_kg: float = outside_mole_fraction * entering_kg\n",
         "the outside mole fraction is multiplied by the mass of gas directly", "V03"),
     "W06_clipped_to_the_ceiling_in_silence": (
-        INVENTORY, _LEFT, _LEFT + "\tafter_kg = minf(after_kg, o2_kg_from_mole_fraction(0.209, room.volume_m3()))\n",
+        INVENTORY, _LEFT, _LEFT.replace("before_kg + in_kg - out_kg",
+                                       "minf(before_kg + in_kg - out_kg, o2_kg_from_mole_fraction(0.209, room.volume_m3()))"),
         "what the dilution leaves is cut to 0.209, as the historical write does, with no record", "V04"),
     "W07_applied_twice": (
         GAS, _APPLY, _APPLY + "\t\t\troom_o2_inventory.dilute_with_outside(room, air_in_kg, building.outside_o2, \"pressure_venting\")\n",

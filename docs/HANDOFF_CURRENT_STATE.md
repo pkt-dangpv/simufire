@@ -1,5 +1,93 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - G3: M3 cerrado técnicamente, publicación autorizada
+
+El usuario autoriza implementar M3 y diferir el aumento de flashover a la
+propuesta del tick siguiente. Sigue trabajando en este equipo; migración y
+respaldo USB aparcados. Producto, CO/FED y M4 siguen OFF/NO-GO.
+
+Base main `0a15248a`, motor M2-T `28f74c4d`; trabajo en `runs/g3_shareable`.
+Cambios reales en `CombustionSystem.gd`, `RoomOxygenInventory.gd`,
+`OxygenExchangeSystem.gd` y `SimulationEngine.gd`: propuesta local,
+reserva post-filtro, fracción común, liquidación exacta sin el tope del 5 %,
+flashover diferido y parada antes de calor si falla la reserva.
+No hay nueva activación de producto ni una segunda ley de transporte.
+
+Fixture real: **477 comprobaciones PASS**. Falsación integrada:
+**14/14 mutantes válidos muertos donde se declaró**, 477 checks en el control,
+restauración SHA-256 exacta. Repetición del propietario aislado sobre sus bytes
+integrados: **126 PASS, 14/14 mutantes válidos**, también restauración exacta.
+Las campañas finales no tuvieron errores de script, timeout, cuadros, procesos
+residuales ni terminaciones de limpieza. El monitor evita el wrapper de consola,
+suprime UI de errores y solo posee sus descendientes.
+
+Controles ON sin limitación: **4/4 idénticos byte a byte** contra M2-T
+(ticks de 2 / 1 / 0,5 / 0,25 s, 30 s por control; 675 checks en cada versión,
+sin flashover ni fracción menor que uno). Una prueba de 30 s no sustituye las
+casas de 900 s ni la referencia. Focal offline final: **319 passed**,
+una prueba Godot excluida para no solapar tandas; estilo GDScript y diff limpios.
+Los 17 fallos previos de esa focal quedan explicados como contratos históricos
+de forma/procedencia, no fallos ocultados: los hashes antiguos se comprueban
+contra su commit, se protege el resto de funciones actuales y se mantiene
+idéntico el resto de la rama histórica del sumidero.
+
+Estado de cierre: **cadena completa verde; publicación autorizada sin activar producto**.
+Identidad OFF de los
+nueve casos **9/9 byte a byte**, con sus nueve monitores saludables. Regresión
+viva M2-T: **3 650 checks PASS**. Venteo sobre M3: **138 checks y 16/16
+mutantes válidos**, 17 monitores limpios y restauración exacta. W08 cubre
+tránsito sintético de la API diagnóstica, no un retardo vivo de M2-T.
+Las dos casas sin simplificar pasan completas: 10 800 ticks por casa, 900 s,
+calor respaldado tick a tick, sin clips tardíos, deuda ni enriquecimiento.
+C1/C2 PASS. Cero pasos de las casas limitados por reserva; la fracción menor
+que uno se juzga en la fixture sintética integrada, no se atribuye a estas casas.
+Referencia de M3 completada: 346/346, 78 gaps; corpus bruto 493/494 idéntico,
+solo `generated_at`. Monitor limpio, 3 263,55 s. Producto 168/168 y
+guardarraíles ALL PASS, R2-1 incluido. El motor sigue en los mismos bytes.
+Global repetida: **4 735 passed, 68 skipped, 2 xfailed, 42 subtests**, exit 0,
+893,31 s de pytest y 897,93 s monitorizados, sin fallos nativos, timeout,
+cuadros, procesos residuales ni terminaciones de limpieza. Los skips y xfails
+no se presentan como validación física. Se conservan las limitaciones legacy.
+
+Referencia cerrada por `scripts/simulation/run_g3_o2_m3_closure.py --stage reference`, con
+`--houses C:\Users\dangp\AppData\Local\Temp\simufire_m3_houses_20261012\result.json`
+y `--work C:\Users\dangp\AppData\Local\Temp\simufire_m3_reference_20261012`.
+Resultado terminal `passed` en `result.json` externo. Primera global: 9 failed,
+4 725 passed, 68 skipped, 2 xfailed, 42 subtests, 937,56 s. Salud limpia:
+ningún fallo nativo, timeout, cuadro, residuo ni terminación de limpieza.
+Ocho fallos reproducen el diseño histórico Test016 sobre el motor cambiado;
+se ligan al commit `60754428` y se añade que el auditor vivo debe rechazar M3.
+El noveno buscaba una escritura directa del depósito que ahora es propuesta;
+la prueba exige que las cinco fuentes se anulen antes de calcularla.
+Focal de estas correcciones: 48 passed. Sin cambiar motor ni informes.
+No repetir referencia ni mutaciones por estas correcciones de tests: los
+cuatro `.gd` y todo el corpus posterior a referencia siguen idénticos por hash.
+
+Próximo trabajo, no iniciado: contrato/gates de M4 y los balances pendientes
+de combustible, calor y especies. M3 no valida composición zonal, materiales,
+rendimientos de CO, FED ni respuesta física general. El diseño antiguo del
+banco Test016 sigue rechazado por su auditor vivo sobre M3; su fixture aislada
+y su reproducción histórica se verifican por separado. No combinar los modos
+ni activar producto usando un GO antiguo.
+[Detalle y retomada](validation/G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
+
+Intentos que no cuentan documentados: falta de memoria anterior; fixture sin
+`get_room`; clasificador con banner ausente; R09 leyendo una lista vacía;
+alias nativo `Engine`; montaje incorrecto del remanente final; I09 accediendo
+a `room.fire` nulo. No son muertes válidas ni validación de física.
+La corrección del montaje final no cambia la ley de combustible.
+
+Otros intentos del verificador registrados en el informe: log compartido
+inexistente tras un OFF 9/9 saludable (revisado sin relanzar); W08 sin
+cobertura de la cola diagnóstica; rechazo de 5,98 GiB antes de W02;
+formato histórico con mensajes acotados por grupo. Correcciones de arnés,
+no cambios adicionales del motor ni muertes inválidas contadas como válidas.
+
+Una sola tanda Godot a la vez, mínimo 6 GiB y temporales externos.
+El usuario no puede liberar más RAM: no rebajar la guarda ni pedírselo otra vez.
+Conservar los 79 `.gd.uid` ajenos y los cuatro stashes; main no se toca
+sin la cadena completa. Los originales FSRI restringidos no se publican.
+
 ## Current Program Update - 2026-10-11 - G3: M2-T cerrado técnicamente, sin activar
 
 El usuario autoriza el O₂ inmediato y conservativo experimental, no M3/M4

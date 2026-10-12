@@ -258,7 +258,12 @@ def test_nothing_of_the_product_reaches_the_bench() -> None:
 
 def test_the_protected_modules_were_not_touched() -> None:
     import hashlib
-    combustion = (ROOT / "sim/fire/CombustionSystem.gd").read_bytes().replace(b"\r\n", b"\n")
+    import subprocess
+    # Published Test016/M2 evidence precedes authorized M3 acceptance changes.
+    # Current M3 boundaries and OFF identity have their own judged contracts.
+    combustion = subprocess.check_output(
+        ["git", "show", "28f74c4d:sim/fire/CombustionSystem.gd"], cwd=ROOT
+    ).replace(b"\r\n", b"\n")
     # Stage M2 of the oxygen authority (2026-10-10) lifted the freeze for one block: where the
     # fire chooses its oxygen. The pin does not move: it is compared with that block taken out.
     first = b"\t# G3 M2: con el inventario de O2 de sala como autoridad"

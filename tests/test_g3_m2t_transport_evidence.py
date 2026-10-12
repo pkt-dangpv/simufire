@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -10,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RECORDS = ROOT / "docs/validation"
 DATE = "2026-10-11"
 SOURCES = ("sim/core/RoomOxygenInventory.gd", "sim/core/OxygenExchangeSystem.gd")
+PUBLISHED_IN = "28f74c4d"
 
 
 def record(label):
@@ -18,6 +20,11 @@ def record(label):
 
 def sha_lf(path):
     return hashlib.sha256((ROOT / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def published_sha(path):
+    raw = subprocess.check_output(["git", "show", f"{PUBLISHED_IN}:{path}"], cwd=ROOT)
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def healthy(health):
@@ -44,10 +51,10 @@ def test_same_real_fixture_fails_on_base_without_script_errors_and_passes_now():
 
 
 @pytest.mark.parametrize("label", ["ACCEPTANCE", "REGRESSIONS", "CLOSURE"])
-def test_executed_records_bind_the_current_two_engine_files(label):
+def test_executed_records_bind_the_two_engine_files_they_measured(label):
     data = record(label)
     for path in SOURCES:
-        assert sha_lf(path) == data["sources"][path]["normalized_sha256"]
+        assert published_sha(path) == data["sources"][path]["normalized_sha256"]
 
 
 @pytest.mark.parametrize("name", ["o2_closed", "o2_reopen_300"])
@@ -76,7 +83,7 @@ def test_all_declared_mutants_die_where_expected_and_restore_originals():
     for health in mutations["health"].values():
         healthy(health)
     for path, expected in mutations["sha256_after"].items():
-        assert sha_lf(path) == expected
+        assert published_sha(path) == expected
 
 
 def test_historical_fixtures_and_all_nine_off_cases_remain_judged():

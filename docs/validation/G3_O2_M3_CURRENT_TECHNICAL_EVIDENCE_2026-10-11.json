@@ -1,0 +1,750 @@
+{
+  "schema": "g3_m3_current_technical_evidence_v1",
+  "implemented": true,
+  "closed": true,
+  "product_activation": false,
+  "physical_validation": false,
+  "CO_FED": "OFF/NO-GO",
+  "campaigns": {
+    "integration": {
+      "raw_record_sha256": "4c91d1c8666da59f0b55eaebc06383e207f2368243b8cc2454b055103e5f8f5c",
+      "control_checks": 477,
+      "control_verdict": "pass",
+      "declared": 14,
+      "executed": 14,
+      "killed_where_expected": 14,
+      "sources_before": {
+        "sim/fire/CombustionSystem.gd": "1d513a4647b29e7d3318a49dcc08f936109d57872b8e4e89e1c660cf0e26765d",
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+        "sim/core/SimulationEngine.gd": "a2d9cc139224ecaf15e7d5dc81813c804580c664e59b271ad7b1122b841fe76d"
+      },
+      "sources_after": {
+        "sim/fire/CombustionSystem.gd": "1d513a4647b29e7d3318a49dcc08f936109d57872b8e4e89e1c660cf0e26765d",
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+        "sim/core/SimulationEngine.gd": "a2d9cc139224ecaf15e7d5dc81813c804580c664e59b271ad7b1122b841fe76d"
+      },
+      "originals_intact": true,
+      "clean_launches": 15,
+      "assertions": [
+        {
+          "name": "I01_limit_target_not_filter",
+          "verdict": "killed",
+          "expected_in": "real sink settles reservation",
+          "seen_where_expected": true,
+          "failed_checks": 142,
+          "mutant_sha256": "3cc86e8e897048740b265bd9e396d8f3a28020cdb1c4780bd375123cd024cdfc"
+        },
+        {
+          "name": "I02_power_not_scaled",
+          "verdict": "killed",
+          "expected_in": "accepted power uses one fraction",
+          "seen_where_expected": true,
+          "failed_checks": 18,
+          "mutant_sha256": "e2430a5c3412ef31d9b298156080190db650eb2c4b7e7cf12a8344485a0134ca"
+        },
+        {
+          "name": "I03_products_not_scaled",
+          "verdict": "killed",
+          "expected_in": "common fraction co_kg",
+          "seen_where_expected": true,
+          "failed_checks": 5,
+          "mutant_sha256": "b18751f70a0debac9092b7f0b633805ee74271f9f8a482f34cb70e90d4ed3718"
+        },
+        {
+          "name": "I04_pool_not_scaled",
+          "verdict": "killed",
+          "expected_in": "pool change uses one fraction",
+          "seen_where_expected": true,
+          "failed_checks": 3,
+          "mutant_sha256": "7fa82a36a4a2b4edfc2fe0c8e123d19b750f9c83e1f8d2c7b1711722226c051e"
+        },
+        {
+          "name": "I05_fuel_not_scaled",
+          "verdict": "killed",
+          "expected_in": "fuel uses one fraction",
+          "seen_where_expected": true,
+          "failed_checks": 6,
+          "mutant_sha256": "1eb4d742dc4a1e9a5e068c0ae39b2876891705a17ac887a5eeaf115dccd84fd2"
+        },
+        {
+          "name": "I06_late_debit_capped",
+          "verdict": "killed",
+          "expected_in": "live sink has no five percent cap",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "e40fa0e95a2c9534931fc11112e1804119434adfc994b6692e747ed40695d4c2"
+        },
+        {
+          "name": "I07_rejection_writes_pool",
+          "verdict": "killed",
+          "expected_in": "refusal writes no pool",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "020bec777b1df4055ca98cf9bf13a2d2f56a9f396cb609c6d20802101cfc4b37"
+        },
+        {
+          "name": "I08_flashover_changes_current_heat",
+          "verdict": "killed",
+          "expected_in": "flashover cannot mutate accepted power",
+          "seen_where_expected": true,
+          "failed_checks": 6,
+          "mutant_sha256": "5789242e606890f672a1d314a7962ba4104715fe036e623464ac4f759401ac52"
+        },
+        {
+          "name": "I09_late_extinction_erases_heat",
+          "verdict": "killed",
+          "expected_in": "last accepted fuel tick not erased",
+          "seen_where_expected": true,
+          "failed_checks": 3,
+          "mutant_sha256": "b3550d1743837a6fabd4b77a30cf34197ea2bb935c88f2ab552cb335f65ca8db"
+        },
+        {
+          "name": "I10_deferred_power_survives_reset",
+          "verdict": "killed",
+          "expected_in": "reset removes pending flashover",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "6743bff91ab8d5196b977ff94f2640be998ecbc346156c5b4f57f9a32402a99f"
+        },
+        {
+          "name": "I11_same_tick_spends_flashover",
+          "verdict": "killed",
+          "expected_in": "same-tick flashover proposal cannot be spent",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "3fd9890b2baf62d6da7f1d1a5815ec4ddda0040ab1d0bf3ddb4fc2d65cdb24fb"
+        },
+        {
+          "name": "I12_heat_accumulator_not_scaled",
+          "verdict": "killed",
+          "expected_in": "heat accumulator uses one fraction",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "0a0208cba87348733336c8f480ecd4215f65b2115d77091874a5fb0182e06bc0"
+        },
+        {
+          "name": "I13_smoke_not_scaled",
+          "verdict": "killed",
+          "expected_in": "common fraction smoke_prod_kg_s",
+          "seen_where_expected": true,
+          "failed_checks": 3,
+          "mutant_sha256": "d1cade96a59c942a68b820447e0b7abc1dfd3bb0d7a800577a05450558b47cc2"
+        },
+        {
+          "name": "I14_object_power_not_scaled",
+          "verdict": "killed",
+          "expected_in": "explicit object power uses accepted fraction",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "b6de1500d04396541f67d55b614dc6f8a07431f16dc9aa4c073aeedde097fabe"
+        }
+      ]
+    },
+    "owner": {
+      "raw_record_sha256": "f285c57c89a4fd63a4c5f1b39dc3885e940abd7b98dbf90dca6329cbe9f2d715",
+      "control_checks": 126,
+      "control_verdict": "pass",
+      "declared": 14,
+      "executed": 14,
+      "killed_where_expected": 14,
+      "sources_before": {
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3"
+      },
+      "sources_after": {
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3"
+      },
+      "originals_intact": true,
+      "clean_launches": 15,
+      "assertions": [
+        {
+          "name": "R01_old_five_percent_cap",
+          "verdict": "killed",
+          "expected_in": "can reserve all available",
+          "seen_where_expected": true,
+          "failed_checks": 18,
+          "mutant_sha256": "df5f55a396d7b9258869b1484d3de7e5317673bb347bcab244e92e21a331699c"
+        },
+        {
+          "name": "R02_caller_forges_availability",
+          "verdict": "killed",
+          "expected_in": "caller cannot forge availability",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "1a9d85e3e6bd3d6875c278e3255f90be320abccbfbe6014b59dec4b34903085a"
+        },
+        {
+          "name": "R03_positive_arrival_spent",
+          "verdict": "killed",
+          "expected_in": "positive pending arrival is not available",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "ff50947805b6bdf7fe612b790278899d6dc2cf0c6117301a881f2e5027692da8"
+        },
+        {
+          "name": "R04_obligation_ignored",
+          "verdict": "killed",
+          "expected_in": "all negative obligations deducted",
+          "seen_where_expected": true,
+          "failed_checks": 4,
+          "mutant_sha256": "6c92bda4df1c3e0ae1a41ac3ca4f401aa2160bd85cd4325d311e86a4c0527714"
+        },
+        {
+          "name": "R05_duplicate_reservation",
+          "verdict": "killed",
+          "expected_in": "one reservation only",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "f7813eb932abda0ffe247b9143d68c57ed97873c8c0a9d39afa2946d0ecb7226"
+        },
+        {
+          "name": "R06_changed_heat_accepted",
+          "verdict": "killed",
+          "expected_in": "post-acceptance heat change",
+          "seen_where_expected": true,
+          "failed_checks": 6,
+          "mutant_sha256": "aa0921e1c6e59e6df35a92fe28611000286b00845c385f8f33b07a2c8140bf10"
+        },
+        {
+          "name": "R07_settlement_capped",
+          "verdict": "killed",
+          "expected_in": "inventory exhausted without negative clamp",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "e40fa0e95a2c9534931fc11112e1804119434adfc994b6692e747ed40695d4c2"
+        },
+        {
+          "name": "R08_mass_commit_omitted",
+          "verdict": "killed",
+          "expected_in": "exact debit",
+          "seen_where_expected": true,
+          "failed_checks": 3,
+          "mutant_sha256": "280d227a0bbace35183b60ac3c2707b8309e6a4762abe13c7789185328246c9e"
+        },
+        {
+          "name": "R09_unsettled_reservation_discarded",
+          "verdict": "killed",
+          "expected_in": "unsettled reservation cannot close",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "a2f6ea38b7342afa53dd5ec01cf6f297ccc84f017914eab205f4a745b0a88e6c"
+        },
+        {
+          "name": "R10_outgoing_reservation_unprotected",
+          "verdict": "killed",
+          "expected_in": "protected outside",
+          "seen_where_expected": true,
+          "failed_checks": 11,
+          "mutant_sha256": "940e2017c00fef4139ffe367657bc50ec42977955d6e0f456c92fe647c990381"
+        },
+        {
+          "name": "R11_old_sink_bypass",
+          "verdict": "killed",
+          "expected_in": "old debit cannot bypass acceptance",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "6cdc8dd1b64cd731725c11421ada1a989c60bad928a638f837f10c488e64d3a6"
+        },
+        {
+          "name": "R12_changed_inventory_accepted",
+          "verdict": "killed",
+          "expected_in": "changed inventory refuses reservation",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "174daf685cc7093d71fe3659a6c95ba2772db5e83be9a2191f58ce74ddd65d01"
+        },
+        {
+          "name": "R13_changed_coefficient_accepted",
+          "verdict": "killed",
+          "expected_in": "coefficient cannot change after acceptance",
+          "seen_where_expected": true,
+          "failed_checks": 2,
+          "mutant_sha256": "8344dd3ed3f2969f67572a04b6ce5e86b5ee4430725e9b17534f4f64fb896325"
+        },
+        {
+          "name": "R14_other_generation_accepted",
+          "verdict": "killed",
+          "expected_in": "reject wrong selection generation",
+          "seen_where_expected": true,
+          "failed_checks": 1,
+          "mutant_sha256": "9554d1c7cada3a54f022ef2509428f1ce4f322f0ef7d42fbd4a24fe202853a7d"
+        }
+      ]
+    }
+  },
+  "sources_sha256_raw": {
+    "sim/fire/CombustionSystem.gd": "1d513a4647b29e7d3318a49dcc08f936109d57872b8e4e89e1c660cf0e26765d",
+    "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+    "sim/core/OxygenExchangeSystem.gd": "63105c22785ecc90ae8810b1e5672d70bbb04f13db3b4472840f61f429900292",
+    "sim/core/SimulationEngine.gd": "a2d9cc139224ecaf15e7d5dc81813c804580c664e59b271ad7b1122b841fe76d"
+  },
+  "sources_sha256_lf": {
+    "sim/fire/CombustionSystem.gd": "1d513a4647b29e7d3318a49dcc08f936109d57872b8e4e89e1c660cf0e26765d",
+    "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+    "sim/core/OxygenExchangeSystem.gd": "63105c22785ecc90ae8810b1e5672d70bbb04f13db3b4472840f61f429900292",
+    "sim/core/SimulationEngine.gd": "a2d9cc139224ecaf15e7d5dc81813c804580c664e59b271ad7b1122b841fe76d"
+  },
+  "unlimited": {
+    "base": "28f74c4da5f40077d5e4685575bc29bc5e23b68c",
+    "identical_controls": 4,
+    "checks": {
+      "base": 675,
+      "current": 675
+    },
+    "row_sha256": {
+      "base": {
+        "unlimited_0.25.jsonl": "7b743c3e5323ef994e5225650a09653c88c1395a8c3af90c03f7ffc878f48558",
+        "unlimited_0.5.jsonl": "86f50b4661f2beffeea319ee2344becea048e3a878ad1ecb3ee99b8efce169c0",
+        "unlimited_1.0.jsonl": "7cf4e545306254a1254493baae1ab94cd1fd61da0ed7aeff1c87d4798f6c6efe",
+        "unlimited_2.0.jsonl": "8740b0f65ce63e97e71b2a1d32515ff87d6e75a970f589902e50681b0b8ec511"
+      },
+      "current": {
+        "unlimited_0.25.jsonl": "7b743c3e5323ef994e5225650a09653c88c1395a8c3af90c03f7ffc878f48558",
+        "unlimited_0.5.jsonl": "86f50b4661f2beffeea319ee2344becea048e3a878ad1ecb3ee99b8efce169c0",
+        "unlimited_1.0.jsonl": "7cf4e545306254a1254493baae1ab94cd1fd61da0ed7aeff1c87d4798f6c6efe",
+        "unlimited_2.0.jsonl": "8740b0f65ce63e97e71b2a1d32515ff87d6e75a970f589902e50681b0b8ec511"
+      }
+    },
+    "raw_record_sha256": "62350736a78014dc25f004b92178b4cfd6633ab8e32e0cc9f7ba4203a349e739",
+    "restored_byte_for_byte": true
+  },
+  "judged_harness_sha256_lf": {
+    "tests/fixtures/g3_o2_m3_reservation.gd": "6dca2165ebbbea980273c7d09747dcf783f6e65ba6758a5aba0a4294687211de",
+    "tests/fixtures/g3_o2_m3_integration.gd": "e717b47c9280ce091bd7a0d0130df178977aae9f52025e5f7d5d52d241c873c6",
+    "tests/fixtures/g3_o2_m3_unlimited.gd": "d770a03502f74b8ac2da1ab2dcd1485d0256c67f3e545ff4a275c4c458b247c1",
+    "scripts/simulation/run_g3_o2_m3_reservation_mutations.py": "1802038dcf35ff61847b3a0ebe883e8552779a59e550deb9705ef634b71bd1b1",
+    "scripts/simulation/run_g3_o2_m3_integration_mutations.py": "c89daad4cc65d91872de4d733ef59ef7b33243fa61e40fdf3c36f2d5f254abe5"
+  },
+  "off": {
+    "identical_cases": 9,
+    "total_cases": 9,
+    "cases": {
+      "sofa_vent": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "sofa_vent_dt24": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "two_active_vent": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "low_power_vent": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "o2_closed": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "o2_closed_dt24": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "o2_reopen_300": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "o2_reopen_700": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      },
+      "o2_stress_cap": {
+        "files": {
+          "sim_log.csv": true,
+          "sim_log.txt": true,
+          "fuel_source_ledger.jsonl": true,
+          "co_inventory_trace.jsonl": true,
+          "fuel_object_state_snapshot.json": true,
+          "events.json": true,
+          "scenario.json": true
+        },
+        "identical": true,
+        "ledger_absent": true
+      }
+    },
+    "clean_launches": 9,
+    "original_wrapper_error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\dangp\\\\AppData\\\\Local\\\\Temp\\\\simufire_m3_off_f4d497fc99c5405bacba9f80bed63bd5\\\\godot.health.jsonl'",
+    "verified_without_rerunning": true
+  },
+  "regressions": {
+    "venting": {
+      "fixture": "tests/fixtures/g3_o2_m3_venting_regression.gd",
+      "control_checks": 138,
+      "declared": 16,
+      "executed": 16,
+      "killed_where_expected": 16,
+      "originals_intact": true,
+      "clean_launches": 17,
+      "sources_before": {
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+        "sim/core/GasExchangeSystem.gd": "56064f94596645244a622187affa8dfba0ec74c0ade11ee96612b70a5020f1d5"
+      },
+      "sources_after": {
+        "sim/core/RoomOxygenInventory.gd": "212eb084f9ae8f9db86ef059d8910e3f395d61bee54796f8479b610713fbccf3",
+        "sim/core/GasExchangeSystem.gd": "56064f94596645244a622187affa8dfba0ec74c0ade11ee96612b70a5020f1d5"
+      },
+      "raw_record_sha256": "2c0254898027e9173c53b587fa11527a2c51c2362724fc53aac18eb0ea3edbaa",
+      "diagnostic_transit_only": "W08 explicitly synthetic; no live delay",
+      "assertions": [
+        {
+          "name": "W01_venting_left_out_of_the_inventory",
+          "verdict": "killed",
+          "expected_in": "V02",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W02_wrong_sign",
+          "verdict": "killed",
+          "expected_in": "V03",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W03_entry_counted_twice",
+          "verdict": "killed",
+          "expected_in": "V03",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W04_exit_counted_twice",
+          "verdict": "killed",
+          "expected_in": "V03",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W05_mole_fraction_taken_for_a_mass_fraction",
+          "verdict": "killed",
+          "expected_in": "V03",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W06_clipped_to_the_ceiling_in_silence",
+          "verdict": "killed",
+          "expected_in": "V04",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W07_applied_twice",
+          "verdict": "killed",
+          "expected_in": "V06",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W08_transit_left_out_of_the_budget",
+          "verdict": "killed",
+          "expected_in": "V05",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W09_room_number_written_directly",
+          "verdict": "killed",
+          "expected_in": "V07",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W10_old_refusal_kept",
+          "verdict": "killed",
+          "expected_in": "V02",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W11_owner_asked_after_writing",
+          "verdict": "killed",
+          "expected_in": "V08",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W12_accumulator_taken_from_the_number",
+          "verdict": "killed",
+          "expected_in": "V06",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W13_gas_leaves_at_the_fraction_of_before",
+          "verdict": "killed",
+          "expected_in": "V03",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W14_selection_built_again_after_the_venting",
+          "verdict": "killed",
+          "expected_in": "V07",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W15_owner_says_it_would_apply_anything",
+          "verdict": "killed",
+          "expected_in": "V08",
+          "seen_where_expected": true
+        },
+        {
+          "name": "W16_entry_and_exit_recorded_as_a_net",
+          "verdict": "killed",
+          "expected_in": "V02",
+          "seen_where_expected": true
+        }
+      ]
+    },
+    "transport": {
+      "checks": 3650,
+      "failure_count": 0,
+      "clean_launches": 1,
+      "raw_record_sha256": "97fd7cfc3e002f79de207684655cffc9caef9fa45e468c654ad941417fda25ae"
+    }
+  },
+  "houses": {
+    "o2_closed": {
+      "folder": "runs/g3_o2_venting_house_on_20261012_001727/o2_closed",
+      "whole": true,
+      "heat_budget": {
+        "steps": 10800,
+        "reservations": 6702,
+        "limited_steps": 0,
+        "heat_MJ": 87.46208248345538,
+        "consumed_kg": 6.647118268742539,
+        "largest_step_gap_kg": 5.529431079676073e-16,
+        "no_late_clipping": true
+      },
+      "contracts": {
+        "c1": true,
+        "c2": true,
+        "c1_worst_residual_kg": 3.1699096680881667e-9,
+        "c2_heat_minus_debit_kg": 0,
+        "c2_primary_minus_debit_kg": 0,
+        "inventory_from": "the oxygen trace, kg of O2"
+      },
+      "balance": {
+        "steps": 10800,
+        "room_gap_kg": 3.328934350399493e-15,
+        "building_gap_kg": 1.5622052262909136e-14,
+        "oracle_gap_kg": 1.5939940339881886e-14,
+        "largest_transit_kg": 0,
+        "largest_number_of_entries": 0,
+        "clipped_kg": 0
+      },
+      "rich_steps": 0,
+      "trace_sha256": "b1343f6608bcfa6d4f8b6e9453ae4db7ac1442b07a72bb3d3edcca9a2f0c404f",
+      "fire": {
+        "peak_kw": 569.1190680378078,
+        "time_of_the_peak_s": 140.4999999999985,
+        "heat_MJ": 87.46208248345503,
+        "fire_clock_s": 217.86494811735056,
+        "seconds_with_power": 419.16666666666663,
+        "power_at_the_end_kw": 0,
+        "times_it_went_out": 1,
+        "went_out_at_s": [
+          419.2499999999745
+        ],
+        "times_it_came_back": 0,
+        "came_back_at_s": [],
+        "lowest_oxygen_the_fire_read": 0.10858640852447296,
+        "fire_reads_at_the_end": "room_inventory",
+        "lowest_room_number": 0.10858640852447296,
+        "room_number_at_the_end": 0.11545932632303542,
+        "lower_number_at_the_end": 0.11519985300546227,
+        "upper_number_at_the_end": 0.11502533828067212,
+        "debit_of_the_room_kg": 6.647118268742539,
+        "declared_as_consumed_kg": 6.647118268742539,
+        "demand_of_the_heat_kg": 6.647118268742583
+      }
+    },
+    "o2_reopen_300": {
+      "folder": "runs/g3_o2_venting_house_on_20261012_001926/o2_reopen_300",
+      "whole": true,
+      "heat_budget": {
+        "steps": 10800,
+        "reservations": 10708,
+        "limited_steps": 0,
+        "heat_MJ": 125.81687233473471,
+        "consumed_kg": 9.562082297439867,
+        "largest_step_gap_kg": 5.529630132418677e-16,
+        "no_late_clipping": true
+      },
+      "contracts": {
+        "c1": true,
+        "c2": true,
+        "c1_worst_residual_kg": -5.3277875444734946e-9,
+        "c2_heat_minus_debit_kg": -5.200000430249929e-9,
+        "c2_primary_minus_debit_kg": 0,
+        "inventory_from": "the oxygen trace, kg of O2"
+      },
+      "balance": {
+        "steps": 10800,
+        "room_gap_kg": 4.4868622706140115e-15,
+        "building_gap_kg": 1.8093653745415716e-14,
+        "oracle_gap_kg": 1.8168409485208592e-14,
+        "largest_transit_kg": 0,
+        "largest_number_of_entries": 0,
+        "clipped_kg": 0
+      },
+      "rich_steps": 0,
+      "trace_sha256": "6dc46e0d0ede8cd9692a8ec6ca469a26f59820d3f6884a17349ab8d9d4aa99a3",
+      "fire": {
+        "peak_kw": 569.1190680378078,
+        "time_of_the_peak_s": 140.4999999999985,
+        "heat_MJ": 125.81687233473424,
+        "fire_clock_s": 476.8596475415965,
+        "seconds_with_power": 892.3333333333333,
+        "power_at_the_end_kw": 0,
+        "times_it_went_out": 1,
+        "went_out_at_s": [
+          892.416666666793
+        ],
+        "times_it_came_back": 0,
+        "came_back_at_s": [],
+        "lowest_oxygen_the_fire_read": 0.11099652120258431,
+        "fire_reads_at_the_end": "room_inventory",
+        "lowest_room_number": 0.11099652120258431,
+        "room_number_at_the_end": 0.15816594328989148,
+        "lower_number_at_the_end": 0.15810696495431786,
+        "upper_number_at_the_end": 0.1540796118862069,
+        "debit_of_the_room_kg": 9.562082297439867,
+        "declared_as_consumed_kg": 9.562082297439867,
+        "demand_of_the_heat_kg": 9.562082297439803
+      }
+    }
+  },
+  "closure": {
+    "reference": {
+      "returncode": 0,
+      "raw_record_sha256": "7dafe741a72f01ca5322c9904662776b142fa6f9045d97da0d74fa5fdbad629e",
+      "wall_s": 3263.55,
+      "available_gib_before": 6.565792083740234,
+      "available_gib_after": 6.7036895751953125,
+      "terminal_output": "{\"case\": \"cfast_r0_window_360\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 103.3, \"available_gib_before\": 6.58, \"errors\": []}\n{\"case\": \"cfast_single_room_closed\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 107.6, \"available_gib_before\": 6.61, \"errors\": []}\n{\"case\": \"cfast_slow_growth_sealed\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 335.8, \"available_gib_before\": 6.57, \"errors\": []}\n{\"case\": \"cfast_pool_fire_open\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 157.5, \"available_gib_before\": 6.73, \"errors\": []}\n{\"case\": \"cfast_corridor_chain\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 127.2, \"available_gib_before\": 6.74, \"errors\": []}\n{\"case\": \"cfast_bedroom_closed_door\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 156.8, \"available_gib_before\": 6.74, \"errors\": []}\n{\"case\": \"cfast_suppression_water\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 58.7, \"available_gib_before\": 6.71, \"errors\": []}\n{\"case\": \"cfast_two_room_door_open\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 176.0, \"available_gib_before\": 6.71, \"errors\": []}\n{\"case\": \"cfast_post_flashover_vented\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 84.5, \"available_gib_before\": 6.71, \"errors\": []}\n{\"case\": \"cfast_hvac_residential\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 109.2, \"available_gib_before\": 6.7, \"errors\": []}\n{\"case\": \"cfast_long_burnout_3600s\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 632.4, \"available_gib_before\": 6.72, \"errors\": []}\n{\"case\": \"cfast_window_break_t180\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 111.4, \"available_gib_before\": 6.7, \"errors\": []}\n{\"case\": \"cfast_door_close_midfire\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 122.4, \"available_gib_before\": 6.69, \"errors\": []}\n{\"case\": \"cfast_fast_growth_closed\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 58.3, \"available_gib_before\": 6.73, \"errors\": []}\n{\"case\": \"cfast_two_floor_stairwell\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 241.9, \"available_gib_before\": 6.7, \"errors\": []}\n{\"case\": \"cfast_multi_fuel_couch_tv\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 175.2, \"available_gib_before\": 6.7, \"errors\": []}\n{\"case\": \"ghanekar_bedroom_hallway\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 143.0, \"available_gib_before\": 6.69, \"errors\": []}\n{\"case\": \"ghanekar_kitchen_living_room\", \"exit\": 0, \"fresh_report\": true, \"wall_s\": 353.3, \"available_gib_before\": 6.69, \"errors\": []}\n[comparator] exit 0\n[guardrails] exit 0\n\n========================================================================\n  Validation Guardrails — SimuFire\n  Fuente: sim\\validation\\reports\\reference_checks.json\n========================================================================\n\n  Guardrail                          Resultado\n  --------------------------------  ----------\n  Required checks                   346/346 PASS  [OK]\n  Known gaps (JSON)                           78\n  Gap inventory sync                        PASS\n  Phase 2E sentinels (7)                    PASS\n  Carbon/HCN sentinels (5)                  PASS\n  Legacy/two-zone contract                  PASS\n  CFAST truth integrity (R0-3)              PASS\n  Physics override linter (R1-3)            PASS\n  Reports freshness (R2-1)                  PASS\n  Metric plausibility (PHY-P1)              PASS\n\n------------------------------------------------------------------------\n\n  ALL GUARDRAILS PASS -- working tree listo.\n========================================================================\n\n\n",
+      "healthy": true,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "corpus": {
+        "files": 494,
+        "identical_files": 493,
+        "changed_paths": [
+          "sim/validation/reports/reference_checks.json"
+        ],
+        "only_generated_at_changed": true,
+        "required": 346,
+        "failed_required": 0,
+        "gaps": 78
+      }
+    },
+    "product": {
+      "returncode": 0,
+      "raw_record_sha256": "f815f541884fab9160a33c1b566036ea4bb04388bb0c51141daf4c81fa6e602f",
+      "wall_s": 646.48,
+      "available_gib_before": 6.552082061767578,
+      "available_gib_after": 6.9374237060546875,
+      "terminal_output": "editor, Godot        1/1 OK  [OK]\n  Activacion experimental de aberturas, Godot        1/1 OK  [OK]\n  Presentacion de FED y del indice de condiciones, Godot        1/1 OK  [OK]\n  Fuga de envolvente exterior en la red, Godot        1/1 OK  [OK]\n  Conservacion canonica de masa zonal, Godot        1/1 OK  [OK]\n  Propietario unico del transporte interior, Godot        1/1 OK  [OK]\n  Acarreo de gas caliente por capa, Godot        1/1 OK  [OK]\n  Selector experimental de CO zonal en FED, Godot        1/1 OK  [OK]\n  Fondo tapado desde la ventana Godot           1/1 OK  [OK]\n  Altura del edificio Godot                     1/1 OK  [OK]\n  Landing surfaces Godot                        1/1 OK  [OK]\n  FP landing stairs Godot headless              1/1 OK  [OK]\n  FP exterior context Godot headless            1/1 OK  [OK]\n  Technical summary Godot headless              1/1 OK  [OK]\n  Furniture runtime Godot headless              1/1 OK  [OK]\n  Exterior city Godot headless                  1/1 OK  [OK]\n  Furniture layout Godot headless               1/1 OK  [OK]\n  3D door opening visuals Godot                 1/1 OK  [OK]\n  3D technical overlays Godot                   1/1 OK  [OK]\n  3D screenshot export Godot                    1/1 OK  [OK]\n  Runtime template schema Godot                 1/1 OK  [OK]\n  Editor load error dialog Godot                1/1 OK  [OK]\n  Vista previa del catalogo Godot               1/1 OK  [OK]\n  Idioma y configuracion Godot                  1/1 OK  [OK]\n  Pasillos y tipo de abertura Godot             1/1 OK  [OK]\n  Comportamiento del editor Godot               1/1 OK  [OK]\n  Patio de luces Godot                          1/1 OK  [OK]\n  Portal y caja de escalera Godot               1/1 OK  [OK]\n  Vista del portal Godot                        1/1 OK  [OK]\n  Dueño del escenario Godot                     1/1 OK  [OK]\n  Texturas propias Godot                        1/1 OK  [OK]\n  Humo del patio Godot                          1/1 OK  [OK]\n  Tipos de abertura Godot                       1/1 OK  [OK]\n  Penacho exterior Godot                        1/1 OK  [OK]\n  Sondas por el camino real Godot               1/1 OK  [OK]\n  Balcones del edificio Godot                   1/1 OK  [OK]\n  Nombres de plantas Godot                      1/1 OK  [OK]\n  Menu principal en escena Godot                1/1 OK  [OK]\n  UI del editor 100% en escena Godot            1/1 OK  [OK]\n  Mandos del editor explicados Godot            1/1 OK  [OK]\n  FP fire visuals Godot                         1/1 OK  [OK]\n  3D smoke opening curtain Godot                1/1 OK  [OK]\n  FP interstitial seal Godot                    1/1 OK  [OK]\n  FP party walls Godot                          1/1 OK  [OK]\n  FP surface shading Godot                      1/1 OK  [OK]\n  FP smoke lighting Godot                       1/1 OK  [OK]\n  FP technical HUD Godot                        1/1 OK  [OK]\n  FP victim states Godot                        1/1 OK  [OK]\n  FP player start Godot                         1/1 OK  [OK]\n  FP detector alarm Godot                       1/1 OK  [OK]\n  FP stance easing Godot                        1/1 OK  [OK]\n  Combustion regime Godot                       1/1 OK  [OK]\n  3D en vivo del editor Godot                   1/1 OK  [OK]\n  Escalera dibujada se sube en FP Godot         1/1 OK  [OK]\n  Dibujo directo en 3D del editor Godot         1/1 OK  [OK]\n  Pasillos del editor Godot                     1/1 OK  [OK]\n  Copiar planta en el editor Godot              1/1 OK  [OK]\n  Revisión del escenario Godot                  1/1 OK  [OK]\n  Arrastrar mobiliario Godot                    1/1 OK  [OK]\n  Editor to sim flow Godot                      1/1 OK  [OK]\n  Run scenario reproducibility                  1/1 OK  [OK]\n  Sin procesos ni cuadros de Godot al terminar        1/1 OK  [OK]\n\n------------------------------------------------------------------------\n\n  ALL PRODUCT CHECKS PASS  (168 tests)\n========================================================================\n\n",
+      "healthy": true,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": []
+    },
+    "guardrails": {
+      "returncode": 0,
+      "raw_record_sha256": "96f1a43df62247a42a3593d671b0fcffe8a87af492154139bc5235ab0e62f354",
+      "wall_s": 3.12,
+      "available_gib_before": 6.90570068359375,
+      "available_gib_after": 6.926609039306641,
+      "terminal_output": "\n========================================================================\n  Validation Guardrails — SimuFire\n  Fuente: sim\\validation\\reports\\reference_checks.json\n========================================================================\n\n  Guardrail                          Resultado\n  --------------------------------  ----------\n  Required checks                   346/346 PASS  [OK]\n  Known gaps (JSON)                           78\n  Gap inventory sync                        PASS\n  Phase 2E sentinels (7)                    PASS\n  Carbon/HCN sentinels (5)                  PASS\n  Legacy/two-zone contract                  PASS\n  CFAST truth integrity (R0-3)              PASS\n  Physics override linter (R1-3)            PASS\n  Reports freshness (R2-1)                  PASS\n  Metric plausibility (PHY-P1)              PASS\n\n------------------------------------------------------------------------\n\n  ALL GUARDRAILS PASS -- working tree listo.\n========================================================================\n\n",
+      "healthy": true,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": []
+    },
+    "global": {
+      "returncode": 0,
+      "raw_record_sha256": "5cacf249841f9c64d7a374a76b91e69ffba93341a479121c76a625d28982fd42",
+      "wall_s": 897.93,
+      "available_gib_before": 6.754032135009766,
+      "available_gib_after": 6.679027557373047,
+      "terminal_output": "7%]\n........................................................................ [ 29%]\n........................................................................ [ 30%]\n........................................................................ [ 32%]\n........................................................................ [ 33%]\n........................................................................ [ 35%]\n........................................................................ [ 36%]\n........................................................................ [ 38%]\n........................................................................ [ 39%]\n........................................................................ [ 41%]\n........................................................................ [ 42%]\n........................................................................ [ 44%]\n........................................................................ [ 45%]\n........................................................................ [ 47%]\n........................................................................ [ 48%]\n........................................................................ [ 50%]\n........................................................................ [ 51%]\n........................................................................ [ 53%]\n.................................ss...ssssss...s.s....s...s.s.......ss.. [ 54%]\n................................................................ss...... [ 56%]\n........................................................................ [ 57%]\n...............................ss...ssssss...s.s....s...s.s.......ss.... [ 59%]\n..............................................................ss........ [ 60%]\n........................................................................ [ 62%]\n........................................................................ [ 63%]\n.....................................................xxssssssss......... [ 65%]\n........................................................................ [ 66%]\n........................................................................ [ 68%]\n........................................................................ [ 69%]\n........................................................................ [ 71%]\n........................................................................ [ 72%]\n........................................................................ [ 74%]\n........................................................................ [ 75%]\n........................................................................ [ 77%]\n........................................................................ [ 78%]\n........................................................................ [ 80%]\n........................................................................ [ 81%]\n........................................................................ [ 83%]\n........................................................................ [ 84%]\n........................................................................ [ 86%]\n........................................................................ [ 87%]\n........................................................................ [ 89%]\n........................................................................ [ 90%]\n........................................................................ [ 92%]\n........................................................................ [ 93%]\n........................................................................ [ 95%]\n........................................................................ [ 96%]\n........................................................................ [ 98%]\n........................................................................ [ 99%]\n.......................                                                  [100%]\n4735 passed, 68 skipped, 2 xfailed, 42 subtests passed in 893.31s (0:14:53)\n",
+      "healthy": true,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": []
+    }
+  },
+  "pending": []
+}

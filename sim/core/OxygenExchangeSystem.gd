@@ -392,6 +392,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 
 	if room_o2_inventory != null:
 		_deliver_owned_o2_transit(building, dt)
+		if room_o2_inventory.state() == "rejected":
+			return
 	else:
 		_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
@@ -493,6 +495,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# G3 M1 y M2: el inventario de sala es la autoridad, en toda ruta. La ley
 			# del sumidero y la de la infiltración son las de abajo; cambia quién escribe.
 			_o2_fire_primary = _step_owned_room_inventory(building, room, dt, air_density_kg_m3)
+			if room_o2_inventory.state() == "rejected":
+				return
 		else:
 			if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
 				var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
@@ -1637,7 +1641,20 @@ func _step_owned_room_inventory(
 	# La infiltración saca gas a la concentración que la sala tenía antes del
 	# sumidero, como en la ruta histórica.
 	var leaving_mole_fraction: float = room.o2
-	if room.hrr_kw > 0.0:
+	if room_o2_inventory.combustion_acceptance_enabled():
+		var selected: Dictionary = room_o2_inventory.selection_for(room, "sink")
+		if bool(selected.get("reserved", false)) or room.hrr_kw > 0.0:
+			var accepted_debit: Dictionary = room_o2_inventory.consume_reserved_combustion(
+				room, selected, room.hrr_kw * dt / 1000.0, _fire_sink_kg_per_MJ(room)
+			)
+			if not bool(accepted_debit["applied"]):
+				return 0.0
+			primary_kg = float(accepted_debit["applied_kg"])
+			room.o2_consumed_kg_step_all += primary_kg
+			room.o2_consumed_kg_total_all += primary_kg
+			room.o2_consumed_bulk_kg_step += primary_kg
+			room.o2_consumed_bulk_kg_total += primary_kg
+	elif room.hrr_kw > 0.0:
 		var selection: Dictionary = room_o2_inventory.selection_for(room, "sink")
 		var requested: float = (room.hrr_kw / 1000.0) * _fire_sink_kg_per_MJ(room) * dt
 		var consumed: float = minf(

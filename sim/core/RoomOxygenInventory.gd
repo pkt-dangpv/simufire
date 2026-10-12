@@ -132,6 +132,12 @@ var _rejections: Array[Dictionary] = []
 var _refused_after_rejection: int = 0
 var _selections: Dictionary = {}
 var _next_selection_id: int = 1
+## M3 is enabled by the engine's existing experimental inventory mode only.
+## Historical M1/M2 fixtures can still arm the owner without this extension.
+var _combustion_acceptance_enabled: bool = false
+var _next_flashover_power_kw: Dictionary = {}
+var _next_flashover_step: Dictionary = {}
+const COMBUSTION_O2_TOLERANCE_KG: float = 1.0e-9
 
 
 # ---------------------------------------------------------------- conversions
@@ -190,6 +196,7 @@ func arm(building, generation: int, environment: Dictionary) -> Dictionary:
 		_reject("not_armed", {"errors": errors})
 		return {"valid": false, "errors": errors}
 	_generation = generation
+	_combustion_acceptance_enabled = bool(environment.get("combustion_acceptance_enabled", false))
 	_state = STATE_ARMED
 	for room_id in building.get_rooms().keys():
 		var room = building.get_room(room_id)
@@ -242,12 +249,19 @@ func discard() -> void:
 	_step_index = 0
 	_state = STATE_INACTIVE
 	_generation = -1
+	_combustion_acceptance_enabled = false
+	_next_flashover_power_kw.clear()
+	_next_flashover_step.clear()
 
 
 ## Opens a step. The environment is read again: a switch this mode does not
 ## cover that changes in the middle of a run refuses it, as it would at arming.
 ## Then the selections of the step are built, once, before any consumer runs.
 func begin_step(environment: Dictionary) -> void:
+	if _combustion_acceptance_enabled and _state == STATE_ARMED:
+		audit_combustion_reservations()
+		if _state != STATE_ARMED:
+			return
 	_step_index += 1
 	_step_operations.clear()
 	_selections.clear()
@@ -281,6 +295,10 @@ func _select_for_step() -> void:
 			"served_to": [], "debited": false, "debited_kg": 0.0,
 		}
 		_next_selection_id += 1
+		if _combustion_acceptance_enabled:
+			_selections[room_id].merge({"reserved": false, "reserved_kg": 0.0,
+				"reserved_heat_MJ": 0.0, "requested_heat_MJ": 0.0,
+				"coefficient_kg_per_MJ": 0.0, "accepted_fraction": 1.0})
 
 
 ## The selection of a room for the step that is open, the same one for every
@@ -324,6 +342,135 @@ func _selection_error(room, selection: Variant) -> String:
 
 # ----------------------------------------------------------------- operations
 
+## M3: accept the POST-filter proposal once, before extensive fire writes.
+## Neither inventory nor transit changes here. Read availability from the
+## canonical selection, never from fields supplied by the caller.
+func reserve_combustion(room, selection: Variant, heat_MJ: Variant, coefficient: Variant) -> Dictionary:
+	if not _open():
+		return _refused()
+	if not _combustion_acceptance_enabled:
+		return _reject_operation("combustion_acceptance_not_enabled", {})
+	if not _owns(room):
+		return _reject_operation("room_not_under_authority", {})
+	var error: String = _selection_error(room, selection)
+	if error != "":
+		return _reject_operation(error, {"room": room.id})
+	var current: Dictionary = _selections[room.id]
+	if bool(current["reserved"]):
+		return _reject_operation("combustion_already_reserved", {"room": room.id})
+	if not _is_amount(heat_MJ) or not _is_positive(coefficient):
+		return _reject_operation("combustion_proposal_not_finite", {"room": room.id})
+	if room.o2_inventory_kg != float(current["inventory_kg"]):
+		return _reject_operation("inventory_changed_before_combustion_acceptance", {"room": room.id})
+	var requested_kg: float = float(heat_MJ) * float(coefficient)
+	if not is_finite(requested_kg):
+		return _reject_operation("combustion_proposal_not_finite", {"room": room.id})
+	var granted_kg: float = minf(requested_kg, float(current["available_kg"]))
+	var fraction: float = granted_kg / requested_kg if requested_kg > 0.0 else 1.0
+	current["reserved"] = true
+	current["reserved_kg"] = granted_kg
+	current["requested_heat_MJ"] = float(heat_MJ)
+	current["reserved_heat_MJ"] = float(heat_MJ) * fraction
+	current["coefficient_kg_per_MJ"] = float(coefficient)
+	current["accepted_fraction"] = fraction
+	_note({"kind": "combustion_reservation", "cause": "post_filter_combustion_acceptance",
+		"room": room.id, "selection_id": int(current["id"]), "requested_kg": requested_kg,
+		"reserved_kg": granted_kg, "requested_heat_MJ": float(heat_MJ),
+		"accepted_heat_MJ": current["reserved_heat_MJ"], "fraction": fraction})
+	return {"applied": true, "reason": "", "fraction": fraction,
+		"reserved_kg": granted_kg, "accepted_heat_MJ": current["reserved_heat_MJ"]}
+
+
+## The sink settles the accepted heat, not a recomputed/capped demand.
+func consume_reserved_combustion(room, selection: Variant, heat_MJ: Variant, coefficient: Variant) -> Dictionary:
+	if not _open():
+		return _refused()
+	if not _owns(room):
+		return _reject_operation("room_not_under_authority", {})
+	var error: String = _selection_error(room, selection)
+	if error != "":
+		return _reject_operation(error, {"room": room.id})
+	var current: Dictionary = _selections[room.id]
+	if not _combustion_acceptance_enabled or not bool(current.get("reserved", false)):
+		return _reject_operation("combustion_without_reservation", {"room": room.id})
+	if not _is_amount(heat_MJ) or not _is_positive(coefficient):
+		return _reject_operation("combustion_settlement_not_finite", {"room": room.id})
+	if float(coefficient) != float(current["coefficient_kg_per_MJ"]) \
+			or absf((float(heat_MJ) - float(current["reserved_heat_MJ"])) * float(coefficient)) \
+			> COMBUSTION_O2_TOLERANCE_KG:
+		return _reject_operation("heat_changed_after_combustion_acceptance", {"room": room.id})
+	var reserved_kg: float = float(current["reserved_kg"])
+	if reserved_kg > room.o2_inventory_kg:
+		return _reject_operation("reserved_oxygen_no_longer_available", {"room": room.id})
+	return _apply_consumption(room, current, reserved_kg, reserved_kg, "accepted_combustion")
+
+
+func combustion_acceptance_enabled() -> bool:
+	return _combustion_acceptance_enabled
+
+
+## A proposal that cannot enter the experimental transaction; no fire fallback.
+func refuse_combustion(room, reason: String) -> Dictionary:
+	if not _open():
+		return _refused()
+	return _reject_operation(reason, {"room": room.id if room != null else -1})
+
+
+## Flashover cannot change heat already reserved. It proposes a power for the
+## next fire tick; the fire still applies its extinction guard and acceptance.
+func schedule_flashover_proposal(room, power_kw: Variant) -> Dictionary:
+	if not _open():
+		return _refused()
+	if not _combustion_acceptance_enabled or not _owns(room):
+		return _reject_operation("flashover_without_combustion_authority", {})
+	if not _is_amount(power_kw):
+		return _reject_operation("flashover_proposal_not_finite", {"room": room.id})
+	if _next_flashover_power_kw.has(room.id):
+		return _reject_operation("flashover_already_proposed", {"room": room.id})
+	_next_flashover_power_kw[room.id] = float(power_kw)
+	_next_flashover_step[room.id] = _step_index + 1
+	_note({"kind": "flashover_next_step_proposal", "room": room.id,
+		"power_kw": float(power_kw), "for_step": _step_index + 1})
+	return {"applied": true, "reason": ""}
+
+
+func take_flashover_proposal_kw(room) -> float:
+	if not _open():
+		return 0.0
+	if not _combustion_acceptance_enabled or not _owns(room):
+		_reject("flashover_without_combustion_authority", {})
+		return 0.0
+	if int(_next_flashover_step.get(room.id, _step_index)) > _step_index:
+		return 0.0
+	var power_kw: float = float(_next_flashover_power_kw.get(room.id, 0.0))
+	_next_flashover_power_kw.erase(room.id)
+	_next_flashover_step.erase(room.id)
+	return power_kw
+
+
+func audit_combustion_reservations() -> void:
+	if not _combustion_acceptance_enabled or _state != STATE_ARMED:
+		return
+	for room_id in _selections:
+		var selection: Dictionary = _selections[room_id]
+		if bool(selection.get("reserved", false)) and not bool(selection["debited"]):
+			_reject("combustion_reservation_not_debited", {"room": room_id})
+			return
+
+
+## Protect both the reservation and outstanding negative diagnostic arrivals.
+## An arrival being delivered is excluded because it has already left after_kg.
+func _reservation_error(room, after_kg: float, delivered_id: int = -1) -> String:
+	var selection: Dictionary = _selections.get(room.id, {})
+	if not bool(selection.get("reserved", false)) or bool(selection.get("debited", false)):
+		return ""
+	var owed_kg: float = 0.0
+	for entry: Dictionary in _transit:
+		if int(entry["receiver"]) == room.id and int(entry["id"]) != delivered_id:
+			owed_kg -= minf(0.0, float(entry["net_kg"]))
+	return "operation_spends_reserved_combustion_oxygen" \
+		if after_kg < float(selection["reserved_kg"]) + owed_kg else ""
+
 ## The debit of the fire sink, on the deposit of the selection it presents: the
 ## one of this room and this step, once. The sink decides how much it asks and
 ## how much its cap lets through; the owner applies what was let through and
@@ -331,6 +478,8 @@ func _selection_error(room, selection: Variant) -> String:
 func consume(room, selection: Variant, requested_kg: Variant, applied_kg: Variant, cause: String) -> Dictionary:
 	if not _open():
 		return _refused()
+	if _combustion_acceptance_enabled:
+		return _reject_operation("unreserved_fire_debit", {"cause": cause})
 	if not _owns(room):
 		return _reject_operation("room_not_under_authority", {"cause": cause})
 	var selection_error: String = _selection_error(room, selection)
@@ -348,6 +497,12 @@ func consume(room, selection: Variant, requested_kg: Variant, applied_kg: Varian
 	if applied > before_kg:
 		return _reject_operation("debit_larger_than_the_inventory", {"cause": cause, "room": room.id,
 			"applied_kg": applied, "inventory_kg": before_kg})
+	return _apply_consumption(room, current, requested, applied, cause)
+
+
+## One canonical accounting/commit path for historical and accepted debits.
+func _apply_consumption(room, current: Dictionary, requested: float, applied: float, cause: String) -> Dictionary:
+	var before_kg: float = room.o2_inventory_kg
 	var after_kg: float = before_kg - applied
 	var totals: Dictionary = _totals[room.id]
 	totals["consumption_requested_kg"] += requested
@@ -385,6 +540,9 @@ func exchange_with_outside(
 	if after_kg < 0.0:
 		return _reject_operation("exchange_leaves_a_negative_inventory", {"cause": cause, "room": room.id,
 			"in_kg": in_kg, "out_kg": out_kg, "inventory_kg": before_kg})
+	var reservation_error: String = _reservation_error(room, after_kg)
+	if reservation_error != "":
+		return _reject_operation(reservation_error, {"cause": cause, "room": room.id})
 	var totals: Dictionary = _totals[room.id]
 	totals["outside_in_kg"] += in_kg
 	totals["outside_out_kg"] += out_kg
@@ -403,7 +561,23 @@ func _dilution_error(room, gas_kg: Variant, outside_mole_fraction: Variant) -> S
 		return "quantity_not_a_finite_amount"
 	if not _is_fraction(outside_mole_fraction):
 		return "mole_fraction_not_a_fraction"
+	var terms: Dictionary = _outside_dilution_terms(room, float(gas_kg), float(outside_mole_fraction))
+	var reservation_error: String = _reservation_error(room, float(terms["after_kg"]))
+	if reservation_error != "":
+		return reservation_error
 	return ""
+
+
+## Canonical M2-V arithmetic, shared by preflight and the committing operation.
+func _outside_dilution_terms(room, entering_kg: float, outside_mole_fraction: float) -> Dictionary:
+	var before_kg: float = room.o2_inventory_kg
+	var in_kg: float = o2_kg_in_reference_gas(outside_mole_fraction, entering_kg)
+	var mixture_mole_fraction: float = (before_kg + in_kg) / o2_kg_in_reference_gas(
+		1.0, reference_gas_kg(room.volume_m3()) + entering_kg
+	)
+	var out_kg: float = o2_kg_in_reference_gas(mixture_mole_fraction, entering_kg)
+	return {"in_kg": in_kg, "out_kg": out_kg,
+		"mixture_mole_fraction": mixture_mole_fraction, "after_kg": before_kg + in_kg - out_kg}
 
 
 ## Whether `dilute_with_outside` would apply now. A law that writes other state
@@ -424,12 +598,11 @@ func dilute_with_outside(room, gas_kg: Variant, outside_mole_fraction: Variant, 
 		return _reject_operation(error, {"cause": cause, "room": room.id if room != null else -1})
 	var entering_kg: float = float(gas_kg)
 	var before_kg: float = room.o2_inventory_kg
-	var in_kg: float = o2_kg_in_reference_gas(float(outside_mole_fraction), entering_kg)
-	var mixture_mole_fraction: float = (before_kg + in_kg) / o2_kg_in_reference_gas(
-		1.0, reference_gas_kg(room.volume_m3()) + entering_kg
-	)
-	var out_kg: float = o2_kg_in_reference_gas(mixture_mole_fraction, entering_kg)
-	var after_kg: float = before_kg + in_kg - out_kg
+	var terms: Dictionary = _outside_dilution_terms(room, entering_kg, float(outside_mole_fraction))
+	var in_kg: float = float(terms["in_kg"])
+	var out_kg: float = float(terms["out_kg"])
+	var mixture_mole_fraction: float = float(terms["mixture_mole_fraction"])
+	var after_kg: float = float(terms["after_kg"])
 	var totals: Dictionary = _totals[room.id]
 	totals["outside_in_kg"] += in_kg
 	totals["outside_out_kg"] += out_kg
@@ -473,6 +646,10 @@ func exchange_reference_gas_between_rooms(
 	if not is_finite(donor_after_kg) or not is_finite(receiver_after_kg) \
 			or donor_after_kg < 0.0 or receiver_after_kg < 0.0:
 		return _reject_operation("exchange_leaves_an_invalid_inventory", {"cause": cause})
+	var donor_reservation_error: String = _reservation_error(donor, donor_after_kg)
+	var receiver_reservation_error: String = _reservation_error(receiver, receiver_after_kg)
+	if donor_reservation_error != "" or receiver_reservation_error != "":
+		return _reject_operation("operation_spends_reserved_combustion_oxygen", {"cause": cause})
 	_totals[donor.id]["interior_in_kg"] += to_donor_kg
 	_totals[donor.id]["interior_out_kg"] += to_receiver_kg
 	_totals[receiver.id]["interior_in_kg"] += to_receiver_kg
@@ -520,6 +697,9 @@ func exchange_between_rooms(
 		return _reject_operation("exchange_leaves_a_negative_inventory", {"cause": cause,
 			"donor": donor.id, "receiver": receiver.id, "donor_after_kg": donor_after_kg,
 			"receiver_after_kg": receiver_after_kg})
+	if _reservation_error(donor, donor_after_kg) != "" \
+			or _reservation_error(receiver, receiver_after_kg) != "":
+		return _reject_operation("operation_spends_reserved_combustion_oxygen", {"cause": cause})
 	var donor_totals: Dictionary = _totals[donor.id]
 	donor_totals["interior_in_kg"] += to_donor_kg
 	donor_totals["interior_out_kg"] += to_receiver_kg
@@ -598,6 +778,9 @@ func _deliver(entry: Dictionary) -> Dictionary:
 	if after_kg < 0.0:
 		return _reject_operation("arrival_leaves_a_negative_inventory", {"id": entry.get("id"),
 			"receiver": receiver.id, "net_kg": net_kg, "inventory_kg": before_kg})
+	var reservation_error: String = _reservation_error(receiver, after_kg, int(entry["id"]))
+	if reservation_error != "":
+		return _reject_operation(reservation_error, {"cause": "transit_arrival", "room": receiver.id})
 	entry["state"] = ENTRY_DELIVERED
 	_totals[receiver.id]["transit_arrived_kg"] += net_kg
 	_transit_arrived_kg_total += net_kg
@@ -630,6 +813,9 @@ func refuse_route(room, route: String, quantity: Variant, detail: Dictionary = {
 ## A write of the room number that did not come from here was refused by the
 ## room and is counted there. One of them refuses the run.
 func audit_room_numbers() -> void:
+	if _state != STATE_ARMED:
+		return
+	audit_combustion_reservations()
 	if _state != STATE_ARMED:
 		return
 	for room in _rooms.values():
@@ -705,6 +891,8 @@ func report() -> Dictionary:
 		"schema": REPORT_SCHEMA, "version": VERSION, "scope": SCOPE, "state": _state,
 		"live_transport_policy": "symmetric_reference_gas_immediate_o2_only",
 		"legacy_signed_transit_scope": "explicit_diagnostic_injection_only",
+		"combustion_acceptance_enabled": _combustion_acceptance_enabled,
+		"next_flashover_power_kw": _next_flashover_power_kw.duplicate(true),
 		"generation": _generation, "step": _step_index,
 		"units": {"inventory": "kg of O2", "transit": "kg of O2, signed net", "room_number": "mole fraction of the reference mixture"},
 		"constants": {"m_o2_kg_per_mol": M_O2_KG_PER_MOL, "m_dry_air_kg_per_mol": M_DRY_AIR_KG_PER_MOL,
@@ -759,6 +947,19 @@ func _reject(reason: String, detail: Dictionary) -> void:
 
 func _environment_errors(environment: Dictionary) -> Array[String]:
 	var errors: Array[String] = []
+	if environment.has("combustion_acceptance_enabled") \
+			and typeof(environment["combustion_acceptance_enabled"]) != TYPE_BOOL:
+		errors.append("combustion_acceptance_mode_not_boolean")
+	if _combustion_acceptance_enabled and environment.get("combustion_acceptance_enabled") != true:
+		errors.append("combustion_acceptance_mode_changed")
+	if environment.get("combustion_acceptance_enabled") == true:
+		for key: String in ["prescribed_fire_enabled", "object_fuel_ownership_enabled",
+				"co_oxidation_enabled", "suppression_active"]:
+			if typeof(environment.get(key, false)) != TYPE_BOOL or environment.get(key, false) != false:
+				errors.append("combustion_environment_not_supported:" + key)
+		var fire_count: Variant = environment.get("active_fire_count", 0)
+		if typeof(fire_count) != TYPE_INT or int(fire_count) < 0 or int(fire_count) > 1:
+			errors.append("combustion_environment_not_supported:multiple_active_fires")
 	for key: String in REQUIRED_ENVIRONMENT.keys():
 		if not environment.has(key):
 			errors.append("environment_missing:%s" % key)

@@ -1,10 +1,10 @@
-"""Contract of stage M3 of the oxygen authority. Stage M3 is NOT implemented.
+"""Historical diagnosis and offline contract of stage M3 of the oxygen authority.
 
 Three kinds of test, none of which launches anything:
 
 * the ROUTE: the order in which the engine proposes a power, filters it, debits fuel,
-  generates products and debits oxygen, as the contract describes it. If the engine
-  changes any of these, the contract has to be read again before M3 is implemented;
+  generates products and debits oxygen, at ENGINE_OF, before M3. Live integration is judged separately by
+  test_g3_m3_integration_contract.py and its Godot fixture;
 * the DIAGNOSIS: the record written by ``scripts/simulation/run_g3_o2_m3_diagnosis.py``
   on the real engine with the room oxygen inventory on, with what it measured;
 * the CONTRACT: its offline oracle, ``scripts/simulation/g3_m3_contract_model.py``. The
@@ -18,6 +18,7 @@ CO nor FED, and nothing here says it does.
 
 from __future__ import annotations
 
+from functools import lru_cache
 import hashlib
 import importlib.util
 import json
@@ -65,6 +66,19 @@ def _body(path: Path, name: str) -> str:
     return _text(path).split(f"func {name}(", 1)[1].split("\nfunc ", 1)[0]
 
 
+@lru_cache(maxsize=None)
+def _historical_text(path: Path) -> str:
+    """The route measured by the published diagnosis, not today's M3 branch."""
+    relative = path.relative_to(ROOT).as_posix()
+    result = subprocess.run(["git", "show", f"{ENGINE_OF}:{relative}"],
+                            cwd=ROOT, capture_output=True, check=True)
+    return result.stdout.decode("utf-8").replace("\r\n", "\n")
+
+
+def _historical_body(path: Path, name: str) -> str:
+    return _historical_text(path).split(f"func {name}(", 1)[1].split("\nfunc ", 1)[0]
+
+
 def _in_order(text: str, anchors: list[str]) -> None:
     position = -1
     for anchor in anchors:
@@ -87,7 +101,7 @@ def model():
 # ---------------------------------------------------------------- the route, as the contract describes it
 
 def test_the_step_of_the_engine_runs_in_the_order_the_contract_describes():
-    step = _body(ENGINE, "step")
+    step = _historical_body(ENGINE, "step")
     _in_order(step, [
         "_o2_room_inventory.begin_step(_o2_room_inventory_environment())",
         "\t_step_pool_fires(dt)",
@@ -103,15 +117,15 @@ def test_the_step_of_the_engine_runs_in_the_order_the_contract_describes():
 
 
 def test_the_flashover_multiplies_the_power_after_the_fire_step_has_debited_fuel():
-    fire_step = _body(ENGINE, "_step_fire")
+    fire_step = _historical_body(ENGINE, "_step_fire")
     _in_order(fire_step, ["combustion_system.step_room_fire(", "_try_trigger_flashover(room)"])
-    assert _text(ENGINE).count("room.hrr_kw *= room.fire.flashover_hrr_multiplier") == 1
+    assert _historical_text(ENGINE).count("room.hrr_kw *= room.fire.flashover_hrr_multiplier") == 1
     # And the suppression scales it after the thermal step has read it.
-    assert _text(ENGINE).count("\troom.hrr_kw *= hrr_factor\n") == 1
+    assert _historical_text(ENGINE).count("\troom.hrr_kw *= hrr_factor\n") == 1
 
 
 def test_the_fire_filters_its_power_before_it_debits_fuel_and_after_it_proposes():
-    fire = _body(COMBUSTION, "step_room_fire")
+    fire = _historical_body(COMBUSTION, "step_room_fire")
     _in_order(fire, [
         "var o2_selection: Dictionary = _resolve_fire_o2_selection(room, fire, context)",
         "room.o2_hrr_factor = _smooth_state_value(",
@@ -135,7 +149,7 @@ def test_the_fire_filters_its_power_before_it_debits_fuel_and_after_it_proposes(
 
 def test_heat_fuel_and_products_are_not_written_from_one_quantity():
     """Why one fraction has to be imposed on the step: today each follows something else."""
-    fire = _body(COMBUSTION, "step_room_fire")
+    fire = _historical_body(COMBUSTION, "step_room_fire")
     # Fuel: the pyrolysis the fire aims at in this step. Not the power it kept.
     assert "fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)" in fire
     assert "solid_fuel_demand_MJ = solid_pyrolysis_kw * dt / 1000.0" in fire
@@ -152,35 +166,35 @@ def test_heat_fuel_and_products_are_not_written_from_one_quantity():
 
 
 def test_the_sink_debits_after_the_arrivals_and_before_the_exchange_between_rooms_and_clips_at_five_percent():
-    step = _body(OXYGEN, "step")
+    step = _historical_body(OXYGEN, "step")
     _in_order(step, ["_deliver_owned_o2_transit(building, dt)",
                      "_step_owned_room_inventory(building, room, dt, air_density_kg_m3)",
                      "\tfor op in building.get_openings():"])
-    sink = _body(OXYGEN, "_step_owned_room_inventory")
+    sink = _historical_body(OXYGEN, "_step_owned_room_inventory")
     assert "var requested: float = (room.hrr_kw / 1000.0) * _fire_sink_kg_per_MJ(room) * dt" in sink
     assert "requested, room_o2_inventory.inventory_kg(room) * FIRE_SINK_BULK_CAP_FRACTION" in sink
-    assert "const FIRE_SINK_BULK_CAP_FRACTION: float = 0.05" in _text(OXYGEN)
+    assert "const FIRE_SINK_BULK_CAP_FRACTION: float = 0.05" in _historical_text(OXYGEN)
     # Nothing in the sink looks at the power again: what it clips stays accepted.
     after_the_cap = sink.split("FIRE_SINK_BULK_CAP_FRACTION", 1)[1]
     assert "hrr_kw =" not in after_the_cap and "hrr_kw *=" not in after_the_cap
 
 
 def test_the_heat_the_thermal_step_deposits_is_the_power_of_the_room_at_that_moment():
-    thermal = _text(THERMAL)
+    thermal = _historical_text(THERMAL)
     assert "var convective_energy_kj: float = room.hrr_kw * conv_fraction * dt" in thermal
     assert "var q_rad_fire_kj: float = room.hrr_kw * chi_rad * dt" in thermal
 
 
 def test_the_selection_says_what_is_available_and_nothing_acts_on_it_yet():
-    owner = _text(OWNER)
+    owner = _historical_text(OWNER)
     assert '"available_kg": maxf(0.0, held_kg - owed_kg)' in owner
-    consume = _body(OWNER, "consume")
+    consume = _historical_body(OWNER, "consume")
     assert "available" not in consume.split("_commit(room, after_kg)", 1)[0].replace("available_at_selection_kg", ""), \
         "stage M3 is not implemented: the debit does not look at what is available"
     assert "if applied > before_kg:" in consume
 
 
-def test_stage_m3_is_not_in_the_engine(record):
+def test_stage_m3_was_not_in_the_diagnosed_engine(record):
     assert all(record["engine"]["files_equal_to_that_commit"].values())
     assert record["engine"]["commit"] == ENGINE_OF
     for relative, digest in record["engine"]["sha256"].items():

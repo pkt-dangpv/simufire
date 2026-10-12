@@ -5,6 +5,7 @@ Historical debt APIs remain for explicit diagnostic injections only.
 """
 
 from pathlib import Path
+import re
 import subprocess
 
 import pytest
@@ -13,6 +14,7 @@ from scripts.simulation import run_g3_o2_transport_mutations as mutations
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "920affb7"
+PUBLISHED_IN = "28f74c4d"
 OWNER = "sim/core/RoomOxygenInventory.gd"
 OXYGEN = "sim/core/OxygenExchangeSystem.gd"
 
@@ -24,6 +26,16 @@ def text(path: str) -> str:
 def base(path: str) -> str:
     return subprocess.run(["git", "show", f"{BASE}:{path}"], cwd=ROOT,
                           capture_output=True, check=True).stdout.decode().replace("\r\n", "\n")
+
+
+def published(path: str) -> str:
+    return subprocess.check_output(["git", "show", f"{PUBLISHED_IN}:{path}"],
+                                   cwd=ROOT).decode("utf-8").replace("\r\n", "\n")
+
+
+def functions(source: str) -> dict:
+    names = re.findall(r"^(?:static )?func (\w+)\(", source, re.M)
+    return {name: body(source, name) for name in names}
 
 
 def body(source: str, method: str) -> str:
@@ -64,17 +76,53 @@ def test_pair_reads_both_current_inventories_and_has_no_queue_or_clamp():
     "sim/core/GasExchangeSystem.gd", "sim/core/SimulationEngine.gd", "sim/building/RoomModel.gd",
 ])
 def test_fire_other_species_gas_state_and_activation_are_unchanged(path):
-    assert text(path) == base(path)
+    # This guarantee was true THROUGH M2-T. M3 explicitly lifts only its
+    # transaction and lifecycle functions, not the rest of these modules.
+    assert published(path) == base(path)
+    changed_by_m3 = {
+        "sim/fire/CombustionSystem.gd": {
+            "step_room_fire", "_resolve_fire_o2_selection", "_apply_selected_o2_extinction_guard"},
+        "sim/core/SimulationEngine.gd": {
+            "_o2_room_inventory_environment", "_o2_room_inventory_has_failed",
+            "step", "_step_fire", "_try_trigger_flashover"},
+    }
+    if path not in changed_by_m3:
+        assert text(path) == base(path)
+        return
+    current, earlier = functions(text(path)), functions(published(path))
+    assert set(current) - set(earlier) <= changed_by_m3[path]
+    assert set(earlier) <= set(current)
+    assert text(path).split("func ", 1)[0] == published(path).split("func ", 1)[0]
+    for name in set(earlier) - changed_by_m3[path]:
+        assert current[name] == earlier[name], name
 
 
 @pytest.mark.parametrize("method", ["dilute_with_outside", "outside_dilution_would_apply", "consume"])
 def test_owner_dilution_and_sink_are_frozen(method):
-    assert body(text(OWNER), method) == body(base(OWNER), method)
+    assert body(published(OWNER), method) == body(base(OWNER), method)
+    if method == "outside_dilution_would_apply":
+        assert body(text(OWNER), method) == body(base(OWNER), method)
+    elif method == "consume":
+        source = body(text(OWNER), method)
+        assert 'return _reject_operation("unreserved_fire_debit"' in source
+        assert source.index("_selection_error(") < source.index("_apply_consumption(")
+    else:
+        assert "_outside_dilution_terms(" in body(text(OWNER), method)
 
 
 @pytest.mark.parametrize("method", ["_step_owned_room_inventory", "_estimate_interior_transport_delay_s"])
 def test_sink_and_general_transport_delay_are_frozen(method):
-    assert body(text(OXYGEN), method) == body(base(OXYGEN), method)
+    assert body(published(OXYGEN), method) == body(base(OXYGEN), method)
+    if method == "_estimate_interior_transport_delay_s":
+        assert body(text(OXYGEN), method) == body(base(OXYGEN), method)
+    else:
+        # Strip ONLY the declared M3 branch and require the legacy remainder
+        # to be identical, including infiltration and all audit accumulators.
+        source = body(text(OXYGEN), method)
+        start = source.index("\tif room_o2_inventory.combustion_acceptance_enabled():")
+        end = source.index("\telif room.hrr_kw > 0.0:", start)
+        legacy = source[:start] + source[end:].replace("\telif room.hrr_kw > 0.0:", "\tif room.hrr_kw > 0.0:", 1)
+        assert legacy == body(base(OXYGEN), method)
 
 
 def test_all_mutations_are_real_unique_replacements_with_predeclared_groups():

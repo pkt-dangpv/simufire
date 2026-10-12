@@ -33,9 +33,16 @@ class TestF31ZeroO2Extinction(unittest.TestCase):
 
     def test_retained_generation_is_cut_before_pool_update(self):
         step = _function(COMBUSTION, "step_room_fire")
-        cutoff = step.index("# Apply this before updating the retained pool")
-        pool_update = step.index("room.retained_unburned_MJ = minf")
+        cutoff = step.index("if selected_o2_extinguished:\n\t\tsolid_pyrolysis_kw = 0.0")
+        # M3 keeps the pool proposal local until oxygen acceptance. The cutoff
+        # must precede that computation, not merely its eventual room commit.
+        pool_update = step.index("proposed_pool_MJ = minf")
         self.assertLess(cutoff, pool_update)
+        for assignment in ("solid_pyrolysis_kw = 0.0", "solid_fuel_demand_MJ = 0.0",
+                           "fresh_flame_target_kw = 0.0", "smolder_target_kw = 0.0",
+                           "retained_generation_kw = 0.0"):
+            self.assertIn(assignment, step[cutoff:pool_update])
+        self.assertIn("if not m3_acceptance:\n\t\troom.retained_unburned_MJ = proposed_pool_MJ", step)
 
     def test_guard_marks_o2_extinction_without_destroying_fire_state(self):
         guard = _function(COMBUSTION, "_apply_selected_o2_extinction_guard")

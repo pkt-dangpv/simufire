@@ -1,5 +1,13 @@
 # G3-4 - Acoplamiento de la fuente prescrita de HRR: diseño y viabilidad
 
+Nota de vigencia (2026-10-12): este registro describe el motor de `60754428`.
+M3 cambia la forma de aceptar potencia y debitar O2; el auditor vivo del diseño
+debe rechazarlo, no reutilizar un GO antiguo. Las pruebas históricas reproducen
+aquellas 34 anclas sobre el commit declarado y siguen vigilando consumidores
+actuales. La fixture viva del banco térmico tiene su verificación separada;
+no autoriza combinar el banco con M3 ni activar producto, CO o FED.
+[Cambio y verificación M3](G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
+
 Fecha: 2026-10-08. Checkpoint de entrada: `60754428` (main = origin/main =
 rama `codex/g3-fed-co-zonal-shareable`, árboles limpios). Trabajo hecho en
 `runs/g3_shareable`. Fase **offline**: sin cambios en `sim/`, escenarios,

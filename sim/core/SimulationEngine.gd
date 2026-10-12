@@ -3758,7 +3758,18 @@ func _o2_room_inventory_arm() -> void:
 ## Lo que el motor es en este momento, leído de los subsistemas que lo aplican.
 ## El inventario compara con lo que M1 cubre y se niega si algo difiere.
 func _o2_room_inventory_environment() -> Dictionary:
+	var active_fire_count: int = 0
+	if o2_room_inventory_enabled and building != null:
+		for room in building.get_rooms().values():
+			if room != null and room.fire != null:
+				active_fire_count += 1
 	return {
+		"combustion_acceptance_enabled": o2_room_inventory_enabled,
+		"prescribed_fire_enabled": fire_o2_independent,
+		"object_fuel_ownership_enabled": fire_explicit_object_fuel_ownership_enabled,
+		"co_oxidation_enabled": co_oxidation_enabled,
+		"suppression_active": not _active_suppression_by_room.is_empty(),
+		"active_fire_count": active_fire_count,
 		"pressure_network_enabled": pressure_network_solver_enabled,
 		"diagnostic_bench_enabled": g3_prescribed_thermal_source_enabled,
 		"balance_ledger_enabled": bool(combustion_system.g3_fuel_ledger_enabled),
@@ -3781,6 +3792,16 @@ func get_o2_room_inventory_report() -> Dictionary:
 	var report: Dictionary = _o2_room_inventory.report()
 	report["failure"] = o2_room_inventory_failure
 	return report
+
+
+## Stop before any subsequent subsystem can consume a refused proposal.
+func _o2_room_inventory_has_failed() -> bool:
+	if _o2_room_inventory == null or _o2_room_inventory.state() != "rejected":
+		return false
+	o2_room_inventory_failure = "o2_room_inventory_failed"
+	push_error("G3 room oxygen inventory failed: %s" % str(
+		_o2_room_inventory.report().get("rejections")))
+	return true
 
 
 ## Solo para fixtures: declara el oxígeno inicial de un recinto como fracción
@@ -4056,6 +4077,8 @@ func step(delta: float) -> void:
 	_step_exterior_opening_smooth(dt)
 	if _o2_room_inventory != null:
 		_o2_room_inventory.begin_step(_o2_room_inventory_environment())
+		if _o2_room_inventory_has_failed():
+			return
 
 	# Pre-computar el estado de flujo de cada abertura interior una sola vez,
 	# con las condiciones de sala al inicio de este paso. Esto garantiza que
@@ -4122,6 +4145,8 @@ func step(delta: float) -> void:
 	if phase3_canonical_zone_shadow_enabled:
 		combustion_system.begin_phase3_shadow_step(building)
 	_step_fire(dt)
+	if _o2_room_inventory_has_failed():
+		return
 	if _g3_prescribed_thermal_source != null:
 		# Después de la ruta del fuego de sala, que en ese recinto no posee nada.
 		_g3_prescribed_thermal_source.begin_step(dt)
@@ -4134,6 +4159,10 @@ func step(delta: float) -> void:
 	_phase3_zone_runtime_record_stage_shared("combustion", "combustion")
 	if not pre_hrr_o2_step:
 		_step_oxygen(dt)
+		if _o2_room_inventory != null:
+			_o2_room_inventory.audit_combustion_reservations()
+			if _o2_room_inventory_has_failed():
+				return
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_runtime_record_stage_shared("oxygen_exchange", "oxygen_exchange")
@@ -5021,6 +5050,8 @@ func _step_fire(dt: float) -> void:
 			dt,
 			_build_room_combustion_context(room_id)
 		)
+		if _o2_room_inventory != null and _o2_room_inventory.state() == "rejected":
+			return
 		if room_fire_active:
 			_try_trigger_flashover(room)
 
@@ -5250,10 +5281,14 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 		# secondary_hrr_gain que la habitación de referencia (fire_max_hrr_kw).
 		var gain: float = room.fire.secondary_hrr_gain_kw * (room.fire.max_hrr_kw / fire_max_hrr_kw)
 		room.fire.max_hrr_kw += gain
-		room.hrr_kw *= room.fire.flashover_hrr_multiplier
+		var boosted_hrr_kw: float = room.hrr_kw * room.fire.flashover_hrr_multiplier
+		if _o2_room_inventory != null and _o2_room_inventory.combustion_acceptance_enabled():
+			_o2_room_inventory.schedule_flashover_proposal(room, boosted_hrr_kw)
+		else:
+			room.hrr_kw *= room.fire.flashover_hrr_multiplier
 		combustion_system.generalize_room_combustion_after_flashover(room)
 		# Sincronizar fire_time con el HRR boosted para que la curva t² no retroceda
-		var t_to_hrr: float = sqrt(room.hrr_kw / maxf(0.001, room.fire.growth_alpha_kw_s2))
+		var t_to_hrr: float = sqrt(boosted_hrr_kw / maxf(0.001, room.fire.growth_alpha_kw_s2))
 		room.fire_time_s = maxf(room.fire_time_s, t_to_hrr)
 
 # ============================================================

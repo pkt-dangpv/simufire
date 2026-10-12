@@ -189,8 +189,11 @@ def _dilution(held_kg: float, gas_kg: float, volume_m3: float) -> dict:
 
 # ---------------------------------------------------------------- mode on
 
-def evaluate_on(rows: list[dict], scenario: dict, folder: Path | None = None) -> dict:
-    """Budgets, venting, selections, transit and enrichment of every step, with the mode on."""
+def evaluate_on(rows: list[dict], scenario: dict, folder: Path | None = None,
+                sink_policy: str = "legacy_cap") -> dict:
+    """Budgets, venting, selections, transit and enrichment with an explicit sink contract."""
+    if sink_policy not in ("legacy_cap", "accepted"):
+        raise ValueError(f"unknown sink policy: {sink_policy}")
     per_hour = m2._infiltration_per_hour(scenario)
     out = {"steps": 0, "room_gap_kg": 0.0, "building_gap_kg": 0.0, "oracle_gap_kg": 0.0,
            "largest_transit_kg": 0.0, "largest_number_of_entries": 0, "consumed_kg": 0.0, "clipped_kg": 0.0, "steps_with_a_clip": 0,
@@ -301,7 +304,10 @@ def evaluate_on(rows: list[dict], scenario: dict, folder: Path | None = None) ->
             held = held_before + float(before["due"].get(room, 0.0))
             demand = float(state["power_kw"]) / 1000.0 * KG_PER_MJ * dt
             gas = volume[room] * (per_hour / 3600.0) * DENSITY * dt
-            expected += m2._parcel(OUTSIDE - m2._x(held, volume[room]), gas) - min(demand, held * CAP)
+            # M3 settles the already accepted heat exactly. The default still
+            # judges the historical M1/M2 cap; M3 has its own reservation oracle.
+            sink_expected = min(demand, held * CAP) if sink_policy == "legacy_cap" else demand
+            expected += m2._parcel(OUTSIDE - m2._x(held, volume[room]), gas) - sink_expected
             # Is the room richer than the outside air, and is it so once what travels to it is counted?
             x = held_after / _n_o2(volume[room])
             highest_x = max(highest_x, x)
@@ -463,7 +469,7 @@ def evaluate_off(rows: list[dict]) -> dict:
 
 # ---------------------------------------------------------------- one run
 
-def evaluate(folder: Path, identity: Path | None) -> dict:
+def evaluate(folder: Path, identity: Path | None, sink_policy: str = "legacy_cap") -> dict:
     scenario = json.loads((folder / "scenario.json").read_text(encoding="utf-8"))
     rows = m2._rows(folder)
     kind = (folder / "kind.txt").read_text(encoding="utf-8").strip()
@@ -472,7 +478,8 @@ def evaluate(folder: Path, identity: Path | None) -> dict:
               "kind": kind, "mode": "on" if mode_on else "off",
               "switch_in_the_scenario": scenario["engine_overrides"].get(SWITCH, False), "trace_rows": len(rows)}
     if mode_on:
-        result.update(evaluate_on(rows, scenario, folder))
+        result.update(evaluate_on(rows, scenario, folder, sink_policy=sink_policy))
+        result["sink_policy"] = sink_policy
         usable = rows[:result["budget"]["steps"]] if result["budget"]["steps"] else rows
         result["whole"] = result["budget"]["refused"] is None and len(usable) == len(rows)
     else:
@@ -484,6 +491,11 @@ def evaluate(folder: Path, identity: Path | None) -> dict:
     result["last_time_s"] = float(usable[-1]["time_s"])
     if mode_on:
         result["heat_the_debit_does_not_back"] = unbacked_heat(result["fire"], result["budget"])
+        if sink_policy == "accepted":
+            result["heat_the_debit_does_not_back"]["what"] = (
+                "0.076 kg per MJ of accepted Salon heat against its exact inventory debit; no historical cap")
+            result["heat_the_debit_does_not_back"]["scope"] = (
+                "M3 exact debit of accepted heat; per-step reservation is independently judged by the M3 runner")
     if (folder / "sim_log.csv").is_file() and (not mode_on or result["budget"]["refused"] is None):
         result["contracts"] = m2.contracts(folder)
     if identity is not None and kind in ("off", "gap_passive"):

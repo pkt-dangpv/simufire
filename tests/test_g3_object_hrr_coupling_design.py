@@ -1,8 +1,9 @@
 """Coupling design of the prescribed object HRR source: facts pinned, confusions refused.
 
 Offline, no Godot. The oracles are closed forms, values printed in the cited reports or
-the audit of the selection; none comes from the function under test. A test that pins an
-engine fact is meant to fail when the engine moves: the design must then be read again.
+the audit of the selection; none comes from the function under test. Historical
+design facts are replayed against the recorded engine commit, not claimed for M3.
+The unmodified live auditor must still refuse that old design on the changed engine.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -27,6 +29,18 @@ ENERGY_KJ = 115093.655
 DESIGN_DOC = ROOT / "docs" / "validation" / "G3_OBJECT_HRR_SOURCE_COUPLING_DESIGN_2026-10-08.md"
 
 
+@pytest.fixture
+def engine_at_design_commit(monkeypatch):
+    """Replay only engine text; source data and the live consumer scan remain checked."""
+    paths = {item["file"] for item in RECORD["engine"]["anchors"]}
+    paths.add(RECORD["engine"]["step_order"]["file"])
+    historical = {path: subprocess.check_output(
+        ["git", "show", f"{RECORD['engine_read_at_commit']}:{path}"], cwd=ROOT
+    ).decode("utf-8").replace("\r\n", "\n") for path in paths}
+    original = design._text
+    monkeypatch.setattr(design, "_text", lambda path: historical[path] if path in historical else original(path))
+
+
 def _synthetic(points: list[tuple[float, float]]) -> dict:
     times, values = [p[0] for p in points], [p[1] for p in points]
     prefix = [0.0]
@@ -37,7 +51,7 @@ def _synthetic(points: list[tuple[float, float]]) -> dict:
 
 # ---------------------------------------------------------------- record and scope
 
-def test_the_saved_audit_is_what_the_auditor_computes() -> None:
+def test_the_saved_audit_is_what_the_auditor_computes(engine_at_design_commit) -> None:
     assert design.render(design.audit()) == design.SAVED.read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
     assert SAVED["schema"] == design.SCHEMA and SAVED["run"] == "Test016"
 
@@ -70,7 +84,7 @@ def test_the_auditor_launches_nothing_and_writes_one_file() -> None:
 
 # ---------------------------------------------------------------- the engine route
 
-def test_every_engine_fact_of_the_design_holds_in_the_source() -> None:
+def test_every_engine_fact_of_the_design_holds_in_the_source(engine_at_design_commit) -> None:
     route = design.engine_route(RECORD)
     assert len(route["anchors"]) == len(RECORD["engine"]["anchors"]) == 34
     assert all(item["holds"] for item in route["anchors"]) and route["step_order_holds"]
@@ -81,7 +95,7 @@ def test_every_engine_fact_of_the_design_holds_in_the_source() -> None:
 @pytest.mark.parametrize("anchor", ["hrr_is_filtered", "oxygen_sink_keyed_on_room_power",
                                     "radiation_to_walls_default", "run_end_needs_a_fire_object",
                                     "engine_has_no_state_restore", "one_fire_per_room"])
-def test_a_moved_engine_fact_stops_the_audit(anchor: str) -> None:
+def test_a_moved_engine_fact_stops_the_audit(anchor: str, engine_at_design_commit) -> None:
     record = copy.deepcopy(RECORD)
     item = next(entry for entry in record["engine"]["anchors"] if entry["id"] == anchor)
     item["count"] += 1
@@ -89,7 +103,7 @@ def test_a_moved_engine_fact_stops_the_audit(anchor: str) -> None:
         design.engine_route(record)
 
 
-def test_a_changed_step_order_stops_the_audit() -> None:
+def test_a_changed_step_order_stops_the_audit(engine_at_design_commit) -> None:
     record = copy.deepcopy(RECORD)
     order = record["engine"]["step_order"]["in_order"]
     fire, thermal = order.index("_step_fire(dt)"), order.index("thermal_system.step(building, dt, {")
@@ -97,6 +111,13 @@ def test_a_changed_step_order_stops_the_audit() -> None:
     order[fire], order[thermal] = order[thermal], order[fire]
     with pytest.raises(design.Refusal, match="step order"):
         design.engine_route(record)
+
+
+def test_live_auditor_refuses_the_old_design_on_m3_instead_of_reusing_its_go() -> None:
+    # No historic reader here. Keep the live tool fail-closed; its old GO is
+    # not authorization for M3. The actual bench has a separate live fixture.
+    with pytest.raises(design.Refusal, match="hrr_is_filtered"):
+        design.engine_route(RECORD)
 
 
 def test_only_the_diagnostic_bench_consumes_the_isolated_module() -> None:

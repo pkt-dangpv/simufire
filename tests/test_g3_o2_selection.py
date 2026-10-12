@@ -87,7 +87,10 @@ def test_the_record_belongs_to_the_code_it_speaks_of(record):
 def test_the_combustion_system_changed_for_this_stage_and_the_record_says_from_what_to_what(record):
     combustion = record["combustion_system"]
     assert combustion["sha256_before"] == COMBUSTION_BEFORE and combustion["before_is_the_commit"] == "718061f7"
-    assert combustion["sha256_after"] == hashlib.sha256(COMBUSTION.read_bytes()).hexdigest() != COMBUSTION_BEFORE
+    # M3 intentionally changes combustion. Keep the M2 record bound to ITS
+    # published engine, not to the implementation of a subsequent stage.
+    published = subprocess.check_output(["git", "show", f"{PUBLISHED_IN}:sim/fire/CombustionSystem.gd"], cwd=ROOT)
+    assert combustion["sha256_after"] == hashlib.sha256(published.replace(b"\r\n", b"\n")).hexdigest() != COMBUSTION_BEFORE
     for relative, digest in STILL_FROZEN.items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest, relative
         assert record["untouched_sha256"][relative] == digest
@@ -278,7 +281,8 @@ def test_the_fire_reads_the_selection_before_any_layer_number():
     # Every path of the branch returns: with the mode on nothing falls to the historical route.
     assert branch.rstrip().endswith('return {"mode": "o2_selection_refused", "o2_ref": 0.0, "o2_min_ref": o2_min_ref}')
     assert "o2_lower" not in branch and "o2_upper" not in branch and "room.o2" not in branch
-    assert combustion.count("o2_room_inventory") == 4, "the selection is consulted in one place"
+    assert body.count('o2_room_inventory.selection_for(room, "fire")') == 1
+    assert combustion.count('context.get("o2_room_inventory", null)') == 2, "selection and M3 acceptance share the owner"
     assert _code(COMBUSTION).count("selection_for(") == 1
 
 
@@ -290,7 +294,10 @@ def test_only_the_owner_builds_a_selection_and_the_sink_presents_the_one_it_was_
         assert "_selections" not in _text(path), path.name
     oxygen = _text(OXYGEN)
     owned = oxygen.split("func _step_owned_room_inventory(", 1)[1].split("\nfunc ", 1)[0]
-    assert owned.count('room_o2_inventory.selection_for(room, "sink")') == 1
+    current, historical = owned.split("elif room.hrr_kw > 0.0:", 1)
+    assert current.count('room_o2_inventory.selection_for(room, "sink")') == 1
+    assert historical.count('room_o2_inventory.selection_for(room, "sink")') == 1
+    assert "consume_reserved_combustion(" in current and "consume_reserved_combustion(" not in historical
     assert owned.index("selection_for(room") < owned.index("room_o2_inventory.consume(")
     assert 'room, selection, requested, consumed, "fire_sink_room_inventory"' in owned
     assert "sink_leaves_the_room_inventory" not in oxygen and "fire_sink_outside_the_room_inventory" not in oxygen
@@ -309,7 +316,11 @@ def test_a_debit_is_refused_unless_it_names_the_selection_of_its_room_step_and_r
                    "selection_already_debited"):
         assert f'return "{reason}"' in check, reason
     consume = owner.split("func consume(", 1)[1].split("\nfunc ", 1)[0]
-    assert consume.index("_selection_error(room, selection)") < consume.index("_commit(room, after_kg)")
+    assert consume.index("_selection_error(room, selection)") < consume.index("_apply_consumption(")
+    commit = owner.split("func _apply_consumption(", 1)[1].split("\nfunc ", 1)[0]
+    assert commit.count("_commit(room, after_kg)") == 1
+    reserved = owner.split("func consume_reserved_combustion(", 1)[1].split("\nfunc ", 1)[0]
+    assert reserved.index("_selection_error(room, selection)") < reserved.index("_apply_consumption(")
 
 
 def test_the_writes_on_the_layer_numbers_are_not_declared_as_consumption_with_the_mode_on():

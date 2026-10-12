@@ -5,7 +5,21 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
-Último avance del 11-10: [M2-T opción D autorizada](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
+Último avance del 12-10: [M3 cerrado técnicamente](../validation/G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
+Aceptación post-filtro y débito exacto reservados por un propietario, fracción
+común y flashover diferido, solo en el modo experimental ya existente.
+477 checks de integración y 126 del propietario, 14/14 mutantes en cada
+campaña; venteo 138 checks y 16/16. OFF 9/9 y ON sin limitación 4/4 idénticos.
+Dos casas intactas de 900 s, balances por tick y C1/C2 PASS; ninguna limitada
+por reserva (la limitación se juzga sintéticamente). Referencia 346/346,
+78 gaps, 493/494 archivos brutos iguales; producto 168/168, guardarraíles PASS.
+Global repetida 4 735 passed, 68 skipped, 2 xfailed, 42 subtests, monitor limpio.
+Nueve fallos estáticos anteriores explicados y corregidos, sin cambiar motor
+ni informes. No hay GO heredado del diseño antiguo Test016 sobre M3.
+Publicación autorizada, sin activar producto. M4 y los balances de combustible,
+calor, especies y exposición siguen pendientes; CO/FED OFF/NO-GO.
+
+Avance histórico del 11-10: [M2-T opción D autorizada](../validation/G3_O2_TRANSPORT_M2T_2026-10-11.md).
 Implementada en dos `.gd`: intercambio O₂ inmediato, simétrico, sin crear
 obligaciones; caudal, fuego, sumidero, EOS, M2-V y otras especies intactos.
 3 650 checks Godot PASS por monitor seguro, 199 pruebas offline PASS.

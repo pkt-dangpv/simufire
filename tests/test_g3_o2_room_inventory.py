@@ -328,7 +328,10 @@ def test_every_new_branch_is_behind_the_owner_and_null_is_the_historical_route()
     # pressure venting, which takes what the owner applied.
     assert _text(GAS).count("if room_o2_inventory != null:") == 5
     engine = _text(ENGINE)
-    assert engine.count("if _o2_room_inventory != null:") == 3
+    # M3 adds the pre-thermal reservation audit, behind the same owner gate.
+    assert engine.count("if _o2_room_inventory != null:") == 4
+    step = engine.split("func step(", 1)[1].split("\nfunc ", 1)[0]
+    assert step.index("audit_combustion_reservations()") < step.index("thermal_system.step(")
     assert "\t\tif not room.o2_inventory_authority:\n\t\t\troom.o2 = clampf(room.o2, 0.0, o2_nominal)\n" in engine
     assert "load(O2_ROOM_INVENTORY_PATH).new()" in engine and "preload(\"res://sim/core/RoomOxygenInventory.gd\")" not in engine
 

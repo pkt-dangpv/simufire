@@ -1,0 +1,614 @@
+{
+  "schema": "g3_m3_isolated_reservation_acceptance_v1",
+  "base": "0a15248a",
+  "motor_base": "28f74c4d",
+  "scope": "isolated RoomOxygenInventory reservation; no live engine integration",
+  "product_activation": false,
+  "co_fed_go": false,
+  "integration_validated": false,
+  "source_hash_basis": "raw bytes, verified restored after every mutant",
+  "sha256_before": {
+    "sim/core/RoomOxygenInventory.gd": "58b7c5d3492869a0c7739f41ed23d7883dddeb300eed499407db373dc7f355b9"
+  },
+  "sha256_after": {
+    "sim/core/RoomOxygenInventory.gd": "58b7c5d3492869a0c7739f41ed23d7883dddeb300eed499407db373dc7f355b9"
+  },
+  "fixture_sha256_after_run": "6dca2165ebbbea980273c7d09747dcf783f6e65ba6758a5aba0a4294687211de",
+  "originals_intact": true,
+  "declared": 14,
+  "executed": 14,
+  "killed_where_expected": 14,
+  "error": null,
+  "plan": {
+    "R01_old_five_percent_cap": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "cap acceptance to five percent",
+      "expected_in": "can reserve all available",
+      "declared_with_the_plan": true
+    },
+    "R02_caller_forges_availability": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "trust handed-out fields instead of the canonical selection",
+      "expected_in": "caller cannot forge availability",
+      "declared_with_the_plan": true
+    },
+    "R03_positive_arrival_spent": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "reserve positive oxygen that has not arrived",
+      "expected_in": "positive pending arrival is not available",
+      "declared_with_the_plan": true
+    },
+    "R04_obligation_ignored": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "ignore outstanding negative diagnostic obligations",
+      "expected_in": "all negative obligations deducted",
+      "declared_with_the_plan": true
+    },
+    "R05_duplicate_reservation": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "allow two reservations on the same selection",
+      "expected_in": "one reservation only",
+      "declared_with_the_plan": true
+    },
+    "R06_changed_heat_accepted": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "accept changed heat after reservation",
+      "expected_in": "post-acceptance heat change",
+      "declared_with_the_plan": true
+    },
+    "R07_settlement_capped": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "restore a late debit cap",
+      "expected_in": "inventory exhausted without negative clamp",
+      "declared_with_the_plan": true
+    },
+    "R08_mass_commit_omitted": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "report consumption without moving inventory",
+      "expected_in": "exact debit",
+      "declared_with_the_plan": true
+    },
+    "R09_unsettled_reservation_discarded": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "ignore an unsettled reservation",
+      "expected_in": "unsettled reservation cannot close",
+      "declared_with_the_plan": true
+    },
+    "R10_outgoing_reservation_unprotected": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "allow an outgoing operation to spend reserved oxygen",
+      "expected_in": "protected outside",
+      "declared_with_the_plan": true
+    },
+    "R11_old_sink_bypass": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "old sink can bypass acceptance",
+      "expected_in": "old debit cannot bypass acceptance",
+      "declared_with_the_plan": true
+    },
+    "R12_changed_inventory_accepted": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "accept a stale inventory snapshot",
+      "expected_in": "changed inventory refuses reservation",
+      "declared_with_the_plan": true
+    },
+    "R13_changed_coefficient_accepted": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "ignore changed oxygen coefficient",
+      "expected_in": "coefficient cannot change after acceptance",
+      "declared_with_the_plan": true
+    },
+    "R14_other_generation_accepted": {
+      "file": "sim/core/RoomOxygenInventory.gd",
+      "defect": "accept the selection from another run",
+      "expected_in": "reject wrong selection generation",
+      "declared_with_the_plan": true
+    }
+  },
+  "results": [
+    {
+      "name": "control",
+      "verdict": "pass",
+      "checks": 126,
+      "failed_checks": 0,
+      "expected_in": null,
+      "seen_where_expected": null,
+      "failures": [],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:41:45.062581+00:00",
+        "ended_at_utc": "2026-10-11T20:41:47.976478+00:00",
+        "wrapper_exit_code": 0,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": null
+    },
+    {
+      "name": "R01_old_five_percent_cap",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 18,
+      "expected_in": "can reserve all available",
+      "seen_where_expected": true,
+      "failures": [
+        "scarcity scales whole proposal",
+        "can reserve all available, not five percent",
+        "inventory exhausted without negative clamp",
+        "positive pending arrival is not available",
+        "pending arrival cannot increase accepted heat",
+        "protected outside",
+        "reserved room unchanged outside",
+        "dilution preflight protects reservation",
+        "protected dilution",
+        "reserved room unchanged dilution",
+        "protected live_exchange",
+        "reserved room unchanged live_exchange",
+        "other room unchanged on refusal live_exchange",
+        "protected legacy_exchange",
+        "reserved room unchanged legacy_exchange",
+        "other room unchanged on refusal legacy_exchange",
+        "all negative obligations deducted",
+        "debt and accepted heat exactly exhaust room"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:41:48.378729+00:00",
+        "ended_at_utc": "2026-10-11T20:41:51.296376+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "c70dec70eb9993598b1562fc521262481afbdaf7ae176184e0cb8544f9315f93"
+    },
+    {
+      "name": "R02_caller_forges_availability",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 2,
+      "expected_in": "caller cannot forge availability",
+      "seen_where_expected": true,
+      "failures": [
+        "caller cannot forge availability",
+        "forged availability still settles canonical selection"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:41:51.700302+00:00",
+        "ended_at_utc": "2026-10-11T20:41:54.605366+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "59b98678a4da6b73f046a9867b49eee2f97c57bc73fefc98ecdd408f9c013915"
+    },
+    {
+      "name": "R03_positive_arrival_spent",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 2,
+      "expected_in": "positive pending arrival is not available",
+      "seen_where_expected": true,
+      "failures": [
+        "positive pending arrival is not available",
+        "pending arrival cannot increase accepted heat"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:41:55.013319+00:00",
+        "ended_at_utc": "2026-10-11T20:41:57.935648+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "7f6a84f17caf7b515eb79004706a6068dde51ede8c55df2635ab89013b94911f"
+    },
+    {
+      "name": "R04_obligation_ignored",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 4,
+      "expected_in": "all negative obligations deducted",
+      "seen_where_expected": true,
+      "failures": [
+        "all negative obligations deducted",
+        "negative arrival delivered without spending reservation",
+        "debt plus reservation settles",
+        "debt and accepted heat exactly exhaust room"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:41:58.338651+00:00",
+        "ended_at_utc": "2026-10-11T20:42:01.261494+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "f1f543cdeeac03e578d3b2ebd15a27b8dbae39cdfaf03ea85daea2b3cab48436"
+    },
+    {
+      "name": "R05_duplicate_reservation",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 1,
+      "expected_in": "one reservation only",
+      "seen_where_expected": true,
+      "failures": [
+        "one reservation only"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:01.669058+00:00",
+        "ended_at_utc": "2026-10-11T20:42:04.595574+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "f3478900278442b1c7a21ae61c64d8125bda978187911ab97f7e5148f3aa0318"
+    },
+    {
+      "name": "R06_changed_heat_accepted",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 6,
+      "expected_in": "post-acceptance heat change",
+      "seen_where_expected": true,
+      "failures": [
+        "post-acceptance heat change 0.0",
+        "invalid settlement atomic",
+        "post-acceptance heat change 1.5",
+        "invalid settlement atomic",
+        "post-acceptance heat change 2.2",
+        "invalid settlement atomic"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:04.999607+00:00",
+        "ended_at_utc": "2026-10-11T20:42:07.914845+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "b8ec988cfe62d607fe41271a85f2e171f305d610a78f2e04ba4cff40a6d77eb8"
+    },
+    {
+      "name": "R07_settlement_capped",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 2,
+      "expected_in": "inventory exhausted without negative clamp",
+      "seen_where_expected": true,
+      "failures": [
+        "inventory exhausted without negative clamp",
+        "debt and accepted heat exactly exhaust room"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:08.317721+00:00",
+        "ended_at_utc": "2026-10-11T20:42:11.232804+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "24fd9020b6630b09c59fe6b90bda17f59c0cf3cd277be3080d9d3b7f96af5de9"
+    },
+    {
+      "name": "R08_mass_commit_omitted",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 3,
+      "expected_in": "exact debit",
+      "seen_where_expected": true,
+      "failures": [
+        "exact debit",
+        "inventory exhausted without negative clamp",
+        "debt and accepted heat exactly exhaust room"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:11.634156+00:00",
+        "ended_at_utc": "2026-10-11T20:42:14.160487+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "fa1e0834ab130dc68b8e371a58a86491442e192a8dca1de714183ca82d357bdf"
+    },
+    {
+      "name": "R09_unsettled_reservation_discarded",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 2,
+      "expected_in": "unsettled reservation cannot close",
+      "seen_where_expected": true,
+      "failures": [
+        "unsettled reservation cannot close",
+        "opening next step cannot discard outstanding reservation"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:14.563102+00:00",
+        "ended_at_utc": "2026-10-11T20:42:17.471380+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "e10e0e741241145983d5dd688b1a72af728e50c766828c1118fc78b4c5f0dbd2"
+    },
+    {
+      "name": "R10_outgoing_reservation_unprotected",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 11,
+      "expected_in": "protected outside",
+      "seen_where_expected": true,
+      "failures": [
+        "protected outside",
+        "reserved room unchanged outside",
+        "dilution preflight protects reservation",
+        "protected dilution",
+        "reserved room unchanged dilution",
+        "protected live_exchange",
+        "reserved room unchanged live_exchange",
+        "other room unchanged on refusal live_exchange",
+        "protected legacy_exchange",
+        "reserved room unchanged legacy_exchange",
+        "other room unchanged on refusal legacy_exchange"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:17.873186+00:00",
+        "ended_at_utc": "2026-10-11T20:42:20.790147+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "6f3acbda2fdca59e158fea22794939e5dbd152167bd224a693f4c93241e09f9e"
+    },
+    {
+      "name": "R11_old_sink_bypass",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 1,
+      "expected_in": "old debit cannot bypass acceptance",
+      "seen_where_expected": true,
+      "failures": [
+        "old debit cannot bypass acceptance"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:21.197855+00:00",
+        "ended_at_utc": "2026-10-11T20:42:23.837052+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "724c3fb033793971569cffb2cbf9e9d0a747357a49767f4e402660daad0d72c8"
+    },
+    {
+      "name": "R12_changed_inventory_accepted",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 1,
+      "expected_in": "changed inventory refuses reservation",
+      "seen_where_expected": true,
+      "failures": [
+        "changed inventory refuses reservation"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:24.243487+00:00",
+        "ended_at_utc": "2026-10-11T20:42:27.164024+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "246979390cf843ac89c075534bd35ac71b860f62c30ed996e6eac9d2a33f9da8"
+    },
+    {
+      "name": "R13_changed_coefficient_accepted",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 2,
+      "expected_in": "coefficient cannot change after acceptance",
+      "seen_where_expected": true,
+      "failures": [
+        "coefficient cannot change after acceptance",
+        "changed coefficient refusal is atomic"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:27.569628+00:00",
+        "ended_at_utc": "2026-10-11T20:42:30.094482+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "7045b20b3d327c8cbcb6b2b8b31cca1a5b3f6218a68514b7fc05e2120e630e55"
+    },
+    {
+      "name": "R14_other_generation_accepted",
+      "verdict": "killed",
+      "checks": 126,
+      "failed_checks": 1,
+      "expected_in": "reject wrong selection generation",
+      "seen_where_expected": true,
+      "failures": [
+        "reject wrong selection generation"
+      ],
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "console_wrapper_bypassed": true,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-11T20:42:30.493859+00:00",
+        "ended_at_utc": "2026-10-11T20:42:33.395863+00:00",
+        "wrapper_exit_code": 1,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1,
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "mutant_sha256": "f31feedd7d1f63fcf02ecdf10f6b72d8d4ec0dab779c166a262c78cd08d3e9a9"
+    }
+  ],
+  "local_raw_evidence_directory": "simufire_m3_reservation_mutations_73381c70ebf448b895fd684940cf84a2",
+  "invalid_attempts_not_counted": [
+    "memory refusal before launch (5.84 GiB)",
+    "fixture lacked get_room: script error followed by monitored timeout",
+    "mutation harness initially required a PASS banner absent from a healthy terminal payload; control only, no mutation applied",
+    "R09 first campaign: fixture indexed an empty rejection list; script error and monitored timeout; original bytes restored"
+  ],
+  "pending": [
+    "live fire proposal and confirmation",
+    "oxygen sink integration",
+    "deferred flashover",
+    "integrated mutations and OFF/ON identities",
+    "houses and full R2-1/reference/product/global chain"
+  ]
+}

@@ -113,7 +113,9 @@ def test_what_the_stage_does_not_touch_is_as_it_was(record):
     for relative, digest in STILL_FROZEN.items():
         assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest, relative
     assert record["untouched_sha256"]["sim/fire/CombustionSystem.gd"] == COMBUSTION_AFTER_M2
-    assert hashlib.sha256((ROOT / "sim/fire/CombustionSystem.gd").read_bytes()).hexdigest() == COMBUSTION_AFTER_M2
+    # The historical M2-V record freezes ITS combustion, not the new M3 stage.
+    published = subprocess.check_output(["git", "show", "cefae4ec:sim/fire/CombustionSystem.gd"], cwd=ROOT)
+    assert hashlib.sha256(published.replace(b"\r\n", b"\n")).hexdigest() == COMBUSTION_AFTER_M2
 
 
 def test_before_the_stage_the_fixture_fails_for_what_that_engine_does(record):
@@ -385,8 +387,14 @@ def test_the_dilution_of_the_owner_validates_first_and_clips_nothing():
     assert body.index("_dilution_error(") < body.index("_commit(room, after_kg)")
     for word in ("clampf", "minf", "maxf", "0.209", "o2_nominal"):
         assert word not in body, word
-    assert "o2_kg_in_reference_gas(float(outside_mole_fraction), entering_kg)" in body
-    assert "reference_gas_kg(room.volume_m3()) + entering_kg" in body
+    # M3 shares the exact dilution arithmetic between preflight and commit;
+    # it does not introduce another law or remove this conversion contract.
+    terms = owner.split("func _outside_dilution_terms(", 1)[1].split("\nfunc ", 1)[0]
+    assert "_outside_dilution_terms(room, entering_kg, float(outside_mole_fraction))" in body
+    assert "o2_kg_in_reference_gas(outside_mole_fraction, entering_kg)" in terms
+    assert "reference_gas_kg(room.volume_m3()) + entering_kg" in terms
+    for word in ("clampf", "minf", "maxf", "0.209", "o2_nominal"):
+        assert word not in terms, word
     for total in ("outside_in_kg", "outside_out_kg", "dilution_events", "dilution_gas_kg", "dilution_in_kg", "dilution_out_kg"):
         assert body.count(f'totals["{total}"] +=') == 1, total
     asking = owner.split("func outside_dilution_would_apply(", 1)[1].split("\nfunc ", 1)[0]
