@@ -3,7 +3,8 @@ import argparse
 import json
 from pathlib import Path
 
-from tactics.hydraulics import analyze_profile, read_profile
+from tactics.hydraulics import read_profile
+from tactics.flow_context import evaluate_flow_profile
 from tactics.presentation import render_hydraulic_answer, resolve_number_format
 
 
@@ -11,6 +12,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--profile', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--installation-context',type=Path,
+                        help='Datos declarados de etapa, salida, objetivo de presión, elementos, límites y espuma, vinculados al perfil')
     parser.add_argument('--number-format',choices=('en','es','auto'),default='en',
                         help='Notación decimal: punto en en, coma en es; auto usa --language')
     parser.add_argument('--language',default='es',
@@ -18,7 +21,9 @@ def main():
     args = parser.parse_args()
     try:
         style = resolve_number_format(language=args.language,number_format=args.number_format)
-        result = analyze_profile(read_profile(args.profile))
+        profile=read_profile(args.profile)
+        declared=read_profile(args.installation_context) if args.installation_context else None
+        result = evaluate_flow_profile(profile,declared)
         result['answer'] = render_hydraulic_answer(result,language=args.language,number_format=args.number_format)
         result['presentation'] = {'number_format':style,'decimal_separator':'.' if style=='en' else ',',
                                   'thousands_grouping':False,'units':'bar, L/min, L, min',

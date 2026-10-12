@@ -533,3 +533,41 @@ ni convierte la curva anterior en una curva válida para otra manguera. Las curv
 de los ejemplos H originales son ficticias y no son datos certificados de fabricante.
 Las alternativas de mayor diámetro, líneas paralelas o bombeo en serie requieren
 modelos y datos adicionales; esta corrección docente no implementa esas topologías.
+
+## Contexto operativo de las consultas de caudal
+
+El comando hidráulico muestra objetivo, presión objetivo en entrada de lanza,
+curva y condiciones de bomba, etapa/salida, régimen, diámetro y tipo de manguera,
+longitud, desnivel, elementos, curvas resistentes y límites de presión. Los datos
+ausentes se indican; no se elige automáticamente una etapa o un material.
+La presión objetivo y la de salida declarada se conservan separadas de las
+presiones que predicen las curvas. El modelo sigue utilizando curvas fijas y
+no simula una regulación que imponga la presión declarada.
+
+`--installation-context archivo.json` acepta declaraciones según
+`tactics/flow_context.schema.json`, ligadas a la huella del perfil y a sus fuentes.
+Etapa y RPM seleccionadas deben corresponder a las de la curva. Los elementos
+individuales son accesorios en serie: sus pérdidas deben sumar la curva agregada
+en todos los puntos de cambio, sin duplicarlas en el cálculo. Se comprueban sus
+límites y los de bomba/manguera/lanza mediante la cota conservadora existente.
+No se calculan presiones locales ni transitorios. Una línea con varias mangueras
+de distinto tipo/diámetro, ramas o consumidores sigue fuera de este modelo.
+
+Un objetivo de presión que no coincida con la curva de lanza al caudal objetivo
+se señala como incompatible, sin alterar los datos ni recomendar un ajuste.
+El registro de datos y las comprobaciones no acreditan seguridad integral,
+alimentación de bomba, cavitación ni idoneidad táctica para el incendio.
+
+El contexto puede registrar solicitudes de solución espumante o CAFS, diferenciando
+agua, concentrado, solución y espuma expandida. Incluye equipo y dosificador,
+producto/combustible/agua, concentración en volumen de solución, caudales nominales
+y rango, entrada/contrapresión/pérdidas/límites, aspiración, temperatura/viscosidad,
+reservas, lanza/generador, expansión/drenaje, aplicación y sus referencias,
+compatibilidad, condiciones ambientales y lavado; CAFS añade aire y sus presiones.
+Los balances declarados de agua/concentrado/solución y porcentaje deben concordar.
+
+Estas solicitudes se devuelven como `unsupported_foam_hydraulics`, con los datos
+pendientes y sin ejecutar el balance de agua, ni predecir punto o autonomía de
+espuma. Todavía no hay modelo de dosificación, simulación CAFS ni selección táctica
+automática de producto/sistema. Los requisitos concretos dependen del fabricante
+y aplicación: no se aplica un porcentaje o contrapresión universal.

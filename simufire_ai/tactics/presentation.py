@@ -17,9 +17,15 @@ def resolve_number_format(*,language='es',number_format='en'):
 
 def render_hydraulic_answer(result,*,language='es',number_format='en'):
     style = resolve_number_format(language=language,number_format=number_format)
-    text = render_result(result)
-    if style=='en': return text
+    context=result.get('installation_context')
+    if context is not None:
+        from tactics.flow_context import render_installation_context
+        prefix=render_installation_context(context,number_format=style)
+        text=render_result(result) if context['agent']=='water' else ''
+    else:prefix='';text=render_result(result)
+    if style=='en': return prefix+('\n\n' if prefix and text else '')+text
     # Convert only decimal tokens emitted by the canonical numeric renderer.
     # No thousands grouping, unit conversion, parsing of input, or JSON mutation.
-    return re.sub(r'(?<![\w.])([+-]?\d+)\.(\d+)([eE][+-]?\d+)?(?![\w.])',
+    text=re.sub(r'(?<![\w.])([+-]?\d+)\.(\d+)([eE][+-]?\d+)?(?![\w.])',
                   lambda match:match.group(1)+','+match.group(2)+(match.group(3) or ''),text)
+    return prefix+('\n\n' if prefix and text else '')+text
