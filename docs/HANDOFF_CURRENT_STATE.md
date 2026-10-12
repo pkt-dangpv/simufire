@@ -1,5 +1,58 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-12 - M4-A1 puro: cierre final verde
+
+Autorización «hazlo» al núcleo puro, no wiring ni producto.
+[Informe y retomada](validation/G3_O2_M4_PURE_PARTITION_2026-10-12.md).
+Nuevo sim/core/OxygenReferencePartition.gd, sin llamadores de simulación:
+M/U/L conservativos, bases de referencia, remap/mezcla/presupuesto explícitos,
+rechazo atómico y copias de estado/recibos. No tasa calibrada ni gas físico.
+160 304 checks y 18 contrastes Python PASS; 14/14 mutantes válidos, restauración
+SHA-256. Se usa la segunda campaña, con huella de fixture antes/después;
+no sumar las dos. Focal inicial 226, final 227 passed. Sin cuadros, timeouts
+ni Godot residual.
+Referencia PASS 346/346 y 78 gaps; 493/494 archivos brutos idénticos, solo
+generated_at, 3 202,25 s. Producto 168/168 PASS, 635,98 s; guardarraíles
+ALL PASS con R2-1, 3,15 s. Todos los monitores sanos. Resultados externos:
+%LOCALAPPDATA%/Temp/simufire_m4a1_reference_20261012/result.json;
+suite interna runs/reference_suite_monitored_20261012_141120.
+Primera global autoritativa PASS: 4 829 passed, 70 skipped, 2 xfailed, 42 subtests,
+exit 0, 920,07 s pytest / 923,73 s monitor. Memoria 6,716->6,676 GiB;
+stderr vacío, salud limpia, cero Godot residual. Resultado externo
+%LOCALAPPDATA%/Temp/simufire_m4a1_global_20261012/result.json.
+Cadena completada, R2-1 verde; código/fixture/oráculo preservados por hash.
+79 UID y cuatro stashes intactos. Publicación autorizada tras revisión staged
+de esta fase, sin archivos ajenos ni activación. M3 intacto; base 993d98ec.
+CO/FED OFF/NO-GO. El rechazo inicial de guardarraíles se resolvió verificando
+producto terminado y cero procesos antes de reintentar el mismo comando.
+Revisión staged: el inventario histórico rechazaba el módulo al quedar tracked.
+Corregido solo en el arnés nuevo M4; histórico intacto. Focal 227 PASS con
+prueba untracked/tracked, CRLF/LF y cambio real. Primer intento de esa focal:
+226 PASS/1 error tmp_path sandbox, repetido y verde con basetemp externo.
+Global final PASS: 4 830 passed, 70 skipped, 2 xfailed, 42 subtests, exit 0,
+918,85 s pytest / 922,63 s monitor, 6,698->6,591 GiB, stderr vacío y salud limpia.
+Resultado: %LOCALAPPDATA%/Temp/simufire_m4a1_global_repeat_20261012/result.json.
+Evidencia conserva ambas globales/arneses. No cambiaron núcleo, fixture ni motor.
+Publicación autorizada tras revisión staged de los 15 archivos, sin UID ni runs/.
+Siguiente tras cerrar: M4-B diagnóstico de adaptador, no selección zonal del fuego.
+
+## Current Program Update - 2026-10-12 - M4-A: contrato, sin física nueva
+
+Continuación autorizada al contrato y las pruebas del siguiente paso.
+[M4-A](validation/G3_O2_M4_PARTITION_CONTRACT_2026-10-12.md) define el reparto
+conservativo del oxígeno: M canónico de sala, U subordinado, L=M-U.
+No es el antiguo guard ILV llamado también M4 ni una autorización para varios
+fuegos. Oráculo offline con remap, mezcla impuesta y presupuesto pareado;
+sin tasa calibrada, sin Godot, sin cambios en sim/ ni informes de referencia.
+NO-GO a seleccionar/debitar una capa en el fuego sin contrato de adaptador y
+reserva zonal. Las bases de referencia no son masa física de gas caliente.
+M3 publicado en 993d98ec sigue vigente; CO/FED y producto OFF/NO-GO.
+Contrato verificado: 66 pruebas nuevas, 200 focales PASS (incluyen las 66);
+guardarraíles/R2-1 PASS, enlaces y diff limpios. 1 010 archivos versionados
+de sim/ idénticos por inventario/hash; 79 UID y cuatro stashes intactos.
+Cero Godot. Sin commit/push de esta entrega; main intacto.
+Siguiente entrega: núcleo puro GDScript aislado M4-A1 y su falsación, no wiring.
+
 ## Current Program Update - 2026-10-12 - G3: M3 cerrado técnicamente, publicación autorizada
 
 El usuario autoriza implementar M3 y diferir el aumento de flashover a la

@@ -5,6 +5,26 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance posterior del 12-10: [M4-A1 puro](../validation/G3_O2_M4_PURE_PARTITION_2026-10-12.md),
+autorizado «hazlo». Núcleo GDScript aislado implementado, no integrado;
+160 304 checks, 18 contrastes Python y 14/14 mutantes válidos, focal 226 PASS.
+Referencia 346/346 y 78 gaps, 493/494 archivos brutos iguales, solo generated_at;
+producto 168/168, guardarraíles/R2-1 PASS. Global final 4 830 passed, 70 skipped,
+2 xfailed y 42 subtests; salud limpia. Cierre técnico aislado, publicación
+autorizada tras revisión. No hay wiring ni promoción de CO/FED.
+Después: diagnóstico M4-B del adaptador, no selección zonal del fuego.
+Arnés corregido al revisar Git add: snapshot actual, independiente del conjunto
+histórico M2-T; prueba nueva y focal final 227 PASS. La primera global de
+4 829 PASS se conserva; núcleo/fixture/oráculo/falsación/referencia intactos.
+
+Continuación del 12-10: [M4-A, contrato y oráculo de reparto](../validation/G3_O2_M4_PARTITION_CONTRACT_2026-10-12.md).
+M de sala y U subordinado, L=M-U; remap y mezcla pareados con entradas
+impuestas. No es una ley calibrada, no está integrado y no activa producto.
+Siguiente: núcleo puro GDScript M4-A1 antes de adaptador, autoridad y selección
+zonal del fuego. Varios fuegos y CO/FED siguen fuera. Sin Godot ni cambios en sim/.
+66 pruebas nuevas y focal de 200 PASS (incluye las 66); guardarraíles/R2-1
+PASS sin regenerar referencia. Sin commit/push de esta entrega offline.
+
 Último avance del 12-10: [M3 cerrado técnicamente](../validation/G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
 Aceptación post-filtro y débito exacto reservados por un propietario, fracción
 común y flashover diferido, solo en el modo experimental ya existente.

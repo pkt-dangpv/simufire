@@ -1,0 +1,351 @@
+{
+  "schema": "g3_m4a1_pure_partition_evidence_v1",
+  "date": "2026-10-12",
+  "base": "993d98ec",
+  "closed": true,
+  "current_revision_status": "final global passed with pure module tracked; isolated technical closure only",
+  "implemented": true,
+  "integrated": false,
+  "physical_validation": false,
+  "product_activation": false,
+  "CO_FED": "OFF/NO-GO",
+  "scope": "isolated reference-content oxygen partition; not gas composition, kinetics or exposure",
+  "sources_sha256_lf": {
+    "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836",
+    "tests/fixtures/g3_o2_m4_partition.gd": "84f4d19866d1618a4fbb35aef04a8d3bd8b7b5019df88d530fc2abb784b173d2",
+    "scripts/simulation/g3_m4_partition_contract.py": "935bc208b86689d3302e3b7f93904420fded1932ab9d1b0a41c159d72b418d3d",
+    "scripts/simulation/run_g3_o2_m4_partition.py": "9b9c87459153f73d09b6080808df9ee4289ab137c9b47667b5953446946eda3e",
+    "scripts/simulation/run_g3_o2_m4_partition_mutations.py": "361c418756377d7ace56e3aeac78b2a6eca12f88acb87ed8a8d2b84b87fcfd4a",
+    "scripts/simulation/run_g3_o2_m4_closure.py": "c0c2516bedeb2b078e6f1c04d622075a98c4edd1a11ae097c7711f77fec93342",
+    "tests/test_g3_m4_partition_contract.py": "46c95f86c757435c835ecca1ec80eca219511b437f4bf2ec4ea0e2b5c130e6da",
+    "tests/test_g3_m4_partition_runtime_contract.py": "7c96b447d639b86190177992dd78f3643806b27b994074b2ce83b7336f8c57dc"
+  },
+  "control": {
+    "state": "passed",
+    "oracle": {
+      "samples": 18,
+      "independent_budget": true,
+      "physical_validation": false
+    },
+    "health": {
+      "contract": "windows-window-process-exit-v2",
+      "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+      "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+      "console_wrapper_bypassed": true,
+      "windows_error_ui_suppressed": true,
+      "started_at_utc": "2026-10-12T12:08:51.941494+00:00",
+      "ended_at_utc": "2026-10-12T12:08:55.231340+00:00",
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "process_ownership": "job-object",
+      "owned_process_total": 1,
+      "owned_descendant_wait_s": 0,
+      "observed_godot_processes": [
+        {
+          "image_name": "Godot_v4.7.1-stable_win64.exe",
+          "pid": 10212,
+          "exit_code": 0
+        }
+      ],
+      "foreign_godot_processes": [],
+      "process_handle_capture_races": [],
+      "process_handle_capture_failures": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "post_exit_observation_s": 2.386
+    },
+    "model_sha256_raw": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836",
+    "fixture_sha256_raw": "84f4d19866d1618a4fbb35aef04a8d3bd8b7b5019df88d530fc2abb784b173d2",
+    "oracle_sha256_raw": "935bc208b86689d3302e3b7f93904420fded1932ab9d1b0a41c159d72b418d3d"
+  },
+  "control_checks": 160304,
+  "iterations": 10000,
+  "maximum_total_gap_kg": 0,
+  "falsification": {
+    "declared": 14,
+    "executed": 14,
+    "killed_where_expected": 14,
+    "originals_intact": true,
+    "sha256_before": {
+      "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836"
+    },
+    "sha256_after": {
+      "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836"
+    },
+    "fixture_sha256_before": "84f4d19866d1618a4fbb35aef04a8d3bd8b7b5019df88d530fc2abb784b173d2",
+    "fixture_sha256_after": "84f4d19866d1618a4fbb35aef04a8d3bd8b7b5019df88d530fc2abb784b173d2",
+    "clean_launches": 15
+  },
+  "assertions": [
+    {
+      "name": "control",
+      "verdict": "pass",
+      "checks": 160304,
+      "failed_checks": 0,
+      "expected_in": null,
+      "seen_where_expected": null
+    },
+    {
+      "name": "A01_wrong_growing_donor",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 3,
+      "expected_in": "analytic remap donor",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A02_wrong_shrinking_donor",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 1,
+      "expected_in": "analytic remap donor",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A03_ambient_reset_on_collapse",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 4,
+      "expected_in": "analytic remap donor",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A04_mix_omitted",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 4,
+      "expected_in": "analytic mix target",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A05_mix_one_way",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 1,
+      "expected_in": "mix donates in both directions",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A06_missing_paired_delta",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 26,
+      "expected_in": "mix P3 lower",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A07_budget_total_not_updated",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 10,
+      "expected_in": "budget P1 room",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A08_negative_upper_accepted",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 3,
+      "expected_in": "invalid state range rejected",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A09_capacity_check_omitted",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 7,
+      "expected_in": "invalid state range rejected",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A10_bool_is_number",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 9,
+      "expected_in": "invalid state number",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A11_absent_is_zero",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 1,
+      "expected_in": "absent zone is null not zero or epsilon",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A12_result_aliases_receipt",
+      "verdict": "killed",
+      "checks": 160304,
+      "failed_checks": 1,
+      "expected_in": "receipt after snapshot isolated",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A13_mix_ignores_range",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 4,
+      "expected_in": "mix outside unit interval rejected",
+      "seen_where_expected": true
+    },
+    {
+      "name": "A14_ambient_ceiling",
+      "verdict": "killed",
+      "checks": 302,
+      "failed_checks": 6,
+      "expected_in": "no ambient ceiling",
+      "seen_where_expected": true
+    }
+  ],
+  "corpus": {
+    "files": 494,
+    "identical_files": 493,
+    "changed_paths": [
+      "sim/validation/reports/reference_checks.json"
+    ],
+    "only_generated_at_changed": true,
+    "required": 346,
+    "failed_required": 0,
+    "gaps": 78
+  },
+  "stages": {
+    "reference": {
+      "state": "passed",
+      "returncode": 0,
+      "wall_s": 3202.25,
+      "errors": [],
+      "before_gib": 6.601448059082031,
+      "after_gib": 6.760772705078125,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "stdout_sha256": "1bfbc03c875d19d52ee19d8481ef4ddb7a04254e624072942dabc811641ac826",
+      "closure_runner_sha256_lf": "a040157c2869f99110d7aca1aaca85b1744ab6e25b6914c0be041c1ab4568ed0"
+    },
+    "product": {
+      "state": "passed",
+      "returncode": 0,
+      "wall_s": 635.98,
+      "errors": [],
+      "before_gib": 6.761127471923828,
+      "after_gib": 6.775722503662109,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "stdout_sha256": "3c970aaeda671811adb8d7d84c85f4ff8763979956c822b051058b3a2925258e",
+      "closure_runner_sha256_lf": "a040157c2869f99110d7aca1aaca85b1744ab6e25b6914c0be041c1ab4568ed0"
+    },
+    "guardrails": {
+      "state": "passed",
+      "returncode": 0,
+      "wall_s": 3.15,
+      "errors": [],
+      "before_gib": 6.725166320800781,
+      "after_gib": 6.757545471191406,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "stdout_sha256": "f5c30e117ade621fd4022a958c1fc98ca2bfac293c188465676cb4dffa10cd15",
+      "closure_runner_sha256_lf": "a040157c2869f99110d7aca1aaca85b1744ab6e25b6914c0be041c1ab4568ed0"
+    },
+    "global": {
+      "returncode": 0,
+      "wall_s": 922.63,
+      "errors": [],
+      "stdout_sha256": "42e1befbf857eac9012e424942d2763622d9f2d67be6832bb3a313e6c04df0ce",
+      "state": "passed",
+      "before_gib": 6.698017120361328,
+      "after_gib": 6.591377258300781,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true,
+      "closure_runner_sha256_lf": "c0c2516bedeb2b078e6f1c04d622075a98c4edd1a11ae097c7711f77fec93342"
+    }
+  },
+  "focused": {
+    "passed": 227,
+    "new_partition_and_harness_tests": 93,
+    "skipped": 0
+  },
+  "global": {
+    "passed": 4830,
+    "skipped": 70,
+    "xfailed": 2,
+    "subtests": 42,
+    "pytest_wall_s": 918.85,
+    "monitor_wall_s": 922.63
+  },
+  "preservation": {
+    "uid_count": 79,
+    "uid_inventory_sha256": "DC901EFB4F3DC4E6B6AB6AAF754470C2ADBFA4543CACD21E2E4B2BB3ECD6E996",
+    "stashes": [
+      "0e0fd97a20f55a04925b3228ea33cc659f79befe",
+      "6cbc1f07e254e6cf96f37313b1a014a82e5564ff",
+      "9e12ab9e24a2b1901b8c124a94549f0efe784ab6",
+      "8ce667fc97ce4c3470eed915f72f245d02df9611"
+    ]
+  },
+  "reference_generated_at": {
+    "before": "2026-10-11T23:17:54Z",
+    "after": "2026-10-12T13:04:39Z"
+  },
+  "attempts_not_current_evidence": [
+    "first static label test: 1 failed / 78 passed; composed rejection label fixed; 79 then 226 passed",
+    "first complete 14/14 campaign repeated to record fixture SHA-256 before and after; second campaign is current evidence",
+    "first guardrails dispatch refused because product was interpreted as active; read-only terminal/process checks proved completion; same command then accepted and passed",
+    "staged review: inherited historical inventory refused newly tracked pure module; M4 snapshot corrected without modifying historical harness, core or fixture",
+    "first added tmp_path test: 226 passed / 1 setup error in sandbox; repeated externally, 227 passed",
+    "first global 4829/70/2/42 valid on previous harness; final global 4830/70/2/42 validates tracked-module inventory correction"
+  ],
+  "deferred": [
+    "M4-B donor/adaptor diagnosis",
+    "runtime zonal authority",
+    "zonal combustion selection and reservation",
+    "physical concentration validation",
+    "product activation"
+  ],
+  "publication": "authorized after green chain and staged review; not performed by this record",
+  "sources_sha256_lf_before_inventory_fix": {
+    "sim/core/OxygenReferencePartition.gd": "bb3fe0a4d507d195611d19074b0bcdac64be547e19e24a40d1c10815d7374836",
+    "tests/fixtures/g3_o2_m4_partition.gd": "84f4d19866d1618a4fbb35aef04a8d3bd8b7b5019df88d530fc2abb784b173d2",
+    "scripts/simulation/g3_m4_partition_contract.py": "935bc208b86689d3302e3b7f93904420fded1932ab9d1b0a41c159d72b418d3d",
+    "scripts/simulation/run_g3_o2_m4_partition.py": "9b9c87459153f73d09b6080808df9ee4289ab137c9b47667b5953446946eda3e",
+    "scripts/simulation/run_g3_o2_m4_partition_mutations.py": "361c418756377d7ace56e3aeac78b2a6eca12f88acb87ed8a8d2b84b87fcfd4a",
+    "scripts/simulation/run_g3_o2_m4_closure.py": "a040157c2869f99110d7aca1aaca85b1744ab6e25b6914c0be041c1ab4568ed0",
+    "tests/test_g3_m4_partition_contract.py": "46c95f86c757435c835ecca1ec80eca219511b437f4bf2ec4ea0e2b5c130e6da",
+    "tests/test_g3_m4_partition_runtime_contract.py": "8df8816c2ba7a8aa92e440c78d5cb8c1ef33c57c07cf6e5e34a3d8f9b4e611f5"
+  },
+  "first_global_before_inventory_fix": {
+    "state": "passed",
+    "returncode": 0,
+    "wall_s": 923.73,
+    "errors": [],
+    "before_gib": 6.71600341796875,
+    "after_gib": 6.676094055175781,
+    "timed_out": false,
+    "error_dialogs": [],
+    "residual_godot_processes": [],
+    "process_quiescent": true,
+    "cleanup_terminated_pids": [],
+    "stdout_sha256": "40171264a74588ace3e9d5eeeba0e8a92409985b6f673d01b9cd8ca796f23a86"
+  },
+  "global_first_counts": {
+    "passed": 4829,
+    "skipped": 70,
+    "xfailed": 2,
+    "subtests": 42,
+    "pytest_wall_s": 920.07,
+    "monitor_wall_s": 923.73
+  }
+}

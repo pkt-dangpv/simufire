@@ -1,9 +1,29 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-12 (G3: M3 cerrado tecnicamente, sin activar producto)
+Ultima actualizacion parcial: 2026-10-12 (G3: M4-A1 puro cerrado, sin activar producto)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance posterior del 12-10: [M4-A1 puro](../validation/G3_O2_M4_PURE_PARTITION_2026-10-12.md).
+Nuevo .gd aislado, 160 304 checks, 18 contrastes Python y 14/14 mutantes
+validos. Focal final 227 PASS. Referencia 346/346 y 78 gaps, 493/494 archivos
+brutos iguales (solo generated_at); producto 168/168, guardarrailes/R2-1 PASS.
+Global final 4 830 passed, 70 skipped, 2 xfailed, 42 subtests; todos los monitores
+sanos. GO tecnico aislado, publicacion autorizada tras revision, sin wiring.
+M3 y producto intactos, CO/FED OFF/NO-GO. Siguiente: diagnostico M4-B del adaptador.
+Revisión staged corrigió el inventario del arnés para admitir el módulo tracked;
+histórico intacto, prueba añadida y global repetida. Primera global 4 829 PASS
+conservada como historial; no se repitió física con fuentes sin cambios.
+
+Continuacion del 12-10: [M4-A, contrato de reparto](../validation/G3_O2_M4_PARTITION_CONTRACT_2026-10-12.md).
+Un total de O2 y un reparto subordinado; oraculo offline, sin Godot ni cambios
+en sim/. M4 significa reparto entre capas, no soporte general de varios fuegos.
+GO al siguiente nucleo GDScript puro aislado; NO-GO al wiring de fuego,
+transporte y exposicion sin bases y adaptador. Producto/CO/FED OFF/NO-GO.
+66 pruebas nuevas / 200 focales PASS (no sumables), guardarrailes y R2-1 PASS.
+Entrega offline, sin cambio en los 1 010 archivos versionados de sim/;
+sin commit/push de M4-A, main intacto.
 
 Actualizacion operativa del 12-10: [M3 cerrado tecnicamente](../validation/G3_O2_M3_IMPLEMENTATION_2026-10-11.md).
 Aceptacion post-filtro, reserva y debito exacto, fraccion comun y flashover
