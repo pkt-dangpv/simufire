@@ -176,12 +176,18 @@ func _draw_live_player(rects: Dictionary, tf: Dictionary) -> void:
 	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.84), 1.4)
 
 
-func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	if room == null:
-		return
-	var is_bathroom: bool = _is_bathroom_room(room)
+## Share the current full snapshots with 3D/FP. A reduced dictionary on every
+## canvas redraw evicts their exact-key layout cache even with identical poses.
+## Keep the original model fallback when no snapshot has been delivered.
+func _fuel_objects_for_layout(room_id: int, room: RoomModel) -> Array:
+	var room_state: Variant = state.get(str(room_id), {})
+	if typeof(room_state) == TYPE_DICTIONARY:
+		var snapshots: Variant = room_state.get("fuel_objects", null)
+		if typeof(snapshots) == TYPE_ARRAY:
+			return Array(snapshots).duplicate(true)
 	var raw_objects: Array = []
+	if room == null:
+		return raw_objects
 	for obj in room.fuel_objects:
 		if obj == null:
 			continue
@@ -194,6 +200,15 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 			"rotation_deg": obj.rotation_deg,
 			"visual_pose_locked": obj.visual_pose_locked,
 		})
+	return raw_objects
+
+
+func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	if room == null:
+		return
+	var is_bathroom: bool = _is_bathroom_room(room)
+	var raw_objects: Array = _fuel_objects_for_layout(room_id, room)
 	# El mismo reparto que las demas vistas: un minimapa que coloque los muebles
 	# por su cuenta miente sobre lo que hay al otro lado de la puerta.
 	for visual_obj in FurnitureVisualLayout.normalize_room(building, room_id, room_rect, raw_objects):

@@ -7,6 +7,7 @@ const Templates := preload("res://sim/templates/BuildingTemplate.gd")
 const Read := preload("res://view/ViewScenarioRead.gd")
 const Overview := preload("res://view/3d/Visualizer3D.gd")
 const FP := preload("res://view/fp/FirstPersonController.gd")
+const Mini := preload("res://ui/Minimap2D.gd")
 
 var checks: int = 0
 var failures: Array[String] = []
@@ -98,6 +99,33 @@ func _run() -> void:
 	check(building.load_template_data(Templates.new().create_product_preset("simple_house")), "product loaded")
 	var room_rect: Rect2 = building.get_room_rects_m()[0]
 	var objects: Array = Read.fuel_object_snapshots(building.get_room(0))
+	var mini := Mini.new()
+	mini.building = building
+	# Alternate the real caller schemas, not repeated calls from one view.
+	var full: Array = objects.duplicate(true)
+	for object: Dictionary in full:
+		object["alpha_kw_s2"] = -1.0
+		object["critical_heat_flux_kw_m2"] = 12.5
+		object["heat_of_gasification_kj_kg"] = -1.0
+	Layout.normalize_room(building, 0, room_rect, full, true)
+	var alternating_misses: int = int(Layout.cache_stats()["misses"])
+	for index: int in range(24):
+		full[0]["hrr_kw"] = float(index)
+		full[0]["remaining_fuel_MJ"] = 10.0 - float(index) * 0.1
+		mini.set_state({"0": {"fuel_objects": full}})
+		var mini_raw: Array = mini._fuel_objects_for_layout(0, building.get_room(0))
+		check(_equal(mini_raw, full), "minimap full snapshots")
+		_assert_current(building, 0, room_rect, full, true, "main alternating")
+		_assert_current(building, 0, room_rect, mini_raw, true, "minimap alternating")
+		check(int(Layout.cache_stats()["misses"]) == alternating_misses, "minimap shares warm layout")
+		mini_raw[0]["name"] = "poison"
+		check(full[0]["name"] != "poison", "minimap snapshot isolated")
+	mini.state = {}
+	var fallback: Array = mini._fuel_objects_for_layout(0, building.get_room(0))
+	check(not fallback.is_empty(), "minimap model fallback")
+	mini.state = {"0": {"fuel_objects": []}}
+	check(mini._fuel_objects_for_layout(0, building.get_room(0)).is_empty(), "minimap empty authoritative snapshot")
+	mini.free()
 	_assert_current(building, 0, room_rect, objects, true, "product")
 	var before_door: int = int(Layout.cache_stats()["misses"])
 	for op in building.get_openings():

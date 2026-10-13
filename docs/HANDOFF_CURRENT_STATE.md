@@ -1,5 +1,29 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - Minimapa: hotfix acotado, jugabilidad abierta
+
+[Diagnóstico, corrección y retomada](validation/PRODUCT_MINIMAP_LAYOUT_THRASH_2026-10-13.md).
+El usuario confirma 3D/FP injugable desde Play tras 9468f486. Ventana real:
+3D 60,05 FPS en pausa -> 6,64 en Play -> 60,09 al pausar. El minimapa
+pasaba fichas abreviadas y expulsaba de la caché las fichas completas de 3D/FP.
+606 misses por 8 s; ninguna señal changed. Control ocultándolo sólo en el
+banco: 58,15 FPS y cero misses. Arreglo de producción sólo ui/Minimap2D.gd:
+usar copias de las fichas recibidas, con fallback histórico sin instantánea.
+Minimapa visible corregido: 46,22 FPS y cero misses; dt/física/calidad intactos.
+730 checks nativos, 12/12 mutantes GD válidos, 23 focales offline PASS.
+Producto 168 PASS; global 5 090 passed / 80 skipped / 2 xfailed / 42 subtests;
+regresiones sin incidencias del monitor, R2-1/guardarraíles PASS, referencia intacta.
+FP renderizado sigue NO-GO: cuatro corridas rechazadas por dos texturas GL
+no liberadas al salir (349 524 bytes cada una), también antes del hotfix.
+Los 6,94 -> 24,65 FPS de esas trazas son provisionales, no una validación limpia.
+Liberación síncrona/espera/recursos del banco no eliminó los avisos; causa abierta.
+Error de popup_centered fuera del árbol al salir en la sesión del usuario:
+pendiente separado, no atribuirle el bloqueo desde Play.
+Publicar sólo el hotfix acotado; no declarar jugabilidad cerrada. Siguiente:
+costes sostenidos/per-componentes FP y aislamiento del cierre GL.
+79 UID, cuatro stashes y cambios ajenos preservados. CO/FED OFF/NO-GO;
+gas/energía/EOS sigue aplazado hasta resolver producto.
+
 ## Current Program Update - 2026-10-13 - Producto: corrección visual de mobiliario
 
 [Corrección y evidencia](validation/PRODUCT_FURNITURE_LAYOUT_CACHE_FIX_2026-10-13.md).

@@ -7,7 +7,7 @@ from scripts.verify_furniture_layout_cache import MUTATIONS, ROOT, FIXTURE
 
 def test_each_mutant_has_one_real_anchor_and_named_native_assertion():
     fixture = (ROOT / FIXTURE).read_text(encoding="utf-8")
-    assert len(MUTATIONS) == 11
+    assert len(MUTATIONS) == 12
     for path, old, new, defect, expected in MUTATIONS.values():
         assert (ROOT / path).read_text(encoding="utf-8").count(old) == 1
         assert old != new and defect

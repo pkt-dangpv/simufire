@@ -1,11 +1,23 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (producto: caché visual corregida y verificada)
+Ultima actualizacion parcial: 2026-10-13 (minimapa corregido; jugabilidad/FP pendientes)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad actual de producto: [corrección visual y comprobación de jugabilidad](../validation/PRODUCT_FURNITURE_LAYOUT_CACHE_FIX_2026-10-13.md).
+Prioridad inmediata: [hotfix del minimapa y límites de jugabilidad](../validation/PRODUCT_MINIMAP_LAYOUT_THRASH_2026-10-13.md).
+Ventana real reproduce 3D 60 FPS pausa / 6,64 Play. El minimapa abreviaba
+fichas, expulsando la caché compartida: 606 misses en ocho segundos. Corregido
+sin ocultarlo ni cambiar física/calidad: 46,22 FPS y cero misses.
+730 checks / 12 mutantes válidos; producto 168 y global 5 090 aprobados
+(80 skipped, 2 xfailed, 42 subtests), guardarraíles/R2-1 y referencia intactos.
+GO sólo al hotfix, NO-GO a cerrar jugabilidad: FP tiene cuatro corridas
+rechazadas por dos avisos GL al salir; 24,65 FPS sólo provisional.
+Siguiente: rendimiento sostenido de FP y causa de las texturas no liberadas.
+Registrar también el popup técnico fuera del árbol al salir del usuario.
+No tocar nueva física ni asumir que el problema restante es la GPU; CO/FED OFF.
+
+Primer checkpoint de producto: [corrección visual de mobiliario](../validation/PRODUCT_FURNITURE_LAYOUT_CACHE_FIX_2026-10-13.md).
 Diagnóstico y arreglo CPU cerrados: poses reutilizadas con fichas dinámicas
 frescas e invalidación acotada; cuatro GD visuales, sin cambios de física,
 calidad, transforms de autor ni escenarios. 560 checks nativos y 11/11

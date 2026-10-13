@@ -18,8 +18,9 @@ LOADER = "view/3d/furniture/FurnitureAssetLoader.gd"
 OVERVIEW = "view/3d/Visualizer3D.gd"
 FP = "view/fp/FirstPersonController.gd"
 FIXTURE = "tests/fixtures/furniture_layout_cache.gd"
+MINI = "ui/Minimap2D.gd"
 PREFIX = "FURNITURE_LAYOUT_CACHE"
-SOURCES = (LAYOUT, LOADER, OVERVIEW, FP, FIXTURE, "scripts/verify_furniture_layout_cache.py")
+SOURCES = (LAYOUT, LOADER, OVERVIEW, FP, MINI, FIXTURE, "scripts/verify_furniture_layout_cache.py")
 
 MUTATIONS = {
     "C01_no_reuse": (LAYOUT, 'if _room_cache.has(slot) and _room_cache[slot]["key"] == key:',
@@ -47,6 +48,8 @@ MUTATIONS = {
                             "overview rebuild ignores cache", "overview rebuild invalidates"),
     "C11_fp_rebuild": (FP, "\tFurnitureVisualLayout.invalidate_all()", "\tpass",
                       "FP rebuild ignores cache", "fp rebuild invalidates"),
+    "C12_minimap_old_schema": (MINI, "if typeof(snapshots) == TYPE_ARRAY:", "if false:",
+                              "minimap drops the full current snapshots", "minimap full snapshots"),
 }
 
 
@@ -66,7 +69,7 @@ def main():
         raise RuntimeError("use a new external work directory")
     before = hashes()
     if args.mutations:
-        originals, variants = harness.machinery.prepared(MUTATIONS, (LAYOUT, LOADER, OVERVIEW, FP))
+        originals, variants = harness.machinery.prepared(MUTATIONS, (LAYOUT, LOADER, OVERVIEW, FP, MINI))
         declared = harness.machinery.plan(MUTATIONS, tuple(MUTATIONS))
         try:
             harness.execute(work, originals, variants, declared, fixture=FIXTURE,
