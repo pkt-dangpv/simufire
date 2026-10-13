@@ -1,6 +1,9 @@
 # Un propietario visible de mobiliario en FP — 2026-10-13
 
 Estado: corrección visual verificada; jugabilidad FP sigue abierta.
+Seguimiento del usuario: FP mejora mucho y ya es jugable, pero Play es menos
+fluido que pausa. [Optimización posterior autorizada](PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
+No se modifica la evidencia histórica ni se infieren FPS de esa confirmación.
 Checkpoint: `599d8d0e`, main y shareable publicados.
 El usuario autoriza retirar primero la segunda representación sólo en FP,
 conservando 3D, muebles FP e interacción. No autoriza en esta fase la caché

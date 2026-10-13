@@ -31,6 +31,9 @@ const DYNAMIC_FIELDS: Array[String] = [
 const MAX_CACHED_ROOMS: int = 128
 const MAX_ASSET_RESOURCES: int = 128
 static var _room_cache: Dictionary = {}
+static var _spec_cache: Dictionary = {}
+static var _spec_hits: int = 0
+static var _spec_misses: int = 0
 static var _asset_resources: Dictionary = {}
 static var _cache_hits: int = 0
 static var _cache_misses: int = 0
@@ -48,7 +51,7 @@ static var _asset_invalidator: Callable = Callable()
 ## El atrezo no arde ni existe para el modelo; el dia que esas plantillas traigan
 ## objetos de verdad, la sala llega con `fuel_objects` y el atrezo no se genera.
 static func normalize_room(building: BuildingModel, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool = true) -> Array:
-	var specs: Array = _prepare_specs(building, room_id, rect, raw_objects, furnish_empty)
+	var specs: Array = _prepare_specs_cached(building, room_id, rect, raw_objects, furnish_empty)
 	var doors: Array = FurnitureRoomLayout.doors_for_room(building, room_id, rect)
 	var geometry: Array = []
 	for raw: Dictionary in specs:
@@ -57,7 +60,6 @@ static func normalize_room(building: BuildingModel, room_id: int, rect: Rect2, r
 			spec.erase(field)
 		geometry.append(spec)
 	var key: PackedByteArray = var_to_bytes([rect, doors, geometry, _asset_tokens(specs)])
-	_prune_dead_owners()
 	var owner_id: int = building.get_instance_id() if building != null else 0
 	var slot: String = "%d:%d" % [owner_id, room_id]
 	if _room_cache.has(slot) and _room_cache[slot]["key"] == key:
@@ -84,6 +86,56 @@ static func normalize_room_uncached(building: BuildingModel, room_id: int, rect:
 	var specs: Array = _prepare_specs(building, room_id, rect, raw_objects, furnish_empty)
 	var doors: Array = FurnitureRoomLayout.doors_for_room(building, room_id, rect)
 	return _visible(FurnitureRoomLayout.layout_room(rect.size, doors, specs))
+
+
+## Cache only classification and generated decoration. Real objects are copied
+## from the CURRENT snapshot, including additions/removals of dynamic fields.
+## Unknown fields remain in the exact key. No live model/node is retained.
+static func _prepare_specs_cached(building: BuildingModel, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool) -> Array:
+	var geometry: Array = []
+	for raw: Variant in raw_objects:
+		if raw is Dictionary:
+			var record: Dictionary = raw.duplicate(true)
+			for field: String in DYNAMIC_FIELDS:
+				record.erase(field)
+			geometry.append(record)
+		else:
+			geometry.append(raw)
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var room_metadata: Array = [room.name, room.kind, room.visual_furniture_fill] if room != null else []
+	var key: PackedByteArray = var_to_bytes([rect, furnish_empty, room_metadata, geometry])
+	_prune_dead_owners()
+	var owner_id: int = building.get_instance_id() if building != null else 0
+	var slot: String = "%d:%d" % [owner_id, room_id]
+	if _spec_cache.has(slot) and _spec_cache[slot]["key"] == key:
+		_spec_hits += 1
+		var entry: Dictionary = _spec_cache[slot]
+		var current: Array = []
+		for index: int in range(entry["indices"].size()):
+			var spec: Dictionary = raw_objects[entry["indices"][index]].duplicate(true)
+			if String(spec.get("visual_archetype", "")) == "":
+				spec["visual_archetype"] = entry["archetypes"][index]
+			current.append(spec)
+		current.append_array(entry["props"].duplicate(true))
+		return current
+	_spec_misses += 1
+	var prepared: Array = _prepare_specs(building, room_id, rect, raw_objects, furnish_empty)
+	var indices: Array[int] = []
+	var archetypes: Array[String] = []
+	for index: int in range(raw_objects.size()):
+		if not raw_objects[index] is Dictionary:
+			continue
+		var obj_id: String = String(raw_objects[index].get("id", ""))
+		if obj_id == "" or obj_id.begins_with("room_proxy_"):
+			continue
+		archetypes.append(String(prepared[indices.size()]["visual_archetype"]))
+		indices.append(index)
+	if not _spec_cache.has(slot) and _spec_cache.size() >= MAX_CACHED_ROOMS:
+		_spec_cache.erase(_spec_cache.keys()[0])
+	_spec_cache[slot] = {"key": key, "indices": indices, "archetypes": archetypes,
+		"props": prepared.slice(indices.size()).duplicate(true),
+		"owner": weakref(building) if building != null else null}
+	return prepared
 
 
 static func _prepare_specs(building: BuildingModel, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool) -> Array:
@@ -144,10 +196,11 @@ static func _apply_pose_patches(specs: Array, patches: Array) -> Array:
 
 
 static func _prune_dead_owners() -> void:
-	for slot: String in _room_cache.keys():
-		var owner: WeakRef = _room_cache[slot]["owner"]
-		if owner != null and owner.get_ref() == null:
-			_room_cache.erase(slot)
+	for cache: Dictionary in [_room_cache, _spec_cache]:
+		for slot: String in cache.keys():
+			var owner: WeakRef = cache[slot]["owner"]
+			if owner != null and owner.get_ref() == null:
+				cache.erase(slot)
 
 
 ## Rebuild/reload invalidates placement AND the preexisting native-size cache.
@@ -155,13 +208,15 @@ static func _prune_dead_owners() -> void:
 ## not manufacture a new identity every frame. No BuildingModel/Node is pinned.
 static func invalidate_all() -> void:
 	_room_cache.clear()
+	_spec_cache.clear()
 	FurnitureAssetLoader.invalidate_native_sizes()
 
 
 static func cache_stats() -> Dictionary:
 	_prune_dead_owners()
 	return {"entries": _room_cache.size(), "hits": _cache_hits, "misses": _cache_misses,
-		"asset_resources": _asset_resources.size()}
+		"asset_resources": _asset_resources.size(), "spec_entries": _spec_cache.size(),
+		"spec_hits": _spec_hits, "spec_misses": _spec_misses}
 
 
 static func _asset_tokens(specs: Array) -> Array:

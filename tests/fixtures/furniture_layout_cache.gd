@@ -43,7 +43,78 @@ func _assert_current(building: BuildingModel, room_id: int, rect: Rect2, raw: Ar
 	return actual
 
 
+func _check_specs() -> void:
+	Layout.invalidate_all()
+	var model: BuildingModel = Building.new()
+	check(model.load_template_data(Templates.new().create_product_preset("simple_house")), "spec model loaded")
+	var rect := Rect2(Vector2.ZERO, Vector2(4.0, 4.0))
+	var raw: Array = [null, {}, {"id": "room_proxy_1"}] + _objects()
+	raw[3].erase("visual_archetype")
+	var before: int = int(Layout.cache_stats()["spec_misses"])
+	var actual: Array = Layout._prepare_specs_cached(model, 0, rect, raw, true)
+	check(_equal(actual, Layout._prepare_specs(model, 0, rect, raw, true)), "spec cold identity")
+	check(int(Layout.cache_stats()["spec_misses"]) == before + 1, "spec cold computes once")
+	var hits: int = int(Layout.cache_stats()["spec_hits"])
+	for iteration: int in range(24):
+		for field: String in Layout.DYNAMIC_FIELDS:
+			if iteration % 2:
+				raw[3][field] = "flaming" if field == "state" else float(iteration)
+			else:
+				raw[3].erase(field)
+		var input: PackedByteArray = var_to_bytes(raw)
+		actual = Layout._prepare_specs_cached(model, 0, rect, raw, true)
+		check(_equal(actual, Layout._prepare_specs(model, 0, rect, raw, true)), "spec dynamic current")
+		check(var_to_bytes(raw) == input, "spec input unchanged")
+		check(int(Layout.cache_stats()["spec_misses"]) == before + 1, "spec warm reuse")
+	check(int(Layout.cache_stats()["spec_hits"]) == hits + 24, "spec hits counted")
+	# Both real-object nested data and generated decoration must be independent.
+	actual[0]["nested"]["list"].append(99)
+	actual[-1]["name"] = "poison"
+	actual = Layout._prepare_specs_cached(model, 0, rect, raw, true)
+	check(_equal(actual, Layout._prepare_specs(model, 0, rect, raw, true)), "spec copies isolated")
+	for field: String in ["name", "kind", "visual_furniture_fill"]:
+		var room: RoomModel = model.get_room(0)
+		var old_value: Variant = room.get(field)
+		room.set(field, not bool(old_value) if field == "visual_furniture_fill" else "Bedroom")
+		var previous: int = int(Layout.cache_stats()["spec_misses"])
+		actual = Layout._prepare_specs_cached(model, 0, rect, raw, true)
+		check(_equal(actual, Layout._prepare_specs(model, 0, rect, raw, true)), "spec metadata identity")
+		check(int(Layout.cache_stats()["spec_misses"]) == previous + 1, "spec metadata invalidation")
+		room.set(field, old_value)
+	# Order, additions, unknown fields, dimensions, and fill policy are exact inputs.
+	for change: String in ["rect", "fill", "unknown", "order", "addition", "removal"]:
+		Layout._prepare_specs_cached(model, 0, rect, raw, true)
+		var changed: Array = raw.duplicate(true)
+		var bounds: Rect2 = rect
+		var fill: bool = true
+		match change:
+			"rect": bounds.size.x += 0.2
+			"fill": fill = false
+			"unknown": changed[3]["new_field"] = {"list": [1, 2]}
+			"order": changed.reverse()
+			"addition": changed.append({"id": "extra", "kind": "sofa", "name": "Sofa"})
+			"removal": changed.pop_back()
+		var previous: int = int(Layout.cache_stats()["spec_misses"])
+		actual = Layout._prepare_specs_cached(model, 0, bounds, changed, fill)
+		check(_equal(actual, Layout._prepare_specs(model, 0, bounds, changed, fill)), "spec changed input identity")
+		check(int(Layout.cache_stats()["spec_misses"]) == previous + 1, "spec changed input invalidation")
+	var replacement: BuildingModel = Building.new()
+	check(replacement.load_template_data(Templates.new().create_product_preset("simple_house")), "spec replacement loaded")
+	var previous: int = int(Layout.cache_stats()["spec_misses"])
+	Layout._prepare_specs_cached(replacement, 0, rect, raw, true)
+	check(int(Layout.cache_stats()["spec_misses"]) == previous + 1, "spec owner isolation")
+	model.free()
+	replacement.free()
+	check(int(Layout.cache_stats()["spec_entries"]) == 0, "spec dead owners pruned")
+	for index: int in range(Layout.MAX_CACHED_ROOMS + 2):
+		Layout._prepare_specs_cached(null, index, rect, raw, false)
+	check(int(Layout.cache_stats()["spec_entries"]) <= Layout.MAX_CACHED_ROOMS, "spec bounded cache")
+	Layout.invalidate_all()
+	check(int(Layout.cache_stats()["spec_entries"]) == 0, "spec explicit invalidation")
+
+
 func _run() -> void:
+	_check_specs()
 	Layout.invalidate_all()
 	var rect := Rect2(Vector2.ZERO, Vector2(4.0, 4.0))
 	var raw: Array = _objects()
@@ -158,6 +229,7 @@ func _run() -> void:
 	var packed := load(Loader.model_path("authored_meter_reference")) as PackedScene
 	var before_resource: int = int(Layout.cache_stats()["misses"])
 	packed.emit_changed()
+	check(int(Layout.cache_stats()["spec_entries"]) == 0, "spec asset invalidation")
 	check(Loader._native_size_cache.is_empty(), "native sizes invalidated")
 	_assert_current(null, 2, rect, authored, false, "asset changed")
 	check(int(Layout.cache_stats()["misses"]) == before_resource + 1, "asset signal invalidation")

@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - Fichas estáticas reutilizadas
+
+[Cambio y cierre](validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
+Usuario confirma FP jugable tras 0ba9361c, pero menos fluido en Play; autoriza
+optimizar fichas. Sólo FurnitureVisualLayout: clasificación/atrezo cacheados,
+objetos reales copiados de la instantánea actual. Clave exacta, metadatos de sala,
+campos desconocidos, invalidación por rebuild/asset, límites y propietario débil.
+Sin cambiar colocación, FP, Main, materiales, sim/, dt, calidad ni cadencias.
+831 checks contra oráculo, diez viviendas, 19/19 mutantes válidos con SHA
+restaurado; propietario FP 1 442 PASS, focales 43 PASS, estilo/guardarraíles/R2-1 PASS.
+Headless: muebles 5,607 -> 3,5945 ms; preparación sin caché/cacheada 2,334/0,5625.
+Sondas inclusivas, no FPS. Producto 168 PASS/514,74 s con monitor limpio;
+global 5 124 passed / 94 skipped / 2 xfailed / 42 subtests, exit 0,
+832,73 s de etapa, stderr vacío y monitor limpio. Memoria 6,60/6,96 GiB;
+descenso puntual pidió margen, sin rebajar guarda. Referencia intacta, sin regenerar.
+Jugabilidad confirmada por usuario, no igualdad pausa/Play ni FPS certificado.
+GL/popup siguen separados; CO/FED OFF/NO-GO; ninguna nueva física en esta fase.
+
 ## Current Program Update - 2026-10-13 - FP: retirada de mobiliario duplicado
 
 [Corrección y límites](validation/PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).

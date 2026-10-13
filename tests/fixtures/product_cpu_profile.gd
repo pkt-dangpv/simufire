@@ -63,13 +63,17 @@ func _layouts_only(overview: Variant) -> void:
 			Array(rs.get("fuel_objects", [])).duplicate(), overview.furnish_empty_rooms)
 
 
-func _prepare_fp_specs(fp: Variant) -> Dictionary:
+func _prepare_fp_specs(fp: Variant, cached: bool = false) -> Dictionary:
 	var prepared: Dictionary = {}
 	for room_id: Variant in fp._furniture_nodes_by_room:
 		var item: Dictionary = fp._furniture_nodes_by_room[room_id]
 		var state: Dictionary = fp._room_state_for_furniture(int(room_id))
-		prepared[room_id] = Layout._prepare_specs(fp.building, int(room_id),
-			Rect2(item["rect"]), Array(state.get("fuel_objects", [])), fp.furnish_empty_rooms)
+		if cached:
+			prepared[room_id] = Layout._prepare_specs_cached(fp.building, int(room_id),
+				Rect2(item["rect"]), Array(state.get("fuel_objects", [])), fp.furnish_empty_rooms)
+		else:
+			prepared[room_id] = Layout._prepare_specs(fp.building, int(room_id),
+				Rect2(item["rect"]), Array(state.get("fuel_objects", [])), fp.furnish_empty_rooms)
 	return prepared
 
 
@@ -159,6 +163,7 @@ func _run() -> void:
 			_time("fp_safety_markers_us", func(): fp._update_safety_marker_states())
 			_time("overview_frame_animation_us", func(): main.visualizer_3d._process(DT))
 			_time("fp_specs_prepare_us", func(): _prepare_fp_specs(fp))
+			_time("fp_specs_prepare_cached_us", func(): _prepare_fp_specs(fp, true))
 			_time("fp_asset_metadata_us", func(): _asset_metadata_only(prepared))
 	if not _same(before, main.engine.get_state()):
 		errors.append("frozen visual probes changed engine state")

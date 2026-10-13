@@ -1,0 +1,398 @@
+{
+  "schema": "furniture_static_specs_cache_closure_v1",
+  "baseline_commit": "0ba9361cebdac23c9ad7a8fbdb3e77e01d7bfc47",
+  "scope": {
+    "production": [
+      "view/furniture/FurnitureVisualLayout.gd"
+    ],
+    "physics_changed": false,
+    "cadence_changed": false,
+    "visual_quality_reduced": false,
+    "rendered_fps_validated": false
+  },
+  "source_sha256_raw": {
+    "view/furniture/FurnitureVisualLayout.gd": "66a929859ead786c63649d37b9a4bfee99bea6664d1a31e93ed9daac5c045d16",
+    "view/3d/furniture/FurnitureAssetLoader.gd": "81f28a4c3c3c72aac268cc972258192592023c1f5b1f7ec3641ca9bc1586ff7a",
+    "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e",
+    "view/fp/FirstPersonController.gd": "351c35a3f2822f263cb1e0a5c691146dfd82000b66cba9ba9f4091bfbe4cfb43",
+    "ui/Minimap2D.gd": "19243b7b470da523a12d7855f25c836bde02cac35e59eb94924dcac6aacea678",
+    "tests/fixtures/furniture_layout_cache.gd": "47b611939ddd2f7625c20011054b4c645cf69562784d6204427d053b18485fff",
+    "scripts/verify_furniture_layout_cache.py": "1aa2e40a7a39d812d51e0f6bcb88389ca0a3c9f0673293288c4bf1f1eef53378"
+  },
+  "source_sha256_lf": {
+    "view/furniture/FurnitureVisualLayout.gd": "66a929859ead786c63649d37b9a4bfee99bea6664d1a31e93ed9daac5c045d16",
+    "view/3d/furniture/FurnitureAssetLoader.gd": "81f28a4c3c3c72aac268cc972258192592023c1f5b1f7ec3641ca9bc1586ff7a",
+    "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e",
+    "view/fp/FirstPersonController.gd": "351c35a3f2822f263cb1e0a5c691146dfd82000b66cba9ba9f4091bfbe4cfb43",
+    "ui/Minimap2D.gd": "19243b7b470da523a12d7855f25c836bde02cac35e59eb94924dcac6aacea678",
+    "tests/fixtures/furniture_layout_cache.gd": "47b611939ddd2f7625c20011054b4c645cf69562784d6204427d053b18485fff",
+    "scripts/verify_furniture_layout_cache.py": "1aa2e40a7a39d812d51e0f6bcb88389ca0a3c9f0673293288c4bf1f1eef53378"
+  },
+  "control": {
+    "artifact": "simufire_specs_control_20261013/result.json",
+    "checks": 831,
+    "failure_count": 0,
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true
+    }
+  },
+  "mutations": {
+    "artifact": "simufire_specs_mutations_20261013/results.json",
+    "executed": 19,
+    "killed_where_expected": 19,
+    "all_health_clean": true,
+    "restored_raw_sha256": {
+      "view/furniture/FurnitureVisualLayout.gd": "66a929859ead786c63649d37b9a4bfee99bea6664d1a31e93ed9daac5c045d16",
+      "view/3d/furniture/FurnitureAssetLoader.gd": "81f28a4c3c3c72aac268cc972258192592023c1f5b1f7ec3641ca9bc1586ff7a",
+      "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e",
+      "view/fp/FirstPersonController.gd": "351c35a3f2822f263cb1e0a5c691146dfd82000b66cba9ba9f4091bfbe4cfb43",
+      "ui/Minimap2D.gd": "19243b7b470da523a12d7855f25c836bde02cac35e59eb94924dcac6aacea678"
+    },
+    "results": [
+      {
+        "name": "control",
+        "verdict": "pass",
+        "checks": 831,
+        "failed_checks": 0,
+        "expected_in": null,
+        "seen_where_expected": null
+      },
+      {
+        "name": "C01_no_reuse",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 49,
+        "expected_in": "warm reuse",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C02_pose_key",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "static invalidation ",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C03_door_key",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "door geometry invalidation",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C04_frozen_state",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 51,
+        "expected_in": "fresh dynamic state",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C05_patch_alias",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "identity pose patch isolated",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C06_asset_signal",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 3,
+        "expected_in": "asset signal invalidation",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C07_dead_owner",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 2,
+        "expected_in": "released owner pruned",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C08_bound",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "bounded cache",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C09_native_sizes",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 3,
+        "expected_in": "native sizes invalidated",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C10_overview_rebuild",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "overview rebuild invalidates",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C11_fp_rebuild",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "fp rebuild invalidates",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C12_minimap_old_schema",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 49,
+        "expected_in": "minimap full snapshots",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C13_no_spec_reuse",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 25,
+        "expected_in": "spec warm reuse",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C14_stale_spec_state",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 76,
+        "expected_in": "spec dynamic current",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C15_spec_metadata",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 6,
+        "expected_in": "spec metadata invalidation",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C16_spec_bound",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "spec bounded cache",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C17_spec_clear",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 2,
+        "expected_in": "spec explicit invalidation",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C18_spec_props_alias",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "spec copies isolated",
+        "seen_where_expected": true
+      },
+      {
+        "name": "C19_spec_unknown",
+        "verdict": "killed",
+        "checks": 831,
+        "failed_checks": 1,
+        "expected_in": "spec changed input invalidation",
+        "seen_where_expected": true
+      }
+    ]
+  },
+  "owner_regression": {
+    "artifact": "simufire_specs_owner_regression_20261013/result.json",
+    "checks": 1442,
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true
+    }
+  },
+  "cpu": {
+    "before_artifact": "simufire_fp_after_owner_cpu_20261013/result.json",
+    "after_artifact": "simufire_specs_cpu_after_20261013/result.json",
+    "before_timings": {
+      "engine_recorded_step_us": {
+        "calls": 180,
+        "median_ms": 5.1545,
+        "p95_ms": 5.972,
+        "max_ms": 6.961,
+        "mean_ms": 5.264605555555556
+      },
+      "fp_furniture_us": {
+        "calls": 30,
+        "median_ms": 5.607,
+        "p95_ms": 6.553,
+        "max_ms": 7.394,
+        "mean_ms": 5.676033333333334
+      },
+      "fp_set_state_us": {
+        "calls": 30,
+        "median_ms": 6.4645,
+        "p95_ms": 7.135,
+        "max_ms": 7.169,
+        "mean_ms": 6.464300000000001
+      },
+      "fp_specs_prepare_us": {
+        "calls": 30,
+        "median_ms": 2.2915,
+        "p95_ms": 2.46,
+        "max_ms": 2.698,
+        "mean_ms": 2.3238333333333334
+      },
+      "main_running_callback_us": {
+        "calls": 180,
+        "median_ms": 5.273,
+        "p95_ms": 15.549,
+        "max_ms": 16.622,
+        "mean_ms": 8.450572222222222
+      },
+      "paused_window_action_us": {
+        "calls": 30,
+        "median_ms": 10.703,
+        "p95_ms": 12.289,
+        "max_ms": 12.919,
+        "mean_ms": 10.938833333333333
+      }
+    },
+    "after_timings": {
+      "engine_recorded_step_us": {
+        "calls": 180,
+        "median_ms": 5.182,
+        "p95_ms": 6.191,
+        "max_ms": 7.736,
+        "mean_ms": 5.3221388888888885
+      },
+      "fp_furniture_us": {
+        "calls": 30,
+        "median_ms": 3.5945,
+        "p95_ms": 4.305,
+        "max_ms": 4.376,
+        "mean_ms": 3.673766666666667
+      },
+      "fp_set_state_us": {
+        "calls": 30,
+        "median_ms": 4.5135,
+        "p95_ms": 4.876,
+        "max_ms": 4.939,
+        "mean_ms": 4.544833333333333
+      },
+      "fp_specs_prepare_cached_us": {
+        "calls": 30,
+        "median_ms": 0.5625,
+        "p95_ms": 0.669,
+        "max_ms": 0.815,
+        "mean_ms": 0.5861666666666666
+      },
+      "fp_specs_prepare_us": {
+        "calls": 30,
+        "median_ms": 2.334,
+        "p95_ms": 2.48,
+        "max_ms": 2.611,
+        "mean_ms": 2.3547
+      },
+      "main_running_callback_us": {
+        "calls": 180,
+        "median_ms": 5.503,
+        "p95_ms": 13.898,
+        "max_ms": 16.663,
+        "mean_ms": 7.927527777777778
+      },
+      "paused_window_action_us": {
+        "calls": 30,
+        "median_ms": 8.9415,
+        "p95_ms": 9.282,
+        "max_ms": 9.306,
+        "mean_ms": 8.9628
+      }
+    },
+    "benchmark_source_sha256_lf": "bed2405b3f8041899f0eed4fe150d4f3836209856c71bf31c40d641c2113d0cb",
+    "after_health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true
+    },
+    "fps_measured": false,
+    "probes_inclusive_not_frame_budget": true,
+    "frame_improvement_uniform": false
+  },
+  "product": {
+    "artifact": "simufire_specs_product_20261013/result.json",
+    "tests": 168,
+    "returncode": 0,
+    "wall_s": 514.74,
+    "available_gib_before": 6.499031066894531,
+    "available_gib_after": 6.625328063964844,
+    "stdout_sha256": "3c970aaeda671811adb8d7d84c85f4ff8763979956c822b051058b3a2925258e",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true
+    }
+  },
+  "global": {
+    "artifact": "simufire_specs_global_20261013/result.json",
+    "passed": 5124,
+    "skipped": 94,
+    "xfailed": 2,
+    "subtests": 42,
+    "returncode": 0,
+    "wall_s": 832.73,
+    "available_gib_before": 6.601356506347656,
+    "available_gib_after": 6.955116271972656,
+    "stdout_sha256": "864e3d72013936f0fbe6b65c3800c09d6972e4abc9bade76af09f4d362c21c07",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true
+    }
+  },
+  "focal": {
+    "passed": 43,
+    "failed": 0
+  },
+  "reference": {
+    "regenerated": false,
+    "required": 346,
+    "failed": 0,
+    "gaps": 78,
+    "generated_at": "2026-10-12T21:31:32Z",
+    "sha256_raw": "7e6a0e1ab442c44fa5f37bb6be06adce8c8d7f5e0f85ed221d2d4fc88d782be2",
+    "sha256_lf": "49c5f58de571e26fef51fee3df3d2b130af452bf94235597f9fcb51e82290ddb"
+  },
+  "user_confirmation": {
+    "before_optimization": "FP jugable, pero menos fluido en Play que en pausa",
+    "after_optimization": "not yet tested by the user"
+  }
+}

@@ -1,11 +1,21 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (retirada acotada de mobiliario duplicado FP)
+Ultima actualizacion parcial: 2026-10-13 (caché de fichas estáticas verificada)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad inmediata: [un propietario visible FP](../validation/PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).
+Prioridad inmediata: [fichas estáticas reutilizadas](../validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
+FP ya jugable según usuario; queda diferencia pausa/Play. Optimización autorizada
+sólo en normalizador visual: clasificación/atrezo reutilizados, estado actual fresco,
+claves conservadoras e invalidación exacta; sin sim/, calidad ni cadencia nueva.
+831 checks, 19/19 mutantes, propietario FP 1 442, focales 43 y guardarraíles PASS.
+CPU muebles 5,607 -> 3,5945 ms (headless, no FPS). Producto 168 PASS;
+global 5 124 passed / 94 skipped / 2 xfailed / 42 subtests, monitor limpio.
+Sin FPS medidos: siguiente prueba del usuario de esta optimización en FP/3D.
+GL/popup y fluidez restante abiertos. CO/FED OFF/NO-GO; no nueva física aquí.
+
+Checkpoint previo: [un propietario visible FP](../validation/PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).
 Autorizado el primer paso: ocultar y no refrescar la copia Visualizer3D en FP,
 sin tocar el mobiliario/colliders FP; recuperar 3D al salir. No caché estática.
 Control final 1 442 checks/39 muebles, 5/5 mutantes válidos, 42 focales PASS;
