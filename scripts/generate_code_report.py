@@ -359,7 +359,7 @@ MANUAL_SECTIONS = [
 SCRIPT_EXPLANATIONS = {
     "Main.gd": ("Orquestador de la escena Godot.", [
         "Conecta BuildingModel, SimulationEngine, HUD y Visualizer.",
-        "En cada physics frame llama a engine.step(delta) si procede y propaga estado a UI.",
+        "En Play acumula los physics frames, llama a engine.step() una vez por paso de referencia y propaga estado a UI.",
         "Gestiona escala temporal y botones de reproduccion/graficas.",
     ]),
     "project.godot": ("Configuracion del proyecto Godot.", [

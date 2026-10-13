@@ -8,7 +8,7 @@ class MainHarness extends "res://Main.gd":
 	func _update_views() -> void:
 		pass
 
-	func _update_views_for_frame(_delta: float) -> void:
+	func _update_views_for_frame() -> void:
 		pass
 
 class EngineProbe extends "res://sim/core/SimulationEngine.gd":
@@ -73,7 +73,7 @@ func _run() -> void:
 	var steps: int = main.engine.steps
 	for index: int in range(60):
 		main._physics_process(1.0 / 60.0)
-	check(main.engine.steps == steps + 60, "one engine dispatch per FP tick")
+	check(main.engine.steps == steps + 12, "one engine dispatch per reference step in FP")
 	check(is_equal_approx(main.engine.sim_time_s - before, 1.0), "FP dispatch clock unchanged")
 	check(main.engine.exports == 1, "no chart state exports in FP")
 	check(var_to_bytes(main._live_overlay._rooms) == history, "no hidden history growth in FP")

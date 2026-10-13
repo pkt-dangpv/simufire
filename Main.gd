@@ -61,6 +61,24 @@ var _view_update_accum_s: float = 0.0
 var _view_3d_update_accum_s: float = 0.0
 const VIEW_RUNNING_UPDATE_INTERVAL_S: float = 0.05
 const VIEW_3D_RUNNING_UPDATE_INTERVAL_S: float = 0.12
+## Paso del motor en Play. Avanzarlo en cada tick de física (60 Hz) le cuesta al
+## hilo principal una fracción fija de cada segundo real; cuando el fotograma se
+## alarga, Godot encadena más ticks por fotograma y los FPS se hunden. El motor
+## avanza al acumular este tiempo simulado: el mismo paso de la suite de
+## referencia y el que ya daba cada tick a ×5. A velocidades mayores sigue
+## avanzando en todos los ticks, como antes.
+const SIM_STEP_S: float = 1.0 / 12.0
+const SIM_STEP_EPSILON_S: float = 1.0e-6
+var _sim_step_accum_s: float = 0.0
+var _view_state_stale: bool = false
+var _view_3d_state_stale: bool = false
+## Estado exportado tras el último paso del motor; vale hasta el siguiente.
+var _running_view_state: Dictionary = {}
+## El refresco principal de vistas deja este hueco de ticks tras el paso del
+## motor: en un fotograma que abarca dos ticks no se juntan los dos costes.
+const VIEW_REFRESH_TICKS_AFTER_STEP: int = 2
+var _ticks_since_sim_step: int = 0
+var _sim_step_due_next_tick: bool = false
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
@@ -156,9 +174,35 @@ func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
 func _physics_process(delta: float) -> void:
 	if playback_paused or engine == null:
 		return
-	engine.step(delta)
-	_update_views_for_frame(delta)
-	_sample_live_charts(delta)
+	_view_update_accum_s += delta
+	_view_3d_update_accum_s += delta
+	_sim_step_accum_s += delta
+	if not _is_sim_step_due(0.0):
+		# Tick sin paso del motor: aquí se refrescan las vistas del último paso.
+		_ticks_since_sim_step += 1
+		_sim_step_due_next_tick = _is_sim_step_due(delta)
+		_update_views_for_frame()
+		return
+	var step_delta: float = _sim_step_accum_s
+	_sim_step_accum_s = 0.0
+	engine.step(step_delta)
+	_view_state_stale = true
+	_view_3d_state_stale = true
+	_running_view_state = {}
+	_ticks_since_sim_step = 0
+	_sample_live_charts(step_delta)
+	# Solo si el motor avanza en todos los ticks no queda uno libre para las vistas.
+	if step_delta <= delta:
+		_sim_step_due_next_tick = true
+		_update_views_for_frame()
+
+
+## `ahead_s`: tiempo real añadido al acumulado, para saber si toca en el tick siguiente.
+func _is_sim_step_due(ahead_s: float) -> bool:
+	# Con paso fijo cada llamada avanza lo mismo: acumular cambiaría el reloj.
+	if engine.sim_fixed_dt > 0.0:
+		return true
+	return (_sim_step_accum_s + ahead_s) * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S
 
 
 ## Crea el overlay de gráficas en vivo (recuadro translúcido, abajo a la
@@ -240,6 +284,9 @@ func _update_views() -> void:
 		return
 	_view_update_accum_s = 0.0
 	_view_3d_update_accum_s = 0.0
+	_view_state_stale = false
+	_view_3d_state_stale = false
+	_running_view_state = {}
 	var state := _build_view_state()
 	var visualizer_2d_active: bool = not view_3d_enabled and not first_person_enabled
 	var visualizer_3d_active: bool = view_3d_enabled or first_person_enabled
@@ -268,30 +315,44 @@ func _build_view_state() -> Dictionary:
 	return state
 
 
-func _update_views_for_frame(delta: float) -> void:
+func _update_views_for_frame() -> void:
 	if engine == null:
 		return
 
-	_view_update_accum_s += delta
-	_view_3d_update_accum_s += delta
-	var should_update_view: bool = _view_update_accum_s >= VIEW_RUNNING_UPDATE_INTERVAL_S
+	# Sin un paso nuevo del motor el estado exportado es el que ya está pintado.
+	var spread_ready: bool = (
+		_ticks_since_sim_step >= VIEW_REFRESH_TICKS_AFTER_STEP or _sim_step_due_next_tick)
+	var should_update_view: bool = (
+		_view_state_stale and spread_ready
+		and _view_update_accum_s >= VIEW_RUNNING_UPDATE_INTERVAL_S)
 	# En FP el overlay 3D se actualiza a la mitad de cadencia: set_state completo
 	# del Visualizer3D es caro y en FP solo aporta humo/fuego de ambiente.
 	var view_3d_interval_s: float = VIEW_3D_RUNNING_UPDATE_INTERVAL_S * (2.0 if first_person_enabled else 1.0)
-	var should_update_3d: bool = (view_3d_enabled or first_person_enabled) and _view_3d_update_accum_s >= view_3d_interval_s
+	var should_update_3d: bool = (
+		_view_3d_state_stale and (first_person_enabled or (view_3d_enabled and spread_ready))
+		and _view_3d_update_accum_s >= view_3d_interval_s)
 	if not should_update_view and not should_update_3d:
 		return
 
-	var state: Dictionary = _build_view_state()
+	# El motor no ha avanzado desde la última exportación: sirve la misma para
+	# la vista que se refresca en otro tick. Solo se mueve el jugador.
+	if _running_view_state.is_empty():
+		_running_view_state = _build_view_state()
+	elif first_person_controller != null:
+		_running_view_state["fp_player"] = first_person_controller.get_player_marker_state()
+	var state: Dictionary = _running_view_state
 	if first_person_enabled:
 		if should_update_view:
 			_view_update_accum_s = 0.0
+			_view_state_stale = false
 			if first_person_controller != null:
 				first_person_controller.set_state(state)
 			if hud != null:
 				hud.update_state(state)
-		if should_update_3d:
+		elif should_update_3d:
+			# En otro tick que el refresco de FP: juntos no caben en un fotograma.
 			_view_3d_update_accum_s = 0.0
+			_view_3d_state_stale = false
 			if visualizer_3d != null:
 				visualizer_3d.set_state(state)
 			if minimap_2d != null:
@@ -301,18 +362,21 @@ func _update_views_for_frame(delta: float) -> void:
 	if view_3d_enabled:
 		if should_update_view:
 			_view_update_accum_s = 0.0
+			_view_state_stale = false
 			if minimap_2d != null:
 				minimap_2d.set_state(state)
 			if hud != null:
 				hud.update_state(state)
 		if should_update_3d:
 			_view_3d_update_accum_s = 0.0
+			_view_3d_state_stale = false
 			if visualizer_3d != null:
 				visualizer_3d.set_state(state)
 		return
 
 	if should_update_view:
 		_view_update_accum_s = 0.0
+		_view_state_stale = false
 		if visualizer != null:
 			visualizer.set_state(state)
 		if hud != null:

@@ -42,12 +42,20 @@ def test_chart_policy_preserves_preference_without_recursive_button_signals():
     assert "_sync_live_charts()" in body("_setup_live_charts")
 
 
-def test_main_simulation_dispatch_is_unchanged():
-    assert body("_physics_process") == (
+def test_main_simulation_dispatch_steps_once_per_reference_step():
+    text = body("_physics_process")
+    assert text.startswith(
         "delta: float) -> void:\n"
-        "\tif playback_paused or engine == null:\n\t\treturn\n"
-        "\tengine.step(delta)\n\t_update_views_for_frame(delta)\n"
-        "\t_sample_live_charts(delta)")
+        "\tif playback_paused or engine == null:\n\t\treturn\n")
+    # One engine dispatch with the accumulated time; charts sample that same time.
+    assert text.count("engine.step(") == 1
+    assert "\tengine.step(step_delta)\n" in text
+    assert "\t_sample_live_charts(step_delta)\n" in text
+    main = (ROOT / "Main.gd").read_text(encoding="utf-8")
+    assert "const SIM_STEP_S: float = 1.0 / 12.0\n" in main
+    due = body("_is_sim_step_due")
+    assert "if engine.sim_fixed_dt > 0.0:\n\t\treturn true" in due
+    assert "(_sim_step_accum_s + ahead_s) * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S" in due
 
 
 def test_native_control_uses_real_chart_and_inherited_dispatch_not_physics_evidence():
@@ -58,7 +66,7 @@ def test_native_control_uses_real_chart_and_inherited_dispatch_not_physics_evide
     assert "main._physics_process(1.0 / 60.0)" in text
     for label in ("no chart state exports in FP", "no hidden history growth in FP",
                   "child processing suspended in FP", "restore user hidden preference",
-                  "one engine dispatch per FP tick", "no catch-up sample on return"):
+                  "one engine dispatch per reference step in FP", "no catch-up sample on return"):
         assert label in text
 
 

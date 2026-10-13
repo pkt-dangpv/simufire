@@ -36,7 +36,9 @@ def phase_summary(phase, playing):
     callbacks = phase["physics_callbacks"]
     delta = sum(s[2] for s in callbacks)
     simulated = phase["sim_end_s"] - phase["sim_start_s"]
-    if not math.isclose(delta, simulated, abs_tol=1e-8):
+    # Main dispatches one engine step per accumulated reference step (1/12 s),
+    # so the clock may trail the callbacks by less than one step at a phase edge.
+    if abs(delta - simulated) >= 1 / 12 + 1e-8:
         raise ValueError("callback delta and simulation clock disagree")
     if playing != bool(callbacks) or (not playing and simulated != 0):
         raise ValueError("paused/playing callback isolation broken")
