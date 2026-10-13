@@ -290,11 +290,21 @@ func _run() -> void:
 		_expect_close(node.position.x, expected_x, 0.05, "Visualizer3D did not preserve moved sofa x")
 		_expect_close(node.position.z, expected_z, 0.05, "Visualizer3D did not preserve moved sofa z")
 
+	_expect(not visualizer.show_fuel_objects_in_first_person, "Duplicate furniture enabled by default")
 	visualizer.set_active(true, false, false, true)
 	visualizer.set_state({})
 	await get_tree().process_frame
 	if fuel_root != null:
-		_expect(fuel_root.visible, "Furniture hidden in first-person overlay")
+		_expect(not fuel_root.visible, "Duplicate furniture visible in first-person overlay")
+		_expect(not visualizer._should_update_fuel_objects_this_pass(), "Hidden duplicate still refreshes")
+		visualizer.show_fuel_objects_in_first_person = true
+		visualizer._apply_overlay_visibility()
+		_expect(fuel_root.visible, "Explicit standalone furniture opt-in lost")
+		visualizer.show_fuel_objects_in_first_person = false
+		visualizer.set_active(true, true, true, false)
+		visualizer.set_state(state)
+		_expect(fuel_root.visible, "Furniture not restored outside FP")
+		_expect(visualizer._should_update_fuel_objects_this_pass(), "Furniture refresh not restored outside FP")
 
 	var fp: FirstPersonController = FirstPersonControllerScript.new()
 	fp.name = "FurnitureRuntimeFP"

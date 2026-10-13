@@ -1,0 +1,228 @@
+{
+  "schema": "fp_furniture_owner_closure_v1",
+  "baseline_commit": "599d8d0e982cd0ab7223926470a25286a49aedcb",
+  "scope": {
+    "production": [
+      "view/3d/Visualizer3D.gd"
+    ],
+    "validator": [
+      "tools/validate_furniture_runtime.gd"
+    ],
+    "physics_changed": false,
+    "fp_controller_changed": false,
+    "static_specs_optimized": false,
+    "rendered_fps_validated": false,
+    "global_repeated": false
+  },
+  "source_sha256_raw": {
+    "Main.gd": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359",
+    "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e",
+    "view/fp/FirstPersonController.gd": "351c35a3f2822f263cb1e0a5c691146dfd82000b66cba9ba9f4091bfbe4cfb43",
+    "tests/fixtures/fp_furniture_owner.gd": "946fcd906fde99d631b0aa90e4ff38242346266808226f4ebba9aeb63261df6c",
+    "tools/validate_furniture_runtime.gd": "a1f8fbaf5e0cc1c9f5b953c5d9079f1a1eb3281fec48a5de0a782554371f5147",
+    "scenes/SimulationScene.tscn": "5ef66f839c1f07962794fb5b877dbf46744f4127f45d1fed9192eaf057f36fdc",
+    "tests/fixtures/product_furniture_overlap.gd": "0b96bd4a4815d56af2d1f9910e3aeeaa4cac4a3e4a013dcf43a57da78b77fe34",
+    "view/furniture/FurnitureVisualLayout.gd": "9c5d151e5f65bd110d07ee4934b2c5004926f299603fc1004e144df00713d2cb",
+    "scripts/verify_fp_furniture_owner.py": "634bbf2fbc36cb091407082c364c46412061d01d04d6e726fd8de18a52612fc5"
+  },
+  "source_sha256_lf": {
+    "Main.gd": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359",
+    "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e",
+    "view/fp/FirstPersonController.gd": "351c35a3f2822f263cb1e0a5c691146dfd82000b66cba9ba9f4091bfbe4cfb43",
+    "tests/fixtures/fp_furniture_owner.gd": "946fcd906fde99d631b0aa90e4ff38242346266808226f4ebba9aeb63261df6c",
+    "tools/validate_furniture_runtime.gd": "a1f8fbaf5e0cc1c9f5b953c5d9079f1a1eb3281fec48a5de0a782554371f5147",
+    "scenes/SimulationScene.tscn": "5ef66f839c1f07962794fb5b877dbf46744f4127f45d1fed9192eaf057f36fdc",
+    "tests/fixtures/product_furniture_overlap.gd": "0b96bd4a4815d56af2d1f9910e3aeeaa4cac4a3e4a013dcf43a57da78b77fe34",
+    "view/furniture/FurnitureVisualLayout.gd": "9c5d151e5f65bd110d07ee4934b2c5004926f299603fc1004e144df00713d2cb",
+    "scripts/verify_fp_furniture_owner.py": "634bbf2fbc36cb091407082c364c46412061d01d04d6e726fd8de18a52612fc5"
+  },
+  "control": {
+    "artifact": "simufire_owner_control_final_20261013/result.json",
+    "payload": {
+      "checks": 1442,
+      "failure_count": 0,
+      "failures": []
+    },
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "foreign_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true,
+      "windows_error_ui_suppressed": true,
+      "console_wrapper_bypassed": true
+    }
+  },
+  "mutations": {
+    "artifact": "simufire_owner_mutations_final_20261013/results.json",
+    "declared": 5,
+    "executed": 5,
+    "killed_where_expected": 5,
+    "restored_raw_sha256": {
+      "view/3d/Visualizer3D.gd": "a15c6de11bebcc568ba161b15f709503c3cd21be2f06795f42edf4cc799cdf5e"
+    },
+    "results": [
+      {
+        "name": "control",
+        "verdict": "pass",
+        "checks": 1442,
+        "failed_checks": 0,
+        "expected_in": null,
+        "seen_where_expected": null,
+        "health": {
+          "wrapper_exit_code": 0,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      },
+      {
+        "name": "O01_duplicate_default",
+        "verdict": "killed",
+        "checks": 1442,
+        "failed_checks": 281,
+        "expected_in": "product default suppresses duplicate",
+        "seen_where_expected": true,
+        "health": {
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      },
+      {
+        "name": "O02_hidden_refresh",
+        "verdict": "killed",
+        "checks": 1442,
+        "failed_checks": 7,
+        "expected_in": "skip hidden furniture refresh",
+        "seen_where_expected": true,
+        "health": {
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      },
+      {
+        "name": "O03_entry_visibility",
+        "verdict": "killed",
+        "checks": 1442,
+        "failed_checks": 117,
+        "expected_in": "single visible furniture owner",
+        "seen_where_expected": true,
+        "health": {
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      },
+      {
+        "name": "O04_refresh_visibility",
+        "verdict": "killed",
+        "checks": 1442,
+        "failed_checks": 195,
+        "expected_in": "single visible furniture owner",
+        "seen_where_expected": true,
+        "health": {
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      },
+      {
+        "name": "O05_lost_3d_refresh",
+        "verdict": "killed",
+        "checks": 38,
+        "failed_checks": 16,
+        "expected_in": "3D furniture refresh restored",
+        "seen_where_expected": true,
+        "health": {
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "residual_godot_processes": [],
+          "foreign_godot_processes": [],
+          "cleanup_terminated_pids": [],
+          "process_quiescent": true,
+          "windows_error_ui_suppressed": true,
+          "console_wrapper_bypassed": true
+        }
+      }
+    ]
+  },
+  "product": {
+    "artifact": "simufire_owner_product_final_20261013/result.json",
+    "tests": 168,
+    "returncode": 0,
+    "wall_s": 525.7,
+    "available_gib_before": 6.538356781005859,
+    "available_gib_after": 6.608329772949219,
+    "stdout_sha256": "3c970aaeda671811adb8d7d84c85f4ff8763979956c822b051058b3a2925258e",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "health": {
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "residual_godot_processes": [],
+      "foreign_godot_processes": [],
+      "cleanup_terminated_pids": [],
+      "process_quiescent": true,
+      "windows_error_ui_suppressed": true,
+      "console_wrapper_bypassed": false
+    }
+  },
+  "focal": {
+    "passed": 42,
+    "failed": 0,
+    "full_global_repeated": false
+  },
+  "reference": {
+    "regenerated": false,
+    "generated_at": "2026-10-12T21:31:32Z",
+    "required": 346,
+    "failed": 0,
+    "gaps": 78,
+    "sha256_raw": "7e6a0e1ab442c44fa5f37bb6be06adce8c8d7f5e0f85ed221d2d4fc88d782be2",
+    "sha256_lf": "49c5f58de571e26fef51fee3df3d2b130af452bf94235597f9fcb51e82290ddb"
+  },
+  "attempts_not_accepted": [
+    {
+      "artifact": "simufire_owner_mutations_20261013/results.json",
+      "reason": "O02 failed outside the predeclared assertion; fixture strengthened before rerun"
+    },
+    {
+      "artifact": "simufire_owner_product_20261013/result.json",
+      "reason": "one obsolete native validator required the duplicated furniture to remain visible in FP; contract replaced and entire product suite rerun"
+    }
+  ]
+}

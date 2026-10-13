@@ -1,5 +1,8 @@
 # FP lento en Play: diagnóstico — 2026-10-13
 
+Seguimiento autorizado: [retirada acotada de la copia 3D en FP](PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).
+Este informe conserva el diagnóstico previo; no se reescriben sus mediciones.
+
 Checkpoint: `a01327cd`, publicado. Usuario: 3D perfecto, FP fluido en pausa
 pero aún lento en Play. Gráfica FP suspendida. Este encargo es diagnóstico:
 Main, sim/, view/, ui/, escenas, calidad y física quedan intactos.

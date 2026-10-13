@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - FP: retirada de mobiliario duplicado
+
+[Corrección y límites](validation/PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).
+Autorizado por el usuario: sólo el primer paso, un propietario visible en FP.
+Visualizer3D oculta por defecto sus muebles en FP y salta su refresco antes
+del temporizador; conserva las raíces y recupera el refresco al volver a 3D.
+FP, Main, interacción, sim/, dt y escenarios intactos. No caché estática nueva.
+Control real headless: 1 442 checks, 39 muebles; poses/recursos/colisiones FP
+retenidos, ciclos FP/3D, apertura y reloj. Cinco mutantes válidos detectados
+en sus aserciones y SHA restaurado; 42 focales y estilo PASS.
+Control final repetido PASS; producto completo repetido 168 PASS/525,70 s,
+monitor limpio, memoria 6,54/6,61 GiB. Validador histórico actualizado:
+default oculto, opt-in explícito y regreso 3D; la primera corrida fallida no cuenta.
+Guardarraíles/R2-1 PASS; referencia 346/346/78 intacta, sin regeneración.
+Global completa no repetida en esta entrega acotada.
+No FPS certificado ni cierre de jugabilidad. GL/popup abiertos; CO/FED OFF.
+Siguiente: prueba del usuario FP + Play; optimización estática sólo si autorizada.
+
 ## Current Program Update - 2026-10-13 - FP: diagnóstico, no arreglo nuevo
 
 [Informe y siguiente gate](validation/PRODUCT_FP_RUNNING_DIAGNOSIS_2026-10-13.md).

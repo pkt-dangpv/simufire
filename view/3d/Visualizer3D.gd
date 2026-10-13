@@ -90,8 +90,9 @@ const MeshFactory := preload("res://view/3d/geometry/MeshFactory.gd")
 ## (sin sombras) iluminaba salas vecinas a traves de las paredes.
 @export var show_fire_in_first_person: bool = false
 @export var show_fuel_objects_3d: bool = true
-## Mantiene visible el mobiliario 3D compartido cuando la camara FP esta activa.
-@export var show_fuel_objects_in_first_person: bool = true
+## FP tiene mobiliario propio; no duplicarlo con la copia de la vista 3D.
+## Opt-in de compatibilidad para usos de este visualizador sin muebles FP.
+@export var show_fuel_objects_in_first_person: bool = false
 @export var fp_fuel_object_update_interval_s: float = 0.25
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
@@ -1704,6 +1705,8 @@ func _update_dynamic_state() -> void:
 func _should_update_fuel_objects_this_pass() -> bool:
 	if not _first_person_overlay:
 		return true
+	if not show_fuel_objects_in_first_person:
+		return false
 	var interval_ms: int = int(maxf(0.0, fp_fuel_object_update_interval_s) * 1000.0)
 	if interval_ms <= 0:
 		return true

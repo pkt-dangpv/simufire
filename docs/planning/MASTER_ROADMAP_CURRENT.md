@@ -1,11 +1,19 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (diagnóstico FP; corrección visual pendiente)
+Ultima actualizacion parcial: 2026-10-13 (retirada acotada de mobiliario duplicado FP)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad inmediata: [diagnóstico del refresco FP](../validation/PRODUCT_FP_RUNNING_DIAGNOSIS_2026-10-13.md).
+Prioridad inmediata: [un propietario visible FP](../validation/PRODUCT_FP_FURNITURE_OWNER_2026-10-13.md).
+Autorizado el primer paso: ocultar y no refrescar la copia Visualizer3D en FP,
+sin tocar el mobiliario/colliders FP; recuperar 3D al salir. No caché estática.
+Control final 1 442 checks/39 muebles, 5/5 mutantes válidos, 42 focales PASS;
+producto completo repetido 168 PASS, monitor limpio; guardarraíles/R2-1 PASS,
+referencia 346/346/78 intacta. Global no repetida. Sin FPS: probar FP + Play.
+Jugabilidad, GL/popup abiertos. No nueva física; CO/FED OFF/NO-GO.
+
+Checkpoint previo: [diagnóstico del refresco FP](../validation/PRODUCT_FP_RUNNING_DIAGNOSIS_2026-10-13.md).
 Producción intacta. 39 muebles con dos propietarios visibles en la misma posición;
 refresco FP 6,62 ms, muebles 5,50, fichas estáticas 2,29 antes de caché de poses.
 Colisiones redundantes demostradas, pero su guarda no mejora claramente CPU;
