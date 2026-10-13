@@ -31,6 +31,11 @@ const MAX_ANISOTROPY: float = 1.12
 static var _native_size_cache: Dictionary = {}
 
 
+## Called on visual rebuild/resource change; never modifies an authored asset.
+static func invalidate_native_sizes() -> void:
+	_native_size_cache.clear()
+
+
 ## Que va a medir de verdad esta pieza, antes de construirla.
 ##
 ## Quien la coloca necesita saberlo: si planifica con el tamano pedido y el

@@ -1,6 +1,23 @@
 # Current Handoff State
 
-## Current Program Update - 2026-10-13 - Producto: bloqueo CPU aislado
+## Current Program Update - 2026-10-13 - Producto: corrección visual de mobiliario
+
+[Corrección y evidencia](validation/PRODUCT_FURNITURE_LAYOUT_CACHE_FIX_2026-10-13.md).
+Cuatro GD de view/ reutilizan poses con clave exacta y fichas dinámicas frescas;
+invalidación geométrica/recurso/rebuild, propietario débil y límites de caché.
+Algoritmo de reparto/transforms/arte, Main, sim/, calidad y escenarios intactos.
+560 checks nativos, diez viviendas, 11/11 mutantes GD válidos; SHA restaurados.
+Mismo banco CPU: 3D 317,33 -> 7,11 ms; FP 316,19 -> 6,16 ms;
+ventana en pausa FP 648,35 -> 10,62 ms. Paso físico permanece ~5 ms.
+13 focales offline PASS; producto 168 PASS; global 5 078 passed / 78 skipped /
+2 xfailed / 42 subtests, exit 0. Monitor sano, stderr vacío, cero Godot residual.
+ALL GUARDRAILS PASS/R2-1; referencia 346/346 y 78 gaps sin modificar/regenerar.
+79 UID y cuatro stashes preservados; cambios ajenos del checkout main excluidos.
+No FPS/GPU medidos: p95 del callback real sigue ~48-52 ms; probar Casa simple
+renderizada en 3D/FP con Play y aberturas antes de dar jugabilidad por cerrada.
+Después retomar gate gas/energía/EOS; CO/FED siguen OFF/NO-GO.
+
+## Current Program Update - 2026-10-13 - Producto: diagnóstico anterior
 
 [Diagnóstico y corrección propuesta](validation/PRODUCT_CPU_PROFILE_CASA_SIMPLE_2026-10-13.md).
 Casa simple guardada: apartamento 15/20, noche; seis salas/once aberturas.
@@ -9,8 +26,8 @@ Paso físico mediano 5,2–5,4 ms; reparto de mobiliario 312–314 ms por refres
 salas sin esa rama 0,66–0,67 ms. Acción de ventana en pausa 322 ms (3D)
 y 648 ms (FP); p95 del callback real 323/640 ms. Estado congelado invariante.
 Tres controles finales limpios, misma fuente/opciones, nueve pruebas offline.
-Corregir primero la reutilización/invalidación de layout visual, conservando
-estado dinámico y transforms de autor; no implementado. Después benchmark
+En ese checkpoint se propuso la reutilización/invalidación de layout visual,
+conservando estado dinámico y transforms de autor; ya corregido arriba. Después benchmark
 renderizado. Gate gas/energía/EOS aplazado por prioridad de jugabilidad;
 M4-P1 sigue cerrado y CO/FED OFF/NO-GO. No nuevas suites globales/referencia.
 

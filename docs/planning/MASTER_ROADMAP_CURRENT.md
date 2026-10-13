@@ -1,17 +1,22 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (producto: bloqueo CPU de mobiliario aislado)
+Ultima actualizacion parcial: 2026-10-13 (producto: caché visual corregida y verificada)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad actual de producto: [bloqueos 3D/FP de Casa simple](../validation/PRODUCT_CPU_PROFILE_CASA_SIMPLE_2026-10-13.md).
-Diagnóstico cerrado, arreglo no implementado: normalize_room repetido cuesta
-312–314 ms; paso físico mediano 5,2–5,4 ms. Ventana en pausa reproduce el
-refresco completo de 322/648 ms. Tres controles headless sanos, nueve pruebas
-offline; no FPS/GPU medidos. Siguiente: reutilizar poses con invalidación
-correcta y actualización dinámica intacta, y comprobar rendimiento renderizado.
-Sin cambios de física/activación. El gate gas/energía/EOS viene después.
+Prioridad actual de producto: [corrección visual y comprobación de jugabilidad](../validation/PRODUCT_FURNITURE_LAYOUT_CACHE_FIX_2026-10-13.md).
+Diagnóstico y arreglo CPU cerrados: poses reutilizadas con fichas dinámicas
+frescas e invalidación acotada; cuatro GD visuales, sin cambios de física,
+calidad, transforms de autor ni escenarios. 560 checks nativos y 11/11
+mutantes GD válidos; diez viviendas idénticas al algoritmo original.
+Refresco 3D 317,33 -> 7,11 ms; FP 316,19 -> 6,16 ms; ventana FP
+648,35 -> 10,62 ms. Paso físico ~5 ms. Producto 168 PASS; global
+5 078 passed / 78 skipped / 2 xfailed / 42 subtests, monitor sano;
+ALL GUARDRAILS PASS/R2-1, referencia 346/346/78 intacta, sin regenerar.
+No FPS/GPU medidos y p95 de callback real aún ~48-52 ms. Siguiente:
+probar Casa simple renderizada en 3D/FP con Play y puertas/ventanas.
+El gate gas/energía/EOS viene después; CO/FED siguen OFF/NO-GO.
 
 Avance M4-P1: [núcleo de parcelas físicas aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
 GD implementado sin consumidor: gas/energía/O2 pareados, calor sin masa,

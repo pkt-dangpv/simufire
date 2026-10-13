@@ -928,6 +928,7 @@ func _release_unclaimed_fuel_nodes() -> void:
 func _rebuild_scene() -> void:
 	if building == null or _rooms_root == null:
 		return
+	FurnitureVisualLayout.invalidate_all()
 
 	_harvest_fuel_object_nodes()
 	_clear_container(_rooms_root)
@@ -3250,8 +3251,6 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		return
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var room_id: int = int(item.get("room_id", -1))
-	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
-	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects, furnish_empty_rooms)
 
 	if _first_person_overlay and not show_fuel_objects_in_first_person:
 		fuel_objects_root.visible = false
@@ -3259,6 +3258,8 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	if not show_fuel_objects_3d:
 		fuel_objects_root.visible = false
 		return
+	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
+	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects, furnish_empty_rooms)
 	if objects.is_empty():
 		fuel_objects_root.visible = fuel_obj_nodes.size() > 0
 		return

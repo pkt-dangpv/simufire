@@ -1542,6 +1542,7 @@ func _rebuild_world() -> void:
 	_ensure_world_root()
 	if _world_root == null:
 		return
+	FurnitureVisualLayout.invalidate_all()
 	for child in _world_root.get_children():
 		child.free()
 	_world_root.global_transform = Transform3D.IDENTITY
