@@ -1,11 +1,20 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (minimapa corregido; jugabilidad/FP pendientes)
+Ultima actualizacion parcial: 2026-10-13 (gráfica FP suspendida; jugabilidad pendiente)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad inmediata: [hotfix del minimapa y límites de jugabilidad](../validation/PRODUCT_MINIMAP_LAYOUT_THRASH_2026-10-13.md).
+Prioridad inmediata: [FP sin gráfica en tiempo real](../validation/PRODUCT_FP_LIVE_CHARTS_2026-10-13.md).
+Usuario: 3D funciona bien; FP aún lento. Main suspende dibujo, proceso y muestreo
+de la gráfica en FP, restaurando la preferencia al salir. Sin cambios de física
+ni calidad. Control 26, mutantes 5/5, focales 35 y producto 168 PASS;
+guardarraíles/R2-1 y referencia intactos. Global completa no repetida.
+El banco real sigue rechazado por los avisos GL de salida; no certificar mejora
+de FPS. Probar Casa simple y aislar otros costes FP si continúa lento.
+Jugabilidad y cierre GL siguen abiertos; gate gas/energía/EOS después.
+
+Checkpoint previo: [hotfix del minimapa y límites de jugabilidad](../validation/PRODUCT_MINIMAP_LAYOUT_THRASH_2026-10-13.md).
 Ventana real reproduce 3D 60 FPS pausa / 6,64 Play. El minimapa abreviaba
 fichas, expulsando la caché compartida: 606 misses en ocho segundos. Corregido
 sin ocultarlo ni cambiar física/calidad: 46,22 FPS y cero misses.

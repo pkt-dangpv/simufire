@@ -41,6 +41,8 @@ var _graphs_message_label: Label = null
 var _native_charts_window: Window = null
 var _live_overlay: Control = null
 var _live_sample_accum_s: float = 0.0
+var _live_charts_button: Button = null
+var _live_charts_requested_visible: bool = true
 var _current_graphs_dir: String = ""
 var _summary_title_label: Label = null
 var _summary_export_label: Label = null
@@ -160,7 +162,7 @@ func _physics_process(delta: float) -> void:
 
 
 ## Crea el overlay de gráficas en vivo (recuadro translúcido, abajo a la
-## derecha, siempre visible) y un botón "EN VIVO" para mostrarlo/ocultarlo.
+## derecha) y un botón "EN VIVO". En FP se suspenden dibujo y muestreo.
 func _setup_live_charts() -> void:
 	if _live_overlay == null:
 		_live_overlay = LiveChartsOverlayScene.instantiate() as Control
@@ -183,12 +185,15 @@ func _setup_live_charts() -> void:
 		btn.tooltip_text = "Muestra/oculta el recuadro de gráficas en tiempo real."
 		btn.toggled.connect(_on_live_charts_toggled)
 		row.add_child(btn)
+	if row != null:
+		_live_charts_button = row.get_node_or_null("BtnLiveCharts") as Button
+	_sync_live_charts()
 
 
 ## Muestrea el estado del motor a intervalos regulares mientras corre la sim.
-## Acumula aunque el overlay esté oculto, para tener histórico desde el inicio.
+## Fuera de FP acumula incluso oculto. En FP no exporta ni guarda muestras.
 func _sample_live_charts(delta: float) -> void:
-	if _live_overlay == null or engine == null:
+	if first_person_enabled or _live_overlay == null or engine == null:
 		return
 	_live_sample_accum_s += delta
 	if _live_sample_accum_s < _live_overlay.sample_interval_s:
@@ -198,8 +203,23 @@ func _sample_live_charts(delta: float) -> void:
 
 
 func _on_live_charts_toggled(pressed: bool) -> void:
+	_live_charts_requested_visible = pressed
+	_sync_live_charts()
+
+
+func _sync_live_charts() -> void:
 	if _live_overlay != null:
-		_live_overlay.visible = pressed
+		_live_overlay.visible = _live_charts_requested_visible and not first_person_enabled
+		if first_person_enabled:
+			_live_overlay.process_mode = Node.PROCESS_MODE_DISABLED
+		else:
+			_live_overlay.process_mode = Node.PROCESS_MODE_INHERIT
+	if _live_charts_button != null:
+		_live_charts_button.visible = not first_person_enabled
+		_live_charts_button.set_pressed_no_signal(_live_charts_requested_visible)
+	if first_person_enabled:
+		# No acumular tiempo para una muestra de recuperación al salir de FP.
+		_live_sample_accum_s = 0.0
 
 
 func _input(event: InputEvent) -> void:
@@ -387,6 +407,7 @@ func _set_first_person_enabled(enabled: bool) -> void:
 
 
 func _sync_view_mode() -> void:
+	_sync_live_charts()
 	var visualizer_2d_active: bool = not view_3d_enabled and not first_person_enabled
 	var visualizer_3d_active: bool = view_3d_enabled or first_person_enabled
 	var orbit_controls_active: bool = view_3d_enabled and not first_person_enabled

@@ -1,0 +1,654 @@
+{
+  "scope": "UI only, FP chart suspension; not a physics or FPS validation",
+  "sources_sha256": {
+    "Main.gd": {
+      "raw": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359",
+      "lf": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359"
+    },
+    "tests/fixtures/fp_live_charts.gd": {
+      "raw": "378abb627fdd971673494eeb6cf4a07a70920176f92848bf851104f59cc7c152",
+      "lf": "378abb627fdd971673494eeb6cf4a07a70920176f92848bf851104f59cc7c152"
+    },
+    "ui/charts/LiveChartsOverlay.gd": {
+      "raw": "2f01a756772b1975d1f67dc72a4b0d6575934a2ab0940a6828695ba74660dcfa",
+      "lf": "2f01a756772b1975d1f67dc72a4b0d6575934a2ab0940a6828695ba74660dcfa"
+    },
+    "ui/charts/InteractiveLineChart.gd": {
+      "raw": "f6fde076402215495c00fed5af0833f9c18e406a2b799cd21be66ec05708d784",
+      "lf": "f6fde076402215495c00fed5af0833f9c18e406a2b799cd21be66ec05708d784"
+    },
+    "scripts/verify_fp_live_charts.py": {
+      "raw": "60ebc8da441fba93e3bd8174ade5d9b1931b526c3f233bf74c21f82ded30012e",
+      "lf": "60ebc8da441fba93e3bd8174ade5d9b1931b526c3f233bf74c21f82ded30012e"
+    },
+    "tests/test_fp_live_charts.py": {
+      "raw": "02ac662bbdf45fe77caee6c5d290728911746a196b9f0c2100a321db7f16572d",
+      "lf": "02ac662bbdf45fe77caee6c5d290728911746a196b9f0c2100a321db7f16572d"
+    }
+  },
+  "control": {
+    "state": "passed",
+    "sources_sha256_raw": {
+      "Main.gd": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359",
+      "tests/fixtures/fp_live_charts.gd": "378abb627fdd971673494eeb6cf4a07a70920176f92848bf851104f59cc7c152",
+      "ui/charts/LiveChartsOverlay.gd": "2f01a756772b1975d1f67dc72a4b0d6575934a2ab0940a6828695ba74660dcfa",
+      "ui/charts/InteractiveLineChart.gd": "f6fde076402215495c00fed5af0833f9c18e406a2b799cd21be66ec05708d784",
+      "scripts/verify_fp_live_charts.py": "60ebc8da441fba93e3bd8174ade5d9b1931b526c3f233bf74c21f82ded30012e"
+    },
+    "health": {
+      "contract": "windows-window-process-exit-v2",
+      "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+      "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+      "console_wrapper_bypassed": true,
+      "windows_error_ui_suppressed": true,
+      "started_at_utc": "2026-10-13T13:19:29.183968+00:00",
+      "ended_at_utc": "2026-10-13T13:19:35.339450+00:00",
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "process_ownership": "job-object",
+      "owned_process_total": 1,
+      "owned_descendant_wait_s": 0,
+      "observed_godot_processes": [
+        {
+          "image_name": "Godot_v4.7.1-stable_win64.exe",
+          "pid": 6748,
+          "exit_code": 0
+        }
+      ],
+      "foreign_godot_processes": [],
+      "process_handle_capture_races": [],
+      "process_handle_capture_failures": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "post_exit_observation_s": 2.029
+    },
+    "control": {
+      "checks": 26,
+      "failure_count": 0,
+      "failures": []
+    }
+  },
+  "mutations": {
+    "schema": "fp_live_charts_mutations_v1",
+    "integration_validated": true,
+    "fixture": "tests/fixtures/fp_live_charts.gd",
+    "prefix": "FP_LIVE_CHARTS",
+    "plan": {
+      "F01_hidden_sampling": {
+        "file": "Main.gd",
+        "defect": "hidden chart keeps exporting state",
+        "expected_in": "no chart state exports in FP",
+        "declared_with_the_plan": true
+      },
+      "F02_still_visible": {
+        "file": "Main.gd",
+        "defect": "chart still rendered in FP",
+        "expected_in": "hidden in FP",
+        "declared_with_the_plan": true
+      },
+      "F03_child_processing": {
+        "file": "Main.gd",
+        "defect": "hidden chart subtree keeps processing",
+        "expected_in": "child processing suspended in FP",
+        "declared_with_the_plan": true
+      },
+      "F04_lost_preference": {
+        "file": "Main.gd",
+        "defect": "view switch loses the user's OFF preference",
+        "expected_in": "restore user hidden preference",
+        "declared_with_the_plan": true
+      },
+      "F05_missing_mode_sync": {
+        "file": "Main.gd",
+        "defect": "FP transition bypasses chart policy",
+        "expected_in": "hidden in FP",
+        "declared_with_the_plan": true
+      }
+    },
+    "results": [
+      {
+        "name": "control",
+        "verdict": "pass",
+        "checks": 26,
+        "failed_checks": 0,
+        "expected_in": null,
+        "seen_where_expected": null,
+        "failures": [],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:26.563442+00:00",
+          "ended_at_utc": "2026-10-13T13:18:32.715967+00:00",
+          "wrapper_exit_code": 0,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 23964,
+              "exit_code": 0
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.032
+        },
+        "mutant_sha256": null
+      },
+      {
+        "name": "F01_hidden_sampling",
+        "verdict": "killed",
+        "checks": 26,
+        "failed_checks": 7,
+        "expected_in": "no chart state exports in FP",
+        "seen_where_expected": true,
+        "failures": [
+          "no chart state exports in FP",
+          "no hidden history growth in FP",
+          "no FP accumulator growth",
+          "existing history preserved",
+          "no catch-up sample on return",
+          "sampling resumes outside FP",
+          "historical hidden sampling outside FP retained"
+        ],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:32.829392+00:00",
+          "ended_at_utc": "2026-10-13T13:18:38.986409+00:00",
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 24100,
+              "exit_code": 1
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.034
+        },
+        "mutant_sha256": "2b45a00352b78b149d737f2e3be0a749fa098d30cdfeb34ae31620da18db32c0"
+      },
+      {
+        "name": "F02_still_visible",
+        "verdict": "killed",
+        "checks": 26,
+        "failed_checks": 2,
+        "expected_in": "hidden in FP",
+        "seen_where_expected": true,
+        "failures": [
+          "hidden in FP",
+          "toggle cannot reveal chart in FP"
+        ],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:39.100094+00:00",
+          "ended_at_utc": "2026-10-13T13:18:45.246329+00:00",
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 4984,
+              "exit_code": 1
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.025
+        },
+        "mutant_sha256": "90c94a9e167948e9fba4374feaea69323dd60379a5a549b2a5b1d9223e5f1216"
+      },
+      {
+        "name": "F03_child_processing",
+        "verdict": "killed",
+        "checks": 26,
+        "failed_checks": 2,
+        "expected_in": "child processing suspended in FP",
+        "seen_where_expected": true,
+        "failures": [
+          "chart processing suspended in FP",
+          "child processing suspended in FP"
+        ],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:45.354664+00:00",
+          "ended_at_utc": "2026-10-13T13:18:51.603710+00:00",
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 10800,
+              "exit_code": 1
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.03
+        },
+        "mutant_sha256": "f5dbc84c397228d3c39684ac78345588778529fc158ad1c6009d1e9c71ca5696"
+      },
+      {
+        "name": "F04_lost_preference",
+        "verdict": "killed",
+        "checks": 26,
+        "failed_checks": 2,
+        "expected_in": "restore user hidden preference",
+        "seen_where_expected": true,
+        "failures": [
+          "restore user hidden preference",
+          "button reflects hidden preference"
+        ],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:51.712168+00:00",
+          "ended_at_utc": "2026-10-13T13:18:57.877820+00:00",
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 13268,
+              "exit_code": 1
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.028
+        },
+        "mutant_sha256": "36b51d88dd363f2ff92f8e1c0f3f9b9ace0814a18cc2e8e9d4ed1b8edbc0eeaa"
+      },
+      {
+        "name": "F05_missing_mode_sync",
+        "verdict": "killed",
+        "checks": 26,
+        "failed_checks": 7,
+        "expected_in": "hidden in FP",
+        "seen_where_expected": true,
+        "failures": [
+          "hidden in FP",
+          "button hidden in FP",
+          "chart processing suspended in FP",
+          "child processing suspended in FP",
+          "restore requested chart in 3D",
+          "restore button in 3D",
+          "restore chart processing"
+        ],
+        "health": {
+          "contract": "windows-window-process-exit-v2",
+          "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+          "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+          "console_wrapper_bypassed": true,
+          "windows_error_ui_suppressed": true,
+          "started_at_utc": "2026-10-13T13:18:57.983981+00:00",
+          "ended_at_utc": "2026-10-13T13:19:04.135475+00:00",
+          "wrapper_exit_code": 1,
+          "timed_out": false,
+          "error_dialogs": [],
+          "process_ownership": "job-object",
+          "owned_process_total": 1,
+          "owned_descendant_wait_s": 0,
+          "observed_godot_processes": [
+            {
+              "image_name": "Godot_v4.7.1-stable_win64.exe",
+              "pid": 23560,
+              "exit_code": 1
+            }
+          ],
+          "foreign_godot_processes": [],
+          "process_handle_capture_races": [],
+          "process_handle_capture_failures": [],
+          "residual_godot_processes": [],
+          "process_quiescent": true,
+          "cleanup_terminated_pids": [],
+          "post_exit_observation_s": 2.024
+        },
+        "mutant_sha256": "81b7b88ad5ed1bb04dc81303bb78be10e0a07c880cd2fbc5a33a2427b294581c"
+      }
+    ],
+    "declared": 5,
+    "executed": 5,
+    "killed_where_expected": 5,
+    "error": null,
+    "sha256_before": {
+      "Main.gd": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359"
+    },
+    "sha256_after": {
+      "Main.gd": "fcb2108ffef0a2d4365aa0b8a7d75350818198379a65551d990520ddcfb02359"
+    },
+    "originals_intact": true
+  },
+  "render_attempt": {
+    "state": "failed",
+    "error": "script/render errors invalidate timing evidence",
+    "health": {
+      "contract": "windows-window-process-exit-v2",
+      "requested_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64_console.exe",
+      "launched_executable": "C:\\Users\\dangp\\Desktop\\Godot_v4.7.1-stable_win64.exe",
+      "console_wrapper_bypassed": true,
+      "windows_error_ui_suppressed": true,
+      "started_at_utc": "2026-10-13T13:16:12.419380+00:00",
+      "ended_at_utc": "2026-10-13T13:16:55.492599+00:00",
+      "wrapper_exit_code": 0,
+      "timed_out": false,
+      "error_dialogs": [],
+      "process_ownership": "job-object",
+      "owned_process_total": 5,
+      "owned_descendant_wait_s": 0,
+      "observed_godot_processes": [
+        {
+          "image_name": "Godot_v4.7.1-stable_win64.exe",
+          "pid": 488,
+          "exit_code": 0
+        }
+      ],
+      "foreign_godot_processes": [],
+      "process_handle_capture_races": [],
+      "process_handle_capture_failures": [],
+      "residual_godot_processes": [],
+      "process_quiescent": true,
+      "cleanup_terminated_pids": [],
+      "post_exit_observation_s": 2.168
+    },
+    "stderr": "ERROR: Texture with GL ID of 101: leaked 349524 bytes.\n   at: ~Utilities (drivers/gles3/storage/utilities.cpp:82)\nERROR: Texture with GL ID of 102: leaked 349524 bytes.\n   at: ~Utilities (drivers/gles3/storage/utilities.cpp:82)\n",
+    "summaries_provisional": {
+      "paused_after": {
+        "frames": 479,
+        "mean_fps": 60.0425336795995,
+        "frame_interval": {
+          "calls": 479,
+          "median_ms": 16.639,
+          "p95_ms": 17.252,
+          "max_ms": 20.66,
+          "mean_ms": 16.65486012526096
+        },
+        "main_cpu_per_frame": {
+          "calls": 479,
+          "median_ms": 0,
+          "p95_ms": 0,
+          "max_ms": 0,
+          "mean_ms": 0
+        },
+        "physics_steps_per_frame_max": 0,
+        "draw_calls_median": 1289,
+        "wall_s": 8.002538,
+        "simulated_s": 0,
+        "cache_hits_delta": 6,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 479,
+          "median_ms": 0.056,
+          "p95_ms": 0.08,
+          "max_ms": 0.11,
+          "mean_ms": 0.056768267223382046
+        },
+        "render_cpu_ms": {
+          "calls": 479,
+          "median_ms": 2.77300000190735,
+          "p95_ms": 3.68899989128113,
+          "max_ms": 4.6729998588562,
+          "mean_ms": 2.872989562458683
+        },
+        "render_gpu_ms": {
+          "calls": 479,
+          "median_ms": 9.19900035858154,
+          "p95_ms": 9.9680004119873,
+          "max_ms": 14.0290002822876,
+          "mean_ms": 9.31561586702542
+        },
+        "render_setup_ms": {
+          "calls": 479,
+          "median_ms": 0.07,
+          "p95_ms": 0.085,
+          "max_ms": 0.125,
+          "mean_ms": 0.06800417536534446
+        }
+      },
+      "paused_before": {
+        "frames": 472,
+        "mean_fps": 59.05443342400858,
+        "frame_interval": {
+          "calls": 472,
+          "median_ms": 16.6295,
+          "p95_ms": 18.508,
+          "max_ms": 42.771,
+          "mean_ms": 16.93352966101695
+        },
+        "main_cpu_per_frame": {
+          "calls": 472,
+          "median_ms": 0,
+          "p95_ms": 0,
+          "max_ms": 0,
+          "mean_ms": 0
+        },
+        "physics_steps_per_frame_max": 0,
+        "draw_calls_median": 1289,
+        "wall_s": 8.009935,
+        "simulated_s": 0,
+        "cache_hits_delta": 0,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 472,
+          "median_ms": 0.059,
+          "p95_ms": 0.084,
+          "max_ms": 0.3,
+          "mean_ms": 0.060184322033898306
+        },
+        "render_cpu_ms": {
+          "calls": 472,
+          "median_ms": 2.76099991798401,
+          "p95_ms": 3.6710000038147,
+          "max_ms": 5.04500007629395,
+          "mean_ms": 2.848595338352656
+        },
+        "render_gpu_ms": {
+          "calls": 472,
+          "median_ms": 9.23499965667725,
+          "p95_ms": 11.8520002365112,
+          "max_ms": 32.9500007629395,
+          "mean_ms": 9.686074143749172
+        },
+        "render_setup_ms": {
+          "calls": 472,
+          "median_ms": 0.048,
+          "p95_ms": 0.059,
+          "max_ms": 0.087,
+          "mean_ms": 0.047228813559322035
+        }
+      },
+      "playing": {
+        "frames": 173,
+        "mean_fps": 21.71339523198943,
+        "frame_interval": {
+          "calls": 173,
+          "median_ms": 46.106,
+          "p95_ms": 59.921,
+          "max_ms": 66.921,
+          "mean_ms": 46.05452023121387
+        },
+        "main_cpu_per_frame": {
+          "calls": 173,
+          "median_ms": 26.058,
+          "p95_ms": 33.62,
+          "max_ms": 35.923,
+          "mean_ms": 25.084890173410404
+        },
+        "physics_steps_per_frame_max": 4,
+        "draw_calls_median": 1289,
+        "wall_s": 8.027034,
+        "simulated_s": 7.99999999999998,
+        "cache_hits_delta": 1284,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 173,
+          "median_ms": 0.061,
+          "p95_ms": 0.081,
+          "max_ms": 0.148,
+          "mean_ms": 0.06315028901734104
+        },
+        "render_cpu_ms": {
+          "calls": 173,
+          "median_ms": 2.89000010490417,
+          "p95_ms": 3.89400005340576,
+          "max_ms": 4.35599994659424,
+          "mean_ms": 2.9415895952654716
+        },
+        "render_gpu_ms": {
+          "calls": 173,
+          "median_ms": 11.8369998931885,
+          "p95_ms": 15.2510004043579,
+          "max_ms": 19.4080009460449,
+          "mean_ms": 12.144341055368411
+        },
+        "render_setup_ms": {
+          "calls": 173,
+          "median_ms": 0.396,
+          "p95_ms": 0.89,
+          "max_ms": 1.263,
+          "mean_ms": 0.43776878612716763
+        },
+        "main_callback": {
+          "calls": 480,
+          "median_ms": 5.703,
+          "p95_ms": 17.009,
+          "max_ms": 24.013,
+          "mean_ms": 9.096829166666666
+        },
+        "engine_step": {
+          "calls": 480,
+          "median_ms": 5.4535,
+          "p95_ms": 6.196,
+          "max_ms": 7.786,
+          "mean_ms": 5.53
+        }
+      }
+    }
+  },
+  "offline_focused": "35 passed",
+  "global_rerun": false,
+  "product": {
+    "state": "passed",
+    "execution": {
+      "command": [
+        "C:\\Users\\dangp\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "scripts/check_product.py"
+      ],
+      "returncode": 0,
+      "health": {
+        "contract": "windows-window-process-exit-v2",
+        "requested_executable": "C:\\Users\\dangp\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "launched_executable": "C:\\Users\\dangp\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+        "console_wrapper_bypassed": false,
+        "windows_error_ui_suppressed": true,
+        "started_at_utc": "2026-10-13T13:20:02.007763+00:00",
+        "ended_at_utc": "2026-10-13T13:28:47.678851+00:00",
+        "wrapper_exit_code": 0,
+        "timed_out": false,
+        "error_dialogs": [],
+        "process_ownership": "job-object",
+        "owned_process_total": 1536,
+        "owned_descendant_wait_s": 0,
+        "observed_godot_processes": [
+          {
+            "image_name": "python.exe",
+            "pid": 22028,
+            "exit_code": 0
+          }
+        ],
+        "foreign_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [],
+        "residual_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": [],
+        "post_exit_observation_s": 2.03
+      },
+      "available_gib_before": 6.355274200439453,
+      "available_gib_after": 6.354488372802734,
+      "wall_s": 525.68,
+      "errors": [],
+      "stdout_sha256": "3c970aaeda671811adb8d7d84c85f4ff8763979956c822b051058b3a2925258e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "terminal_output": "editor, Godot        1/1 OK  [OK]\n  Activacion experimental de aberturas, Godot        1/1 OK  [OK]\n  Presentacion de FED y del indice de condiciones, Godot        1/1 OK  [OK]\n  Fuga de envolvente exterior en la red, Godot        1/1 OK  [OK]\n  Conservacion canonica de masa zonal, Godot        1/1 OK  [OK]\n  Propietario unico del transporte interior, Godot        1/1 OK  [OK]\n  Acarreo de gas caliente por capa, Godot        1/1 OK  [OK]\n  Selector experimental de CO zonal en FED, Godot        1/1 OK  [OK]\n  Fondo tapado desde la ventana Godot           1/1 OK  [OK]\n  Altura del edificio Godot                     1/1 OK  [OK]\n  Landing surfaces Godot                        1/1 OK  [OK]\n  FP landing stairs Godot headless              1/1 OK  [OK]\n  FP exterior context Godot headless            1/1 OK  [OK]\n  Technical summary Godot headless              1/1 OK  [OK]\n  Furniture runtime Godot headless              1/1 OK  [OK]\n  Exterior city Godot headless                  1/1 OK  [OK]\n  Furniture layout Godot headless               1/1 OK  [OK]\n  3D door opening visuals Godot                 1/1 OK  [OK]\n  3D technical overlays Godot                   1/1 OK  [OK]\n  3D screenshot export Godot                    1/1 OK  [OK]\n  Runtime template schema Godot                 1/1 OK  [OK]\n  Editor load error dialog Godot                1/1 OK  [OK]\n  Vista previa del catalogo Godot               1/1 OK  [OK]\n  Idioma y configuracion Godot                  1/1 OK  [OK]\n  Pasillos y tipo de abertura Godot             1/1 OK  [OK]\n  Comportamiento del editor Godot               1/1 OK  [OK]\n  Patio de luces Godot                          1/1 OK  [OK]\n  Portal y caja de escalera Godot               1/1 OK  [OK]\n  Vista del portal Godot                        1/1 OK  [OK]\n  Dueño del escenario Godot                     1/1 OK  [OK]\n  Texturas propias Godot                        1/1 OK  [OK]\n  Humo del patio Godot                          1/1 OK  [OK]\n  Tipos de abertura Godot                       1/1 OK  [OK]\n  Penacho exterior Godot                        1/1 OK  [OK]\n  Sondas por el camino real Godot               1/1 OK  [OK]\n  Balcones del edificio Godot                   1/1 OK  [OK]\n  Nombres de plantas Godot                      1/1 OK  [OK]\n  Menu principal en escena Godot                1/1 OK  [OK]\n  UI del editor 100% en escena Godot            1/1 OK  [OK]\n  Mandos del editor explicados Godot            1/1 OK  [OK]\n  FP fire visuals Godot                         1/1 OK  [OK]\n  3D smoke opening curtain Godot                1/1 OK  [OK]\n  FP interstitial seal Godot                    1/1 OK  [OK]\n  FP party walls Godot                          1/1 OK  [OK]\n  FP surface shading Godot                      1/1 OK  [OK]\n  FP smoke lighting Godot                       1/1 OK  [OK]\n  FP technical HUD Godot                        1/1 OK  [OK]\n  FP victim states Godot                        1/1 OK  [OK]\n  FP player start Godot                         1/1 OK  [OK]\n  FP detector alarm Godot                       1/1 OK  [OK]\n  FP stance easing Godot                        1/1 OK  [OK]\n  Combustion regime Godot                       1/1 OK  [OK]\n  3D en vivo del editor Godot                   1/1 OK  [OK]\n  Escalera dibujada se sube en FP Godot         1/1 OK  [OK]\n  Dibujo directo en 3D del editor Godot         1/1 OK  [OK]\n  Pasillos del editor Godot                     1/1 OK  [OK]\n  Copiar planta en el editor Godot              1/1 OK  [OK]\n  Revisión del escenario Godot                  1/1 OK  [OK]\n  Arrastrar mobiliario Godot                    1/1 OK  [OK]\n  Editor to sim flow Godot                      1/1 OK  [OK]\n  Run scenario reproducibility                  1/1 OK  [OK]\n  Sin procesos ni cuadros de Godot al terminar        1/1 OK  [OK]\n\n------------------------------------------------------------------------\n\n  ALL PRODUCT CHECKS PASS  (168 tests)\n========================================================================\n\n"
+    },
+    "other_keys": [
+      "schema",
+      "state",
+      "stage",
+      "source_sha256_raw",
+      "sources_lf_sha256",
+      "preserved_uid_sha256",
+      "stashes",
+      "integration_validated",
+      "physical_flow_validation",
+      "execution"
+    ]
+  },
+  "reference_regenerated": false,
+  "fps_improvement_validated": false,
+  "scientific_physics_changed": false,
+  "baseline_commit": "5836821094f748915848ddb3e495eeebb66b7977",
+  "date": "2026-10-13"
+}

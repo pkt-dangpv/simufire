@@ -1,5 +1,20 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - Gráfica suspendida en FP
+
+[Cambio, evidencia y retomada](validation/PRODUCT_FP_LIVE_CHARTS_2026-10-13.md).
+El usuario confirma 3D bien; FP mejor pero lento. A su petición, Main suspende
+la gráfica en FP: oculta overlay/botón, deshabilita el subárbol y no muestrea.
+Fuera de FP recupera la preferencia anterior. Física, dt, calidad y sim/ intactos.
+26 checks nativos, 5/5 mutantes válidos con SHA restaurado, 35 focales PASS;
+producto 168 PASS, monitor limpio. Global completa no repetida en esta entrega.
+Guardarraíles/R2-1 PASS; referencia 346/346/78 sin cambios ni regeneración.
+La corrida real de FP vuelve a rechazarse por dos avisos GL al salir, también
+presentes antes. 21,71 FPS en Play es sólo una traza provisional, no prueba de
+mejora ni empeoramiento. NO-GO a cerrar jugabilidad o atribuir la causa a la gráfica.
+Siguiente: probar Casa simple sin gráfica; si sigue lento, aislar otro coste FP.
+Conservar pendientes de salida GL/popup técnico; CO/FED OFF/NO-GO.
+
 ## Current Program Update - 2026-10-13 - Minimapa: hotfix acotado, jugabilidad abierta
 
 [Diagnóstico, corrección y retomada](validation/PRODUCT_MINIMAP_LAYOUT_THRASH_2026-10-13.md).
