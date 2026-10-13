@@ -1044,6 +1044,15 @@ var _landing_footprints: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
+## Plazo tras el que una sala se vuelve a repartir aunque su entrada no cambie:
+## conserva la comprobación de assets que el reparto hace en cada pasada.
+const FURNITURE_FORCED_REFRESH_MS: int = 1000
+## Campos del objeto que cambian en cada paso con el fuego y que ni el reparto
+## ni el pintado del mueble leen: no deciden si la sala se refresca.
+const FURNITURE_UNREAD_FIELDS: Array[String] = [
+	"hrr_kw", "temp_c", "surface_temp_c", "temperature_c",
+	"incident_heat_flux_kw_m2", "t_ignition_s",
+]
 ## La calzada, en planta y en mundo: los cuatro brazos del anillo que rodea la
 ## manzana. Se calcula ANTES de construir el decorado para poder descartar lo
 ## que caiga encima del asfalto.
@@ -5645,11 +5654,34 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var room_state: Dictionary = _room_state_for_furniture(room_id)
+	var raw_objects: Array = Array(room_state.get("fuel_objects", []))
+	# Con la misma entrada el resultado es el que ya está en escena: una sala
+	# sin cambios no se vuelve a repartir ni a pintar en cada estado.
+	var read_objects: Array = []
+	for raw_object: Variant in raw_objects:
+		if typeof(raw_object) != TYPE_DICTIONARY:
+			read_objects.append(raw_object)
+			continue
+		var read_object: Dictionary = Dictionary(raw_object).duplicate()
+		for field: String in FURNITURE_UNREAD_FIELDS:
+			read_object.erase(field)
+		read_objects.append(read_object)
+	var key_parts: Array = [
+		read_objects, rect, show_fp_furniture, furnish_empty_rooms,
+		room_state.get("floor_level_z_m"),
+	]
+	if room != null:
+		key_parts.append(room.floor_level_z_m)
+	var refresh_key: PackedByteArray = var_to_bytes(key_parts)
+	var now_ms: int = Time.get_ticks_msec()
+	var previous_key: PackedByteArray = item.get("refresh_key", PackedByteArray())
+	if previous_key == refresh_key and now_ms < int(item.get("refresh_deadline_ms", 0)):
+		return
 	var objects: Array = FurnitureVisualLayout.normalize_room(
 		building,
 		room_id,
 		rect,
-		Array(room_state.get("fuel_objects", [])).duplicate(),
+		raw_objects.duplicate(),
 		furnish_empty_rooms
 	)
 
@@ -5721,6 +5753,9 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		fuel_obj_nodes.erase(stale_id)
 	item["fuel_obj_nodes"] = fuel_obj_nodes
 	room_root.visible = show_fp_furniture and fuel_obj_nodes.size() > 0
+	item["refresh_key"] = refresh_key
+	# Plazos escalonados por sala: no vencen todos en el mismo estado.
+	item["refresh_deadline_ms"] = now_ms + FURNITURE_FORCED_REFRESH_MS + (room_id % 8) * 60
 
 
 func _room_state_for_furniture(room_id: int) -> Dictionary:
