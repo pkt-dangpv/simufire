@@ -1,0 +1,37 @@
+{
+  "schema_version": "0.1",
+  "report_id": "T01_room_before_opening",
+  "scenario_id": "basic_room_001",
+  "compartment_id": "room_01",
+  "decision_time_s": 179,
+  "data_kind": "synthetic",
+  "hydraulic_profile_sha256": "dabb222f3cd6686f289e014487b9c850026e1b5e81bbda5c68ab680239000247",
+  "tactical_profile": "GIE_reference_2026",
+  "compare_full_opening_ids": [
+    "door_01"
+  ],
+  "reference_equipment_ids": [
+    "rosenbauer_n25_np",
+    "awg_turbo_2400_standard",
+    "gh_titan_3f_45",
+    "leader_mt236_neo2"
+  ],
+  "resources_recorded_at_s": 179,
+  "resources_source": "Declaraciones ficticias para el primer caso docente; no representan un servicio real.",
+  "resources": {
+    "crew_count": 4,
+    "door_control_possible": true,
+    "line_water_ready": false,
+    "interior_team_ready": null,
+    "breathing_apparatus_ready": null,
+    "structural_assessment_ready": null,
+    "fuel_access_verified": null,
+    "exterior_access_verified": null,
+    "water_reaches_fire_verified": null,
+    "suppression_coordinated": false,
+    "exhaust_path_verified": false,
+    "wind_assessed": null,
+    "fan_available": null,
+    "victim_location_known": null
+  }
+}

@@ -41,7 +41,8 @@ TESTS = [
     "simufire_ai/tests/test_equipment_catalog.py",
     "simufire_ai/tests/test_online_sources.py",
     "simufire_ai/tests/test_presentation_and_standards.py",
-    "simufire_ai/tests/test_flow_context.py"
+    "simufire_ai/tests/test_flow_context.py",
+    "simufire_ai/tests/test_intervention_report.py"
 ]
 
 

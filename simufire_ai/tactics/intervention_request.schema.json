@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$"
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "compartment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "decision_time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "data_kind": {
+      "enum": [
+        "synthetic",
+        "simulation"
+      ]
+    },
+    "hydraulic_profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tactical_profile": {
+      "const": "GIE_reference_2026"
+    },
+    "compare_full_opening_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      }
+    },
+    "reference_equipment_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      }
+    },
+    "resources_recorded_at_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "resources_source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "door_control_possible": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "line_water_ready": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "interior_team_ready": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "breathing_apparatus_ready": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "structural_assessment_ready": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "fuel_access_verified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exterior_access_verified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "water_reaches_fire_verified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "suppression_coordinated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exhaust_path_verified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "wind_assessed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "fan_available": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "victim_location_known": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "crew_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 200
+        }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "report_id",
+    "scenario_id",
+    "compartment_id",
+    "decision_time_s",
+    "data_kind",
+    "hydraulic_profile_sha256",
+    "tactical_profile",
+    "compare_full_opening_ids",
+    "reference_equipment_ids",
+    "resources_recorded_at_s",
+    "resources_source",
+    "resources"
+  ]
+}

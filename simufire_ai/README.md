@@ -599,3 +599,44 @@ No se acepta mezclar la declaración de No aplicables con valores de esos campos
 `external_suction` con su fuente los convierte en datos requeridos. Si no se
 declara la alimentación, se mantiene la clasificación condicional anterior;
 no se deduce No aplicable por el nombre del tipo de dosificador.
+
+
+## Informe docente integrado de intervención
+
+`intervention.py` une mediciones, hechos del analizador determinista, hidráulica,
+recursos declarados y criterios documentados. Publica un informe HTML autónomo,
+Markdown y JSON junto con sus entradas; rechaza sobrescribir un informe previo.
+No usa Ollama ni internet durante la generación y no altera los detectores.
+
+```powershell
+python simufire_ai/intervention.py --case caso.json --profile perfil.json --installation-context contexto.json --request solicitud.json --output-dir informe_T01
+```
+
+La solicitud se valida con `tactics/intervention_request.schema.json`, se liga
+al escenario, habitación, tiempo evaluado y huella del perfil hidráulico. El
+ejemplo `tests/data/intervention_request_synthetic.json` usa exclusivamente datos
+ficticios. Los estados y acciones posteriores al instante se excluyen antes de
+analizar; una detección retrospectiva de ILV no se adelanta a una decisión previa.
+
+Las tablas distinguen capas superior/inferior, intervalos, unidades, parámetros
+de instalación, pérdidas, punto predicho, agua y autonomía. La referencia GIE de
+febrero de 2026 se presenta como perfil docente pendiente de revisión: >400 L/min
+y ≤7 bar en lanza, no como certificación o doctrina adoptada por un servicio.
+La aproximación de 50 L/min por m² de hueco se muestra únicamente como hipótesis
+de apertura completa para un ILV con geometría habitual; no predice el HRR y no
+reemplaza el criterio operativo. La comparación evita afirmar que se supera el
+umbral estricto por redondeo (tolerancia numérica de 1e-6 L/min, no margen táctico).
+
+Las técnicas son opciones docentes condicionadas por agua operativa, acceso,
+recursos, recorrido de gases y coordinación. Incluso con declaraciones favorables,
+el informe no autoriza una operación. No calcula FED ni probabilidad de
+supervivencia a partir de temperaturas o concentraciones medias de una zona.
+Las fichas comerciales del catálogo aparecen separadas: no declaran disponibilidad
+ni se convierten en curvas de la instalación. Sigue pendiente un perfil con
+curvas comerciales completas y revisadas. Este primer informe admite solo agua;
+las solicitudes de espuma/CAFS se rechazan explícitamente, conservando su bloqueo.
+
+Las referencias primarias y sus apartados/ediciones figuran en
+`tactics/intervention_references.json`. La interpretación de GIE se atribuye bajo
+CC BY-NC-SA 4.0. Los ensayos FSRI residenciales y los estudios NIST de chorros/PPV
+no se transforman en umbrales universales ni reglas de supervivencia.
