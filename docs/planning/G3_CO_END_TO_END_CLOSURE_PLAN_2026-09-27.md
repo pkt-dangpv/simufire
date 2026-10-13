@@ -5,6 +5,18 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-P1: [prototipo físico aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
+Gas/energía/O2 pareados por donante; no referencia fija, remap ni consumo
+sin productos. 5 920 checks, 20/20 mutantes GD, 315 focales offline PASS.
+Cierre técnico 13-10: referencia 18/18, 346/346 y 78 gaps; 493/494 archivos
+idénticos raw, solo generated_at cambiado. Producto 168 PASS; R2-1/guardarraíles
+PASS; global final 5 061 passed / 74 skipped / 2 xfailed / 42 subtests.
+Primera global rechazada por dos falsos positivos de un inventario documental;
+excepción exacta probada y repetición limpia, sin cambiar las fuentes nativas.
+No consumidor del motor, caudal, EOS, selección zonal viva ni CO/FED.
+Siguiente gate gas/energía/EOS con calentador sin combustible, incluidos
+energía interna/entalpía/Cp/Cv/trabajo. No iniciado; no autoriza M4-C/D ni producto.
+
 Avance M4-B3: [contrato de compatibilidad física](../validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).
 Referencia fija, gas físico y composición molar separados. Calor puede
 cambiar interfaz sin paquete O2; repartir por volumen no valida transporte.

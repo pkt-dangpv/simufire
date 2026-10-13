@@ -297,7 +297,11 @@ M2T_SOURCE_RECORDS = {
 }
 
 
+M4_SOURCE_RECORD = "docs/validation/G3_O2_M4_ADAPTER_DIAGNOSIS_EVIDENCE_2026-10-12.json"
+
+
 ALLOWED_REFERENCES = M2T_SOURCE_RECORDS | {
+    M4_SOURCE_RECORD,
     "sim/core/Phase3ResidualProjection.gd",
     SHADOW_CONSUMER,
     "tests/fixtures/phase3_h32b2_residual_projection.gd",
@@ -445,6 +449,44 @@ def test_m2t_record_exception_is_a_hash_inventory_not_a_new_primitive_consumer(r
     current = hashlib.sha256((ROOT / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     assert entry["normalized_sha256"] == current
     assert {key for key in entry} == {"normalized_sha256", "same_as_base"}
+
+
+def _validate_m4_source_record(text, current_sha):
+    # One published lexical inventory, not a general JSON/docs exemption.
+    data = json.loads(text)
+    assert data["schema"] == "g3_m4_adapter_diagnosis_v1"
+    for key in ("engine_integrated", "physical_validation", "godot_executed"):
+        assert data[key] is False
+    inventory = data["inventory"]
+    assert inventory["schema"] == "g3_m4_direct_layer_writers_v1"
+    assert inventory["scope"] == "lexical_direct_assignments_only"
+    assert inventory["runtime_executed"] is False
+    assert inventory["physical_validation"] is False
+    assert inventory["source_hashes_lf"]["sim/core/Phase3ResidualProjection.gd"] == current_sha
+    # The sole primitive mention is its hash-map key, never a load or call.
+    assert text.replace("Phase3ResidualProjectionShadow", "").count("Phase3ResidualProjection") == 1
+
+
+def test_m4_record_exception_is_only_the_frozen_lexical_hash_inventory():
+    text = (ROOT / M4_SOURCE_RECORD).read_text(encoding="utf-8")
+    current = hashlib.sha256(PRIMITIVE_PATH.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    _validate_m4_source_record(text, current)
+
+
+@pytest.mark.parametrize("defect", ["hash", "integration", "runtime", "loader"])
+def test_m4_record_exception_rejects_content_changes_and_execution_claims(defect):
+    data = json.loads((ROOT / M4_SOURCE_RECORD).read_text(encoding="utf-8"))
+    current = hashlib.sha256(PRIMITIVE_PATH.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    if defect == "hash":
+        data["inventory"]["source_hashes_lf"]["sim/core/Phase3ResidualProjection.gd"] = "unapproved"
+    elif defect == "integration":
+        data["engine_integrated"] = True
+    elif defect == "runtime":
+        data["inventory"]["runtime_executed"] = True
+    else:
+        data["loader"] = 'preload("res://sim/core/Phase3ResidualProjection.gd")'
+    with pytest.raises(AssertionError):
+        _validate_m4_source_record(json.dumps(data), current)
 
 
 def test_no_flag_is_introduced():

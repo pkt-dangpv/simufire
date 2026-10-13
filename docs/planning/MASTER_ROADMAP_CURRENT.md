@@ -1,9 +1,22 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-12 (G3: M4-B3 compatibilidad física, wiring NO-GO)
+Ultima actualizacion parcial: 2026-10-13 (G3: M4-P1 cerrado como núcleo aislado)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Avance M4-P1: [núcleo de parcelas físicas aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
+GD implementado sin consumidor: gas/energía/O2 pareados, calor sin masa,
+donaciones desde snapshot, sin entrada futura financiando salida. 5 920
+checks, 20/20 mutantes GD y 315 focales offline PASS. No calibración de ley.
+Cadena final: referencia 18/18 y 346/346, 78 gaps; solo generated_at cambia
+en 494 archivos. Producto 168 PASS, guardarraíles/R2-1 PASS; global repetida
+5 061 passed / 74 skipped / 2 xfailed / 42 subtests, monitor limpio.
+Dos falsos positivos iniciales del inventario documental corregidos con una
+excepción exacta probada, sin cambiar el módulo/fixture/auditor.
+Motor vivo, M1/M2-T/M2-V/M3 y activación intactos. CO/FED OFF/NO-GO.
+Siguiente: diseñar autoridad gas/energía/EOS y calentador sin combustible,
+cerrando energía interna/entalpía/trabajo antes de integración M4-C/D.
 
 Avance M4-B3: [compatibilidad física](../validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).
 Diseño: referencia fija no equivale a gas caliente; calor/interfaz no son

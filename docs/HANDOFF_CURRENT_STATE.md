@@ -1,5 +1,26 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - M4-P1: cierre técnico aislado
+
+[Contrato, implementación y retomada](validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
+Base cc06ccde. GD puro sin consumidor: gas/energía/O2 pareados desde el mismo
+snapshot donante, agregación de salidas y rechazo sin propuesta parcial.
+Calor no mueve O2/gas, Y másica y zona ausente null; no EOS/caudales/química.
+5 920 checks, diez muestras independientes, 256 eventos deterministas;
+20/20 mutantes GD válidos, restauración por hash; 315 focales offline PASS.
+Primeros intentos NaN/recibo mal construido y mutante equivalente registrados.
+Referencia 18/18, 346/346 required y 78 gaps; 494 archivos, 493 idénticos
+raw y solo generated_at cambiado. Producto 168 PASS; guardarraíles/R2-1 PASS.
+Global final 5 061 passed / 74 skipped / 2 xfailed / 42 subtests; monitor sano,
+stderr vacío, sin cuadros/timeouts/residuos y mínimo de lanzamiento 6 GiB intacto.
+Primera global: dos falsos positivos del inventario documental ya publicado;
+excepción exacta con hash/no ejecución, cinco pruebas nuevas y 78 focales PASS.
+Sin cambios de módulo/fixture/auditor para esa reparación; global repetida.
+No wiring/selección viva ni activación; CO/FED siguen OFF/NO-GO.
+Siguiente: contrato gas/energía/EOS con calentador sin combustible; decidir
+energía interna/entalpía/Cp/Cv/trabajo antes de acoplar. No iniciado.
+79 UID y cuatro stashes preservados; publicación solo de archivos propios.
+
 ## Current Program Update - 2026-10-12 - M4-B3: compatibilidad física
 
 [Diseño y siguiente gate](validation/G3_O2_M4_PHYSICAL_COMPATIBILITY_2026-10-12.md).

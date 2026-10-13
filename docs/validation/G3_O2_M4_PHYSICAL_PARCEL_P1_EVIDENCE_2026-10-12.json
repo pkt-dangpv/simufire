@@ -1,0 +1,139 @@
+{
+  "schema": "g3_m4_physical_parcel_p1_closure_v1",
+  "contract_date": "2026-10-12",
+  "closure_date": "2026-10-13",
+  "base_commit": "cc06ccdec2e76c79ab4dd8c5c26f42feb1f539ae",
+  "decision": "GO_ISOLATED_PURE_KERNEL_ONLY",
+  "engine_integrated": false,
+  "physical_flow_validation": false,
+  "chemistry_validation": false,
+  "exposure_validation": false,
+  "product_activation": false,
+  "co_fed_status": "OFF_NO_GO",
+  "basis": "physical_gas_mass_v1",
+  "energy_contract": "imposed_nonnegative_sensible_kj_above_common_reference_not_live_EOS_enthalpy_or_pressure_work",
+  "source_sha256_raw": {
+    "sim/core/PhysicalGasOxygenParcelModel.gd": "b77eb33a29e9960f0878cfe6641dde9866864aa9e655a2cb73ba680759760478",
+    "tests/fixtures/g3_o2_m4_physical_parcels.gd": "4c405f12d92ff52cae9f7a9d3b6936d650a7cbcef4c8222ce3e459e09a9de8f4",
+    "scripts/simulation/audit_g3_m4_physical_parcels.py": "aa68306479c43917703072bf15166dea3ebc05414e8133d29b828b45f3d13f97"
+  },
+  "pure_fixture": {
+    "checks": 5920,
+    "independently_audited_samples": 10,
+    "deterministic_imposed_events": 256,
+    "real_engine_ticks": false,
+    "record": "simufire_m4p1_control_fixed_20261012/result.json",
+    "record_sha256_raw": "43eb5cd31a26d496cdcd370616ca5eccc2177c01d71c50813427fd62e9d87c19"
+  },
+  "mutations": {
+    "declared": 20,
+    "executed": 20,
+    "killed_where_declared": 20,
+    "script_error_kills": 0,
+    "restoration_sha256_verified": true,
+    "record": "simufire_m4p1_mutations_final_20261012/results.json",
+    "record_sha256_raw": "e11bf0d4c8f564fd59490d5e43a088459606001d03212d4778d3a9f37b5cd8b6"
+  },
+  "focal_offline": {
+    "passed": 315,
+    "wall_s": 4.37
+  },
+  "structural_guard_repair": {
+    "passed": 78,
+    "wall_s": 5.22,
+    "exception": "one_exact_published_lexical_inventory",
+    "negative_controls": [
+      "unapproved_tracked_or_untracked_loader",
+      "arbitrary_primitive_document_or_json",
+      "altered_hash",
+      "integration_claim",
+      "runtime_claim",
+      "loader_in_allowed_record"
+    ]
+  },
+  "reference": {
+    "runtime_cases": 18,
+    "required": 346,
+    "failed_required": 0,
+    "gaps": 78,
+    "corpus_files": 494,
+    "raw_identical": 493,
+    "only_generated_at": true,
+    "wall_s": 2827.95,
+    "record": "simufire_m4p1_reference_20261012/result.json",
+    "record_sha256_raw": "c522bd3355f7bb8050f2d84b9c777eca3cdeb75fc45d5729049472ea9e633865"
+  },
+  "product": {
+    "passed": 168,
+    "wall_s": 569.46,
+    "record": "simufire_m4p1_product_20261012/result.json",
+    "record_sha256_raw": "1a869ca56a14408cdc006387ce9ca003b8fdab35a4fbe4faf760de3aa12db4fe"
+  },
+  "guardrails": {
+    "result": "ALL_PASS_INCLUDING_R2_1",
+    "record": "simufire_m4p1_guardrails_20261012/result.json",
+    "record_sha256_raw": "356e76fd9667b779bfa2dcc48d1cfc49ac712c03ca7c31377ecb2522ccba049e",
+    "final_after_docs_record": "simufire_m4p1_guardrails_final_20261013/result.json",
+    "final_after_docs_record_sha256_raw": "a0e907f3bc790b595b76b02494788fd9552c40d9ed0d605002ca25b4921834bb"
+  },
+  "first_global_not_accepted": {
+    "passed": 5054,
+    "failed": 2,
+    "skipped": 74,
+    "xfailed": 2,
+    "subtests": 42,
+    "wall_s": 901.93,
+    "cause": "preexisting_lexical_hash_inventory_rejected_as_loader",
+    "native_health_clean": true
+  },
+  "preservation": {
+    "historical_gd_files": 64,
+    "historical_source_hashes_unchanged": true,
+    "current_gd_files": 65,
+    "preexisting_untracked_uid_count": 79,
+    "uid_raw_inventory_digest": "EF5C8C551AC10873CB4227A0B6FFBBDB25BAB0CA8275EE74361841A2378DACBF",
+    "uid_digest_contract": "sha256_utf8_lf_join_python_unicode_sorted_relative_path_colon_uppercase_raw_sha256",
+    "uid_map_equal_reference_checkpoint": true,
+    "previous_powershell_sort_object_digest": "DC901EFB4F3DC4E6B6AB6AAF754470C2ADBFA4543CACD21E2E4B2BB3ECD6E996",
+    "stashes": [
+      "0e0fd97a20f55a04925b3228ea33cc659f79befe",
+      "6cbc1f07e254e6cf96f37313b1a014a82e5564ff",
+      "9e12ab9e24a2b1901b8c124a94549f0efe784ab6",
+      "8ce667fc97ce4c3470eed915f72f245d02df9611"
+    ]
+  },
+  "final_document_checks": {
+    "focal_passed": 393,
+    "focal_wall_s": 8.39,
+    "python_ast_files": 8,
+    "local_document_link_errors": 0,
+    "gdscript_style": "PASS"
+  },
+  "logs_location": "external_LOCALAPPDATA_Temp_not_published",
+  "next_gate": "physical_gas_energy_EOS_authority_design_and_imposed_heater_without_fuel_before_live_zonal_O2",
+  "global": {
+    "passed": 5061,
+    "failed": 0,
+    "skipped": 74,
+    "xfailed": 2,
+    "subtests": 42,
+    "pytest_wall_s": 917.78,
+    "wrapper_wall_s": 921.54,
+    "returncode": 0,
+    "available_gib_before": 6.990093231201172,
+    "available_gib_after": 6.919902801513672,
+    "stderr_bytes": 0,
+    "record": "simufire_m4p1_global_fixed_20261013/result.json",
+    "record_sha256_raw": "7a5cced14b3e5ee63870f32d078cb414598961399a41f79d4888a3c9c4bc0f5b"
+  },
+  "accepted_health": {
+    "timed_out": false,
+    "error_dialogs": [],
+    "residual_godot_processes": [],
+    "foreign_godot_processes": [],
+    "process_quiescent": true,
+    "cleanup_terminated_pids": [],
+    "native_exception_children": [],
+    "min_launch_available_gib": 6
+  }
+}

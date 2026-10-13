@@ -36,7 +36,17 @@ def test_inventory_separates_initial_declaration_from_reset_write():
 def test_current_inventory_matches_recorded_sources_and_every_direct_write():
     evidence = json.loads((ROOT / "docs/validation/G3_O2_M4_ADAPTER_DIAGNOSIS_EVIDENCE_2026-10-12.json")
                           .read_text(encoding="utf-8"))
-    assert audit.inventory() == evidence["inventory"]
+    actual, historical = audit.inventory(), evidence["inventory"]
+    # M4-P1 adds ONE isolated pure module. Preserve every historical source
+    # and writer rather than rewriting the 64-file evidence from M4-B.
+    addition = "sim/core/PhysicalGasOxygenParcelModel.gd"
+    assert set(actual["source_hashes_lf"]) == set(historical["source_hashes_lf"]) | {addition}
+    for path, sha in historical["source_hashes_lf"].items():
+        assert actual["source_hashes_lf"][path] == sha
+    assert actual["gd_file_count"] == historical["gd_file_count"] + 1
+    for field in set(historical) - {"source_hashes_lf", "gd_inventory_lf_sha256", "gd_file_count"}:
+        assert actual[field] == historical[field]
+    assert audit.scan((ROOT / addition).read_text(encoding="utf-8"), addition) == []
     assert evidence["engine_integrated"] is False
     assert evidence["physical_validation"] is False
 
