@@ -1,0 +1,344 @@
+{
+  "schema": "product_cpu_profile_evidence_v1",
+  "date": "2026-10-13",
+  "base_commit": "e0b301da1315806448972508bd315b4370298060",
+  "decision": "CPU_STALL_ISOLATED_TO_REPEATED_FURNITURE_LAYOUT_CORRECTION_NOT_IMPLEMENTED",
+  "production_changed": false,
+  "hardware": {
+    "cpu": "AMD Ryzen 7 5700U with Radeon Graphics",
+    "physical_cores": 8,
+    "logical_processors": 16,
+    "gpu": "AMD Radeon(TM) Graphics",
+    "gpu_driver": "31.0.21923.11000",
+    "gpu_timing_measured": false
+  },
+  "physics_changed": false,
+  "rendered_fps_measured": false,
+  "gpu_measured": false,
+  "horizon_sim_s": 3,
+  "manual_callbacks_per_view": 180,
+  "dt_s": 0.016666666666666666,
+  "frozen_calls_per_metric": 30,
+  "warmup_calls_per_frozen_metric": 3,
+  "source_inventory_digest_contract": "sha256_utf8_lf_join_unicode_sorted_path_colon_lf_normalized_source_sha256",
+  "source_inventory_lf_sha256": "a80f7104ef8ec10d67576bd83e89782bfbc4fd54ae2991ad5fcc879f87799c54",
+  "source_inventory_files": 1235,
+  "uid_preserved": 79,
+  "source_hashes_lf": {
+    "Main.gd": "622ee179f2ff3eb030d747228a3c52c546f7bbaf1b2a9b274f65b30eacf0f9e5",
+    "view/3d/Visualizer3D.gd": "15a84dd7d9216a8c124aeaff8f67359632f5dd616e98b23f6965552591e0b403",
+    "view/fp/FirstPersonController.gd": "f6351b3f2d6cd272432e7019c61d71a841459ffab65d29b8478b4fb3662cc63a",
+    "view/furniture/FurnitureVisualLayout.gd": "5080fde6b8724f3f29991bcbbc0bcee99a98193ae9a7bc15b963c003137d92d9",
+    "view/furniture/FurnitureRoomLayout.gd": "1eaca2d11c52a267eb72a00b971ec1393796242667cba3d4cc05564a1ce91f60",
+    "tests/fixtures/product_cpu_profile.gd": "174ff6c11c5ce14e119ef50991560b0b6e57f0bed92cdb0f7845bbec54b500be",
+    "scripts/profile_product_cpu.py": "0cbb5c057f53dd8f6a169bcf95a10346eed488a26e09eb9f517dd509248fe9bf"
+  },
+  "options": {
+    "apartment_floor_number": 15,
+    "building_total_floors": 20,
+    "building_type": "apartment",
+    "exterior_lighting_mode": "Noche",
+    "glass_break_mode": 0,
+    "hvac_mode": "none",
+    "interior_lights_on": true,
+    "smoke_visibility_representation": true,
+    "template_name": "simple_house",
+    "wind_direction_deg": 0,
+    "wind_speed_m_s": 0
+  },
+  "views": {
+    "2d": {
+      "record": "simufire_product_cpu_2d_final_20261013/result.json",
+      "record_sha256_raw": "2994313b8bf881526114ab83fafea849bd9e1891c982e280d6d0bc11109e1aba",
+      "timings": {
+        "2d_set_state_us": {
+          "calls": 30,
+          "median_ms": 0.021,
+          "p95_ms": 0.03,
+          "max_ms": 0.032,
+          "mean_ms": 0.021833333333333333
+        },
+        "build_view_state_us": {
+          "calls": 30,
+          "median_ms": 2.702,
+          "p95_ms": 2.848,
+          "max_ms": 2.855,
+          "mean_ms": 2.7004333333333332
+        },
+        "engine_recorded_step_us": {
+          "calls": 180,
+          "median_ms": 5.2065,
+          "p95_ms": 5.614,
+          "max_ms": 5.962,
+          "mean_ms": 5.2239555555555555
+        },
+        "hud_update_us": {
+          "calls": 30,
+          "median_ms": 1.031,
+          "p95_ms": 1.226,
+          "max_ms": 1.522,
+          "mean_ms": 1.0770666666666666
+        },
+        "main_running_callback_us": {
+          "calls": 180,
+          "median_ms": 5.342,
+          "p95_ms": 10.913,
+          "max_ms": 13.626,
+          "mean_ms": 6.609294444444445
+        },
+        "paused_window_action_us": {
+          "calls": 30,
+          "median_ms": 5.6155,
+          "p95_ms": 5.884,
+          "max_ms": 5.918,
+          "mean_ms": 5.623066666666666
+        }
+      },
+      "rooms": 6,
+      "openings": 11,
+      "node_count": 4951,
+      "errors": [],
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "foreign_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "stderr_bytes": 0
+    },
+    "3d": {
+      "record": "simufire_product_cpu_3d_final_20261013/result.json",
+      "record_sha256_raw": "5087957aceee4732de356958d5bc58916f968c4150230246fc0e9a0dc41aa0ad",
+      "timings": {
+        "build_view_state_us": {
+          "calls": 30,
+          "median_ms": 2.7325,
+          "p95_ms": 2.973,
+          "max_ms": 3.062,
+          "mean_ms": 2.7534
+        },
+        "engine_recorded_step_us": {
+          "calls": 180,
+          "median_ms": 5.2725,
+          "p95_ms": 5.605,
+          "max_ms": 6.341,
+          "mean_ms": 5.300666666666667
+        },
+        "furniture_layout_only_us": {
+          "calls": 30,
+          "median_ms": 311.794,
+          "p95_ms": 333.011,
+          "max_ms": 335.858,
+          "mean_ms": 314.06573333333336
+        },
+        "hud_update_us": {
+          "calls": 30,
+          "median_ms": 1.1605,
+          "p95_ms": 1.273,
+          "max_ms": 1.275,
+          "mean_ms": 1.1810666666666667
+        },
+        "main_running_callback_us": {
+          "calls": 180,
+          "median_ms": 5.462,
+          "p95_ms": 322.811,
+          "max_ms": 344.647,
+          "mean_ms": 45.542661111111116
+        },
+        "minimap_set_state_us": {
+          "calls": 30,
+          "median_ms": 0.01,
+          "p95_ms": 0.012,
+          "max_ms": 0.012,
+          "mean_ms": 0.01
+        },
+        "overview_rooms_without_furniture_us": {
+          "calls": 30,
+          "median_ms": 0.658,
+          "p95_ms": 0.695,
+          "max_ms": 0.718,
+          "mean_ms": 0.6614
+        },
+        "overview_set_state_us": {
+          "calls": 30,
+          "median_ms": 317.3265,
+          "p95_ms": 330.399,
+          "max_ms": 336.908,
+          "mean_ms": 318.4030333333333
+        },
+        "paused_window_action_us": {
+          "calls": 30,
+          "median_ms": 322.125,
+          "p95_ms": 351.176,
+          "max_ms": 352.139,
+          "mean_ms": 325.34043333333335
+        }
+      },
+      "rooms": 6,
+      "openings": 11,
+      "node_count": 5206,
+      "errors": [],
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "foreign_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "stderr_bytes": 0
+    },
+    "fp": {
+      "record": "simufire_product_cpu_fp_final_20261013/result.json",
+      "record_sha256_raw": "84ca1128de3e7e666dc620e70e57a88ee4f4ffe9aedba23f20b26bf0fc33b03d",
+      "timings": {
+        "build_view_state_us": {
+          "calls": 30,
+          "median_ms": 2.8095,
+          "p95_ms": 6.861,
+          "max_ms": 14.206,
+          "mean_ms": 3.3499333333333334
+        },
+        "engine_recorded_step_us": {
+          "calls": 180,
+          "median_ms": 5.402,
+          "p95_ms": 6.356,
+          "max_ms": 9.004,
+          "mean_ms": 5.526383333333333
+        },
+        "fp_fire_us": {
+          "calls": 30,
+          "median_ms": 0.273,
+          "p95_ms": 0.577,
+          "max_ms": 1.195,
+          "mean_ms": 0.3176666666666667
+        },
+        "fp_furniture_us": {
+          "calls": 30,
+          "median_ms": 320.5315,
+          "p95_ms": 810.929,
+          "max_ms": 1769.123,
+          "mean_ms": 385.34903333333335
+        },
+        "fp_hud_us": {
+          "calls": 30,
+          "median_ms": 0.076,
+          "p95_ms": 0.152,
+          "max_ms": 0.286,
+          "mean_ms": 0.08576666666666667
+        },
+        "fp_light_attenuation_us": {
+          "calls": 30,
+          "median_ms": 0.047,
+          "p95_ms": 0.098,
+          "max_ms": 0.191,
+          "mean_ms": 0.053233333333333334
+        },
+        "fp_opening_panels_us": {
+          "calls": 30,
+          "median_ms": 0.4095,
+          "p95_ms": 0.835,
+          "max_ms": 3.53,
+          "mean_ms": 0.5371
+        },
+        "fp_patio_smoke_us": {
+          "calls": 30,
+          "median_ms": 0.002,
+          "p95_ms": 0.003,
+          "max_ms": 0.008,
+          "mean_ms": 0.0023666666666666667
+        },
+        "fp_set_state_us": {
+          "calls": 30,
+          "median_ms": 316.1865,
+          "p95_ms": 1009.348,
+          "max_ms": 3154.639,
+          "mean_ms": 436.7169666666667
+        },
+        "fp_visibility_us": {
+          "calls": 30,
+          "median_ms": 0.043,
+          "p95_ms": 0.08,
+          "max_ms": 0.149,
+          "mean_ms": 0.0487
+        },
+        "furniture_layout_only_us": {
+          "calls": 30,
+          "median_ms": 313.722,
+          "p95_ms": 1080.861,
+          "max_ms": 1391.783,
+          "mean_ms": 379.0385
+        },
+        "hud_update_us": {
+          "calls": 30,
+          "median_ms": 0.1385,
+          "p95_ms": 0.255,
+          "max_ms": 0.481,
+          "mean_ms": 0.15383333333333335
+        },
+        "main_running_callback_us": {
+          "calls": 180,
+          "median_ms": 5.6885,
+          "p95_ms": 639.632,
+          "max_ms": 679.349,
+          "mean_ms": 135.1903777777778
+        },
+        "minimap_set_state_us": {
+          "calls": 30,
+          "median_ms": 0.009,
+          "p95_ms": 0.018,
+          "max_ms": 0.025,
+          "mean_ms": 0.010366666666666666
+        },
+        "overview_rooms_without_furniture_us": {
+          "calls": 30,
+          "median_ms": 0.6675,
+          "p95_ms": 2.293,
+          "max_ms": 4.348,
+          "mean_ms": 0.851
+        },
+        "overview_set_state_us": {
+          "calls": 30,
+          "median_ms": 317.6895,
+          "p95_ms": 1323.149,
+          "max_ms": 1485.29,
+          "mean_ms": 395.58143333333334
+        },
+        "paused_window_action_us": {
+          "calls": 30,
+          "median_ms": 648.352,
+          "p95_ms": 720.788,
+          "max_ms": 723.236,
+          "mean_ms": 654.354
+        }
+      },
+      "rooms": 6,
+      "openings": 11,
+      "node_count": 5210,
+      "errors": [],
+      "health": {
+        "timed_out": false,
+        "error_dialogs": [],
+        "residual_godot_processes": [],
+        "foreign_godot_processes": [],
+        "process_quiescent": true,
+        "cleanup_terminated_pids": []
+      },
+      "stderr_bytes": 0
+    }
+  },
+  "local_unit_tests_passed": 9,
+  "final_offline_selection_passed": 87,
+  "final_guardrails": "ALL_PASS_INCLUDING_R2_1",
+  "initial_probes": "exploratory_versions_repeated_with_final_bound_sources",
+  "limitations": [
+    "CPU callbacks only; no rendered FPS/GPU benchmark",
+    "Three initial simulated seconds; no developed-fire performance guarantee",
+    "Frozen component timings are separate calls, not additive frame samples",
+    "Variable host load; retain outliers and all percentile data",
+    "Source hash inventory covers tracked runtime paths plus diagnostic fixture and launcher; no unrestricted loader exception"
+  ],
+  "next": "Authorize visual-only layout reuse with explicit invalidation; preserve dynamic furniture state and authored transforms; then render benchmark"
+}

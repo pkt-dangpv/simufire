@@ -1,5 +1,19 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - Producto: bloqueo CPU aislado
+
+[Diagnóstico y corrección propuesta](validation/PRODUCT_CPU_PROFILE_CASA_SIMPLE_2026-10-13.md).
+Casa simple guardada: apartamento 15/20, noche; seis salas/once aberturas.
+Escena real en headless, sin modificar Main/sim/vistas. No FPS/GPU medidos.
+Paso físico mediano 5,2–5,4 ms; reparto de mobiliario 312–314 ms por refresco;
+salas sin esa rama 0,66–0,67 ms. Acción de ventana en pausa 322 ms (3D)
+y 648 ms (FP); p95 del callback real 323/640 ms. Estado congelado invariante.
+Tres controles finales limpios, misma fuente/opciones, nueve pruebas offline.
+Corregir primero la reutilización/invalidación de layout visual, conservando
+estado dinámico y transforms de autor; no implementado. Después benchmark
+renderizado. Gate gas/energía/EOS aplazado por prioridad de jugabilidad;
+M4-P1 sigue cerrado y CO/FED OFF/NO-GO. No nuevas suites globales/referencia.
+
 ## Current Program Update - 2026-10-13 - M4-P1: cierre técnico aislado
 
 [Contrato, implementación y retomada](validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).

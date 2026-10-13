@@ -1,9 +1,17 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (G3: M4-P1 cerrado como núcleo aislado)
+Ultima actualizacion parcial: 2026-10-13 (producto: bloqueo CPU de mobiliario aislado)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
+
+Prioridad actual de producto: [bloqueos 3D/FP de Casa simple](../validation/PRODUCT_CPU_PROFILE_CASA_SIMPLE_2026-10-13.md).
+Diagnóstico cerrado, arreglo no implementado: normalize_room repetido cuesta
+312–314 ms; paso físico mediano 5,2–5,4 ms. Ventana en pausa reproduce el
+refresco completo de 322/648 ms. Tres controles headless sanos, nueve pruebas
+offline; no FPS/GPU medidos. Siguiente: reutilizar poses con invalidación
+correcta y actualización dinámica intacta, y comprobar rendimiento renderizado.
+Sin cambios de física/activación. El gate gas/energía/EOS viene después.
 
 Avance M4-P1: [núcleo de parcelas físicas aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
 GD implementado sin consumidor: gas/energía/O2 pareados, calor sin masa,
