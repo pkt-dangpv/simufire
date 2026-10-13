@@ -1,5 +1,22 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-13 - FP: diagnóstico, no arreglo nuevo
+
+[Informe y siguiente gate](validation/PRODUCT_FP_RUNNING_DIAGNOSIS_2026-10-13.md).
+Usuario: 3D perfecto, FP fluido en pausa pero lento en Play tras a01327cd.
+Producción intacta. Escena headless: 39 muebles visibles en FP/Visualizer3D,
+misma posición; no paridad completa de materiales/mallas probada.
+FP set_state 6,62 ms, muebles 5,50; normalización 4,04, fichas 2,29, assets 0,71.
+Sondas solapadas, no sumar ni llamar FPS. HUD/movimiento/animación son baratos.
+Once colisiones: 660 señales/30 refrescos; guardas exactas las evitan. ABBA
+4 x 180 ticks: estados físicos idénticos, 1 320 -> 0 señales, sin gran ganancia
+de CPU del callback. No culpar a las mallas por esas señales.
+Tres controles headless finales PASS, 37 focales, estilo/R2-1/guardarraíles PASS.
+Tres trazas renderizadas rechazadas por avisos GL, no mejora FPS aceptada.
+Propuesta pendiente de autorización: retirar doble propietario sólo en FP,
+optimizar fichas estáticas con invalidación y estado dinámico fresco. Sin sim/.
+Jugabilidad/GL abiertos; CO/FED OFF/NO-GO; gas/energía/EOS después de producto.
+
 ## Current Program Update - 2026-10-13 - Gráfica suspendida en FP
 
 [Cambio, evidencia y retomada](validation/PRODUCT_FP_LIVE_CHARTS_2026-10-13.md).

@@ -20,7 +20,7 @@ PREFIX = "PRODUCT_RENDER_PROFILE "
 
 def source_inventory():
     values = inventory()
-    for path in (FIXTURE, "scripts/profile_product_render.py"):
+    for path in (FIXTURE, "tests/fixtures/fp_furniture_freeze_probe.gd", "scripts/profile_product_render.py"):
         values[path] = hashlib.sha256((ROOT / path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
     return values
 
@@ -70,7 +70,14 @@ def main():
     parser.add_argument("--options", type=Path, required=True)
     parser.add_argument("--view", choices=("3d", "fp"), required=True)
     parser.add_argument("--hide-minimap", action="store_true", help="diagnostic causal control only")
+    parser.add_argument("--freeze-fp-furniture", action="store_true", help="diagnostic stale visuals control only")
+    parser.add_argument("--hide-overview-furniture", action="store_true", help="diagnostic duplicate owner control")
     args = parser.parse_args()
+    if args.freeze_fp_furniture and (args.view != "fp" or args.hide_minimap):
+        raise RuntimeError("furniture control requires FP and no other intervention")
+    if args.hide_overview_furniture and (
+            args.view != "fp" or args.hide_minimap or args.freeze_fp_furniture):
+        raise RuntimeError("overview furniture control requires FP and no other intervention")
     if not sys.flags.utf8_mode:
         raise RuntimeError("use python -X utf8")
     work = args.work.resolve()
@@ -96,6 +103,10 @@ def main():
                    "--", "--profile-view=" + args.view]
         if args.hide_minimap:
             command.append("--hide-minimap")
+        if args.freeze_fp_furniture:
+            command.append("--freeze-fp-furniture")
+        if args.hide_overview_furniture:
+            command.append("--hide-overview-furniture")
         result = godot_monitored_launch.run(command, timeout_s=120, environment=os.environ.copy())
         record["health"] = result.health
         (work / "stdout.log").write_text(result.stdout, encoding="utf-8")
@@ -110,7 +121,11 @@ def main():
         payload = json.loads(lines[0][len(PREFIX):])
         if payload["display_server"] == "headless" or payload["view"] != args.view:
             raise RuntimeError("not the requested real renderer")
-        if payload["hide_minimap"] != args.hide_minimap or payload["quality_changed"] != args.hide_minimap:
+        quality_changed = args.hide_minimap or args.freeze_fp_furniture or args.hide_overview_furniture
+        if (payload["hide_minimap"] != args.hide_minimap
+                or payload["freeze_fp_furniture"] != args.freeze_fp_furniture
+                or payload["hide_overview_furniture"] != args.hide_overview_furniture
+                or payload["quality_changed"] != quality_changed):
             raise RuntimeError("wrong causal control scope")
         record["profile"] = payload
         record["summaries"] = {key: phase_summary(value, key == "playing")

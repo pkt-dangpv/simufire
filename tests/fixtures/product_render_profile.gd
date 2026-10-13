@@ -1,9 +1,11 @@
 extends SceneTree
 
 ## Diagnostic only: real window/rendering, natural fixed-rate physics callbacks.
-## No production script override, no manual render clock or quality reduction.
+## Baseline calls production unchanged. Optional named counterfactual uses a
+## diagnostic subclass; no manual render clock or production quality changes.
 const Scene := preload("res://scenes/SimulationScene.tscn")
 const Layout := preload("res://view/furniture/FurnitureVisualLayout.gd")
+const Overlap := preload("res://tests/fixtures/product_furniture_overlap.gd")
 const SECONDS: float = 8.0
 
 class PhysicsProbe extends Node:
@@ -26,6 +28,8 @@ class PhysicsProbe extends Node:
 
 var mode: String = "3d"
 var hide_minimap: bool = false
+var freeze_fp_furniture: bool = false
+var hide_overview_furniture: bool = false
 var main: Node
 var probe: PhysicsProbe
 var phase: String = ""
@@ -74,6 +78,10 @@ func _initialize() -> void:
 			mode = arg.trim_prefix("--profile-view=")
 		elif arg == "--hide-minimap":
 			hide_minimap = true
+		elif arg == "--freeze-fp-furniture":
+			freeze_fp_furniture = true
+		elif arg == "--hide-overview-furniture":
+			hide_overview_furniture = true
 	call_deferred("_run")
 
 
@@ -128,12 +136,29 @@ func _measure(label: String) -> void:
 	}
 
 
+func _furniture_overlap() -> Dictionary:
+	return Overlap.read(main)
+
+
 func _run() -> void:
 	if mode not in ["3d", "fp"] or DisplayServer.get_name() == "headless":
 		push_error("Requires a real display and 3d/fp")
 		quit(1)
 		return
 	main = Scene.instantiate()
+	if freeze_fp_furniture:
+		var fp = main.get_node("World3D/FirstPersonController")
+		var properties: Dictionary = {}
+		for property: Dictionary in fp.get_script().get_script_property_list():
+			if int(property["usage"]) & PROPERTY_USAGE_STORAGE:
+				properties[property["name"]] = fp.get(property["name"])
+		fp.set_script(load("res://tests/fixtures/fp_furniture_freeze_probe.gd"))
+		for name: Variant in properties:
+			fp.set(name, properties[name])
+			if var_to_bytes(fp.get(name)) != var_to_bytes(properties[name]):
+				push_error("Counterfactual lost serialized property: " + str(name))
+				quit(1)
+				return
 	root.add_child(main)
 	main.set_physics_process(false)
 	main.playback_paused = true
@@ -145,6 +170,10 @@ func _run() -> void:
 		main._set_3d_view_enabled(true)
 	if hide_minimap:
 		main.minimap_2d.visible = false
+	var overlap_before: Dictionary = _furniture_overlap() if mode == "fp" else {}
+	if hide_overview_furniture:
+		main.visualizer_3d.show_fuel_objects_in_first_person = false
+		main.visualizer_3d._apply_overlay_visibility()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	root.title = "SimuFire - perfil renderizado " + mode + " (cierre automatico)"
 	probe = PhysicsProbe.new()
@@ -157,6 +186,8 @@ func _run() -> void:
 	for path: Variant in Layout._asset_resources:
 		Layout._asset_resources[path].changed.connect(_asset_changed.bind(String(path)))
 	await _measure("paused_before")
+	if freeze_fp_furniture:
+		main.first_person_controller.diagnostic_freeze_furniture = true
 	main._on_play_requested()
 	probe.active = true
 	await _measure("playing")
@@ -174,8 +205,13 @@ func _run() -> void:
 		"max_fps": Engine.max_fps, "vsync_mode": DisplayServer.window_get_vsync_mode(),
 		"node_count": get_node_count(), "rooms": main.building.get_rooms().size(),
 		"openings": main.building.get_opening_count(), "phases": phases,
-		"rendered_frames_measured": true, "quality_changed": hide_minimap,
+		"rendered_frames_measured": true,
+		"quality_changed": hide_minimap or freeze_fp_furniture or hide_overview_furniture,
 		"hide_minimap": hide_minimap,
+		"freeze_fp_furniture": freeze_fp_furniture,
+		"hide_overview_furniture": hide_overview_furniture,
+		"furniture_overlap_before": overlap_before,
+		"furniture_overlap_after": _furniture_overlap() if mode == "fp" else {},
 	}
 	print("PRODUCT_RENDER_PROFILE " + JSON.stringify(payload))
 	probe.active = false

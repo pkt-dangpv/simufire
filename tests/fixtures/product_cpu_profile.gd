@@ -63,6 +63,21 @@ func _layouts_only(overview: Variant) -> void:
 			Array(rs.get("fuel_objects", [])).duplicate(), overview.furnish_empty_rooms)
 
 
+func _prepare_fp_specs(fp: Variant) -> Dictionary:
+	var prepared: Dictionary = {}
+	for room_id: Variant in fp._furniture_nodes_by_room:
+		var item: Dictionary = fp._furniture_nodes_by_room[room_id]
+		var state: Dictionary = fp._room_state_for_furniture(int(room_id))
+		prepared[room_id] = Layout._prepare_specs(fp.building, int(room_id),
+			Rect2(item["rect"]), Array(state.get("fuel_objects", [])), fp.furnish_empty_rooms)
+	return prepared
+
+
+func _asset_metadata_only(prepared: Dictionary) -> void:
+	for specs: Array in prepared.values():
+		Layout._asset_tokens(specs)
+
+
 func _run() -> void:
 	if mode not in ["2d", "3d", "fp"]:
 		push_error("Unknown profiling view")
@@ -109,6 +124,7 @@ func _run() -> void:
 	# Same-state repeated calls isolate CPU callback cost, not GPU frame cost.
 	var before: Dictionary = main.engine.get_state().duplicate(true)
 	var state: Dictionary = main._build_view_state()
+	var prepared: Dictionary = _prepare_fp_specs(main.first_person_controller) if mode == "fp" else {}
 	for iteration: int in range(REPEATS + 3):
 		if iteration == 3:
 			# Three warm-up calls are separate from the reported frozen probes.
@@ -134,6 +150,16 @@ func _run() -> void:
 			_time("fp_light_attenuation_us", func(): fp._update_smoke_light_attenuation())
 			_time("fp_visibility_us", func(): fp._update_visibility_overlay())
 			_time("fp_hud_us", func(): fp._update_status_hud(true))
+			# Standalone CPU probes: visual/player clocks may move, engine does not.
+			# Inclusive costs, not disjoint frame-budget pieces or real FPS.
+			_time("fp_physics_callback_us", func(): fp._physics_process(DT))
+			_time("fp_movement_us", func(): fp._apply_movement(DT))
+			_time("fp_animation_us", func(): fp._animate_fp_fire(DT))
+			_time("fp_prompt_us", func(): fp._update_prompt())
+			_time("fp_safety_markers_us", func(): fp._update_safety_marker_states())
+			_time("overview_frame_animation_us", func(): main.visualizer_3d._process(DT))
+			_time("fp_specs_prepare_us", func(): _prepare_fp_specs(fp))
+			_time("fp_asset_metadata_us", func(): _asset_metadata_only(prepared))
 	if not _same(before, main.engine.get_state()):
 		errors.append("frozen visual probes changed engine state")
 	var opening_index: int = -1
@@ -159,6 +185,7 @@ func _run() -> void:
 	# This proves read-only frozen probes, not identity against an engine-only
 	# trajectory or a rendered frame capture; those require separate controls.
 	info["frozen_visual_state_unchanged"] = not errors.has("frozen visual probes changed engine state")
+	info["standalone_probes_are_inclusive_not_frame_budget"] = true
 	info["measurements_us"] = samples
 	info["errors"] = errors
 	print("PRODUCT_CPU_PROFILE " + JSON.stringify(info))

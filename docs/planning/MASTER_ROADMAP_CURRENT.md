@@ -1,11 +1,20 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (gráfica FP suspendida; jugabilidad pendiente)
+Ultima actualizacion parcial: 2026-10-13 (diagnóstico FP; corrección visual pendiente)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad inmediata: [FP sin gráfica en tiempo real](../validation/PRODUCT_FP_LIVE_CHARTS_2026-10-13.md).
+Prioridad inmediata: [diagnóstico del refresco FP](../validation/PRODUCT_FP_RUNNING_DIAGNOSIS_2026-10-13.md).
+Producción intacta. 39 muebles con dos propietarios visibles en la misma posición;
+refresco FP 6,62 ms, muebles 5,50, fichas estáticas 2,29 antes de caché de poses.
+Colisiones redundantes demostradas, pero su guarda no mejora claramente CPU;
+ABBA conserva cuatro estados físicos idénticos. No raíz única ni FPS certificado.
+37 focales y controles headless PASS; render sigue rechazado por avisos GL.
+Pedir autorización para un solo propietario FP y caché estática con invalidación,
+sin congelar estados dinámicos, bajar calidad o tocar física. Jugabilidad abierta.
+
+Checkpoint previo: [FP sin gráfica en tiempo real](../validation/PRODUCT_FP_LIVE_CHARTS_2026-10-13.md).
 Usuario: 3D funciona bien; FP aún lento. Main suspende dibujo, proceso y muestreo
 de la gráfica en FP, restaurando la preferencia al salir. Sin cambios de física
 ni calidad. Control 26, mutantes 5/5, focales 35 y producto 168 PASS;

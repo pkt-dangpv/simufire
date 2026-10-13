@@ -20,6 +20,9 @@ from scripts import godot_monitored_launch, run_scenario
 from scripts.simulation.run_g3_o2_transport_gate import prepare_environment
 
 FIXTURE = "tests/fixtures/product_cpu_profile.gd"
+GEOMETRY_FIXTURE = "tests/fixtures/fp_opening_geometry_profile.gd"
+SHAPE_CLOCK_FIXTURE = "tests/fixtures/fp_shape_clock_profile.gd"
+SHAPE_GUARD = "tests/fixtures/fp_shape_guard_probe.gd"
 PREFIX = "PRODUCT_CPU_PROFILE "
 
 
@@ -36,7 +39,9 @@ def inventory():
     paths = subprocess.check_output(
         ["git", "ls-files", "Main.gd", "sim", "view", "ui", "scenes", "project.godot", "scenarios"],
         cwd=ROOT, text=True).splitlines()
-    paths.extend((FIXTURE, "scripts/profile_product_cpu.py"))
+    paths.extend((FIXTURE, GEOMETRY_FIXTURE, SHAPE_CLOCK_FIXTURE, SHAPE_GUARD,
+                  "tests/fixtures/product_furniture_overlap.gd",
+                  "scripts/profile_product_cpu.py"))
     return {p: hashlib.sha256((ROOT / p).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
             for p in paths}
 
@@ -46,7 +51,15 @@ def main():
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--options", type=Path, required=True)
     parser.add_argument("--view", choices=("2d", "3d", "fp"), required=True)
+    probes = parser.add_mutually_exclusive_group()
+    probes.add_argument("--opening-geometry", action="store_true")
+    probes.add_argument("--shape-clock", action="store_true")
     args = parser.parse_args()
+    if (args.opening_geometry or args.shape_clock) and args.view != "fp":
+        raise RuntimeError("opening geometry experiment requires FP")
+    fixture = GEOMETRY_FIXTURE if args.opening_geometry else FIXTURE
+    if args.shape_clock:
+        fixture = SHAPE_CLOCK_FIXTURE
     if not sys.flags.utf8_mode:
         raise RuntimeError("use python -X utf8")
     work = args.work.resolve()
@@ -63,6 +76,7 @@ def main():
     userdata.mkdir(parents=True, exist_ok=True)
     (userdata / "startup_sim_options.json").write_bytes(original)
     record = {"schema": "product_cpu_profile_v1", "state": "in_progress", "view": args.view,
+              "fixture": fixture,
               "startup_options": options, "source_hashes_lf": sources,
               "rendered_fps_measured": False, "gpu_measured": False}
     output = work / "result.json"
@@ -72,14 +86,14 @@ def main():
         if executable is None:
             raise RuntimeError("Godot unavailable")
         result = godot_monitored_launch.run(
-            [executable, "--headless", "--path", ROOT, "--script", ROOT / FIXTURE,
+            [executable, "--headless", "--path", ROOT, "--script", ROOT / fixture,
              "--", "--profile-view=" + args.view], timeout_s=300, environment=os.environ.copy())
         record["health"] = result.health
         (work / "stdout.log").write_text(result.stdout, encoding="utf-8")
         (work / "stderr.log").write_text(result.stderr, encoding="utf-8")
         if not result.launched or result.returncode != 0 or result.faults or result.preexisting:
             raise RuntimeError(f"unhealthy launch: {result.returncode}, {result.faults}, {result.preexisting}")
-        if any(s in result.stdout + result.stderr for s in ("SCRIPT ERROR", "Parse Error")):
+        if any(s in result.stdout + result.stderr for s in ("SCRIPT ERROR", "Parse Error", "ERROR:")):
             raise RuntimeError("script error is not performance evidence")
         lines = [s for s in result.stdout.splitlines() if s.startswith(PREFIX)]
         if len(lines) != 1:
