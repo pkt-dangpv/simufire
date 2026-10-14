@@ -1,0 +1,440 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "source_id",
+          "title",
+          "locator"
+        ]
+      }
+    },
+    "agent": {
+      "enum": [
+        "water",
+        "foam_solution",
+        "CAFS"
+      ]
+    },
+    "target_flow_medium": {
+      "enum": [
+        "water",
+        "foam_solution",
+        "finished_foam",
+        "air"
+      ]
+    },
+    "pump_stage": {
+      "enum": [
+        "low",
+        "high"
+      ]
+    },
+    "pump_curve_stage": {
+      "enum": [
+        "low",
+        "high"
+      ]
+    },
+    "pump_speed_rpm": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "pump_curve_speed_rpm": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "pump_outlet_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "declared_pump_outlet_pressure_bar": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "target_nozzle_pressure_bar": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "hose_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "component_limits_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pump": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "hose": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "nozzle": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "accessories": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": []
+    },
+    "connected_elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configuration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "curve": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "flow_l_min": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "pressure_bar": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "flow_l_min",
+                "pressure_bar"
+              ]
+            }
+          },
+          "max_working_pressure_bar": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "configuration",
+          "source_id",
+          "curve"
+        ]
+      }
+    },
+    "foam_system": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "system_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system_type": {
+          "enum": [
+            "inline_inductor",
+            "around_the_pump",
+            "direct_injection",
+            "balanced_pressure",
+            "CAFS",
+            "other"
+          ]
+        },
+        "concentrate_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concentrate_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fuel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "water_quality": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concentration_percent_of_solution": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 100
+        },
+        "solution_flow_l_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "water_flow_l_min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "concentrate_flow_l_min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "nominal_flow_l_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_working_pressure_bar": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "flow_range_l_min": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "inlet_pressure_bar": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_backpressure_bar": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pressure_loss_curve": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "flow_l_min": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "pressure_bar": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "flow_l_min",
+              "pressure_bar"
+            ]
+          }
+        },
+        "concentrate_temperature_c": {
+          "type": "number"
+        },
+        "concentrate_viscosity_mpa_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "concentrate_pickup_lift_m": {
+          "type": "number"
+        },
+        "pickup_hose_length_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pickup_hose_inside_diameter_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "concentrate_tank_l": {
+          "type": "number",
+          "minimum": 0
+        },
+        "concentrate_reserve_l": {
+          "type": "number",
+          "minimum": 0
+        },
+        "discharge_device": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aspiration_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expansion_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "drainage_time_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "application_rate_l_min_m2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "protected_area_m2": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "application_duration_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "application_method": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compatibility_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "certification_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environmental_constraints": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flush_procedure": {
+          "type": "string",
+          "minLength": 1
+        },
+        "air_flow_l_min": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "air_pressure_bar": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "air_to_solution_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "concentrate_feed_configuration": {
+          "enum": [
+            "external_suction",
+            "flooded_volumetric_pump_from_tank"
+          ]
+        },
+        "concentrate_feed_source_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [],
+      "dependentRequired": {
+        "concentrate_feed_configuration": [
+          "concentrate_feed_source_id"
+        ],
+        "concentrate_feed_source_id": [
+          "concentrate_feed_configuration"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile_sha256",
+    "source_id",
+    "sources",
+    "agent"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "agent": {
+            "const": "water"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "foam_system"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "agent": {
+            "enum": [
+              "foam_solution",
+              "CAFS"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "foam_system"
+        ]
+      }
+    },
+    {
+      "dependentRequired": {
+        "pump_stage": [
+          "pump_curve_stage"
+        ],
+        "pump_curve_stage": [
+          "pump_stage"
+        ],
+        "pump_speed_rpm": [
+          "pump_curve_speed_rpm"
+        ],
+        "pump_curve_speed_rpm": [
+          "pump_speed_rpm"
+        ]
+      }
+    }
+  ]
+}

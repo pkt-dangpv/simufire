@@ -1,0 +1,283 @@
+{
+  "schema_version": "0.1",
+  "registry_id": "equipment_standards_public_scope_v1",
+  "checked_on": "2026-10-12",
+  "sources": [
+    {
+      "source_id": "BOE_UNE_2020",
+      "publisher": "BOE / Asociación Española de Normalización",
+      "url": "https://www.boe.es/buscar/doc.php?id=BOE-A-2020-3268",
+      "locator": "Rows UNE-EN 15182-1:2020 and UNE-EN 15182-2:2020, replacement column",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "AFNOR_15182_2",
+      "publisher": "AFNOR",
+      "url": "https://www.boutique.afnor.org/fr-fr/norme/nf-en-151822/equipement-portable-de-projection-dagents-dextinction-alimente-par-des-pomp/fa191790/83935",
+      "locator": "Public scope and European relationship EN 15182-2:2019",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "AENOR_1028_1",
+      "publisher": "AENOR",
+      "url": "https://tienda.aenor.com/en/normas?delta=8&start=384",
+      "locator": "Catalog listing UNE-EN 1028-1:2003+A1:2009, In Force; metadata returned by search, direct fetch failed",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "AENOR_1028_2",
+      "publisher": "AENOR",
+      "url": "https://tienda.aenor.com/en/normas?delta=4&start=660",
+      "locator": "Catalog listing UNE-EN 1028-2:2003+A1:2008, In Force; metadata returned by search, direct fetch failed",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "NFPA_1960",
+      "publisher": "NFPA",
+      "url": "https://www.nfpa.org/codes-and-standards/1/9/6/nfpa-1960",
+      "locator": "Public document metadata and consolidation note, 2024 edition",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "NFPA_1900",
+      "publisher": "NFPA",
+      "url": "https://www.nfpa.org/codes-and-standards/nfpa-1900-standard-development/1900?l=62",
+      "locator": "Public document metadata and consolidation note, current edition 2024",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    },
+    {
+      "source_id": "NFPA_1930",
+      "publisher": "NFPA",
+      "url": "https://www.nfpa.org/codes-and-standards/nfpa-1930-standard-development/1930?l=78",
+      "locator": "Public document metadata and consolidation note, current edition 2025",
+      "checked_on": "2026-10-12",
+      "inspection": "public_metadata_or_scope_only"
+    }
+  ],
+  "standards": [
+    {
+      "standard_id": "UNE_EN_15182_1_2020",
+      "designation": "UNE-EN 15182-1:2020",
+      "family": "EN",
+      "edition": "2020",
+      "topics": [
+        "nozzle"
+      ],
+      "source_ids": [
+        "BOE_UNE_2020"
+      ],
+      "public_scope_summary": "Requisitos comunes para lanzas manuales alimentadas por bombas de extinción. La publicación de 2020 sustituye la adopción de 2007+A1:2010.",
+      "legacy_designations": [
+        "UNE-EN 15182-1:2007+A1:2010"
+      ],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "UNE_EN_15182_2_2020",
+      "designation": "UNE-EN 15182-2:2020 / EN 15182-2:2019",
+      "family": "EN",
+      "edition": "2020 / 2019",
+      "topics": [
+        "nozzle"
+      ],
+      "source_ids": [
+        "BOE_UNE_2020",
+        "AFNOR_15182_2"
+      ],
+      "public_scope_summary": "Lanzas mixtas PN16: el alcance público describe hasta 1000 L/min a presión de referencia de 6 bar; incluye seguridad, prestaciones y ensayos. Se usa conjuntamente con la parte 1.",
+      "legacy_designations": [
+        "UNE-EN 15182-2:2007+A1:2010"
+      ],
+      "scope_facts": [
+        {
+          "name": "reference_pressure",
+          "value": 6,
+          "unit": "bar",
+          "source_id": "AFNOR_15182_2",
+          "scope": "Referencia del ámbito de lanzas mixtas PN16; no presión universal de toda lanza ni ajuste de bomba."
+        },
+        {
+          "name": "nominal_pressure_class",
+          "value": 16,
+          "unit": "bar",
+          "source_id": "AFNOR_15182_2",
+          "scope": "Clase PN16 del ámbito; distinta de presión de referencia y de ensayo."
+        },
+        {
+          "name": "scope_maximum_flow",
+          "value": 1000,
+          "unit": "L/min",
+          "source_id": "AFNOR_15182_2",
+          "scope": "Límite de caudal del ámbito público de esta parte a presión de referencia; no demanda de un incendio."
+        }
+      ],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "UNE_EN_1028_1_A1_2009",
+      "designation": "UNE-EN 1028-1:2003+A1:2009",
+      "family": "EN",
+      "edition": "2003+A1:2009",
+      "topics": [
+        "pump"
+      ],
+      "source_ids": [
+        "AENOR_1028_1"
+      ],
+      "public_scope_summary": "Clasificación y requisitos generales y de seguridad de bombas centrífugas contra incendios con cebador.",
+      "legacy_designations": [],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "UNE_EN_1028_2_A1_2008",
+      "designation": "UNE-EN 1028-2:2003+A1:2008",
+      "family": "EN",
+      "edition": "2003+A1:2008",
+      "topics": [
+        "pump"
+      ],
+      "source_ids": [
+        "AENOR_1028_2"
+      ],
+      "public_scope_summary": "Verificación de requisitos generales y de seguridad de bombas centrífugas contra incendios con cebador.",
+      "legacy_designations": [],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "NFPA_1960_2024",
+      "designation": "NFPA 1960",
+      "family": "NFPA",
+      "edition": "2024",
+      "topics": [
+        "hose",
+        "nozzle",
+        "coupling"
+      ],
+      "source_ids": [
+        "NFPA_1960"
+      ],
+      "public_scope_summary": "Documento de equipos que agrupa conexiones, lanzas de pulverización, mangueras, diseño de escaleras portátiles y herramientas de rescate. Consolida 1931, 1936, 1961, 1963 y 1964.",
+      "legacy_designations": [
+        "NFPA 1931",
+        "NFPA 1936",
+        "NFPA 1961",
+        "NFPA 1963",
+        "NFPA 1964"
+      ],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "NFPA_1900_2024",
+      "designation": "NFPA 1900",
+      "family": "NFPA",
+      "edition": "2024",
+      "topics": [
+        "pump",
+        "apparatus"
+      ],
+      "source_ids": [
+        "NFPA_1900"
+      ],
+      "public_scope_summary": "Vehículos de intervención, incluidas autobombas, vehículos forestales, de rescate y extinción aeroportuaria y ambulancias. Consolida 414, 1901, 1906 y 1917.",
+      "legacy_designations": [
+        "NFPA 414",
+        "NFPA 1901",
+        "NFPA 1906",
+        "NFPA 1917"
+      ],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    },
+    {
+      "standard_id": "NFPA_1930_2025",
+      "designation": "NFPA 1930",
+      "family": "NFPA",
+      "edition": "2025",
+      "topics": [
+        "hose",
+        "nozzle",
+        "inspection",
+        "maintenance"
+      ],
+      "source_ids": [
+        "NFPA_1930"
+      ],
+      "public_scope_summary": "Uso de equipos del servicio, incluyendo mangueras y accesorios, herramientas de rescate, escaleras, imagen térmica y comunicaciones. Consolida 1801, 1802, 1932, 1937 y 1962.",
+      "legacy_designations": [
+        "NFPA 1801",
+        "NFPA 1802",
+        "NFPA 1932",
+        "NFPA 1937",
+        "NFPA 1962"
+      ],
+      "scope_facts": [],
+      "normative_clauses_reviewed": [],
+      "automatic_tactical_rule": false,
+      "equipment_compliance_assessed": false,
+      "legal_applicability": "not_assessed",
+      "review_status": "public_summary_only",
+      "limitations": [
+        "El resumen público no sustituye la norma completa, sus erratas o modificaciones.",
+        "No determina por sí solo presión de trabajo, caudal táctico ni conformidad del equipo concreto."
+      ]
+    }
+  ]
+}

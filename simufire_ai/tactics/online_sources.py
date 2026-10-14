@@ -21,6 +21,8 @@ ALLOWED_HOSTS = frozenset({
     'gollmer-hummel.com','www.leader-group.company','www.nist.gov',
     'nvlpubs.nist.gov','tsapps.nist.gov','www.ceisguadalajara.es','ceis.antiun.net',
     'guiatacticavisual.wordpress.com',
+    'www.nfpa.org','docinfofiles.nfpa.org','www.boutique.afnor.org',
+    'store.uni.com','tienda.aenor.com','www.boe.es','revista.une.org',
 })
 INDEXES = {
     'godiva':'https://www.godiva.co.uk/resource-center/?documenttype=all&productcategory=all&refine=prima',

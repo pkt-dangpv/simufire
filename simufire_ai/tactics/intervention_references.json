@@ -1,0 +1,54 @@
+{
+  "version": "0.1",
+  "profile_id": "GIE_reference_2026",
+  "expert_review": "pending",
+  "adopted_service_doctrine": false,
+  "flow_floor_l_min": 400,
+  "flow_floor_operator": ">",
+  "maximum_nozzle_pressure_bar": 7,
+  "opening_reference_l_min_m2": 50,
+  "sources": [
+    {
+      "id": "GIE_FLOW",
+      "title": "GIE: Documentación de referencia para intervenciones en incendios estructurales",
+      "edition": "Febrero de 2026",
+      "local_path": "docs/literature/GIE/DocuGIE-v4.0-hiperviculos-1.pdf",
+      "sha256": "b52cdf6e6e51f7bfeb32df1ee8510c19800ce448fb07eba6682d41975b6400ec",
+      "locator": "PDF 37–39; páginas impresas 34–36. Caudal táctico y operativo.",
+      "license": "CC BY-NC-SA 4.0",
+      "url": null
+    },
+    {
+      "id": "FSRI_COORD",
+      "title": "FSRI: Analysis of the Coordination of Suppression and Ventilation in Single-Family Homes",
+      "edition": "2020",
+      "local_path": "docs/literature/FSRI_ULRI/Coordination_Suppression_Ventilation_Single_Family_2020.pdf",
+      "sha256": "229caa8a7190d67ccfb4e8be3711015755f37bb27b9f3b91a4cfa4976ea561d2",
+      "locator": "Secciones 5.1.3, 5.2, 5.3; 20 ensayos en ocho viviendas estadounidenses.",
+      "url": "https://fsri.org/research-update/technical-report-released-single-family-homes-experiments"
+    },
+    {
+      "id": "NIST_JET",
+      "title": "NIST TN 1938: Impact of Hose Streams on Air Flows inside a Structure",
+      "edition": "2016",
+      "locator": "Resumen: siete series, cuatro tipos de chorro; transporte de aire, no rendimiento de extinción universal.",
+      "url": "https://www.nist.gov/publications/impact-hose-streams-air-flows-inside-structure"
+    },
+    {
+      "id": "NIST_PPV",
+      "title": "NIST: Positive Pressure Ventilation",
+      "edition": "Página consultada 2026-10-12",
+      "locator": "Ensayos de ventilación natural y PPV; posible aumento de energía por aporte de oxígeno.",
+      "url": "https://www.nist.gov/el/fire-research-division-73300/firegov-fire-service/positive-pressure-ventilation"
+    },
+    {
+      "id": "FSRI_RESCUE",
+      "title": "FSRI: Search and Rescue, Part III: Tactical Considerations",
+      "edition": "2022; exemplar local consultado",
+      "local_path": "docs/literature/FSRI_ULRI/Search_and_Rescue_Part_III_Tactical_Considerations.pdf",
+      "sha256": "872cd6bf7ff715dc006c54b71469fcc8d6d00e7d06097c0e007b1fef29000672",
+      "locator": "PDF 32–35, inicio de consideraciones; exposiciones térmicas/tóxicas y coordinación.",
+      "url": "https://fsri.org/resource/analysis-search-and-rescue-tactics-single-story-single-family-homes-part-iii-tactical"
+    }
+  ]
+}

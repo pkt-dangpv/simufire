@@ -471,3 +471,172 @@ H01–H07 siguen siendo casos sintéticos pendientes de revisión experta.
 `test_equipment_catalog.py` y `test_online_sources.py` se ejecutan en la suite
 determinista con dobles de transporte, sin internet ni Ollama. Las recuperaciones
 reales se comprueban por separado y no son un requisito de la suite offline.
+
+## Formato numérico y referencias EN / NFPA
+
+Las respuestas hidráulicas conservan por defecto la notación inglesa elegida:
+`9.000 bar` equivale a 9 bar. `--number-format es` muestra `9,000 bar`.
+`--number-format auto --language es-ES` usa coma; `--language en-US` con auto usa
+punto. Una preferencia explícita prevalece sobre el idioma. No se agrupan miles.
+La selección corresponde solo a la presentación numérica; el texto actual permanece
+en español y los números de JSON conservan el formato estándar con punto.
+
+```powershell
+python simufire_ai/hydraulics.py --profile simufire_ai/tests/data/hydraulic_profile_synthetic.json --output work/hidraulica_es.json --number-format auto --language es-ES
+python simufire_ai/equipment_catalog.py --query "NFPA 1964" --category standards
+python simufire_ai/equipment_catalog.py --query "15182 2" --category standards
+```
+
+El registro `tactics/catalog/standards_references.json` incorpora siete referencias:
+UNE-EN 15182 partes 1 y 2, UNE-EN 1028 partes 1 y 2, NFPA 1960 (2024), NFPA 1900
+(2024) y NFPA 1930 (2025). Guarda ediciones, fuentes oficiales, resúmenes públicos
+del ámbito y relaciones con las denominaciones anteriores. EN/NFPA se consultan
+separadas de las curvas del fabricante y de las referencias científicas NIST.
+
+El ámbito público de EN 15182-2:2019 describe lanzas mixtas PN16 de hasta 1000 L/min
+a presión de referencia de 6 bar. Se distinguen presión de referencia, clase nominal,
+presión de ensayo y presión disponible de la instalación. `nozzle_reference_pressure`
+recupera el valor documentado del modelo elegido; una región o norma no introduce
+6 bar por defecto si falta el dato ni modifica la curva del perfil sintético.
+No se fija tampoco una presión universal para equipos NFPA ni se cambia a psi
+automáticamente por idioma o familia normativa.
+
+Las fichas resumen metadatos y ámbitos accesibles públicamente. No acreditan lectura
+íntegra, revisión de cláusulas, cumplimiento de equipos ni aplicabilidad legal al
+servicio; tampoco generan caudales tácticos o reglas de seguridad nuevas. Las
+cláusulas normativas y sus erratas deben contrastarse antes de implementar requisitos.
+Los siete ejemplos H01–H07 conservan sus cálculos y texto en el formato inglés;
+H01 fue aceptado por el experto el 12 de octubre de 2026; en aquel checkpoint,
+H02–H07 quedaban pendientes.
+
+## Contexto de manguera en respuestas hidráulicas
+
+La revisión experta posterior aceptó también H02–H07 en sus versiones originales.
+Las respuestas nuevas añaden diámetro, longitud y caudal antes de mostrar pérdidas
+de carga. `hose.inside_diameter_mm`, si se aporta, debe ser un número positivo y
+coincidir con `hose.curve_inside_diameter_mm`, el diámetro declarado en las
+condiciones de la curva suministrada. Se exigen ambos campos juntos. Los perfiles
+anteriores siguen siendo válidos; si omiten el diámetro se muestra «no aportado».
+No se obtiene un diámetro de la pérdida ni se inventa un valor para los casos
+ficticios históricos.
+
+`hose_context` conserva la longitud instalada, la longitud de referencia de la curva,
+el diámetro declarado o ausente y la procedencia. Se distingue la pérdida evaluada
+al objetivo de la correspondiente al caudal del punto calculado. El método 0.2
+añade este contexto y su presentación; las ecuaciones de balance, intersección y
+autonomía siguen siendo las mismas.
+
+Las pérdidas dependen de diámetro, caudal y configuración. Este módulo interpola
+una curva específica y solo escala por longitud. Para usar otro diámetro hace falta
+su curva: editar el campo de diámetro no introduce una ley de escalamiento física
+ni convierte la curva anterior en una curva válida para otra manguera. Las curvas
+de los ejemplos H originales son ficticias y no son datos certificados de fabricante.
+Las alternativas de mayor diámetro, líneas paralelas o bombeo en serie requieren
+modelos y datos adicionales; esta corrección docente no implementa esas topologías.
+
+## Contexto operativo de las consultas de caudal
+
+El comando hidráulico muestra objetivo, presión objetivo en entrada de lanza,
+curva y condiciones de bomba, etapa/salida, régimen, diámetro y tipo de manguera,
+longitud, desnivel, elementos, curvas resistentes y límites de presión. Los datos
+ausentes se indican; no se elige automáticamente una etapa o un material.
+La presión objetivo y la de salida declarada se conservan separadas de las
+presiones que predicen las curvas. El modelo sigue utilizando curvas fijas y
+no simula una regulación que imponga la presión declarada.
+
+`--installation-context archivo.json` acepta declaraciones según
+`tactics/flow_context.schema.json`, ligadas a la huella del perfil y a sus fuentes.
+Etapa y RPM seleccionadas deben corresponder a las de la curva. Los elementos
+individuales son accesorios en serie: sus pérdidas deben sumar la curva agregada
+en todos los puntos de cambio, sin duplicarlas en el cálculo. Se comprueban sus
+límites y los de bomba/manguera/lanza mediante la cota conservadora existente.
+No se calculan presiones locales ni transitorios. Una línea con varias mangueras
+de distinto tipo/diámetro, ramas o consumidores sigue fuera de este modelo.
+
+Un objetivo de presión que no coincida con la curva de lanza al caudal objetivo
+se señala como incompatible, sin alterar los datos ni recomendar un ajuste.
+El registro de datos y las comprobaciones no acreditan seguridad integral,
+alimentación de bomba, cavitación ni idoneidad táctica para el incendio.
+
+El contexto puede registrar solicitudes de solución espumante o CAFS, diferenciando
+agua, concentrado, solución y espuma expandida. Incluye equipo y dosificador,
+producto/combustible/agua, concentración en volumen de solución, caudales nominales
+y rango, entrada/contrapresión/pérdidas/límites, aspiración, temperatura/viscosidad,
+reservas, lanza/generador, expansión/drenaje, aplicación y sus referencias,
+compatibilidad, condiciones ambientales y lavado; CAFS añade aire y sus presiones.
+Los balances declarados de agua/concentrado/solución y porcentaje deben concordar.
+
+Estas solicitudes se devuelven como `unsupported_foam_hydraulics`, con los datos
+pendientes y sin ejecutar el balance de agua, ni predecir punto o autonomía de
+espuma. Todavía no hay modelo de dosificación, simulación CAFS ni selección táctica
+automática de producto/sistema. Los requisitos concretos dependen del fabricante
+y aplicación: no se aplica un porcentaje o contrapresión universal.
+
+
+La auditoría de espuma distingue datos pendientes comunes de geometría de toma
+condicionada a la alimentación del equipo. En `inline_inductor` se solicitan
+altura de aspiración, longitud y diámetro del tubo. En inyección directa,
+`balanced_pressure`, alrededor de bomba, CAFS o tipo desconocido, esos datos no
+se declaran inaplicables: si faltan se conservan en `conditional_fields`, hasta
+documentar el circuito de alimentación. Si se aportan, se validan y muestran.
+La presión de entrada, las pérdidas y el rango de caudal siguen siendo datos de
+auditoría. No se calculan dosificación ni prestaciones de espuma.
+
+Esta distinción documental se apoya en el manual
+[AWG Z2/Z4/Z8](https://awg-fittings.com/images/content/downloads/betriebsanleitungen/NEU_10_2024/M1061B10_AWG%20Betriebsanleitung_Zumischer%20Z2-Z4-Z8_03-0824_de-en_online.pdf)
+y la descripción de aspiración externa en sistemas de inyección
+[Rosenbauer](https://www.rosenbauer.com/Sharepoint/Built-InSystems/Documents%20Built-In%20Pumps/docs/PC2XX_Pumps_Brochure_TruckMountedFirePumps_EN.pdf).
+No se transfieren umbrales o prestaciones entre modelos de fabricante.
+
+
+Para una configuración declarada de inyección directa o presión equilibrada,
+`foam_system.concentrate_feed_configuration=flooded_volumetric_pump_from_tank`
+marca los tres campos de geometría del tubo de aspiración externo como
+**No aplicables** (`not_applicable_fields`). Requiere
+`concentrate_feed_source_id`, asociado a una fuente del contexto. No certifica
+esa declaración ni elimina la documentación del circuito interno de alimentación.
+No se acepta mezclar la declaración de No aplicables con valores de esos campos.
+`external_suction` con su fuente los convierte en datos requeridos. Si no se
+declara la alimentación, se mantiene la clasificación condicional anterior;
+no se deduce No aplicable por el nombre del tipo de dosificador.
+
+
+## Informe docente integrado de intervención
+
+`intervention.py` une mediciones, hechos del analizador determinista, hidráulica,
+recursos declarados y criterios documentados. Publica un informe HTML autónomo,
+Markdown y JSON junto con sus entradas; rechaza sobrescribir un informe previo.
+No usa Ollama ni internet durante la generación y no altera los detectores.
+
+```powershell
+python simufire_ai/intervention.py --case caso.json --profile perfil.json --installation-context contexto.json --request solicitud.json --output-dir informe_T01
+```
+
+La solicitud se valida con `tactics/intervention_request.schema.json`, se liga
+al escenario, habitación, tiempo evaluado y huella del perfil hidráulico. El
+ejemplo `tests/data/intervention_request_synthetic.json` usa exclusivamente datos
+ficticios. Los estados y acciones posteriores al instante se excluyen antes de
+analizar; una detección retrospectiva de ILV no se adelanta a una decisión previa.
+
+Las tablas distinguen capas superior/inferior, intervalos, unidades, parámetros
+de instalación, pérdidas, punto predicho, agua y autonomía. La referencia GIE de
+febrero de 2026 se presenta como perfil docente pendiente de revisión: >400 L/min
+y ≤7 bar en lanza, no como certificación o doctrina adoptada por un servicio.
+La aproximación de 50 L/min por m² de hueco se muestra únicamente como hipótesis
+de apertura completa para un ILV con geometría habitual; no predice el HRR y no
+reemplaza el criterio operativo. La comparación evita afirmar que se supera el
+umbral estricto por redondeo (tolerancia numérica de 1e-6 L/min, no margen táctico).
+
+Las técnicas son opciones docentes condicionadas por agua operativa, acceso,
+recursos, recorrido de gases y coordinación. Incluso con declaraciones favorables,
+el informe no autoriza una operación. No calcula FED ni probabilidad de
+supervivencia a partir de temperaturas o concentraciones medias de una zona.
+Las fichas comerciales del catálogo aparecen separadas: no declaran disponibilidad
+ni se convierten en curvas de la instalación. Sigue pendiente un perfil con
+curvas comerciales completas y revisadas. Este primer informe admite solo agua;
+las solicitudes de espuma/CAFS se rechazan explícitamente, conservando su bloqueo.
+
+Las referencias primarias y sus apartados/ediciones figuran en
+`tactics/intervention_references.json`. La interpretación de GIE se atribuye bajo
+CC BY-NC-SA 4.0. Los ensayos FSRI residenciales y los estudios NIST de chorros/PPV
+no se transforman en umbrales universales ni reglas de supervivencia.

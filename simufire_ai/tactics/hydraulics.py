@@ -8,7 +8,7 @@ from jsonschema import Draft202012Validator
 
 SCHEMA_PATH = Path(__file__).with_name('hydraulic_profile.schema.json')
 STATIC_BAR_PER_M = 1000 * 9.80665 / 100000
-METHOD_VERSION = '0.1'
+METHOD_VERSION = '0.2'
 PRESSURE_TOLERANCE_BAR = 1e-9
 REFERENCE = {
     'source_id': 'CEIS_GUADALAJARA_HYDRAULICS_2015',
@@ -69,6 +69,10 @@ def validate_profile(profile):
     ids = [profile[name]['id'] for name in ('pump', 'nozzle', 'hose')]
     if len(set(ids)) != len(ids):
         raise ValueError('Identificadores de equipo duplicados')
+    hose = profile['hose']
+    if ('inside_diameter_mm' in hose and
+            hose['inside_diameter_mm'] != hose['curve_inside_diameter_mm']):
+        raise ValueError('El diámetro de la manguera no corresponde al declarado para su curva')
     for name in ('pump', 'nozzle', 'hose', 'accessories'):
         points = profile[name]['curve']
         for a, b in zip(points, points[1:]):
@@ -176,6 +180,15 @@ def analyze_profile(profile):
         'operating_point_status': point_status, 'operating_point': point,
         'water_at_predicted_operating_point': autonomy(profile, point['flow_l_min']) if point else None,
         'equipment_sources': json.loads(json.dumps(profile['sources'])), 'method_reference': dict(REFERENCE),
+        'hose_context': {'hose_id': profile['hose']['id'], 'source_id': profile['hose']['source_id'],
+            'inside_diameter_mm': profile['hose'].get('inside_diameter_mm'),
+            'curve_inside_diameter_mm': profile['hose'].get('curve_inside_diameter_mm'),
+            'diameter_status': 'declared_in_profile' if 'inside_diameter_mm' in profile['hose'] else 'not_provided',
+            'installation_length_m': profile['installation']['hose_length_m'],
+            'curve_reference_length_m': profile['hose']['reference_length_m'],
+            'configuration': profile['hose']['configuration'],
+            'loss_basis': 'Supplied curve for this hose configuration; linear scaling by length only.',
+            'other_diameters_require_their_own_curves': True},
         'tactical_sufficiency': 'not_evaluated', 'assumptions': [
             'One steady-state line, one fixed pump/nozzle configuration and monotonic elevation; no branches or other consumers.',
             'Piecewise-linear interpolation of supplied curves only, within their common range.',
@@ -191,6 +204,18 @@ def analyze_profile(profile):
 def render_result(result):
     target = result['objective']['flow_l_min']
     parts = ['Perfil ficticio de entrenamiento.' if result['data_kind'] == 'synthetic' else 'Perfil de referencia aportado.']
+    hose = result.get('hose_context')
+    if hose is None:
+        hose_label = 'diámetro interior y longitud no incluidos en este resultado'
+        parts.append('Manguera: '+hose_label+'. El cálculo usa la curva aportada; no se infieren esos datos.')
+    else:
+        diameter = hose['inside_diameter_mm']
+        diameter_label = (f'diámetro interior declarado {diameter:g} mm' if diameter is not None
+                          else 'diámetro interior no aportado')
+        hose_label = f'{diameter_label}, longitud {hose["installation_length_m"]:g} m'
+        parts.append('Manguera de la instalación: '+hose_label+'. '
+            f'La curva de pérdidas está referida a {hose["curve_reference_length_m"]:g} m del tipo suministrado. '
+            'No se transfiere a otro diámetro sin su curva correspondiente.')
     b = result['target_balance']
     if b is None:
         parts.append(f'El objetivo de {target:g} L/min queda fuera del intervalo común de las curvas; no se extrapola.')
@@ -218,6 +243,9 @@ def render_result(result):
             'Es una predicción del modelo hidráulico, no un caudal medido.')
         if point['line_pressure_within_declared_limit'] is False:
             parts.append('En ese punto tampoco se cumple el límite de presión declarado.')
+        parts.append(f'Pérdida lineal en el punto calculado: {hose_label}, '
+            f'caudal {point["flow_l_min"]:.3f} L/min; pérdida de manguera {point["hose_loss_bar"]:.3f} bar. '
+            'Este valor corresponde a ese caudal y a la curva de manguera aportada.')
         water = result['water_at_predicted_operating_point']
         if water['status'] == 'no_usable_water':
             parts.append('No hay agua utilizable por encima de la reserva para sostener ese consumo con el aporte declarado.')

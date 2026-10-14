@@ -154,6 +154,14 @@
           "type": "number",
           "exclusiveMinimum": 0
         },
+        "inside_diameter_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "curve_inside_diameter_mm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
         "curve": {
           "type": "array",
           "minItems": 2,
@@ -183,7 +191,11 @@
         "configuration",
         "reference_length_m",
         "curve"
-      ]
+      ],
+      "dependentRequired": {
+        "inside_diameter_mm": ["curve_inside_diameter_mm"],
+        "curve_inside_diameter_mm": ["inside_diameter_mm"]
+      }
     },
     "accessories": {
       "type": "object",

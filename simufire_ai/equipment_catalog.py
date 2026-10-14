@@ -6,12 +6,13 @@ from pathlib import Path
 
 from tactics.catalogue import lookup
 from tactics.online_sources import INDEXES, fetch_document, search_primary_index
+from tactics.standards import lookup_standards
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--query')
-    parser.add_argument('--category',choices=('pump','hose','nozzle','fan','tactical'))
+    parser.add_argument('--category',choices=('pump','hose','nozzle','fan','tactical','standards'))
     parser.add_argument('--online',action='store_true')
     parser.add_argument('--source',choices=tuple(INDEXES))
     parser.add_argument('--fetch-url')
@@ -30,7 +31,7 @@ def main():
         if args.fetch_url:
             report,_ = fetch_document(args.fetch_url,online=True,evidence_dir=args.evidence_dir)
         else:
-            report = lookup(args.query,category=args.category)
+            report = lookup_standards(args.query) if args.category=='standards' else lookup(args.query,category=args.category)
             if args.online:
                 report['online_candidates'] = search_primary_index(args.query,args.source,
                     online=True,evidence_dir=args.evidence_dir)
