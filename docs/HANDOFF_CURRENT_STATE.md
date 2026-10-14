@@ -1,5 +1,24 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-14 - Reloj corregido en main de OneDrive
+
+[Informe y límites](validation/PRODUCT_CLOCK_SOBREMESA_2026-10-14.md).
+Aplicado en `F:\OneDrive\Documentos\GitHub\simufire`, rama `main`, tras probar
+la corrección en una copia aislada. Integración `06061172`: conserva los siete
+commits locales de `1c2389c9`, los dieciséis commits pendientes de `origin/main`
+`6633ff78` y la corrección del reloj `21c4e8d4`. Punto de recuperación:
+`codex/backup-onedrive-main-20261014-153905`. Sin push remoto.
+En la carpeta OneDrive: importación monitorizada limpia, reloj 73.948/0,
+gráficas 26/0, Python 343 PASS y 306 subtests PASS, guardarraíles PASS;
+código corregido idéntico por SHA-256 al probado inicialmente.
+[Evidencia de aplicación](validation/product_clock_onedrive_application_2026-10-14.json).
+El acumulador pondera cada callback con su propia velocidad y conserva aparte
+el tiempo real de las gráficas. No acepta como validación física los pasos
+1/12, 1/30 o 1/40 s: fallaron el cribado independiente frente a 1/60 s.
+Main conserva el paso objetivo 1/12 s recibido del portátil; su equivalencia
+física sigue NO DEMOSTRADA. FP renderizado sigue sin medición admitida por
+errores de texturas al salir. CO/FED OFF/NO-GO y referencias sin regenerar.
+
 ## Current Program Update - 2026-10-13 - Fichas estáticas reutilizadas
 
 [Cambio y cierre](validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).

@@ -1,0 +1,44 @@
+{
+  "applied_to": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+  "branch": "main",
+  "commit": "060611723b2ae41ddc8f5bafad458908460696c0",
+  "original_local_commits_preserved": true,
+  "origin_main_included": true,
+  "tested_clock_source_bytes_identical": true,
+  "checks": [
+    {
+      "name": "clock",
+      "exit_code": 0,
+      "wall_s": 6.478
+    },
+    {
+      "name": "charts",
+      "exit_code": 0,
+      "wall_s": 6.056
+    },
+    {
+      "name": "python",
+      "exit_code": 0,
+      "wall_s": 47.148
+    }
+  ],
+  "clock": {
+    "checks": 73948,
+    "examples": {
+      "one_to_twenty_pending": {
+        "expected_s": 0.4,
+        "observed_s": 0.4
+      }
+    },
+    "failure_count": 0,
+    "failures": [],
+    "scope": "native Main dispatch, not physical convergence or rendered FPS"
+  },
+  "python_summary": "343 passed, 306 subtests passed in 46.22s",
+  "no_godot_residue": true,
+  "backup_branch": "codex/backup-onedrive-main-20261014-153905",
+  "guardrails_passed": true,
+  "evidence_root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\motor_tests_2026-10-14\\onedrive_application",
+  "physical_equivalence_demonstrated": false,
+  "fp_render_measurement_accepted": false
+}

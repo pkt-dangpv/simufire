@@ -4,7 +4,13 @@ La corrección del reloj conserva el tiempo al cambiar de velocidad. La comparac
 
 ## Código y alcance
 
-Pruebas sobre `6633ff78444e8a77c1fcff48f558d04759d07d40`, con cambios locales en la rama `codex/motor-clock-validation`, dentro de `C:\Users\dangp\.codex\worktrees\motor-clock-validation\simufire`. Es una copia de trabajo fuera de OneDrive. La carpeta habitual de OneDrive y los archivos del portátil no se han sustituido durante estas pruebas.
+Pruebas iniciales sobre `6633ff78444e8a77c1fcff48f558d04759d07d40`, en la rama `codex/motor-clock-validation`, dentro de `C:\Users\dangp\.codex\worktrees\motor-clock-validation\simufire`, fuera de OneDrive. Después se aplicó la corrección en la carpeta habitual de OneDrive, como se detalla a continuación. Los archivos del portátil no se han eliminado.
+
+### Aplicación posterior en OneDrive
+
+El usuario pidió aplicar la corrección en su carpeta habitual. Se integraron los siete commits locales de `1c2389c9`, los dieciséis commits pendientes del portátil disponibles en `origin/main` (`6633ff78`) y la corrección probada (`21c4e8d4`). La integración `06061172` se aplicó por avance directo a `main` en `F:\OneDrive\Documentos\GitHub\simufire`, preservando ambos historiales y los archivos locales. El estado anterior queda en `codex/backup-onedrive-main-20261014-153905`. No se ha hecho push al remoto.
+
+Comprobaciones ejecutadas directamente en OneDrive: importación monitorizada sin errores; reloj **73.948/0**; gráficas **26/0**; Python **343 aprobadas y 306 subtests aprobados**; salvaguardas existentes aprobadas. Los bytes de los diez archivos editados de código y pruebas coinciden con los probados inicialmente. No se repitió toda la batería física ni la medición renderizada. Evidencia: `product_clock_onedrive_application_2026-10-14.json`, junto a este informe; registros completos en `onedrive_application/` bajo la ruta de evidencia indicada más abajo.
 
 Equipo: Ryzen 5 5600X, 6 núcleos/12 hilos, RTX 3070, Windows 11 Home, aproximadamente 48 GiB de RAM. Godot 4.7.1 oficial. No se liberó RAM. Los lanzamientos nativos fueron secuenciales mediante el monitor existente, con comprobación de procesos previos, memoria disponible, errores y procesos residuales.
 
@@ -81,4 +87,4 @@ Evidencia: `product.log`, `guardrails.log`, `pytest_complete.log`, `final_checks
 
 La ejecución completa terminó inicialmente con 5.296 aprobados, 52 fallos y 12 errores. Los 63 casos nativos reclamaban la ruta de consola para verificar su sustitución segura por el ejecutable normal; otro caso necesitaba `pypdf`. Se repitieron exactamente los 64 casos: **64/64 aprobados**, sin modificar código ni aserciones. Las dependencias externas incluyen pypdf 6.20.1. La selección y los resultados están en `pytest_retest_selection.json`, `pytest_retest_result.json`, `pytest_retest.xml` y `pytest_retest.log`.
 
-Resumen verificable y SHA-256 de los archivos editados: `product_clock_sobremesa_2026-10-14.json`. Los archivos `.gd.uid` creados por la importación de Godot se conservan como archivos generados, fuera del cambio preparado. Los cambios siguen locales en la copia de pruebas; no se han publicado en Git ni aplicado a la carpeta habitual.
+Resumen verificable y SHA-256 de los archivos editados en las pruebas iniciales: `product_clock_sobremesa_2026-10-14.json`. Los archivos `.gd.uid` creados por la importación de Godot se conservan como archivos generados, fuera del cambio preparado. La corrección está ahora guardada en commits locales y aplicada a `main` de OneDrive; no se ha hecho push al remoto.
