@@ -1,0 +1,31 @@
+{
+  "archive": "uid_sidecars.zip",
+  "sha256": "3b908ee5a89b288d092b89f3f2fc85d09f313adfdf163975392693b829a256f2",
+  "files": 111,
+  "engine_sidecars_kept_generated": [
+    "sim/building/ExperimentalRunAuthorization.gd.uid",
+    "sim/building/OpeningPhysicsProfileCatalog.gd.uid",
+    "sim/building/OpeningProfileSelection.gd.uid",
+    "sim/building/PrescribedOpeningPhysicsSchema.gd.uid",
+    "sim/core/ClosedDoorDeformationNetworkAdapter.gd.uid",
+    "sim/core/ClosedDoorLeakageNetworkAdapter.gd.uid",
+    "sim/core/ExteriorEnvelopeLeakageAdapter.gd.uid",
+    "sim/core/ExteriorPressureProfile.gd.uid",
+    "sim/core/ExteriorWindPressureModel.gd.uid",
+    "sim/core/GlazingFalloutNetworkAdapter.gd.uid",
+    "sim/core/OxygenReferencePartition.gd.uid",
+    "sim/core/Phase3ProjectionTraceRecord.gd.uid",
+    "sim/core/PhysicalGasOxygenParcelModel.gd.uid",
+    "sim/core/RoomOxygenInventory.gd.uid",
+    "sim/core/VerticalShaftFlowModel.gd.uid",
+    "sim/fire/FuelMassBudgetModel.gd.uid",
+    "sim/fire/HeptaneRealCpProfiles.gd.uid",
+    "sim/fire/PrescribedFuelReleaseModel.gd.uid",
+    "sim/fire/PrescribedObjectHrrSource.gd.uid",
+    "sim/fire/PrescribedPhaseBudgetController.gd.uid",
+    "sim/fire/PrescribedRealSensiblePhaseController.gd.uid",
+    "sim/fire/PrescribedSensiblePhaseController.gd.uid",
+    "sim/fire/PrescribedThermalSourceCoupling.gd.uid",
+    "sim/fire/SensibleEnthalpyModel.gd.uid"
+  ]
+}

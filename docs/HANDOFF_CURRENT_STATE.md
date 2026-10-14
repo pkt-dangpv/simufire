@@ -7,7 +7,10 @@ Aplicado en `F:\OneDrive\Documentos\GitHub\simufire`, rama `main`, tras probar
 la corrección en una copia aislada. Integración `06061172`: conserva los siete
 commits locales de `1c2389c9`, los dieciséis commits pendientes de `origin/main`
 `6633ff78` y la corrección del reloj `21c4e8d4`. Punto de recuperación:
-`codex/backup-onedrive-main-20261014-153905`. Sin push remoto.
+`codex/backup-onedrive-main-20261014-153905`. La aplicación inicial se registró
+antes del push solicitado después por el usuario. Los identificadores de Godot
+y las [evidencias portables](validation/evidence/product_clock_sobremesa_2026-10-14/README.md)
+se incorporan al historial para trasladar el trabajo mediante Git.
 En la carpeta OneDrive: importación monitorizada limpia, reloj 73.948/0,
 gráficas 26/0, Python 343 PASS y 306 subtests PASS, guardarraíles PASS;
 código corregido idéntico por SHA-256 al probado inicialmente.

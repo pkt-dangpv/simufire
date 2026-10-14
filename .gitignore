@@ -88,3 +88,30 @@ __pycache__/
 
 # Scratch analysis scripts (hardcoded paths, depend on gitignored artifacts)
 scripts/simulation/parse_o2l_logs.py
+
+# Generated engine UID sidecars archived in docs/validation/evidence/
+# Keep these derived files outside the physics-report freshness inventory.
+/sim/building/ExperimentalRunAuthorization.gd.uid
+/sim/building/OpeningPhysicsProfileCatalog.gd.uid
+/sim/building/OpeningProfileSelection.gd.uid
+/sim/building/PrescribedOpeningPhysicsSchema.gd.uid
+/sim/core/ClosedDoorDeformationNetworkAdapter.gd.uid
+/sim/core/ClosedDoorLeakageNetworkAdapter.gd.uid
+/sim/core/ExteriorEnvelopeLeakageAdapter.gd.uid
+/sim/core/ExteriorPressureProfile.gd.uid
+/sim/core/ExteriorWindPressureModel.gd.uid
+/sim/core/GlazingFalloutNetworkAdapter.gd.uid
+/sim/core/OxygenReferencePartition.gd.uid
+/sim/core/Phase3ProjectionTraceRecord.gd.uid
+/sim/core/PhysicalGasOxygenParcelModel.gd.uid
+/sim/core/RoomOxygenInventory.gd.uid
+/sim/core/VerticalShaftFlowModel.gd.uid
+/sim/fire/FuelMassBudgetModel.gd.uid
+/sim/fire/HeptaneRealCpProfiles.gd.uid
+/sim/fire/PrescribedFuelReleaseModel.gd.uid
+/sim/fire/PrescribedObjectHrrSource.gd.uid
+/sim/fire/PrescribedPhaseBudgetController.gd.uid
+/sim/fire/PrescribedRealSensiblePhaseController.gd.uid
+/sim/fire/PrescribedSensiblePhaseController.gd.uid
+/sim/fire/PrescribedThermalSourceCoupling.gd.uid
+/sim/fire/SensibleEnthalpyModel.gd.uid
