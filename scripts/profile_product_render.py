@@ -62,7 +62,11 @@ def phase_summary(phase, playing):
         result[label] = summary([v * 1000 for v in values]) if any(v > 0 for v in values) else None
     if callbacks:
         result["main_callback"] = summary([s[0] for s in callbacks])
-        result["engine_step"] = summary([s[1] for s in callbacks])
+        # Older saved profiles have three entries and predate this marker.
+        # New profiles explicitly distinguish engine dispatches from view ticks.
+        steps = [s[1] for s in callbacks if len(s) < 4 or s[3]]
+        result["engine_dispatches"] = len(steps)
+        result["engine_step"] = summary(steps) if steps else None
     return result
 
 

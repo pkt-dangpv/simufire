@@ -69,7 +69,10 @@ const VIEW_3D_RUNNING_UPDATE_INTERVAL_S: float = 0.12
 ## avanzando en todos los ticks, como antes.
 const SIM_STEP_S: float = 1.0 / 12.0
 const SIM_STEP_EPSILON_S: float = 1.0e-6
+## Simulated seconds are accumulated at the speed of EACH callback. A later
+## speed change must never rescale time which has already elapsed.
 var _sim_step_accum_s: float = 0.0
+var _sim_step_accum_real_s: float = 0.0
 var _view_state_stale: bool = false
 var _view_3d_state_stale: bool = false
 ## Estado exportado tras el último paso del motor; vale hasta el siguiente.
@@ -176,23 +179,27 @@ func _physics_process(delta: float) -> void:
 		return
 	_view_update_accum_s += delta
 	_view_3d_update_accum_s += delta
-	_sim_step_accum_s += delta
+	_sim_step_accum_s += delta * engine.time_scale
+	_sim_step_accum_real_s += delta
 	if not _is_sim_step_due(0.0):
 		# Tick sin paso del motor: aquí se refrescan las vistas del último paso.
 		_ticks_since_sim_step += 1
 		_sim_step_due_next_tick = _is_sim_step_due(delta)
 		_update_views_for_frame()
 		return
-	var step_delta: float = _sim_step_accum_s
+	var step_delta: float = _sim_step_accum_s / engine.time_scale \
+		if engine.time_scale > 0.0 else delta
+	var elapsed_real_s: float = _sim_step_accum_real_s
 	_sim_step_accum_s = 0.0
+	_sim_step_accum_real_s = 0.0
 	engine.step(step_delta)
 	_view_state_stale = true
 	_view_3d_state_stale = true
 	_running_view_state = {}
 	_ticks_since_sim_step = 0
-	_sample_live_charts(step_delta)
+	_sample_live_charts(elapsed_real_s)
 	# Solo si el motor avanza en todos los ticks no queda uno libre para las vistas.
-	if step_delta <= delta:
+	if elapsed_real_s <= delta:
 		_sim_step_due_next_tick = true
 		_update_views_for_frame()
 
@@ -202,7 +209,7 @@ func _is_sim_step_due(ahead_s: float) -> bool:
 	# Con paso fijo cada llamada avanza lo mismo: acumular cambiaría el reloj.
 	if engine.sim_fixed_dt > 0.0:
 		return true
-	return (_sim_step_accum_s + ahead_s) * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S
+	return _sim_step_accum_s + ahead_s * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S
 
 
 ## Crea el overlay de gráficas en vivo (recuadro translúcido, abajo a la

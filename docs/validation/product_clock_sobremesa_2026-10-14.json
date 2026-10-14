@@ -1,0 +1,855 @@
+{
+  "date": "2026-10-14",
+  "machine": {
+    "captured_at": "2026-10-14T14:56:24.7809895+02:00",
+    "computer": "SOBREMESA",
+    "processor": {
+      "Name": "AMD Ryzen 5 5600X 6-Core Processor             ",
+      "NumberOfCores": 6,
+      "NumberOfLogicalProcessors": 12
+    },
+    "graphics": {
+      "Name": "NVIDIA GeForce RTX 3070",
+      "DriverVersion": "32.0.16.1714"
+    },
+    "memory": {
+      "Caption": "Microsoft Windows 11 Home",
+      "TotalVisibleMemorySize": 50255744,
+      "FreePhysicalMemory": 29807168
+    }
+  },
+  "worktree": "C:\\Users\\dangp\\.codex\\worktrees\\motor-clock-validation\\simufire",
+  "branch": "codex/motor-clock-validation",
+  "base_commit": "6633ff78444e8a77c1fcff48f558d04759d07d40",
+  "evidence_root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\motor_tests_2026-10-14",
+  "ram_manually_freed": false,
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "packages": {
+    "pytest": "9.1.1",
+    "jsonschema": "4.26.0",
+    "pandas": "3.0.6",
+    "numpy": "2.5.4",
+    "pypdf": "6.20.1"
+  },
+  "clock_checks": 73948,
+  "clock_failures": 0,
+  "mutations": {
+    "clock_mutations": {
+      "declared": 5,
+      "executed": 5,
+      "killed_where_expected": 5,
+      "originals_intact": true
+    },
+    "fp_chart_mutations": {
+      "declared": 5,
+      "executed": 5,
+      "killed_where_expected": 5,
+      "originals_intact": true
+    }
+  },
+  "product_tests_passed": 168,
+  "existing_reference_guardrails": "346/346; existing reports, not fresh official physical runs",
+  "pytest": {
+    "collected": 5464,
+    "passed_across_full_run_and_retest": 5360,
+    "skipped": 102,
+    "xfailed": 2,
+    "original_environment_failures": 52,
+    "original_environment_errors": 12,
+    "retested": 64,
+    "retest_passed": 64,
+    "note": "Two passes: complete run then all 64 environment-affected node IDs, unchanged source; not a single all-green run."
+  },
+  "physical_sources_unchanged_raw_bytes": true,
+  "physical_source_inventory_sha256": "fd87d484f9f1ffe96f63f1f15ca97f93210780f55811d991830d3160d359a9e1",
+  "step_screen": {
+    "reference_deterministic": {
+      "open": true,
+      "close_reopen": true
+    },
+    "comparisons": {
+      "open": {
+        "step12": {
+          "checked": 11880,
+          "failed": 1957,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 1.5428338986816919,
+              "difference": 44.12025699039009,
+              "reference": 1179.84468477422,
+              "candidate": 1223.96494176461,
+              "room": "0",
+              "time_s": 170.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 13.093563194998291,
+              "difference": 98.78389138180098,
+              "reference": 127.223105394016,
+              "candidate": 226.006996775817,
+              "room": "1",
+              "time_s": 161.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 0.998656930987946,
+              "difference": 5.621554719911998,
+              "reference": 31.4557504923506,
+              "candidate": 25.8341957724386,
+              "room": "1",
+              "time_s": 113.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 24.23381000943585,
+              "difference": 0.06631391459931599,
+              "reference": 0.0147284265854156,
+              "candidate": 0.0810423411847316,
+              "room": "3",
+              "time_s": 169.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 18.41687001557817,
+              "difference": 4653.28057627666,
+              "reference": 4653.28057627666,
+              "candidate": 0.0,
+              "room": "3",
+              "time_s": 166.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 3.03452711761535,
+              "difference": 0.0060690542352307,
+              "reference": 0.0103582006990207,
+              "candidate": 0.00428914646379,
+              "room": "0",
+              "time_s": 127.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 1.5599070949330052,
+              "difference": 0.0031198141898660103,
+              "reference": 0.200705622151351,
+              "candidate": 0.203825436341217,
+              "room": "0",
+              "time_s": 135.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 4.452134336020931,
+              "difference": 0.4003239665026401,
+              "reference": 1.99586576109951,
+              "candidate": 2.39618972760215,
+              "room": "4",
+              "time_s": 160.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 2.9717755947292033,
+              "difference": 479.3642777210098,
+              "reference": 1226.1135636972,
+              "candidate": 1705.47784141821,
+              "room": "0",
+              "time_s": 135.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 1.1956670347409721,
+              "difference": 136.16657567905798,
+              "reference": 277.667138469816,
+              "candidate": 141.500562790758,
+              "room": "1",
+              "time_s": 112.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 1.1897394612580157,
+              "difference": 1967.4325721058995,
+              "reference": 80183.3368217257,
+              "candidate": 82150.7693938316,
+              "room": "0",
+              "time_s": 180.0
+            }
+          }
+        },
+        "step30": {
+          "checked": 11880,
+          "failed": 755,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 0.10513307850158891,
+              "difference": 3.2390443220799625,
+              "reference": 1290.44967019158,
+              "candidate": 1293.68871451366,
+              "room": "0",
+              "time_s": 180.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 7.677894370926044,
+              "difference": 42.800021801321705,
+              "reference": 28.7223927135085,
+              "candidate": 71.5224145148302,
+              "room": "4",
+              "time_s": 149.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 0.25872628889594185,
+              "difference": 1.4460231587595018,
+              "reference": 29.4503730042454,
+              "candidate": 30.8963961630049,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 4.5690880357919665,
+              "difference": 0.014924209474551298,
+              "reference": 0.0253268632936921,
+              "candidate": 0.0402510727682434,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 32.92574704193995,
+              "difference": 1451.900826639126,
+              "reference": 481.924303670154,
+              "candidate": 1933.82513030928,
+              "room": "2",
+              "time_s": 150.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 0.13021653185650572,
+              "difference": 0.00026043306371301145,
+              "reference": 0.107430685955073,
+              "candidate": 0.10717025289136,
+              "room": "0",
+              "time_s": 108.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 0.2231030332930095,
+              "difference": 0.000446206066586019,
+              "reference": 0.191735799754456,
+              "candidate": 0.19128959368787,
+              "room": "0",
+              "time_s": 180.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 2.817336030450741,
+              "difference": 0.2608441859924904,
+              "reference": 2.1292700475413,
+              "candidate": 2.39011423353379,
+              "room": "3",
+              "time_s": 149.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 0.23181395474835215,
+              "difference": 23.4532348307228,
+              "reference": 23.4532348307228,
+              "candidate": 0.0,
+              "room": "4",
+              "time_s": 147.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 0.30607625004216304,
+              "difference": 34.135931147712,
+              "reference": 230.550795300822,
+              "candidate": 264.686726448534,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 0.07096771824590174,
+              "difference": 117.35695502390445,
+              "reference": 80183.3368217257,
+              "candidate": 80300.6937767496,
+              "room": "0",
+              "time_s": 180.0
+            }
+          }
+        },
+        "step40": {
+          "checked": 11880,
+          "failed": 599,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 0.06287754202768131,
+              "difference": 1.937193777579978,
+              "reference": 1290.44967019158,
+              "candidate": 1292.38686396916,
+              "room": "0",
+              "time_s": 180.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 5.097268079640981,
+              "difference": 27.8022050998356,
+              "reference": 22.7167245811585,
+              "candidate": 50.5189296809941,
+              "room": "4",
+              "time_s": 137.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 0.23429309475285745,
+              "difference": 1.3094658544201003,
+              "reference": 29.4503730042454,
+              "candidate": 30.7598388586655,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 3.386885594662497,
+              "difference": 0.011062730611694601,
+              "reference": 0.0253268632936921,
+              "candidate": 0.0363895939053867,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 15.266832392314258,
+              "difference": 637.8721857444721,
+              "reference": 435.631346900218,
+              "candidate": 1073.50353264469,
+              "room": "4",
+              "time_s": 150.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 0.20132266016252975,
+              "difference": 0.00040264532032505953,
+              "reference": 0.00369496445722505,
+              "candidate": 0.00409760977755011,
+              "room": "0",
+              "time_s": 128.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 0.16347595636349854,
+              "difference": 0.0003269519127269971,
+              "reference": 0.191735799754456,
+              "candidate": 0.191408847841729,
+              "room": "0",
+              "time_s": 180.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 1.7388884069463793,
+              "difference": 0.15828156336264998,
+              "reference": 2.05122832294352,
+              "candidate": 2.20950988630617,
+              "room": "3",
+              "time_s": 151.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 0.17422556306703435,
+              "difference": 51.83130263082012,
+              "reference": 3949.907891631,
+              "candidate": 4001.73919426182,
+              "room": "0",
+              "time_s": 175.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 0.27617747484791094,
+              "difference": 30.80139430830903,
+              "reference": 230.550795300822,
+              "candidate": 261.352189609131,
+              "room": "1",
+              "time_s": 168.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 0.03229734327084375,
+              "difference": 53.409042242201394,
+              "reference": 80183.3368217257,
+              "candidate": 80236.7458639679,
+              "room": "0",
+              "time_s": 180.0
+            }
+          }
+        }
+      },
+      "close_reopen": {
+        "step12": {
+          "checked": 11880,
+          "failed": 782,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 0.4798907384979179,
+              "difference": 10.172637039291999,
+              "reference": 809.890952587756,
+              "candidate": 799.718315548464,
+              "room": "0",
+              "time_s": 141.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 52.69773767479957,
+              "difference": 284.6563040580767,
+              "reference": 20.0839890079393,
+              "candidate": 304.740293066016,
+              "room": "1",
+              "time_s": 100.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 1.3525947005835361,
+              "difference": 7.419685990059001,
+              "reference": 24.276026176134,
+              "candidate": 31.695712166193,
+              "room": "1",
+              "time_s": 152.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 39.15832821916206,
+              "difference": 0.1885756203396395,
+              "reference": 0.0563144388004595,
+              "candidate": 0.244890059140099,
+              "room": "1",
+              "time_s": 166.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 172.820776924725,
+              "difference": 3456.4155384945,
+              "reference": 0.0,
+              "candidate": 3456.4155384945,
+              "room": "1",
+              "time_s": 141.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 3.7262859717700074,
+              "difference": 0.007452571943540015,
+              "reference": 0.200043428995523,
+              "candidate": 0.207496000939063,
+              "room": "1",
+              "time_s": 172.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 3.3111556325945006,
+              "difference": 0.0066223112651890015,
+              "reference": 0.202314920718381,
+              "candidate": 0.20893723198357,
+              "room": "1",
+              "time_s": 167.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 3.4124307300111822,
+              "difference": 0.33007585400893014,
+              "reference": 2.33637442228532,
+              "candidate": 2.00629856827639,
+              "room": "5",
+              "time_s": 165.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 1.9203253661748467,
+              "difference": 349.3840136998899,
+              "reference": 1638.80017265864,
+              "candidate": 1289.41615895875,
+              "room": "0",
+              "time_s": 142.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 1.6577359186739076,
+              "difference": 172.21995232879212,
+              "reference": 77.7730685422809,
+              "candidate": 249.993020871073,
+              "room": "1",
+              "time_s": 150.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 0.31687704836025693,
+              "difference": 489.6805203976983,
+              "reference": 74766.6437868642,
+              "candidate": 74276.9632664665,
+              "room": "0",
+              "time_s": 180.0
+            }
+          }
+        },
+        "step30": {
+          "checked": 11880,
+          "failed": 851,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 0.2627373146266209,
+              "difference": 6.377718189241932,
+              "reference": 963.706206578495,
+              "candidate": 957.328488389253,
+              "room": "0",
+              "time_s": 157.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 59.63728892947657,
+              "difference": 322.1691631398244,
+              "reference": 20.1071501764626,
+              "candidate": 342.276313316287,
+              "room": "1",
+              "time_s": 97.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 1.4386355959577053,
+              "difference": 7.871907370536,
+              "reference": 23.5893437036653,
+              "candidate": 31.4612510742013,
+              "room": "1",
+              "time_s": 151.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 47.038689020427285,
+              "difference": 0.2608643049660287,
+              "reference": 0.0709147854238643,
+              "candidate": 0.331779090389893,
+              "room": "1",
+              "time_s": 164.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 163.7184413701445,
+              "difference": 3274.36882740289,
+              "reference": 0.0,
+              "candidate": 3274.36882740289,
+              "room": "1",
+              "time_s": 141.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 3.5087138520459997,
+              "difference": 0.007017427704092,
+              "reference": 0.200043428995523,
+              "candidate": 0.207060856699615,
+              "room": "1",
+              "time_s": 172.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 3.261493998751502,
+              "difference": 0.006522987997503005,
+              "reference": 0.202314920718381,
+              "candidate": 0.208837908715884,
+              "room": "1",
+              "time_s": 167.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 3.7023719274503177,
+              "difference": 0.3599218600576002,
+              "reference": 2.36069291673601,
+              "candidate": 2.00077105667841,
+              "room": "3",
+              "time_s": 162.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 1.94925400716926,
+              "difference": 194.925400716926,
+              "reference": 0.0,
+              "candidate": 194.925400716926,
+              "room": "1",
+              "time_s": 141.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 1.7795443349617235,
+              "difference": 183.5817375274313,
+              "reference": 63.2443251983377,
+              "candidate": 246.826062725769,
+              "room": "1",
+              "time_s": 149.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 0.1592367149311528,
+              "difference": 220.0077024226921,
+              "reference": 66581.9647082691,
+              "candidate": 66361.9570058464,
+              "room": "0",
+              "time_s": 173.0
+            }
+          }
+        },
+        "step40": {
+          "checked": 11880,
+          "failed": 846,
+          "passed": false,
+          "worst": {
+            "hrr_kw": {
+              "tolerance_ratio": 0.22104927664021737,
+              "difference": 5.412800180475983,
+              "reference": 974.342432317914,
+              "candidate": 968.929632137438,
+              "room": "0",
+              "time_s": 158.0
+            },
+            "temp_upper_c": {
+              "tolerance_ratio": 55.62572113635492,
+              "difference": 300.71964753870105,
+              "reference": 20.3062912223189,
+              "candidate": 321.02593876102,
+              "room": "1",
+              "time_s": 96.0
+            },
+            "temp_lower_c": {
+              "tolerance_ratio": 1.455508039072759,
+              "difference": 7.9642297833065,
+              "reference": 23.5893437036653,
+              "candidate": 31.5535734869718,
+              "room": "1",
+              "time_s": 151.0
+            },
+            "smoke_kg": {
+              "tolerance_ratio": 48.099582099350584,
+              "difference": 0.2667477413763507,
+              "reference": 0.0709147854238643,
+              "candidate": 0.337662526800215,
+              "room": "1",
+              "time_s": 164.0
+            },
+            "co_upper_ppm": {
+              "tolerance_ratio": 161.30692900943,
+              "difference": 3226.1385801886,
+              "reference": 0.0,
+              "candidate": 3226.1385801886,
+              "room": "1",
+              "time_s": 141.0
+            },
+            "o2_upper": {
+              "tolerance_ratio": 3.5083600565185002,
+              "difference": 0.0070167201130370005,
+              "reference": 0.200043428995523,
+              "candidate": 0.20706014910856,
+              "room": "1",
+              "time_s": 172.0
+            },
+            "o2_lower": {
+              "tolerance_ratio": 3.2568818964850004,
+              "difference": 0.006513763792970001,
+              "reference": 0.202314920718381,
+              "candidate": 0.208828684511351,
+              "room": "1",
+              "time_s": 167.0
+            },
+            "smoke_layer_m": {
+              "tolerance_ratio": 3.714936217212733,
+              "difference": 0.36114328314264,
+              "reference": 2.36069291673601,
+              "candidate": 1.99954963359337,
+              "room": "3",
+              "time_s": 162.0
+            },
+            "upper_energy_kj": {
+              "tolerance_ratio": 1.9647430490697,
+              "difference": 196.47430490697,
+              "reference": 0.0,
+              "candidate": 196.47430490697,
+              "room": "1",
+              "time_s": 141.0
+            },
+            "lower_energy_kj": {
+              "tolerance_ratio": 1.799769906049689,
+              "difference": 185.66825226598831,
+              "reference": 63.2443251983377,
+              "candidate": 248.912577464326,
+              "room": "1",
+              "time_s": 149.0
+            },
+            "released_heat_kj": {
+              "tolerance_ratio": 0.12811356130961113,
+              "difference": 174.11749616789893,
+              "reference": 65454.3579883438,
+              "candidate": 65280.2404921759,
+              "room": "0",
+              "time_s": 172.0
+            }
+          }
+        }
+      }
+    },
+    "numerical_equivalence_demonstrated": false,
+    "official_physical_acceptance": false
+  },
+  "render_3d": {
+    "state": "passed",
+    "summaries": {
+      "paused_after": {
+        "frames": 4914,
+        "mean_fps": 614.7024978762491,
+        "frame_interval": {
+          "calls": 4914,
+          "median_ms": 1.561,
+          "p95_ms": 2.113,
+          "max_ms": 3.422,
+          "mean_ms": 1.6268032153032153
+        },
+        "main_cpu_per_frame": {
+          "calls": 4914,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "physics_steps_per_frame_max": 0,
+        "draw_calls_median": 435.0,
+        "wall_s": 8.00049,
+        "simulated_s": 0.0,
+        "cache_hits_delta": 6,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 4914,
+          "median_ms": 0.009,
+          "p95_ms": 0.013,
+          "max_ms": 0.052,
+          "mean_ms": 0.010086691086691087
+        },
+        "render_cpu_ms": {
+          "calls": 4914,
+          "median_ms": 1.31099998950958,
+          "p95_ms": 1.77300000190735,
+          "max_ms": 2.97399997711182,
+          "mean_ms": 1.3679485147349661
+        },
+        "render_gpu_ms": {
+          "calls": 4914,
+          "median_ms": 0.820999979972839,
+          "p95_ms": 1.12399995326996,
+          "max_ms": 1.84899997711182,
+          "mean_ms": 0.8556707369320559
+        },
+        "render_setup_ms": {
+          "calls": 4914,
+          "median_ms": 0.007,
+          "p95_ms": 0.01,
+          "max_ms": 0.027,
+          "mean_ms": 0.007585470085470085
+        }
+      },
+      "paused_before": {
+        "frames": 5071,
+        "mean_fps": 633.8944130163986,
+        "frame_interval": {
+          "calls": 5071,
+          "median_ms": 1.446,
+          "p95_ms": 2.478,
+          "max_ms": 3.464,
+          "mean_ms": 1.5775497929402484
+        },
+        "main_cpu_per_frame": {
+          "calls": 5071,
+          "median_ms": 0.0,
+          "p95_ms": 0.0,
+          "max_ms": 0.0,
+          "mean_ms": 0.0
+        },
+        "physics_steps_per_frame_max": 0,
+        "draw_calls_median": 386.0,
+        "wall_s": 8.001116,
+        "simulated_s": 0.0,
+        "cache_hits_delta": 0,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 5071,
+          "median_ms": 0.01,
+          "p95_ms": 0.015,
+          "max_ms": 0.077,
+          "mean_ms": 0.010842240189311774
+        },
+        "render_cpu_ms": {
+          "calls": 5071,
+          "median_ms": 1.20799994468689,
+          "p95_ms": 2.16199994087219,
+          "max_ms": 2.91000008583069,
+          "mean_ms": 1.3363291268469994
+        },
+        "render_gpu_ms": {
+          "calls": 5071,
+          "median_ms": 0.758000016212463,
+          "p95_ms": 1.33399999141693,
+          "max_ms": 2.01900005340576,
+          "mean_ms": 0.8286278843585849
+        },
+        "render_setup_ms": {
+          "calls": 5071,
+          "median_ms": 0.004,
+          "p95_ms": 0.005,
+          "max_ms": 0.025,
+          "mean_ms": 0.00388897653322816
+        }
+      },
+      "playing": {
+        "frames": 4031,
+        "mean_fps": 504.22392295468467,
+        "frame_interval": {
+          "calls": 4031,
+          "median_ms": 1.497,
+          "p95_ms": 3.017,
+          "max_ms": 229.945,
+          "mean_ms": 1.9832458447035477
+        },
+        "main_cpu_per_frame": {
+          "calls": 4031,
+          "median_ms": 0.0,
+          "p95_ms": 0.011,
+          "max_ms": 14.124,
+          "mean_ms": 0.2566606301165964
+        },
+        "physics_steps_per_frame_max": 8,
+        "draw_calls_median": 414.0,
+        "wall_s": 8.000854,
+        "simulated_s": 7.91666666666666,
+        "cache_hits_delta": 852,
+        "cache_misses_delta": 0,
+        "diagnostic_cpu_per_frame": {
+          "calls": 4031,
+          "median_ms": 0.01,
+          "p95_ms": 0.015,
+          "max_ms": 0.056,
+          "mean_ms": 0.010698089804018854
+        },
+        "render_cpu_ms": {
+          "calls": 4031,
+          "median_ms": 1.27400004863739,
+          "p95_ms": 1.92299997806549,
+          "max_ms": 217.283996582031,
+          "mean_ms": 1.3991406586116373
+        },
+        "render_gpu_ms": {
+          "calls": 4031,
+          "median_ms": 0.820999979972839,
+          "p95_ms": 1.20899999141693,
+          "max_ms": 1.78699994087219,
+          "mean_ms": 0.8524725874698774
+        },
+        "render_setup_ms": {
+          "calls": 4031,
+          "median_ms": 0.004,
+          "p95_ms": 0.007,
+          "max_ms": 0.728,
+          "mean_ms": 0.00838948151823369
+        },
+        "main_callback": {
+          "calls": 476,
+          "median_ms": 0.009,
+          "p95_ms": 7.868,
+          "max_ms": 14.124,
+          "mean_ms": 2.17352731092437
+        },
+        "engine_dispatches": 95,
+        "engine_step": {
+          "calls": 95,
+          "median_ms": 4.332,
+          "p95_ms": 6.726,
+          "max_ms": 8.108,
+          "mean_ms": 4.634673684210527
+        }
+      }
+    },
+    "display": {
+      "display_server": "Windows",
+      "rendering_method": "gl_compatibility",
+      "adapter": "NVIDIA GeForce RTX 3070",
+      "window_size": [
+        1280,
+        720
+      ],
+      "vsync_mode": 1,
+      "max_fps": 0
+    }
+  },
+  "render_fp": {
+    "accepted": false,
+    "attempts": 2,
+    "reason": "Two GLES texture leak errors at teardown in both attempts; no accepted FPS claim."
+  },
+  "cleanup_smoke_passed": true,
+  "ready_to_promote_coarse_physical_step": false,
+  "authored_sources_sha256_raw": {
+    "Main.gd": "2d76b5b8e0ac3c7c92c39760104d3b2df3a05cebeeb72c24db315331331827b1",
+    "scripts/verify_product_dispatch.py": "b15ad7ca1fc1b6b126d9255cdf4cf61fd6595b9983800260306e05d9cf0f1d29",
+    "scripts/verify_product_step_convergence.py": "f04893b30964cb1905e686c44fe02647b84135d359c3be2e054111d99d97ef72",
+    "scripts/profile_product_render.py": "0e1667bea3bd22e557f8a363fbc32456909b1803738a46a644a9a8307b8e6a30",
+    "tests/fixtures/product_dispatch_contract.gd": "e49260a0c3d90c76f624263092c603763d057c9fb6862c13a72ca75913827ffa",
+    "tests/fixtures/product_step_convergence.gd": "7fc97cdd19489c2fa915ef46b428575590a97663eef8962888aa9312bfa9c3a0",
+    "tests/fixtures/product_render_profile.gd": "a964f4aefffb5d0a1b25f3b5c5342cd539f5659d90b137acc4f73b0865e6915c",
+    "tests/test_fp_live_charts.py": "7173e61a401f17a45a8c7bf84787beb90c37776d01b28012db611710b310a27b",
+    "tests/test_product_render_profile.py": "ca1d81b6c2b457cf63f009531339492ec0a211f3601fbcfae0a1c2631cf1ebff",
+    "tests/test_product_step_convergence.py": "85f2b5e52c0f38378159fb23e943dad8828c78a7eb7d5c37e877e5a2905f3b47"
+  }
+}

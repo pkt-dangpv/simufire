@@ -19,10 +19,15 @@ class PhysicsProbe extends Node:
 		if not active:
 			return
 		var started: int = Time.get_ticks_usec()
+		var before_sim_s: float = main.engine.sim_time_s
 		# Call the actual Main callback once, never a second engine step.
 		main._physics_process(delta)
 		var elapsed: int = Time.get_ticks_usec() - started
-		samples.append([elapsed, int(main.engine.get("_step_time_us")), delta])
+		var advanced: bool = main.engine.sim_time_s > before_sim_s
+		var step_us: int = int(main.engine.get("_step_time_us")) if advanced else 0
+		# The engine retains its last cost between dispatches. Do not count that
+		# stale value as another engine execution on a view-only callback.
+		samples.append([elapsed, step_us, delta, advanced])
 		frame_main_us += elapsed
 		frame_steps += 1
 

@@ -47,15 +47,18 @@ def test_main_simulation_dispatch_steps_once_per_reference_step():
     assert text.startswith(
         "delta: float) -> void:\n"
         "\tif playback_paused or engine == null:\n\t\treturn\n")
-    # One engine dispatch with the accumulated time; charts sample that same time.
+    # Engine receives accumulated simulated time divided by the current speed;
+    # charts retain the actual elapsed wall time across speed changes.
     assert text.count("engine.step(") == 1
     assert "\tengine.step(step_delta)\n" in text
-    assert "\t_sample_live_charts(step_delta)\n" in text
+    assert "\t_sample_live_charts(elapsed_real_s)\n" in text
+    assert "_sim_step_accum_s += delta * engine.time_scale" in text
+    assert "_sim_step_accum_real_s += delta" in text
     main = (ROOT / "Main.gd").read_text(encoding="utf-8")
     assert "const SIM_STEP_S: float = 1.0 / 12.0\n" in main
     due = body("_is_sim_step_due")
     assert "if engine.sim_fixed_dt > 0.0:\n\t\treturn true" in due
-    assert "(_sim_step_accum_s + ahead_s) * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S" in due
+    assert "_sim_step_accum_s + ahead_s * engine.time_scale >= SIM_STEP_S - SIM_STEP_EPSILON_S" in due
 
 
 def test_native_control_uses_real_chart_and_inherited_dispatch_not_physics_evidence():

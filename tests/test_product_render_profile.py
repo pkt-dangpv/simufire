@@ -31,6 +31,19 @@ def test_real_frame_interval_units_and_physics_clock():
     assert data == original
 
 
+def test_view_only_callbacks_do_not_repeat_the_last_engine_cost():
+    data = phase(True)
+    for index, sample in enumerate(data["physics_callbacks"]):
+        sample.append(index % 5 == 4)
+        if not sample[3]:
+            sample[1] = 0
+    result = phase_summary(data, True)
+    assert result["engine_dispatches"] == 96
+    assert result["engine_step"]["calls"] == 96
+    assert result["engine_step"]["mean_ms"] == 4
+    assert result["main_callback"]["calls"] == 480
+
+
 @pytest.mark.parametrize("defect", ["minimized", "hidden", "no_draw", "short", "clock", "zero_interval"])
 def test_non_rendered_or_inconsistent_phases_are_rejected(defect):
     data = phase()
