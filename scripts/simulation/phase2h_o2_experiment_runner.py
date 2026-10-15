@@ -28,10 +28,12 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES_DIR = ROOT / "sim" / "validation" / "cases"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 
-GODOT_CANDIDATES = [
-    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
-    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
-]
+_tool_repo_root = Path(__file__).resolve().parents[2]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+GODOT_CANDIDATES = godot_candidates()
 
 O2_TARGETS = [
     ("cfast_r0_window_360", 0, 350.0, "cfast_t350_o2_lower", 0.204932, 0.015),

@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-14",
+  "base_commit": "ae72e5ce6e9216f9fb324feaccaa0b10efd221b5",
+  "external_backup_files_verified": 57,
+  "ignored_copies_archived_and_verified": 560,
+  "ignored_copies_original_bytes": 22042582,
+  "evidence_files_verified": 1800,
+  "original_evidence_sources_unchanged": 1799,
+  "original_auxiliary_preserved_in_zip_and_portable_source_prepared": true,
+  "untracked_source_copies_remaining": [],
+  "tracked_deletions": [],
+  "permanent_deletion": false,
+  "pytest": {
+    "passed": 78,
+    "subtests_passed": 25
+  },
+  "powershell": {
+    "SourceRoot": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+    "RelocatedRoot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\portable_powershell_C",
+    "Scripts": [
+      {
+        "Script": "run_ghanekar_micro_calibration.ps1",
+        "RepoRoot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\portable_powershell_C",
+        "ExplicitGodot": true
+      },
+      {
+        "Script": "run_ghanekar_sweep.ps1",
+        "RepoRoot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\portable_powershell_C",
+        "ExplicitGodot": true
+      }
+    ],
+    "EnvironmentOverride": true,
+    "InvalidExplicitPathRejected": true,
+    "AllPassed": true
+  },
+  "native_C": {
+    "checkout": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\portable_checkout_C",
+    "copied_files": 2335,
+    "root_detection": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\portable_checkout_C",
+    "godot": "F:\\OneDrive\\Escritorio\\Godot_v4.7.1-stable_win64_console.exe",
+    "import_returncode": 0,
+    "import_faults": [],
+    "import_preexisting": [],
+    "run_returncode": 0,
+    "pass_token": true
+  },
+  "native_F_pass": true,
+  "existing_reference_guardrails": "346/346 required PASS; all guardrails pass; no fresh full scientific validation",
+  "commit_created": false,
+  "pushed": false
+}

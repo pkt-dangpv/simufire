@@ -1,0 +1,37 @@
+[
+  {
+    "original": "sim/validation/cases/cfast_hvac_o2l_g000.json",
+    "prepared": "cases/cfast_hvac_o2l_g000.json",
+    "sha256": "0bf71813e40b828f8ca98243d4a293dfb384f862b4cfffe77a6636e37b78fb54"
+  },
+  {
+    "original": "sim/validation/cases/cfast_hvac_o2l_g100.json",
+    "prepared": "cases/cfast_hvac_o2l_g100.json",
+    "sha256": "8d478f80de03773b650b0d83044c647409d92a06993b3383703b2d9c7104c737"
+  },
+  {
+    "original": "sim/validation/cases/tmp_d2_sensitivity_engine_defaults.json",
+    "prepared": "cases/d2_sensitivity_engine_defaults.json",
+    "sha256": "6cdcdb0f5c471dea81f7aacdc9d3a67133955f35c275bb0c803af8e51136975c"
+  },
+  {
+    "original": "sim/validation/cases/tmp_v1_backdraft_accumulation_m4.json",
+    "prepared": "cases/v1_backdraft_accumulation_m4.json",
+    "sha256": "e34907e4218e7bffe221d4849e3843223194a01e83f20112e6b2aa51b80c15df"
+  },
+  {
+    "original": "sim/validation/cases/tmp_v1_backdraft_accumulation_m4_thr035.json",
+    "prepared": "cases/v1_backdraft_accumulation_m4_thr035.json",
+    "sha256": "d1ab9957f98708e4117bcc4d5eec8c0e9888a060e25a1e6c4f4ba87787a084ca"
+  },
+  {
+    "original": "sim/validation/cases/tmp_v1_backdraft_accumulation_m4_thr040.json",
+    "prepared": "cases/v1_backdraft_accumulation_m4_thr040.json",
+    "sha256": "5122835f815f2ff572a58dcf6f83c4cd9999ff91f1f744481d4f393de6d9822b"
+  },
+  {
+    "original": "sim/validation/cases/tmp_v8_suppression_reburn.json",
+    "prepared": "cases/v8_suppression_reburn.json",
+    "sha256": "69f2042143484bf23749272247c04dfcdc48214abaca3da4e529f65bcc4a9d3f"
+  }
+]

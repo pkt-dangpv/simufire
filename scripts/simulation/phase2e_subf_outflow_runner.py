@@ -24,10 +24,13 @@ ROOT = Path(__file__).resolve().parents[2]
 CASES_DIR = ROOT / "sim" / "validation" / "cases"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 
-GODOT_CANDIDATES = [
-    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
-    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
-]
+import sys
+_tool_repo_root = Path(__file__).resolve().parents[2]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+GODOT_CANDIDATES = godot_candidates()
 
 BASE_CASE = "cfast_post_flashover_vented"
 

@@ -44,10 +44,12 @@ TEMP_INFO = [
     ("cfast_slow_t300_temp_upper_c",  154.20, 60.0),
 ]
 
-_GODOT_CANDIDATES = [
-    "C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe",
-    "F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe",
-]
+_tool_repo_root = Path(__file__).resolve().parents[1]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+_GODOT_CANDIDATES = godot_candidates()
 
 
 def find_godot(requested=None):

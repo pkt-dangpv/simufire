@@ -1,10 +1,12 @@
 ﻿param(
-    [string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe",
+    [string]$GodotExe = "",
     [string]$ProjectPath = "",
     [int]$TimeoutSeconds = 300,
     [string[]]$Cases = @()
 )
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\..\scripts\project_paths.ps1")
+$GodotExe = Resolve-SimuFireGodot -RequestedPath $GodotExe
 if (-not $ProjectPath) {
     $ProjectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {

@@ -22,10 +22,12 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts import godot_monitored_launch  # noqa: E402
 
-_GODOT_CANDIDATES = [
-    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
-    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
-]
+_tool_repo_root = Path(__file__).resolve().parents[1]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+_GODOT_CANDIDATES = godot_candidates()
 _RUNNER_SCENE = "res://tools/run_scenario_headless.tscn"
 _FATAL_GODOT_PATTERNS = (
     "SCRIPT ERROR:",

@@ -23,7 +23,12 @@ import sys
 from pathlib import Path
 
 WORKSPACE = Path(__file__).resolve().parents[1]
-GODOT_EXE = r"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe"
+_tool_repo_root = Path(__file__).resolve().parents[1]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import find_godot
+
+GODOT_EXE = str(find_godot() or "godot")
 CASE_JSON = WORKSPACE / "sim/validation/cases/cfast_hvac_residential.json"
 LOG_FILE  = WORKSPACE / "sim/validation/reports/cfast_hvac_residential.log"
 CFAST_REF = {

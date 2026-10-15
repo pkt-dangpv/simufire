@@ -2,6 +2,11 @@
 
 Estos son los comandos de entrada soportados para desarrollar, validar y ejecutar SimuFire. Los scripts exploratorios deben vivir fuera de esta lista hasta que se documenten y estabilicen.
 
+La letra de unidad del checkout puede cambiar entre equipos. Consulta
+[la configuración local de herramientas](LOCAL_WORKSPACE.md) para seleccionar
+Godot sin editar rutas de usuario en los scripts. Los argumentos explícitos y
+`GODOT_EXE` permiten seleccionar la instalación de cada máquina.
+
 ## Producto y Editor
 
 ```powershell

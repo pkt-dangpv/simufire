@@ -32,10 +32,12 @@ T600_EXP = 168.796
 T180_TOL = 15.0
 T600_TOL = 30.0
 
-_GODOT_CANDIDATES = [
-    "C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe",
-    "F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe",
-]
+_tool_repo_root = Path(__file__).resolve().parents[1]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+_GODOT_CANDIDATES = godot_candidates()
 
 
 def find_godot(requested=None):

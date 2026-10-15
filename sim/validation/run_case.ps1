@@ -24,30 +24,10 @@ if (-not $ProjectPath) {
 	$ProjectPath = (Resolve-Path $ProjectPath).Path
 }
 
+. (Join-Path $PSScriptRoot "..\..\scripts\project_paths.ps1")
+
 function Resolve-GodotExecutable([string]$RequestedPath) {
-	if ($RequestedPath -and (Test-Path $RequestedPath)) {
-		return (Resolve-Path $RequestedPath).Path
-	}
-
-	if ($env:GODOT_EXE -and (Test-Path $env:GODOT_EXE)) {
-		return (Resolve-Path $env:GODOT_EXE).Path
-	}
-
-	$candidates = @(
-		"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe",
-		"F:\OneDrive\Escritorio\Godot_v4.7.1-stable_win64_console.exe"
-	)
-
-	foreach ($candidate in $candidates) {
-		if (Test-Path $candidate) {
-			return (Resolve-Path $candidate).Path
-		}
-	}
-
-	if ($RequestedPath) {
-		throw "No se encontro el ejecutable de Godot: $RequestedPath"
-	}
-	throw "No se encontro el ejecutable de Godot. Define -GodotExe o la variable GODOT_EXE."
+	return Resolve-SimuFireGodot -RequestedPath $RequestedPath
 }
 
 $GodotExe = Resolve-GodotExecutable $GodotExe

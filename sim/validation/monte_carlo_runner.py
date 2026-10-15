@@ -13,7 +13,7 @@ Uso:
 
 Ejemplo:
     python monte_carlo_runner.py --case layer150_tenability --n 100 ^
-        --godot "C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"
+        --godot "$GODOT_EXE"
 
 Salida: sim/validation/mc_results_<case>.json con sección "percentiles" {P05, P50, P95}.
 """
@@ -39,7 +39,12 @@ BASELINES_DIR = SCRIPT_DIR / "baselines"
 REPORTS_DIR = SCRIPT_DIR / "reports"
 RUN_CASE_PS1 = SCRIPT_DIR / "run_case.ps1"
 
-DEFAULT_GODOT_EXE = r"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe"
+_tool_repo_root = Path(__file__).resolve().parents[2]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import find_godot
+
+DEFAULT_GODOT_EXE = os.environ.get("GODOT_EXE", "")
 
 # ---------------------------------------------------------------------------
 # Parámetros a perturbar: {nombre: (valor_nominal, coeficiente_de_variación)}

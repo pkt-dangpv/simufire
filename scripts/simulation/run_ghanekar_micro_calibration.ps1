@@ -1,11 +1,13 @@
 param(
-	[string]$RepoRoot = "F:\OneDrive\Documentos\GitHub\simufire",
-	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe",
+	[string]$RepoRoot = (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent),
+	[string]$GodotExe = "",
 	[double]$DurationS = 420.0
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "..\..\scripts\project_paths.ps1")
+$GodotExe = Resolve-SimuFireGodot -RequestedPath $GodotExe
 
 $casesDir = Join-Path $RepoRoot "sim\validation\cases"
 $reportsDir = Join-Path $RepoRoot "sim\validation\reports\micro_sweeps"
