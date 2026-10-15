@@ -1,6 +1,9 @@
 import re, math
+from pathlib import Path
 
-path = r"f:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\cfast_long_burnout_3600s.log"
+path = Path(__file__).resolve().parents[3] / "sim" / "validation" / "reports" / "cfast_long_burnout_3600s.log"
+if not path.is_file():
+    raise SystemExit(f"Missing validation log: {path}. Run cfast_long_burnout_3600s to generate it.")
 
 time_re = re.compile(r"^TIME=([0-9.]+) s")
 room_re = re.compile(r"^ROOM 0\([^)]*\) \| (.*)$")

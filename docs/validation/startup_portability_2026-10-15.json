@@ -1,0 +1,443 @@
+{
+  "date": "2026-10-15",
+  "base_commit": "4b88c57e164ec09ecc3904ef5026fd8188b9030e",
+  "scope": "Startup and path portability, tested on SOBREMESA in actual C: and F: checkouts including spaces, Unicode and OneDrive folder names.",
+  "accepted_checks": 50,
+  "startup": [
+    {
+      "label": "F_original_actual_application_start",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 6.86
+    },
+    {
+      "label": "F_original_rendered_menu",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 3.37
+    },
+    {
+      "label": "F_original_main_menu_contract",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 2.67
+    },
+    {
+      "label": "F_original_editor_to_simulation",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 4.16
+    },
+    {
+      "label": "F_original_scenario",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "label": "C_unicode_import",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 29.32
+    },
+    {
+      "label": "C_unicode_actual_application_start",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 4.15
+    },
+    {
+      "label": "C_unicode_rendered_menu",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 3.4
+    },
+    {
+      "label": "C_unicode_main_menu_contract",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 2.67
+    },
+    {
+      "label": "C_unicode_editor_to_simulation",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 4.15
+    },
+    {
+      "label": "C_unicode_scenario",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "label": "F_unicode_import",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 24.58
+    },
+    {
+      "label": "F_unicode_actual_application_start",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 4.08
+    },
+    {
+      "label": "F_unicode_rendered_menu",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 3.4
+    },
+    {
+      "label": "F_unicode_main_menu_contract",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 2.58
+    },
+    {
+      "label": "F_unicode_editor_to_simulation",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "launched": true,
+      "preexisting": [],
+      "faults": [],
+      "error_lines": [],
+      "elapsed_s": 4.08
+    },
+    {
+      "label": "F_unicode_scenario",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "label": "source_integrity_and_path_audit",
+      "passed": true,
+      "changed_source_files": [],
+      "remaining_machine_project_paths": []
+    }
+  ],
+  "archive_analyzers": [
+    {
+      "drive": "C:",
+      "script": "extract_data.py",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\C análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "C:",
+      "script": "extract_door_close.py",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\C análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "C:",
+      "script": "extract_points.py",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\C análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "C:",
+      "script": "extract_window_break.py",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\C análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "C:",
+      "script": "query_door_close.py",
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\C análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "C:",
+      "script": "extract_data.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "C:",
+      "script": "extract_door_close.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "C:",
+      "script": "extract_points.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "C:",
+      "script": "extract_window_break.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "C:",
+      "script": "query_door_close.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "F:",
+      "script": "extract_data.py",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\F análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "F:",
+      "script": "extract_door_close.py",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\F análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "F:",
+      "script": "extract_points.py",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\F análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "F:",
+      "script": "extract_window_break.py",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\F análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "F:",
+      "script": "query_door_close.py",
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\F análisis ñ Ω",
+      "passed": true,
+      "returncode": 0
+    },
+    {
+      "drive": "F:",
+      "script": "extract_data.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "F:",
+      "script": "extract_door_close.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "F:",
+      "script": "extract_points.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "F:",
+      "script": "extract_window_break.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    },
+    {
+      "drive": "F:",
+      "script": "query_door_close.py",
+      "missing_dependency_actionable": true,
+      "passed": true
+    }
+  ],
+  "powershell": [
+    {
+      "Root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "Script": "run_ghanekar_micro_calibration.ps1",
+      "Passed": true
+    },
+    {
+      "Root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "Script": "run_ghanekar_sweep.ps1",
+      "Passed": true
+    },
+    {
+      "Root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "EnvironmentUnicode": true,
+      "InvalidExplicitRejected": true,
+      "Passed": true
+    },
+    {
+      "Root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "Script": "run_ghanekar_micro_calibration.ps1",
+      "Passed": true
+    },
+    {
+      "Root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "Script": "run_ghanekar_sweep.ps1",
+      "Passed": true
+    },
+    {
+      "Root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "EnvironmentUnicode": true,
+      "InvalidExplicitRejected": true,
+      "Passed": true
+    }
+  ],
+  "ui_start_play_return": [
+    {
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\game_ui_exit\\game_0_F\\simulación.png"
+    },
+    {
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\game_ui_exit\\game_1_C\\simulación.png"
+    },
+    {
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\game_ui_exit\\game_2_F\\simulación.png"
+    }
+  ],
+  "actual_png_html_exports": [
+    {
+      "png_count": 31,
+      "html_count": 1,
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\graphs_with_host_python\\game_0_F\\simulación.png"
+    },
+    {
+      "png_count": 31,
+      "html_count": 1,
+      "root": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\C prueba ñ Ω",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\graphs_with_host_python\\game_1_C\\simulación.png"
+    },
+    {
+      "png_count": 31,
+      "html_count": 1,
+      "root": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\runs\\startup_portability_2026-10-15\\OneDrive español Ω\\SimuFire prueba F",
+      "passed": true,
+      "returncode": 0,
+      "faults": [],
+      "preexisting": [],
+      "error_lines": [],
+      "screenshot": "C:\\Users\\dangp\\.codex\\visualizations\\2026\\10\\11\\01a12c70-46e7-75e0-9d35-a476a3e6d676\\startup_checks_2026-10-15\\graphs_with_host_python\\game_2_F\\simulación.png"
+    }
+  ],
+  "unicode_stdout_regression": {
+    "returncode": 0,
+    "png_count": 25,
+    "latest_marker": true,
+    "missing_dependency_actionable": true
+  },
+  "python_dependencies": {
+    "python": "3.14.4",
+    "matplotlib": "3.10.8",
+    "plotly": "7.1.0",
+    "plotly_installed_for_current_user": true
+  },
+  "test_environment": {
+    "user_data": "isolated in external artifacts",
+    "graph_exports_python": "explicitly selected local interpreter via PATH, with original PYTHONUSERBASE",
+    "legacy_encoding_test": "PYTHONUTF8=0; separate before/after regression with PYTHONIOENCODING=cp1252"
+  },
+  "excluded_attempts": [
+    "A probe incorrectly expected time to advance before pressing Play. The product intentionally starts paused.",
+    "A probe forcibly freed the running simulation scene and triggered an export-summary popup after its Window had left the tree. This forced teardown was not counted as the normal HUD exit.",
+    "An export probe redirected LOCALAPPDATA and let Python Install Manager select a different, unconfigured runtime. Accepted exports explicitly select the intended local Python installation."
+  ],
+  "limitations": [
+    "No direct access to the physical laptop or its installed graphics driver/Python configuration.",
+    "The verified exit uses the normal HUD return-to-menu flow; abrupt window/editor teardown is not certified.",
+    "Existing scientific reports are used for guardrail checks; no fresh full physics validation."
+  ]
+}

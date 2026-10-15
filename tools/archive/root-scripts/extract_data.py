@@ -1,6 +1,10 @@
 import re, pathlib
+import sys
 
-log_dir = pathlib.Path("f:/OneDrive/Documentos/GitHub/simufire/sim/validation/reports")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+log_dir = pathlib.Path(__file__).resolve().parents[3] / "sim" / "validation" / "reports"
 
 for log_name, room_id, times in [
     ("cfast_r0_window_360.log", 0, [60, 120, 180, 240, 360, 420, 510]),
@@ -10,7 +14,7 @@ for log_name, room_id, times in [
 ]:
     log_path = log_dir / log_name
     if not log_path.exists():
-        print(f"MISSING: {log_name}")
+        print(f"MISSING: {log_path}. Run the corresponding validation case to generate its log.")
         continue
     
     time_s = None

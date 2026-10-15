@@ -21,6 +21,19 @@ python scripts/run_scenario.py --help
 Los lanzadores de FDS usan `%ProgramFiles%` de Windows para la instalación
 estándar de firemodels; FDS y Smokeview deben estar instalados en cada equipo.
 
+Para generar gráficas PNG y paneles HTML, instala sus dependencias en el Python
+que utiliza cada equipo. Desde la raíz del checkout, en Windows:
+
+```powershell
+py -3 -m pip install --user -r requirements-graphs.txt
+```
+
+SimuFire busca `python` o `py -3` en el PATH de Windows. En otros sistemas usa
+`python3` o `python`. Un entorno virtual debe activarse antes de iniciar Godot;
+en ese caso instala las dependencias con `python -m pip install -r requirements-graphs.txt`,
+sin `--user`. Las bibliotecas de un equipo no se transfieren mediante OneDrive
+ni Git. La ausencia de Plotly afecta al panel HTML y no impide abrir el programa.
+
 Para evitar que OneDrive mezcle el índice y las ramas de Git mientras se trabaja
 en ambos equipos, conviene usar un checkout independiente fuera de OneDrive en
 cada máquina y sincronizar el código mediante Git. No se han trasladado esos

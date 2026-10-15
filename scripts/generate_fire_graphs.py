@@ -22,16 +22,28 @@ import argparse
 import shutil
 import csv
 
+# Godot redirects Python output on Windows; the inherited pipe can otherwise
+# use a code page that cannot print Unicode checkout/export paths.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 _MPL_CACHE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", ".matplotlib-cache")
 )
 os.makedirs(_MPL_CACHE_DIR, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", _MPL_CACHE_DIR)
 
-import matplotlib
-matplotlib.use("Agg")  # Sin GUI, para no interferir con Godot
-import matplotlib.pyplot as plt
-from matplotlib.transforms import blended_transform_factory
+try:
+    import matplotlib
+    matplotlib.use("Agg")  # Sin GUI, para no interferir con Godot
+    import matplotlib.pyplot as plt
+    from matplotlib.transforms import blended_transform_factory
+except ModuleNotFoundError as exc:
+    raise SystemExit(
+        "Faltan dependencias para las graficas. Desde la raiz de SimuFire, "
+        "con este mismo Python: python -m pip install -r requirements-graphs.txt"
+    ) from exc
 from datetime import datetime
 
 # -----------------------------------------------------------------------

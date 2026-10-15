@@ -1,0 +1,4 @@
+# Python dependencies for PNG graphs and the interactive HTML dashboard.
+# Install with the same interpreter used by SimuFire (Windows: py -3 -m pip).
+matplotlib
+plotly
