@@ -2,6 +2,8 @@
 
 Generar (headless, ~5 min con --worker):
     python -X utf8 tools/determinism_fingerprint.py run --out <huella.json> [--worker]
+Generar en el programa exportado (release, plantillas 4.7.1 instaladas):
+    python -X utf8 tools/determinism_fingerprint.py run --export --out <huella.json> [--worker]
 Comparar dos huellas (sale con 1 si difieren):
     python -X utf8 tools/determinism_fingerprint.py compare <a.json> <b.json>
 
@@ -9,6 +11,13 @@ El escenario es siempre el mismo: `tools/determinism_fingerprint_options.json`
 copiado a un `user://` aislado en una carpeta temporal, para que ni las opciones
 ni los datos de usuario de la máquina entren en la corrida. Godot se resuelve
 con --godot, GODOT_EXE, PATH o el escritorio (scripts/project_paths.py).
+
+Con --export, ese Godot (el editor) exporta una build release temporal con el
+preset de `export_presets.cfg.template` sin excluir `tools/`, y la huella corre
+en ella. Los builds exportados no aceptan `--script`: un `override.cfg` junto al
+ejecutable cambia `application/run/main_loop_type` por `DeterminismFingerprint`.
+Godot solo lee `export_presets.cfg` de la raíz del proyecto: si existe uno se
+guarda aparte y se restaura al terminar.
 """
 
 from __future__ import annotations
@@ -31,6 +40,10 @@ from scripts.project_paths import find_godot  # noqa: E402
 SCRIPT = ROOT / "tools" / "determinism_fingerprint.gd"
 OPTIONS = ROOT / "tools" / "determinism_fingerprint_options.json"
 PREFIX = "DETERMINISM_FINGERPRINT "
+PRESET_TEMPLATE = ROOT / "export_presets.cfg.template"
+PRESET = ROOT / "export_presets.cfg"
+PRESET_NAME = "Windows Desktop"
+MAIN_LOOP_CLASS = "DeterminismFingerprint"
 
 
 def _sha256_file(path: Path) -> str:
@@ -41,6 +54,47 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _fingerprint_preset() -> str:
+    """Preset del producto, pero con `tools/` dentro para que viaje el script."""
+    lines = PRESET_TEMPLATE.read_text(encoding="utf-8").splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.startswith("exclude_filter=") and "tools/*, " in line:
+            lines[index] = line.replace("tools/*, ", "", 1)
+            return "".join(lines)
+    raise RuntimeError(f"{PRESET_TEMPLATE.name}: no encuentro `tools/*, ` en exclude_filter")
+
+
+def _export_build(godot: Path, build: Path, timeout_s: int) -> Path | None:
+    """Exporta la build release en `build` con el editor `godot`. None si falla."""
+    build.mkdir(parents=True)
+    exe = build / "SimuFire.exe"
+    backup = PRESET.with_name(PRESET.name + ".fingerprint_backup")
+    if backup.exists():
+        print(f"existe {backup} de una corrida interrumpida: restáuralo o bórralo", file=sys.stderr)
+        return None
+    if PRESET.exists():
+        PRESET.replace(backup)
+    try:
+        PRESET.write_text(_fingerprint_preset(), encoding="utf-8")
+        result = godot_monitored_launch.run(
+            [godot, "--headless", "--path", ROOT, "--export-release", PRESET_NAME, exe], timeout_s=timeout_s)
+    finally:
+        PRESET.unlink(missing_ok=True)
+        if backup.exists():
+            backup.replace(PRESET)
+    if not result.launched or result.returncode != 0 or result.faults or not exe.is_file():
+        (build / "export_stdout.log").write_text(result.stdout, encoding="utf-8")
+        (build / "export_stderr.log").write_text(result.stderr, encoding="utf-8")
+        print(f"exportación no válida: rc={result.returncode} faults={result.faults} "
+              f"preexisting={result.preexisting}; comprueba que las plantillas de exportación de "
+              f"tu versión de Godot están instaladas (Editor → Gestionar plantillas de exportación). "
+              f"Registros en {build}", file=sys.stderr)
+        return None
+    (build / "override.cfg").write_text(
+        f'[application]\n\nrun/main_loop_type="{MAIN_LOOP_CLASS}"\n', encoding="utf-8")
+    return exe
+
+
 def run(args: argparse.Namespace) -> int:
     godot = find_godot(args.godot)
     if godot is None:
@@ -48,6 +102,11 @@ def run(args: argparse.Namespace) -> int:
         return 2
     out = Path(args.out).resolve()
     work = Path(tempfile.mkdtemp(prefix="simufire_fingerprint_"))
+    editor = godot
+    if args.export:
+        godot = _export_build(editor, work / "build", args.timeout_s)
+        if godot is None:
+            return 2
     environment = os.environ.copy()
     for name in ("APPDATA", "TEMP", "TMP"):
         path = work / name.lower()
@@ -56,8 +115,8 @@ def run(args: argparse.Namespace) -> int:
     userdata = work / "appdata" / "Godot" / "app_userdata" / "SimuFire"
     userdata.mkdir(parents=True)
     shutil.copyfile(OPTIONS, userdata / "startup_sim_options.json")
-    command = [godot, "--headless", "--path", ROOT, "--script", SCRIPT, "--",
-               f"--steps={args.steps}", f"--checkpoint-every={args.checkpoint_every}"]
+    command = [godot, "--headless"] if args.export else [godot, "--headless", "--path", ROOT, "--script", SCRIPT]
+    command += ["--", f"--steps={args.steps}", f"--checkpoint-every={args.checkpoint_every}"]
     if args.worker:
         command.append("--worker")
     result = godot_monitored_launch.run(command, timeout_s=args.timeout_s, environment=environment)
@@ -81,6 +140,11 @@ def run(args: argparse.Namespace) -> int:
         "options_sha256": _sha256_file(OPTIONS),
         "script_sha256": _sha256_file(SCRIPT),
     }
+    if args.export:
+        data["host"]["exported_build"] = True
+        data["host"]["editor_executable_name"] = editor.name
+        data["host"]["editor_executable_sha256"] = _sha256_file(editor)
+        data["host"]["pck_sha256"] = _sha256_file(godot.with_suffix(".pck"))
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, indent=1, ensure_ascii=False), encoding="utf-8")
     shutil.rmtree(work, ignore_errors=True)
@@ -151,6 +215,8 @@ def main() -> int:
     run_parser.add_argument("--steps", type=int, default=7200, help="pasos de 1/12 s (7200 = 10 min)")
     run_parser.add_argument("--checkpoint-every", type=int, default=600)
     run_parser.add_argument("--worker", action="store_true", help="repetir la corrida en un hilo trabajador")
+    run_parser.add_argument("--export", action="store_true",
+                            help="exportar una build release temporal y correr la huella en ella")
     run_parser.add_argument("--timeout-s", type=int, default=3600)
     run_parser.set_defaults(func=run)
     compare_parser = sub.add_parser("compare", help="comparar dos huellas")

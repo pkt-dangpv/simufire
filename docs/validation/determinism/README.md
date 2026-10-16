@@ -59,6 +59,7 @@ la huella.
 
 ```powershell
 python -X utf8 tools/determinism_fingerprint.py run --out <huella.json> --worker
+python -X utf8 tools/determinism_fingerprint.py run --export --out <huella.json> --worker
 python -X utf8 tools/determinism_fingerprint.py compare <a.json> <b.json>
 ```
 
@@ -67,17 +68,24 @@ Escenario fijo (`tools/determinism_fingerprint_options.json`), 7200 pasos de
 uno trabajador, más las huellas de DetMath (`det_*`, deben coincidir siempre) y
 de las funciones de Godot (`godot_*`, solo información).
 
+`--export` corre la huella en el programa exportado: el editor exporta una build
+release temporal con `export_presets.cfg.template` (sin excluir `tools/`) y la
+huella corre en esa build. Los builds exportados ignoran `--script` (arrancan
+el menú), así que un `override.cfg` junto al ejecutable cambia
+`application/run/main_loop_type` por `DeterminismFingerprint` (el `class_name`
+de `tools/determinism_fingerprint.gd`). Requiere las plantillas de exportación
+4.7.1 en `%APPDATA%/Godot/export_templates/4.7.1.stable`.
+
 | Huella | Máquina | Estado |
 |---|---|---|
 | `fingerprint_laptop_ryzen7_5700U_2026-10-15.json` | Portátil, AMD Ryzen 7 5700U, Windows 11, editor 4.7.1 | Con DetMath |
 | `fingerprint_desktop_ryzen5_5600X_2026-10-16.json` | Sobremesa, AMD Ryzen 5 5600X, Windows 11, editor 4.7.1 | Con DetMath; idéntica a la del portátil (hilo principal y trabajador, 7200 pasos) |
+| `fingerprint_desktop_ryzen5_5600X_exported_release_2026-10-16.json` | Sobremesa, AMD Ryzen 5 5600X, Windows 11, programa exportado release 4.7.1 | Con DetMath; idéntica a las dos del editor (hilo principal y trabajador, 7200 pasos) |
 
 ## Pendiente
 
-- Correr la huella en el programa exportado (faltan las plantillas de
-  exportación en el portátil).
 - Móviles: comprobar en ARM que coincide. Riesgos conocidos sin medir: funciones
   vectoriales de Godot en `sim/` (`length`, `distance_to`, `dot`, en float32), la
   lectura de literales decimales por el analizador de GDScript y el tratamiento
-  de subnormales. Para correr la huella allí hará falta un modo dentro del
-  programa (los builds exportados no aceptan `--script`).
+  de subnormales. Allí sirve la misma vía de `override.cfg` si el `.pck` incluye
+  `tools/determinism_fingerprint.gd`; falta cómo lanzarlo y recoger la salida.

@@ -1,3 +1,4 @@
+class_name DeterminismFingerprint
 extends SceneTree
 
 ## Huella de determinismo del motor (headless). Lanzar con
