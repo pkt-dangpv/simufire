@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-16 - Build exportado jugado: D-1 cerrado
+
+[Matriz G4/G5 §7.7](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).
+Prueba con interfaz del build de producto (sobremesa, `--log-file`), operada
+por una sesión de Claude con computer use y comprobada paso a paso con
+capturas. Menú correcto. `preset_simple_house`: simulación de 00:00 a 01:50
+(salón a 521 kW y 482 °C; en el pasillo, de 20 a 26 °C y visibilidad de 17 m).
+Primera persona con el botón FP: movimiento, ratón y aviso de puerta.
+`preset_two_storey_house`: primera persona y recorrido. **D-1 CERRADO**
+visualmente. Cierre limpio: sin WER, popups ni procesos residuales; el log, de
+311 B, no tiene `ERROR`/`WARNING`. Fila 20 ✅; fila 13 parcial (escaleras sin
+probar). FPS no medidos.
+Nuevos, abiertos y sin diagnosticar: D-7 cámara FP mirando al techo; D-8 la
+cámara parece atravesar el mobiliario; D-9 minimapa congelado en pausa; D-10
+«EN VIVO» tapa «Estado de aperturas»; D-11 textos sin tildes; D-12 resumen del
+menú fijo (sin confirmar: contradice una captura anterior).
+G5 sigue ABIERTO: D-3 y máquina limpia.
+
 ## Current Program Update - 2026-10-16 - G5: build de producto exportado, arranca hasta el menú
 
 [Matriz G5 §2](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).

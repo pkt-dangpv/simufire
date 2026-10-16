@@ -3,7 +3,9 @@
 > **Fecha:** 24 de septiembre de 2026 (tercera pasada: D-2 sin tocar FDS, y D-5)
 > **Actualizado:** 16 de octubre de 2026: plantillas de exportación 4.7.1
 > instaladas en el sobremesa (§2); en el portátil siguen sin instalar. Build de
-> producto exportado y arrancado con interfaz hasta el menú (§2, §4).
+> producto exportado y arrancado con interfaz hasta el menú (§2, §4). Prueba
+> con interfaz en el build: simulación y primera persona en dos escenarios;
+> D-1 cerrado (§7.7).
 > **Gates:** G4 (producto estable) y G5 (distribución)
 > **Base:** [plan de publicación vigente](../PLAN_PUBLICACION_2026-10-30.md) ·
 > [ámbito G0/G2](MATRIZ_G0_G2_AMBITO_EVIDENCIA.md) ·
@@ -77,6 +79,7 @@ editor 4.7.1 lanzado con `scripts/godot_monitored_launch.py`,
 
 Alcance: arranque hasta el menú y cierre. **No** se entró en ninguna simulación
 ni en primera persona (habría que operar la pantalla del usuario), y sigue D-3.
+La prueba de simulación y primera persona en este mismo build está en §7.7.
 
 Datos medidos de la descarga (24-09, se mantienen):
 
@@ -148,7 +151,7 @@ Notas del procedimiento, no opcionales:
 | Gráficas PNG / dashboard en un build | ❌ **rotas** (D-3), no es un problema de preset |
 | Plantillas de exportación 4.7.1 | ✅ instaladas en el sobremesa; ❌ portátil |
 | **Generación del ejecutable** | ✅ preset de producto exportado en release sin errores (sobremesa, §2) |
-| **Arranque del ejecutable** | ⚠️ con interfaz hasta el menú y cierre limpio (§2); sin entrar en una simulación. Motor en el build: huella headless idéntica al editor |
+| **Arranque del ejecutable** | ✅ con interfaz: menú, simulación con el reloj corriendo y primera persona en `preset_simple_house` y `preset_two_storey_house`, cierre limpio (§2, §7.7). Motor en el build: huella headless idéntica al editor |
 | **Instalación en máquina Windows limpia** | ❌ **pendiente**, requiere otra máquina |
 
 **G5 = NO-GO, abierto.** Exportar un EXE no cerraría el gate por sí solo: el
@@ -178,14 +181,14 @@ Leyenda: **H** verificable headless · **V** requiere observación visual humana
 | 10 | Guardar / cargar / reabrir desde la interfaz | **V** | ⏳ |
 | 11 | Vista 2D: planta, aberturas, etiquetas | **V** | ⏳ |
 | 12 | Vista 3D: geometría y transición desde 2D | **V** | ⏳ |
-| 13 | Primera persona: movimiento, escaleras, colisión | **V** | ⏳ — ya **posible en los 5**; antes 2 no tenían por dónde entrar |
+| 13 | Primera persona: movimiento, escaleras, colisión | **V** | ⚠️ **parcial** (§7.7, build): entrada y movimiento ✅ en `preset_simple_house` y `preset_two_storey_house`; escaleras sin probar; la cámara parece atravesar el mobiliario (D-8); otros 3 escenarios sin observar |
 | 14 | Humo: densidad, capa, visibilidad | **V** | ⏳ |
 | 15 | Aberturas: abrir/cerrar en vivo | **V** | ⏳ |
 | 16 | HUD: legibilidad, FED y índice de condiciones | **V** | ⏳ |
 | 17 | Gráficas nativas y PNG | **V** | ⏳ |
 | 18 | Ejecución prolongada (>15 min) con memoria estable | **V/H** | ⏳ |
 | 19 | Rendimiento (fps) en el escenario de 13 salas | **V** | ⏳ |
-| 20 | Salida limpia de la aplicación | **V** | ⏳ |
+| 20 | Salida limpia de la aplicación | **V** | ✅ en el build (§2 y §7.7): ESC → Salir → «Salir sin guardar» → Salir; sin popups, WER ni procesos residuales |
 
 **Nota de método:** existen pruebas manuales previas del usuario. Lo que falta no
 es «probar la interfaz», sino una **campaña sistemática documentada** con
@@ -213,12 +216,18 @@ sus cifras nuevas están en §7.2.
 
 | # | hallazgo | escenarios | estado |
 |---|---|---|---|
-| **D-1** | **Sin punto de inicio en primera persona** | `preset_simple_house`, `preset_two_storey_house` | **corregido en datos**, pendiente de comprobación visual |
+| **D-1** | **Sin punto de inicio en primera persona** | `preset_simple_house`, `preset_two_storey_house` | **CERRADO**: corregido en datos y confirmado visualmente en el build (§7.7) |
 | **D-2** | Sin foco de ignición declarado | `preset_simple_house` | **CERRADO**: foco declarado y casos FDS byte a byte idénticos |
 | **D-3** | El generador de gráficas no puede funcionar en un build exportado | todos | **abierto**, no corregido |
 | **D-4** | La plantilla de exportación no incluía ningún fichero de datos | — | **corregido** en `export_presets.cfg.template` |
 | **D-5** | R2-1 no vigila `sim/templates/`, que sí mueve resultados de validación | — | **corregido**; R2-1 ahora da FAIL y pide regenerar |
 | **D-6** | Los `scenarios/preset_*.json` versionados están desfasados respecto a su plantilla | los 10 presets | **abierto**, no corregido |
+| **D-7** | En primera persona la cámara arranca mirando al techo | `preset_simple_house`, `preset_two_storey_house` | **abierto**, observado (§7.7) |
+| **D-8** | La cámara en primera persona parece atravesar el mobiliario (una planta), como si no tuviera colisión | `preset_simple_house` | **abierto**, observado, sin diagnosticar (§7.7) |
+| **D-9** | En pausa el minimapa no se actualiza; se pone al día al reanudar | `preset_simple_house` | **abierto**, observado; puede ser intencionado (§7.7) |
+| **D-10** | El panel de gráficas «EN VIVO» tapa en parte «Estado de aperturas» | `preset_simple_house` | **abierto**, observado (§7.7) |
+| **D-11** | Textos de escenario sin tildes ni eñes («salon», «bano», «pequeno», «de dia») | menú, varios | **abierto**, observado en dos sesiones (§2, §7.7) |
+| **D-12** | La línea de resumen bajo la lista de escenarios no cambia con la selección | menú | **sin confirmar**: lo dice el informe de §7.7, pero la captura de §2 mostraba otro resumen para «Casa simple» |
 
 ### 7.1 D-1 y D-2 — qué se ha cambiado y por qué
 
@@ -409,6 +418,39 @@ mano solo los campos de D-1 y D-2, para que el diff de esta fase sea exactamente
 la corrección pedida. La puesta al día del resto es una tarea aparte, con su
 propia medición.
 
+### 7.7 Prueba con interfaz en el build exportado (16-10-2026, sobremesa)
+
+Build de producto de §2 (`%USERPROFILE%\SimuFire_build`, release), con
+`--log-file`, operado por una sesión de Claude con computer use. Cada paso se
+comprobó con capturas de la ventana (las capturas de la herramienta salían en
+gris porque ocultaba la ventana de SimuFire). Las capturas quedaron en el
+scratchpad de esa sesión y no se versionan. Por error se abrió una segunda
+instancia sin log: se cerró enseguida y la prueba se hizo entera con la
+instancia que tenía log. Antes de empezar no había ningún SimuFire ni Godot
+abierto.
+
+| paso | resultado |
+|---|---|
+| Menú | ✅ logo, textos, selector de idioma, lista de escenarios con barra de desplazamiento, botones. D-11 y D-12 |
+| `preset_simple_house`, vista inicial | ✅ plano 2D en pausa, TIEMPO 00:00, foco en el sofá del salón, fichas de sala. D-10 |
+| Primera persona | ✅ botón FP de la barra inferior (3–5 s en activarse); HUD «FP \| R1 Pasillo \| DE PIE», ayuda de teclas, gases y minimapa; W/S/D y ratón mueven, ratón capturado, «F: abrir/cerrar puerta» al acercarse. D-7, D-8, D-9 |
+| ~60 s de simulación | ✅ Espacio reanuda; reloj 00:04 → 01:50; pasillo 20 → 26 °C, aparecen CO y HCN, visibilidad >30 → 17 m, techo más oscuro; a 01:50 salón 521 kW y capa alta 482 °C, varios muebles ardiendo, HRR subiendo |
+| `preset_two_storey_house` | ✅ planta baja en 2D con pestañas R / R+1, escalera, foco en la alfombra del salón; FP «R1 Recibidor distribuidor PB», pasillo recorrido con W. D-7. No se dejó correr la simulación |
+| Fluidez en FP | percibida fluida en ráfagas de 12 fotogramas cada 0,2 s, sin saltos; **FPS no medidos** (el build no tiene contador): la fila 19 sigue ⏳ |
+| Cierre | ✅ ESC → SALIR → «Salir sin guardar» → SALIR; el proceso desaparece; sin WerFault, sin cuadros de error, sin entradas de SimuFire en el registro de eventos |
+| Log | `SimuFire_build_gui.log`, 311 B: cabecera (Godot 4.7.1, OpenGL 3.3 Compatibility, RTX 3070) y la ruta de `sim_log.txt` dos veces, una por simulación; 0 `ERROR`/`WARNING`. `sim_log.txt` sin `ERROR`/`WARNING` |
+
+Comprobado por la sesión de Claude Code en el disco: el log tiene 311 B y no
+contiene `ERROR` ni `WARNING`. El `sim_log.txt` (20:25) es el de
+`preset_two_storey_house`, porque cada simulación sobrescribe el anterior, y
+solo contiene el instante 0 s, lo que cuadra con no haberla dejado correr. No
+queda ningún proceso de SimuFire.
+
+Alcance: dos de los cinco escenarios de G0, una sesión, en la máquina de
+desarrollo. No cubre escaleras (fila 13), humo con detalle (fila 14), aberturas
+en vivo (fila 15), FPS (fila 19), ejecución prolongada (fila 18) ni máquina
+limpia. Los hallazgos D-7 a D-12 son observaciones, no diagnósticos.
+
 ---
 
 ## 8. R2-1: bloqueo inicial y cierre posterior
@@ -434,28 +476,21 @@ ya no falla. Esto no cierra la observación visual G4 ni la exportación G5.
 
 | gate | estado | qué falta |
 |---|---|---|
-| **G4** | **ABIERTO** | 11 de 20 comprobaciones requieren observación visual humana. D-1 y D-2 están cerrados **en datos**, no visualmente: nadie ha entrado todavía en primera persona en esos dos escenarios |
-| **G5** | **ABIERTO** (build de producto generado y arranca hasta el menú) | jugar una simulación en el build, D-3 y máquina limpia |
+| **G4** | **ABIERTO** | de las 11 comprobaciones visuales, la 20 queda ✅ y la 13 parcial (§7.7); las demás siguen ⏳. D-1 y D-2 cerrados. Nuevos D-7 a D-12, abiertos |
+| **G5** | **ABIERTO** (el build exportado se juega: simulación y primera persona, §7.7) | D-3 y máquina limpia |
 
 **Ningún gate pasa a PASS.** D-2 sí queda cerrado (§7.3), y D-5 corregido con
-prueba de mutación (§7.5). D-1 sigue **corregido en datos y sin comprobar
-visualmente**: es la fila 13 de la matriz y no la cierra ninguna ejecución
-headless. Hace falta arrancar la interfaz, entrar en primera persona en
-`preset_simple_house` y en `preset_two_storey_house`, y mirar. No se ha hecho
-aquí por tres razones a la vez: el procedimiento de
-[la auditoría de crashes](../validation/GODOT_471_HEADLESS_CRASH_AUDIT.md)
-prohíbe lanzar el ejecutable gráfico directamente, la memoria libre está por
-debajo de la referencia operativa, y una sesión gráfica no deja evidencia
-observable sin alguien delante de la pantalla.
+prueba de mutación (§7.5). D-1 queda **CERRADO** el 16-10-2026: se entró en
+primera persona en `preset_simple_house` y `preset_two_storey_house` en el build
+exportado y se recorrieron las dos viviendas (§7.7).
 
 ## Siguiente paso ejecutable
 
-1. **Entrar en primera persona** en `preset_simple_house` y
-   `preset_two_storey_house` y confirmar visualmente D-1 (fila 13). Es la única
-   parte de D-1 que sigue sin evidencia.
-2. **Probar una simulación en el build** de `%USERPROFILE%\SimuFire_build`
-   (sobremesa): Empezar con un escenario y entrar en primera persona. El
-   arranque hasta el menú ya está (§2). En el portátil faltan las plantillas.
+1. **Completar la fila 13** (escaleras, colisión) y las filas visuales
+   pendientes en los cinco escenarios; diagnosticar D-8 (colisión con el
+   mobiliario) y D-7 (cámara mirando al techo).
+2. **Confirmar o descartar D-12** en el menú y corregir los textos de D-11.
+   En el portátil faltan aún las plantillas de exportación.
 3. **D-3**: decidir si las gráficas deben funcionar en el build. Si sí, hay que
    extraer los `.py` a `user://` antes de invocarlos.
 4. **D-6**: poner al día los diez presets, con su propia medición (§7.6).
