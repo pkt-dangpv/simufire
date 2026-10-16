@@ -39,7 +39,10 @@ const GAS_MECHANISMS: Array[String] = [
 ## despues: solo cambian co2_kg y co2_upper_kg (y FED por V_CO2); masa, energia,
 ## temperaturas, O2, CO, HCN, humo y HRR son identicos bit a bit
 ## (docs/validation/RUTA_NORMAL_CO2_ACARREO_CAPA_2026-09-25.md).
-const OFF_FINGERPRINT: String = "a5ec9b8d65827be06ac2c59171ba92ddb7e7afbee5bd82ccab80836406af04c8"
+## 2026-10-15: re-fijada al pasar sim/ por sim/core/DetMath.gd (exp/pow propias,
+## mismos bits en cualquier máquina e hilo; a5ec9b8d... era la de la x87 de MinGW
+## en el hilo principal). docs/validation/determinism/README.md.
+const OFF_FINGERPRINT: String = "c868a833dd3c750b2284709521f0a8eb1d7016097bb8ea7b58d53ab48bb70194"
 
 var _failures: Array[String] = []
 var _checks: int = 0

@@ -1,5 +1,6 @@
 extends RefCounted
 class_name CombustionSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 const FireModelScript = preload("res://sim/fire/FireModel.gd")
@@ -402,7 +403,7 @@ func evaluate_phase3_canonical_fire_products(
 		co_base_yield, float(context.get("co_max_yield_kg_per_MJ", co_base_yield))
 	)
 	var co_yield: float = clampf(
-		co_base_yield * exp(
+		co_base_yield * DetMath.exp(
 			float(context.get("fire_co_phi_rate", 2.0)) * (quality_phi - 1.0)
 		),
 		co_base_yield,
@@ -436,7 +437,7 @@ func evaluate_phase3_canonical_fire_products(
 		0.0,
 		1.0
 	)
-	var co2_yield: float = lerpf(
+	var co2_yield: float = DetMath.lerpf(
 		co2_min_yield, co2_base_yield, co2_phi_fraction
 	)
 
@@ -461,7 +462,7 @@ func evaluate_phase3_canonical_fire_products(
 	var hcn_yield: float = 0.0
 	if hcn_base_yield > 0.0:
 		hcn_yield = clampf(
-			hcn_base_yield * exp(
+			hcn_base_yield * DetMath.exp(
 				float(context.get("fire_co_phi_rate", 2.0)) * (quality_phi - 1.0)
 			),
 			hcn_base_yield,
@@ -478,14 +479,14 @@ func evaluate_phase3_canonical_fire_products(
 	)
 	var acrolein_yield: float = minf(
 		acrolein_base_yield * 4.0,
-		acrolein_base_yield * exp(
+		acrolein_base_yield * DetMath.exp(
 			float(context.get("fire_co_phi_rate", 2.0))
 					* (quality_phi - 1.0) * 0.7
 		)
 	)
 	var formaldehyde_yield: float = minf(
 		formaldehyde_base_yield * 3.0,
-		formaldehyde_base_yield * exp(
+		formaldehyde_base_yield * DetMath.exp(
 			float(context.get("fire_co_phi_rate", 2.0))
 					* (quality_phi - 1.0) * 0.5
 		)
@@ -557,10 +558,10 @@ func evaluate_phase3_canonical_fire_products(
 		/ configured_normal_chi_rad
 	)
 	var effective_chi_rad: float = clampf(
-		lerpf(
+		DetMath.lerpf(
 			low_o2_chi_rad,
 			normal_chi_rad,
-			clampf(inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
+			clampf(DetMath.inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
 		),
 		0.0,
 		1.0
@@ -860,7 +861,7 @@ func evaluate_phase3_canonical_combustion_step(
 	)
 	var full_hrr_o2: float = maxf(
 		minimum_o2 + 0.001,
-		lerpf(
+		DetMath.lerpf(
 			nominal_o2,
 			float(context.get("fire_o2_full_hrr_open", nominal_o2)),
 			early_opening_signal
@@ -988,10 +989,10 @@ func evaluate_phase3_canonical_combustion_step(
 			/ configured_normal_chi_rad
 		)
 		effective_chi_rad = clampf(
-			lerpf(
+			DetMath.lerpf(
 				low_o2_chi_rad,
 				normal_chi_rad,
-				clampf(inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
+				clampf(DetMath.inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
 			),
 			0.0,
 			1.0
@@ -1201,7 +1202,7 @@ func evaluate_phase3_canonical_combustion_step(
 		"canonical_fuel_object_sync_active_flag": \
 				1.0 if fuel_object_sync_active else 0.0,
 		"heat_scale": accepted_fraction,
-		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
+		"plume_scale": DetMath.pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
 		"post_opening_coupling_active_flag": 1.0 if post_opening_lower_source else 0.0,
 		"post_opening_source_switched_to_lower_flag": 1.0 \
 				if post_opening_lower_source else 0.0,
@@ -1530,7 +1531,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	var full_hrr_o2: float = lerpf(
+	var full_hrr_o2: float = DetMath.lerpf(
 		fire.o2_nominal,
 		float(context.get("fire_o2_full_hrr_open", fire.o2_nominal)),
 		early_opening_signal
@@ -1585,12 +1586,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	var subvent_temp_factor: float = inverse_lerp(
+	var subvent_temp_factor: float = DetMath.inverse_lerp(
 		float(context.get("fire_subvent_temp_start_c", ambient_c)),
 		float(context.get("fire_subvent_temp_full_c", ambient_c)),
 		room.temp_upper_c
 	)
-	var subvent_fill_factor: float = inverse_lerp(
+	var subvent_fill_factor: float = DetMath.inverse_lerp(
 		float(context.get("fire_subvent_fill_start_fraction", 0.0)),
 		float(context.get("fire_subvent_fill_full_fraction", 1.0)),
 		smoke_fill_fraction
@@ -1622,7 +1623,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var flame_possible_factor: float = extinction_factor
 	if not use_fds_extinction:
 		flame_possible_factor = clampf(
-			inverse_lerp(
+			DetMath.inverse_lerp(
 				o2_min_ref - 0.015,
 				o2_min_ref + 0.025,
 				o2_ref
@@ -1633,7 +1634,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var flame_drive: float = room.o2_hrr_factor * flame_possible_factor
 	var latent_drive: float = 0.0
 	if latent_viable:
-		latent_drive = subvent_o2_floor * lerpf(0.35, 1.0, subvent_engagement)
+		latent_drive = subvent_o2_floor * DetMath.lerpf(0.35, 1.0, subvent_engagement)
 	var pyrolysis_drive: float = maxf(flame_drive, latent_drive)
 	var can_flame: bool = flame_drive > 0.08
 	if use_fds_extinction and not can_flame and room.temp_upper_c > ambient_c:
@@ -1705,7 +1706,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			* maxf(0.0, room.temp_upper_c - ambient_c) / 500.0
 	rad_feedback = minf(rad_feedback, thermal_feedback_max)
 	var feedback_o2_engagement: float = room.o2_hrr_factor if use_fds_extinction else clampf(
-		inverse_lerp(
+		DetMath.inverse_lerp(
 			o2_min_ref - 0.005,
 			o2_min_ref + 0.035,
 			o2_ref
@@ -1713,7 +1714,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	rad_feedback = lerpf(1.0, rad_feedback, feedback_o2_engagement)
+	rad_feedback = DetMath.lerpf(1.0, rad_feedback, feedback_o2_engagement)
 	ideal_hrr_kw *= rad_feedback
 	if g3_owned:
 		ideal_hrr_kw = minf(ideal_hrr_kw, g3_power_cap_kw)
@@ -1723,16 +1724,16 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var extinction_hrr_kw: float = float(context.get("fire_extinction_hrr_kw", 0.0))
 	if not can_flame and latent_viable:
 		var dormant_decay: float = clampf(
-			inverse_lerp(45.0, 120.0, room.fire_dormant_time_s),
+			DetMath.inverse_lerp(45.0, 120.0, room.fire_dormant_time_s),
 			0.0,
 			1.0
 		)
-		latent_cap_basis_kw = lerpf(
+		latent_cap_basis_kw = DetMath.lerpf(
 			latent_cap_basis_kw,
 			maxf(previous_hrr_kw, extinction_hrr_kw * 0.5),
 			dormant_decay
 		)
-	var latent_cap_scale: float = lerpf(
+	var latent_cap_scale: float = DetMath.lerpf(
 		float(context.get("fire_latent_hrr_cap_min_fraction", 0.15)),
 		float(context.get("fire_latent_hrr_cap_max_fraction", 1.0)),
 		subvent_engagement
@@ -1744,7 +1745,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 
 	var pyrolysis_floor_fraction: float = 0.0
 	if latent_viable:
-		pyrolysis_floor_fraction = lerpf(
+		pyrolysis_floor_fraction = DetMath.lerpf(
 			float(context.get("fire_subvent_pyrolysis_min_fraction", 0.20)),
 			float(context.get("fire_subvent_pyrolysis_max_fraction", 0.40)),
 			subvent_engagement
@@ -1772,7 +1773,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			if latent_viable:
 				g3_diag_smolder_kw = minf(
 					residual_smolder_cap_kw,
-					solid_pyrolysis_kw * smolder_fraction * lerpf(0.40, 1.0, subvent_engagement)
+					solid_pyrolysis_kw * smolder_fraction * DetMath.lerpf(0.40, 1.0, subvent_engagement)
 				)
 			var g3_diag_jump_fraction: float = clampf(
 				float(context.get(G3_DIAG_FLAME_TARGET_JUMP_FRACTION, 0.0)), 0.0, 1.0
@@ -1800,7 +1801,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		if latent_viable:
 			smolder_target_kw = minf(
 				residual_smolder_cap_kw,
-				solid_pyrolysis_kw * smolder_fraction * lerpf(0.40, 1.0, subvent_engagement)
+				solid_pyrolysis_kw * smolder_fraction * DetMath.lerpf(0.40, 1.0, subvent_engagement)
 			)
 		else:
 			smolder_target_kw = 0.0
@@ -1898,7 +1899,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		1.0
 	)
 	var temp_signal: float = clampf(
-		inverse_lerp(
+		DetMath.inverse_lerp(
 			float(context.get("fire_vent_response_temp_start_c", 140.0)),
 			float(context.get("fire_vent_response_temp_full_c", 300.0)),
 			room.temp_upper_c
@@ -1912,7 +1913,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		1.0
 	)
 	var oxygen_recovery_signal: float = clampf(
-		inverse_lerp(0.10, 0.45, room.o2_hrr_factor),
+		DetMath.inverse_lerp(0.10, 0.45, room.o2_hrr_factor),
 		0.0,
 		1.0
 	)
@@ -1986,14 +1987,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		# una apertura introduce O₂ y dispara el backdraft.
 		var o2_allows_pool_burn: bool = room.o2 >= float(context.get("fire_backdraft_o2_max", 0.13))
 		if o2_allows_pool_burn:
-			var release_tau_s: float = lerpf(
+			var release_tau_s: float = DetMath.lerpf(
 				float(context.get("fire_pool_release_tau_slow_s", 180.0)),
 				float(context.get("fire_pool_release_tau_fast_s", 18.0)),
 				room.ventilation_response_factor
 			)
 			var pool_release_cap_kw: float = fire.max_hrr_kw \
 					* float(context.get("fire_pool_release_max_fraction", 0.18)) \
-					* lerpf(0.55, 1.0, opening_signal)
+					* DetMath.lerpf(0.55, 1.0, opening_signal)
 			pool_release_target_kw = minf(
 				proposed_pool_MJ * 1000.0 / maxf(1.0, release_tau_s),
 				pool_release_cap_kw
@@ -2015,7 +2016,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.hrr_target_kw = minf(room.hrr_target_kw, kawagoe_limit_kw)
 	room.hrr_target_kw = maxf(0.0, room.hrr_target_kw)
 
-	var hrr_rise_tau_s: float = lerpf(
+	var hrr_rise_tau_s: float = DetMath.lerpf(
 		float(context.get("fire_hrr_rise_tau_s", 6.0)) * 1.8,
 		float(context.get("fire_hrr_rise_tau_s", 6.0)),
 		room.ventilation_response_factor
@@ -2052,7 +2053,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			room.backdraft_active = false
 		else:
 			var bd_progress: float = room.backdraft_phase_time_s / bd_duration
-			var bd_envelope: float = sin(bd_progress * PI)  # 0→1→0 en [0, dur]
+			var bd_envelope: float = DetMath.sin(bd_progress * PI)  # 0→1→0 en [0, dur]
 			var bd_hrr_kw: float = fire.max_hrr_kw \
 					* float(context.get("fire_backdraft_hrr_multiplier", 4.0)) \
 					* bd_envelope
@@ -2188,7 +2189,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		g3_bal_pool["after_backdraft_MJ"] = float(proposed_pool_MJ)
 		_g3_ledger_note(room, {"bal_pool": g3_bal_pool})
 
-	var smoke_basis_multiplier: float = lerpf(
+	var smoke_basis_multiplier: float = DetMath.lerpf(
 		1.0 + float(context.get("fire_smoke_basis_min_fraction", 0.0)),
 		1.0,
 		sqrt(room.o2_hrr_factor)
@@ -2212,7 +2213,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room,
 		fire.smoke_yield_kg_per_MJ
 	)
-	var smoke_yield_kg_per_MJ: float = lerpf(
+	var smoke_yield_kg_per_MJ: float = DetMath.lerpf(
 		base_smoke_yield_kg_per_MJ * float(context.get("fire_smoke_yield_low_o2_multiplier", 1.0)),
 		base_smoke_yield_kg_per_MJ,
 		room.o2_hrr_factor
@@ -2336,7 +2337,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# k=2.0 → ~7x a phi=2, ~55x a phi=3, capeado en co_max_yield.
 	var k_phi_co: float = float(context.get("fire_co_phi_rate", 2.0))
 	var co_yield: float = clampf(
-		co_base_yield * exp(k_phi_co * (phi - 1.0)),
+		co_base_yield * DetMath.exp(k_phi_co * (phi - 1.0)),
 		co_base_yield,
 		co_max_yield
 	)
@@ -2348,11 +2349,11 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var co_vent_multiplier: float = float(context.get("fire_co_vent_limited_multiplier", 1.0))
 	if can_flame and co_vent_multiplier > 1.0 and room.o2_upper < co_vent_threshold:
 		var vent_engagement: float = clampf(
-			inverse_lerp(co_vent_threshold, co_vent_threshold * 0.5, room.o2_upper),
+			DetMath.inverse_lerp(co_vent_threshold, co_vent_threshold * 0.5, room.o2_upper),
 			0.0,
 			1.0
 		)
-		co_yield = lerpf(co_yield, co_yield * co_vent_multiplier, vent_engagement)
+		co_yield = DetMath.lerpf(co_yield, co_yield * co_vent_multiplier, vent_engagement)
 		co_yield = minf(co_yield, co_max_yield * co_vent_multiplier)
 	# R2-6: CO afterburning inhibition in two-zone mode (Gottuk & Roby, SFPE §3.4).
 	# When o2_upper drops below threshold, CO oxidation to CO2 is inhibited — CO
@@ -2364,7 +2365,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		var afterburn_max_boost: float = float(context.get("fire_co_afterburn_max_boost", 30.0))
 		if room.o2_upper < afterburn_threshold:
 			var t: float = clampf(
-				inverse_lerp(afterburn_threshold, afterburn_threshold * 0.4, room.o2_upper),
+				DetMath.inverse_lerp(afterburn_threshold, afterburn_threshold * 0.4, room.o2_upper),
 				0.0, 1.0
 			)
 			co_yield = minf(co_yield * (1.0 + (afterburn_max_boost - 1.0) * t), co_max_yield)
@@ -2402,7 +2403,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var generated_hcn_kg: float = 0.0
 	if hcn_base_yield > 0.0:
 		var hcn_yield: float = clampf(
-			hcn_base_yield * exp(k_phi_co * (phi - 1.0)),
+			hcn_base_yield * DetMath.exp(k_phi_co * (phi - 1.0)),
 			hcn_base_yield,
 			hcn_max_yield
 		)
@@ -2429,7 +2430,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var acrolein_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "acrolein_yield_kg_per_MJ", 0.0)
 	if acrolein_yield > 0.0:
 		var acrolein_yield_eff: float = clampf(
-			acrolein_yield * exp(k_phi_co * (phi - 1.0) * 0.7),
+			acrolein_yield * DetMath.exp(k_phi_co * (phi - 1.0) * 0.7),
 			acrolein_yield,
 			acrolein_yield * 4.0
 		)
@@ -2439,7 +2440,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var formaldehyde_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "formaldehyde_yield_kg_per_MJ", 0.0)
 	if formaldehyde_yield > 0.0:
 		var formaldehyde_yield_eff: float = clampf(
-			formaldehyde_yield * exp(k_phi_co * (phi - 1.0) * 0.5),
+			formaldehyde_yield * DetMath.exp(k_phi_co * (phi - 1.0) * 0.5),
 			formaldehyde_yield,
 			formaldehyde_yield * 3.0
 		)
@@ -2463,7 +2464,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var co2_min_global: float = float(context.get("co2_min_yield_kg_per_MJ", 0.0594))
 	var co2_min: float = co2_base * (co2_min_global / maxf(0.0001, co2_base_global))
 	var co2_phi_t: float = clampf(1.0 - (phi - 1.0) / float(context.get("co2_phi_decay_rate", 2.5)), 0.0, 1.0)
-	var co2_yield: float = lerpf(co2_min, co2_base, co2_phi_t)
+	var co2_yield: float = DetMath.lerpf(co2_min, co2_base, co2_phi_t)
 	var generated_co2_kg: float = co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
 
 	# SF-AUD-032: balance elemental de carbono.
@@ -2920,7 +2921,7 @@ func _update_passive_fuel_object(
 	var smoke_radiation_factor: float = maxf(smoke_fill_fraction, smoke_density_signal)
 	var coupled_fill_fraction: float = maxf(hot_fill_fraction, smoke_fill_fraction)
 	var object_height_factor: float = clampf(
-		inverse_lerp(0.0, maxf(0.1, room.height_m), float(obj.elevation_m)),
+		DetMath.inverse_lerp(0.0, maxf(0.1, room.height_m), float(obj.elevation_m)),
 		0.0,
 		1.0
 	)
@@ -2929,7 +2930,7 @@ func _update_passive_fuel_object(
 		0.12,
 		0.90
 	)
-	var upper_target_surface_temp_c: float = lerpf(
+	var upper_target_surface_temp_c: float = DetMath.lerpf(
 		room.temp_lower_c,
 		room.temp_upper_c,
 		upper_influence
@@ -2961,7 +2962,7 @@ func _update_passive_fuel_object(
 			* 0.006 \
 			* coupled_fill_fraction
 	var doorway_convective_flux_kw_m2: float = maxf(0.0, opening_gas_temp_c - obj.surface_temp_c) \
-			* lerpf(0.0, 0.018, opening_engagement)
+			* DetMath.lerpf(0.0, 0.018, opening_engagement)
 	var flame_bonus_flux_kw_m2: float = minf(
 		6.0,
 		adjacent_source_hrr_kw * 0.0008 * opening_engagement
@@ -2990,12 +2991,12 @@ func _update_passive_fuel_object(
 		0.0,
 		1.25
 	)
-	var opening_target_surface_temp_c: float = lerpf(
+	var opening_target_surface_temp_c: float = DetMath.lerpf(
 		upper_target_surface_temp_c,
 		maxf(upper_target_surface_temp_c, opening_gas_temp_c),
 		opening_engagement
 	)
-	var target_surface_temp_c: float = lerpf(
+	var target_surface_temp_c: float = DetMath.lerpf(
 		upper_target_surface_temp_c,
 		opening_target_surface_temp_c,
 		clampf(0.25 + 0.55 * flux_ratio, 0.0, 1.0)
@@ -3005,12 +3006,12 @@ func _update_passive_fuel_object(
 		0.35,
 		2.0
 	)
-	var heating_rate: float = clampf(dt / maxf(5.0, lerpf(210.0, 35.0, flux_ratio)) * sqrt(exposed_area_factor), 0.0, 1.0)
+	var heating_rate: float = clampf(dt / maxf(5.0, DetMath.lerpf(210.0, 35.0, flux_ratio)) * sqrt(exposed_area_factor), 0.0, 1.0)
 	var cooling_rate: float = clampf(dt / 240.0, 0.0, 1.0)
 	if target_surface_temp_c >= obj.surface_temp_c:
-		obj.surface_temp_c = lerpf(obj.surface_temp_c, target_surface_temp_c, heating_rate)
+		obj.surface_temp_c = DetMath.lerpf(obj.surface_temp_c, target_surface_temp_c, heating_rate)
 	else:
-		obj.surface_temp_c = lerpf(obj.surface_temp_c, target_surface_temp_c, cooling_rate)
+		obj.surface_temp_c = DetMath.lerpf(obj.surface_temp_c, target_surface_temp_c, cooling_rate)
 
 	var heating_threshold_c: float = ambient_c + 35.0
 	var pyrolysis_threshold_c: float = obj.ignition_temp_c - 45.0
@@ -3018,19 +3019,19 @@ func _update_passive_fuel_object(
 	var pyrolysis_flux_threshold_kw_m2: float = obj.ignition_flux_kw_m2 * 0.70
 
 	var thermal_signal: float = clampf(
-		inverse_lerp(heating_threshold_c, obj.ignition_temp_c, obj.surface_temp_c),
+		DetMath.inverse_lerp(heating_threshold_c, obj.ignition_temp_c, obj.surface_temp_c),
 		0.0,
 		1.0
 	)
 	var flux_signal: float = clampf(
-		inverse_lerp(heating_flux_threshold_kw_m2, obj.ignition_flux_kw_m2, obj.incident_heat_flux_kw_m2),
+		DetMath.inverse_lerp(heating_flux_threshold_kw_m2, obj.ignition_flux_kw_m2, obj.incident_heat_flux_kw_m2),
 		0.0,
 		1.0
 	)
 	var preheat_signal: float = maxf(thermal_signal, flux_signal)
 
 	if preheat_signal > 0.0:
-		obj.exposure_s += dt * lerpf(0.35, 1.35, preheat_signal)
+		obj.exposure_s += dt * DetMath.lerpf(0.35, 1.35, preheat_signal)
 	else:
 		obj.exposure_s = maxf(0.0, obj.exposure_s - dt * 1.5)
 
@@ -3147,7 +3148,7 @@ func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dicti
 		o2_ref = room.o2_lower
 	elif mode == "interface":
 		# Primera aproximacion M2: muestra en la banda de mezcla de la interfaz.
-		o2_ref = lerpf(room.o2_lower, room.o2_upper, 0.5)
+		o2_ref = DetMath.lerpf(room.o2_lower, room.o2_upper, 0.5)
 	else:
 		# R2-2: en modo two-zone, el fuego consume O₂ de la capa donde se encuentra.
 		# Mientras la interfaz de capa esté por encima del fuego → pluma entrana desde
@@ -3172,7 +3173,7 @@ func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dicti
 			else:
 				# Interfaz dentro de la banda de transición → interpola
 				var t: float = (interface_m - fire_base_m) / transition_m
-				o2_ref = lerpf(room.o2_upper, room.o2_lower, t)
+				o2_ref = DetMath.lerpf(room.o2_upper, room.o2_lower, t)
 				mode = "plume_blend"
 		else:
 			var upper_blend: float = clampf(
@@ -3180,7 +3181,7 @@ func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dicti
 				0.0,
 				1.0
 			)
-			o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), upper_blend)
+			o2_ref = DetMath.lerpf(room.o2, minf(room.o2, room.o2_upper), upper_blend)
 	return {
 		"mode": mode,
 		"o2_ref": o2_ref,
@@ -3243,7 +3244,7 @@ func _compute_extinction_o2_limit(
 	)
 
 	return clampf(
-		lerpf(ambient_limit, hot_floor, hot_fraction),
+		DetMath.lerpf(ambient_limit, hot_floor, hot_fraction),
 		0.0,
 		float(context.get("o2_nominal", 0.209))
 	)
@@ -3276,7 +3277,7 @@ func _resolve_room_smoke_yield_kg_per_MJ(room: RoomModel, fallback_yield: float)
 			continue
 
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3310,7 +3311,7 @@ func _resolve_room_co_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) ->
 			continue
 
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3343,7 +3344,7 @@ func _resolve_room_soot_fraction(room: RoomModel, fallback_fraction: float) -> f
 			continue
 
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3380,7 +3381,7 @@ func _resolve_room_co2_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -
 			continue  # sentinel: no contribuye a la media ponderada
 
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3417,7 +3418,7 @@ func _resolve_room_chi_rad_normal(room: RoomModel, fallback: float) -> float:
 			continue  # sentinel: no contribuye
 
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3450,7 +3451,7 @@ func _resolve_room_hcn_base_yield_kg_per_MJ(room: RoomModel, fallback_yield: flo
 
 		var object_yield: float = maxf(0.0, float(obj.hcn_yield_kg_per_MJ))
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3482,7 +3483,7 @@ func _resolve_room_irritant_yield_kg_per_MJ(room: RoomModel, field: String, fall
 
 		var object_yield: float = maxf(0.0, float(obj.get(field)))
 		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * DetMath.lerpf(0.35, 1.0, preheat_fraction)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:
@@ -3509,8 +3510,8 @@ func _smooth_state_value(
 	var tau_s: float = rise_tau_s if target >= current else fall_tau_s
 	if tau_s <= 0.000001:
 		return target
-	var blend: float = clampf(1.0 - exp(-dt / tau_s), 0.0, 1.0)
-	return lerpf(current, target, blend)
+	var blend: float = clampf(1.0 - DetMath.exp(-dt / tau_s), 0.0, 1.0)
+	return DetMath.lerpf(current, target, blend)
 
 
 func _estimate_radiative_flux_kw_m2(
@@ -3523,7 +3524,7 @@ func _estimate_radiative_flux_kw_m2(
 	var sigma_kw_m2_k4: float = 5.670374419e-11
 	return maxf(
 		0.0,
-		emissivity * sigma_kw_m2_k4 * (pow(emitter_k, 4.0) - pow(receiver_k, 4.0))
+		emissivity * sigma_kw_m2_k4 * (DetMath.pow(emitter_k, 4.0) - DetMath.pow(receiver_k, 4.0))
 	)
 
 
@@ -3796,7 +3797,7 @@ func _sync_explicit_objects_from_active_fire(
 
 		var active_target_temp_c: float = maxf(room.temp_upper_c, obj.ignition_temp_c + 80.0)
 		var heat_blend: float = clampf(dt / 60.0, 0.0, 1.0)
-		obj.surface_temp_c = lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
+		obj.surface_temp_c = DetMath.lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
 		obj.incident_heat_flux_kw_m2 = maxf(
 			obj.incident_heat_flux_kw_m2,
 			_estimate_radiative_flux_kw_m2(room.temp_upper_c, obj.surface_temp_c, 0.85)
@@ -3991,7 +3992,7 @@ func _fuel_object_preheat_score(obj) -> float:
 			state_score = 0.0
 
 	var thermal_signal: float = clampf(
-		inverse_lerp(obj.ignition_temp_c - 75.0, obj.ignition_temp_c, obj.surface_temp_c),
+		DetMath.inverse_lerp(obj.ignition_temp_c - 75.0, obj.ignition_temp_c, obj.surface_temp_c),
 		0.0,
 		1.0
 	)
@@ -4143,7 +4144,7 @@ func _interp_hrr_curve(curve: Array, t_s: float) -> float:
 			var ha: float = float((entry_a as Array)[1])
 			var hb: float = float((entry_b as Array)[1])
 			var alpha: float = (t_s - ta) / maxf(0.0001, tb - ta)
-			return maxf(0.0, lerpf(ha, hb, alpha))
+			return maxf(0.0, DetMath.lerpf(ha, hb, alpha))
 	return maxf(0.0, h_last)
 
 
@@ -4246,11 +4247,11 @@ static func g3_diag_flame_target_kw(
 	)
 	if window <= 0.0 or outside_window:
 		return original_kw
-	var at_threshold_kw: float = lerpf(
+	var at_threshold_kw: float = DetMath.lerpf(
 		smolder_at_threshold_kw, ideal_kw * G3_DIAG_CAN_FLAME_DRIVE, jump_fraction
 	)
 	var at_window_top_kw: float = ideal_kw * (G3_DIAG_CAN_FLAME_DRIVE + window)
-	return lerpf(
+	return DetMath.lerpf(
 		at_threshold_kw, at_window_top_kw, (flame_drive - G3_DIAG_CAN_FLAME_DRIVE) / window
 	)
 
@@ -4541,7 +4542,7 @@ func _g3_allocate_owned(
 			continue
 		var active_target_temp_c: float = maxf(room.temp_upper_c, obj.ignition_temp_c + 80.0)
 		var heat_blend: float = clampf(dt / 60.0, 0.0, 1.0)
-		obj.surface_temp_c = lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
+		obj.surface_temp_c = DetMath.lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
 		obj.incident_heat_flux_kw_m2 = maxf(
 			obj.incident_heat_flux_kw_m2,
 			_estimate_radiative_flux_kw_m2(room.temp_upper_c, obj.surface_temp_c, 0.85)
@@ -4701,7 +4702,7 @@ func _g3_option_d_step(
 		allowed[key] = true
 		reason[key] = "tail"
 		release_by_id[key] = minf(
-			float(r_new[key]) * (1.0 - exp(-dt / tau_f_s)),
+			float(r_new[key]) * (1.0 - DetMath.exp(-dt / tau_f_s)),
 			maxf(0.0, flame_drive * float(obj.max_hrr_kw)) * dt / 1000.0
 		)
 

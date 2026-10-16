@@ -4,6 +4,24 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Deterministic engine math (2026-10-15)
+
+- The engine now gives the same numbers on every machine, operating system,
+  thread and build. Godot's `exp`/`pow` (MinGW, x87) returned a different last
+  bit on a worker thread than on the main thread, `tanh` came from the system
+  `msvcrt.dll`, and other platforms use other math libraries; the model
+  amplifies one bit to up to ~19 °C transiently.
+- New `sim/core/DetMath.gd` (fdlibm algorithms in GDScript, constants built
+  from exact bits, `pow` in double-double). All `exp`, `pow`, `sin`, `cos`,
+  `tanh`, `lerpf` and `inverse_lerp` calls in `sim/` go through it; a guard test
+  forbids calling Godot's versions from `sim/`. Accuracy ≤ 0.76 ulp (`exp`,
+  `log`, `sin`, `cos`), ≤ 1.84 ulp (`pow`), ≤ 2.1 ulp (`tanh`); ~2 % engine cost.
+- Reference suite regenerated: 346/346 required checks pass, no check changes
+  status (532/532), 30 values move (median 0.05 %); 78 known gaps keep their
+  dispositions. P1R7/P1R8 pins and the OFF-route fingerprint were refreshed.
+- New `tools/determinism_fingerprint.py` (run/compare) and the laptop
+  fingerprint in `docs/validation/determinism/`.
+
 ### Phase 3 H3.2b1b persistent zone-transition ledger (2026-08-21)
 
 - Added a default-OFF, summary-only `Phase3ZoneTransitionLedger` that observes

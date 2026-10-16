@@ -1,5 +1,6 @@
 extends RefCounted
 class_name GasExchangeSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const ExteriorWindPressureModelScript = preload("res://sim/core/ExteriorWindPressureModel.gd")
@@ -1876,7 +1877,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					if _h_upper_e > 0.001 and _dT_e > 0.5:
 						var _T_ref_e: float = (t_room_k + t_amb_k) * 0.5
 						_q_upper_e = 0.61 * op.width_m * op.open_fraction_smooth \
-								* (2.0 / 3.0) * pow(_h_upper_e, 1.5) \
+								* (2.0 / 3.0) * DetMath.pow(_h_upper_e, 1.5) \
 								* sqrt(2.0 * 9.81 * _dT_e / _T_ref_e)
 					# Masa entrante: conservación ḟ_in = ḟ_out (ρ_hot × Q_out = ρ_cold × Q_in)
 					var _rho_hot_e: float = 353.0 / maxf(50.0, t_room_k)
@@ -2589,14 +2590,14 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var co_lower_removed_kg: float = co_lower_kg * open_species_purge_fraction * (1.0 - upper_bias) * 0.55
 			var co2_removed_kg: float = room.co2_kg \
 					* open_species_purge_fraction \
-					* lerpf(0.40, 0.75, upper_bias)
+					* DetMath.lerpf(0.40, 0.75, upper_bias)
 			var co2_upper_removed_kg: float = room.co2_upper_kg \
-					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias)
+					* open_species_purge_fraction * DetMath.lerpf(0.40, 0.75, upper_bias)
 			var hcn_removed_kg: float = room.hcn_kg \
 					* open_species_purge_fraction \
-					* lerpf(0.40, 0.75, upper_bias)
+					* DetMath.lerpf(0.40, 0.75, upper_bias)
 			var hcn_upper_removed_kg: float = room.hcn_upper_kg \
-					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias)
+					* open_species_purge_fraction * DetMath.lerpf(0.40, 0.75, upper_bias)
 			_record_phase3_shadow_exterior_purge_event(
 				"outside_open_species_purge", room,
 				{
@@ -2623,15 +2624,15 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			_co_trace("outside_open_species_purge", room, {}, "hcn")
 			var hcl_removed_kg: float = room.hcl_kg \
 					* open_species_purge_fraction \
-					* lerpf(0.40, 0.75, upper_bias)
+					* DetMath.lerpf(0.40, 0.75, upper_bias)
 			room.hcl_kg = maxf(0.0, room.hcl_kg - hcl_removed_kg)
 			var acrolein_removed_kg: float = room.acrolein_kg \
 					* open_species_purge_fraction \
-					* lerpf(0.40, 0.75, upper_bias)
+					* DetMath.lerpf(0.40, 0.75, upper_bias)
 			room.acrolein_kg = maxf(0.0, room.acrolein_kg - acrolein_removed_kg)
 			var formaldehyde_removed_kg: float = room.formaldehyde_kg \
 					* open_species_purge_fraction \
-					* lerpf(0.40, 0.75, upper_bias)
+					* DetMath.lerpf(0.40, 0.75, upper_bias)
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg - formaldehyde_removed_kg)
 			# SF-CBAL: carbono que sale por purga exterior de especies (outside_open_species_purge).
 			room.c_exited_kg += (co_upper_removed_kg + co_lower_removed_kg) * (12.0 / 28.0) \
@@ -3207,12 +3208,12 @@ func _apply_background_species_exchange(
 			* maxf(0.0, background_species_exchange_kg_s_m2) \
 			* background_drive \
 			* dt
-	exchange_air_kg *= lerpf(
+	exchange_air_kg *= DetMath.lerpf(
 		1.0,
 		maxf(1.0, background_species_path_multiplier_max),
 		clampf(outside_open_factor, 0.0, 1.0)
 	)
-	var max_exchange_kg: float = minf(mass_a_kg, mass_b_kg) * lerpf(
+	var max_exchange_kg: float = minf(mass_a_kg, mass_b_kg) * DetMath.lerpf(
 		clampf(background_species_max_fraction_closed, 0.0, 0.50),
 		clampf(background_species_max_fraction_open, 0.0, 0.50),
 		clampf(outside_open_factor, 0.0, 1.0)
@@ -3885,7 +3886,7 @@ func _compute_outside_species_purge_fraction(building: BuildingModel, room: Room
 		return 0.0
 
 	var temp_factor: float = clampf(
-		inverse_lerp(
+		DetMath.inverse_lerp(
 			outside_open_species_temp_start_c,
 			outside_open_species_temp_full_c,
 			room.temp_upper_c
@@ -3901,7 +3902,7 @@ func _compute_outside_species_purge_fraction(building: BuildingModel, room: Room
 	var drive: float = maxf(temp_factor, pressure_factor * 0.75)
 	var purge_rate_per_s: float = outside_open_species_purge_base_per_s \
 			+ outside_open_species_purge_bonus_per_s * outside_open_factor * drive
-	return clampf(1.0 - exp(-maxf(0.0, purge_rate_per_s) * dt), 0.0, 0.85)
+	return clampf(1.0 - DetMath.exp(-maxf(0.0, purge_rate_per_s) * dt), 0.0, 0.85)
 
 
 func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel) -> float:
@@ -4292,7 +4293,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 			room_o2_inventory.refuse_route(inlet_room, "ppv", mix_frac)
 		else:
 			inlet_room.o2 = clampf(
-				lerpf(inlet_room.o2, building.outside_o2, mix_frac),
+				DetMath.lerpf(inlet_room.o2, building.outside_o2, mix_frac),
 				0.0,
 				o2_nominal
 			)
@@ -4300,7 +4301,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		# balance de masa, asi que no hay kg conservado que atribuir.
 		phase3_o2_ledger.record(
 			"ges_ppv_inlet", "bulk", inlet_room, _ppv_o2_before,
-			lerpf(_ppv_o2_before, building.outside_o2, mix_frac), inlet_room.o2,
+			DetMath.lerpf(_ppv_o2_before, building.outside_o2, mix_frac), inlet_room.o2,
 			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
 			NAN, "fraction_lerp_no_mass_balance"
 		)

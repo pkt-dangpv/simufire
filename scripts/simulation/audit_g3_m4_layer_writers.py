@@ -64,12 +64,18 @@ def scan(source, path):
     return rows
 
 
-def inventory(root=ROOT):
+def inventory(root=ROOT, normalize=None, skip=()):
+    """``normalize`` (text -> text) and ``skip`` (relative paths) let a test compare
+    today's sources with this historical evidence modulo a declared rewrite."""
     hashes = {}
     rows = []
     for path in sorted((root / "sim").rglob("*.gd")):
         relative = path.relative_to(root).as_posix()
+        if relative in skip:
+            continue
         raw = path.read_bytes()
+        if normalize is not None:
+            raw = normalize(raw.decode("utf-8")).encode("utf-8")
         hashes[relative] = hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
         rows.extend(scan(raw.decode("utf-8-sig"), relative))
     digest = hashlib.sha256("\n".join(f"{p}:{h}" for p, h in hashes.items()).encode()).hexdigest()

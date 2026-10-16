@@ -16,6 +16,39 @@ ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR = ROOT / "scripts/simulation/validate_reference_cases.py"
 REPORT = ROOT / "sim/validation/reports/reference_checks.json"
 HISTORICAL_REV = "35d0f978"
+# Runtime reports regenerated on 2026-10-15 when sim/ moved its math to
+# sim/core/DetMath.gd (docs/validation/determinism/README.md). Their content
+# changed for a declared reason; every OTHER artifact must still match the
+# historical aggregate, except the 38 line-ending-only changes below.
+DETMATH_REGENERATED_REPORTS = frozenset(
+    "sim/validation/reports/" + name for name in (
+        "cfast_bedroom_closed_door.json",
+        "cfast_corridor_chain.json",
+        "cfast_corridor_chain.log",
+        "cfast_door_close_midfire.json",
+        "cfast_fast_growth_closed.json",
+        "cfast_hvac_residential.json",
+        "cfast_hvac_residential.log",
+        "cfast_long_burnout_3600s.json",
+        "cfast_long_burnout_3600s.log",
+        "cfast_multi_fuel_couch_tv.json",
+        "cfast_multi_fuel_couch_tv.log",
+        "cfast_pool_fire_open.json",
+        "cfast_post_flashover_vented.json",
+        "cfast_r0_window_360.json",
+        "cfast_single_room_closed.json",
+        "cfast_slow_growth_sealed.json",
+        "cfast_slow_growth_sealed.log",
+        "cfast_suppression_water.json",
+        "cfast_two_floor_stairwell.json",
+        "cfast_two_floor_stairwell.log",
+        "cfast_two_room_door_open.json",
+        "cfast_two_room_door_open.log",
+        "cfast_window_break_t180.json",
+        "ghanekar_bedroom_hallway.json",
+        "ghanekar_kitchen_living_room.json",
+    )
+)
 
 
 def _load_validator():
@@ -85,6 +118,8 @@ def test_historical_38_artifact_changes_are_exactly_lf_crlf() -> None:
     new = _artifacts(json.loads(REPORT.read_text(encoding="utf-8")))
     assert old.keys() == new.keys()
     changed = [path for path in old if old[path] != new[path]]
+    assert DETMATH_REGENERATED_REPORTS <= set(changed)
+    changed = [path for path in changed if path not in DETMATH_REGENERATED_REPORTS]
     assert len(changed) == 38
 
     for path in changed:
@@ -106,7 +141,8 @@ def test_historical_38_artifacts_have_unchanged_committed_content() -> None:
         cwd=ROOT, capture_output=True, check=True,
     ).stdout))
     new = _artifacts(json.loads(REPORT.read_text(encoding="utf-8")))
-    changed = [path for path in old if old[path] != new[path]]
+    changed = [path for path in old if old[path] != new[path]
+               and path not in DETMATH_REGENERATED_REPORTS]
     assert len(changed) == 38
     for path in changed:
         blob = subprocess.run(

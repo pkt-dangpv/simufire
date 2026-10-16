@@ -278,7 +278,7 @@ def test_coverage_is_declared_and_never_claimed_complete():
     assert "phase3_o2_ledger" not in hvac
     assert "REASON_" not in hvac
     # HVAC keeps its unowned O2 writes exactly as they were.
-    assert "room.o2 = lerpf(room.o2, clampf(float(supply_mix.get(\"o2\"" in hvac
+    assert "room.o2 = DetMath.lerpf(room.o2, clampf(float(supply_mix.get(\"o2\"" in hvac
     # The export must declare what it does NOT cover, so no reader can mistake
     # the table for full coverage.
     assert '"uninstrumented_writers": [' in ENGINE

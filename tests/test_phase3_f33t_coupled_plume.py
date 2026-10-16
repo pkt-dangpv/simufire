@@ -35,7 +35,7 @@ def test_complete_heskestad_uses_accepted_combustion_contract():
     assert 'combustion_transaction.get("effective_chi_rad"' in preview
     assert "accepted_hrr_kw * (1.0 - effective_chi_rad)" in preview
     assert "-1.02 * plume_fire_diameter_m" in preview
-    assert "0.083 * pow(accepted_hrr_kw, 0.4)" in preview
+    assert "0.083 * DetMath.pow(accepted_hrr_kw, 0.4)" in preview
     assert "0.071 * 0.026 * qc_kw * dt" in preview
     assert '"o2_decision_applied": true' in preview
 

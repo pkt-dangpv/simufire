@@ -1,5 +1,6 @@
 extends RefCounted
 class_name HVACSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 
@@ -84,9 +85,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 			+ smoke_from_returns_kg * 0.87
 
 	var supply_mix: Dictionary = {
-		"o2": lerpf(float(return_sample.get("o2", building.outside_o2)), building.outside_o2, outside_air_fraction),
+		"o2": DetMath.lerpf(float(return_sample.get("o2", building.outside_o2)), building.outside_o2, outside_air_fraction),
 		# Fase 2B: co2_upper del supply = mezcla entre retorno y exterior (0.0004 mol fraction).
-		"co2_upper": lerpf(float(return_sample.get("co2_upper", 0.0004)), 0.0004, outside_air_fraction),
+		"co2_upper": DetMath.lerpf(float(return_sample.get("co2_upper", 0.0004)), 0.0004, outside_air_fraction),
 		"temp_c": _compute_supply_temp_c(building, hvac, return_sample, outside_air_fraction, is_on),
 		"smoke_kg_per_kg_air": (
 			smoke_from_returns_kg
@@ -299,22 +300,22 @@ func _supply_air(
 			room.co_upper_kg = clampf(room.co_upper_kg + co_upper_added_kg, 0.0, room.co_kg)
 			room.co2_upper_kg = clampf(room.co2_upper_kg + co2_upper_added_kg, 0.0, room.co2_kg)
 			room.hcn_upper_kg = clampf(room.hcn_upper_kg + hcn_upper_added_kg, 0.0, room.hcn_kg)
-		room.o2 = lerpf(room.o2, clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2), air_fraction)
+		room.o2 = DetMath.lerpf(room.o2, clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2), air_fraction)
 		var supply_o2: float = clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2)
 		if use_two_zone_hvac:
 			if high_supply:
-				room.o2_upper = clampf(lerpf(room.o2_upper, supply_o2, air_fraction), 0.0, building.outside_o2)
+				room.o2_upper = clampf(DetMath.lerpf(room.o2_upper, supply_o2, air_fraction), 0.0, building.outside_o2)
 			else:
-				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
+				room.o2_lower = clampf(DetMath.lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
 		# Phase 2H Exp 2H.2: suministro HVAC en zona baja (height_fraction < 0.5) repone o2_lower.
 		# Físicamente: el aire fresco inyectado a baja altura refresca directamente la capa inferior.
 		# Invariante o2_lower ≥ room.o2 preservada por clampf con room.o2 como floor.
 		elif bool(hooks.get("phase2h_o2_doorway_two_zone_enabled", false)):
 			if float(vent.get("height_fraction", 1.0)) < 0.5:
-				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
+				room.o2_lower = clampf(DetMath.lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
 		# Fase 2B: diluir co2_upper con el CO₂ del aire suministrado (0.0004 si es 100% exterior).
 		var supply_co2_upper: float = float(supply_mix.get("co2_upper", 0.0004))
-		room.co2_upper = clampf(lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)
+		room.co2_upper = clampf(DetMath.lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)
 		_apply_supply_heat(room, vent, air_kg, float(supply_mix.get("temp_c", building.outside_temp_c)), hooks)
 		recirculated_smoke_kg += smoke_added_kg
 		c_supplied_kg += co_added_kg * (12.0 / 28.0) \
@@ -335,7 +336,7 @@ func _compute_supply_temp_c(
 	is_on: bool
 ) -> float:
 	var recirc_temp_c: float = float(return_sample.get("temp_c", building.outside_temp_c))
-	var mixed_temp_c: float = lerpf(recirc_temp_c, building.outside_temp_c, outside_air_fraction)
+	var mixed_temp_c: float = DetMath.lerpf(recirc_temp_c, building.outside_temp_c, outside_air_fraction)
 	if not is_on:
 		return mixed_temp_c
 
@@ -344,7 +345,7 @@ func _compute_supply_temp_c(
 
 	var target_c: float = float(hvac.get("supply_temp_c", mixed_temp_c))
 	var strength: float = clampf(float(hvac.get("conditioning_strength", 0.60)), 0.0, 1.0)
-	return lerpf(mixed_temp_c, target_c, strength)
+	return DetMath.lerpf(mixed_temp_c, target_c, strength)
 
 
 func _remove_smoke_from_room(room: RoomModel, air_fraction: float, upper_sample_factor: float) -> float:
@@ -424,9 +425,9 @@ func _remove_species_from_room(
 		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - zone_fraction))
 		return removed
 
-	var upper_bias: float = clampf(inverse_lerp(1.0, high_return_smoke_capture_cap, upper_sample_factor), 0.0, 1.0)
-	var upper_fraction: float = clampf(air_fraction * lerpf(1.0, 2.2, upper_bias), 0.0, 0.30)
-	var lower_fraction: float = clampf(air_fraction * lerpf(1.0, 0.45, upper_bias), 0.0, 0.20)
+	var upper_bias: float = clampf(DetMath.inverse_lerp(1.0, high_return_smoke_capture_cap, upper_sample_factor), 0.0, 1.0)
+	var upper_fraction: float = clampf(air_fraction * DetMath.lerpf(1.0, 2.2, upper_bias), 0.0, 0.30)
+	var lower_fraction: float = clampf(air_fraction * DetMath.lerpf(1.0, 0.45, upper_bias), 0.0, 0.20)
 
 	var co_upper_available: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
 	var co_lower_available: float = maxf(0.0, room.co_kg - co_upper_available)
@@ -435,7 +436,7 @@ func _remove_species_from_room(
 	room.co_upper_kg = maxf(0.0, co_upper_available - co_upper_removed)
 	room.co_kg = maxf(0.0, room.co_kg - co_upper_removed - co_lower_removed)
 
-	var well_mixed_fraction: float = clampf(air_fraction * lerpf(1.0, 1.35, upper_bias), 0.0, 0.22)
+	var well_mixed_fraction: float = clampf(air_fraction * DetMath.lerpf(1.0, 1.35, upper_bias), 0.0, 0.22)
 	var co2_removed: float = minf(room.co2_kg, room.co2_kg * well_mixed_fraction)
 	var hcn_removed: float = minf(room.hcn_kg, room.hcn_kg * well_mixed_fraction)
 	var hcl_removed: float = minf(room.hcl_kg, room.hcl_kg * well_mixed_fraction)
@@ -462,7 +463,7 @@ func _remove_heat_from_return(room: RoomModel, air_fraction: float, upper_sample
 	var remove_upper_layer_fraction_callable: Callable = hooks.get("remove_upper_layer_fraction_callable", Callable())
 	if not remove_upper_layer_fraction_callable.is_valid():
 		return
-	var layer_fraction: float = clampf(air_fraction * inverse_lerp(1.0, high_return_smoke_capture_cap, upper_sample_factor), 0.0, 0.12)
+	var layer_fraction: float = clampf(air_fraction * DetMath.inverse_lerp(1.0, high_return_smoke_capture_cap, upper_sample_factor), 0.0, 0.12)
 	if layer_fraction > 0.0:
 		remove_upper_layer_fraction_callable.call(room, layer_fraction)
 
@@ -484,13 +485,13 @@ func _apply_supply_heat(room: RoomModel, vent: Dictionary, air_kg: float, supply
 	if high_supply and (room.upper_gas_kg > 0.0 or supply_temp_c > room.temp_lower_c + 4.0):
 		var upper_air_kg: float = maxf(room.upper_gas_kg, air_kg)
 		var thermal_mix: float = clampf(air_kg / maxf(1.0, upper_air_kg + air_kg), 0.0, 0.35)
-		var target_upper_c: float = lerpf(room.temp_upper_c, supply_temp_c, thermal_mix)
+		var target_upper_c: float = DetMath.lerpf(room.temp_upper_c, supply_temp_c, thermal_mix)
 		room.temp_upper_c = maxf(room.temp_lower_c, target_upper_c)
 		room.temp_upper_raw_c = maxf(room.temp_upper_raw_c, room.temp_upper_c)
 		room.upper_gas_kg = maxf(room.upper_gas_kg, air_kg * 0.35)
 		room.upper_energy_kj = maxf(0.0, room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c) * AIR_CP_KJ_KG_K)
 	else:
-		room.temp_lower_c = lerpf(room.temp_lower_c, supply_temp_c, mix_fraction * 0.65)
+		room.temp_lower_c = DetMath.lerpf(room.temp_lower_c, supply_temp_c, mix_fraction * 0.65)
 		if room.temp_upper_c < room.temp_lower_c:
 			room.temp_upper_c = room.temp_lower_c
 

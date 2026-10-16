@@ -23,7 +23,7 @@ def _function(source: str, name: str) -> str:
 def test_cfast_constant_and_exact_tanhsmooth_formula_are_present():
     assert "CFAST_DESTINATION_DELTA_TEMP_K: float = 1.0" in SYSTEM
     body = _function(SYSTEM, "_cfast_tanhsmooth")
-    assert "0.5 + 0.5025 * tanh(" in body
+    assert "0.5 + 0.5025 * DetMath.tanh(" in body
     assert "6.0 / (xmax - xmin) * (x - xmin) - 3.0" in body
 
 

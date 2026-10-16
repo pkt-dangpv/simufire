@@ -1,5 +1,6 @@
 extends RefCounted
 class_name SmokeModel
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 
@@ -174,7 +175,7 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 		1.0
 	)
 	var gap_factor: float = clampf(
-		inverse_lerp(
+		DetMath.inverse_lerp(
 			thermal_smoke_bridge_gap_start_m,
 			thermal_smoke_bridge_gap_full_m,
 			visible_layer_m - thermal_layer_m
@@ -184,7 +185,7 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 	)
 	var bridge_weight: float = thermal_smoke_bridge_max_weight * concentration_factor * gap_factor
 	var hot_signal: float = clampf(
-		inverse_lerp(
+		DetMath.inverse_lerp(
 			thermal_smoke_bridge_hot_temp_start_c,
 			thermal_smoke_bridge_hot_temp_full_c,
 			room.temp_upper_c
@@ -196,7 +197,7 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 		bridge_weight,
 		thermal_smoke_bridge_hot_max_weight * hot_signal * concentration_factor
 	)
-	return lerpf(visible_layer_m, thermal_layer_m, bridge_weight)
+	return DetMath.lerpf(visible_layer_m, thermal_layer_m, bridge_weight)
 
 
 func get_spill_layer_height_m(room: RoomModel) -> float:
@@ -243,7 +244,7 @@ func recompute_layer_from_mass(room: RoomModel, dt: float, ambient_c: float = 20
 	var target_layer_m: float = minf(soot_target_layer_m, gas_target_layer_m)
 
 	if target_layer_m < room.h_layer_m:
-		room.h_layer_m = lerpf(
+		room.h_layer_m = DetMath.lerpf(
 			room.h_layer_m,
 			target_layer_m,
 			clampf(layer_relax_down * dt * 2.0, 0.0, 1.0)
@@ -253,7 +254,7 @@ func recompute_layer_from_mass(room: RoomModel, dt: float, ambient_c: float = 20
 		var recovery_gap_m: float = target_layer_m - room.h_layer_m
 		if recovery_gap_m > layer_recovery_gap_start_m:
 			var gap_factor: float = clampf(
-				inverse_lerp(
+				DetMath.inverse_lerp(
 					layer_recovery_gap_start_m,
 					maxf(layer_recovery_gap_start_m + 0.05, layer_recovery_gap_full_m),
 					recovery_gap_m
@@ -261,12 +262,12 @@ func recompute_layer_from_mass(room: RoomModel, dt: float, ambient_c: float = 20
 				0.0,
 				1.0
 			)
-			relax_up_rate *= lerpf(1.0, maxf(1.0, layer_recovery_boost_max), gap_factor)
+			relax_up_rate *= DetMath.lerpf(1.0, maxf(1.0, layer_recovery_boost_max), gap_factor)
 
 		if room.hrr_kw <= layer_recovery_low_hrr_threshold_kw:
 			relax_up_rate *= maxf(1.0, layer_recovery_low_hrr_boost)
 
-		room.h_layer_m = lerpf(
+		room.h_layer_m = DetMath.lerpf(
 			room.h_layer_m,
 			target_layer_m,
 			clampf(relax_up_rate * dt, 0.0, 1.0)
@@ -510,7 +511,7 @@ func _compute_transfer_mass_kg_continuous(
 	var target_layer_factor: float = 1.0
 	var target_smoke_layer_m: float = LayerInterfaceModel.get_flow_interface_height_m(target, self, 20.0)
 	if target_smoke_layer_m <= target_layer_block_start_m:
-		target_layer_factor = inverse_lerp(
+		target_layer_factor = DetMath.inverse_lerp(
 			target_layer_block_full_m,
 			target_layer_block_start_m,
 			clampf(target_smoke_layer_m, target_layer_block_full_m, target_layer_block_start_m)
@@ -563,7 +564,7 @@ func _compute_pressure_spill_multiplier(source: RoomModel, target: RoomModel = n
 		0.0,
 		1.0
 	)
-	return lerpf(1.0, pressure_spill_max_multiplier, t)
+	return DetMath.lerpf(1.0, pressure_spill_max_multiplier, t)
 
 
 func _compute_smoke_temp_expansion(room: RoomModel) -> float:
@@ -571,7 +572,7 @@ func _compute_smoke_temp_expansion(room: RoomModel) -> float:
 		return 1.0
 
 	var ambient_k: float = 293.15
-	var effective_smoke_temp_c: float = lerpf(
+	var effective_smoke_temp_c: float = DetMath.lerpf(
 		room.temp_lower_c,
 		room.temp_upper_c,
 		clampf(smoke_temp_expansion_upper_weight, 0.0, 1.0)

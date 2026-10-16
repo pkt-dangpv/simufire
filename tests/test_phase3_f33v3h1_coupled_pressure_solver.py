@@ -104,8 +104,10 @@ def test_solver_never_reaches_engine_or_model_types():
     # F2.2B: the solver loads its authoritative evaluator. F2.2D1 added the
     # crack law and F2.2C-R1 the atmospheric column and the floor/ceiling vent,
     # precisely so that it does not copy any of them. Four preloads, all four
-    # pure models, and no engine type.
-    assert SOLVER_CODE.count("preload(") == 4
+    # pure models, and no engine type. The fifth is the deterministic math
+    # library every sim/ file uses (sim/core/DetMath.gd, pure functions).
+    assert SOLVER_CODE.count("preload(") == 5
+    assert 'DetMath = preload("res://sim/core/DetMath.gd")' in SOLVER_CODE
     assert "ExteriorPressureProfileScript = preload(" in SOLVER_CODE
     assert "VerticalShaftFlowModelScript = preload(" in SOLVER_CODE
     assert "CompartmentPressureEquationsScript = preload(" in SOLVER_CODE

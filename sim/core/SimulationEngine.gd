@@ -1,5 +1,6 @@
 extends Node
 class_name SimulationEngine
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const CombustionSystemScript = preload("res://sim/fire/CombustionSystem.gd")
 const GasExchangeSystemScript = preload("res://sim/core/GasExchangeSystem.gd")
@@ -4486,7 +4487,7 @@ func _step_exterior_opening_smooth(dt: float) -> void:
 		return
 	var blend: float = 1.0
 	if exterior_opening_smooth_tau_s > 0.001:
-		blend = 1.0 - exp(-dt / exterior_opening_smooth_tau_s)
+		blend = 1.0 - DetMath.exp(-dt / exterior_opening_smooth_tau_s)
 	for op in building.get_openings():
 		if not op.is_exterior_opening():
 			op.open_fraction_smooth = op.open_fraction
@@ -4494,7 +4495,7 @@ func _step_exterior_opening_smooth(dt: float) -> void:
 		if op.open_fraction_smooth < 0.0:
 			op.open_fraction_smooth = op.open_fraction
 		else:
-			op.open_fraction_smooth = lerpf(op.open_fraction_smooth, op.open_fraction, blend)
+			op.open_fraction_smooth = DetMath.lerpf(op.open_fraction_smooth, op.open_fraction, blend)
 
 
 # ============================================================
@@ -4774,7 +4775,7 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	)
 	room.temp_lower_c = maxf(ambient_c, room.temp_lower_c - lower_drop_c)
 
-	var hrr_factor: float = exp(-water_l * maxf(0.0, suppression_hrr_decay_per_l))
+	var hrr_factor: float = DetMath.exp(-water_l * maxf(0.0, suppression_hrr_decay_per_l))
 	hrr_factor = clampf(hrr_factor, 0.03, 1.0)
 	# G3 balance (g3_balance_v1): solo lectura, con el libro G3 activo.
 	var g3_bal_suppression: Dictionary = {}
@@ -4790,7 +4791,7 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	room.hrr_target_kw *= hrr_factor
 	room.burned_hrr_kw = room.hrr_kw
 	var g3_account_pool_before_MJ: float = room.retained_unburned_MJ
-	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
+	room.retained_unburned_MJ *= DetMath.lerpf(0.30, 1.0, hrr_factor)
 	# G3-4A: lo que la supresión quita al depósito va a su cuenta de sala.
 	if combustion_system.g3_unburned_account_room(
 		room, fire_explicit_object_fuel_ownership_enabled, fire_unburned_energy_account_enabled
@@ -4815,7 +4816,7 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	for obj in room.fuel_objects:
 		if obj == null:
 			continue
-		obj.surface_temp_c = lerpf(obj.surface_temp_c, ambient_c, surface_cool_t)
+		obj.surface_temp_c = DetMath.lerpf(obj.surface_temp_c, ambient_c, surface_cool_t)
 		obj.hrr_kw *= hrr_factor
 		if obj.state == 3 and obj.surface_temp_c < obj.ignition_temp_c:
 			obj.state = 4
@@ -4962,8 +4963,8 @@ func _step_targets(dt: float) -> void:
 			continue
 		var T_upper_K: float = room.temp_upper_c + 273.15
 		var T_tgt_K: float = t.temp_c + 273.15
-		var q_incident: float = t.angle_factor * t.emissivity * SIGMA_KW * pow(T_upper_K, 4.0)
-		var q_emit: float = t.emissivity * SIGMA_KW * pow(T_tgt_K, 4.0)
+		var q_incident: float = t.angle_factor * t.emissivity * SIGMA_KW * DetMath.pow(T_upper_K, 4.0)
+		var q_emit: float = t.emissivity * SIGMA_KW * DetMath.pow(T_tgt_K, 4.0)
 		t.qnet_kw_m2 = maxf(q_incident - q_emit, 0.0)
 		if t.qnet_kw_m2 > t.peak_qnet_kw_m2:
 			t.peak_qnet_kw_m2 = t.qnet_kw_m2
@@ -5028,7 +5029,7 @@ func _step_pool_fires(dt: float) -> void:
 			var hrr_per_m2: float = obj.pool_hrr_kw_m2
 			if obj.pool_k_beta_per_m > 0.0 and obj.pool_area_m2 > 0.0:
 				var diam_m: float = sqrt(4.0 * obj.pool_area_m2 / PI)
-				hrr_per_m2 *= (1.0 - exp(-obj.pool_k_beta_per_m * diam_m))
+				hrr_per_m2 *= (1.0 - DetMath.exp(-obj.pool_k_beta_per_m * diam_m))
 			pool_hrr_kw += hrr_per_m2 * obj.pool_area_m2
 		if pool_hrr_kw > 0.0:
 			# Actualizar el techo de HRR del fuego para reflejar el área actual del charco.
@@ -5974,9 +5975,9 @@ func _ceiling_jet_temp_c(room: RoomModel, det: Dictionary) -> float:
 	var r: float = maxf(0.01, sqrt((det_x - fire_x) * (det_x - fire_x) + (det_y - fire_y) * (det_y - fire_y)))
 	var delta_t: float
 	if r / H <= 0.18:
-		delta_t = 16.9 * pow(hrr, 2.0 / 3.0) / pow(H, 5.0 / 3.0)
+		delta_t = 16.9 * DetMath.pow(hrr, 2.0 / 3.0) / DetMath.pow(H, 5.0 / 3.0)
 	else:
-		delta_t = 5.38 * pow(hrr / r, 2.0 / 3.0) / H
+		delta_t = 5.38 * DetMath.pow(hrr / r, 2.0 / 3.0) / H
 	return thermal_system.ambient_temp_c() + delta_t
 
 

@@ -44,6 +44,12 @@ This index groups technical tools and validation scenes.
 - `validate_fp_victim_states.tscn`
 - `validate_fp_victim_states.gd`
 
+## Determinism
+
+- `determinism_fingerprint.py` (launcher and `compare`)
+- `determinism_fingerprint.gd`
+- `determinism_fingerprint_options.json` (fixed scenario)
+
 ## Reports and Analysis
 
 - `audit_tolerance_provenance.py`

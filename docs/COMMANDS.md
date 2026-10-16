@@ -117,6 +117,15 @@ python scripts/check_docs_links.py
 
 Comprueba enlaces Markdown locales en el repositorio. Los enlaces externos y anchors se ignoran.
 
+## Huella de Determinismo del Motor
+
+```powershell
+python -X utf8 tools/determinism_fingerprint.py run --out <huella.json> --worker
+python -X utf8 tools/determinism_fingerprint.py compare <a.json> <b.json>
+```
+
+Corre siempre el mismo escenario (`tools/determinism_fingerprint_options.json`, con `user://` aislado) 7200 pasos de 1/12 s y guarda resúmenes SHA-256 del estado exportado cada 600 pasos, más las huellas de las funciones matemáticas que usa el motor en el hilo principal y en un hilo trabajador. Sirve para comprobar que el motor da exactamente los mismos números en otra máquina, en otro build o en otro hilo. `compare` sale con 1 si las huellas difieren. Huellas guardadas en `docs/validation/determinism/`.
+
 ## Tests Python de Producto Sin Godot
 
 ```powershell

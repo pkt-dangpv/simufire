@@ -1,5 +1,6 @@
 extends RefCounted
 class_name Phase3ZoneMassSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 # F3.0: transaccion two-zone en sombra. Este componente nunca escribe RoomModel.
 
@@ -1052,7 +1053,7 @@ func preview_canonical_multisurface_exchange(
 				* gas_emissivity
 				* STEFAN_BOLTZMANN_KW_M2_K4
 				* area_m2
-				* (pow(gas_temp_k, 4.0) - pow(surface_temp_k, 4.0))
+				* (DetMath.pow(gas_temp_k, 4.0) - DetMath.pow(surface_temp_k, 4.0))
 				* dt_s
 			)
 		var exterior: Dictionary = {}
@@ -4112,7 +4113,7 @@ func _integrate_canonical_interior_opening(
 		if dp_bottom_pa * dp_top_pa < 0.0:
 			var zero_fraction: float = absf(dp_bottom_pa) \
 					/ maxf(1.0e-12, absf(dp_bottom_pa) + absf(dp_top_pa))
-			var zero_m: float = lerpf(interval_bottom_m, interval_top_m, zero_fraction)
+			var zero_m: float = DetMath.lerpf(interval_bottom_m, interval_top_m, zero_fraction)
 			neutral_plane_m = zero_m
 			min_abs_dp_pa = 0.0
 			var lower_flow: Dictionary = _canonical_interior_interval_flow(
@@ -4269,7 +4270,7 @@ func _integral_sqrt_abs_linear(value_a: float, value_b: float, length_m: float) 
 
 
 func _signed_pow_three_halves(value: float) -> float:
-	return signf(value) * pow(absf(value), 1.5)
+	return signf(value) * DetMath.pow(absf(value), 1.5)
 
 
 func _accumulate_canonical_interior_route(
@@ -4383,7 +4384,7 @@ func _cfast_tanhsmooth(
 	if xmax <= xmin:
 		return ymax if x >= xmax else ymin
 	var fraction: float = clampf(
-		0.5 + 0.5025 * tanh(6.0 / (xmax - xmin) * (x - xmin) - 3.0),
+		0.5 + 0.5025 * DetMath.tanh(6.0 / (xmax - xmin) * (x - xmin) - 3.0),
 		0.0,
 		1.0
 	)
@@ -4498,14 +4499,14 @@ func preview_canonical_doorway_jet_entrainment(
 			/ lower_temp_k
 	var entrainment_rate_kg_s: float = mixing_factor \
 			* POREH_ENTRAINMENT_COEFFICIENT \
-			* pow(lower_temp_k / upper_temp_k, 2.0 / 3.0) \
-			* pow(
+			* DetMath.pow(lower_temp_k / upper_temp_k, 2.0 / 3.0) \
+			* DetMath.pow(
 				GRAVITY_M_S2 * lower_density_kg_m3 * lower_density_kg_m3
 						/ (air_cp_j_kg_k * lower_temp_k),
 				1.0 / 3.0
 			) \
-			* pow(heat_flow_w, 1.0 / 3.0) \
-			* pow(opening_width_m, 2.0 / 3.0) \
+			* DetMath.pow(heat_flow_w, 1.0 / 3.0) \
+			* DetMath.pow(opening_width_m, 2.0 / 3.0) \
 			* mixing_depth_m
 	if not is_finite(entrainment_rate_kg_s) or entrainment_rate_kg_s <= 0.0:
 		return result
@@ -11888,7 +11889,7 @@ func _interpolate_combustion_state(
 		"proposal_age_s", "proposal_hrr_kw", "proposal_target_kw",
 		"proposal_remaining_fuel_MJ"
 	]:
-		result[key] = lerpf(
+		result[key] = DetMath.lerpf(
 			float(before.get(key, proposed.get(key, 0.0))),
 			float(proposed.get(key, before.get(key, 0.0))),
 			accepted
@@ -11936,7 +11937,7 @@ func _interpolate_fuel_object_ledger(
 		)
 		var committed: Dictionary = proposed_entry.duplicate(true)
 		committed["id"] = object_id
-		committed["remaining_fuel_MJ"] = lerpf(
+		committed["remaining_fuel_MJ"] = DetMath.lerpf(
 			maxf(0.0, float(before_entry.get("remaining_fuel_MJ", 0.0))),
 			maxf(0.0, float(proposed_entry.get("remaining_fuel_MJ", 0.0))),
 			accepted
@@ -12295,13 +12296,13 @@ func _canonical_o2_for_selected_mode(
 	if mode == "lower" or mode == "plume_lower":
 		return {"o2_ref": lower_o2, "zone_code": 2.0}
 	if mode == "interface":
-		return {"o2_ref": lerpf(lower_o2, upper_o2, 0.5), "zone_code": 3.0}
+		return {"o2_ref": DetMath.lerpf(lower_o2, upper_o2, 0.5), "zone_code": 3.0}
 	if mode == "plume_blend":
 		var legacy_span: float = room.o2_lower - room.o2_upper
 		var blend: float = 0.5
 		if absf(legacy_span) > 1.0e-9:
 			blend = clampf((room.fire_o2_ref - room.o2_upper) / legacy_span, 0.0, 1.0)
-		return {"o2_ref": lerpf(upper_o2, lower_o2, blend), "zone_code": 3.0}
+		return {"o2_ref": DetMath.lerpf(upper_o2, lower_o2, blend), "zone_code": 3.0}
 	var total_gas_kg: float = maxf(
 		0.0,
 		float(_snapshots.get(str(room.id), {}).get("upper_gas_kg", 0.0))

@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scripts.simulation import audit_g3_m4_layer_writers as audit
 from scripts.simulation.g3_m4_partition_contract import Partition, budget, broken_invariants, remap
+from scripts.simulation.detmath_routing import strip_detmath_routing
 
 
 @pytest.mark.parametrize("text", [
@@ -36,7 +37,10 @@ def test_inventory_separates_initial_declaration_from_reset_write():
 def test_current_inventory_matches_recorded_sources_and_every_direct_write():
     evidence = json.loads((ROOT / "docs/validation/G3_O2_M4_ADAPTER_DIAGNOSIS_EVIDENCE_2026-10-12.json")
                           .read_text(encoding="utf-8"))
-    actual, historical = audit.inventory(), evidence["inventory"]
+    # 2026-10-15: sim/ routes its math through sim/core/DetMath.gd. Undoing only
+    # that rewrite must give back the exact bytes this evidence judged.
+    actual = audit.inventory(normalize=strip_detmath_routing, skip={"sim/core/DetMath.gd"})
+    historical = evidence["inventory"]
     # M4-P1 adds ONE isolated pure module. Preserve every historical source
     # and writer rather than rewriting the 64-file evidence from M4-B.
     addition = "sim/core/PhysicalGasOxygenParcelModel.gd"

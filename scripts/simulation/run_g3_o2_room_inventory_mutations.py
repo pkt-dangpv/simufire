@@ -82,8 +82,8 @@ MUTATIONS: dict[str, tuple[str, str, str, str, str]] = {
         "\treturn mole_fraction * reference_gas_kg(volume_m3)\n",
         "the mole fraction is multiplied by the mass of gas to get the inventory", "B02"),
     "L01_layer_numbers_rewrite_the_inventory": (
-        OXYGEN, "\t\t\troom.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))\n",
-        "\t\t\troom.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))\n"
+        OXYGEN, "\t\t\troom.o2_upper = DetMath.lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))\n",
+        "\t\t\troom.o2_upper = DetMath.lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))\n"
         "\t\t\tif room_o2_inventory != null:\n"
         "\t\t\t\troom.commit_o2_inventory(room_o2_inventory.o2_kg_from_mole_fraction(\n"
         "\t\t\t\t\troom.o2_upper * upper_frac + room.o2_lower * lower_frac, room.volume_m3()),\n"

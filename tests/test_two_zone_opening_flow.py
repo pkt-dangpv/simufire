@@ -152,8 +152,8 @@ class TestTwoZoneOpeningStructure(unittest.TestCase):
         self.assertIn("room.co_upper_kg = clampf(room.co_upper_kg + co_added_kg", body)
         self.assertIn("room.co2_upper_kg = clampf(room.co2_upper_kg + co2_added_kg", body)
         self.assertIn("room.hcn_upper_kg = clampf(room.hcn_upper_kg + hcn_added_kg", body)
-        self.assertIn("room.o2_upper = clampf(lerpf(room.o2_upper, supply_o2", body)
-        self.assertIn("room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2", body)
+        self.assertIn("room.o2_upper = clampf(DetMath.lerpf(room.o2_upper, supply_o2", body)
+        self.assertIn("room.o2_lower = clampf(DetMath.lerpf(room.o2_lower, supply_o2", body)
 
     def test_room_and_state_export_m3_opening_telemetry(self):
         for field in (

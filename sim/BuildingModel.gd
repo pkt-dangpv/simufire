@@ -1,5 +1,6 @@
 extends Node
 class_name BuildingModel
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 
@@ -291,7 +292,7 @@ func street_drop_m(fallback_floor_height: float) -> float:
 # Sin techo: una planta 40 recibe lo que le toca.
 func wind_speed_at_height_m_s(height_m: float) -> float:
 	var z_m: float = maxf(height_m, WIND_PROFILE_MIN_HEIGHT_M)
-	return wind_speed_m_s * pow(z_m / WIND_REFERENCE_HEIGHT_M, wind_profile_alpha)
+	return wind_speed_m_s * DetMath.pow(z_m / WIND_REFERENCE_HEIGHT_M, wind_profile_alpha)
 
 func get_room(room_id: int) -> RoomModel:
 	return rooms.get(room_id)

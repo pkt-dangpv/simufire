@@ -1,4 +1,5 @@
 extends RefCounted
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 ## Fuga permanente de una puerta interior CERRADA: modelo puro.
 ##
@@ -394,10 +395,10 @@ static func crack_volume_flow_m3_s(
 		return 0.0
 	var reference_flow_m3_s: float = area_m2 * sqrt(2.0 * reference_pa / rho_source_kg_m3)
 	if regularization_pa <= 0.0 or abs_dp_pa >= regularization_pa:
-		return reference_flow_m3_s * pow(abs_dp_pa / reference_pa, exponent)
+		return reference_flow_m3_s * DetMath.pow(abs_dp_pa / reference_pa, exponent)
 	# Regularizacion numerica: recta desde el origen hasta el valor de la ley de
 	# potencia en `regularization_pa`. Continua y monotona.
-	var joint_flow_m3_s: float = reference_flow_m3_s * pow(regularization_pa / reference_pa, exponent)
+	var joint_flow_m3_s: float = reference_flow_m3_s * DetMath.pow(regularization_pa / reference_pa, exponent)
 	return joint_flow_m3_s * (abs_dp_pa / regularization_pa)
 
 

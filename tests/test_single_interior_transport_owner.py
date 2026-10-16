@@ -113,8 +113,9 @@ def test_the_validator_pins_the_off_route_and_is_registered():
     source = VALIDATOR_PATH.read_text(encoding="utf-8")
     assert 'const OFF_FINGERPRINT: String = "__PENDING__"' not in source
     # Re-fijada por la fase "ruta normal": el acarreo de gas caliente ya no saca
-    # CO2 de la capa baja del origen (P3 la habia fijado en 4f375edf...).
-    assert 'const OFF_FINGERPRINT: String = "a5ec9b8d' in source
+    # CO2 de la capa baja del origen (P3 la habia fijado en 4f375edf...), y de
+    # nuevo el 2026-10-15 por DetMath (antes a5ec9b8d..., x87 de MinGW).
+    assert 'const OFF_FINGERPRINT: String = "c868a833' in source
     for case in ("_o1_open_door_on", "_o2_vertical_hole_on", "_o3_closed_door_on",
                  "_o4_open_door_off", "_o5_radiation_seed_on",
                  "_o6_ordinary_scenario_switches", "_o7_no_radiation_control_on"):

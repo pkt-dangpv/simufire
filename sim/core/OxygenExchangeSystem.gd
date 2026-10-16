@@ -1,5 +1,6 @@
 extends RefCounted
 class_name OxygenExchangeSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 
@@ -666,7 +667,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					# Guard: sin soporte exterior, no acelerar drenaje de o2_lower (evita colapso
 					# en salas cerradas con solo doorway interior → víctima en zona baja).
 					if outside_open_factor > 0.01:
-						lower_entr_scale = lerpf(0.60, PHASE2H_OPEN_ENTR_SCALE_MAX, interior_open_factor)
+						lower_entr_scale = DetMath.lerpf(0.60, PHASE2H_OPEN_ENTR_SCALE_MAX, interior_open_factor)
 					elif phase2h_interior_no_exterior_drain_gain > 0.0:
 						var no_ext_drain_factor: float = clampf(
 							interior_open_factor * phase2h_interior_no_exterior_drain_gain,
@@ -677,7 +678,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 							0.20,
 							phase2h_interior_no_exterior_drain_max_scale
 						)
-						lower_entr_scale = lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
+						lower_entr_scale = DetMath.lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
 			# R3: lower drena hacia o2_upper (pluma arrastra zona baja hacia zona alta),
 			# no hacia room.o2 promedio que está depletado — evita colapso de zona baja.
 			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2_upper)
@@ -819,13 +820,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				room.o2 = clampf(room.o2_upper * upper_frac + room.o2_lower * lower_frac, 0.0, o2_nominal)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
-			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
+			room.o2_lower = DetMath.lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
 			# Phase 2 opt-in: cuando routing activo, relajar o2_upper hacia outside_o2
 			# (aire fresco zona baja del vano) en lugar de room.o2 mezclado.
 			# Evita que room.o2 depletado luche contra el routing de la zona alta.
 			var _upper_relax_target: float = building.outside_o2 \
 				if doorway_o2_upper_routing_gain > 0.0 else room.o2
-			room.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))
+			room.o2_upper = DetMath.lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))
 		# H3.2-S0d6: clamps finales de zona. Nada liga o2_upper y o2_lower a
 		# room.o2, asi que la correccion no tiene identidad zonal recuperable.
 		var _o2d6_pre_upper: float = room.o2_upper
@@ -926,7 +927,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				g3_row["co2_tracer"]["ach_delta_fraction"] = ach_co2_dt
 		else:
 			# Sin fuego: relajar lentamente hacia CO₂ ambiente (mezcla/difusión)
-			room.co2_upper = lerpf(room.co2_upper, CO2_AMBIENT, clampf(0.05 * dt, 0.0, 0.20))
+			room.co2_upper = DetMath.lerpf(room.co2_upper, CO2_AMBIENT, clampf(0.05 * dt, 0.0, 0.20))
 		if g3_probe != null:
 			g3_row["co2_tracer"]["fraction_before_clamp"] = float(room.co2_upper)
 		room.co2_upper = clampf(room.co2_upper, CO2_AMBIENT, CO2_UPPER_MAX)
@@ -1173,7 +1174,7 @@ func _step_outside_opening_o2(
 		available_inlet_height_m,
 		maxf(0.06, op.height_m * 0.08)
 	)
-	var lower_inlet_height_m: float = lerpf(
+	var lower_inlet_height_m: float = DetMath.lerpf(
 		baseline_inlet_height_m,
 		available_inlet_height_m,
 		oxygen_deficit_factor
@@ -1190,7 +1191,7 @@ func _step_outside_opening_o2(
 		return
 
 	var t_out_k: float = building.outside_temp_c + 273.15
-	var hot_reference_temp_c: float = lerpf(
+	var hot_reference_temp_c: float = DetMath.lerpf(
 		indoor.temp_lower_c,
 		indoor.temp_upper_c,
 		clampf(0.45 + 0.40 * (upper_outlet_height_m / maxf(0.05, op.height_m)), 0.45, 0.90)
@@ -1219,7 +1220,7 @@ func _step_outside_opening_o2(
 	var q_m3_s: float = 0.61 * inlet_area_m2 * sqrt(2.0 * delta_p_pa / maxf(0.05, air_density_kg_m3))
 	var air_in_kg: float = q_m3_s * air_density_kg_m3 * dt
 	var room_air_mass_kg: float = _compute_room_air_mass_kg(indoor, air_density_kg_m3)
-	var max_exchange_fraction: float = lerpf(0.01, 0.12, oxygen_deficit_factor)
+	var max_exchange_fraction: float = DetMath.lerpf(0.01, 0.12, oxygen_deficit_factor)
 	air_in_kg = minf(air_in_kg, room_air_mass_kg * max_exchange_fraction)
 	if air_in_kg <= 0.0:
 		return
@@ -1371,12 +1372,12 @@ func _step_interior_opening_o2(
 			* background_pressure_factor \
 			* dt
 		var base_max_exchange_kg: float = minf(mass_a_base_kg, mass_b_base_kg) \
-			* lerpf(
+			* DetMath.lerpf(
 				doorway_o2_background_max_fraction_per_step,
 				0.045,
 				clampf(outside_open_factor, 0.0, 1.0)
 			)
-		base_exchange_kg *= lerpf(1.0, 3.0, clampf(outside_open_factor, 0.0, 1.0))
+		base_exchange_kg *= DetMath.lerpf(1.0, 3.0, clampf(outside_open_factor, 0.0, 1.0))
 		base_exchange_kg = minf(base_exchange_kg, base_max_exchange_kg)
 		if base_exchange_kg > 0.0:
 			_exchange_room_o2_immediate(room_a, room_b, base_exchange_kg, air_density_kg_m3)
@@ -1569,7 +1570,7 @@ func _exchange_room_o2_active_flow(
 			doorway_o2_upper_routing_gain * exchange_kg / cold_upper_mass_kg,
 			0.0, 0.50)
 		cold_room.o2_upper = clampf(
-			lerpf(cold_room.o2_upper, hot_room.o2_upper, mix_frac),
+			DetMath.lerpf(cold_room.o2_upper, hot_room.o2_upper, mix_frac),
 			0.0, o2_nominal)
 	# CO2 kg lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
 	if room_o2_inventory != null:

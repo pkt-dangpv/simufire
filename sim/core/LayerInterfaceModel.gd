@@ -1,5 +1,6 @@
 extends RefCounted
 class_name LayerInterfaceModel
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 # ============================================================
 # LAYER / INTERFACE MODEL
@@ -124,7 +125,7 @@ static func get_breathing_zone_exposure_factor(
 		return 0.0
 	var interface_m: float = get_thermal_layer_height_m(room, ambient_c)
 	var z_m: float = clampf(breathing_height_m, 0.0, room.height_m)
-	return clampf(inverse_lerp(interface_m - 0.10, interface_m + 0.10, z_m), 0.0, 1.0)
+	return clampf(DetMath.inverse_lerp(interface_m - 0.10, interface_m + 0.10, z_m), 0.0, 1.0)
 
 
 static func _estimate_visible_layer_from_smoke_mass(room: RoomModel, ambient_c: float) -> float:
@@ -134,7 +135,7 @@ static func _estimate_visible_layer_from_smoke_mass(room: RoomModel, ambient_c: 
 		return room.height_m
 	var smoke_density_kg_m3: float = 0.18
 	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
-	var effective_smoke_temp_c: float = lerpf(room.temp_lower_c, room.temp_upper_c, 0.45)
+	var effective_smoke_temp_c: float = DetMath.lerpf(room.temp_lower_c, room.temp_upper_c, 0.45)
 	var temp_expansion: float = maxf(1.0, (effective_smoke_temp_c + 273.15) / maxf(1.0, ambient_c + 273.15))
 	var smoke_volume_m3: float = room.smoke_kg / smoke_density_kg_m3 * temp_expansion
 	return clampf(room.height_m - smoke_volume_m3 / floor_area_m2, 0.0, room.height_m)

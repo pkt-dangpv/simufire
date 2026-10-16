@@ -75,7 +75,7 @@ def test_evaluator_applies_one_fraction_to_hrr_fuel_o2_and_species():
     assert "accepted_fuel_MJ: float = requested_fuel_MJ * accepted_fraction" in body
     assert "_scale_phase3_species(" in body
     assert '"heat_scale": accepted_fraction' in body
-    assert '"plume_scale": pow(accepted_fraction' in body
+    assert '"plume_scale": DetMath.pow(accepted_fraction' in body
 
 
 def test_extinction_forces_factor_and_transaction_to_zero():

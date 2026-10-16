@@ -2,8 +2,11 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts.simulation.detmath_routing import strip_detmath_routing  # noqa: E402
 RECORD = ROOT / "docs/validation/G3_O2_M3_CURRENT_TECHNICAL_EVIDENCE_2026-10-11.json"
 
 
@@ -16,6 +19,10 @@ def test_current_sources_and_judged_harness_match_the_recorded_bytes():
     for section in ("sources_sha256_lf", "judged_harness_sha256_lf"):
         for relative, digest in data[section].items():
             raw = (ROOT / relative).read_bytes().replace(b"\r\n", b"\n")
+            if relative.startswith("sim/"):
+                # 2026-10-15: undo only the DetMath routing; the rest must be
+                # the exact bytes these campaigns judged.
+                raw = strip_detmath_routing(raw.decode("utf-8")).encode("utf-8")
             assert hashlib.sha256(raw).hexdigest() == digest, relative
 
 

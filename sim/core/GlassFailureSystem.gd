@@ -1,5 +1,6 @@
 extends RefCounted
 class_name GlassFailureSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 # ============================================================
 # GLASS FAILURE SYSTEM  (SF-AUD-011)
@@ -162,13 +163,13 @@ func _step_probabilistic(idx: int, op: OpeningModel, room: RoomModel, dt: float)
 	var f_temp: float = clampf((temp - t_start) / (t_ref - t_start), 0.0, 10.0)
 	if f_temp <= 0.0:
 		return
-	var f_exp: float = pow(f_temp, glass_break_hazard_temp_exp)
+	var f_exp: float = DetMath.pow(f_temp, glass_break_hazard_temp_exp)
 	var t_exp_s: float = float(_glass_exposure_s.get(idx, 0.0))
 	var tau: float = maxf(1.0, glass_break_hazard_exposure_tau_s)
 	var lam: float = glass_break_hazard_base_per_s * f_exp * (1.0 + t_exp_s / tau)
 
 	# Evento de Poisson en dt
-	var p_break: float = 1.0 - exp(-lam * dt)
+	var p_break: float = 1.0 - DetMath.exp(-lam * dt)
 	if randf() < p_break:
 		op.mark_glass_broken()
 		op.open_fraction = minf(glass_max_open_fraction,

@@ -147,7 +147,7 @@ def test_can_flame_classification_is_untouched_and_shares_the_threshold():
 
 
 def test_smolder_at_the_threshold_uses_the_engine_expression():
-    expression = "minf(residual_smolder_cap_kw,solid_pyrolysis_kw*smolder_fraction*lerpf(0.40,1.0,subvent_engagement))"
+    expression = "minf(residual_smolder_cap_kw,solid_pyrolysis_kw*smolder_fraction*DetMath.lerpf(0.40,1.0,subvent_engagement))"
     compact = re.sub(r"\s+", "", COMBUSTION)
     assert compact.count(expression) == 2  # the rule below the threshold, and the diagnostic
     assert re.sub(r"\s+", "", patch.CALL).count(expression) == 1

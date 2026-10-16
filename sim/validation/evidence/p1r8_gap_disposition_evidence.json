@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "contract": "p1r8-current-gap-disposition-evidence-v1",
-  "candidate_base_commit": "edc61f4e50d290b70e3ef26f5867343e7d784a4f",
-  "source_aggregate_generated_at": "2026-09-09T13:46:06Z",
+  "candidate_base_commit": "6675fa4ee524f69bf668349c2b9b0fe95a3c18f2",
+  "source_aggregate_generated_at": "2026-10-15T18:42:38Z",
   "check_count": 78,
   "checks": {
     "cfast_2r_hall_rmse_o2": {
-      "actual": 0.07868188182619089,
+      "actual": 0.0786843280205404,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -20,13 +20,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -46,7 +46,7 @@
       ]
     },
     "cfast_2r_hall_t240_co_lower_ppm": {
-      "actual": 119.0,
+      "actual": 118.0,
       "expected": 0.0,
       "tolerance": 100.0,
       "minimum": null,
@@ -60,13 +60,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -100,13 +100,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -126,7 +126,7 @@
       ]
     },
     "cfast_2r_hall_t360_co_lower_ppm": {
-      "actual": 255.0,
+      "actual": 250.0,
       "expected": 0.0,
       "tolerance": 100.0,
       "minimum": null,
@@ -140,13 +140,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -180,13 +180,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -206,7 +206,7 @@
       ]
     },
     "cfast_2r_r0_t120_co2_upper_pct": {
-      "actual": 6.2227,
+      "actual": 6.2228,
       "expected": 1.58066,
       "tolerance": 3.5,
       "minimum": null,
@@ -220,13 +220,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -246,7 +246,7 @@
       ]
     },
     "cfast_2r_r0_t240_co2_upper_pct": {
-      "actual": 25.7062,
+      "actual": 25.7058,
       "expected": 10.6992,
       "tolerance": 3.0,
       "minimum": null,
@@ -260,13 +260,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -300,13 +300,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -340,13 +340,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -366,7 +366,7 @@
       ]
     },
     "cfast_2r_r0_t360_pressure_pa": {
-      "actual": 198.42,
+      "actual": 198.43,
       "expected": -38.7189,
       "tolerance": 47.0,
       "minimum": null,
@@ -380,13 +380,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -420,13 +420,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -460,13 +460,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -500,13 +500,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.json",
-          "bytes": 13073,
-          "sha256": "6048615fc04f0eab90860a28b68738e0c93bb9b9f697c80ebcc2590bcc5b4192"
+          "bytes": 13076,
+          "sha256": "3fe4a6f5332c97cc4cb58fc2c392969493707c3f231c77a3806fbb9bc7e96d58"
         },
         {
           "path": "sim/validation/reports/cfast_two_room_door_open.log",
-          "bytes": 225024,
-          "sha256": "c2865a648e649b8b33518f01f12347716981db2bad724cc02d5b3d35a8982357"
+          "bytes": 225025,
+          "sha256": "b2cf440655c1edb5a9b45265ab21a581a6a2173704c3f5b9c5c8d8ba4d3e2c07"
         },
         {
           "path": "sim/validation/cases/cfast_two_room_door_open.json",
@@ -540,8 +540,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_bedroom_closed_door.json",
-          "bytes": 7388,
-          "sha256": "b5d964fe34cc8fee7c91fb8a01bd5420fdcf037b6d698c03cabad180c2eff813"
+          "bytes": 7383,
+          "sha256": "17b0e6e86d4e5eae36ca70ee1d9d5c42aac669f627446497d8c174df68e4b837"
         },
         {
           "path": "sim/validation/reports/cfast_bedroom_closed_door.log",
@@ -580,13 +580,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_long_burnout_3600s.json",
-          "bytes": 7810,
-          "sha256": "907d1a613aaceb24e7852b984c6ecaf813f75efa1d76017d0df56b2296041c10"
+          "bytes": 7757,
+          "sha256": "b5db08371d708c2fd86cca8660147742e1deedf3668e4b35f29e45409f2498a1"
         },
         {
           "path": "sim/validation/reports/cfast_long_burnout_3600s.log",
           "bytes": 441946,
-          "sha256": "5b0ffcd74ecb6439f257e1652d046c0f1f59145338c310c6628ee2d5c28678ce"
+          "sha256": "495437d4dd694b5f0d07dd091145f6bd11151cc4d00c7068407865f664a81c1f"
         },
         {
           "path": "sim/validation/cases/cfast_long_burnout_3600s.json",
@@ -620,13 +620,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_corridor_chain.json",
-          "bytes": 18437,
-          "sha256": "ef3c894936c571e32690a5194dfc5efaa42723b9e9bdd3729d017ba18eebc8b3"
+          "bytes": 18442,
+          "sha256": "ed99ac5e033afffe9332f6fab52aaebaeadc429fda3b09bc592ff16486418145"
         },
         {
           "path": "sim/validation/reports/cfast_corridor_chain.log",
-          "bytes": 223283,
-          "sha256": "f1409090187183e6233cf48883fb703606bddb5bbdf99e61969164892613ec24"
+          "bytes": 223284,
+          "sha256": "d7533197e2654304fc271598ed7513756905a48917c3af9d5840c9005b0b3878"
         },
         {
           "path": "sim/validation/cases/cfast_corridor_chain.json",
@@ -646,7 +646,7 @@
       ]
     },
     "cfast_chain_r0_t300_temp_upper_c": {
-      "actual": 117.53,
+      "actual": 117.52,
       "expected": 166.268,
       "tolerance": 20.0,
       "minimum": null,
@@ -660,13 +660,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_corridor_chain.json",
-          "bytes": 18437,
-          "sha256": "ef3c894936c571e32690a5194dfc5efaa42723b9e9bdd3729d017ba18eebc8b3"
+          "bytes": 18442,
+          "sha256": "ed99ac5e033afffe9332f6fab52aaebaeadc429fda3b09bc592ff16486418145"
         },
         {
           "path": "sim/validation/reports/cfast_corridor_chain.log",
-          "bytes": 223283,
-          "sha256": "f1409090187183e6233cf48883fb703606bddb5bbdf99e61969164892613ec24"
+          "bytes": 223284,
+          "sha256": "d7533197e2654304fc271598ed7513756905a48917c3af9d5840c9005b0b3878"
         },
         {
           "path": "sim/validation/cases/cfast_corridor_chain.json",
@@ -700,13 +700,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_corridor_chain.json",
-          "bytes": 18437,
-          "sha256": "ef3c894936c571e32690a5194dfc5efaa42723b9e9bdd3729d017ba18eebc8b3"
+          "bytes": 18442,
+          "sha256": "ed99ac5e033afffe9332f6fab52aaebaeadc429fda3b09bc592ff16486418145"
         },
         {
           "path": "sim/validation/reports/cfast_corridor_chain.log",
-          "bytes": 223283,
-          "sha256": "f1409090187183e6233cf48883fb703606bddb5bbdf99e61969164892613ec24"
+          "bytes": 223284,
+          "sha256": "d7533197e2654304fc271598ed7513756905a48917c3af9d5840c9005b0b3878"
         },
         {
           "path": "sim/validation/cases/cfast_corridor_chain.json",
@@ -740,13 +740,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_corridor_chain.json",
-          "bytes": 18437,
-          "sha256": "ef3c894936c571e32690a5194dfc5efaa42723b9e9bdd3729d017ba18eebc8b3"
+          "bytes": 18442,
+          "sha256": "ed99ac5e033afffe9332f6fab52aaebaeadc429fda3b09bc592ff16486418145"
         },
         {
           "path": "sim/validation/reports/cfast_corridor_chain.log",
-          "bytes": 223283,
-          "sha256": "f1409090187183e6233cf48883fb703606bddb5bbdf99e61969164892613ec24"
+          "bytes": 223284,
+          "sha256": "d7533197e2654304fc271598ed7513756905a48917c3af9d5840c9005b0b3878"
         },
         {
           "path": "sim/validation/cases/cfast_corridor_chain.json",
@@ -780,13 +780,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_corridor_chain.json",
-          "bytes": 18437,
-          "sha256": "ef3c894936c571e32690a5194dfc5efaa42723b9e9bdd3729d017ba18eebc8b3"
+          "bytes": 18442,
+          "sha256": "ed99ac5e033afffe9332f6fab52aaebaeadc429fda3b09bc592ff16486418145"
         },
         {
           "path": "sim/validation/reports/cfast_corridor_chain.log",
-          "bytes": 223283,
-          "sha256": "f1409090187183e6233cf48883fb703606bddb5bbdf99e61969164892613ec24"
+          "bytes": 223284,
+          "sha256": "d7533197e2654304fc271598ed7513756905a48917c3af9d5840c9005b0b3878"
         },
         {
           "path": "sim/validation/cases/cfast_corridor_chain.json",
@@ -821,7 +821,7 @@
         {
           "path": "sim/validation/reports/cfast_single_room_closed.json",
           "bytes": 7550,
-          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+          "sha256": "c8b1279872dce46c431116c562939b72996500bdd3a2567d415e73a79c944e3e"
         },
         {
           "path": "sim/validation/reports/cfast_single_room_closed.log",
@@ -861,7 +861,7 @@
         {
           "path": "sim/validation/reports/cfast_single_room_closed.json",
           "bytes": 7550,
-          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+          "sha256": "c8b1279872dce46c431116c562939b72996500bdd3a2567d415e73a79c944e3e"
         },
         {
           "path": "sim/validation/reports/cfast_single_room_closed.log",
@@ -901,7 +901,7 @@
         {
           "path": "sim/validation/reports/cfast_single_room_closed.json",
           "bytes": 7550,
-          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+          "sha256": "c8b1279872dce46c431116c562939b72996500bdd3a2567d415e73a79c944e3e"
         },
         {
           "path": "sim/validation/reports/cfast_single_room_closed.log",
@@ -941,7 +941,7 @@
         {
           "path": "sim/validation/reports/cfast_single_room_closed.json",
           "bytes": 7550,
-          "sha256": "b12c593d2974c6052f46daa45c90afcf462b86684b2ee40f87f0f2eaafb7ab83"
+          "sha256": "c8b1279872dce46c431116c562939b72996500bdd3a2567d415e73a79c944e3e"
         },
         {
           "path": "sim/validation/reports/cfast_single_room_closed.log",
@@ -980,8 +980,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_door_close_midfire.json",
-          "bytes": 12959,
-          "sha256": "027af8d66b86bfd4bc386102b5cf26834514c90c867c52d89769681b09bc9b13"
+          "bytes": 12960,
+          "sha256": "954c11e37a2e9ea05eba2692943993c36f7112de2006f74e033514c98fa30865"
         },
         {
           "path": "sim/validation/reports/cfast_door_close_midfire.log",
@@ -1021,7 +1021,7 @@
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.json",
           "bytes": 7491,
-          "sha256": "56c7037f981295bed8a7ee18ba52923245b51dfba67b9bce0cb7807a3ed0c67f"
+          "sha256": "007b2112dc9f0270be8a1d3f19bcc32c1878657ecc87423861b967ae80d48bf0"
         },
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.log",
@@ -1061,7 +1061,7 @@
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.json",
           "bytes": 7491,
-          "sha256": "56c7037f981295bed8a7ee18ba52923245b51dfba67b9bce0cb7807a3ed0c67f"
+          "sha256": "007b2112dc9f0270be8a1d3f19bcc32c1878657ecc87423861b967ae80d48bf0"
         },
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.log",
@@ -1101,7 +1101,7 @@
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.json",
           "bytes": 7491,
-          "sha256": "56c7037f981295bed8a7ee18ba52923245b51dfba67b9bce0cb7807a3ed0c67f"
+          "sha256": "007b2112dc9f0270be8a1d3f19bcc32c1878657ecc87423861b967ae80d48bf0"
         },
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.log",
@@ -1141,7 +1141,7 @@
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.json",
           "bytes": 7491,
-          "sha256": "56c7037f981295bed8a7ee18ba52923245b51dfba67b9bce0cb7807a3ed0c67f"
+          "sha256": "007b2112dc9f0270be8a1d3f19bcc32c1878657ecc87423861b967ae80d48bf0"
         },
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.log",
@@ -1181,7 +1181,7 @@
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.json",
           "bytes": 7491,
-          "sha256": "56c7037f981295bed8a7ee18ba52923245b51dfba67b9bce0cb7807a3ed0c67f"
+          "sha256": "007b2112dc9f0270be8a1d3f19bcc32c1878657ecc87423861b967ae80d48bf0"
         },
         {
           "path": "sim/validation/reports/cfast_post_flashover_vented.log",
@@ -1220,13 +1220,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_hvac_residential.json",
-          "bytes": 7741,
-          "sha256": "0caf267d192574c98be5d61399df90c1a47e3612255bc7cda5063784bc72cadd"
+          "bytes": 7587,
+          "sha256": "218ecb93445ef780b92a2cbcd1dcc9b7a7f4592a0e0a17b3e4510f456cbf60ac"
         },
         {
           "path": "sim/validation/reports/cfast_hvac_residential.log",
           "bytes": 222621,
-          "sha256": "aee8f0b8f112bf2e15667c4a41b713ca1c6425be4a71c66dc0d0dddbaa1faaa5"
+          "sha256": "7528995766fa629ac1ce83824fdfad7dc9b59eb966f61eea84d748830701743e"
         },
         {
           "path": "sim/validation/cases/cfast_hvac_residential.json",
@@ -1260,13 +1260,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_hvac_residential.json",
-          "bytes": 7741,
-          "sha256": "0caf267d192574c98be5d61399df90c1a47e3612255bc7cda5063784bc72cadd"
+          "bytes": 7587,
+          "sha256": "218ecb93445ef780b92a2cbcd1dcc9b7a7f4592a0e0a17b3e4510f456cbf60ac"
         },
         {
           "path": "sim/validation/reports/cfast_hvac_residential.log",
           "bytes": 222621,
-          "sha256": "aee8f0b8f112bf2e15667c4a41b713ca1c6425be4a71c66dc0d0dddbaa1faaa5"
+          "sha256": "7528995766fa629ac1ce83824fdfad7dc9b59eb966f61eea84d748830701743e"
         },
         {
           "path": "sim/validation/cases/cfast_hvac_residential.json",
@@ -1300,13 +1300,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_hvac_residential.json",
-          "bytes": 7741,
-          "sha256": "0caf267d192574c98be5d61399df90c1a47e3612255bc7cda5063784bc72cadd"
+          "bytes": 7587,
+          "sha256": "218ecb93445ef780b92a2cbcd1dcc9b7a7f4592a0e0a17b3e4510f456cbf60ac"
         },
         {
           "path": "sim/validation/reports/cfast_hvac_residential.log",
           "bytes": 222621,
-          "sha256": "aee8f0b8f112bf2e15667c4a41b713ca1c6425be4a71c66dc0d0dddbaa1faaa5"
+          "sha256": "7528995766fa629ac1ce83824fdfad7dc9b59eb966f61eea84d748830701743e"
         },
         {
           "path": "sim/validation/cases/cfast_hvac_residential.json",
@@ -1340,13 +1340,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_hvac_residential.json",
-          "bytes": 7741,
-          "sha256": "0caf267d192574c98be5d61399df90c1a47e3612255bc7cda5063784bc72cadd"
+          "bytes": 7587,
+          "sha256": "218ecb93445ef780b92a2cbcd1dcc9b7a7f4592a0e0a17b3e4510f456cbf60ac"
         },
         {
           "path": "sim/validation/reports/cfast_hvac_residential.log",
           "bytes": 222621,
-          "sha256": "aee8f0b8f112bf2e15667c4a41b713ca1c6425be4a71c66dc0d0dddbaa1faaa5"
+          "sha256": "7528995766fa629ac1ce83824fdfad7dc9b59eb966f61eea84d748830701743e"
         },
         {
           "path": "sim/validation/cases/cfast_hvac_residential.json",
@@ -1380,13 +1380,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_hvac_residential.json",
-          "bytes": 7741,
-          "sha256": "0caf267d192574c98be5d61399df90c1a47e3612255bc7cda5063784bc72cadd"
+          "bytes": 7587,
+          "sha256": "218ecb93445ef780b92a2cbcd1dcc9b7a7f4592a0e0a17b3e4510f456cbf60ac"
         },
         {
           "path": "sim/validation/reports/cfast_hvac_residential.log",
           "bytes": 222621,
-          "sha256": "aee8f0b8f112bf2e15667c4a41b713ca1c6425be4a71c66dc0d0dddbaa1faaa5"
+          "sha256": "7528995766fa629ac1ce83824fdfad7dc9b59eb966f61eea84d748830701743e"
         },
         {
           "path": "sim/validation/cases/cfast_hvac_residential.json",
@@ -1420,13 +1420,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_multi_fuel_couch_tv.json",
-          "bytes": 8611,
-          "sha256": "e0e0d35deaeecffd75a8cc962018c95b4f1038060244dc25c3ebbdaee24ff333"
+          "bytes": 8599,
+          "sha256": "5912a568cfe86a7ac5e84eae55e1a2cd73b5648a304af88b06720a058c74f34a"
         },
         {
           "path": "sim/validation/reports/cfast_multi_fuel_couch_tv.log",
-          "bytes": 224279,
-          "sha256": "a0dc599bed322ec18c73196711171505bc699181cfc2bc884e53fc606e34a807"
+          "bytes": 224278,
+          "sha256": "4abb993bf941a1dd0085b6c06d5e67a7e5abf53bfcfe654f1fa84f523b1bc97a"
         },
         {
           "path": "sim/validation/cases/cfast_multi_fuel_couch_tv.json",
@@ -1460,8 +1460,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1500,8 +1500,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1540,13 +1540,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
-          "bytes": 7693,
-          "sha256": "6d520e49a883dd9c6c3b14cb4217ceda424ae0a51aaf19b3e7b9b028df3d565e"
+          "bytes": 7750,
+          "sha256": "f6c4924cd2f98f3815e14c44b7bd015ca9c1590432fc9996956676418f6d3599"
         },
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
           "bytes": 661301,
-          "sha256": "619f511221e9112be3ca0c80a6e2180bce2664e61e6e1220bb9cb99bc45b796e"
+          "sha256": "e8c4f571e17c0232d42682bd5488752db09b0ef60e94ae7ad976d8a39db9d8a8"
         },
         {
           "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
@@ -1580,13 +1580,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
-          "bytes": 7693,
-          "sha256": "6d520e49a883dd9c6c3b14cb4217ceda424ae0a51aaf19b3e7b9b028df3d565e"
+          "bytes": 7750,
+          "sha256": "f6c4924cd2f98f3815e14c44b7bd015ca9c1590432fc9996956676418f6d3599"
         },
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
           "bytes": 661301,
-          "sha256": "619f511221e9112be3ca0c80a6e2180bce2664e61e6e1220bb9cb99bc45b796e"
+          "sha256": "e8c4f571e17c0232d42682bd5488752db09b0ef60e94ae7ad976d8a39db9d8a8"
         },
         {
           "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
@@ -1620,13 +1620,13 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.json",
-          "bytes": 7693,
-          "sha256": "6d520e49a883dd9c6c3b14cb4217ceda424ae0a51aaf19b3e7b9b028df3d565e"
+          "bytes": 7750,
+          "sha256": "f6c4924cd2f98f3815e14c44b7bd015ca9c1590432fc9996956676418f6d3599"
         },
         {
           "path": "sim/validation/reports/cfast_slow_growth_sealed.log",
           "bytes": 661301,
-          "sha256": "619f511221e9112be3ca0c80a6e2180bce2664e61e6e1220bb9cb99bc45b796e"
+          "sha256": "e8c4f571e17c0232d42682bd5488752db09b0ef60e94ae7ad976d8a39db9d8a8"
         },
         {
           "path": "sim/validation/cases/cfast_slow_growth_sealed.json",
@@ -1660,8 +1660,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1700,8 +1700,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1740,8 +1740,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1780,8 +1780,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1820,8 +1820,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1860,8 +1860,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1900,8 +1900,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1940,8 +1940,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -1980,8 +1980,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -2020,8 +2020,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/cfast_r0_window_360.json",
-          "bytes": 13804,
-          "sha256": "dcad599d04476b30b59775e76cb39ce6350dcc6cc058bd3b0f9375094dc62135"
+          "bytes": 13805,
+          "sha256": "7fc48b7dfbe30edbe544e2a69a1d9c3dc23d889b0c574a535e68fcfd1d392f13"
         },
         {
           "path": "sim/validation/reports/cfast_r0_window_360.log",
@@ -2146,7 +2146,7 @@
       ]
     },
     "ghanekar_far_hall_co_known_gap": {
-      "actual": 155.416666666667,
+      "actual": 156.083333333334,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,
@@ -2160,8 +2160,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
-          "bytes": 45501,
-          "sha256": "27bd270323eaac24208ab505c26ddf896afe1cb39b979dcadacb4f02379f2b2a"
+          "bytes": 45626,
+          "sha256": "abde456190ebda614fea85ab710e89ea112251d21d584884eebcc249c58c1ef9"
         },
         {
           "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
@@ -2176,7 +2176,7 @@
       ]
     },
     "ghanekar_far_hall_o2_response_time_s": {
-      "actual": 232.500000000009,
+      "actual": 234.416666666676,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
@@ -2190,8 +2190,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
-          "bytes": 45501,
-          "sha256": "27bd270323eaac24208ab505c26ddf896afe1cb39b979dcadacb4f02379f2b2a"
+          "bytes": 45626,
+          "sha256": "abde456190ebda614fea85ab710e89ea112251d21d584884eebcc249c58c1ef9"
         },
         {
           "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
@@ -2220,8 +2220,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/ghanekar_bedroom_hallway.json",
-          "bytes": 45501,
-          "sha256": "27bd270323eaac24208ab505c26ddf896afe1cb39b979dcadacb4f02379f2b2a"
+          "bytes": 45626,
+          "sha256": "abde456190ebda614fea85ab710e89ea112251d21d584884eebcc249c58c1ef9"
         },
         {
           "path": "sim/validation/cases/ghanekar_bedroom_hallway.json",
@@ -2236,7 +2236,7 @@
       ]
     },
     "ghanekar_kitchen_far_hall_idlh_co_s": {
-      "actual": 881.583333333455,
+      "actual": 882.166666666788,
       "expected": 642.0,
       "tolerance": 102.0,
       "minimum": null,
@@ -2250,8 +2250,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/ghanekar_kitchen_living_room.json",
-          "bytes": 46323,
-          "sha256": "aa28290f62cd19617d08e80d68cc58d40e6830e77f6998e8a1bc015e41fb28e6"
+          "bytes": 46422,
+          "sha256": "78301176024505b3b4ba22f04ae5a3c42955d7cb88819bf7aa94344e4ffa0554"
         },
         {
           "path": "sim/validation/cases/ghanekar_kitchen_living_room.json",
@@ -2266,7 +2266,7 @@
       ]
     },
     "ghanekar_kitchen_fire_room_flashover_s": {
-      "actual": 495.333333333291,
+      "actual": 496.166666666624,
       "expected": 894.0,
       "tolerance": 30.0,
       "minimum": null,
@@ -2280,8 +2280,8 @@
       "source_artifacts": [
         {
           "path": "sim/validation/reports/ghanekar_kitchen_living_room.json",
-          "bytes": 46323,
-          "sha256": "aa28290f62cd19617d08e80d68cc58d40e6830e77f6998e8a1bc015e41fb28e6"
+          "bytes": 46422,
+          "sha256": "78301176024505b3b4ba22f04ae5a3c42955d7cb88819bf7aa94344e4ffa0554"
         },
         {
           "path": "sim/validation/cases/ghanekar_kitchen_living_room.json",

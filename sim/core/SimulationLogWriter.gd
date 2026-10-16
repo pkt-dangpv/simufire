@@ -1,5 +1,6 @@
 extends RefCounted
 class_name SimulationLogWriter
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 # ============================================================
 # SIMULATION LOG WRITER
@@ -773,7 +774,7 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			fed_svv = 0.99 - 0.09 * ((fed_val - 0.1) / 0.2)
 		elif fed_val < 1.0:
 			var t_fed: float = (fed_val - 0.3) / 0.7
-			fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
+			fed_svv = 0.90 * DetMath.pow(1.0 - t_fed, 1.5)
 		else:
 			fed_svv = 0.0
 		var svv_pct: float = minf(thermal_svv, fed_svv) * 100.0

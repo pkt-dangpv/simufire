@@ -1,5 +1,6 @@
 extends RefCounted
 class_name Phase3CoupledPressureSolver
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 # ============================================================
 # F3.3v3h1: PURE COUPLED PRESSURE SOLVER
@@ -2156,7 +2157,7 @@ func _integrate_crack(
 			# interpola linealmente, como en una banda de abertura grande.
 			var crossing_fraction: float = absf(previous_dp_pa) \
 					/ maxf(1.0e-30, absf(previous_dp_pa) + absf(dp_pa))
-			neutral_plane_m = lerpf(previous_z_m, float(segment["z_m"]), crossing_fraction)
+			neutral_plane_m = DetMath.lerpf(previous_z_m, float(segment["z_m"]), crossing_fraction)
 		previous_z_m = float(segment["z_m"])
 		previous_dp_pa = dp_pa
 		var flow: Dictionary = ClosedDoorLeakageModelScript.compute_segment_flow_from_dp(
@@ -2736,7 +2737,7 @@ func _integrate_opening(
 			# dp(z) is linear inside a band, so the crossing is exact.
 			var crossing_fraction: float = absf(dp0) \
 					/ maxf(1.0e-30, absf(dp0) + absf(dp1))
-			var crossing_m: float = lerpf(z0, z1, crossing_fraction)
+			var crossing_m: float = DetMath.lerpf(z0, z1, crossing_fraction)
 			neutral_plane_m = crossing_m
 			if crossing_m > bottom_m + 1.0e-9 and crossing_m < top_m - 1.0e-9:
 				neutral_plane_inside = true
@@ -2753,7 +2754,7 @@ func _integrate_opening(
 			for segment_index in range(band_segments):
 				var mid_fraction: float = (float(segment_index) + 0.5) \
 						/ float(band_segments)
-				var dp_pa: float = lerpf(
+				var dp_pa: float = DetMath.lerpf(
 					float(sub_band["dp0"]), float(sub_band["dp1"]), mid_fraction
 				)
 				var from_a: bool = dp_pa > 0.0
@@ -2777,7 +2778,7 @@ func _integrate_opening(
 					b_to_a_kg += mass_kg
 					b_to_a_kj += mass_kg * specific_kj_kg
 				if collect_segments:
-					var sample_z_m: float = lerpf(
+					var sample_z_m: float = DetMath.lerpf(
 						float(sub_band["z0"]), float(sub_band["z1"]), mid_fraction
 					)
 					var energy_kj: float = mass_kg * specific_kj_kg

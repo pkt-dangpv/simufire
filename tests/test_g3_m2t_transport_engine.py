@@ -11,6 +11,7 @@ import subprocess
 import pytest
 
 from scripts.simulation import run_g3_o2_transport_mutations as mutations
+from scripts.simulation.detmath_routing import strip_detmath_routing
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "920affb7"
@@ -20,7 +21,9 @@ OXYGEN = "sim/core/OxygenExchangeSystem.gd"
 
 
 def text(path: str) -> str:
-    return (ROOT / path).read_text(encoding="utf-8")
+    # Current source without the DetMath routing (2026-10-15): the comparisons
+    # with the M2-T commits below still prove nothing else changed.
+    return strip_detmath_routing((ROOT / path).read_text(encoding="utf-8"))
 
 
 def base(path: str) -> str:

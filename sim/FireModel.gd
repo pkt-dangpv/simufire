@@ -1,4 +1,5 @@
 extends Node
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 signal state_changed(state: Dictionary)
 
@@ -193,7 +194,7 @@ func step(delta: float) -> void:
 	var ach: float = base_air_exchange_ach + vent_air_exchange_ach * vent_open
 	var mix_rate: float = ach / 3600.0
 
-	m_o2 += (ambient_o2 * m_air - m_o2) * (1.0 - exp(-mix_rate * delta))
+	m_o2 += (ambient_o2 * m_air - m_o2) * (1.0 - DetMath.exp(-mix_rate * delta))
 
 	o2 = clampf(m_o2 / m_air, o2_floor, ambient_o2)
 
@@ -204,10 +205,10 @@ func step(delta: float) -> void:
 	var energy_kj: float = hrr_kw * delta
 
 	temp_upper_c += energy_kj * upper_heat_gain_c_per_kj
-	temp_upper_c += (ambient_temp_c - temp_upper_c) * (1.0 - exp(-mix_rate * delta))
+	temp_upper_c += (ambient_temp_c - temp_upper_c) * (1.0 - DetMath.exp(-mix_rate * delta))
 	temp_upper_c = maxf(temp_lower_c, temp_upper_c - water_upper_cool_c_per_s * water_flow * delta)
 
-	temp_lower_c += (temp_upper_c - temp_lower_c) * (1.0 - exp(-lower_coupling_s * delta))
+	temp_lower_c += (temp_upper_c - temp_lower_c) * (1.0 - DetMath.exp(-lower_coupling_s * delta))
 
 	# =====================
 	# capa humo
@@ -216,7 +217,7 @@ func step(delta: float) -> void:
 	h_layer_m -= energy_kj * layer_drop_m_per_kj
 
 	var rec: float = layer_recover_s * vent_open
-	h_layer_m += (layer_target_m - h_layer_m) * (1.0 - exp(-rec * delta))
+	h_layer_m += (layer_target_m - h_layer_m) * (1.0 - DetMath.exp(-rec * delta))
 
 	h_layer_m = clampf(h_layer_m, 0.2, room_height_m)
 

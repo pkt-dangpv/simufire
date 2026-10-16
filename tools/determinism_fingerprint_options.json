@@ -1,0 +1,13 @@
+{
+	"apartment_floor_number": 15,
+	"building_total_floors": 20,
+	"building_type": "apartment",
+	"exterior_lighting_mode": "Noche",
+	"glass_break_mode": 0,
+	"hvac_mode": "none",
+	"interior_lights_on": true,
+	"smoke_visibility_representation": true,
+	"template_name": "simple_house",
+	"wind_direction_deg": 0.0,
+	"wind_speed_m_s": 0.0
+}

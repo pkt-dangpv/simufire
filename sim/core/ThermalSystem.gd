@@ -1,5 +1,6 @@
 extends RefCounted
 class_name ThermalSystem
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const Phase3PhysicalOwnerLedger = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
@@ -936,7 +937,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		elif plume_mccaffrey_enabled and room.hrr_kw > 0.0:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
 			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
-			var l_flame_m: float = maxf(0.0, 0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
+			var l_flame_m: float = maxf(0.0, 0.235 * DetMath.pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
 			var z_m: float = maxf(room.thermal_layer_m, l_flame_m + 0.05)
 			if l_flame_m < z_m:
 				var z_eff_m: float
@@ -946,7 +947,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					z_eff_m = maxf(0.1, room.height_m * plume_confined_z_eff_fraction)
 				else:
 					z_eff_m = maxf(0.1, z_m - l_flame_m)
-				var m_dot_p_kg_s: float = 0.071 * pow(qc_kw, 1.0 / 3.0) * pow(z_eff_m, 5.0 / 3.0)
+				var m_dot_p_kg_s: float = 0.071 * DetMath.pow(qc_kw, 1.0 / 3.0) * DetMath.pow(z_eff_m, 5.0 / 3.0)
 				# Cap: no consumir más masa de la zona inferior disponible en este paso
 				var lower_mass_kg: float = room.floor_area_m2() * maxf(0.0, room.thermal_layer_m) * gas_density_kg_m3(room.temp_lower_c)
 				m_dot_p_kg_s = minf(m_dot_p_kg_s, lower_mass_kg / maxf(dt, 0.1))
@@ -987,10 +988,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			eff_chi_rad_normal = room.chi_rad_normal
 		var eff_chi_rad_low_o2: float = eff_chi_rad_normal \
 				* (hrr_chi_rad_low_o2 / maxf(0.01, hrr_chi_rad_normal))
-		var chi_rad: float = lerpf(
+		var chi_rad: float = DetMath.lerpf(
 			eff_chi_rad_low_o2,
 			eff_chi_rad_normal,
-			clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
+			clampf(DetMath.inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 		)
 		var conv_fraction: float = clampf(1.0 - chi_rad, 0.0, 0.90)
 		if two_zone_solver_enabled and two_zone_convective_heat_multiplier > 0.0:
@@ -1132,7 +1133,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			t_wall_c += (wall_absorption_kj + q_rad_fire_kj * hrr_rad_wall_fraction) / maxf(0.1, wall_capacity_kj_k)
 			t_wall_c -= wall_emission_kj / maxf(0.1, wall_capacity_kj_k)
 			# Enfriamiento lento de la superficie hacia el núcleo/ambiente
-			t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
+			t_wall_c = DetMath.lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
 			_wall_surface_temp_c[room.id] = t_wall_c
 			# SF-AUD-031b: exportar temperatura de pared del modelo lumped a wall_T_mid_c
 			# para que el log y el validador reflejen la temperatura real (no 20°C constante).
@@ -1362,13 +1363,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					var _p3b_dTu: float = maxf(0.0, _p3b_Th - _p3b_Tc)
 					var _p3b_qu: float = 0.0
 					if _p3b_hu > 0.001 and _p3b_dTu > 0.5:
-						_p3b_qu = _p3b_cd * _p3b_w * (2.0 / 3.0) * pow(_p3b_hu, 1.5) \
+						_p3b_qu = _p3b_cd * _p3b_w * (2.0 / 3.0) * DetMath.pow(_p3b_hu, 1.5) \
 								* sqrt(2.0 * _p3b_g * _p3b_dTu / _p3b_Tref)
 					var _p3b_Thl: float = _p3b_hot.temp_lower_c + 273.15
 					var _p3b_dTl: float = maxf(0.0, _p3b_Tc - _p3b_Thl)
 					var _p3b_ql: float = 0.0
 					if _p3b_hl > 0.001 and _p3b_dTl > 0.5:
-						_p3b_ql = _p3b_cd * _p3b_w * (2.0 / 3.0) * pow(_p3b_hl, 1.5) \
+						_p3b_ql = _p3b_cd * _p3b_w * (2.0 / 3.0) * DetMath.pow(_p3b_hl, 1.5) \
 								* sqrt(2.0 * _p3b_g * _p3b_dTl / ((_p3b_Tc + _p3b_Thl) * 0.5))
 					elif _p3b_qu > 0.0:
 						_p3b_ql = _p3b_qu * (353.0 / maxf(50.0, _p3b_Th)) / maxf(0.001, 353.0 / maxf(50.0, _p3b_Tc))
@@ -1488,7 +1489,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var _src_intensity: float = clampf(0.25 + 0.75 * heat_engagement, 0.0, 1.0)
 		var _src_w_max: float = clampf(doorway_source_upper_weight, 0.18, 1.0)
 		var _src_upper_w: float = clampf(0.18 + (_src_w_max - 0.18) * _src_intensity, 0.18, _src_w_max)
-		var source_mix_temp_c: float = lerpf(hot_room.temp_lower_c, hot_room.temp_upper_c, _src_upper_w)
+		var source_mix_temp_c: float = DetMath.lerpf(hot_room.temp_lower_c, hot_room.temp_upper_c, _src_upper_w)
 		var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
 				and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
 				and (hot_room.kind == "escalera" or cold_room.kind == "escalera") \
@@ -1616,7 +1617,7 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 
 		var t_src_k: float = src.temp_upper_c + 273.15
 		var t_tgt_k: float = maxf(ambient_c, tgt.temp_upper_c) + 273.15
-		var dt4: float = maxf(0.0, pow(t_src_k, 4.0) - pow(t_tgt_k, 4.0))
+		var dt4: float = maxf(0.0, DetMath.pow(t_src_k, 4.0) - DetMath.pow(t_tgt_k, 4.0))
 		if dt4 <= 0.0:
 			continue
 
@@ -1633,7 +1634,7 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 			var total_vol_m3: float = maxf(0.1, src.volume_m3() + tgt.volume_m3())
 			var c_smoke_kg_m3: float = total_smoke_kg / total_vol_m3
 			var path_len_m: float = maxf(0.3, op.width_m)
-			smoke_atten = exp(-8.7 * c_smoke_kg_m3 * path_len_m)
+			smoke_atten = DetMath.exp(-8.7 * c_smoke_kg_m3 * path_len_m)
 
 		var q_rad_kw: float = radiation_flame_emissivity \
 				* STEFAN_BOLTZMANN_KW_M2_K4 \
@@ -1744,8 +1745,8 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 		if wall_layer_aware_conduction:
 			frac_hot_a = clampf((room_a.height_m - room_a.h_layer_m) / maxf(0.01, room_a.height_m), 0.0, 1.0)
 			frac_hot_b = clampf((room_b.height_m - room_b.h_layer_m) / maxf(0.01, room_b.height_m), 0.0, 1.0)
-			var t_drive_a: float = lerpf(room_a.temp_lower_c, room_a.temp_upper_c, frac_hot_a)
-			var t_drive_b: float = lerpf(room_b.temp_lower_c, room_b.temp_upper_c, frac_hot_b)
+			var t_drive_a: float = DetMath.lerpf(room_a.temp_lower_c, room_a.temp_upper_c, frac_hot_a)
+			var t_drive_b: float = DetMath.lerpf(room_b.temp_lower_c, room_b.temp_upper_c, frac_hot_b)
 			delta_t = t_drive_a - t_drive_b
 		else:
 			delta_t = t_wall_a - t_wall_b
@@ -2103,10 +2104,10 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 			var eff_chi_rad: float = hrr_chi_rad_normal
 			if room.chi_rad_normal >= 0.0:
 				eff_chi_rad = room.chi_rad_normal
-			var chi_rad_pde: float = lerpf(
+			var chi_rad_pde: float = DetMath.lerpf(
 				eff_chi_rad * (hrr_chi_rad_low_o2 / maxf(0.01, hrr_chi_rad_normal)),
 				eff_chi_rad,
-				clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
+				clampf(DetMath.inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 			)
 			q_fire_rad_kw_m2 = room.hrr_kw * chi_rad_pde * hrr_rad_wall_fraction \
 					/ maxf(1.0, wall_area_m2_pde)
@@ -2456,8 +2457,8 @@ func preview_phase3_canonical_wall_ambient_flux(
 		)
 		var q_kw: float = maxf(0.0, float(context.get("radiative_emissivity", 0.0))) \
 				* STEFAN_BOLTZMANN_KW_M2_K4 * exchange_area_m2 \
-				* maxf(0.0, pow(upper_temp_c + 273.15, 4.0)
-						- pow(wall_temp_c + 273.15, 4.0)) * activation
+				* maxf(0.0, DetMath.pow(upper_temp_c + 273.15, 4.0)
+						- DetMath.pow(wall_temp_c + 273.15, 4.0)) * activation
 		q_kw *= 1.0 + 0.25 * open_factor
 		radiative_kj = minf(
 			maxf(0.0, q_kw * dt),
@@ -2552,7 +2553,7 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 
 	var flame_length_m: float = maxf(
 		0.0,
-		0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
+		0.235 * DetMath.pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
 	)
 	var interface_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 	var z_eff_m: float
@@ -2562,8 +2563,8 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 		z_eff_m = maxf(0.1, interface_m - flame_length_m)
 
 	var m_dot_plume_kg_s: float = 0.071 \
-			* pow(qc_kw, 1.0 / 3.0) \
-			* pow(z_eff_m, 5.0 / 3.0)
+			* DetMath.pow(qc_kw, 1.0 / 3.0) \
+			* DetMath.pow(z_eff_m, 5.0 / 3.0)
 	var max_upper_mass_kg: float = room.volume_m3() * gas_density_kg_m3(room.temp_upper_c)
 	var remaining_capacity_kg: float = maxf(0.0, max_upper_mass_kg - room.upper_gas_kg)
 	var requested_mass_kg: float = minf(m_dot_plume_kg_s * dt, remaining_capacity_kg)
@@ -2619,7 +2620,7 @@ func preview_phase3_canonical_plume_flux(
 		return result
 	var flame_length_m: float = maxf(
 		0.0,
-		0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
+		0.235 * DetMath.pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
 	)
 	var interface_m: float = clampf(
 		float(canonical_input.get("interface_m", room.height_m)),
@@ -2631,8 +2632,8 @@ func preview_phase3_canonical_plume_flux(
 		z_eff_m = maxf(0.1, room.height_m * plume_confined_z_eff_fraction)
 	else:
 		z_eff_m = maxf(0.1, interface_m - flame_length_m)
-	var height_term_mass_kg: float = 0.071 * pow(qc_kw, 1.0 / 3.0) \
-			* pow(z_eff_m, 5.0 / 3.0) * dt
+	var height_term_mass_kg: float = 0.071 * DetMath.pow(qc_kw, 1.0 / 3.0) \
+			* DetMath.pow(z_eff_m, 5.0 / 3.0) * dt
 	# Heskestad's plume mass-flow expression includes a source term in
 	# addition to the height-dependent term. Keep it opt-in until the
 	# post-opening coupling experiment has completed its STOP gate.
@@ -2706,10 +2707,10 @@ func preview_phase3_coupled_plume_flux(
 		room.height_m
 	)
 	var virtual_origin_m: float = -1.02 * plume_fire_diameter_m \
-			+ 0.083 * pow(accepted_hrr_kw, 0.4)
+			+ 0.083 * DetMath.pow(accepted_hrr_kw, 0.4)
 	var z_eff_m: float = maxf(0.1, interface_m - virtual_origin_m)
-	var height_term_mass_kg: float = 0.071 * pow(qc_kw, 1.0 / 3.0) \
-			* pow(z_eff_m, 5.0 / 3.0) * dt
+	var height_term_mass_kg: float = 0.071 * DetMath.pow(qc_kw, 1.0 / 3.0) \
+			* DetMath.pow(z_eff_m, 5.0 / 3.0) * dt
 	var source_term_mass_kg: float = 0.071 * 0.026 * qc_kw * dt
 	var requested_mass_kg: float = minf(
 		height_term_mass_kg + source_term_mass_kg,
@@ -2754,8 +2755,8 @@ func _add_flame_region_entrainment(
 
 	var effective_z_m: float = maxf(plume_flame_region_min_z_m, z_m)
 	var m_dot_p_kg_s: float = maxf(0.0, plume_flame_region_coeff) \
-			* pow(qc_kw, 1.0 / 3.0) \
-			* pow(effective_z_m, 5.0 / 3.0)
+			* DetMath.pow(qc_kw, 1.0 / 3.0) \
+			* DetMath.pow(effective_z_m, 5.0 / 3.0)
 
 	var max_depth_m: float = room.height_m * clampf(plume_flame_region_max_depth_fraction, 0.05, 1.0)
 	var max_upper_mass_kg: float = room.floor_area_m2() \
@@ -2788,7 +2789,7 @@ func estimate_retained_hot_layer_depth_m(room: RoomModel) -> float:
 	if retained_hot_layer_max_fraction <= 0.0:
 		return 0.0
 
-	var heat_factor: float = inverse_lerp(
+	var heat_factor: float = DetMath.inverse_lerp(
 		retained_hot_layer_temp_start_c,
 		retained_hot_layer_temp_full_c,
 		room.temp_upper_c
@@ -2897,7 +2898,7 @@ func _compute_upper_radiative_loss_kj(
 
 	var hot_k: float = upper_temp_c + 273.15
 	var sink_k: float = maxf(ambient_c, room.temp_lower_c) + 273.15
-	var temperature_power_delta: float = maxf(0.0, pow(hot_k, 4.0) - pow(sink_k, 4.0))
+	var temperature_power_delta: float = maxf(0.0, DetMath.pow(hot_k, 4.0) - DetMath.pow(sink_k, 4.0))
 	var q_kw: float = upper_radiative_loss_emissivity \
 			* STEFAN_BOLTZMANN_KW_M2_K4 \
 			* exchange_area_m2 \
@@ -3021,7 +3022,7 @@ func _apply_outside_assisted_background_heat_exchange(
 		if source_energy_removed_kj > 0.0:
 			var energy_moved_kj: float = minf(
 				gas_moved_kg * heat_excess_c,
-				source_energy_removed_kj * lerpf(0.45, 0.72, clampf(outside_open_factor, 0.0, 1.0))
+				source_energy_removed_kj * DetMath.lerpf(0.45, 0.72, clampf(outside_open_factor, 0.0, 1.0))
 			)
 			if energy_moved_kj > 0.0:
 				var source_upper_gas_before_kg: float = maxf(0.0, source.upper_gas_kg)
@@ -3058,7 +3059,7 @@ func _apply_outside_assisted_background_heat_exchange(
 					op.opening_index
 				)
 
-	var source_bulk_temp_c: float = lerpf(source.temp_lower_c, source.temp_upper_c, 0.18)
+	var source_bulk_temp_c: float = DetMath.lerpf(source.temp_lower_c, source.temp_upper_c, 0.18)
 	var target_bulk_temp_c: float = target.temp_lower_c
 	var bulk_delta_c: float = source_bulk_temp_c - target_bulk_temp_c
 	if bulk_delta_c > 0.25:
@@ -3069,10 +3070,10 @@ func _apply_outside_assisted_background_heat_exchange(
 			source_air_mass_kg * outside_open_background_heat_max_fraction_per_step
 		)
 		var source_available_kj: float = source_air_mass_kg * maxf(0.0, source_bulk_temp_c - ambient_c)
-		var bulk_removed_kj: float = bulk_exchange_kg * bulk_delta_c * lerpf(0.32, 0.55, drive)
+		var bulk_removed_kj: float = bulk_exchange_kg * bulk_delta_c * DetMath.lerpf(0.32, 0.55, drive)
 		bulk_removed_kj = minf(bulk_removed_kj, source_available_kj * 0.025)
 		if bulk_removed_kj > 0.0:
-			var bulk_delivered_kj: float = bulk_removed_kj * lerpf(0.35, 0.62, outside_open_factor)
+			var bulk_delivered_kj: float = bulk_removed_kj * DetMath.lerpf(0.35, 0.62, outside_open_factor)
 			source.temp_lower_c = maxf(
 				ambient_c,
 				source.temp_lower_c - bulk_removed_kj / source_air_mass_kg
@@ -3236,7 +3237,7 @@ func _apply_interior_background_heat_exchange(
 			touched_source = true
 			touched_target = true
 
-	var source_bulk_temp_c: float = lerpf(source.temp_lower_c, source.temp_upper_c, 0.22 + 0.18 * drive)
+	var source_bulk_temp_c: float = DetMath.lerpf(source.temp_lower_c, source.temp_upper_c, 0.22 + 0.18 * drive)
 	var target_bulk_temp_c: float = target.temp_lower_c
 	var bulk_delta_c: float = source_bulk_temp_c - target_bulk_temp_c
 	if bulk_delta_c > 0.25:
@@ -3327,7 +3328,7 @@ func _apply_doorway_thermal_counterflow(
 	if h_upper < 0.05:
 		return
 
-	var q_upper_m3s: float = Cd * w * (2.0 / 3.0) * pow(h_upper, 1.5) \
+	var q_upper_m3s: float = Cd * w * (2.0 / 3.0) * DetMath.pow(h_upper, 1.5) \
 			* sqrt(2.0 * g * dT_drive_k / T_ref_k)
 	if q_upper_m3s <= 0.0:
 		return
@@ -3789,7 +3790,7 @@ func _apply_stairwell_heat_bridge(
 	if opening_multiplier <= 0.0:
 		return
 
-	var heat_factor: float = inverse_lerp(
+	var heat_factor: float = DetMath.inverse_lerp(
 		phase3_stairwell_heat_bridge_hot_temp_start_c,
 		maxf(
 			phase3_stairwell_heat_bridge_hot_temp_start_c + 1.0,
@@ -4195,8 +4196,8 @@ func compute_interroom_transfer_temp_c(
 	var smoke_weight: float = clampf(smoke_coupling, 0.0, 1.0)
 	var thermal_only_upper_weight: float = clampf(0.18 + 0.38 * transfer_intensity, 0.18, 0.60)
 	var smoke_loaded_upper_weight: float = clampf(0.18 + 0.50 * transfer_intensity, 0.18, 0.78)
-	var upper_weight: float = lerpf(thermal_only_upper_weight, smoke_loaded_upper_weight, smoke_weight)
-	var source_mix_temp_c: float = lerpf(source.temp_lower_c, source.temp_upper_c, upper_weight)
+	var upper_weight: float = DetMath.lerpf(thermal_only_upper_weight, smoke_loaded_upper_weight, smoke_weight)
+	var source_mix_temp_c: float = DetMath.lerpf(source.temp_lower_c, source.temp_upper_c, upper_weight)
 	var target_lower_c: float = target.temp_lower_c if target != null else ambient_temp_c()
 	var thermal_only_carry_factor: float = clampf(
 		0.16 + 0.33 * transfer_intensity + smoke_heat_mix_coeff * 3.0,
@@ -4208,8 +4209,8 @@ func compute_interroom_transfer_temp_c(
 		0.18,
 		0.72
 	)
-	var carry_factor: float = lerpf(thermal_only_carry_factor, smoke_loaded_carry_factor, smoke_weight)
-	return lerpf(target_lower_c, source_mix_temp_c, carry_factor)
+	var carry_factor: float = DetMath.lerpf(thermal_only_carry_factor, smoke_loaded_carry_factor, smoke_weight)
+	return DetMath.lerpf(target_lower_c, source_mix_temp_c, carry_factor)
 
 
 func estimate_thermal_gradient_depth_m(room: RoomModel) -> float:
@@ -4228,15 +4229,15 @@ func estimate_thermal_gradient_depth_m(room: RoomModel) -> float:
 	var min_span_m: float = maxf(0.50, minf(room.width_m, room.length_m))
 	var max_span_m: float = maxf(room.width_m, room.length_m)
 	if min_span_m > 0.0 and max_span_m > 0.0:
-		var corridor_factor: float = clampf(inverse_lerp(2.0, 4.5, max_span_m / min_span_m), 0.0, 1.0)
-		var heat_factor: float = clampf(inverse_lerp(80.0, 180.0, room.temp_upper_c), 0.0, 1.0)
-		ref_depth_m *= lerpf(1.0, 0.72, corridor_factor * heat_factor)
+		var corridor_factor: float = clampf(DetMath.inverse_lerp(2.0, 4.5, max_span_m / min_span_m), 0.0, 1.0)
+		var heat_factor: float = clampf(DetMath.inverse_lerp(80.0, 180.0, room.temp_upper_c), 0.0, 1.0)
+		ref_depth_m *= DetMath.lerpf(1.0, 0.72, corridor_factor * heat_factor)
 
 	var min_band_m: float = minf(thermal_gradient_min_band_m, room.height_m)
 	var smooth_depth_m: float = ref_depth_m
 	if min_band_m > 0.000001 and ref_depth_m < min_band_m:
 		var blend: float = clampf(ref_depth_m / min_band_m, 0.0, 1.0)
-		smooth_depth_m = lerpf(ref_depth_m, min_band_m, blend)
+		smooth_depth_m = DetMath.lerpf(ref_depth_m, min_band_m, blend)
 
 	return clampf(
 		smooth_depth_m,
@@ -4258,7 +4259,7 @@ func _compute_room_vertical_mix_bonus(room: RoomModel) -> float:
 	if slenderness <= 2.0:
 		return 0.0
 
-	var corridor_factor: float = clampf(inverse_lerp(2.0, 4.5, slenderness), 0.0, 1.0)
+	var corridor_factor: float = clampf(DetMath.inverse_lerp(2.0, 4.5, slenderness), 0.0, 1.0)
 	var hot_fill_m: float = maxf(0.0, room.height_m - effective_hot_layer_height_m(room))
 	var fill_factor: float = clampf(hot_fill_m / maxf(0.35, room.height_m * 0.45), 0.0, 1.0)
 	return 0.018 * corridor_factor * fill_factor
@@ -4330,23 +4331,23 @@ func estimate_temperature_at_height_m(room: RoomModel, height_m: float) -> float
 	var interface_m: float = clampf(effective_hot_layer_height_m(room), 0.0, room.height_m)
 	if gradient_depth_m <= 0.000001:
 		if floor_band_m > 0.000001 and z_m <= floor_band_m:
-			var floor_t_no_gradient: float = inverse_lerp(0.0, floor_band_m, z_m)
-			return lerpf(ambient_c, room.temp_lower_c, floor_t_no_gradient)
+			var floor_t_no_gradient: float = DetMath.inverse_lerp(0.0, floor_band_m, z_m)
+			return DetMath.lerpf(ambient_c, room.temp_lower_c, floor_t_no_gradient)
 		return room.temp_upper_c if z_m >= interface_m else room.temp_lower_c
 
 	var gradient_bottom_m: float = clampf(interface_m - 0.5 * gradient_depth_m, 0.0, room.height_m)
 	var gradient_top_m: float = clampf(interface_m + 0.5 * gradient_depth_m, gradient_bottom_m, room.height_m)
 	if floor_band_m > 0.000001 and z_m <= floor_band_m:
-		var floor_t: float = inverse_lerp(0.0, floor_band_m, z_m)
-		return lerpf(ambient_c, room.temp_lower_c, floor_t)
+		var floor_t: float = DetMath.inverse_lerp(0.0, floor_band_m, z_m)
+		return DetMath.lerpf(ambient_c, room.temp_lower_c, floor_t)
 
 	if z_m <= gradient_bottom_m:
 		return room.temp_lower_c
 	if z_m >= gradient_top_m:
 		return room.temp_upper_c
 
-	var t: float = inverse_lerp(gradient_bottom_m, gradient_top_m, z_m)
-	return lerpf(room.temp_lower_c, room.temp_upper_c, t)
+	var t: float = DetMath.inverse_lerp(gradient_bottom_m, gradient_top_m, z_m)
+	return DetMath.lerpf(room.temp_lower_c, room.temp_upper_c, t)
 
 
 func estimate_isotherm_height_m(room: RoomModel, threshold_c: float) -> float:
@@ -4366,7 +4367,7 @@ func estimate_isotherm_height_m(room: RoomModel, threshold_c: float) -> float:
 			0.0,
 			1.0
 		)
-		return clampf(lerpf(0.0, floor_band_m, floor_t), 0.0, room.height_m)
+		return clampf(DetMath.lerpf(0.0, floor_band_m, floor_t), 0.0, room.height_m)
 	if threshold_c >= room.temp_upper_c:
 		return room.height_m
 
@@ -4385,7 +4386,7 @@ func estimate_isotherm_height_m(room: RoomModel, threshold_c: float) -> float:
 		0.0,
 		1.0
 	)
-	return clampf(lerpf(gradient_bottom_m, gradient_top_m, t), 0.0, room.height_m)
+	return clampf(DetMath.lerpf(gradient_bottom_m, gradient_top_m, t), 0.0, room.height_m)
 
 
 func update_room_layer_150c(room: RoomModel, dt: float) -> void:
@@ -4399,10 +4400,10 @@ func update_room_layer_150c(room: RoomModel, dt: float) -> void:
 
 	if raw_layer_150c_m < room.layer_150c_m:
 		var down_t: float = clampf(layer_150c_relax_down_per_s * dt, 0.0, 1.0)
-		room.layer_150c_m = lerpf(room.layer_150c_m, raw_layer_150c_m, down_t)
+		room.layer_150c_m = DetMath.lerpf(room.layer_150c_m, raw_layer_150c_m, down_t)
 	else:
 		var up_t: float = clampf(layer_150c_relax_up_per_s * dt, 0.0, 1.0)
-		room.layer_150c_m = lerpf(room.layer_150c_m, raw_layer_150c_m, up_t)
+		room.layer_150c_m = DetMath.lerpf(room.layer_150c_m, raw_layer_150c_m, up_t)
 
 	room.layer_150c_m = clampf(room.layer_150c_m, 0.0, room.height_m)
 
@@ -4651,10 +4652,10 @@ func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -
 	var co2_pct: float = co2_ppm / 10000.0
 	var v_co2: float = 1.0
 	if co2_pct > 2.0:
-		v_co2 = exp(0.1903 * co2_pct + 2.0004) / 7.1
+		v_co2 = DetMath.exp(0.1903 * co2_pct + 2.0004) / 7.1
 
 	if co_ppm > 0.0:
-		delta += 3.317e-5 * pow(co_ppm, 1.036) * v_co2 * dt_min
+		delta += 3.317e-5 * DetMath.pow(co_ppm, 1.036) * v_co2 * dt_min
 
 	var hcn_ppm: float = compute_hcn_upper_ppm(room) if in_upper else compute_hcn_lower_ppm(room)
 	if hcn_ppm > 0.0:
@@ -4665,22 +4666,22 @@ func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -
 		var o2_pct: float = clampf((room.o2_upper if in_upper else room.o2_lower) * 100.0, 0.0, 20.9)
 		var o2_deficit: float = maxf(0.0, 20.9 - o2_pct)
 		if o2_deficit > 0.0:
-			var t_crit: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit)
+			var t_crit: float = DetMath.exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit)
 			if t_crit > 0.0:
 				delta += dt_min / t_crit
 
 	if fed_heat_enabled and room.upper_gas_kg > 0.01:
 		if in_upper and room.temp_upper_c > fed_heat_conv_min_c:
-			var tenab: float = fed_heat_conv_a * pow(room.temp_upper_c, -fed_heat_conv_n)
+			var tenab: float = fed_heat_conv_a * DetMath.pow(room.temp_upper_c, -fed_heat_conv_n)
 			var tenab_s: float = tenab * 60.0
 			if tenab_s > 0.0:
 				delta += dt / tenab_s
 		var sigma_kw: float = 5.670374419e-11
 		var t_upper_k: float = room.temp_upper_c + 273.15
 		var vf: float = fed_heat_rad_view_factor if in_upper else fed_heat_rad_view_factor_below
-		var q_rad: float = maxf(0.0, 0.85 * sigma_kw * (pow(t_upper_k, 4.0) - pow(310.0, 4.0)) * vf)
+		var q_rad: float = maxf(0.0, 0.85 * sigma_kw * (DetMath.pow(t_upper_k, 4.0) - DetMath.pow(310.0, 4.0)) * vf)
 		if q_rad > 2.5:
-			var tenab_rad: float = fed_heat_rad_a / pow(q_rad, 1.33)
+			var tenab_rad: float = fed_heat_rad_a / DetMath.pow(q_rad, 1.33)
 			if tenab_rad > 0.0 and tenab_rad < 3600.0:
 				delta += dt / tenab_rad
 
@@ -4721,11 +4722,11 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	var co2_pct: float = co2_ppm / 10000.0
 	var v_co2: float = 1.0
 	if co2_pct > 2.0:
-		v_co2 = exp(0.1903 * co2_pct + 2.0004) / 7.1
+		v_co2 = DetMath.exp(0.1903 * co2_pct + 2.0004) / 7.1
 
 	# ISO 13571 Eq. 2-3: dosis incremental por CO, con ajuste por CO2 solo > 2% vol.
 	if co_ppm > 0.0:
-		delta_co = 3.317e-5 * pow(co_ppm, 1.036) * v_co2 * dt_min
+		delta_co = 3.317e-5 * DetMath.pow(co_ppm, 1.036) * v_co2 * dt_min
 
 	# ISO 13571 §A.2.2: dosis incremental por HCN (cianuro de hidrógeno).
 	# Modelo lineal de Purser: LC50 ≈ 4400 ppm·min (humano equivalente, 30 min).
@@ -4739,7 +4740,7 @@ func step_fed(room: RoomModel, dt: float) -> void:
 		var o2_pct: float = clampf((room.o2_upper if in_upper_layer else room.o2_lower) * 100.0, 0.0, 20.9)
 		var o2_deficit_pct: float = maxf(0.0, 20.9 - o2_pct)
 		if o2_deficit_pct > 0.0:
-			var t_crit_min: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit_pct)
+			var t_crit_min: float = DetMath.exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit_pct)
 			if t_crit_min > 0.0:
 				delta_hypoxia = dt_min / t_crit_min
 
@@ -4748,7 +4749,7 @@ func step_fed(room: RoomModel, dt: float) -> void:
 		# --- Componente convectiva (ISO 13571 sec. 8.3) ---
 		# Solo cuando el ocupante respira el gas caliente (inmerso en la capa superior).
 		if in_upper_layer and room.temp_upper_c > fed_heat_conv_min_c:
-			var tenab_min: float = fed_heat_conv_a * pow(room.temp_upper_c, -fed_heat_conv_n)
+			var tenab_min: float = fed_heat_conv_a * DetMath.pow(room.temp_upper_c, -fed_heat_conv_n)
 			var tenab_s: float = tenab_min * 60.0
 			if tenab_s > 0.0:
 				delta_heat += dt / tenab_s
@@ -4763,10 +4764,10 @@ func step_fed(room: RoomModel, dt: float) -> void:
 		var t_skin_k: float = 310.0  # 37°C — temperatura superficie piel
 		var vf: float = fed_heat_rad_view_factor if in_upper_layer else fed_heat_rad_view_factor_below
 		var q_rad_kw_m2: float = maxf(0.0,
-			0.85 * sigma_kw_m2_k4 * (pow(t_upper_k, 4.0) - pow(t_skin_k, 4.0)) * vf
+			0.85 * sigma_kw_m2_k4 * (DetMath.pow(t_upper_k, 4.0) - DetMath.pow(t_skin_k, 4.0)) * vf
 		)
 		if q_rad_kw_m2 > 2.5:
-			var tenab_rad_s: float = fed_heat_rad_a / pow(q_rad_kw_m2, 1.33)
+			var tenab_rad_s: float = fed_heat_rad_a / DetMath.pow(q_rad_kw_m2, 1.33)
 			if tenab_rad_s > 0.0 and tenab_rad_s < 3600.0:
 				delta_heat += dt / tenab_rad_s
 
@@ -4842,7 +4843,7 @@ func _compute_svv_pct_from_room(room: RoomModel) -> float:
 	elif fed_val < 1.0:
 		# BAJA→MÍNIMA: curva convexa potencia 1.5 (ISO 13571: FED=1.0 = incapacitación media)
 		var t_fed: float = (fed_val - 0.3) / 0.7
-		fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
+		fed_svv = 0.90 * DetMath.pow(1.0 - t_fed, 1.5)
 	else:
 		fed_svv = 0.0
 
@@ -4991,7 +4992,7 @@ func sync_room_upper_layer(
 		room.thermal_layer_m = target_thermal_layer_m
 	else:
 		# Capa recuperándose (sube): relajación moderada para evitar saltos bruscos.
-		room.thermal_layer_m = lerpf(
+		room.thermal_layer_m = DetMath.lerpf(
 			room.thermal_layer_m,
 			target_thermal_layer_m,
 			clampf(layer_relax_up * dt, 0.0, 1.0)
@@ -5107,7 +5108,7 @@ func estimate_plume_upper_depth_m(room: RoomModel) -> float:
 	var floor_area_m2: float = maxf(1.0, room.floor_area_m2())
 	var response: float = 1.0
 	if plume_fill_response_s > 0.0:
-		response = 1.0 - exp(-room.fire_time_s / plume_fill_response_s)
+		response = 1.0 - DetMath.exp(-room.fire_time_s / plume_fill_response_s)
 
 	# Heurístico calibrado: plume_fill_depth_coeff × √HRR / A_floor.
 	# NOTA: McCaffrey (NBSIR 79-1910) da un caudal másico ṁ = 0.071·Qc^(1/3)·z^(5/3) [kg/s]
@@ -5240,7 +5241,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 		0.0,
 		1.0
 	)
-	var band_factor: float = lerpf(thermal_factor, smoke_factor, doorway_o2_smoke_weight)
+	var band_factor: float = DetMath.lerpf(thermal_factor, smoke_factor, doorway_o2_smoke_weight)
 	var engagement: float = clampf(
 		band_factor + pressure_factor * doorway_o2_pressure_weight,
 		0.0,
@@ -5269,7 +5270,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 		clampf(0.35 + 0.65 * engagement, 0.0, 1.0),
 		smoke_coupling
 	)
-	var sink_temp_c: float = lerpf(cold_room.temp_lower_c, cold_room.temp_upper_c, 0.20)
+	var sink_temp_c: float = DetMath.lerpf(cold_room.temp_lower_c, cold_room.temp_upper_c, 0.20)
 	var temp_delta_k: float = maxf(0.0, source_temp_c - sink_temp_c)
 	if temp_delta_k < 2.0:
 		return state
@@ -5330,12 +5331,12 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	var _dT_lower_b: float = maxf(0.0, _T_cold_b_k - _T_hot_lower_b_k)
 	var _q_upper_b: float = 0.0
 	if _h_upper_b > 0.001 and _dT_upper_b > 0.5:
-		_q_upper_b = _cd_b * _w_b * (2.0 / 3.0) * pow(_h_upper_b, 1.5) \
+		_q_upper_b = _cd_b * _w_b * (2.0 / 3.0) * DetMath.pow(_h_upper_b, 1.5) \
 				* sqrt(2.0 * _g_b * _dT_upper_b / _T_ref_b_k)
 	var _q_lower_b: float = 0.0
 	if _h_lower_b > 0.001 and _dT_lower_b > 0.5:
 		var _T_ref_lower_b: float = (_T_cold_b_k + _T_hot_lower_b_k) * 0.5
-		_q_lower_b = _cd_b * _w_b * (2.0 / 3.0) * pow(_h_lower_b, 1.5) \
+		_q_lower_b = _cd_b * _w_b * (2.0 / 3.0) * DetMath.pow(_h_lower_b, 1.5) \
 				* sqrt(2.0 * _g_b * _dT_lower_b / _T_ref_lower_b)
 	elif _q_upper_b > 0.0:
 		# Conservación de masa: caudal entrante compensa saliente (distintas densidades)

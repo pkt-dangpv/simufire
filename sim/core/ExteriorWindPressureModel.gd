@@ -1,4 +1,5 @@
 extends RefCounted
+const DetMath = preload("res://sim/core/DetMath.gd")
 
 ## Presion de viento sobre una abertura exterior: modelo puro y unico dueno.
 ##
@@ -53,7 +54,7 @@ static func facade_normal(wall_side: String) -> Array:
 ## viene. Con la convencion del mapa: N = top, E = right, S = bottom, W = left.
 static func from_wind_vector(direction_deg: float) -> Array:
 	var dir_rad: float = deg_to_rad(direction_deg)
-	return [sin(dir_rad), -cos(dir_rad)]
+	return [DetMath.sin(dir_rad), -DetMath.cos(dir_rad)]
 
 
 ## Coeficiente de presion para un coseno de incidencia dado.

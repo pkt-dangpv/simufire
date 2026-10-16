@@ -9,11 +9,17 @@ worktree's ``sim/``: it is only pointed at such a copy.
 
 ``matches`` is what the tests use to prove the worktree file carries the
 block verbatim.
+
+Since 2026-10-15 sim/ calls ``DetMath.lerpf`` (docs/validation/determinism/);
+the blocks below are written that way. A pre-DetMath copy (no DetMath preload
+line) receives and loses them with plain ``lerpf``, as it always did.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+from scripts.simulation.detmath_routing import DETMATH_PRELOAD_LINE, strip_detmath_routing
 
 
 CONSTANTS_ANCHOR = '''const G3_OWNERSHIP_SWITCH: String = "fire_explicit_object_fuel_ownership_enabled"
@@ -46,7 +52,7 @@ CALL = '''		# G3 DIAGNÓSTICO (clave ausente o 0: no se ejecuta nada de esto). D
 			if latent_viable:
 				g3_diag_smolder_kw = minf(
 					residual_smolder_cap_kw,
-					solid_pyrolysis_kw * smolder_fraction * lerpf(0.40, 1.0, subvent_engagement)
+					solid_pyrolysis_kw * smolder_fraction * DetMath.lerpf(0.40, 1.0, subvent_engagement)
 				)
 			var g3_diag_jump_fraction: float = clampf(
 				float(context.get(G3_DIAG_FLAME_TARGET_JUMP_FRACTION, 0.0)), 0.0, 1.0
@@ -93,11 +99,11 @@ static func g3_diag_flame_target_kw(
 	)
 	if window <= 0.0 or outside_window:
 		return original_kw
-	var at_threshold_kw: float = lerpf(
+	var at_threshold_kw: float = DetMath.lerpf(
 		smolder_at_threshold_kw, ideal_kw * G3_DIAG_CAN_FLAME_DRIVE, jump_fraction
 	)
 	var at_window_top_kw: float = ideal_kw * (G3_DIAG_CAN_FLAME_DRIVE + window)
-	return lerpf(
+	return DetMath.lerpf(
 		at_threshold_kw, at_window_top_kw, (flame_drive - G3_DIAG_CAN_FLAME_DRIVE) / window
 	)
 
@@ -105,19 +111,26 @@ static func g3_diag_flame_target_kw(
 '''
 
 
+def _blocks(source: str) -> tuple[str, str, str]:
+    if DETMATH_PRELOAD_LINE in source:
+        return CONSTANTS, CALL, FUNCTION
+    return CONSTANTS, strip_detmath_routing(CALL), strip_detmath_routing(FUNCTION)
+
+
 def patched(source: str) -> str:
     """``source`` with the three insertions; raises if an anchor is not unique."""
     for anchor in (CONSTANTS_ANCHOR, CALL_ANCHOR, FUNCTION_ANCHOR):
         if source.count(anchor) != 1:
             raise ValueError(f"anchor found {source.count(anchor)} times: {anchor[:40]!r}")
-    source = source.replace(CONSTANTS_ANCHOR, CONSTANTS_ANCHOR + CONSTANTS)
-    source = source.replace(CALL_ANCHOR, CALL_ANCHOR + CALL)
-    return source.replace(FUNCTION_ANCHOR, FUNCTION + FUNCTION_ANCHOR)
+    constants, call, function = _blocks(source)
+    source = source.replace(CONSTANTS_ANCHOR, CONSTANTS_ANCHOR + constants)
+    source = source.replace(CALL_ANCHOR, CALL_ANCHOR + call)
+    return source.replace(FUNCTION_ANCHOR, function + FUNCTION_ANCHOR)
 
 
 def stripped(source: str) -> str:
     """``source`` without the three insertions (the inverse of ``patched``)."""
-    for block in (CONSTANTS, CALL, FUNCTION):
+    for block in _blocks(source):
         if source.count(block) != 1:
             raise ValueError("diagnostic block missing or duplicated")
         source = source.replace(block, "")
