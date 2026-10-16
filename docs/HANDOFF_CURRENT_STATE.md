@@ -1,5 +1,23 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-16 - G5: plantillas de exportación instaladas
+
+[Matriz G5](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md) ·
+[huella de determinismo](validation/determinism/README.md).
+Sobremesa (AMD Ryzen 5 5600X, checkout en `C:\simufire`): instaladas las
+plantillas oficiales de Godot 4.7.1 en `%APPDATA%/Godot/export_templates/4.7.1.stable`
+(SHA-512 del `.tpz` igual al `SHA512-SUMS.txt` de la release; 35 ficheros,
+1,93 GiB). **Portátil: siguen sin instalar.**
+Primera exportación: la variante de la huella (`determinism_fingerprint.py run
+--export`, preset de producto con `tools/` incluido), release sin errores. Los
+builds exportados ignoran `--script`; la huella entra por un `override.cfg` con
+`application/run/main_loop_type="DeterminismFingerprint"`. Resultado: build
+release idéntica al editor del sobremesa y al del portátil, hilo principal y
+trabajador, 7200 pasos (`06677668`). Las huellas del editor del sobremesa y del
+portátil también coinciden (`06a62fec`). Versionados los `.uid` de DetMath.
+G5 sigue ABIERTO: falta exportar el preset de producto tal cual, arrancarlo con
+interfaz, D-3 (gráficas en el build) y máquina limpia.
+
 ## Current Program Update - 2026-10-14 - Reloj corregido en main de OneDrive
 
 [Informe y límites](validation/PRODUCT_CLOCK_SOBREMESA_2026-10-14.md).

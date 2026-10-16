@@ -1,6 +1,8 @@
 # Matriz G4/G5 — estabilidad de producto y distribución Windows
 
 > **Fecha:** 24 de septiembre de 2026 (tercera pasada: D-2 sin tocar FDS, y D-5)
+> **Actualizado:** 16 de octubre de 2026: plantillas de exportación 4.7.1
+> instaladas en el sobremesa (§2); en el portátil siguen sin instalar.
 > **Gates:** G4 (producto estable) y G5 (distribución)
 > **Base:** [plan de publicación vigente](../PLAN_PUBLICACION_2026-10-30.md) ·
 > [ámbito G0/G2](MATRIZ_G0_G2_AMBITO_EVIDENCIA.md) ·
@@ -41,12 +43,24 @@ con matplotlib no hay gráficas exportadas, y que el resto funciona igual.
 |---|---|
 | `export_presets.cfg` en el repositorio | **ausente**, y `.gitignore:6` lo ignora a propósito |
 | Plantilla versionable del preset | **creada y corregida**: `export_presets.cfg.template` (ver D-4) |
-| **Plantillas de exportación de Godot 4.7.1** | **AUSENTES — 0 entradas en `%APPDATA%/Godot/export_templates`** (recomprobado) |
-| Build generado | **no**, imposible sin plantillas |
+| **Plantillas de exportación de Godot 4.7.1** | ✅ **instaladas en el sobremesa** (16-10-2026): `%APPDATA%/Godot/export_templates/4.7.1.stable`, 35 ficheros, 1,93 GiB. **Portátil: siguen ausentes** |
+| Build generado | **solo la variante de la huella** (ver abajo); el preset de producto tal cual aún no se ha exportado |
 | Instalación en máquina limpia | **no probada** |
 
-**Bloqueo activo de G5:** sin plantillas de exportación instaladas no se puede
-generar ningún ejecutable. Datos medidos de la descarga, para decidir:
+**Bloqueo de las plantillas: resuelto en el sobremesa (16-10-2026).** Se
+descargó el activo oficial indicado abajo, su SHA-512 coincide con el
+`SHA512-SUMS.txt` de la release (`afcc83d8…0b2f9d47`) y se extrajo a
+`%APPDATA%/Godot/export_templates/4.7.1.stable/` (`version.txt` = `4.7.1.stable`).
+Primera exportación con ellas: la de la huella de determinismo
+(`tools/determinism_fingerprint.py run --export`), que usa este preset con un
+único cambio, `tools/` sin excluir. Exportó en release sin errores
+(`SimuFire.exe` 109 MB + `SimuFire.pck` 24,8 MB, a una carpeta temporal) y la
+build corrió headless los 7200 pasos con resultado **idéntico** al del editor
+([huella](../validation/determinism/README.md)). Esto demuestra que la cadena de
+exportación funciona en esta máquina; **no** es el build de producto ni prueba
+su arranque con interfaz.
+
+Datos medidos de la descarga (24-09, se mantienen):
 
 | dato | valor |
 |---|---|
@@ -56,8 +70,8 @@ generar ningún ejecutable. Datos medidos de la descarga, para decidir:
 | Disco libre en C: | 268,1 GiB — sobra de largo |
 | Alcance | el `.tpz` trae **todas** las plataformas; no hay descarga oficial solo-Windows |
 
-**No la he descargado**: es una descarga grande hacia la máquina del usuario y
-una decisión suya. Vía alternativa sin línea de comandos:
+El 24-09 no se descargó por ser decisión del usuario; el 16-10 el usuario la
+pidió en el sobremesa. Para el portátil, misma descarga o
 `Editor → Gestionar plantillas de exportación` dentro de Godot.
 
 ### 3. Procedimiento de exportación documentado
@@ -114,8 +128,9 @@ Notas del procedimiento, no opcionales:
 | Preset versionable sin datos personales | ✅ creado |
 | Ficheros de datos incluidos en el paquete | ✅ **corregido** (D-4); antes ninguno |
 | Gráficas PNG / dashboard en un build | ❌ **rotas** (D-3), no es un problema de preset |
-| **Generación del ejecutable** | ❌ **bloqueado**: sin plantillas |
-| **Arranque del ejecutable** | ❌ no ejecutable aún |
+| Plantillas de exportación 4.7.1 | ✅ instaladas en el sobremesa; ❌ portátil |
+| **Generación del ejecutable** | ⚠️ desbloqueada: exportada la variante de la huella (release, sin errores); falta exportar el preset de producto tal cual |
+| **Arranque del ejecutable** | ⚠️ solo headless, con la huella como bucle principal (7200 pasos, idéntica al editor); arranque con interfaz sin probar |
 | **Instalación en máquina Windows limpia** | ❌ **pendiente**, requiere otra máquina |
 
 **G5 = NO-GO, abierto.** Exportar un EXE no cerraría el gate por sí solo: el
@@ -402,7 +417,7 @@ ya no falla. Esto no cierra la observación visual G4 ni la exportación G5.
 | gate | estado | qué falta |
 |---|---|---|
 | **G4** | **ABIERTO** | 11 de 20 comprobaciones requieren observación visual humana. D-1 y D-2 están cerrados **en datos**, no visualmente: nadie ha entrado todavía en primera persona en esos dos escenarios |
-| **G5** | **ABIERTO, bloqueado** | plantillas de exportación; después, build, D-3 y máquina limpia |
+| **G5** | **ABIERTO** (plantillas ya no bloquean en el sobremesa) | exportar el preset de producto y arrancarlo con interfaz, D-3 y máquina limpia |
 
 **Ningún gate pasa a PASS.** D-2 sí queda cerrado (§7.3), y D-5 corregido con
 prueba de mutación (§7.5). D-1 sigue **corregido en datos y sin comprobar
@@ -420,8 +435,9 @@ observable sin alguien delante de la pantalla.
 1. **Entrar en primera persona** en `preset_simple_house` y
    `preset_two_storey_house` y confirmar visualmente D-1 (fila 13). Es la única
    parte de D-1 que sigue sin evidencia.
-2. **Instalar las plantillas de exportación de Godot 4.7.1** (1,19 GiB, §2). Es
-   lo único que desbloquea G5 y se hace desde el propio editor.
+2. **Exportar el preset de producto** en el sobremesa con el procedimiento de
+   §3 (las plantillas ya están, §2) y arrancar ese ejecutable con interfaz.
+   En el portátil faltan aún las plantillas.
 3. **D-3**: decidir si las gráficas deben funcionar en el build. Si sí, hay que
    extraer los `.py` a `user://` antes de invocarlos.
 4. **D-6**: poner al día los diez presets, con su propia medición (§7.6).
