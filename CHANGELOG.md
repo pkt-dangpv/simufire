@@ -23,6 +23,13 @@ All notable changes to SimuFire should be recorded here.
 - Headless, first person, developed fire: main-thread time per physics tick
   mean 3.9 → 1.8 ms, p95 12.8 → 6.7 ms, max 16.2 → 8.1 ms. What remains is the
   view refresh itself.
+- Real window on the laptop (2026-10-17, first person, fire at 200 s, paused
+  58–60 FPS in every run): Play 53.2 FPS with the worker thread (p95 frame
+  25.4 ms, no frame over 52 ms, main-thread script time per frame mean 2.1 ms,
+  p95 7.2 ms) against 49.8 FPS on the main thread in the same session (p95
+  31.2 ms, main thread mean 5.0 ms, p95 14.2 ms) and 42.8 FPS measured on
+  2026-10-15. Simulated time keeps pace with wall time (8.0 s in 8.0 s). A
+  first threaded run had one 0.3 s hitch on pressing Play that did not repeat.
 
 ### Deterministic engine math (2026-10-15)
 
