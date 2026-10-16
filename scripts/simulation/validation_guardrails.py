@@ -212,6 +212,22 @@ _ENGINE_PATHS: tuple[str, ...] = (
 )
 
 
+def _last_engine_commit(git) -> tuple[str, str]:
+    """(%ct, "%h %ad") del último commit de motor/casos que no solo añade `.gd.uid`."""
+    log = git("log", "--format=@%ct %h %ad", "--date=short", "--name-status",
+              "--", *_ENGINE_PATHS).stdout
+    for block in log.split("\n@")[0:]:
+        lines = [line for line in block.lstrip("@").splitlines() if line.strip()]
+        if not lines:
+            continue
+        timestamp, short = lines[0].split(" ", 1)
+        changes = [line.split("\t") for line in lines[1:]]
+        if changes and all(c[0] == "A" and c[-1].endswith(".gd.uid") for c in changes):
+            continue
+        return timestamp, short
+    return "", ""
+
+
 def _check_reports_freshness(repo_root: Path, json_path: Path) -> tuple[int, str]:
     """R2-1: reference_checks.json debe ser posterior al último cambio de motor/casos.
 
@@ -263,14 +279,15 @@ def _check_reports_freshness(repo_root: Path, json_path: Path) -> tuple[int, str
         )
         return 1, "\n".join(lines)
 
-    # 2) Último commit que tocó motor/casos vs último que tocó el reporte.
-    t_engine = _git("log", "-1", "--format=%ct", "--", *_ENGINE_PATHS).stdout.strip()
+    # 2) Último commit que tocó motor/casos vs último que tocó el reporte. Un
+    #    commit que solo AÑADE sidecars `.gd.uid` (los mismos metadatos derivados
+    #    del punto 1, ahora versionados) no es un cambio del motor; uno que los
+    #    modifica o borra sí cuenta.
+    t_engine, h_engine = _last_engine_commit(_git)
     t_json = _git("log", "-1", "--format=%ct", "--", str(rel_json)).stdout.strip()
     if not t_engine or not t_json:
         return 0, "R2-1: historial git incompleto (shallow clone) — check omitido."
     if int(t_engine) > int(t_json):
-        h_engine = _git("log", "-1", "--format=%h %ad", "--date=short",
-                        "--", *_ENGINE_PATHS).stdout.strip()
         h_json = _git("log", "-1", "--format=%h %ad", "--date=short",
                       "--", str(rel_json)).stdout.strip()
         return 1, (

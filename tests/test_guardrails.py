@@ -631,6 +631,40 @@ class TestReportsFreshness(unittest.TestCase):
         self.assertIn("DESPUÉS", out)
         self.assertIn("run_reference_checks.ps1", out)
 
+    def _commit(self, root: Path, message: str) -> None:
+        self._git(root, "add", "-A")
+        self._git(root, "commit", "-q", "-m", message, date="2026-01-02T00:00:00")
+
+    def test_rc0_commit_that_only_adds_godot_uids(self):
+        """Versionar los sidecars que Godot genera no es un cambio del motor."""
+        root, engine, report = self._make_repo("fresh_committed_uid")
+        engine.with_suffix(".gd.uid").write_text("uid://generated\n", encoding="utf-8")
+        self._commit(root, "version uid")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_commit_that_changes_a_tracked_uid(self):
+        root, engine, report = self._make_repo("fresh_changed_uid")
+        uid = engine.with_suffix(".gd.uid")
+        uid.write_text("uid://first\n", encoding="utf-8")
+        report.write_text('{"regenerated": 1}', encoding="utf-8")
+        self._commit(root, "uid and report")
+        uid.write_text("uid://second\n", encoding="utf-8")
+        self._git(root, "add", "-A")
+        self._git(root, "commit", "-q", "-m", "uid change", date="2026-01-03T00:00:00")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("DESPUÉS", out)
+
+    def test_rc1_commit_adding_a_uid_together_with_engine_code(self):
+        root, engine, report = self._make_repo("fresh_uid_and_engine")
+        engine.with_suffix(".gd.uid").write_text("uid://generated\n", encoding="utf-8")
+        engine.write_text("# engine v2\n", encoding="utf-8")
+        self._commit(root, "uid and engine")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("DESPUÉS", out)
+
     # -- D-5: sim/templates cuenta como motor ----------------------------
 
     def test_sim_templates_is_guarded(self):
