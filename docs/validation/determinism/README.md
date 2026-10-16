@@ -70,11 +70,12 @@ de las funciones de Godot (`godot_*`, solo información).
 | Huella | Máquina | Estado |
 |---|---|---|
 | `fingerprint_laptop_ryzen7_5700U_2026-10-15.json` | Portátil, AMD Ryzen 7 5700U, Windows 11, editor 4.7.1 | Con DetMath |
+| `fingerprint_desktop_ryzen5_5600X_2026-10-16.json` | Sobremesa, AMD Ryzen 5 5600X, Windows 11, editor 4.7.1 | Con DetMath; idéntica a la del portátil (hilo principal y trabajador, 7200 pasos) |
 
 ## Pendiente
 
-- Correr la huella en el sobremesa (otro AMD) y en el programa exportado
-  (faltan las plantillas de exportación en el portátil).
+- Correr la huella en el programa exportado (faltan las plantillas de
+  exportación en el portátil).
 - Móviles: comprobar en ARM que coincide. Riesgos conocidos sin medir: funciones
   vectoriales de Godot en `sim/` (`length`, `distance_to`, `dot`, en float32), la
   lectura de literales decimales por el analizador de GDScript y el tratamiento
