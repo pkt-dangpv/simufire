@@ -537,6 +537,18 @@ medidos paso a paso; detalle en
 
 ### FED/SVV pendientes de revision cientifica
 
+**Referencia nueva registrada el 16-10-2026 — trabajo posterior, no iniciado:**
+CFAST permite calcular FED y contrastar sus ecuaciones con SimuFire; FDS también
+dispone de implementación y casos de verificación de FED. La revisión inicial
+identificó diferencias de CO/HCN/CO₂ y un salto en el factor de CO₂ de SimuFire.
+Se conserva como entrada para G3-6, no como validación del motor completo ni
+de una probabilidad de supervivencia. Véase la
+[referencia CFAST/FDS y límites del banco inicial](G3_CO_END_TO_END_CLOSURE_PLAN_2026-09-27.md#referencia-fed-cfastfds-del-16-10-2026-diferida).
+Por instrucción del usuario, esta nota **no cambia el orden vigente**: primero
+los trabajos de producto y los gates físicos/fuente/transporte que ya estaban
+pendientes; después la revisión FED/SVV. No inicia implementación, nuevas
+corridas, calibración, activación ni promoción de CO/FED.
+
 **Subplan de cierre G3 (27-09):** el trabajo de CO se secuencia en baseline,
 propiedad de combustible, evidencia por material, libro contable pasivo,
 fuente por objeto, transporte por zonas, FED/SVV y decisión de promoción por

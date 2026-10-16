@@ -829,6 +829,70 @@ del rendimiento si su O₂ o su combustible no conservan masa. Un experimento
 puede medir fases posteriores antes, pero no convertirlas en física canónica
 fuera de orden.
 
+## Referencia FED CFAST/FDS del 16-10-2026 (diferida)
+
+**Estado: referencia nueva para G3-6; ejecución futura pendiente.** El usuario
+indica conservar los trabajos previos y su prioridad. Este registro documental
+no inicia ninguna tarea técnica ni altera los gates o el orden de este plan.
+La revisión de FED se retomará tras los trabajos anteriores y con las
+dependencias de fuente, gas/energía/EOS y transporte/concentraciones resueltas
+para el alcance que se quiera publicar. CO/FED permanece OFF/NO-GO.
+
+Se corrige la afirmación previa de que CFAST/FDS no permitían calcular FED:
+CFAST 7.7.7 integra FED gaseosa y térmica en targets; FDS dispone de una función
+FED y casos oficiales de verificación. Son referencias útiles para estudiar el
+código y contrastar nuestra implementación, con formulaciones explícitas y
+componentes equivalentes; no garantizan por sí solas la validez fisiológica.
+
+**Evidencia preliminar ya obtenida, no validación completa:**
+
+- CFAST instalado: `CFAST-7.7.7-0-gb43e74e0f-release`. Ejemplo de usuario
+  ejecutado normalmente y banco de 600 s con CSV cada 0,1 s; 6 000 muestras,
+  última a 599,9 s. No se ha ejecutado FDS en esta revisión.
+- Función `compute_fed_delta_for_height()` extraída literalmente del checkout
+  y ejecutada de forma aislada en Godot 4.7.1, con `DetMath` del motor y
+  concentraciones impuestas. No ejecuta el transporte ni el selector real de
+  capas de SimuFire. Calor e hipoxia desactivados para comparar gases.
+- En ese ejemplo, rico en HCN, FED gaseosa final CFAST **79,1962**, frente a
+  **1,9933782** de la función aislada de SimuFire con el mismo historial.
+  Reconstrucción independiente de CFAST: error final **0,00320 %**.
+  Las 6 007 evaluaciones nativas del banco reproducen la fórmula actual de
+  SimuFire con diferencia absoluta máxima `4,03e-16`. No es un factor de
+  calibración ni evidencia representativa de todos los incendios.
+- Diferencias a revisar cuando corresponda: HCN lineal en SimuFire frente a
+  potencia 2,36 en CFAST; formulaciones distintas para CO y potenciación por
+  CO₂; salto aproximado del **52,36 %** en la dosis de CO de SimuFire al pasar
+  de CO₂ al 2 % al 2,001 %. La FED gaseosa revisada de CFAST no incluye
+  hipoxia; `room.fed` de SimuFire suma además hipoxia y calor. Comparar por
+  componentes y documentar modelo, unidades, actividad y efecto final.
+- `svv_pct` sigue siendo un índice heurístico. FED puede alimentar un modelo
+  probabilístico de respuesta definido y justificado; concordar con CFAST no
+  valida un porcentaje de supervivencia ni equipara incapacitación y muerte.
+
+Trazabilidad del banco: SHA-256 de `ThermalSystem.gd`
+`bd8cbe332a72b6c1eb4f331d20d9a862163cccb1e72b2a6273fedf3bb03e976c`;
+de la función extraída
+`d921d7ef8e5a094d0d19123269f8376d2f49a0562794abd354777d38d67e6d19`.
+Informe, código reproducible y CSV conservados en los entregables del chat
+«Validar FED con CFAST» del 16-10-2026 (`Informe_FED_Simufire_CFAST.md` y
+`Banco_FED_Simufire_CFAST.zip`). Los datos anteriores describen ese banco,
+no una nueva ejecución ni la cualificación de una referencia experimental.
+
+Fuentes para retomar G3-6:
+
+- [CFAST 7.7.7: cálculo en target.f90](https://github.com/firemodels/cfast/blob/CFAST-7.7.7/Source/CFAST/target.f90),
+  blob `203dd6dbbec13ae44736f5141029001dfba386b6`.
+- [CFAST 7.7.7: exportación de FED](https://github.com/firemodels/cfast/blob/CFAST-7.7.7/Source/CFAST/outputspreadsheet.f90).
+- [FDS: función FED](https://github.com/firemodels/fds/blob/master/Source/func.f90)
+  y [caso FED/FIC de mezclas impuestas](https://github.com/firemodels/fds/blob/master/Verification/Species/FED_FIC_SMIX.fds).
+  La rama `master` es mutable: fijar revisión antes de usarla como referencia.
+
+Al retomar esta fase: seleccionar y justificar la formulación; contrastar
+primero ecuaciones con entradas impuestas y luego muestreo por altura y
+transporte completos; mantener separadas dosis gaseosa, térmica y desenlace
+probabilístico. Esta referencia amplía las entradas de G3-6, no sustituye
+los ensayos medidos ni autoriza saltarse sus dependencias.
+
 ## Matriz mínima de falsación
 
 - Inventario: vacío; un combustible; dos iguales; segundo objeto frío;
