@@ -1,6 +1,7 @@
 extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
+const BuildingViewMirrorScript = preload("res://view/BuildingViewMirror.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const GraphsWindowScene: PackedScene = preload("res://ui/GraphsWindow.tscn")
 const TechnicalSummaryWindowScene: PackedScene = preload("res://ui/TechnicalSummaryWindow.tscn")
@@ -82,6 +83,33 @@ var _running_view_state: Dictionary = {}
 const VIEW_REFRESH_TICKS_AFTER_STEP: int = 2
 var _ticks_since_sim_step: int = 0
 var _sim_step_due_next_tick: bool = false
+## Motor en un hilo trabajador (en Play no compite con el dibujo por el hilo
+## principal). Regla: con un paso en marcha el hilo principal no toca ni
+## `building` ni `engine`; las vistas leen `view_building`, una copia que se
+## sincroniza entre pasos (view/BuildingViewMirror.gd), y el estado exportado
+## que el propio hilo del motor construye tras cada paso. Las órdenes que tocan
+## el motor (velocidad) esperan al final del paso; las puertas y el HVAC que las
+## vistas cambian en la copia pasan al real entre pasos. Validación, headless y
+## `--engine-thread=off` siguen en el hilo principal, como siempre.
+const ENGINE_THREAD_ARG: String = "--engine-thread="
+var _engine_threaded: bool = false
+var _view_mirror = null
+## El edificio que leen las vistas: la copia con el motor en hilo, el real si no.
+var view_building: BuildingModel = null
+var _engine_task_id: int = -1
+var _engine_task_elapsed_real_s: float = 0.0
+## Lo escribe el hilo del motor; el principal lo lee solo con la tarea acabada.
+var _engine_task_state: Dictionary = {}
+## Estado exportado tras el último paso acabado, con sus datos del motor.
+var _published_state: Dictionary = {}
+var _published_sim_time_s: float = 0.0
+var _published_finished: bool = false
+var _published_graphs_launched: bool = false
+var _engine_pending_calls: Array[Callable] = []
+## La velocidad pedida, aunque el motor aún no la tenga (paso en marcha).
+var _requested_time_scale_value: float = -1.0
+const VIEW_BINDING_CHECK_EVERY_STEPS: int = 120
+var _engine_steps_since_binding_check: int = 0
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
@@ -90,10 +118,11 @@ var minimap_2d = null
 
 func _ready() -> void:
 	UILocalizationScript.ensure_loaded()
+	_setup_view_building()
 	_setup_graph_dialogs()
 	_setup_python_warning()
 	if hud != null:
-		hud.bind_building(building)
+		hud.bind_building(view_building)
 		_connect_hud_signals()
 		_setup_live_charts()
 	_setup_minimap()
@@ -102,9 +131,13 @@ func _ready() -> void:
 	if engine != null:
 		engine.time_scale = 1.0
 		_apply_startup_engine_options()
+		if _view_mirror != null:
+			_view_mirror.sync()
 		# W-01: capturar pantalla 3D cuando la simulación genera el export JSON.
-		_connect_once(engine.export_screenshot_requested, _on_export_screenshot_requested)
-		_connect_once(engine.technical_summary_ready, _on_technical_summary_ready)
+		# Con el motor en hilo se emiten desde el trabajador: diferidas al principal.
+		var engine_signal_flags: int = CONNECT_DEFERRED if _engine_threaded else 0
+		_connect_once(engine.export_screenshot_requested, _on_export_screenshot_requested, engine_signal_flags)
+		_connect_once(engine.technical_summary_ready, _on_technical_summary_ready, engine_signal_flags)
 		if not _is_validation_mode():
 			_set_python_warning_visible(not engine.check_python_available())
 	_connect_visualizer_signals()
@@ -112,6 +145,49 @@ func _ready() -> void:
 	# Poblar la lista de habitaciones del overlay en vivo antes de arrancar.
 	if _live_overlay != null and engine != null:
 		_live_overlay.seed_rooms(engine.get_state())
+	_check_views_bound_to_view_building()
+
+
+func _exit_tree() -> void:
+	# Las vistas ya han salido del árbol: esperar sin pintar nada.
+	_wait_engine_idle(false)
+	if _view_mirror != null:
+		_view_mirror.dispose()
+		_view_mirror = null
+
+
+func _setup_view_building() -> void:
+	_engine_threaded = _should_thread_engine() and building != null and engine != null
+	view_building = building
+	if _engine_threaded:
+		_view_mirror = BuildingViewMirrorScript.new(building)
+		view_building = _view_mirror.building
+	if visualizer != null:
+		visualizer.building = view_building
+	if visualizer_3d != null:
+		visualizer_3d.building = view_building
+
+
+func _should_thread_engine() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		var arg_text: String = String(arg)
+		if arg_text.begins_with(ENGINE_THREAD_ARG):
+			return arg_text.trim_prefix(ENGINE_THREAD_ARG) == "on"
+	return not _is_validation_mode() and DisplayServer.get_name() != "headless"
+
+
+## Con el motor en hilo, ninguna vista puede leer el edificio real.
+func _check_views_bound_to_view_building() -> void:
+	if not _engine_threaded:
+		return
+	var readers: Dictionary = {
+		"Visualizer": visualizer, "Visualizer3D": visualizer_3d, "HUD": hud,
+		"Minimap2D": minimap_2d, "FirstPersonController": first_person_controller,
+	}
+	for reader_name: String in readers.keys():
+		var reader: Object = readers[reader_name]
+		if reader != null and reader.get("building") != view_building:
+			push_error("Main: %s lee el edificio del motor; con el motor en hilo debe leer view_building" % reader_name)
 
 
 func _apply_startup_engine_options() -> void:
@@ -169,12 +245,15 @@ func _connect_visualizer_signals() -> void:
 		_connect_once(visualizer_3d.opening_clicked, _on_opening_clicked)
 
 
-func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
+func _connect_once(target_signal: Signal, target_callable: Callable, flags: int = 0) -> void:
 	if not target_signal.is_connected(target_callable):
-		target_signal.connect(target_callable)
+		target_signal.connect(target_callable, flags)
 
 
 func _physics_process(delta: float) -> void:
+	if _engine_threaded:
+		_physics_process_threaded(delta)
+		return
 	if playback_paused or engine == null:
 		return
 	_view_update_accum_s += delta
@@ -202,6 +281,96 @@ func _physics_process(delta: float) -> void:
 	if elapsed_real_s <= delta:
 		_sim_step_due_next_tick = true
 		_update_views_for_frame()
+
+
+## La misma cadencia que `_physics_process`, con el paso en el hilo del motor:
+## mientras corre, el tiempo se sigue acumulando y las vistas pintan el último
+## paso acabado; al acabar se publica y, si toca, se lanza el siguiente.
+func _physics_process_threaded(delta: float) -> void:
+	if engine == null:
+		return
+	if _engine_task_id != -1 and WorkerThreadPool.is_task_completed(_engine_task_id):
+		_finish_engine_task()
+	if playback_paused:
+		return
+	_view_update_accum_s += delta
+	_view_3d_update_accum_s += delta
+	_sim_step_accum_s += delta * engine.time_scale
+	_sim_step_accum_real_s += delta
+	if _engine_task_id == -1 and not _published_finished and _is_sim_step_due(0.0):
+		var step_delta: float = _sim_step_accum_s / engine.time_scale \
+			if engine.time_scale > 0.0 else delta
+		_engine_task_elapsed_real_s = _sim_step_accum_real_s
+		_sim_step_accum_s = 0.0
+		_sim_step_accum_real_s = 0.0
+		_engine_task_state = {}
+		_engine_task_id = WorkerThreadPool.add_task(
+			_run_engine_task.bind(step_delta), true, "SimuFire engine step")
+	_ticks_since_sim_step += 1
+	_update_views_for_frame()
+
+
+## En el hilo trabajador: solo el motor y su edificio.
+func _run_engine_task(step_delta: float) -> void:
+	engine.step(step_delta)
+	_engine_task_state = engine.get_state()
+
+
+func _finish_engine_task(refresh_views: bool = true) -> void:
+	WorkerThreadPool.wait_for_task_completion(_engine_task_id)
+	_engine_task_id = -1
+	_published_state = _engine_task_state
+	_engine_task_state = {}
+	_flush_engine_idle()
+	_view_state_stale = true
+	_view_3d_state_stale = true
+	_running_view_state = {}
+	# La copia para las vistas ya ha costado su parte de este tick: las vistas se
+	# refrescan unos ticks después, como tras un paso en el hilo principal.
+	_ticks_since_sim_step = 0
+	_sample_live_charts(_engine_task_elapsed_real_s)
+	if playback_paused and refresh_views:
+		# Pausa pedida con el paso en marcha: que se vea dónde se ha quedado.
+		_update_views()
+	_engine_steps_since_binding_check += 1
+	if OS.is_debug_build() and _engine_steps_since_binding_check >= VIEW_BINDING_CHECK_EVERY_STEPS:
+		_engine_steps_since_binding_check = 0
+		_check_views_bound_to_view_building()
+
+
+## Con el motor parado: órdenes pendientes, cambios de las vistas al edificio
+## real y copia de vuelta para las vistas.
+func _flush_engine_idle() -> void:
+	if not _engine_threaded or _engine_task_id != -1:
+		return
+	var pending: Array[Callable] = _engine_pending_calls
+	_engine_pending_calls = []
+	for pending_call: Callable in pending:
+		pending_call.call()
+	_requested_time_scale_value = -1.0
+	if _view_mirror != null:
+		_view_mirror.forward_view_edits()
+		_view_mirror.sync()
+	if _published_state.is_empty():
+		# Antes del primer paso: lo que verían las vistas sin el hilo.
+		_published_state = engine.get_state()
+	_published_sim_time_s = engine.sim_time_s
+	_published_finished = engine.is_finished
+	_published_graphs_launched = engine.are_graphs_launched()
+
+
+## Espera al paso en marcha (antes de parar, salir o pedirle algo al motor).
+func _wait_engine_idle(refresh_views: bool = true) -> void:
+	if _engine_task_id != -1:
+		_finish_engine_task(refresh_views)
+
+
+## Una orden que toca el motor: ahora si está parado; si no, al acabar el paso.
+func _call_on_idle_engine(engine_call: Callable) -> void:
+	if _engine_task_id != -1:
+		_engine_pending_calls.append(engine_call)
+	else:
+		engine_call.call()
 
 
 ## `ahead_s`: tiempo real añadido al acumulado, para saber si toca en el tick siguiente.
@@ -250,7 +419,10 @@ func _sample_live_charts(delta: float) -> void:
 	if _live_sample_accum_s < _live_overlay.sample_interval_s:
 		return
 	_live_sample_accum_s = 0.0
-	_live_overlay.sample(engine.sim_time_s, engine.get_state())
+	if _engine_threaded:
+		_live_overlay.sample(_published_sim_time_s, _published_state)
+	else:
+		_live_overlay.sample(engine.sim_time_s, engine.get_state())
 
 
 func _on_live_charts_toggled(pressed: bool) -> void:
@@ -289,6 +461,7 @@ func _input(event: InputEvent) -> void:
 func _update_views() -> void:
 	if engine == null:
 		return
+	_flush_engine_idle()
 	_view_update_accum_s = 0.0
 	_view_3d_update_accum_s = 0.0
 	_view_state_stale = false
@@ -310,11 +483,18 @@ func _update_views() -> void:
 
 
 func _build_view_state() -> Dictionary:
-	var state := engine.get_state()
+	var state: Dictionary
+	if _engine_threaded and _engine_task_id != -1:
+		# Paso en marcha: el estado del último paso acabado.
+		state = _published_state.duplicate()
+		state["simulation_finished"] = _published_finished
+		state["graphs_launched"] = _published_graphs_launched
+	else:
+		state = engine.get_state()
+		state["simulation_finished"] = engine.is_finished
+		state["graphs_launched"] = engine.are_graphs_launched()
 	state["playback_paused"] = playback_paused
-	state["time_scale"] = engine.time_scale
-	state["simulation_finished"] = engine.is_finished
-	state["graphs_launched"] = engine.are_graphs_launched()
+	state["time_scale"] = _requested_time_scale()
 	state["view_3d_enabled"] = view_3d_enabled
 	state["first_person_enabled"] = first_person_enabled
 	if first_person_controller != null:
@@ -401,15 +581,25 @@ func _on_pause_requested() -> void:
 
 
 func _on_slower_requested() -> void:
-	if engine != null:
-		engine.time_scale = _pick_time_speed(engine.time_scale, -1)
-	_update_views()
+	_change_time_speed(-1)
 
 
 func _on_faster_requested() -> void:
+	_change_time_speed(1)
+
+
+func _change_time_speed(direction: int) -> void:
 	if engine != null:
-		engine.time_scale = _pick_time_speed(engine.time_scale, 1)
+		var next_speed: float = _pick_time_speed(_requested_time_scale(), direction)
+		_requested_time_scale_value = next_speed
+		_call_on_idle_engine(func() -> void: engine.time_scale = next_speed)
 	_update_views()
+
+
+func _requested_time_scale() -> float:
+	if _engine_task_id != -1 and _requested_time_scale_value > 0.0:
+		return _requested_time_scale_value
+	return engine.time_scale
 
 
 func _on_view_3d_toggled(enabled: bool) -> void:
@@ -421,8 +611,8 @@ func _on_first_person_toggled(enabled: bool) -> void:
 
 
 func _on_hvac_toggled(enabled: bool) -> void:
-	if building != null:
-		building.set_hvac_on(enabled)
+	if view_building != null:
+		view_building.set_hvac_on(enabled)
 	_update_views()
 
 
@@ -449,9 +639,9 @@ func _on_opening_clicked(opening_index: int, screen_pos: Vector2) -> void:
 
 
 func _on_opening_fraction_requested(opening_index: int, open_fraction: float) -> void:
-	if building == null:
+	if view_building == null:
 		return
-	if building.set_opening_fraction(opening_index, open_fraction):
+	if view_building.set_opening_fraction(opening_index, open_fraction):
 		if visualizer != null:
 			visualizer.select_opening(opening_index)
 		if visualizer_3d != null:
@@ -505,7 +695,7 @@ func _setup_minimap() -> void:
 	if minimap_2d == null:
 		push_error("Main: falta UI/HUD/Minimap2D en SimulationScene.tscn")
 		return
-	minimap_2d.bind_building(building)
+	minimap_2d.bind_building(view_building)
 
 
 func _setup_first_person_controller() -> void:
@@ -516,7 +706,7 @@ func _setup_first_person_controller() -> void:
 		first_person_controller = FirstPersonControllerScript.new()
 		first_person_controller.name = "FirstPersonController"
 		world_3d.add_child(first_person_controller)
-	first_person_controller.setup(building)
+	first_person_controller.setup(view_building)
 	_connect_once(first_person_controller.exit_requested, _on_first_person_exit_requested)
 	_connect_once(first_person_controller.opening_changed, _on_first_person_opening_changed)
 	_apply_visibility_representation_option()
@@ -544,6 +734,7 @@ func _on_first_person_opening_changed() -> void:
 
 func _on_stop_and_generate_requested() -> void:
 	playback_paused = true
+	_wait_engine_idle()
 	_update_views()
 	if _graphs_dir_dialog != null:
 		_graphs_dir_dialog.popup_centered_ratio(0.72)
@@ -551,6 +742,7 @@ func _on_stop_and_generate_requested() -> void:
 
 func _on_exit_without_graphs_requested() -> void:
 	playback_paused = true
+	_wait_engine_idle()
 	if first_person_enabled:
 		_set_first_person_enabled(false)
 	if engine != null:
@@ -560,6 +752,7 @@ func _on_exit_without_graphs_requested() -> void:
 
 func _on_return_to_editor_requested() -> void:
 	playback_paused = true
+	_wait_engine_idle()
 	if first_person_enabled:
 		_set_first_person_enabled(false)
 	var flag := FileAccess.open(RETURN_TO_EDITOR_FLAG_PATH, FileAccess.WRITE)
@@ -682,6 +875,7 @@ func _set_python_warning_visible(show_warning: bool) -> void:
 func _on_graphs_dir_selected(dir_path: String) -> void:
 	if engine == null:
 		return
+	_wait_engine_idle()
 
 	_graph_generation_pending = true
 	var launched: bool = engine.stop_and_generate_graphs("manual_stop_button", dir_path)
@@ -709,6 +903,7 @@ func _on_graph_generation_poll_timeout() -> void:
 	if engine == null or not _graph_generation_pending:
 		_finish_graph_generation_poll()
 		return
+	_wait_engine_idle()
 	_graph_generation_poll_count += 1
 	var poll_result: int = engine.poll_graph_generation()
 	if poll_result == 0 and _graph_generation_poll_count < GRAPH_GENERATION_MAX_POLLS:

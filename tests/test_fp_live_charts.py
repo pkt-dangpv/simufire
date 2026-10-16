@@ -46,7 +46,16 @@ def test_main_simulation_dispatch_steps_once_per_reference_step():
     text = body("_physics_process")
     assert text.startswith(
         "delta: float) -> void:\n"
+        "\tif _engine_threaded:\n\t\t_physics_process_threaded(delta)\n\t\treturn\n"
         "\tif playback_paused or engine == null:\n\t\treturn\n")
+    # With the engine on a worker thread: same accumulation, one step per
+    # dispatch, charts sampled with the wall time of that step when it ends.
+    threaded = body("_physics_process_threaded")
+    assert threaded.count("WorkerThreadPool.add_task(") == 1
+    assert "_sim_step_accum_s += delta * engine.time_scale" in threaded
+    assert "_sim_step_accum_real_s += delta" in threaded
+    assert "\tengine.step(step_delta)\n" in body("_run_engine_task")
+    assert "\t_sample_live_charts(_engine_task_elapsed_real_s)\n" in body("_finish_engine_task")
     # Engine receives accumulated simulated time divided by the current speed;
     # charts retain the actual elapsed wall time across speed changes.
     assert text.count("engine.step(") == 1

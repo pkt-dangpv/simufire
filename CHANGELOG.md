@@ -4,6 +4,26 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Engine on a worker thread in Play (2026-10-16)
+
+- In the product window the engine step and its exported state now run in a
+  `WorkerThreadPool` task, so Play no longer spends the main thread on the
+  simulation (step ~12 ms with a developed fire). Possible since DetMath: the
+  worker thread gives exactly the same numbers.
+- Views (2D, 3D, first person, HUD, minimap) read `view_building`, a copy of
+  the building synced between steps (`view/BuildingViewMirror.gd`, ~1.2 ms with
+  a developed fire), instead of the building the engine is writing. Doors and
+  HVAC changed by a view reach the engine between steps; speed changes wait for
+  the running step; stopping, leaving or generating graphs wait for it too.
+- Headless, validation and `--engine-thread=off` keep the engine on the main
+  thread exactly as before. `tests/test_engine_thread.py` checks that threaded
+  Play gives the same state as the engine stepped directly (with a door changed
+  mid-step), that the copy matches and shares no container, and that leaving
+  with a step running is safe.
+- Headless, first person, developed fire: main-thread time per physics tick
+  mean 3.9 → 1.8 ms, p95 12.8 → 6.7 ms, max 16.2 → 8.1 ms. What remains is the
+  view refresh itself.
+
 ### Deterministic engine math (2026-10-15)
 
 - The engine now gives the same numbers on every machine, operating system,
