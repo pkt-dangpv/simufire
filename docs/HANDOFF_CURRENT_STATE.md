@@ -1,5 +1,19 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-16 - G5: build de producto exportado, arranca hasta el menú
+
+[Matriz G5 §2](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).
+Sobremesa: preset de producto exportado tal cual (procedimiento §3, editor con
+el monitor del proyecto) a `%USERPROFILE%\SimuFire_build`: rc 0, sin
+`ERROR`/`WARNING`; `.pck` con `i18n/es_ui.json`, 24 de `scenarios/`, 25
+`cfast_*.json` y `baseline_gate_dispositions.json`, sin `tools/`, `docs/`,
+`tests/` ni `scripts/`. Arrancado con interfaz (36 s, `user://` aislado):
+OpenGL 3.3 Compatibility en RTX 3070, menú completo con textos y lista de
+escenarios (D-4 confirmado en el build). Cierre desde la ventana: log sin
+errores, 0 popups (evento 26), 0 WER, 0 procesos residuales; código de salida
+no capturado. **No** se entró en ninguna simulación ni en primera persona.
+G5 sigue ABIERTO: simulación en el build, D-3 y máquina limpia.
+
 ## Current Program Update - 2026-10-16 - G5: plantillas de exportación instaladas
 
 [Matriz G5](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md) ·

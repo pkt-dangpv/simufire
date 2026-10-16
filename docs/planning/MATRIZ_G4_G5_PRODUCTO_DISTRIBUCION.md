@@ -2,7 +2,8 @@
 
 > **Fecha:** 24 de septiembre de 2026 (tercera pasada: D-2 sin tocar FDS, y D-5)
 > **Actualizado:** 16 de octubre de 2026: plantillas de exportación 4.7.1
-> instaladas en el sobremesa (§2); en el portátil siguen sin instalar.
+> instaladas en el sobremesa (§2); en el portátil siguen sin instalar. Build de
+> producto exportado y arrancado con interfaz hasta el menú (§2, §4).
 > **Gates:** G4 (producto estable) y G5 (distribución)
 > **Base:** [plan de publicación vigente](../PLAN_PUBLICACION_2026-10-30.md) ·
 > [ámbito G0/G2](MATRIZ_G0_G2_AMBITO_EVIDENCIA.md) ·
@@ -44,7 +45,7 @@ con matplotlib no hay gráficas exportadas, y que el resto funciona igual.
 | `export_presets.cfg` en el repositorio | **ausente**, y `.gitignore:6` lo ignora a propósito |
 | Plantilla versionable del preset | **creada y corregida**: `export_presets.cfg.template` (ver D-4) |
 | **Plantillas de exportación de Godot 4.7.1** | ✅ **instaladas en el sobremesa** (16-10-2026): `%APPDATA%/Godot/export_templates/4.7.1.stable`, 35 ficheros, 1,93 GiB. **Portátil: siguen ausentes** |
-| Build generado | **solo la variante de la huella** (ver abajo); el preset de producto tal cual aún no se ha exportado |
+| Build generado | ✅ **sí, preset de producto tal cual** (16-10-2026, sobremesa), en `%USERPROFILE%\SimuFire_build`, fuera del árbol |
 | Instalación en máquina limpia | **no probada** |
 
 **Bloqueo de las plantillas: resuelto en el sobremesa (16-10-2026).** Se
@@ -59,6 +60,23 @@ build corrió headless los 7200 pasos con resultado **idéntico** al del editor
 ([huella](../validation/determinism/README.md)). Esto demuestra que la cadena de
 exportación funciona en esta máquina; **no** es el build de producto ni prueba
 su arranque con interfaz.
+
+**Build de producto (16-10-2026, sobremesa).** Procedimiento de §3 tal cual:
+`export_presets.cfg` copiado de la plantilla sin cambios (borrado al terminar),
+editor 4.7.1 lanzado con `scripts/godot_monitored_launch.py`,
+`--export-release "Windows Desktop"` a `%USERPROFILE%\SimuFire_build`.
+
+| comprobación | resultado |
+|---|---|
+| Exportación | rc 0, 0 líneas `ERROR`/`WARNING`, monitor sin fallos |
+| Salida | `SimuFire.exe` 109 165 056 B + `SimuFire.pck` 23 571 784 B |
+| Datos en el `.pck` (log de exportación) | `i18n/es_ui.json` 1, `scenarios/` 24 ficheros, `cfast_*.json` 25, `baseline_gate_dispositions.json` 1 |
+| Excluidos en el `.pck` | `tools/`, `docs/`, `tests/`, `scripts/`: 0 ficheros |
+| Arranque con interfaz (36 s, `user://` aislado) | ventana «SimuFire», OpenGL 3.3 Compatibility, NVIDIA RTX 3070; menú principal completo: logo, textos en español, lista de escenarios («Casa simple», «Piso 1 dormitorio»…), botones Empezar/Retocar/Editor de vivienda/Salir |
+| Cierre desde la ventana | log de 3 líneas sin `ERROR`/`WARNING`; 0 eventos 26 (Application Popup), 0 informes WER de SimuFire, 0 procesos residuales; código de salida no capturado |
+
+Alcance: arranque hasta el menú y cierre. **No** se entró en ninguna simulación
+ni en primera persona (habría que operar la pantalla del usuario), y sigue D-3.
 
 Datos medidos de la descarga (24-09, se mantienen):
 
@@ -129,8 +147,8 @@ Notas del procedimiento, no opcionales:
 | Ficheros de datos incluidos en el paquete | ✅ **corregido** (D-4); antes ninguno |
 | Gráficas PNG / dashboard en un build | ❌ **rotas** (D-3), no es un problema de preset |
 | Plantillas de exportación 4.7.1 | ✅ instaladas en el sobremesa; ❌ portátil |
-| **Generación del ejecutable** | ⚠️ desbloqueada: exportada la variante de la huella (release, sin errores); falta exportar el preset de producto tal cual |
-| **Arranque del ejecutable** | ⚠️ solo headless, con la huella como bucle principal (7200 pasos, idéntica al editor); arranque con interfaz sin probar |
+| **Generación del ejecutable** | ✅ preset de producto exportado en release sin errores (sobremesa, §2) |
+| **Arranque del ejecutable** | ⚠️ con interfaz hasta el menú y cierre limpio (§2); sin entrar en una simulación. Motor en el build: huella headless idéntica al editor |
 | **Instalación en máquina Windows limpia** | ❌ **pendiente**, requiere otra máquina |
 
 **G5 = NO-GO, abierto.** Exportar un EXE no cerraría el gate por sí solo: el
@@ -417,7 +435,7 @@ ya no falla. Esto no cierra la observación visual G4 ni la exportación G5.
 | gate | estado | qué falta |
 |---|---|---|
 | **G4** | **ABIERTO** | 11 de 20 comprobaciones requieren observación visual humana. D-1 y D-2 están cerrados **en datos**, no visualmente: nadie ha entrado todavía en primera persona en esos dos escenarios |
-| **G5** | **ABIERTO** (plantillas ya no bloquean en el sobremesa) | exportar el preset de producto y arrancarlo con interfaz, D-3 y máquina limpia |
+| **G5** | **ABIERTO** (build de producto generado y arranca hasta el menú) | jugar una simulación en el build, D-3 y máquina limpia |
 
 **Ningún gate pasa a PASS.** D-2 sí queda cerrado (§7.3), y D-5 corregido con
 prueba de mutación (§7.5). D-1 sigue **corregido en datos y sin comprobar
@@ -435,9 +453,9 @@ observable sin alguien delante de la pantalla.
 1. **Entrar en primera persona** en `preset_simple_house` y
    `preset_two_storey_house` y confirmar visualmente D-1 (fila 13). Es la única
    parte de D-1 que sigue sin evidencia.
-2. **Exportar el preset de producto** en el sobremesa con el procedimiento de
-   §3 (las plantillas ya están, §2) y arrancar ese ejecutable con interfaz.
-   En el portátil faltan aún las plantillas.
+2. **Probar una simulación en el build** de `%USERPROFILE%\SimuFire_build`
+   (sobremesa): Empezar con un escenario y entrar en primera persona. El
+   arranque hasta el menú ya está (§2). En el portátil faltan las plantillas.
 3. **D-3**: decidir si las gráficas deben funcionar en el build. Si sí, hay que
    extraer los `.py` a `user://` antes de invocarlos.
 4. **D-6**: poner al día los diez presets, con su propia medición (§7.6).
