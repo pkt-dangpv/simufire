@@ -41,16 +41,17 @@ def test_current_inventory_matches_recorded_sources_and_every_direct_write():
     # that rewrite must give back the exact bytes this evidence judged.
     actual = audit.inventory(normalize=strip_detmath_routing, skip={"sim/core/DetMath.gd"})
     historical = evidence["inventory"]
-    # M4-P1 adds ONE isolated pure module. Preserve every historical source
-    # and writer rather than rewriting the 64-file evidence from M4-B.
-    addition = "sim/core/PhysicalGasOxygenParcelModel.gd"
-    assert set(actual["source_hashes_lf"]) == set(historical["source_hashes_lf"]) | {addition}
+    # M4-P1 and M4-P2 each add ONE isolated pure module. Preserve every
+    # historical source and writer rather than rewriting the 64-file evidence.
+    additions = {"sim/core/PhysicalGasOxygenParcelModel.gd", "sim/core/PhysicalGasEnergyEosModel.gd"}
+    assert set(actual["source_hashes_lf"]) == set(historical["source_hashes_lf"]) | additions
     for path, sha in historical["source_hashes_lf"].items():
         assert actual["source_hashes_lf"][path] == sha
-    assert actual["gd_file_count"] == historical["gd_file_count"] + 1
+    assert actual["gd_file_count"] == historical["gd_file_count"] + len(additions)
     for field in set(historical) - {"source_hashes_lf", "gd_inventory_lf_sha256", "gd_file_count"}:
         assert actual[field] == historical[field]
-    assert audit.scan((ROOT / addition).read_text(encoding="utf-8"), addition) == []
+    for addition in sorted(additions):
+        assert audit.scan((ROOT / addition).read_text(encoding="utf-8"), addition) == []
     assert evidence["engine_integrated"] is False
     assert evidence["physical_validation"] is False
 
