@@ -20,6 +20,12 @@ All notable changes to SimuFire should be recorded here.
   always drawn over the neighbour's floor (143 of 145,920 pixels, ≤10/255).
 - Fix: with the engine on its thread, at ×5 or faster (a step every tick) the
   views stopped refreshing during Play; they now refresh as on the main thread.
+- Real window on the laptop (first person, fire at 200 s, paused 60 FPS): Play
+  53.2 → 55.0 FPS, p95 frame 25.4 → 21.2 ms, max 34.9 → 28.2 ms, main-thread
+  script time per frame mean 2.1 → 1.3 ms, p95 7.2 → 3.5 ms, max 8.8 → 5.6 ms.
+  Headless, per physics tick: mean 1.8 → 1.2 ms, p95 6.7 → 3.0 ms, max 8.1 →
+  4.2 ms (the median rises, 0.03 → 1.0 ms, because the work is now spread
+  over the ticks between steps).
 
 ### Engine on a worker thread in Play (2026-10-16)
 
