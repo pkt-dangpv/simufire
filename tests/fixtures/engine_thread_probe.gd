@@ -9,6 +9,9 @@ extends SceneTree
 ## - `threaded`: vistas atadas a la copia; copia igual al real y sin
 ##   contenedores compartidos; mismo estado que el motor directo con una puerta
 ##   cambiada por una vista y la velocidad cambiada con un paso en marcha.
+## - `views`: en FP, los refrescos usan el estado exportado en el hilo del
+##   motor; FP y HUD+minimapa se refrescan en ticks distintos; el minimapa
+##   sigue al jugador sin estado nuevo y solo repinta muebles si cambian.
 ## - `exit`: salir de la escena con un paso en marcha lo espera y libera la copia.
 const Scene := preload("res://scenes/SimulationScene.tscn")
 const DT: float = 1.0 / 12.0
@@ -53,6 +56,7 @@ func _run() -> void:
 		await _free_main(main)
 	else:
 		out["threaded"] = await _threaded_run()
+		out["views"] = await _views_run()
 		out["exit"] = await _exit_with_step_running()
 	var file := FileAccess.open(out_path, FileAccess.WRITE)
 	file.store_string(JSON.stringify(out, "\t"))
@@ -136,6 +140,103 @@ func _threaded_run() -> Dictionary:
 	result["identical_to_direct_engine"] = reference_state == threaded_state
 	result["state_sha256"] = threaded_state.sha256_text()
 	await _free_main(reference)
+	return result
+
+
+func _views_run() -> Dictionary:
+	var result: Dictionary = {}
+	var main: Node = _new_main()
+	# Cadencia del producto a x1: un paso cada 1/12 s, ticks libres entre pasos.
+	main.engine.sim_fixed_dt = 0.0
+	await process_frame
+	main._set_first_person_enabled(true)
+	var fpc: Node = main.first_person_controller
+	var mini: Control = main.minimap_2d
+	var structure_keys: Dictionary = {}
+	var published_checks: int = 0
+	var published_matches: bool = true
+	var fp_refreshes: int = 0
+	var hud_refreshes: int = 0
+	var same_tick: int = 0
+	var hud_follows_fp: bool = true
+	main._on_play_requested()
+	var fp_state: Variant = fpc._state
+	var mini_state: Variant = mini.state
+	var hud_text: String = main.hud.time_label.text
+	var frames: int = 0
+	while frames < 60 * 20:
+		await physics_frame
+		frames += 1
+		var fp_changed: bool = not is_same(fpc._state, fp_state)
+		var mini_changed: bool = not is_same(mini.state, mini_state)
+		var hud_changed: bool = main.hud.time_label.text != hud_text
+		if fp_changed:
+			fp_refreshes += 1
+		if mini_changed:
+			hud_refreshes += 1
+			# HUD y minimapa reciben el mismo estado que acaba de pintar FP.
+			hud_follows_fp = hud_follows_fp and is_same(mini.state, fpc._state)
+		if fp_changed and (mini_changed or hud_changed):
+			same_tick += 1
+		fp_state = fpc._state
+		mini_state = mini.state
+		hud_text = main.hud.time_label.text
+		structure_keys[mini._structure_key] = true
+		if main._engine_task_id == -1 and not main._published_state.is_empty():
+			published_checks += 1
+			var view_state: Dictionary = main._build_view_state(true)
+			for key: Variant in main._published_state:
+				if JSON.stringify(view_state.get(key)) != JSON.stringify(main._published_state[key]):
+					published_matches = false
+			published_matches = published_matches and JSON.stringify(main._published_state) 				== JSON.stringify(main.engine.get_state())
+		if roundi(main._published_sim_time_s / DT) >= 60:
+			break
+	# Un paso en cada tick (como a x5 o mas): las vistas no pueden esperar a un
+	# tick libre que no llega.
+	main.engine.sim_fixed_dt = DT
+	var fast_fp_refreshes: int = 0
+	var fast_hud_refreshes: int = 0
+	for i: int in range(120):
+		await physics_frame
+		if not is_same(fpc._state, fp_state):
+			fast_fp_refreshes += 1
+		if not is_same(mini.state, mini_state):
+			fast_hud_refreshes += 1
+		fp_state = fpc._state
+		mini_state = mini.state
+	main._on_pause_requested()
+	main._wait_engine_idle()
+	result["fast_fp_refreshes"] = fast_fp_refreshes
+	result["fast_hud_refreshes"] = fast_hud_refreshes
+	result["published_checks"] = published_checks
+	result["published_state_matches_engine"] = published_matches
+	result["fp_refreshes"] = fp_refreshes
+	result["hud_refreshes"] = hud_refreshes
+	result["fp_and_hud_same_tick"] = same_tick
+	result["hud_gets_the_fp_state"] = hud_follows_fp
+	result["structure_keys_during_play"] = structure_keys.size()
+	# En pausa, sin estado nuevo: el jugador se mueve y el minimapa lo sigue.
+	var marker_before: Dictionary = mini._live_marker.duplicate()
+	fpc.global_position += Vector3(0.4, 0.0, 0.0)
+	await process_frame
+	await process_frame
+	var marker_now: Dictionary = fpc.get_player_marker_state()
+	result["marker_follows_player"] = mini._live_marker == marker_now and mini._live_marker != marker_before
+	# Un cristal roto sí repinta la capa de muebles y aperturas.
+	var key_before: int = mini._structure_key
+	var window: Object = null
+	for index: int in range(main.view_building.get_opening_count()):
+		var op: Object = main.view_building.get_opening_at(index)
+		if op != null and int(op.type) == int(OpeningModel.Type.WINDOW) and not op.glass_broken:
+			window = op
+			break
+	result["window_found"] = window != null
+	if window != null:
+		window.glass_broken = true
+		mini.set_state(mini.state)
+		result["broken_glass_redraws_structure"] = mini._structure_key != key_before
+		window.glass_broken = false
+	await _free_main(main)
 	return result
 
 

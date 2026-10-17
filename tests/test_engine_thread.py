@@ -90,6 +90,32 @@ def test_leaving_the_scene_waits_for_the_running_step_and_frees_the_mirror(threa
         "step_was_running": True, "task_finished_on_exit": True, "mirror_freed": True}
 
 
+def test_play_refreshes_use_the_state_exported_on_the_engine_thread(threaded):
+    views = threaded["views"]
+    assert views["published_checks"] > 0
+    assert views["published_state_matches_engine"]
+
+
+def test_first_person_and_hud_refresh_on_different_ticks(threaded):
+    views = threaded["views"]
+    assert views["fp_refreshes"] >= 20 and views["hud_refreshes"] >= 20
+    assert views["fp_and_hud_same_tick"] == 0
+    assert views["hud_gets_the_fp_state"]
+
+
+def test_views_keep_refreshing_when_the_engine_steps_every_tick(threaded):
+    """A x5 o más el motor avanza en cada tick: las vistas no esperan un tick libre."""
+    views = threaded["views"]
+    assert views["fast_fp_refreshes"] >= 10 and views["fast_hud_refreshes"] >= 10
+
+
+def test_minimap_follows_the_player_every_frame_and_redraws_furniture_only_on_change(threaded):
+    views = threaded["views"]
+    assert views["marker_follows_player"]
+    assert views["structure_keys_during_play"] == 1
+    assert views["window_found"] and views["broken_glass_redraws_structure"]
+
+
 def test_views_never_look_up_the_engine_building_by_themselves():
     """Las vistas reciben su edificio de Main; buscarlo en la escena saltaría la copia."""
     lookups = {}

@@ -83,6 +83,8 @@ var _running_view_state: Dictionary = {}
 const VIEW_REFRESH_TICKS_AFTER_STEP: int = 2
 var _ticks_since_sim_step: int = 0
 var _sim_step_due_next_tick: bool = false
+## En FP el HUD y el minimapa se refrescan el tick siguiente al de la vista FP.
+var _fp_hud_refresh_pending: bool = false
 ## Motor en un hilo trabajador (en Play no compite con el dibujo por el hilo
 ## principal). Regla: con un paso en marcha el hilo principal no toca ni
 ## `building` ni `engine`; las vistas leen `view_building`, una copia que se
@@ -307,6 +309,9 @@ func _physics_process_threaded(delta: float) -> void:
 		_engine_task_id = WorkerThreadPool.add_task(
 			_run_engine_task.bind(step_delta), true, "SimuFire engine step")
 	_ticks_since_sim_step += 1
+	# Como en el hilo principal: si el motor avanza en todos los ticks (×5 o
+	# más) no queda uno libre y las vistas se refrescan sin esperarlo.
+	_sim_step_due_next_tick = _is_sim_step_due(delta)
 	_update_views_for_frame()
 
 
@@ -467,6 +472,7 @@ func _update_views() -> void:
 	_view_state_stale = false
 	_view_3d_state_stale = false
 	_running_view_state = {}
+	_fp_hud_refresh_pending = false
 	var state := _build_view_state()
 	var visualizer_2d_active: bool = not view_3d_enabled and not first_person_enabled
 	var visualizer_3d_active: bool = view_3d_enabled or first_person_enabled
@@ -482,10 +488,12 @@ func _update_views() -> void:
 		hud.update_state(state)
 
 
-func _build_view_state() -> Dictionary:
+func _build_view_state(prefer_published: bool = false) -> Dictionary:
 	var state: Dictionary
-	if _engine_threaded and _engine_task_id != -1:
-		# Paso en marcha: el estado del último paso acabado.
+	if _engine_threaded and (_engine_task_id != -1
+			or (prefer_published and not _published_state.is_empty())):
+		# Paso en marcha, o refresco en Play: el estado del último paso acabado,
+		# ya exportado en el hilo del motor (exportarlo otra vez aquí son ~3 ms).
 		state = _published_state.duplicate()
 		state["simulation_finished"] = _published_finished
 		state["graphs_launched"] = _published_graphs_launched
@@ -518,32 +526,37 @@ func _update_views_for_frame() -> void:
 	var should_update_3d: bool = (
 		_view_3d_state_stale and (first_person_enabled or (view_3d_enabled and spread_ready))
 		and _view_3d_update_accum_s >= view_3d_interval_s)
-	if not should_update_view and not should_update_3d:
+	var hud_due: bool = first_person_enabled and _fp_hud_refresh_pending and not should_update_view
+	if not should_update_view and not should_update_3d and not hud_due:
 		return
 
 	# El motor no ha avanzado desde la última exportación: sirve la misma para
 	# la vista que se refresca en otro tick. Solo se mueve el jugador.
 	if _running_view_state.is_empty():
-		_running_view_state = _build_view_state()
+		_running_view_state = _build_view_state(true)
 	elif first_person_controller != null:
 		_running_view_state["fp_player"] = first_person_controller.get_player_marker_state()
 	var state: Dictionary = _running_view_state
 	if first_person_enabled:
+		# FP, HUD + minimapa y overlay 3D, cada uno en su tick.
 		if should_update_view:
 			_view_update_accum_s = 0.0
 			_view_state_stale = false
+			_fp_hud_refresh_pending = true
 			if first_person_controller != null:
 				first_person_controller.set_state(state)
+		elif hud_due:
+			_fp_hud_refresh_pending = false
 			if hud != null:
 				hud.update_state(state)
+			if minimap_2d != null:
+				minimap_2d.set_state(state)
 		elif should_update_3d:
 			# En otro tick que el refresco de FP: juntos no caben en un fotograma.
 			_view_3d_update_accum_s = 0.0
 			_view_3d_state_stale = false
 			if visualizer_3d != null:
 				visualizer_3d.set_state(state)
-			if minimap_2d != null:
-				minimap_2d.set_state(state)
 		return
 
 	if view_3d_enabled:
@@ -684,6 +697,11 @@ func _sync_view_mode() -> void:
 	if minimap_2d != null:
 		minimap_2d.visible = view_3d_enabled or first_person_enabled
 		minimap_2d.set_fp_mode(first_person_enabled)
+		# En FP el jugador del minimapa se lee en cada fotograma (solo él se
+		# redibuja; salas y muebles, cuando cambian).
+		minimap_2d.set_live_marker_source(
+			first_person_controller.get_player_marker_state
+			if first_person_enabled and first_person_controller != null else Callable())
 
 
 func _setup_minimap() -> void:

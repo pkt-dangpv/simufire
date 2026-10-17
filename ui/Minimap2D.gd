@@ -31,16 +31,163 @@ var building: BuildingModel = null
 var state: Dictionary = {}
 var selected_floor_level_m: float = 0.0
 
+## Capas que se redibujan por separado: este nodo pinta el panel y el suelo de
+## las salas; los hijos, el humo y el fuego (cada estado nuevo), los muebles,
+## contornos, aperturas y marcas (solo si cambia lo que pintan) y el jugador
+## (cada fotograma que se mueve). Redibujar muebles cuesta ~3 ms; el jugador, nada.
+class _Layer extends Control:
+	var painter: Callable
+
+	func _draw() -> void:
+		painter.call(self)
+
+var _canvas: CanvasItem = null
+var _dynamic_layer: _Layer = null
+var _structure_layer: _Layer = null
+var _player_layer: _Layer = null
+var _structure_key: int = 0
+var _dynamic_key: int = 0
+var _rects: Dictionary = {}
+var _floor_ids: Array[int] = []
+var _plan_bounds: Rect2 = Rect2()
+var _live_marker: Dictionary = {}
+var _marker_source: Callable = Callable()
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ensure_layers()
+	set_process(_marker_source.is_valid())
 	queue_redraw()
 
 
 func bind_building(next_building: BuildingModel) -> void:
 	building = next_building
 	selected_floor_level_m = _initial_floor_level()
-	queue_redraw()
+	_ensure_layers()
+	_refresh_layers(true)
+
+
+## El jugador de FP, leído en cada fotograma; sin fuente, el de `set_state`.
+func set_live_marker_source(source: Callable) -> void:
+	_marker_source = source
+	set_process(source.is_valid())
+	if not source.is_valid():
+		_live_marker = _state_marker()
+		_player_layer_redraw()
+
+
+func _process(_delta: float) -> void:
+	if not _marker_source.is_valid() or not is_visible_in_tree():
+		return
+	var marker: Variant = _marker_source.call()
+	_set_live_marker(Dictionary(marker) if typeof(marker) == TYPE_DICTIONARY else {})
+
+
+func _set_live_marker(marker: Dictionary) -> void:
+	if marker == _live_marker:
+		return
+	_live_marker = marker
+	if not marker.is_empty() and bool(marker.get("active", false)):
+		var level_m: float = float(marker.get("floor_level_z_m", selected_floor_level_m))
+		if level_m != selected_floor_level_m:
+			selected_floor_level_m = level_m
+			_refresh_layers()
+			return
+	_player_layer_redraw()
+
+
+func _ensure_layers() -> void:
+	if _player_layer != null:
+		return
+	_dynamic_layer = _new_layer(_paint_dynamic)
+	_structure_layer = _new_layer(_paint_structure)
+	_player_layer = _new_layer(_paint_player)
+
+
+func _new_layer(painter: Callable) -> _Layer:
+	var layer := _Layer.new()
+	layer.painter = painter
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(layer, false, Node.INTERNAL_MODE_BACK)
+	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return layer
+
+
+func _player_layer_redraw() -> void:
+	if _player_layer != null:
+		_player_layer.queue_redraw()
+
+
+## Redibuja solo las capas cuyo contenido ha cambiado.
+func _refresh_layers(force: bool = false) -> void:
+	_update_geometry()
+	var structure_key: int = _compute_structure_key()
+	if force or structure_key != _structure_key:
+		_structure_key = structure_key
+		queue_redraw()
+		if _structure_layer != null:
+			_structure_layer.queue_redraw()
+		force = true
+	var dynamic_key: int = hash([_structure_key, _compute_dynamic_key()])
+	if force or dynamic_key != _dynamic_key:
+		_dynamic_key = dynamic_key
+		if _dynamic_layer != null:
+			_dynamic_layer.queue_redraw()
+	_player_layer_redraw()
+
+
+func _update_geometry() -> void:
+	_rects = building.get_room_rects_m() if building != null else {}
+	_floor_ids = _room_ids_on_selected_floor(_rects) if not _rects.is_empty() else ([] as Array[int])
+	_plan_bounds = _bounds_for_room_ids(_rects, _floor_ids) if not _floor_ids.is_empty() else Rect2()
+
+
+## Todo lo que pintan el suelo y la capa de muebles: salas de la planta,
+## aperturas, marcas, salida del jugador y la geometría de los objetos (sin los
+## campos dinámicos, que el reparto de muebles tampoco mira).
+func _compute_structure_key() -> int:
+	if building == null:
+		return 0
+	var parts: Array = [building.get_instance_id(), selected_floor_level_m, _rects,
+		building.detectors, building.victims, building.player_start]
+	for room_id: int in _floor_ids:
+		var room: RoomModel = building.get_room(room_id)
+		parts.append([room_id, room.name, room.kind, room.visual_furniture_fill] if room != null else [room_id])
+		var room_state: Variant = state.get(str(room_id), {})
+		var snapshots: Variant = Dictionary(room_state).get("fuel_objects", null) if typeof(room_state) == TYPE_DICTIONARY else null
+		if snapshots is Array:
+			for raw: Variant in snapshots:
+				if typeof(raw) == TYPE_DICTIONARY:
+					var geometry: Dictionary = Dictionary(raw).duplicate()
+					for field: String in FurnitureVisualLayout.DYNAMIC_FIELDS:
+						geometry.erase(field)
+					parts.append(geometry)
+				else:
+					parts.append(raw)
+		elif room != null:
+			for obj in room.fuel_objects:
+				if obj != null:
+					parts.append([obj.id, obj.name, obj.kind, obj.position_m, obj.size_m,
+						obj.rotation_deg, obj.visual_pose_locked])
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op != null:
+			parts.append([op.a, op.b, op.type, op.is_vertical, op.glass_broken, op.width_m,
+				op.wall_side, op.offset_m, op.offset_is_fraction, op.sill_m])
+	return hash(parts)
+
+
+## Lo que pinta la capa de humo y fuego, con la misma cuantización que el color.
+func _compute_dynamic_key() -> Array:
+	var parts: Array = []
+	for room_id: int in _floor_ids:
+		var room_state: Dictionary = state.get(str(room_id), {})
+		var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
+		var alpha: float = clampf(0.16 + log(smoke_kg + 1.0) * 0.12, 0.16, 0.62) if smoke_kg > 0.01 else 0.0
+		parts.append(int(round(alpha * 255.0)))
+		parts.append(float(room_state.get("hrr_kw", 0.0)) > 1.0)
+	return parts
 
 
 ## Recoloca el minimapa segun el modo de vista: arriba-izquierda en 3D,
@@ -62,45 +209,68 @@ func set_fp_mode(fp_enabled: bool) -> void:
 
 func set_state(next_state: Dictionary) -> void:
 	state = next_state
+	if not _marker_source.is_valid():
+		_live_marker = _state_marker()
 	_update_floor_from_player_start()
-	queue_redraw()
+	_refresh_layers()
+
+
+func _state_marker() -> Dictionary:
+	var marker: Variant = state.get("fp_player", {})
+	return Dictionary(marker) if typeof(marker) == TYPE_DICTIONARY else {}
 
 
 func _draw() -> void:
 	var bounds := Rect2(Vector2.ZERO, size)
-	draw_rect(bounds, panel_color, true)
-	draw_rect(bounds, border_color, false, 1.0)
-	if building == null:
+	_canvas = self
+	_canvas.draw_rect(bounds, panel_color, true)
+	_canvas.draw_rect(bounds, border_color, false, 1.0)
+	if building == null or _floor_ids.is_empty():
 		return
+	var tf: Dictionary = _draw_transform(_plan_bounds)
+	for room_id in _floor_ids:
+		_canvas.draw_rect(_rect_to_px(Rect2(_rects[room_id]), tf), room_fill, true)
 
-	var rects: Dictionary = building.get_room_rects_m()
-	if rects.is_empty():
-		return
-	var floor_ids: Array[int] = _room_ids_on_selected_floor(rects)
-	if floor_ids.is_empty():
-		return
 
-	var plan_bounds: Rect2 = _bounds_for_room_ids(rects, floor_ids)
-	var tf: Dictionary = _draw_transform(plan_bounds)
-	for room_id in floor_ids:
-		var room_rect: Rect2 = Rect2(rects[room_id])
-		var rpx: Rect2 = _rect_to_px(room_rect, tf)
-		draw_rect(rpx, room_fill, true)
+func _paint_dynamic(layer: CanvasItem) -> void:
+	if building == null or _floor_ids.is_empty():
+		return
+	_canvas = layer
+	var tf: Dictionary = _draw_transform(_plan_bounds)
+	for room_id in _floor_ids:
+		var rpx: Rect2 = _rect_to_px(Rect2(_rects[room_id]), tf)
 		var room_state: Dictionary = state.get(str(room_id), {})
 		var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
 		if smoke_kg > 0.01:
 			var alpha: float = clampf(0.16 + log(smoke_kg + 1.0) * 0.12, 0.16, 0.62)
-			draw_rect(rpx.grow(-2.0), Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha), true)
+			_canvas.draw_rect(rpx.grow(-2.0), Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha), true)
 		if float(room_state.get("hrr_kw", 0.0)) > 1.0:
-			draw_circle(rpx.get_center(), clampf(minf(rpx.size.x, rpx.size.y) * 0.18, 4.0, 14.0), fire_color)
-		_draw_fuel_objects(room_id, room_rect, tf)
-		draw_rect(rpx, room_outline, false, 1.1)
+			_canvas.draw_circle(rpx.get_center(), clampf(minf(rpx.size.x, rpx.size.y) * 0.18, 4.0, 14.0), fire_color)
+	_canvas = self
 
-	_draw_openings(rects, tf)
-	_draw_safety_markers(rects, tf)
-	_draw_player_start(rects, tf)
-	_draw_live_player(rects, tf)
+
+func _paint_structure(layer: CanvasItem) -> void:
+	if building == null or _floor_ids.is_empty():
+		return
+	_canvas = layer
+	var tf: Dictionary = _draw_transform(_plan_bounds)
+	for room_id in _floor_ids:
+		var room_rect: Rect2 = Rect2(_rects[room_id])
+		_draw_fuel_objects(room_id, room_rect, tf)
+		_canvas.draw_rect(_rect_to_px(room_rect, tf), room_outline, false, 1.1)
+	_draw_openings(_rects, tf)
+	_draw_safety_markers(_rects, tf)
+	_draw_player_start(_rects, tf)
+	_canvas = self
+
+
+func _paint_player(layer: CanvasItem) -> void:
+	if building == null or _floor_ids.is_empty():
+		return
+	_canvas = layer
+	_draw_live_player(_rects, _draw_transform(_plan_bounds))
 	_draw_floor_badge()
+	_canvas = self
 
 
 func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
@@ -125,17 +295,17 @@ func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
 		var p1: Vector2 = _point_to_px(seg_m[0], tf)
 		var p2: Vector2 = _point_to_px(seg_m[1], tf)
 		var width: float = 3.0 if op.type == OpeningModel.Type.WINDOW else 2.2
-		draw_line(p1, p2, color, width)
+		_canvas.draw_line(p1, p2, color, width)
 		if op.type == OpeningModel.Type.WINDOW:
 			var dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1.0, 0.0)
 			var normal := Vector2(-dir.y, dir.x)
-			draw_line(p1 + normal * 2.0, p2 + normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
-			draw_line(p1 - normal * 2.0, p2 - normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
+			_canvas.draw_line(p1 + normal * 2.0, p2 + normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
+			_canvas.draw_line(p1 - normal * 2.0, p2 - normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
 			if op.glass_broken:
 				var mid: Vector2 = (p1 + p2) * 0.5
 				var crack_half: float = minf(6.0, maxf(3.0, p1.distance_to(p2) * 0.18))
-				draw_line(mid - dir * crack_half - normal * 2.5, mid + dir * crack_half + normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
-				draw_line(mid - dir * crack_half + normal * 2.5, mid + dir * crack_half - normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
+				_canvas.draw_line(mid - dir * crack_half - normal * 2.5, mid + dir * crack_half + normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
+				_canvas.draw_line(mid - dir * crack_half + normal * 2.5, mid + dir * crack_half - normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
 
 
 func _draw_player_start(rects: Dictionary, tf: Dictionary) -> void:
@@ -148,12 +318,12 @@ func _draw_player_start(rects: Dictionary, tf: Dictionary) -> void:
 	var local_pos: Vector2 = Vector2(building.player_start.get("position_m", rect.size * 0.5))
 	var pos: Vector2 = rect.position + local_pos
 	var px: Vector2 = _point_to_px(pos, tf)
-	draw_circle(px, 4.5, player_color)
-	draw_circle(px, 6.5, player_color, false, 1.4)
+	_canvas.draw_circle(px, 4.5, player_color)
+	_canvas.draw_circle(px, 6.5, player_color, false, 1.4)
 
 
 func _draw_live_player(rects: Dictionary, tf: Dictionary) -> void:
-	var marker: Dictionary = Dictionary(state.get("fp_player", {})) if typeof(state.get("fp_player", {})) == TYPE_DICTIONARY else {}
+	var marker: Dictionary = _live_marker
 	if marker.is_empty() or not bool(marker.get("active", false)):
 		return
 	var floor_level_m: float = float(marker.get("floor_level_z_m", selected_floor_level_m))
@@ -171,9 +341,9 @@ func _draw_live_player(rects: Dictionary, tf: Dictionary) -> void:
 		px + dir.rotated(2.35) * radius,
 		px + dir.rotated(-2.35) * radius
 	])
-	draw_circle(px, radius + 4.0, Color(live_player_color.r, live_player_color.g, live_player_color.b, 0.18), true)
-	draw_colored_polygon(pts, live_player_color)
-	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.84), 1.4)
+	_canvas.draw_circle(px, radius + 4.0, Color(live_player_color.r, live_player_color.g, live_player_color.b, 0.18), true)
+	_canvas.draw_colored_polygon(pts, live_player_color)
+	_canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.84), 1.4)
 
 
 ## Share the current full snapshots with 3D/FP. A reduced dictionary on every
@@ -227,8 +397,8 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 			_point_to_px(center_m + rot * Vector2(-half.x, half.y), tf)
 		])
 		var decor: bool = bool(visual_obj.get("visual_only", false))
-		draw_colored_polygon(points, decor_fill_color if decor else Color(0.92, 0.34, 0.08, 0.34))
-		draw_polyline(
+		_canvas.draw_colored_polygon(points, decor_fill_color if decor else Color(0.92, 0.34, 0.08, 0.34))
+		_canvas.draw_polyline(
 			PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]),
 			decor_outline_color if decor else Color(1.0, 0.62, 0.22, 0.58),
 			0.8
@@ -276,8 +446,8 @@ func _draw_bathroom_fixtures(room_rect: Rect2, tf: Dictionary) -> void:
 		Rect2(room_rect.position + Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)), Vector2(0.74, 0.46)),
 	]:
 		var px := _rect_to_px(r, tf)
-		draw_rect(px, fixture_color, true)
-		draw_rect(px, outline, false, 0.7)
+		_canvas.draw_rect(px, fixture_color, true)
+		_canvas.draw_rect(px, outline, false, 0.7)
 
 
 func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:
@@ -289,7 +459,7 @@ func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:
 			continue
 		var rect: Rect2 = Rect2(rects[room_id])
 		var pos: Vector2 = rect.position + Vector2(float(Dictionary(det).get("x_m", 0.0)), float(Dictionary(det).get("y_m", 0.0)))
-		draw_circle(_point_to_px(pos, tf), 3.2, Color(0.35, 0.76, 1.0, 0.95))
+		_canvas.draw_circle(_point_to_px(pos, tf), 3.2, Color(0.35, 0.76, 1.0, 0.95))
 	for vic in building.victims:
 		if typeof(vic) != TYPE_DICTIONARY:
 			continue
@@ -298,7 +468,7 @@ func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:
 			continue
 		var rect: Rect2 = Rect2(rects[room_id])
 		var pos: Vector2 = rect.position + Vector2(float(Dictionary(vic).get("x_m", 0.0)), float(Dictionary(vic).get("y_m", 0.0)))
-		draw_circle(_point_to_px(pos, tf), 3.4, Color(0.95, 0.86, 0.48, 0.95))
+		_canvas.draw_circle(_point_to_px(pos, tf), 3.4, Color(0.95, 0.86, 0.48, 0.95))
 
 
 func _draw_floor_badge() -> void:
@@ -306,7 +476,7 @@ func _draw_floor_badge() -> void:
 	if building != null and String(building.building_type).to_lower() == "apartment":
 		text += "  %s" % FloorNaming.label(building.apartment_floor_number)
 	if ThemeDB.fallback_font != null:
-		draw_string(ThemeDB.fallback_font, Vector2(8.0, 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, maxf(40.0, size.x - 16.0), 11, Color(0.92, 0.96, 0.94, 0.92))
+		_canvas.draw_string(ThemeDB.fallback_font, Vector2(8.0, 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, maxf(40.0, size.x - 16.0), 11, Color(0.92, 0.96, 0.94, 0.92))
 
 
 func _draw_transform(plan_bounds: Rect2) -> Dictionary:
@@ -370,7 +540,7 @@ func _initial_floor_level() -> float:
 
 
 func _update_floor_from_player_start() -> void:
-	var marker: Dictionary = Dictionary(state.get("fp_player", {})) if typeof(state.get("fp_player", {})) == TYPE_DICTIONARY else {}
+	var marker: Dictionary = _live_marker
 	if not marker.is_empty() and bool(marker.get("active", false)):
 		selected_floor_level_m = float(marker.get("floor_level_z_m", selected_floor_level_m))
 		return

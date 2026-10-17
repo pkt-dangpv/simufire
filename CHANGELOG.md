@@ -4,6 +4,23 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### View refreshes spread out, live minimap (2026-10-17)
+
+- With the engine on its thread, refreshes during Play reuse the state the
+  engine thread already exported instead of exporting it again on the main
+  thread (3.2 → 0.04 ms per refresh, first person with a developed fire).
+- First person: the FP view, then HUD + minimap, then the 3D overlay, each on a
+  tick of its own after a step (FP 2.2 ms, HUD 0.1 ms, overlay 1.8 ms).
+- Minimap in layers: floor, smoke/fire, furniture/outlines/openings/markers and
+  the player. Furniture is redrawn only when what it shows changes (a broken
+  window, another floor), smoke/fire when its colour changes, and the player
+  marker is read every frame, so it follows the player in real time, also
+  while paused. Per state 3.1 → 0.3 ms; following the player ~0.15 ms per
+  frame. Same picture as before except room outlines on a shared wall, now
+  always drawn over the neighbour's floor (143 of 145,920 pixels, ≤10/255).
+- Fix: with the engine on its thread, at ×5 or faster (a step every tick) the
+  views stopped refreshing during Play; they now refresh as on the main thread.
+
 ### Engine on a worker thread in Play (2026-10-16)
 
 - In the product window the engine step and its exported state now run in a
