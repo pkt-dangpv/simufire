@@ -5,6 +5,14 @@ del cierre: pendiente de asignar. No cambia interruptores, escenarios ni
 física. El selector `fed_co_zonal_enabled` permanece apagado y **NO-GO** para
 producto hasta superar los gates que correspondan al alcance publicado.
 
+Avance M4-P2 (17-10): [contrato gas/energía/EOS](../validation/G3_M4_P2_GAS_ENERGY_EOS_CONTRACT_2026-10-17.md).
+Gas inerte calóricamente perfecto: conservados `m_z`, `U_z` absoluta (`c_v·T`) y O₂;
+`p = (γ−1)U/V`, `T`, `V_z` e interfaz derivados; `R` y `c_p` constantes de
+entrada (`c_v = c_p − R`); trabajo entre capas y regla discreta exacta para
+calentador. Hallazgo: la energía de F2.2A omite `V·dp` (estanco: `Δp`/`ΔT` ÷ γ)
+y `R` depende de `T_ref`. Plan con hash, oráculo Python y 38 testigos PASS,
+8/8 mutantes del oráculo. Sin GD, motor ni producto. Siguiente: M4-P2-GD.
+
 Avance M4-P1: [prototipo físico aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
 Gas/energía/O2 pareados por donante; no referencia fija, remap ni consumo
 sin productos. 5 920 checks, 20/20 mutantes GD, 315 focales offline PASS.

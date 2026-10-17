@@ -1,11 +1,19 @@
 # Hoja de ruta activa de SimuFire
 
 Fecha base: 2026-07-25
-Ultima actualizacion parcial: 2026-10-13 (caché de fichas estáticas verificada)
+Ultima actualizacion parcial: 2026-10-17 (contrato M4-P2 gas/energía/EOS)
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
-Prioridad inmediata: [fichas estáticas reutilizadas](../validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
+Prioridad inmediata (17-10, motor primero): [M4-P2, gas/energía/EOS](../validation/G3_M4_P2_GAS_ENERGY_EOS_CONTRACT_2026-10-17.md).
+Contrato, plan con hash, oráculo Python y 38 testigos PASS; 8/8 mutantes del
+oráculo. Conservados por capa `m`, `U` absoluta y O₂; `p`, `T`, `V_z` derivados;
+`γ·dU_z = A_z + V_z·dp`. F2.2A omite `V·dp` y su `R` depende de `T_ref`
+(no corregido: requiere autorización y referencia). Paso temporal: **no
+resuelto** (1/12 s a ×1, 1/3 s a ×20, `dt` variable con hilo, sin subpasos).
+Siguiente: M4-P2-GD contra el plan sin cambiarlo; M4-C/D, producto y CO/FED NO-GO.
+
+Checkpoint previo (producto, 13-10): [fichas estáticas reutilizadas](../validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
 FP ya jugable según usuario; queda diferencia pausa/Play. Optimización autorizada
 sólo en normalizador visual: clasificación/atrezo reutilizados, estado actual fresco,
 claves conservadoras e invalidación exacta; sin sim/, calidad ni cadencia nueva.

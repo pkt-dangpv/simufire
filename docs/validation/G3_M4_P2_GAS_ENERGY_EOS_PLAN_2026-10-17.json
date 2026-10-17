@@ -1,0 +1,80 @@
+{
+  "schema": "simufire_g3_m4_p2_gas_energy_eos_plan_v1",
+  "date": "2026-10-17",
+  "status": "predeclared_before_any_evaluation",
+  "contract_doc": "G3_M4_P2_GAS_ENERGY_EOS_CONTRACT_2026-10-17.md",
+  "scope": "isolated prescribed heater without fuel; no engine, no product, no M4-C/D wiring",
+  "state_basis": "physical_gas_energy_eos_v1",
+  "energy_datum": "absolute internal energy, u = cv*T with T in kelvin, U = 0 at 0 K",
+  "units": {"mass": "kg", "energy": "kJ", "power": "kW", "pressure": "Pa", "temperature": "K", "volume": "m3", "length": "m", "time": "s", "cp_cv_R": "kJ/(kg K)"},
+  "property_sets": {
+    "engine_equivalent_293_15": {
+      "cp": 1.0,
+      "R": 0.28803513559611121,
+      "note": "R equals the current engine value 101325/(1.2*293.15) J/(kg K) frozen as a gas constant; it no longer depends on the scenario temperature"
+    },
+    "cfast_tn1889": {
+      "cp": 1.012,
+      "R": 0.28914,
+      "note": "CFAST TN 1889v1 eq. 2.1 values quoted in PROMPT_MOTOR_F2_2 section 9"
+    }
+  },
+  "default_property_set": "engine_equivalent_293_15",
+  "geometry": {
+    "room_A": {"floor_area_m2": 20.0, "height_m": 2.5, "volume_m3": 50.0},
+    "room_B": {"floor_area_m2": 12.0, "height_m": 2.5, "volume_m3": 30.0}
+  },
+  "initial_states": {
+    "one_layer_ambient": {"room": "room_A", "p_abs_pa": 101325.0, "layers": {"lower": {"T_k": 293.15, "volume_m3": 50.0}}},
+    "two_layer_hot_upper": {"room": "room_A", "p_abs_pa": 101325.0, "layers": {"upper": {"T_k": 400.0, "volume_m3": 20.0}, "lower": {"T_k": 293.15, "volume_m3": 30.0}}},
+    "upper_absent": {"room": "room_A", "p_abs_pa": 101325.0, "layers": {"upper": {"T_k": null, "volume_m3": 0.0}, "lower": {"T_k": 293.15, "volume_m3": 50.0}}},
+    "room_B_ambient": {"room": "room_B", "p_abs_pa": 101325.0, "layers": {"lower": {"T_k": 293.15, "volume_m3": 30.0}}}
+  },
+  "initial_mass_rule": "m_z = p_abs * V_z / (R * T_z) with the active property set; O2 mass Y = 0.2314 of each layer, carried passively",
+  "tolerances": {
+    "exact_relative": 1e-11,
+    "exact_abs_floor": {"mass_kg": 1e-12, "energy_kj": 1e-9, "pressure_pa": 1e-6, "temperature_k": 1e-9, "volume_m3": 1e-12, "length_m": 1e-12},
+    "identity_relative": 1e-12,
+    "step_independence_relative": 1e-11,
+    "convergence_order_band": [0.9, 1.1],
+    "rationale": "exact class allows accumulated round-off of up to 3600 double-precision steps (each a few ulp, worst ~1e-12) with a 10x margin; any O(dt) scheme error in these cases is >= 1e-6 relative. Tolerances are fixed here and must not be widened to close a result."
+  },
+  "cases": [
+    {"id": "C1", "class": "exact", "title": "sealed one-layer prescribed heater", "initial": "one_layer_ambient", "heat_kw": {"lower": 10.0}, "t_end_s": 60.0, "dt_s": [0.016666666666666666, 0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15", "cfast_tn1889"], "analytic": "U=U0+Q t; p=(gamma-1)U/V; T=U/(m cv); m constant", "checks": ["U", "p_abs", "T", "mass_bitwise_constant", "step_independence"]},
+    {"id": "C2", "class": "exact", "title": "sealed two-layer heater in upper only", "initial": "two_layer_hot_upper", "heat_kw": {"upper": 10.0}, "t_end_s": 60.0, "dt_s": [0.016666666666666666, 0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15", "cfast_tn1889"], "analytic": "p from C1; T_l=T_l0 (p/p0)^((gamma-1)/gamma); V_l=m_l R T_l/p; V_u=V-V_l; T_u=p V_u/(m_u R)", "checks": ["U_z", "T_z", "V_z", "interface", "lower_isentropic_invariant", "work_antisymmetric", "work_lower_positive", "step_independence"]},
+    {"id": "C3", "class": "exact", "title": "sealed two-layer heater split 7/3 kW", "initial": "two_layer_hot_upper", "heat_kw": {"upper": 7.0, "lower": 3.0}, "t_end_s": 60.0, "dt_s": [0.016666666666666666, 0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15", "cfast_tn1889"], "analytic": "U_z=(U/U0)^k U_z0+(a_z/a)(U-U0 (U/U0)^k), k=(gamma-1)/gamma", "checks": ["U_z", "T_z", "V_z", "step_independence"]},
+    {"id": "C4", "class": "exact", "title": "sealed one-layer prescribed wall loss below the exterior pressure", "initial": "one_layer_ambient", "heat_kw": {"lower": -5.0}, "t_end_s": 120.0, "dt_s": [0.08333333333333333, 1.0, 120.0], "property_sets": ["engine_equivalent_293_15"], "analytic": "as C1 with negative Q; gauge pressure negative and not clipped", "checks": ["U", "p_abs", "p_gauge_negative", "T"]},
+    {"id": "C5", "class": "exact", "title": "internal heat transfer upper to lower with zero net", "initial": "two_layer_hot_upper", "heat_kw": {"upper": -2.0, "lower": 2.0}, "t_end_s": 60.0, "dt_s": [0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15"], "analytic": "p constant; H_z changes by the heat, U_z by heat/gamma", "checks": ["p_constant", "U_z", "H_z", "step_independence"]},
+    {"id": "C6", "class": "exact", "title": "isobaric adiabatic plume mixing lower to upper", "initial": "two_layer_hot_upper", "parcels_kg_s": [{"kind": "transfer", "from": "lower", "to": "upper", "rate": 0.01}], "t_end_s": 60.0, "dt_s": [0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15"], "analytic": "p and room U constant; T_l unchanged; T_u=(m_u0 T_u0+q T_l0)/(m_u0+q)", "checks": ["p_constant", "T_l_constant", "T_u_mixing", "o2_carried_by_donor_fraction", "step_independence"]},
+    {"id": "C7", "class": "convergence", "title": "vented one-layer heater at constant pressure", "initial": "one_layer_ambient", "heat_kw": {"lower": 100.0}, "relief": "isobaric relief computed by the harness from the step snapshot so that p_end = p_exterior", "t_end_s": 60.0, "dt_s": [4.0, 2.0, 1.0, 0.5, 0.25], "report_dt_s": [0.08333333333333333], "property_sets": ["engine_equivalent_293_15"], "analytic": "T=T0 exp((gamma-1) Q t/(gamma p V)); m=p V/(R T); cumulative outflow enthalpy = Q t", "checks": ["p_equals_exterior_each_step", "U_constant", "energy_closure_each_step", "observed_order_in_band", "error_decreasing"]},
+    {"id": "C8", "class": "exact", "title": "adiabatic filling of a sealed room from the exterior", "initial": "one_layer_ambient", "parcels_kg_s": [{"kind": "boundary_in", "to": "lower", "rate": 0.05, "T_ext_k": 293.15, "Y_O2_ext": 0.2314}], "t_end_s": 60.0, "dt_s": [0.08333333333333333, 1.0, 60.0], "property_sets": ["engine_equivalent_293_15"], "analytic": "U=U0+mdot cp T_ext t; T=U/(m cv) rises above T_ext", "checks": ["U", "mass", "T_rises", "o2_inflow", "step_independence"]},
+    {"id": "C9", "class": "convergence", "title": "adiabatic blowdown of a sealed room to the exterior", "initial": "one_layer_ambient", "parcels_kg_s": [{"kind": "boundary_out", "from": "lower", "rate_fraction_of_m0_per_s": 0.0033333333333333335}], "t_end_s": 60.0, "dt_s": [4.0, 2.0, 1.0, 0.5, 0.25], "report_dt_s": [0.08333333333333333], "property_sets": ["engine_equivalent_293_15"], "analytic": "T=T0 (m/m0)^(gamma-1)", "checks": ["observed_order_in_band", "error_decreasing", "energy_closure_each_step"]},
+    {"id": "C10a", "class": "exact", "title": "upper layer birth from a plume parcel", "initial": "upper_absent", "parcels_kg_s": [{"kind": "transfer", "from": "lower", "to": "upper", "rate": 0.01}], "t_end_s": 10.0, "dt_s": [1.0, 10.0], "property_sets": ["engine_equivalent_293_15"], "analytic": "p constant; T_u=T_l0; U_u = q cv T_l0", "checks": ["birth_valid", "p_constant", "T_u"]},
+    {"id": "C10b", "class": "exact", "title": "full depletion of the lower layer at constant pressure", "initial": "two_layer_hot_upper", "parcels_kg": [{"kind": "transfer", "from": "lower", "to": "upper", "amount": "all_lower"}], "steps": 1, "property_sets": ["engine_equivalent_293_15"], "analytic": "U_l=0 exactly, T_l null, V_l=0, room U and p unchanged", "checks": ["U_l_exact_zero", "p_constant"]},
+    {"id": "C10c", "class": "rejection", "title": "full depletion of a layer while the room pressure changes", "initial": "two_layer_hot_upper", "heat_kw": {"upper": 10.0}, "parcels_kg": [{"kind": "transfer", "from": "lower", "to": "upper", "amount": "all_lower"}], "steps": 1, "dt_s": [1.0], "expected": "reject:layer_depleted_while_pressure_changes"},
+    {"id": "C11", "class": "exact", "title": "gas constant independent of the scenario temperature", "ambient_k": [283.15, 293.15, 303.15], "analytic": "R, cv and gamma identical across ambients; the legacy R=101325/(1.2 T_ref) changes by more than 3 %", "checks": ["R_invariant", "legacy_R_varies"]},
+    {"id": "C13", "class": "balance", "title": "two sealed rooms with a transfer parcel and a heater", "initial": ["two_layer_hot_upper", "room_B_ambient"], "heat_kw": {"room_A.upper": 10.0}, "parcels_kg_s": [{"kind": "transfer", "from": "room_A.upper", "to": "room_B.lower", "rate": 0.01}], "t_end_s": 60.0, "dt_s": [0.08333333333333333, 1.0], "property_sets": ["engine_equivalent_293_15"], "checks": ["building_mass_constant", "building_energy_closure_each_step", "room_eos_identity", "parcel_enthalpy_paired"]}
+  ],
+  "rejections": [
+    "non_finite_or_bool_number", "cp_not_greater_than_R", "R_not_positive", "negative_mass", "negative_internal_energy",
+    "energy_without_mass", "mass_without_energy", "non_positive_volume", "overdraft_of_donor", "inflow_financing_outflow",
+    "non_positive_exterior_temperature", "exterior_o2_fraction_out_of_range", "stale_context_or_revision", "duplicate_event_or_parcel",
+    "heat_into_absent_layer_without_mass", "room_energy_non_positive_after_step", "layer_energy_negative_after_step",
+    "layer_depleted_while_pressure_changes", "geometry_changed_within_run", "property_set_changed_within_run"
+  ],
+  "counterfactual_witnesses": [
+    {"id": "W1", "what": "heat added to cp-sensible enthalpy without V dp (current F2.2A energy equation)", "must_fail": "C1", "expected_signature": "pressure rise and temperature rise divided by gamma"},
+    {"id": "W2", "what": "gamma hard-coded to 1.4 instead of cp/cv", "must_fail": "C1 with engine_equivalent_293_15"},
+    {"id": "W3", "what": "R derived from the scenario temperature", "must_fail": "C11"},
+    {"id": "W4", "what": "layer split by proportional rescale instead of the closed form", "must_fail": "C2 step_independence and lower_isentropic_invariant"},
+    {"id": "W5", "what": "passive layer not compressed", "must_fail": "C2 lower_isentropic_invariant", "note": "volume closure still holds: closure alone cannot detect it"},
+    {"id": "W6", "what": "outflow debits specific internal energy u instead of enthalpy h", "must_fail": "C9"}
+  ],
+  "gd_mutants_for_p2_implementation": [
+    "heat_to_enthalpy_without_vdp", "cv_replaced_by_cp_in_temperature", "R_from_reference_temperature", "gamma_constant_1_4",
+    "proportional_rescale_split", "passive_layer_not_compressed", "outflow_debits_u_not_h", "inflow_uses_sensible_not_absolute_enthalpy",
+    "negative_energy_clamped_to_zero", "depletion_residual_silently_zeroed", "gauge_pressure_clipped_non_negative",
+    "work_not_antisymmetric", "donation_from_candidate_not_snapshot", "building_receipt_omits_boundary_energy",
+    "receipt_aliases_input", "duplicate_event_guard_removed"
+  ]
+}

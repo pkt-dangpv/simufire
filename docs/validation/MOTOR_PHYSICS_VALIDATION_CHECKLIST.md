@@ -1641,6 +1641,22 @@ Open gaps:
 - Coarse two-zone pressure ODE validation.
 - Neutral plane validation.
 
+M4-P2 gas/energy/EOS contract (2026-10-17, design only):
+[contract](G3_M4_P2_GAS_ENERGY_EOS_CONTRACT_2026-10-17.md).
+
+- Conserved per layer: gas mass, absolute internal energy `U = m·c_v·T` and
+  O₂; pressure, temperatures, layer volumes and interface are derived
+  (`p = (γ−1)U/V`). `R` and `c_p` are run constants, `c_v = c_p − R`.
+- Per-layer energy carries the inter-layer work: `γ·dU_z = A_z + V_z·dp`.
+- Open gap found by analysis, not fixed: the F2.2A energy equation advances
+  `c_p`-sensible enthalpy without `V·dp`, so a sealed room heated by `Q`
+  gets `Δp` and `ΔT` divided by γ; its `R = 101325/(1.2·T_ref)` depends on
+  the scenario temperature. Experimental path, OFF by default.
+- Predeclared analytic cases C1–C13 with hashed tolerances; Python oracle,
+  38 witnesses and 8/8 oracle mutants pass. No GD module or engine run yet.
+- Timestep sensitivity remains NOT demonstrated: product steps 1/12 s at ×1
+  and 1/3 s at ×20 with no substeps; the worker thread makes `dt` variable.
+
 Current pressure decision:
 
 - F2.2a pressure diagnostics are accepted as passive instrumentation.

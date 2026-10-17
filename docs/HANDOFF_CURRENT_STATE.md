@@ -1,5 +1,24 @@
 # Current Handoff State
 
+## Current Program Update - 2026-10-17 - M4-P2: contrato gas/energía/EOS
+
+[Contrato, plan y resultados](validation/G3_M4_P2_GAS_ENERGY_EOS_CONTRACT_2026-10-17.md).
+Base `4c83638f`; locales `project.godot` (orden Sky3D) y baseline couch_tv
+(solo EOL) preservados; M4-P1 con sus SHA-256 de cierre, sin consumidores.
+Diseño: gas inerte calóricamente perfecto, conservados por capa `m`, `U`
+absoluta (`c_v·T`) y O₂; `p = (γ−1)U/V`, `T`, `V_z`, interfaz derivados; `R`,
+`c_p` de entrada y fijos; `γ·dU_z = A_z + V_z·dp`; regla discreta exacta para
+calentador prescrito (independiente del paso) y de primer orden medido para
+salidas con entalpía congelada. Hallazgos de lectura de código: F2.2A avanza
+entalpía sin `V·dp` (estanco: `Δp` y `ΔT` divididos por γ) y `R` depende de
+`T_ref`; la ruta es experimental y no se cambia. Paso temporal NO resuelto:
+1/12 s a ×1, 1/3 s a ×20, sin subpasos y `dt` variable con el hilo; la
+criba del 14-10 no se repitió. Nuevo: plan con hash, oráculo Python, 38
+testigos PASS, 8/8 mutantes del oráculo (uno sobrevivió primero y destapó un
+caso de rechazo sin test, añadido), 370 focales offline, enlaces y
+guardarraíles/R2-1 PASS. Sin `sim/`, Godot, referencia ni producto. Commit local, sin push.
+Siguiente: M4-P2-GD contra el plan. M4-C/D, producto y CO/FED NO-GO.
+
 ## Current Program Update - 2026-10-16 - Build exportado jugado: D-1 cerrado
 
 [Matriz G4/G5 §7.7](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).
