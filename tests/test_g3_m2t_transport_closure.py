@@ -1,5 +1,6 @@
 """Final wrapper safety; mocks and harmless Python children, never Godot."""
 
+import re
 import subprocess
 import ast
 from pathlib import Path
@@ -117,4 +118,37 @@ def test_shared_monitor_changes_only_the_three_declared_decoders():
                         seen.append(keyword.value.value)
                         node.keywords.remove(keyword)
     assert sorted(seen) == ["oem", "utf-8", "utf-8"]
-    assert ast.dump(after) == ast.dump(before), "ownership, cleanup, deadlines and severity must stay frozen"
+    # 4b88c57e (ADR 0006) replaced the two machine-specific Godot paths by the shared
+    # portable discovery. Only that block may differ, and only in exactly this form.
+    before_discovery, before_rest = _split_godot_discovery(before)
+    after_discovery, after_rest = _split_godot_discovery(after)
+    assert [ast.dump(node) for node in after_discovery] == [ast.dump(node) for node in ast.parse(PORTABLE_DISCOVERY).body]
+    assert len(before_discovery) == 1 and [
+        node.args[0].value for node in ast.walk(before_discovery[0]) if isinstance(node, ast.Call)
+    ] == ["C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe",
+          "F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"]
+    assert not any(isinstance(node, ast.Constant) and isinstance(node.value, str)
+                   and re.match(r"[A-Za-z]:[\\/]", node.value) for node in ast.walk(after))
+    assert ast.dump(after_rest) == ast.dump(before_rest), "ownership, cleanup, deadlines and severity must stay frozen"
+
+
+PORTABLE_DISCOVERY = """
+_tool_repo_root = Path(__file__).resolve().parents[1]
+if str(_tool_repo_root) not in sys.path:
+    sys.path.insert(0, str(_tool_repo_root))
+from scripts.project_paths import godot_candidates
+
+_GODOT_CANDIDATES = godot_candidates()
+"""
+
+
+def _split_godot_discovery(module):
+    """Godot discovery statements, and the module without them."""
+    names = {"_GODOT_CANDIDATES", "_tool_repo_root"}
+    discovery, rest = [], []
+    for node in module.body:
+        assigned = {target.id for target in getattr(node, "targets", []) if isinstance(target, ast.Name)}
+        guarded = isinstance(node, ast.If) and "_tool_repo_root" in ast.dump(node.test)
+        imported = isinstance(node, ast.ImportFrom) and node.module == "scripts.project_paths"
+        (discovery if assigned & names or guarded or imported else rest).append(node)
+    return discovery, ast.Module(body=rest, type_ignores=[])
