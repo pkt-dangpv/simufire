@@ -19,6 +19,25 @@ caso de rechazo sin test, añadido), 370 focales offline, enlaces y
 guardarraíles/R2-1 PASS. Sin `sim/`, Godot, referencia ni producto. Commit local, sin push.
 Siguiente: M4-P2-GD contra el plan. M4-C/D, producto y CO/FED NO-GO.
 
+Actualización 17-10 (sin commit, para revisión): [M4-P2-GD](validation/G3_M4_P2_GD_IMPLEMENTATION_2026-10-17.md).
+`sim/core/PhysicalGasEnergyEosModel.gd` aislado, sin consumidores; propiedades
+del gas como entradas del libro. Revisión pedida (§6): los 8 desajustes
+clasificados (ninguno físico); **F1 corregido**: el vaciado completo de una
+capa a `p` constante dejaba 1 ulp de O₂ sin masa y se rechazaba fuera del plan
+(demostrado antes de corregir; el oráculo tiene el mismo defecto y no se
+toca); dos tolerancias inventadas sustituidas por las del plan y comprobaciones
+del plan que faltaban añadidas. Control 657 199 checks, 0 fallos; 97 recibos
+frente al oráculo (máx. 1,7·10⁻¹⁷); 16/16 mutantes. Cadena nueva: referencia
+346/0/78 solo `generated_at`, guardarraíles PASS, producto 171 PASS, global en §6.4.
+Aparte: los 2 tests rotos desde `4b88c57e` se adaptaron al resolvedor portable
+de Godot (6/6 mutantes detectados).
+[Contrato de integración en F2.2](validation/G3_M4_P2_F22_INTEGRATION_CONTRACT_2026-10-17.md):
+el `dp/dt` de la red es exactamente el de la primera ley dividido por γ.
+Decisiones **autorizadas**: juego `engine_equivalent_293_15`, `V·dp` tras un
+interruptor nuevo OFF, inventario inicial `p_ext·V/(R·T_ref)`. **HVAC fuera de
+la primera versión** (decisión del usuario): se reactivará después. Sin
+implementar; paso temporal abierto.
+
 ## Current Program Update - 2026-10-16 - Build exportado jugado: D-1 cerrado
 
 [Matriz G4/G5 §7.7](planning/MATRIZ_G4_G5_PRODUCTO_DISTRIBUCION.md).

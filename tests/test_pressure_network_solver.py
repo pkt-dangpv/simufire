@@ -93,6 +93,9 @@ ALLOWED_NETWORK_REFERENCES = {
     # F2.2C-R1: los fixtures multiplanta resuelven redes reales con el solver.
     Path("tools/validate_multistorey_pressure_datum.gd"),
     Path("tests/test_multistorey_pressure_datum.py"),
+    # M4-P2 -> F2.2: los testigos del contrato de integracion nombran el
+    # interruptor solo para fijar que el nuevo lo EXIGE; no resuelven la red.
+    Path("tests/test_g3_m4_p2_f22_integration_contract.py"),
     # F2.2-R2-MASS: conservar la masa zonal es parte del contrato de la red, no
     # un interruptor aparte, asi que el solver de zonas NOMBRA el de la red para
     # documentar de donde sale su modo. Sigue sin leerlo: se lo fija el motor.

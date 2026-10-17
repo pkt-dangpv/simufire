@@ -1656,6 +1656,21 @@ M4-P2 gas/energy/EOS contract (2026-10-17, design only):
   38 witnesses and 8/8 oracle mutants pass. No GD module or engine run yet.
 - Timestep sensitivity remains NOT demonstrated: product steps 1/12 s at ×1
   and 1/3 s at ×20 with no substeps; the worker thread makes `dt` variable.
+- 2026-10-17 M4-P2-GD (uncommitted, for review):
+  [isolated GD module](G3_M4_P2_GD_IMPLEMENTATION_2026-10-17.md) with no
+  consumers; 655 731 fixture checks, 0 failures, receipts identical to the
+  oracle, 16/16 planned mutants killed; reference 346/0/78 (generated_at
+  only), product 171 PASS. The exact heater says nothing about the live
+  engine timestep, which stays open. Review fixed F1 (exact O2 zero on a full
+  layer drain at constant pressure).
+- 2026-10-17 [F2.2 integration contract](G3_M4_P2_F22_INTEGRATION_CONTRACT_2026-10-17.md):
+  the network's `dp/dt` is the first law divided by gamma (sealed rooms /gamma,
+  same quasi-steady state with leaks, transients gamma times slower). Not
+  implemented. Open gap CONFIRMED by a run: with the network on, one full
+  engine step turns a sub-ambient sealed room's -1 072 kJ of zone sensible
+  energy into 0 (energy created; the F2.2C test 08 only applies the network
+  transaction). Writer not isolated (`_clamp_rooms` is one candidate); it
+  blocks the integration. HVAC is out of the first release scope.
 
 Current pressure decision:
 

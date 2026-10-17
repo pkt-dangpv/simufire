@@ -12,6 +12,14 @@ oráculo. Conservados por capa `m`, `U` absoluta y O₂; `p`, `T`, `V_z` derivad
 (no corregido: requiere autorización y referencia). Paso temporal: **no
 resuelto** (1/12 s a ×1, 1/3 s a ×20, `dt` variable con hilo, sin subpasos).
 Siguiente: M4-P2-GD contra el plan sin cambiarlo; M4-C/D, producto y CO/FED NO-GO.
+M4-P2-GD hecho y revisado sin commit (17-10, [registro](../validation/G3_M4_P2_GD_IMPLEMENTATION_2026-10-17.md)):
+F1 (O₂ en el vaciado completo) corregido; 657 199 checks, 0 fallos; 16/16
+mutantes; referencia 346/0/78 (solo `generated_at`); producto 171 PASS.
+Siguiente: [integración en F2.2](../validation/G3_M4_P2_F22_INTEGRATION_CONTRACT_2026-10-17.md)
+con las tres decisiones autorizadas, tras un interruptor nuevo OFF.
+**Alcance de la primera versión: HVAC desactivado** (decisión del usuario,
+17-10); se pondrá en marcha después de publicarla, como gate propio.
+Paso temporal sigue abierto.
 
 Checkpoint previo (producto, 13-10): [fichas estáticas reutilizadas](../validation/PRODUCT_FURNITURE_STATIC_SPECS_CACHE_2026-10-13.md).
 FP ya jugable según usuario; queda diferencia pausa/Play. Optimización autorizada

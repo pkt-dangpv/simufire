@@ -319,6 +319,9 @@ ALLOWED_REFERENCES = M2T_SOURCE_RECORDS | {
     "docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md",
     # F2.2 names it as the remaining owner of the old negative-energy rule.
     "docs/PROMPT_MOTOR_F2_2_SOBREPRESION_RECINTOS.md",
+    # M4-P2 -> F2.2 integration contract: names it in prose (conflict K4) to
+    # record that only the read-only shadow uses it.
+    "docs/validation/G3_M4_P2_F22_INTEGRATION_CONTRACT_2026-10-17.md",
     "docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md",
     "docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md",
 }

@@ -12,6 +12,11 @@ entrada (`c_v = c_p − R`); trabajo entre capas y regla discreta exacta para
 calentador. Hallazgo: la energía de F2.2A omite `V·dp` (estanco: `Δp`/`ΔT` ÷ γ)
 y `R` depende de `T_ref`. Plan con hash, oráculo Python y 38 testigos PASS,
 8/8 mutantes del oráculo. Sin GD, motor ni producto. Siguiente: M4-P2-GD.
+M4-P2-GD (17-10, sin commit): [módulo GD aislado](../validation/G3_M4_P2_GD_IMPLEMENTATION_2026-10-17.md),
+auditado por el oráculo y revisado (F1 corregido); 16/16 mutantes; cadena R2-1
+nueva en verde. [Contrato de integración en F2.2](../validation/G3_M4_P2_F22_INTEGRATION_CONTRACT_2026-10-17.md)
+con las decisiones autorizadas; sin implementar. HVAC fuera de la primera
+versión (decisión del usuario, 17-10).
 
 Avance M4-P1: [prototipo físico aislado](../validation/G3_O2_M4_PHYSICAL_PARCEL_P1_2026-10-12.md).
 Gas/energía/O2 pareados por donante; no referencia fija, remap ni consumo
